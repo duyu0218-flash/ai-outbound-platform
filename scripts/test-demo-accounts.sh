@@ -29,6 +29,8 @@ login() {
   echo "$token"
 }
 
+need_json
+
 echo "== Health Check =="
 curl -sS "$BASE_URL/health" | jq .
 
@@ -47,7 +49,10 @@ curl -sS -H "Authorization: Bearer $AGENT_TOKEN" "$BASE_URL/api/v1/auth/me" | jq
 curl -sS -H "Authorization: Bearer $AGENT_TOKEN" "$BASE_URL/api/v1/agent/dashboard" | jq .
 
 # 验证角色隔离（可选）：座席请求管理员接口应返回 403
-if curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $AGENT_TOKEN" "$BASE_URL/api/v1/admin/dashboard" | grep -q '^403$'; then
+agent_admin_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer $AGENT_TOKEN" \
+  "$BASE_URL/api/v1/admin/dashboard")
+if [ "$agent_admin_status" = "403" ]; then
   echo "角色隔离：正常（agent 无法访问 admin）"
 else
   echo "角色隔离：异常（agent 可访问 admin）" >&2

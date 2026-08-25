@@ -16,7 +16,13 @@
 - Docker Desktop / Docker Engine（推荐）
 - docker-compose v2+
 - Git
+- jq（脚本验收依赖）
 - 可选：Python 3.11、Node.js（仅用于本地开发工具）
+
+安装示例（macOS）：
+```bash
+brew install jq
+```
 
 ### 1.2 目录结构确认
 
@@ -170,6 +176,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```bash
 bash scripts/test-demo-accounts.sh
 ```
+
+> 提示：`scripts/test-demo-accounts.sh` 依赖 `jq` 解析返回 JSON。
 
 脚本会自动验证：
 - `/health`
