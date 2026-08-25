@@ -63,6 +63,13 @@ docker compose up -d --build
 | `AI_AGENT_URL` | AI 服务地址 |
 | `SMS_PROVIDER_ENDPOINT` | 短信服务 API 地址 |
 | `SMS_API_KEY` | 短信服务鉴权 |
+| `REQUEST_TIMEOUT_MS` | 单请求超时（毫秒），用于后端防止长耗时请求 |
+| `REQUEST_ID_HEADER` | 请求透传 ID 头，默认为 `X-Request-ID` |
+| `TRUSTED_HOSTS` | 启用 `TrustedHostMiddleware` 的白名单，`,` 分隔；空值不启用 |
+| `RATE_LIMIT_ENABLED` | 是否启用 API 限流 |
+| `RATE_LIMIT_DEFAULT_RPM` | 默认每分钟请求数 |
+| `RATE_LIMIT_AUTH_RPM` | `/api/v1/auth/login` 每分钟请求数（更严格） |
+| `RATE_LIMIT_WINDOW_SEC` | 限流滑动窗口秒数 |
 
 ## 4. 示例 API
 
@@ -136,6 +143,15 @@ curl -X GET http://localhost:8000/api/v1/agent/dashboard \
 
 - Webhook 安全：
   - 建议给网关回调加 `x-webhook-token`，并设置 `TELEPHONY_WEBHOOK_TOKEN`。
+- 生产化增强：
+  - 接口健壮性：全量返回值增加 `request_id` 便于链路追踪。
+  - 统一超时：`REQUEST_TIMEOUT_MS` 防止挂死请求。
+  - 统一身份追踪：`Request-ID` 透传与回写。
+  - 限流防护：`RATE_LIMIT_*` 限制 API 异常流量，`/api/v1/auth/login` 有独立配额。
+  - 安全头：默认注入常见 HTTP 安全头（禁用内嵌、MIME 保护、缓存控制等）。
+  - 健康探针：`/health` 增加数据库存活检查；新增 `/readyz` 作为可编排平台就绪检查。
+  - 输入与异常统一处理：请求参数错误返回 400，HTTP 异常保留原始状态码。
+  - 信任主机：可通过 `TRUSTED_HOSTS` 固定可访问域名。
 - 活动拨号：
   - `POST /api/v1/campaigns/{campaign_id}/start` 支持 `auto_dial` 与 `max_dials`。
   - 建议后续接入分布式任务队列，避免活动一次性同步阻塞。
