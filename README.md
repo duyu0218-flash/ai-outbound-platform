@@ -7,6 +7,8 @@
 - 租户隔离与 API Key 鉴权
 - Webhook 回调链路（状态 / 识别 / 录音）
 - 挂断短信记录（`SmsLog`）
+- 通话事件追溯（`CallEvent`）
+- 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 
@@ -18,6 +20,8 @@
 - `.env.example`: 环境变量样例
 
 ## 2. 快速启动
+
+完整安装与生产化部署请先看： [INSTALL.md](INSTALL.md)
 
 ```bash
 cp .env.example .env
@@ -79,6 +83,14 @@ curl -X POST "http://localhost:8000/api/v1/campaigns/1/start?max_dials=100" \
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/handover?reason=客户要求" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/hangup?reason=系统清场" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 查询通话事件
+curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events?page=1&size=20" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 重试失败的外呼（达到最大尝试数后会拒绝）
+curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/retry" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 ```
 

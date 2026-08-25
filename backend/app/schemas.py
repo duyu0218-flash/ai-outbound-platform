@@ -78,6 +78,15 @@ class CallSessionOut(BaseModel):
     updated_at: datetime
 
 
+class CallEventOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    event_type: str
+    source: str
+    payload: str
+    created_at: datetime
+
+
 class WebhookEvent(BaseModel):
     call_id: UUID
     kind: str

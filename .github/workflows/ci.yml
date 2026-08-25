@@ -23,4 +23,6 @@ jobs:
           python-version: "3.11"
       - run: pip install --no-cache-dir .
       - name: Compile check
-        run: python -m compileall app
+        run: |
+          mkdir -p /tmp/pycache
+          PYTHONPYCACHEPREFIX=/tmp/pycache python -m compileall app

@@ -3,7 +3,7 @@ from sqlmodel import Session
 from typing import Annotated
 
 from ..config import get_settings
-from ..db import get_session
+from ..db import get_session as get_db_session
 
 settings = get_settings()
 
@@ -39,8 +39,13 @@ def check_webhook_token(x_webhook_token: str | None = Header(default=None, alias
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid webhook token")
 
 
+def get_session() -> Session:
+    with get_db_session() as session:
+        yield session
+
+
 def get_session_dep() -> Session:
-    with get_session() as session:
+    with get_db_session() as session:
         yield session
 
 

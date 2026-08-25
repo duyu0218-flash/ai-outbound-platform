@@ -4,16 +4,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
+from sqlmodel import select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id
 from ...db import get_session
-from ...models import CallStatus
-from ...schemas import CallSessionOut, StartCallRequest
+from ...models import CallEvent, CallStatus
+from ...schemas import CallEventOut, CallSessionOut, StartCallRequest
 from ...services.call_service import (
     CallPermissionError,
     NotFoundError,
     create_call,
     get_call,
+    retry_call,
     handover_to_human,
     list_calls,
     place_call,
@@ -123,5 +125,40 @@ async def hangup_api(
         session.add(call)
         session.commit()
         return call
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.get("/{call_id}/events", response_model=List[CallEventOut])
+def list_call_events(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    # ensure visibility permission for tenant
+    get_call(session, tenant_id, call_id)
+    skip, limit = get_pagination(page=page, size=size)
+    events = session.exec(
+        select(CallEvent)
+        .where(CallEvent.call_session_id == call_id)
+        .order_by(CallEvent.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).all()
+    return events
+
+
+@router.post("/{call_id}/retry", response_model=CallSessionOut)
+async def retry_call_api(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    session: Session = Depends(get_session),
+):
+    try:
+        return await retry_call(session=session, tenant_id=tenant_id, call_id=call_id)
+    except CallPermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

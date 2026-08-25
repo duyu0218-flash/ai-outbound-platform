@@ -21,7 +21,7 @@ class NotFoundError(ValueError):
     pass
 
 
-def _normalize_phone(phone: str) -> str:
+def normalize_phone(phone: str) -> str:
     if not phone:
         return ""
     return "".join(c for c in phone if c.isdigit() or c == "+").lstrip("+")
@@ -43,7 +43,7 @@ async def ensure_tenant(session: Session, tenant_id: int) -> Tenant:
 
 
 def can_call_contact_sync(session: Session, tenant_id: int, phone: str) -> tuple[bool, str]:
-    normalized = _normalize_phone(phone)
+    normalized = normalize_phone(phone)
     contact = session.exec(
         select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized)
     ).first()
@@ -61,6 +61,23 @@ def can_call_contact_sync(session: Session, tenant_id: int, phone: str) -> tuple
 
 async def can_call_contact(session: Session, tenant_id: int, phone: str) -> tuple[bool, str]:
     return can_call_contact_sync(session, tenant_id, phone)
+
+
+TERMINAL_STATUSES = {
+    CallStatus.COMPLETED,
+    CallStatus.FAILED,
+    CallStatus.NO_ANSWER,
+    CallStatus.BUSY,
+    CallStatus.VOICEMAIL,
+}
+
+
+def can_retry_call(call: CallSession) -> tuple[bool, str]:
+    if call.status not in TERMINAL_STATUSES:
+        return False, "call is not in terminal state"
+    if call.attempts >= call.max_attempts:
+        return False, "reach max attempts"
+    return True, ""
 
 
 def _require_campaign(session: Session, tenant_id: int, campaign_id: Optional[int]) -> None:
@@ -85,13 +102,13 @@ def create_call(
     _require_campaign(session, tenant_id, campaign_id)
 
     contact = None
-    normalized = _normalize_phone(phone)
+    normalized = normalize_phone(phone)
     if contact_id is not None:
         contact = session.get(Contact, contact_id)
         if not contact or contact.tenant_id != tenant_id:
             raise NotFoundError("contact not found")
         if not normalized:
-            normalized = _normalize_phone(contact.phone)
+            normalized = normalize_phone(contact.phone)
     if not normalized:
         raise ValueError("phone is required when contact_id is not provided")
 
@@ -130,7 +147,7 @@ def list_calls(
     if campaign_id is not None:
         query = query.where(CallSession.campaign_id == campaign_id)
     if status is not None:
-        query = query.where(CallSession.status == CallStatus(str(status)))
+        query = query.where(CallSession.status == CallStatus(str(status).lower()))
     return session.exec(query.order_by(CallSession.created_at.desc()).offset(skip).limit(limit)).all()
 
 
@@ -209,6 +226,24 @@ async def handover_to_human(
     session.commit()
     session.refresh(call)
     return call
+
+
+async def retry_call(
+    session: Session,
+    *,
+    tenant_id: int,
+    call_id: UUID,
+) -> CallSession:
+    call = get_call(session, tenant_id, call_id)
+    can_retry, reason = can_retry_call(call)
+    if not can_retry:
+        raise CallPermissionError(reason)
+
+    call.status = CallStatus.QUEUED
+    call.last_error = None
+    session.add(call)
+    session.commit()
+    return await place_call(session, call)
 
 
 def start_campaign(

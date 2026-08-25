@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -5,22 +6,27 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id
 from ...db import get_session
-from ...models import Contact
+from ...models import Contact, ConsentState
 from ...schemas import ContactCreate, ContactPatch, ContactOut
+from ...services.call_service import normalize_phone
 
 router = APIRouter(prefix="/api/v1/contacts", tags=["contacts"], dependencies=[Depends(check_api_key)])
 
 
 @router.post("", response_model=ContactOut)
 def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_id), session: Session = Depends(get_session)):
+    normalized_phone = normalize_phone(payload.phone)
+    if not normalized_phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="phone is required")
     contact = Contact(
         tenant_id=tenant_id,
-        phone=payload.phone,
+        phone=normalized_phone,
         name=payload.name,
         tags=payload.tags,
         consent_state=payload.consent_state,
         dnc=payload.dnc,
         timezone=payload.timezone,
+        consented_at=datetime.utcnow() if payload.consent_state == ConsentState.CONSENTED else None,
     )
     session.add(contact)
     session.commit()
@@ -71,6 +77,11 @@ def patch_contact(
     data = payload.dict(exclude_unset=True)
     for k, v in data.items():
         setattr(contact, k, v)
+    if payload.consent_state is not None:
+        if payload.consent_state == ConsentState.CONSENTED:
+            contact.consented_at = datetime.utcnow()
+        else:
+            contact.consented_at = None
     session.add(contact)
     session.commit()
     session.refresh(contact)
