@@ -1,32 +1,65 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routers import calls_router, campaigns_router, contacts_router, webhooks_router
-from .config import get_settings
-from .db import create_db_and_tables
+from .config import get_settings, setup_logging
+from .db import create_db_and_tables, get_session
+from .models import Tenant
 
 settings = get_settings()
+setup_logging(settings.log_level)
+config_origins = [x.strip() for x in settings.cors_allow_origins.split(",") if x.strip()]
 
 
-app = FastAPI(title=settings.app_name)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+
+app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+
+
+@app.on_event("startup")
+def _bootstrap_default_tenant():
+    with get_session() as session:
+        existing = session.get(Tenant, settings.default_tenant_id)
+        if not existing:
+            session.add(
+                Tenant(
+                    id=settings.default_tenant_id,
+                    name="Default Tenant",
+                    code="default",
+                    enabled=True,
+                )
+            )
+            session.commit()
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config_origins or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.on_event("startup")
-def startup_event():
-    create_db_and_tables()
-
-
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": settings.app_name}
+    return {
+        "status": "ok",
+        "service": settings.app_name,
+        "env": settings.env,
+        "version": "1.0.0",
+    }
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 
 app.include_router(calls_router)

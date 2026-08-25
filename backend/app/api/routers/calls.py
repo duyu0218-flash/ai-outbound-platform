@@ -2,80 +2,126 @@ from datetime import datetime
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlmodel import Session
 
+from ...api.deps import check_api_key, get_pagination, get_tenant_id
 from ...db import get_session
-from ...models import CallSession, CallStatus
+from ...models import CallStatus
 from ...schemas import CallSessionOut, StartCallRequest
-from ...services.telephony import get_adapter
-from ...api.deps import check_api_key
-from ...config import get_settings
+from ...services.call_service import (
+    CallPermissionError,
+    NotFoundError,
+    create_call,
+    get_call,
+    handover_to_human,
+    list_calls,
+    place_call,
+)
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"], dependencies=[Depends(check_api_key)])
-settings = get_settings()
 
 
 @router.post("", response_model=CallSessionOut)
-async def create_call(payload: StartCallRequest, session: Session = Depends(get_session)):
-    call = CallSession(
-        tenant_id=1,
-        campaign_id=payload.campaign_id,
-        contact_id=payload.contact_id,
-        phone=payload.phone,
-        mode=payload.mode,
-        status=CallStatus.CREATED,
-        max_attempts=payload.max_attempts,
-    )
-    session.add(call)
-    session.commit()
-    session.refresh(call)
-
-    adapter = get_adapter()
-    callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
-    dial_result = await adapter.dial(str(call.id), payload.phone, callback_url)
-    call.ai_session_id = dial_result.get("provider_call_id")
-    call.status = CallStatus.DIALING
-    call.started_at = datetime.utcnow()
-    session.add(call)
-    session.commit()
-    session.refresh(call)
-    return call
+async def create_call_api(
+    payload: StartCallRequest,
+    tenant_id: int = Depends(get_tenant_id),
+    session: Session = Depends(get_session),
+):
+    try:
+        call = create_call(
+            session=session,
+            tenant_id=tenant_id,
+            phone=payload.phone,
+            mode=payload.mode,
+            campaign_id=payload.campaign_id,
+            contact_id=payload.contact_id,
+            max_attempts=payload.max_attempts,
+        )
+        call = await place_call(session=session, call=call)
+        return call
+    except CallPermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.get("", response_model=List[CallSessionOut])
-def list_calls(session: Session = Depends(get_session)):
-    calls = session.exec(select(CallSession).order_by(CallSession.created_at.desc())).all()
-    return calls
+def list_calls_api(
+    tenant_id: int = Depends(get_tenant_id),
+    status_filter: str | None = Query(default=None, alias="status"),
+    campaign_id: int | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    skip, limit = get_pagination(page=page, size=size)
+    status_enum = status_filter if status_filter else None
+    try:
+        return list_calls(
+            session,
+            tenant_id,
+            status=status_enum,
+            campaign_id=campaign_id,
+            skip=skip,
+            limit=limit,
+        )
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid status filter")
 
 
 @router.get("/{call_id}", response_model=CallSessionOut)
-def get_call(call_id: UUID, session: Session = Depends(get_session)):
-    call = session.get(CallSession, call_id)
-    if not call:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call not found")
-    return call
+def get_call_api(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    session: Session = Depends(get_session),
+):
+    try:
+        return get_call(session, tenant_id, call_id)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
 @router.post("/{call_id}/handover", response_model=CallSessionOut)
-async def handover_to_human(call_id: UUID, reason: str = "operator_request", session: Session = Depends(get_session)):
-    call = session.get(CallSession, call_id)
-    if not call:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call not found")
-    call.status = CallStatus.WAITING_HUMAN
-    call.handoff_reason = reason
-    adapter = get_adapter()
-    await adapter.transfer_to_human(str(call.id), reason)
-    session.add(call)
-    session.commit()
-    session.refresh(call)
-    return call
+async def handover_api(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    reason: str = Query(default="operator_request"),
+    target_group: str | None = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    try:
+        return await handover_to_human(
+            session,
+            tenant_id=tenant_id,
+            call_id=call_id,
+            reason=reason,
+            target_group=target_group,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
-@router.post("/{call_id}/sms", response_model=CallSessionOut)
-async def send_post_sms(call_id: UUID, sms_text: str, session: Session = Depends(get_session)):
-    call = session.get(CallSession, call_id)
-    if not call:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call not found")
-    # placeholder: send sms is triggered by caller side
-    return call
+@router.post("/{call_id}/hangup", response_model=CallSessionOut)
+async def hangup_api(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    reason: str = Query(default="hangup"),
+    session: Session = Depends(get_session),
+):
+    try:
+        call = get_call(session, tenant_id, call_id)
+        from ...services.telephony import get_telephony_adapter, with_retry
+
+        adapter = get_telephony_adapter()
+        await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
+        call.status = CallStatus.COMPLETED
+        call.finished_at = datetime.utcnow()
+        call.last_error = None
+        session.add(call)
+        session.commit()
+        return call
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

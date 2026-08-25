@@ -2,9 +2,10 @@ from typing import List
 
 from fastapi import FastAPI
 from pydantic import BaseModel
+from pydantic import Field
 
 from .config import settings
-from .policy import ai_reply, is_handoff
+from .policy import get_default_keywords, resolve_action, ai_reply
 
 app = FastAPI(title=settings.app_name)
 
@@ -14,7 +15,7 @@ class TurnRequest(BaseModel):
     phone: str
     mode: str
     transcript: str = ""
-    context: dict = {}
+    context: dict = Field(default_factory=dict)
 
 
 class TurnResult(BaseModel):
@@ -22,7 +23,8 @@ class TurnResult(BaseModel):
     tts_text: str | None = None
     handoff_to_human: bool = False
     hangup_sms: str | None = None
-    next_keywords: List[str] = []
+    next_keywords: List[str] = Field(default_factory=list)
+    escalate_priority: int = 0
 
 
 @app.get("/health")
@@ -32,25 +34,25 @@ def health():
 
 @app.post("/agent/turn")
 def turn(payload: TurnRequest):
-    keywords = [x for x in settings.default_handoff_keywords.split(",") if x]
-    handoff = is_handoff(payload.transcript, keywords)
+    keywords = get_default_keywords()
+    handoff, hangup_sms, tts, escalate_priority = resolve_action(payload.mode, payload.transcript)
     action = "handoff" if handoff else "speak"
-    tts = None
-    if handoff:
-        tts = "我将立即帮您转接人工客服。"
-    else:
-        tts = ai_reply(payload.mode, "", payload.transcript)
-    hangup_sms = settings.default_hangup_sms if payload.mode == "ai_with_sms" else None
     return TurnResult(
         action=action,
         tts_text=tts,
         handoff_to_human=handoff,
         hangup_sms=hangup_sms,
         next_keywords=keywords,
+        escalate_priority=escalate_priority,
     )
 
 
 @app.post("/agent/start")
 def start(payload: TurnRequest):
     tts = ai_reply(payload.mode, "", "")
-    return TurnResult(action="greeting", tts_text=tts, handoff_to_human=False, next_keywords=[x for x in settings.default_handoff_keywords.split(",") if x])
+    return TurnResult(
+        action="greeting",
+        tts_text=tts,
+        handoff_to_human=False,
+        next_keywords=get_default_keywords(),
+    )

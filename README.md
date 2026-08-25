@@ -1,101 +1,113 @@
-# AI 外呼平台（可自建部署版本）
+# AI 外呼平台（可商用基础版）
 
-本项目提供一个可自定义的 AI 外呼控制平台基础代码，包含：
-- 录音转人工（Webhook + 转接事件记录）
-- 纯人工外呼
-- 纯 AI 外呼
-- AI 触发转人工
-- AI 结束后发送挂断短信（可扩展）
+本项目面向“国内先行、后续海外扩展”场景，提供可二次开发的外呼平台骨架，已包含：
 
-默认先给你可跑通的最小闭环，适合先做 PoC，后续可以替换为真实
-FreeSWITCH/云通信服务和 LLM 提供商。
+- 通话会话与状态管理（录音转人工、纯人工、纯 AI、AI+短信）
+- 联系人合规模块（DNC、用户同意/拒绝）
+- 租户隔离与 API Key 鉴权
+- Webhook 回调链路（状态 / 识别 / 录音）
+- 挂断短信记录（`SmsLog`）
 
-## 1. 目录说明
+当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 
-- `backend/`: 控制面服务（Campaign/Contact/Call/Webhook）
-- `agent/`: AI 会话服务（AI 发言策略、转人工判定）
-- `docker-compose.yml`: 一键启动服务
-- `.env.example`: 环境变量样例（部署前复制为 `.env`）
+## 1. 目录
 
-## 2. 本地启动
+- `backend/`: 控制面服务（联系人、活动、外呼、webhook）
+- `agent/`: AI 话术策略服务（可替换成真实 LLM）
+- `docker-compose.yml`: 本地联调与演示启动清单
+- `.env.example`: 环境变量样例
+
+## 2. 快速启动
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-服务访问：
-- 控制面 API：http://localhost:8000/health
-- AI 会话 API：http://localhost:8001/health
+- 控制面：http://localhost:8000/health
+- AI 服务：http://localhost:8001/health
 
-## 3. 演示 API 用法
+## 3. 环境变量
 
-以下仅用于本地验证（默认 API Key：`dev-api-key`）：
+| 变量 | 说明 |
+|---|---|
+| `APP_NAME` | 服务名 |
+| `ENV` | 环境名 |
+| `API_KEY` | 管理 API 鉴权头 `x-api-key`（主 key） |
+| `UI_API_KEY` | 可选备用 API key |
+| `DATABASE_URL` | 数据库链接（建议 PostgreSQL） |
+| `REDIS_URL` | Redis 链接 |
+| `DEFAULT_TENANT_ID` | 默认租户 ID |
+| `TELEPHONY_PROVIDER` | `mock` 或 `http` |
+| `TELEPHONY_PROVIDER_ENDPOINT` | `http` 模式下电信/网关 API 地址 |
+| `TELEPHONY_WEBHOOK_BASE` | 回调基础地址（控制面地址） |
+| `TELEPHONY_WEBHOOK_TOKEN` | 回调鉴权 Token（可选，设置后会校验 `x-webhook-token`） |
+| `AI_AGENT_URL` | AI 服务地址 |
+| `SMS_PROVIDER_ENDPOINT` | 短信服务 API 地址 |
+| `SMS_API_KEY` | 短信服务鉴权 |
 
-1. 新建联系人
+## 4. 示例 API
 
 ```bash
+# 新建联系人
 curl -X POST http://localhost:8000/api/v1/contacts \
   -H "x-api-key: dev-api-key" \
+  -H "x-tenant-id: 1" \
   -H "Content-Type: application/json" \
-  -d '{"phone":"13800000000","name":"示例客户","tags":"demo"}'
-```
+  -d '{"phone":"13800000000","name":"示例客户","tags":"demo","consent_state":"consented"}'
 
-2. 发起一通纯 AI 外呼
+# 新建活动并绑定联系人
+curl -X POST http://localhost:8000/api/v1/campaigns \
+  -H "x-api-key: dev-api-key" \
+  -H "x-tenant-id: 1" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"测试活动","script":"常规话术","mode":"ai_handoff","contact_ids":[1]}'
 
-```bash
+# 发起纯 AI 外呼
 curl -X POST http://localhost:8000/api/v1/calls \
   -H "x-api-key: dev-api-key" \
+  -H "x-tenant-id: 1" \
   -H "Content-Type: application/json" \
   -d '{"phone":"13800000000","mode":"ai_only","max_attempts":1}'
-```
 
-3. 发起一通 AI 转人工外呼
-
-```bash
-curl -X POST http://localhost:8000/api/v1/calls \
+# 启动活动（默认 auto_dial=true）
+curl -X POST "http://localhost:8000/api/v1/campaigns/1/start?max_dials=100" \
   -H "x-api-key: dev-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"13800000000","mode":"ai_handoff","max_attempts":1}'
-```
+  -H "x-tenant-id: 1"
 
-4. 人工挂起某通话
-
-```bash
+# 手工挂断 / 转人工
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/handover?reason=客户要求" \
-  -H "x-api-key: dev-api-key"
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/hangup?reason=系统清场" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 ```
 
-## 4. 与真实 PBX/网关对接
+## 5. 关键生产要点
 
-代码里已预留 `backend/app/services/telephony.py` 的适配器接口。
+- Webhook 安全：
+  - 建议给网关回调加 `x-webhook-token`，并设置 `TELEPHONY_WEBHOOK_TOKEN`。
+- 活动拨号：
+  - `POST /api/v1/campaigns/{campaign_id}/start` 支持 `auto_dial` 与 `max_dials`。
+  - 建议后续接入分布式任务队列，避免活动一次性同步阻塞。
+- 外呼闭环：
+  - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
+- 合规：
+  - 联系人必须经过同意/撤回、黑名单（DNC）检查。
 
-- `telephony_provider=mock`：本地演示模式
-- `telephony_provider=freeswitch`：改为你的 FreeSWITCH/网关 API 地址（`SIP_PROVIDER_ENDPOINT`）
+## 6. 接入 PBX / 短信
 
-你只需要在 `get_adapter` 和 `FreeSwitchAdapter` 中改接入你们的网关 API 即可。
+- `backend/app/services/telephony.py`:
+  - `mock`：联调演练；
+  - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/transfer`、`/v1/call/hangup`。
+- 回调地址固定为：
+  - `POST /api/v1/webhooks/telephony/status`
+  - `POST /api/v1/webhooks/telephony/transcript`
+  - `POST /api/v1/webhooks/telephony/recording`
+- `agent/app/policy.py` 先作为规则引擎占位，建议替换为真实 LLM policy。
 
-## 5. 与 AI 引擎替换
+## 7. 下一个可交付版本（建议）
 
-默认 AI 判定在 `agent/app/policy.py` 中为规则策略，后续你可接：
-- OpenAI / Qwen / Ollama / 你自己的模型服务
-- 挂起关键词与话术配置
-- 会话历史与质检标签
-
-## 6. 部署到你的 GitHub 账号
-
-在本地已完成项目骨架后，可以执行：
-
-```bash
-git init
-git add .
-git commit -m "init: ai outbound platform scaffold"
-git remote add origin git@github.com:<你的用户名>/<仓库名>.git
-git branch -M main
-git push -u origin main
-```
-
-如果你把仓库创建和鉴权交给我，我下一步可按你账号直接帮你继续补：
-- GitHub Actions（CI/CD）
-- 真实通信网关适配（FreeSWITCH/AWS Connect/Twilio）
-- CRM/工单系统对接
+- CI/CD（GitHub Actions）：镜像构建、单元测试、配置扫描
+- 分布式任务队列（Celery/Temporal）：任务并发、限流、重试、死信队列
+- 操作日志与审计、工单系统/CRM 双向同步
+- 海外扩展：时区、隐私条款、国际电销规则与时段管控

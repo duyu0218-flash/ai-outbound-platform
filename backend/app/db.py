@@ -1,3 +1,6 @@
+from contextlib import contextmanager
+from typing import Generator
+
 from sqlmodel import Session, SQLModel, create_engine
 
 from .config import get_settings
@@ -17,6 +20,11 @@ def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
 
 
-def get_session():
+def get_engine_url() -> str:
+    return settings.database_url
+
+
+@contextmanager
+def get_session() -> Generator[Session, None, None]:
     with Session(engine) as session:
         yield session
