@@ -163,6 +163,21 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001
     -H "x-tenant-id: 1"
    ```
 
+## 6. 账号体系验收（推荐）
+
+启动服务后，直接一键执行：
+
+```bash
+bash scripts/test-demo-accounts.sh
+```
+
+脚本会自动验证：
+- `/health`
+- admin 与 agent 登录 token 获取
+- `GET /api/v1/auth/me`
+- `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
+- 角色隔离（agent 不能访问 admin 接口）
+
 ## 7. 核心模式说明
 
 - **纯人工**：`human_only`（只建立呼叫，不触发 AI）

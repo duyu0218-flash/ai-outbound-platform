@@ -8,6 +8,8 @@ from .api.routers import (
     calls_router,
     campaigns_router,
     contacts_router,
+    agent_router,
+    admin_router,
     pages_router,
     webhooks_router,
 )
@@ -77,3 +79,5 @@ app.include_router(contacts_router)
 app.include_router(webhooks_router)
 app.include_router(auth_router)
 app.include_router(pages_router)
+app.include_router(admin_router)
+app.include_router(agent_router)
