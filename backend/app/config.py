@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     telephony_retry_times: int = 2
     telephony_retry_backoff_sec: float = 1.0
 
+    # Production hardening
+    request_timeout_ms: int = 15000
+    request_id_header: str = "X-Request-ID"
+    trusted_hosts: str = ""
+    rate_limit_enabled: bool = True
+    rate_limit_default_rpm: int = 600
+    rate_limit_auth_rpm: int = 60
+    rate_limit_window_sec: int = 60
+
     sms_provider: str = "mock"
     sms_provider_endpoint: str = ""
     sms_api_key: str = ""

@@ -58,6 +58,14 @@ cp .env.example .env
 - `TELEPHONY_WEBHOOK_TOKEN`：建议给网关回调加签
 - `AI_AGENT_URL`：AI 服务地址（compose 下默认 `http://ai-agent:8001`）
 - `SMS_PROVIDER`：`mock` 或对接真实短信供应商
+- 生产化增强参数（建议按环境调参）：
+  - `REQUEST_TIMEOUT_MS=15000`（单请求超时）
+  - `REQUEST_ID_HEADER=X-Request-ID`（链路透传）
+  - `TRUSTED_HOSTS=localhost,127.0.0.1`（生产改成你的域名白名单）
+  - `RATE_LIMIT_ENABLED=true`
+  - `RATE_LIMIT_DEFAULT_RPM=600`
+  - `RATE_LIMIT_AUTH_RPM=60`
+  - `RATE_LIMIT_WINDOW_SEC=60`
 
 ### 3.2 默认测试账号体系（推荐先验收）
 
@@ -101,7 +109,23 @@ docker compose logs -f ai-agent
 ```bash
 curl http://localhost:8000/health
 curl http://localhost:8001/health
+curl http://localhost:8000/readyz
 ```
+
+### 4.4 生产健康就绪验收
+
+```bash
+curl -s http://localhost:8000/health | jq
+curl -s http://localhost:8000/readyz | jq
+curl -i http://localhost:8000/api/v1/calls -H "x-api-key: dev-api-key" -H "x-tenant-id: 1" | head -n 1
+```
+
+验收要点：
+
+- `/health` 返回 JSON 中 `checks.db` 必须是 `ok`（若 DB 异常会返回 503）。
+- `/readyz` 返回 `status=ready` 且 `checks.db=ok`，可用于编排探针。
+- 所有 API 响应应包含 `request_id`，便于后续定位故障。
+- 触发频控场景应返回 `429`，且有 `Retry-After` 与 `X-RateLimit-*`。
 
 ## 5. 本地开发运行方式（不走 docker）
 
@@ -206,9 +230,7 @@ bash scripts/test-demo-accounts.sh
 - `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
 - 角色隔离（agent 不能访问 admin 接口）
 
-- `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
-- 说明：管理员账户可访问两类控制台，座席仅可访问座席控制台
-- 角色隔离（agent 不能访问 admin 接口）
+说明：管理员账户可访问两类控制台，座席仅可访问座席控制台
 
 如需做一次完整 API 流程 smoke（联系人→模板→活动→启动→通话→事件），再执行：
 
@@ -266,6 +288,7 @@ bash scripts/smoke-outbound-api.sh
 - `TELEPHONY_WEBHOOK_TOKEN` 必须有值
 - 日志中打码手机号（如有敏感合规要求）
 - 对接短信/电话接口增加重试和幂等保护
+- 强制设置 `TRUSTED_HOSTS`，避免 Host 头注入
 
 ## 11. 常见故障排查
 
