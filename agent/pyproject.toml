@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-outbound-agent"
+version = "0.1.0"
+description = "AI agent service for outbound calls"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.112",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "httpx>=0.27",
+]

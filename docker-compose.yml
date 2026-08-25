@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ai-outbound-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:16-alpine
+    container_name: ai-outbound-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_outbound
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ai_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: ai-outbound-minio
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: miniopass123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  control-api:
+    build:
+      context: ./backend
+    container_name: ai-outbound-control
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+      - minio
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  ai-agent:
+    build:
+      context: ./agent
+    container_name: ai-outbound-agent
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AI_CONTROL_URL: http://control-api:8000
+    ports:
+      - "8001:8001"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+  # Optional telephony adapter placeholder (keep commented if you already have FreeSWITCH)
+  # freeswitch:
+  #   image: signalwire/freeswitch:latest
+  #   container_name: ai-outbound-freeswitch
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5060:5060/tcp"
+  #     - "5060:5060/udp"
+  #     - "8021:8021/tcp"
+
+volumes:
+  postgres_data:
+  minio_data:

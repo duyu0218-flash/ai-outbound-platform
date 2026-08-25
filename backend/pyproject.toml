@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-outbound-control"
+version = "0.1.0"
+description = "AI outbound call control service"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.112",
+  "uvicorn[standard]>=0.30",
+  "sqlmodel>=0.0.24",
+  "psycopg[binary]>=3.2",
+  "pydantic-settings>=2.4",
+  "httpx>=0.27",
+  "python-multipart>=0.0.12",
+  "redis>=5.0",
+  "apscheduler>=3.10",
+  "python-jose[cryptography]>=3.3"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
