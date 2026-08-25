@@ -85,6 +85,10 @@ def require_any_role(*roles: str):
     return _resolver
 
 
+def require_roles(*roles: str):
+    return require_any_role(*roles)
+
+
 def get_pagination(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=200)] = 50,

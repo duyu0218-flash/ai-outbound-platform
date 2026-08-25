@@ -9,6 +9,10 @@ def is_handoff(transcript: str, keywords: List[str]) -> bool:
 
 
 def ai_reply(mode: str, script: str, transcript: str) -> str:
+    if script:
+        if transcript:
+            return "我已收到您刚才的内容，马上为您处理。"
+        return f"{script}"
     if transcript:
         return f"已识别你说：{transcript}，我先记录一下。"
     if mode == "ai_only":
@@ -22,7 +26,7 @@ def get_default_keywords() -> List[str]:
     return [x.strip() for x in settings.default_handoff_keywords.split(",") if x.strip()]
 
 
-def resolve_action(mode: str, transcript: str) -> tuple[bool, str | None, str, int]:
+def resolve_action(mode: str, script: str, transcript: str) -> tuple[bool, str | None, str, int]:
     keywords = get_default_keywords()
     should_handoff = is_handoff(transcript, keywords)
     escalate_priority = 0
@@ -32,7 +36,7 @@ def resolve_action(mode: str, transcript: str) -> tuple[bool, str | None, str, i
         escalate_priority = 1
 
     hangup_sms = settings.default_hangup_sms if mode == "ai_with_sms" else None
-    tts = ai_reply(mode, "", transcript)
+    tts = ai_reply(mode, script, transcript)
     if should_handoff:
         tts = "我将立即帮您转接人工客服。"
         hangup_sms = None

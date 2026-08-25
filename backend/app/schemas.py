@@ -32,6 +32,7 @@ class ContactPatch(BaseModel):
 class CampaignCreate(BaseModel):
     name: str
     script: str = ""
+    script_template_id: Optional[int] = None
     mode: CallMode
     concurrency: int = 10
     retry_limit: int = 1
@@ -133,6 +134,7 @@ class AiTurnRequest(BaseModel):
     call_id: UUID
     phone: str
     mode: CallMode
+    script: str = ""
     transcript: Optional[str] = ""
     context: dict = Field(default_factory=dict)
 
@@ -144,3 +146,30 @@ class AiTurnResult(BaseModel):
     hangup_sms: Optional[str] = None
     next_keywords: List[str] = Field(default_factory=list)
     escalate_priority: int = 0
+
+
+class ScriptTemplateCreate(BaseModel):
+    name: str
+    content: str
+    category: str = "default"
+    description: str = ""
+    tags: str = ""
+    is_active: bool = True
+
+
+class ScriptTemplateUpdate(BaseModel):
+    name: str | None = None
+    content: str | None = None
+    category: str | None = None
+    description: str | None = None
+    tags: str | None = None
+    is_active: bool | None = None
+
+
+class ScriptTemplateOut(ScriptTemplateCreate):
+    id: int
+    tenant_id: int
+    version: int
+    created_by: int | None = None
+    created_at: datetime
+    updated_at: datetime

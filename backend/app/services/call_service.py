@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from ..config import get_settings
-from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant
+from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
 
 settings = get_settings()
@@ -297,3 +297,19 @@ def start_campaign(
             continue
 
     return {"total_contacts": total, "created": created, "skipped": skipped, "call_ids": call_ids}
+
+
+def resolve_campaign_script(session: Session, tenant_id: int, campaign_id: int | None) -> str:
+    if campaign_id is None:
+        return ""
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign or campaign.tenant_id != tenant_id:
+        return ""
+    if campaign.script:
+        return campaign.script
+    if campaign.script_template_id is None:
+        return ""
+    template = session.get(ScriptTemplate, campaign.script_template_id)
+    if not template or not template.is_active or template.tenant_id != tenant_id:
+        return ""
+    return template.content
