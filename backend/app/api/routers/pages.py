@@ -1,11 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ...config import get_settings
+from ...api.deps import require_role, require_roles
 
 settings = get_settings()
 
 router = APIRouter(tags=["pages"])
+
+
 
 
 def _portal_page(
@@ -15,132 +18,181 @@ def _portal_page(
     default_role: str,
     dashboard_path: str,
     api_key: str,
+    show_manage: bool,
 ) -> str:
     page = """\
 <!doctype html>
-<html lang="zh-CN">
+<html lang=\"zh-CN\">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
     <title>AI 外呼平台 · __TITLE__</title>
     <style>
       :root {
-        --bg: #eef2ff;
+        --bg: #f8fafc;
         --panel: #ffffff;
-        --line: #d4dcf1;
-        --text: #101828;
+        --line: #d5d9e2;
+        --text: #111827;
         --muted: #6b7280;
         --primary: #2563eb;
         --primary-dark: #1d4ed8;
+        --warn: #d97706;
+        --danger: #b91c1c;
+        --ok: #15803d;
+        --radius: 10px;
       }
-
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        padding: 24px;
+        padding: 20px;
         background: var(--bg);
         color: var(--text);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"PingFang SC\", \"Microsoft YaHei\", sans-serif;
       }
-      .layout {
-        max-width: 1240px;
-        margin: 0 auto;
-      }
+      .layout { max-width: 1400px; margin: 0 auto; }
       .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      h1, h2, h3 {
+        margin: 0;
+      }
+      h1 { font-size: 24px; }
+      h2 { font-size: 18px; margin-bottom: 10px; }
+      .muted { color: var(--muted); font-size: 13px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+        margin-top: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .col-3 { grid-column: span 3; min-width: 0; }
+      .col-4 { grid-column: span 4; min-width: 0; }
+      .col-6 { grid-column: span 6; min-width: 0; }
+      .col-8 { grid-column: span 8; min-width: 0; }
+      .col-12 { grid-column: span 12; min-width: 0; }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 8px 0;
+        flex-wrap: wrap;
+      }
+      .row label {
+        width: 110px;
+        font-size: 12px;
+        color: #374151;
+      }
+      .row input,
+      .row select,
+      .row textarea,
+      .row button {
+        font-size: 13px;
+      }
+      .row input,
+      .row select,
+      .row textarea {
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+      .row textarea { flex: 1; min-height: 72px; }
+      input, select, textarea {
+        min-width: 180px;
+        flex: 1;
+      }
+      .btns {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: none;
+        color: #fff;
+        background: var(--primary);
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      button:hover { background: var(--primary-dark); }
+      button.secondary { background: #4b5563; }
+      button.secondary:hover { background: #374151; }
+      button.warn { background: var(--warn); }
+      button.warn:hover { opacity: .9; }
+      button.danger { background: var(--danger); }
+      button.danger:hover { opacity: .9; }
+      .status {
+        margin-top: 8px;
+        min-height: 20px;
+        color: var(--ok);
+        font-size: 13px;
+      }
+      .status.error {
+        color: var(--danger);
+      }
+      .small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      pre {
+        margin: 0;
+        background: #0f172a;
+        color: #d1e5ff;
+        border-radius: 8px;
+        padding: 10px;
+        max-height: 320px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 8px;
       }
-      h1 {
-        margin: 0;
-        font-size: 22px;
-      }
-      .muted { color: var(--muted); font-size: 13px; }
-      .row {
-        margin: 10px 0;
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-      }
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 14px;
-      }
-      .card h2 {
-        margin: 0 0 10px;
-        font-size: 16px;
-      }
-      label {
-        width: 120px;
-        color: #344054;
-        font-size: 13px;
-      }
-      input, select {
-        flex: 1;
-        min-width: 180px;
-        max-width: 320px;
-        padding: 8px 10px;
-        border: 1px solid #d0d5dd;
-        border-radius: 6px;
-      }
-      textarea {
+      table {
         width: 100%;
-        min-height: 72px;
-        border: 1px solid #d0d5dd;
-        border-radius: 6px;
-        padding: 8px 10px;
+        border-collapse: collapse;
+        font-size: 12px;
       }
-      .btn-group {
-        display: flex;
+      th, td {
+        padding: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: top;
+        text-align: left;
+      }
+      th { background: #f1f5f9; }
+      .inline {
+        display: inline-flex;
+        gap: 4px;
         flex-wrap: wrap;
-        gap: 8px;
       }
-      button {
-        border: none;
-        border-radius: 6px;
-        padding: 8px 12px;
-        color: #fff;
-        background: var(--primary);
-        cursor: pointer;
+      .hidden { display: none; }
+      .tag {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-right: 4px;
+        background: #f8fafc;
       }
-      button:hover { background: var(--primary-dark); }
-      button.secondary {
-        background: #475467;
+      a {
+        color: var(--primary);
+        text-decoration: none;
       }
-      button.secondary:hover { background: #344054; }
-      .status {
-        font-size: 13px;
-        margin-top: 8px;
-        color: #1e7e34;
-      }
-      .status.error { color: #b42318; }
-      pre {
-        margin: 6px 0 0;
-        padding: 12px;
-        background: #0f172a;
-        color: #e2e8f0;
-        border-radius: 8px;
-        max-height: 320px;
-        overflow: auto;
-        white-space: pre-wrap;
-        line-height: 1.35;
-      }
-      .help { font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px; }
-      a { color: var(--primary); text-decoration: none; }
       a:hover { text-decoration: underline; }
-      @media (max-width: 980px) {
-        .grid { grid-template-columns: 1fr; }
-        .topbar { flex-direction: column; align-items: flex-start; }
+      @media (max-width: 1280px) {
+        .col-3, .col-4, .col-6, .col-8, .col-12 { grid-column: span 12; }
       }
     </style>
   </head>
@@ -149,72 +201,121 @@ def _portal_page(
       <div class="topbar">
         <div>
           <h1>AI 外呼平台 · __TITLE__</h1>
-          <p class="muted">默认测试账号：__DEFAULT_USERNAME__ / __DEFAULT_PASSWORD__（角色：__DEFAULT_ROLE__）</p>
+          <div class="muted">默认演示账号：__DEFAULT_USERNAME__ / __DEFAULT_PASSWORD__（角色：__DEFAULT_ROLE__）</div>
         </div>
-        <div class="btn-group">
-          <a href="/admin">管理员端</a> |
-          <a href="/agent">座席端</a> |
-          <a href="/docs.html" target="_blank">API文档</a> |
+        <div class="btns">
+          <a href="/admin">管理员端</a>
+          <a href="/agent">座席端</a>
+          <a href="/docs.html">API 文档</a>
           <a href="/health">/health</a>
+          <a href="/healthz">/healthz</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <h2>账户与连通性</h2>
+          <div class="small">系统角色页：__DASHBOARD_PATH__</div>
+        </div>
+        <div class="row"><label>用户名</label><input id="username" value="__DEFAULT_USERNAME__" /></div>
+        <div class="row"><label>密码</label><input id="password" type="password" value="__DEFAULT_PASSWORD__" /></div>
+        <div class="row"><label>API Key</label><input id="apiKey" value="__DEFAULT_API_KEY__" /></div>
+        <div class="row"><label>Tenant ID</label><input id="tenantId" value="1" /></div>
+        <div class="row"><label>Token</label><input id="tokenDisplay" readonly value="未登录" /></div>
+        <div class="btns">
+          <button onclick="login()">登录</button>
+          <button class="secondary" onclick="checkMe()">检查 /auth/me</button>
+          <button class="secondary" onclick="checkDashboard()">检查 dashboard</button>
+          <button class="secondary" onclick="checkHealth()">检查服务健康</button>
+          <button class="danger" onclick="logout()">退出</button>
+          <button class="secondary" onclick="clearLog()">清日志</button>
+        </div>
+        <div class="row">
+          <span id="authStatus" class="status">未登录</span>
+          <span id="systemStatus" class="status"></span>
         </div>
       </div>
 
       <div class="grid">
-        <section class="card">
-          <h2>会话与鉴权</h2>
-          <div class="row"><label>用户名</label><input id="username" value="__DEFAULT_USERNAME__" /></div>
-          <div class="row"><label>密码</label><input id="password" type="password" value="__DEFAULT_PASSWORD__" /></div>
-          <div class="row"><label>API Key</label><input id="apiKey" value="__DEFAULT_API_KEY__" /></div>
-          <div class="row"><label>Tenant ID</label><input id="tenantId" value="1" /></div>
-          <div class="row"><label>当前Token</label><input id="tokenDisplay" readonly value="未登录" /></div>
-          <div class="btn-group">
-            <button onclick="login()">登录</button>
-            <button class=\"secondary\" onclick="logout()">退出</button>
-            <button class=\"secondary\" onclick="clearLog()">清空日志</button>
+        <section class="card col-4">
+          <div class="toolbar">
+            <h2>联系人管理</h2>
+            <div class="small">联系人可批量用于活动</div>
           </div>
-          <p id="authStatus" class="status">未登录</p>
-          <p class="help">说明：登录后可调用 /auth/me 和 /api/v1/*/dashboard；联系人/活动/外呼接口需要 API Key 与 Tenant。</p>
-        </section>
-
-        <section class="card">
-          <h2>系统与角色验证</h2>
-          <div class="btn-group">
-            <button onclick="checkHealth()">检查健康</button>
-            <button class=\"secondary\" onclick="checkMe()">检查 me</button>
-            <button onclick="checkDashboard()">检查工作台入口</button>
-          </div>
-          <p id="systemStatus" class="status">未检测</p>
-          <p class="help">工作台接口：__DASHBOARD_PATH__</p>
-          <p class="help">成功后建议依次执行：联系人新增 → 活动创建 → 启动活动 → 发起单通外呼 → 查询通话列表。</p>
-        </section>
-      </div>
-
-      <div class="grid" style="margin-top:16px;">
-        <section class="card">
-          <h2>联系人管理</h2>
           <div class="row"><label>手机号</label><input id="contactPhone" value="13800000000" /></div>
-          <div class="row"><label>姓名</label><input id="contactName" value="测试用户" /></div>
+          <div class="row"><label>姓名</label><input id="contactName" value="演示客户" /></div>
           <div class="row"><label>标签</label><input id="contactTags" value="demo" /></div>
           <div class="row"><label>同意态</label>
             <select id="contactConsent">
               <option value="unknown">unknown</option>
-              <option value="consented">consented</option>
+              <option value="consented" selected>consented</option>
               <option value="not_consented">not_consented</option>
               <option value="revoked">revoked</option>
             </select>
           </div>
-          <div class="btn-group">
-            <button onclick="createContact()">新增联系人</button>
-            <button class=\"secondary\" onclick="listContacts()">列表查询</button>
+          <div class="row"><label>禁打标识</label><input id="contactDnc" type="checkbox" /></div>
+          <div class="btns">
+            <button onclick="createContact()">新增</button>
+            <button class="secondary" onclick="searchContacts()">查询</button>
           </div>
-          <p id="contactStatus" class="status">尚未操作</p>
+          <p id="contactStatus" class="status">未操作</p>
+          <div style="max-height: 240px; overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>手机号</th><th>姓名</th><th>标签</th><th>同意</th><th>禁打</th></tr>
+              </thead>
+              <tbody id="contactsTbody"></tbody>
+            </table>
+          </div>
+          <div class="row">
+            <label>分页</label>
+            <input id="contactsPage" type="number" value="1" min="1" style="max-width:96px;" />
+            <input id="contactsSize" type="number" value="20" min="1" max="100" style="max-width:96px;" />
+            <button class="secondary" onclick="searchContacts(true)">刷新</button>
+          </div>
+          <div id="contactStatus2" class="small"></div>
         </section>
 
-        <section class="card">
-          <h2>活动与外呼</h2>
+        <section class="card col-8">
+          <div class="toolbar">
+            <h2>话术模板</h2>
+            <div class="small">支持创建模板后，在活动中复用</div>
+          </div>
+          <div class="row"><label>模板名称</label><input id="templateName" value="欢迎开场话术" /></div>
+          <div class="row"><label>分类</label><input id="templateCategory" value="default" /></div>
+          <div class="row"><label>标签</label><input id="templateTags" value="demo" /></div>
+          <div class="row"><label>是否启用</label><input id="templateActive" type="checkbox" checked /></div>
+          <div class="row"><label>内容</label><textarea id="templateContent">您好，{客户姓名}，我先为您确认一下订单信息。需要转人工请说“转人工”。</textarea></div>
+          <div class="btns">
+            <button onclick="createTemplate()">创建模板</button>
+            <button class="secondary" onclick="searchTemplates(true)">模板列表</button>
+          </div>
+          <p id="templateStatus" class="status">未操作</p>
+          <div style="max-height: 240px; overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>名称</th><th>分类</th><th>是否启用</th><th>操作</th></tr>
+              </thead>
+              <tbody id="templatesTbody"></tbody>
+            </table>
+          </div>
+          <div class="row">
+            <label>选填</label>
+            <button class="secondary" onclick="fillActiveTemplateToCampaign()">将已选模板填入活动话术</button>
+            <span id="templateHint" class="small">新建活动可直接选择模板ID。</span>
+          </div>
+        </section>
+
+        <section class="card col-12 __ADMIN_ONLY__">
+          <div class="toolbar">
+            <h2>活动管理</h2>
+            <div class="small">绑定联系人与话术后可自动创建外呼任务</div>
+          </div>
           <div class="row"><label>活动名称</label><input id="campaignName" value="演示活动" /></div>
-          <div class="row"><label>话术文本</label><textarea id="campaignScript">欢迎致电，按流程为客户提供服务。需要转人工请回复 人工。</textarea></div>
-          <div class="row"><label>模式</label>
+          <div class="row"><label>模板ID</label><input id="campaignTemplateId" placeholder="可选" /></div>
+          <div class="row"><label>话术文本</label><textarea id="campaignScript">欢迎致电，先确认用户是否需要服务，再进行后续操作。</textarea></div>
+          <div class="row">
+            <label>模式</label>
             <select id="campaignMode">
               <option value="ai_handoff" selected>ai_handoff</option>
               <option value="ai_only">ai_only</option>
@@ -222,291 +323,599 @@ def _portal_page(
               <option value="ai_with_sms">ai_with_sms</option>
               <option value="mixed_human_first">mixed_human_first</option>
             </select>
+            <label>并发</label><input id="campaignConcurrency" value="5" type="number" min="1" style="max-width:96px;" />
           </div>
-          <div class="row"><label>联系人ID</label><input id="campaignContactIds" value="1" /></div>
-          <div class="row"><label>max_dials</label><input id="campaignMaxDials" value="10" /></div>
-          <div class="btn-group">
+          <div class="row">
+            <label>联系人ID</label><input id="campaignContactIds" value="" placeholder="1,2,3" />
+            <label>max_dials</label><input id="campaignMaxDials" value="1" type="number" min="1" style="max-width:96px;" />
+          </div>
+          <div class="btns">
             <button onclick="createCampaign()">创建活动</button>
-            <button class=\"secondary\" onclick="startCampaign()">启动活动</button>
+            <button class="secondary" onclick="searchCampaigns(true)">活动列表</button>
           </div>
-          <div class="row"><label>外呼手机号</label><input id="callPhone" value="13800000000" /></div>
-          <div class="row"><label>外呼模式</label>
+          <p id="campaignStatus" class="status">未操作</p>
+          <div style="max-height: 320px; overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>名称</th><th>模式</th><th>联系人</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody id="campaignsTbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card col-12">
+          <div class="toolbar">
+            <h2>外呼与会话</h2>
+            <div class="small">支持单路发起外呼/启动活动回传状态</div>
+          </div>
+          <div class="row"><label>呼叫手机号</label><input id="callPhone" value="13800000000" /></div>
+          <div class="row">
+            <label>模式</label>
             <select id="callMode">
               <option value="ai_only">ai_only</option>
-              <option value="human_only">human_only</option>
               <option value="ai_handoff" selected>ai_handoff</option>
+              <option value="human_only">human_only</option>
               <option value="ai_with_sms">ai_with_sms</option>
               <option value="mixed_human_first">mixed_human_first</option>
             </select>
+            <label>campaign_id</label><input id="callCampaignId" type="number" min="1" placeholder="可选" />
+            <label>contact_id</label><input id="callContactId" type="number" min="1" placeholder="可选" />
+            <label>max_attempts</label><input id="callMaxAttempts" value="1" type="number" min="1" style="max-width:90px;" />
           </div>
-          <div class="btn-group">
+          <div class="btns">
             <button onclick="createCall()">发起外呼</button>
-            <button class=\"secondary\" onclick="listCalls()">查询通话</button>
+            <button class="secondary" onclick="searchCalls(true)">刷新会话</button>
           </div>
-          <p id="operateStatus" class="status">尚未操作</p>
+          <p id="callStatus" class="status">未操作</p>
+          <div class="row">
+            <label>分页</label>
+            <input id="callsPage" type="number" value="1" min="1" style="max-width:96px;" />
+            <input id="callsSize" type="number" value="20" min="1" max="100" style="max-width:96px;" />
+          </div>
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>电话</th><th>模式</th><th>状态</th><th>重试</th><th>campaign_id</th><th>contact_id</th><th>操作</th></tr>
+              </thead>
+              <tbody id="callsTbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card col-12">
+          <div class="toolbar">
+            <h2>系统日志</h2>
+            <div class="small">所有关键操作会回显到此处</div>
+          </div>
+          <pre id="log">等待操作...</pre>
         </section>
       </div>
-
-      <section class="card" style="margin-top:16px;">
-        <h2>统一日志</h2>
-        <pre id="log">等待操作...</pre>
-      </section>
     </div>
 
     <script>
       const state = {
         token: '',
-        dashboardPath: '/api/v1/__DASHBOARD_PATH__',
-        storageKey: 'ai_platform_token___DEFAULT_ROLE__',
+        storageKey: 'ai-platform-token-__DEFAULT_ROLE__',
+        selectedTemplateId: '',
+        campaignScriptFromTemplate: '',
+        dashboardApi: '/api/v1/__DASHBOARD_PATH__',
+        isAdmin: __IS_ADMIN__ === '1',
+        page: { contactsPage:1, campaignsPage:1, callsPage:1 },
       };
 
-      function setStatus(id, text, err = false) {
+      const formatStatus = (text, err=false) => `<span class="${err ? 'error' : ''}">${text || ''}</span>`;
+
+      function log(msg) {
+        const area = document.getElementById('log');
+        const ts = new Date().toLocaleTimeString();
+        area.textContent = `[${ts}] ${msg}\n` + area.textContent;
+      }
+
+      function setStatus(id, text, err=false) {
         const el = document.getElementById(id);
         if (!el) return;
         el.className = err ? 'status error' : 'status';
-        el.textContent = text || '';
+        el.innerHTML = text || '';
       }
 
-      function appendLog(msg) {
-        const logger = document.getElementById('log');
-        const now = new Date().toLocaleTimeString();
-        logger.textContent = `[${now}] ${msg}\n` + logger.textContent;
-      }
-
-      function setToken(token) {
-        state.token = token || '';
-        document.getElementById('tokenDisplay').value = token ? `${token.slice(0, 16)}...` : '未登录';
-      }
-
-      function getApiHeaders(requireAuth = true, body = false) {
-        const headers = {};
-        const apiKey = document.getElementById('apiKey').value.trim();
-        const tenantId = document.getElementById('tenantId').value.trim() || '1';
-        if (apiKey) {
-          headers['x-api-key'] = apiKey;
+      function getCommonHeaders({auth=true, json=false}={}) {
+        const headers = {
+          'x-api-key': document.getElementById('apiKey').value.trim(),
+          'x-tenant-id': (document.getElementById('tenantId').value || '1').trim(),
+        };
+        if (auth && state.token) {
+          headers.Authorization = `Bearer ${state.token}`;
         }
-        headers['x-tenant-id'] = tenantId;
-        if (requireAuth && state.token) {
-          headers['Authorization'] = `Bearer ${state.token}`;
-        }
-        if (body) {
+        if (json) {
           headers['Content-Type'] = 'application/json';
         }
         return headers;
       }
 
-      async function requestJson(url, init = {}) {
-        try {
-          const resp = await fetch(url, init);
-          const contentType = resp.headers.get('content-type') || '';
-          const data = contentType.includes('application/json') ? await resp.json() : await resp.text();
-          if (!resp.ok) {
-            const errMsg = typeof data === 'string' ? data : (data?.detail || JSON.stringify(data));
-            throw new Error(errMsg);
-          }
-          return { ok: true, data };
-        } catch (err) {
-          return { ok: false, error: err.message || String(err) };
+      async function requestJson(url, options={}) {
+        const resp = await fetch(url, options);
+        const ct = resp.headers.get('content-type') || '';
+        const payload = ct.includes('application/json') ? await resp.json() : await resp.text();
+        if (!resp.ok) {
+          const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
+          throw new Error(`${resp.status} ${resp.statusText} ${msg}`);
         }
+        return payload;
       }
 
       function clearLog() {
-        document.getElementById('log').textContent = '已清空日志';
+        document.getElementById('log').textContent = '日志已清空';
       }
 
-      function loadSession() {
-        const cached = localStorage.getItem(state.storageKey);
-        if (cached && cached.length > 8) {
-          setToken(cached);
-          setStatus('authStatus', '已恢复上次会话');
+      function saveToken(token) {
+        state.token = token || '';
+        localStorage.setItem(state.storageKey, state.token);
+        document.getElementById('tokenDisplay').value = state.token ? `${state.token.slice(0, 20)}...` : '未登录';
+      }
+
+      function logout() {
+        saveToken('');
+        setStatus('authStatus', '已退出');
+        log('退出登录');
+      }
+
+      function restoreToken() {
+        const t = localStorage.getItem(state.storageKey);
+        if (t) {
+          saveToken(t);
+          setStatus('authStatus', '已恢复本地会话');
         }
+      }
+
+      function getSelectedRows(selector) {
+        const rows = document.querySelectorAll(`${selector} input[type=checkbox]:checked`);
+        return Array.from(rows).map((el) => Number(el.value));
       }
 
       async function login() {
         setStatus('authStatus', '登录中...');
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const r = await requestJson('/api/v1/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        });
-        if (!r.ok) {
-          setStatus('authStatus', `登录失败：${r.error}`, true);
-          appendLog(`登录失败: ${r.error}`);
-          return;
+        try {
+          const data = await requestJson('/api/v1/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              username: document.getElementById('username').value.trim(),
+              password: document.getElementById('password').value,
+            }),
+          });
+          saveToken(data.access_token);
+          setStatus('authStatus', `登录成功：${data.username}/${data.role}`);
+          log(`登录成功: ${JSON.stringify(data)}`);
+          await checkMe();
+        } catch (err) {
+          setStatus('authStatus', `登录失败：${err.message}`, true);
+          log(`登录失败: ${err.message}`);
         }
-        setToken(r.data.access_token);
-        localStorage.setItem(state.storageKey, r.data.access_token);
-        setStatus('authStatus', `登录成功：${r.data.username} / ${r.data.role}`);
-        appendLog(`登录成功: ${JSON.stringify(r.data)}`);
-        await checkMe();
-      }
-
-      function logout() {
-        setToken('');
-        localStorage.removeItem(state.storageKey);
-        setStatus('authStatus', '已退出');
-        appendLog('已退出登录');
-      }
-
-      async function checkHealth() {
-        const r = await requestJson('/health');
-        setStatus('systemStatus', r.ok ? `health: ${JSON.stringify(r.data)}` : `health 失败：${r.error}`, !r.ok);
-        appendLog(`health: ${JSON.stringify(r.ok ? r.data : r.error)}`);
       }
 
       async function checkMe() {
-        const r = await requestJson('/api/v1/auth/me', {
-          headers: getApiHeaders(true, false),
-        });
-        setStatus('authStatus', r.ok ? `鉴权通过：${r.data.username}（${r.data.role}）` : `鉴权失败：${r.error}`, !r.ok);
-        appendLog(`auth/me: ${JSON.stringify(r.ok ? r.data : r.error)}`);
+        try {
+          const data = await requestJson('/api/v1/auth/me', {
+            method: 'GET',
+            headers: getCommonHeaders(),
+          });
+          setStatus('authStatus', `鉴权通过：${data.username}（${data.role}）`);
+          log(`auth/me: ${JSON.stringify(data)}`);
+        } catch (err) {
+          setStatus('authStatus', `鉴权失败：${err.message}`, true);
+          log(`auth/me: ${err.message}`);
+        }
       }
 
       async function checkDashboard() {
-        const r = await requestJson(state.dashboardPath, {
-          headers: getApiHeaders(true, false),
-        });
-        setStatus('systemStatus', r.ok ? `工作台接口可访问：${state.dashboardPath}` : `工作台接口拒绝：${r.error}`, !r.ok);
-        appendLog(`dashboard: ${JSON.stringify(r.ok ? r.data : r.error)}`);
+        try {
+          const data = await requestJson(state.dashboardApi, {
+            method: 'GET',
+            headers: getCommonHeaders(),
+          });
+          setStatus('systemStatus', `dashboard 可访问`);
+          log(`dashboard: ${JSON.stringify(data)}`);
+        } catch (err) {
+          setStatus('systemStatus', `dashboard 拒绝：${err.message}`, true);
+          log(`dashboard: ${err.message}`);
+        }
+      }
+
+      async function checkHealth() {
+        try {
+          const data = await requestJson('/health', {method:'GET'});
+          setStatus('systemStatus', `health ok: ${data.status}`);
+          log(`health: ${JSON.stringify(data)}`);
+        } catch (err) {
+          setStatus('systemStatus', `health fail: ${err.message}`, true);
+          log(`health: ${err.message}`);
+        }
       }
 
       async function createContact() {
-        const payload = {
-          phone: document.getElementById('contactPhone').value.trim(),
-          name: document.getElementById('contactName').value.trim(),
-          tags: document.getElementById('contactTags').value.trim(),
-          consent_state: document.getElementById('contactConsent').value,
-          dnc: false,
-          timezone: 'Asia/Shanghai'
-        };
-        const r = await requestJson('/api/v1/contacts', {
-          method: 'POST',
-          headers: getApiHeaders(false, true),
-          body: JSON.stringify(payload),
-        });
-        if (!r.ok) {
-          setStatus('contactStatus', `新增联系人失败：${r.error}`, true);
-          appendLog(`新增联系人失败: ${r.error}`);
-          return;
+        try {
+          const phone = document.getElementById('contactPhone').value.trim();
+          const payload = {
+            phone,
+            name: document.getElementById('contactName').value.trim(),
+            tags: document.getElementById('contactTags').value.trim(),
+            consent_state: document.getElementById('contactConsent').value,
+            dnc: document.getElementById('contactDnc').checked,
+            timezone: 'Asia/Shanghai',
+          };
+          const data = await requestJson('/api/v1/contacts', {
+            method: 'POST',
+            headers: getCommonHeaders({json:true}),
+            body: JSON.stringify(payload),
+          });
+          setStatus('contactStatus', `联系人创建成功：ID ${data.id}`);
+          log(`create contact: ${JSON.stringify(data)}`);
+          await searchContacts(true);
+        } catch (err) {
+          setStatus('contactStatus', `创建失败：${err.message}`, true);
+          log(`create contact fail: ${err.message}`);
         }
-        window.__lastContactId = r.data.id;
-        setStatus('contactStatus', `新增成功：联系人ID=${r.data.id}`);
-        appendLog(`新增联系人: ${JSON.stringify(r.data)}`);
       }
 
-      async function listContacts() {
-        const r = await requestJson('/api/v1/contacts?page=1&size=20', {
-          headers: getApiHeaders(false, false),
-        });
-        if (!r.ok) {
-          setStatus('contactStatus', `查询联系人失败：${r.error}`, true);
-          appendLog(`查询联系人失败: ${r.error}`);
-          return;
+      async function searchContacts(force=false) {
+        if (force) {
+          state.page.contactsPage = Number(document.getElementById('contactsPage').value) || 1;
+          state.page.contactsSize = Number(document.getElementById('contactsSize').value) || 20;
         }
-        setStatus('contactStatus', `查询成功：${(r.data || []).length} 条`);
-        appendLog(`联系人列表: ${JSON.stringify((r.data || []).slice(0, 3))}`);
+        const page = state.page.contactsPage;
+        const size = state.page.contactsSize;
+        try {
+          const data = await requestJson(`/api/v1/contacts?page=${page}&size=${size}`, {
+            headers: getCommonHeaders({auth:false}),
+          });
+          const tbody = document.getElementById('contactsTbody');
+          tbody.innerHTML = '';
+          for (const item of data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.id}</td>
+              <td>${item.phone}</td>
+              <td>${item.name || ''}</td>
+              <td>${item.tags || ''}</td>
+              <td>${item.consent_state}</td>
+              <td>${item.dnc ? '是' : '否'}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+          setStatus('contactStatus', `联系人共 ${data.length} 条`);
+          document.getElementById('contactStatus2').textContent = `分页：第 ${page} 页 / 每页 ${size} 条`;
+        } catch (err) {
+          setStatus('contactStatus', `查询失败：${err.message}`, true);
+          log(`contacts query fail: ${err.message}`);
+        }
       }
 
-      function parseContactIds() {
-        const raw = document.getElementById('campaignContactIds').value || '';
-        return raw
-          .split(',')
-          .map((v) => Number(v.trim()))
-          .filter((v) => Number.isInteger(v) && v > 0);
+      async function searchTemplates(force=false) {
+        const page = 1;
+        const size = 50;
+        try {
+          const data = await requestJson(`/api/v1/script-templates?active_only=false&page=${page}&size=${size}`, {
+            headers: getCommonHeaders({auth:false}),
+          });
+          const tbody = document.getElementById('templatesTbody');
+          tbody.innerHTML = '';
+          for (const item of data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.id}</td>
+              <td>
+                <label>
+                  <input type=\"radio\" name=\"templatePick\" value=\"${item.id}\" onchange=\"window.__portalPickTemplate(${item.id})\"> ${item.name}
+                </label>
+              </td>
+              <td>${item.category || ''}</td>
+              <td>${item.is_active ? '是' : '否'}</td>
+              <td>
+                <div class=\"inline\">
+                  <button class=\"secondary\" onclick=\"useTemplateForCampaign(${item.id})\">填充到活动</button>
+                  <button class=\"secondary\" onclick=\"toggleTemplateActive(${item.id}, false)\">下线</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          }
+          setStatus('templateStatus', `模板共 ${data.length} 条`);
+        } catch (err) {
+          setStatus('templateStatus', `查询失败：${err.message}`, true);
+          log(`templates query fail: ${err.message}`);
+        }
+      }
+
+      async function createTemplate() {
+        try {
+          const payload = {
+            name: document.getElementById('templateName').value.trim(),
+            content: document.getElementById('templateContent').value.trim(),
+            category: document.getElementById('templateCategory').value.trim(),
+            description: '前端创建',
+            tags: document.getElementById('templateTags').value.trim(),
+            is_active: document.getElementById('templateActive').checked,
+          };
+          const data = await requestJson('/api/v1/script-templates', {
+            method: 'POST',
+            headers: getCommonHeaders({json:true}),
+            body: JSON.stringify(payload),
+          });
+          setStatus('templateStatus', `模板创建成功：ID ${data.id}`);
+          log(`create template: ${JSON.stringify(data)}`);
+          await searchTemplates(true);
+        } catch (err) {
+          setStatus('templateStatus', `创建失败：${err.message}`, true);
+          log(`create template fail: ${err.message}`);
+        }
+      }
+
+      async function toggleTemplateActive(templateId) {
+        try {
+          const data = await requestJson(`/api/v1/script-templates/${templateId}`, {
+            method: 'PUT',
+            headers: getCommonHeaders({json:true}),
+            body: JSON.stringify({ is_active: false }),
+          });
+          setStatus('templateStatus', `模板 ${templateId} 已下线`);
+          log(`template offline: ${JSON.stringify(data)}`);
+          await searchTemplates(true);
+        } catch (err) {
+          setStatus('templateStatus', `更新失败：${err.message}`, true);
+          log(`template offline fail: ${err.message}`);
+        }
+      }
+
+      async function useTemplateForCampaign(templateId) {
+        try {
+          const data = await requestJson(`/api/v1/script-templates/${templateId}`, {
+            headers: getCommonHeaders({auth:false}),
+          });
+          document.getElementById('campaignTemplateId').value = String(templateId);
+          if (data && data.content) {
+            document.getElementById('campaignScript').value = data.content;
+          }
+          setStatus('templateStatus', `已选择模板 ${templateId}`);
+          log(`template picked: ${JSON.stringify(data)}`);
+        } catch (err) {
+          setStatus('templateStatus', `模板读取失败：${err.message}`, true);
+          log(`template pick fail: ${err.message}`);
+        }
+      }
+
+      function __portalPickTemplate(id) {
+        window._selectedTemplateId = id;
+      }
+
+      window.__portalPickTemplate = (id) => {
+        window._selectedTemplateId = Number(id);
+      };
+
+      function fillActiveTemplateToCampaign() {
+        const id = window._selectedTemplateId;
+        if (!id) {
+          setStatus('templateStatus', '请先选择一个模板', true);
+          return;
+        }
+        document.getElementById('campaignTemplateId').value = String(id);
+        setStatus('templateStatus', `已选择模板 ${id}`);
       }
 
       async function createCampaign() {
-        const payload = {
-          name: document.getElementById('campaignName').value.trim(),
-          script: document.getElementById('campaignScript').value.trim(),
-          mode: document.getElementById('campaignMode').value,
-          concurrency: 5,
-          retry_limit: 1,
-          retry_interval_sec: 30,
-          attempt_interval_sec: 1200,
-          recording_enabled: true,
-          hangup_sms_enabled: true,
-          contact_ids: parseContactIds(),
-        };
-        const r = await requestJson('/api/v1/campaigns', {
-          method: 'POST',
-          headers: getApiHeaders(false, true),
-          body: JSON.stringify(payload),
-        });
-        if (!r.ok) {
-          setStatus('operateStatus', `创建活动失败：${r.error}`, true);
-          appendLog(`创建活动失败: ${r.error}`);
-          return;
+        try {
+          const contactIds = (document.getElementById('campaignContactIds').value || '')
+            .split(',')
+            .map((x) => Number(x.trim()))
+            .filter((x) => Number.isInteger(x) && x > 0);
+
+          const payload = {
+            name: document.getElementById('campaignName').value.trim(),
+            script: document.getElementById('campaignScript').value.trim(),
+            script_template_id: Number(document.getElementById('campaignTemplateId').value) || null,
+            mode: document.getElementById('campaignMode').value,
+            concurrency: Number(document.getElementById('campaignConcurrency').value) || 5,
+            retry_limit: 1,
+            retry_interval_sec: 30,
+            attempt_interval_sec: 1200,
+            recording_enabled: true,
+            hangup_sms_enabled: true,
+            contact_ids: contactIds,
+          };
+
+          const data = await requestJson('/api/v1/campaigns', {
+            method: 'POST',
+            headers: getCommonHeaders({json:true}),
+            body: JSON.stringify(payload),
+          });
+          setStatus('campaignStatus', `活动创建成功：ID ${data.id}`);
+          log(`create campaign: ${JSON.stringify(data)}`);
+          await searchCampaigns(true);
+        } catch (err) {
+          setStatus('campaignStatus', `创建失败：${err.message}`, true);
+          log(`create campaign fail: ${err.message}`);
         }
-        window.__lastCampaignId = r.data.id;
-        setStatus('operateStatus', `创建活动成功：ID=${r.data.id}`);
-        appendLog(`创建活动: ${JSON.stringify(r.data)}`);
       }
 
-      async function startCampaign() {
-        const campaignId = window.__lastCampaignId;
-        const maxDials = Number(document.getElementById('campaignMaxDials').value) || 10;
-        if (!campaignId) {
-          setStatus('operateStatus', '请先创建活动', true);
-          return;
+      async function searchCampaigns(force=false) {
+        try {
+          const data = await requestJson('/api/v1/campaigns?page=1&size=50', {
+            headers: getCommonHeaders({auth:false}),
+          });
+          const tbody = document.getElementById('campaignsTbody');
+          tbody.innerHTML = '';
+          for (const item of data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.id}</td>
+              <td>${item.name}</td>
+              <td>${item.mode}</td>
+              <td>${(item.contact_ids || []).length || ''}</td>
+              <td>${item.status}</td>
+              <td>
+                <div class=\"inline\">
+                  <button class=\"secondary\" onclick=\"startCampaignFromRow(${item.id})\">启动</button>
+                  <button class=\"warn\" onclick=\"startCampaignFromRow(${item.id}, 1)\">启动(1条)</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          }
+          setStatus('campaignStatus', `活动共 ${data.length} 条`);
+        } catch (err) {
+          setStatus('campaignStatus', `查询失败：${err.message}`, true);
+          log(`campaign query fail: ${err.message}`);
         }
-        const r = await requestJson(`/api/v1/campaigns/${campaignId}/start?max_dials=${maxDials}`, {
-          method: 'POST',
-          headers: getApiHeaders(false, false),
-        });
-        if (!r.ok) {
-          setStatus('operateStatus', `启动活动失败：${r.error}`, true);
-          appendLog(`启动活动失败: ${r.error}`);
-          return;
+      }
+
+      function startCampaignFromRow(campaignId, maxDial=undefined) {
+        return startCampaign(campaignId, maxDial);
+      }
+
+      async function startCampaign(campaignId, maxDial) {
+        try {
+          let url = `/api/v1/campaigns/${campaignId}/start`;
+          if (maxDial) {
+            url += `?max_dials=${maxDial}`;
+          }
+          const data = await requestJson(url, {
+            method: 'POST',
+            headers: getCommonHeaders(),
+          });
+          setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个`);
+          log(`campaign start: ${JSON.stringify(data)}`);
+          await searchCalls(true);
+        } catch (err) {
+          setStatus('campaignStatus', `启动失败：${err.message}`, true);
+          log(`campaign start fail: ${err.message}`);
         }
-        setStatus('operateStatus', `活动启动成功：${r.data.auto_dial_count || r.data.call_ids?.length || 0} 条`);
-        appendLog(`启动活动: ${JSON.stringify(r.data)}`);
       }
 
       async function createCall() {
-        const payload = {
-          phone: document.getElementById('callPhone').value.trim(),
-          mode: document.getElementById('callMode').value,
-          max_attempts: 1,
-        };
-        const r = await requestJson('/api/v1/calls', {
-          method: 'POST',
-          headers: getApiHeaders(false, true),
-          body: JSON.stringify(payload),
-        });
-        if (!r.ok) {
-          setStatus('operateStatus', `发起外呼失败：${r.error}`, true);
-          appendLog(`发起外呼失败: ${r.error}`);
-          return;
+        try {
+          const payload = {
+            phone: document.getElementById('callPhone').value.trim(),
+            mode: document.getElementById('callMode').value,
+            campaign_id: Number(document.getElementById('callCampaignId').value) || null,
+            contact_id: Number(document.getElementById('callContactId').value) || null,
+            max_attempts: Number(document.getElementById('callMaxAttempts').value) || 1,
+          };
+          const data = await requestJson('/api/v1/calls', {
+            method: 'POST',
+            headers: getCommonHeaders({json:true}),
+            body: JSON.stringify(payload),
+          });
+          setStatus('callStatus', `外呼已发起：${data.id}`);
+          log(`create call: ${JSON.stringify(data)}`);
+          await searchCalls(true);
+        } catch (err) {
+          setStatus('callStatus', `外呼失败：${err.message}`, true);
+          log(`create call fail: ${err.message}`);
         }
-        window.__lastCallId = r.data.id;
-        setStatus('operateStatus', `外呼已发起：Call ID ${r.data.id}`);
-        appendLog(`发起外呼: ${JSON.stringify(r.data)}`);
       }
 
-      async function listCalls() {
-        const r = await requestJson('/api/v1/calls?page=1&size=20', {
-          headers: getApiHeaders(false, false),
-        });
-        if (!r.ok) {
-          setStatus('operateStatus', `查询通话失败：${r.error}`, true);
-          appendLog(`查询通话失败: ${r.error}`);
-          return;
+      async function searchCalls(force=false) {
+        try {
+          const page = Number(document.getElementById('callsPage')?.value || 1) || 1;
+          const size = Number(document.getElementById('callsSize')?.value || 20) || 20;
+          const data = await requestJson(`/api/v1/calls?page=${page}&size=${size}`, {
+            headers: getCommonHeaders(),
+          });
+          const tbody = document.getElementById('callsTbody');
+          tbody.innerHTML = '';
+          for (const item of data) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.id}</td>
+              <td>${item.phone}</td>
+              <td>${item.mode}</td>
+              <td>${item.status}</td>
+              <td>${item.attempts}/${item.max_attempts}</td>
+              <td>${item.campaign_id || ''}</td>
+              <td>${item.contact_id || ''}</td>
+              <td>
+                <div class=\"inline\">
+                  <button class=\"warn\" onclick=\"handoffCall('${item.id}')\">转人工</button>
+                  <button class=\"danger\" onclick=\"hangupCall('${item.id}')\">挂断</button>
+                  <button class=\"secondary\" onclick=\"retryCall('${item.id}')\">重试</button>
+                  <button class=\"secondary\" onclick=\"openEvents('${item.id}')\">事件</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          }
+          setStatus('callStatus', `通话 ${data.length} 条`);
+        } catch (err) {
+          setStatus('callStatus', `查询失败：${err.message}`, true);
+          log(`calls query fail: ${err.message}`);
         }
-        setStatus('operateStatus', `查询通话成功：${(r.data || []).length} 条`);
-        appendLog(`通话列表: ${JSON.stringify((r.data || []).slice(0, 3))}`);
       }
 
-      window.addEventListener('load', () => {
-        loadSession();
-        appendLog('页面加载完成，请先登录后执行业务链路测试。');
+      async function handoffCall(callId) {
+        await actionCall(`/api/v1/calls/${callId}/handover`, '转人工已触发', `转人工失败：`);
+      }
+
+      async function hangupCall(callId) {
+        await actionCall(`/api/v1/calls/${callId}/hangup?reason=manual`, '挂断已提交', `挂断失败：`);
+      }
+
+      async function retryCall(callId) {
+        await actionCall(`/api/v1/calls/${callId}/retry`, '重试已提交', `重试失败：`);
+      }
+
+      async function actionCall(url, okText, failPrefix) {
+        try {
+          const data = await requestJson(url, {
+            method: 'POST',
+            headers: getCommonHeaders(),
+          });
+          setStatus('callStatus', okText);
+          log(`${okText} ${JSON.stringify(data)}`);
+          await searchCalls(true);
+        } catch (err) {
+          setStatus('callStatus', `${failPrefix}${err.message}`, true);
+          log(`${failPrefix}${err.message}`);
+        }
+      }
+
+      async function openEvents(callId) {
+        try {
+          const data = await requestJson(`/api/v1/calls/${callId}/events?page=1&size=20`, {
+            headers: getCommonHeaders(),
+          });
+          log(`events ${callId}: ${JSON.stringify(data)}`);
+          setStatus('callStatus', `已拉取事件：${callId}`);
+        } catch (err) {
+          setStatus('callStatus', `事件查询失败：${err.message}`, true);
+          log(`events fail ${callId}: ${err.message}`);
+        }
+      }
+
+      function toggleAdminBlocks() {
+        if (!state.isAdmin) {
+          document.querySelectorAll('.col-12.__ADMIN_ONLY__, .col-4.__ADMIN_ONLY__').forEach((el) => {
+            el.classList.add('hidden');
+          });
+        }
+      }
+
+      window.addEventListener('load', async () => {
+        restoreToken();
+        toggleAdminBlocks();
+        await Promise.all([
+          searchContacts(true),
+          searchTemplates(true),
+          searchCampaigns(true),
+          searchCalls(true),
+        ]);
+        log('页面加载完成');
       });
     </script>
   </body>
 </html>
 """
+
+    selected = "" if show_manage else "hidden"
     return (
         page.replace("__TITLE__", page_title)
         .replace("__DEFAULT_USERNAME__", default_username)
@@ -514,7 +923,19 @@ def _portal_page(
         .replace("__DEFAULT_ROLE__", default_role)
         .replace("__DASHBOARD_PATH__", dashboard_path)
         .replace("__DEFAULT_API_KEY__", api_key)
+        .replace("__IS_ADMIN__", "1" if show_manage else "0")
+        .replace("__ADMIN_ONLY__", selected)
     )
+
+
+@router.get("/api/v1/admin/dashboard")
+def admin_dashboard(_=Depends(require_role("admin"))):
+    return {"scope": "admin", "message": "管理员控制台"}
+
+
+@router.get("/api/v1/agent/dashboard")
+def agent_dashboard(_=Depends(require_roles("agent", "admin"))):
+    return {"scope": "agent", "message": "座席工作台"}
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -526,6 +947,7 @@ def admin_page():
         default_role="admin",
         dashboard_path="admin/dashboard",
         api_key=settings.api_key,
+        show_manage=True,
     )
 
 
@@ -538,6 +960,7 @@ def agent_page():
         default_role="agent",
         dashboard_path="agent/dashboard",
         api_key=settings.api_key,
+        show_manage=False,
     )
 
 

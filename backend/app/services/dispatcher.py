@@ -11,6 +11,7 @@ from ..db import get_session
 from ..models import CallEvent, CallSession, CallStatus, SmsLog
 from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
+from .call_service import resolve_campaign_script
 
 settings = get_settings()
 
@@ -20,6 +21,7 @@ async def request_ai_turn(
     call_id: str,
     phone: str,
     mode: str,
+    script: str = "",
     transcript: str = "",
     context: Dict[str, Any] | None = None,
 ) -> AiTurnResult:
@@ -27,6 +29,7 @@ async def request_ai_turn(
         call_id=call_id,
         phone=phone,
         mode=mode,
+        script=script,
         transcript=transcript,
         context=context or {},
     )
@@ -81,10 +84,16 @@ async def run_ai_turn(
         )
 
         try:
+            campaign_script = resolve_campaign_script(
+                session,
+                tenant_id=call.tenant_id,
+                campaign_id=call.campaign_id,
+            )
             result = await request_ai_turn(
                 call_id=str(call.id),
                 phone=call.phone,
                 mode=str(call.mode),
+                script=campaign_script,
                 transcript=transcript,
                 context={"campaign_id": call.campaign_id, "tenant_id": call.tenant_id},
             )

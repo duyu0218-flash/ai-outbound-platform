@@ -6,8 +6,13 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id
 from ...db import get_session
-from ...models import Campaign, CampaignContact, CallSession, Contact
-from ...services.call_service import NotFoundError, start_campaign as start_campaign_service, place_call
+from ...models import Campaign, CampaignContact, CallSession, Contact, ScriptTemplate
+from ...services.call_service import (
+    NotFoundError,
+    resolve_campaign_script,
+    start_campaign as start_campaign_service,
+    place_call,
+)
 from ...schemas import CampaignCreate, CampaignOut
 
 router = APIRouter(prefix="/api/v1/campaigns", tags=["campaigns"], dependencies=[Depends(check_api_key)])
@@ -22,7 +27,8 @@ def create_campaign(
     campaign = Campaign(
         tenant_id=tenant_id,
         name=payload.name,
-        script=payload.script,
+        script=payload.script or "",
+        script_template_id=payload.script_template_id,
         mode=payload.mode,
         concurrency=payload.concurrency,
         retry_limit=payload.retry_limit,
@@ -64,6 +70,48 @@ def get_campaign(campaign_id: int, tenant_id: int = Depends(get_tenant_id), sess
     campaign = session.get(Campaign, campaign_id)
     if not campaign or campaign.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
+    if not campaign.script and campaign.script_template_id is not None:
+        campaign.script = resolve_campaign_script(session, tenant_id=tenant_id, campaign_id=campaign.id)
+    return campaign
+
+
+@router.put("/{campaign_id}", response_model=CampaignOut)
+def update_campaign(
+    campaign_id: int,
+    payload: CampaignCreate,
+    tenant_id: int = Depends(get_tenant_id),
+    session: Session = Depends(get_session),
+):
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign or campaign.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
+    if payload.name:
+        campaign.name = payload.name
+    campaign.script = payload.script or ""
+    campaign.script_template_id = payload.script_template_id
+    campaign.mode = payload.mode
+    campaign.concurrency = payload.concurrency
+    campaign.retry_limit = payload.retry_limit
+    campaign.retry_interval_sec = payload.retry_interval_sec
+    campaign.attempt_interval_sec = payload.attempt_interval_sec
+    campaign.recording_enabled = payload.recording_enabled
+    campaign.hangup_sms_enabled = payload.hangup_sms_enabled
+
+    if campaign.script_template_id is not None:
+        template = session.get(ScriptTemplate, campaign.script_template_id)
+        if not template or template.tenant_id != tenant_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="script template not found")
+        if not payload.script:
+            campaign.script = resolve_campaign_script(
+                session=session,
+                tenant_id=tenant_id,
+                campaign_id=campaign.id,
+            )
+
+    campaign.updated_at = datetime.utcnow()
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
     return campaign
 
 

@@ -9,6 +9,7 @@
 - 挂断短信记录（`SmsLog`）
 - 通话事件追溯（`CallEvent`）
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
+- 话术模板（`/api/v1/script-templates`）与活动绑定
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 ## 2bis. 测试账号体系（新）
@@ -80,6 +81,24 @@ curl -X POST http://localhost:8000/api/v1/campaigns \
   -H "Content-Type: application/json" \
   -d '{"name":"测试活动","script":"常规话术","mode":"ai_handoff","contact_ids":[1]}'
 
+# 新建话术模板
+curl -X POST http://localhost:8000/api/v1/script-templates \
+  -H "x-api-key: dev-api-key" \
+  -H "x-tenant-id: 1" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"通用销售话术","content":"您好，{客户姓名}，我是AI外呼助手，先确认下您的信息","category":"sales","description":"演示话术"}'
+
+# 话术模板列表（只看生效模板）
+curl -X GET "http://localhost:8000/api/v1/script-templates?active_only=true&page=1&size=20" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 用模板创建活动（不重复填 script）
+curl -X POST http://localhost:8000/api/v1/campaigns \
+  -H "x-api-key: dev-api-key" \
+  -H "x-tenant-id: 1" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"测试活动-模板","script_template_id":1,"mode":"ai_handoff","contact_ids":[1]}'
+
 # 发起纯 AI 外呼
 curl -X POST http://localhost:8000/api/v1/calls \
   -H "x-api-key: dev-api-key" \
@@ -105,6 +124,12 @@ curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events?page=1&size=20"
 # 重试失败的外呼（达到最大尝试数后会拒绝）
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/retry" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 仪表台接口（配合 /admin /agent 页面）
+curl -X GET http://localhost:8000/api/v1/admin/dashboard \
+  -H "Authorization: Bearer <admin_access_token>"
+curl -X GET http://localhost:8000/api/v1/agent/dashboard \
+  -H "Authorization: Bearer <agent_access_token>"
 ```
 
 ## 5. 关键生产要点

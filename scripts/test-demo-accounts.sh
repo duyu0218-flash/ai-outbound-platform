@@ -40,6 +40,7 @@ ADMIN_TOKEN=$(login "$ADMIN_USER" "$ADMIN_PASS" "admin")
 echo "admin access token: ${ADMIN_TOKEN:0:20}..."
 curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE_URL/api/v1/auth/me" | jq .
 curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE_URL/api/v1/admin/dashboard" | jq .
+curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE_URL/api/v1/agent/dashboard" | jq .
 
 echo "== Agent 登录与鉴权 =="
 AGENT_TOKEN=$(login "$AGENT_USER" "$AGENT_PASS" "agent")
@@ -56,6 +57,26 @@ if [ "$agent_admin_status" = "403" ]; then
   echo "角色隔离：正常（agent 无法访问 admin）"
 else
   echo "角色隔离：异常（agent 可访问 admin）" >&2
+  exit 1
+fi
+
+agent_agent_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer $AGENT_TOKEN" \
+  "$BASE_URL/api/v1/agent/dashboard")
+if [ "$agent_agent_status" = "200" ]; then
+  echo "角色功能：正常（agent 可访问 agent dashboard）"
+else
+  echo "角色功能：异常（agent 无法访问 agent dashboard）" >&2
+  exit 1
+fi
+
+admin_agent_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$BASE_URL/api/v1/agent/dashboard")
+if [ "$admin_agent_status" = "200" ]; then
+  echo "管理员兼容：正常（admin 可访问 agent dashboard）"
+else
+  echo "管理员兼容：异常（admin 无法访问 agent dashboard）" >&2
   exit 1
 fi
 

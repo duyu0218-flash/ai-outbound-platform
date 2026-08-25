@@ -14,6 +14,7 @@ class TurnRequest(BaseModel):
     call_id: str
     phone: str
     mode: str
+    script: str = ""
     transcript: str = ""
     context: dict = Field(default_factory=dict)
 
@@ -35,7 +36,11 @@ def health():
 @app.post("/agent/turn")
 def turn(payload: TurnRequest):
     keywords = get_default_keywords()
-    handoff, hangup_sms, tts, escalate_priority = resolve_action(payload.mode, payload.transcript)
+    handoff, hangup_sms, tts, escalate_priority = resolve_action(
+        payload.mode,
+        payload.script,
+        payload.transcript,
+    )
     action = "handoff" if handoff else "speak"
     return TurnResult(
         action=action,
@@ -49,7 +54,7 @@ def turn(payload: TurnRequest):
 
 @app.post("/agent/start")
 def start(payload: TurnRequest):
-    tts = ai_reply(payload.mode, "", "")
+    tts = ai_reply(payload.mode, payload.script, "")
     return TurnResult(
         action="greeting",
         tts_text=tts,

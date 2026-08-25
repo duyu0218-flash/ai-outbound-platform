@@ -57,9 +57,17 @@ class MockAdapter(TelephonyAdapter):
             "kind": "status",
             "payload": {"status": status, **(metadata or {})},
         }
+        headers = {}
+        if settings.telephony_webhook_token:
+            headers["x-webhook-token"] = settings.telephony_webhook_token
         try:
             async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec) as client:
-                await client.post(webhook_url, json=data, timeout=settings.telephony_timeout_sec)
+                await client.post(
+                    webhook_url,
+                    json=data,
+                    headers=headers,
+                    timeout=settings.telephony_timeout_sec,
+                )
         except Exception:
             # in mock mode callback failures do not block call execution
             pass

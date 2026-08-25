@@ -89,6 +89,7 @@ class Campaign(SQLModel, table=True):
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     name: str
     script: str = ""
+    script_template_id: Optional[int] = Field(default=None, foreign_key="scripttemplate.id")
     mode: CallMode = Field(default=CallMode.AI_HANDOFF)
     concurrency: int = 5
     retry_limit: int = 1
@@ -108,6 +109,21 @@ class CampaignContact(SQLModel, table=True):
     contact_id: int = Field(foreign_key="contact.id", index=True)
     contact_order: int = 0
     is_active: bool = True
+
+
+class ScriptTemplate(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    name: str
+    content: str
+    category: str = "default"
+    description: str = ""
+    tags: str = ""
+    is_active: bool = True
+    version: int = 1
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class CallSession(SQLModel, table=True):

@@ -150,19 +150,39 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001
     -H "Content-Type: application/json" \
     -d '{"name":"demo-活动","script":"标准话术","mode":"ai_handoff","contact_ids":[1]}'
    ```
-3. 启动活动（模拟自动拨号）
+3. 新建话术模板并绑定活动（推荐）
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/script-templates \
+    -H "x-api-key: <你的 API_KEY>" \
+    -H "x-tenant-id: 1" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"售前话术","category":"sales","content":"您好，{客户姓名}，请问我是否可以先确认您的来电需求？","is_active":true}'
+
+   curl -X POST http://localhost:8000/api/v1/campaigns \
+    -H "x-api-key: <你的 API_KEY>" \
+    -H "x-tenant-id: 1" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"template-活动","script_template_id":1,"mode":"ai_handoff","contact_ids":[1]}'
+   ```
+4. 查看模板列表
+   ```bash
+   curl -X GET "http://localhost:8000/api/v1/script-templates?active_only=true&page=1&size=20" \
+    -H "x-api-key: <你的 API_KEY>" \
+    -H "x-tenant-id: 1"
+   ```
+5. 启动活动（模拟自动拨号）
    ```bash
    curl -X POST "http://localhost:8000/api/v1/campaigns/1/start?max_dials=10" \
     -H "x-api-key: <你的 API_KEY>" \
     -H "x-tenant-id: 1"
    ```
-4. 查询通话会话
+6. 查询通话会话
    ```bash
    curl -X GET "http://localhost:8000/api/v1/calls?page=1&size=20" \
     -H "x-api-key: <你的 API_KEY>" \
     -H "x-tenant-id: 1"
    ```
-5. 查询通话事件（用于排障）
+7. 查询通话事件（用于排障）
    ```bash
    curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events" \
     -H "x-api-key: <你的 API_KEY>" \
@@ -186,6 +206,15 @@ bash scripts/test-demo-accounts.sh
 - `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
 - 角色隔离（agent 不能访问 admin 接口）
 
+- `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
+- 说明：管理员账户可访问两类控制台，座席仅可访问座席控制台
+- 角色隔离（agent 不能访问 admin 接口）
+
+如需做一次完整 API 流程 smoke（联系人→模板→活动→启动→通话→事件），再执行：
+
+```bash
+bash scripts/smoke-outbound-api.sh
+```
 ## 7. 核心模式说明
 
 - **纯人工**：`human_only`（只建立呼叫，不触发 AI）
