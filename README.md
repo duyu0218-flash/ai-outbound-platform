@@ -11,6 +11,16 @@
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
+## 2bis. 测试账号体系（新）
+
+- 管理端测试地址：[http://localhost:8000/admin](http://localhost:8000/admin)  
+  默认账号：`admin` / `12345678`
+- 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)  
+  默认账号：`1001@test` / `12345678`
+- 文档页：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)（指向 `/docs`）
+
+> 登录成功会返回 `access_token`（Bearer）。用于后续用户态接口验证：
+`Authorization: Bearer <access_token>`
 
 ## 1. 目录
 

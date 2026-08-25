@@ -53,6 +53,27 @@ cp .env.example .env
 - `AI_AGENT_URL`：AI 服务地址（compose 下默认 `http://ai-agent:8001`）
 - `SMS_PROVIDER`：`mock` 或对接真实短信供应商
 
+### 3.2 默认测试账号体系（推荐先验收）
+
+服务启动会创建两类默认测试账号：
+
+- 管理员：`admin / 12345678`（角色：`admin`）
+- 座席：`1001@test / 12345678`（角色：`agent`）
+
+访问方式：
+
+- 管理端地址：[http://localhost:8000/admin](http://localhost:8000/admin)
+- 座席端地址：[http://localhost:8000/agent](http://localhost:8000/agent)
+- 文档地址：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)
+
+直接登录 API：
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"12345678"}'
+```
+
 ## 4. Docker 方式启动（推荐）
 
 ### 4.1 一键启动

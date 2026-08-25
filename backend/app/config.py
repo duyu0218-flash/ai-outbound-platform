@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     jwt_secret: str = "jwt-change-me"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 12 * 60 * 60
+    demo_admin_username: str = "admin"
+    demo_admin_password: str = "12345678"
+    demo_agent_username: str = "1001@test"
+    demo_agent_password: str = "12345678"
+    demo_tenant_id: int = 1
 
     default_tenant_id: int = 1
     cors_allow_origins: str = "*"

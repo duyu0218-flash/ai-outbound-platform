@@ -1,13 +1,17 @@
-from fastapi import Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
 from typing import Annotated
 
+from ..models import User
 from ..config import get_settings
 from ..db import get_session as get_db_session
+from ..services.auth import find_user_by_token
 
 settings = get_settings()
 
 APIKey = Annotated[str, Header(alias="x-api-key")]
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def check_api_key(x_api_key: str | None = Header(default=None, alias="x-api-key")) -> None:
@@ -47,6 +51,27 @@ def get_session() -> Session:
 def get_session_dep() -> Session:
     with get_db_session() as session:
         yield session
+
+
+def current_user(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+) -> User:
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header missing")
+    user = find_user_by_token(session, token)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return user
+
+
+def require_role(required_role: str):
+    def _resolver(current: User = Depends(current_user)) -> User:
+        if current.role != required_role:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient role")
+        return current
+
+    return _resolver
 
 
 def get_pagination(

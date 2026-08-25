@@ -94,6 +94,29 @@ class WebhookEvent(BaseModel):
     transcript: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+    role: str
+    tenant_id: int
+
+
+class UserOut(BaseModel):
+    id: int
+    tenant_id: int
+    username: str
+    full_name: str
+    role: str
+    is_supervisor: bool
+    enabled: bool
+
+
 class WebhookStatusPayload(BaseModel):
     status: str
     hangup_reason: Optional[str] = None

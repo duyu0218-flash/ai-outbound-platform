@@ -58,6 +58,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     username: str = Field(index=True, unique=True)
+    password_hash: str = ""
     full_name: str
     phone: Optional[str] = None
     role: str = "agent"
