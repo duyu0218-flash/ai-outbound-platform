@@ -22,6 +22,9 @@
 > 登录成功会返回 `access_token`（Bearer）。用于后续用户态接口验证：
 `Authorization: Bearer <access_token>`
 
+- 管理端鉴权示例：`GET /api/v1/admin/dashboard`（仅 admin 可访问）
+- 座席端鉴权示例：`GET /api/v1/agent/dashboard`（admin/agent 均可访问）
+
 ## 1. 目录
 
 - `backend/`: 控制面服务（联系人、活动、外呼、webhook）

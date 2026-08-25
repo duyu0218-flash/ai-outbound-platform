@@ -74,6 +74,17 @@ def require_role(required_role: str):
     return _resolver
 
 
+def require_any_role(*roles: str):
+    allowed = set(roles)
+
+    def _resolver(current: User = Depends(current_user)) -> User:
+        if current.role not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient role")
+        return current
+
+    return _resolver
+
+
 def get_pagination(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
