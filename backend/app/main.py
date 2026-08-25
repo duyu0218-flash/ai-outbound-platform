@@ -3,10 +3,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.routers import calls_router, campaigns_router, contacts_router, webhooks_router
+from .api.routers import (
+    auth_router,
+    calls_router,
+    campaigns_router,
+    contacts_router,
+    pages_router,
+    webhooks_router,
+)
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, get_session
 from .models import Tenant
+from .services.auth import ensure_demo_users
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -36,6 +44,7 @@ def _bootstrap_default_tenant():
                 )
             )
             session.commit()
+        ensure_demo_users(session)
 
 
 app.add_middleware(
@@ -66,3 +75,5 @@ app.include_router(calls_router)
 app.include_router(campaigns_router)
 app.include_router(contacts_router)
 app.include_router(webhooks_router)
+app.include_router(auth_router)
+app.include_router(pages_router)
