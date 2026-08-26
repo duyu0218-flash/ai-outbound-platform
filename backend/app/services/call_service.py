@@ -74,6 +74,31 @@ TERMINAL_STATUSES = {
 }
 
 
+CALL_PRECHECK_ERROR_MAP = {
+    "contact_dnc": "CONTACT_DNC",
+    "not_consented": "CONTACT_NOT_CONSENTED",
+    "consent_revoked": "CONTACT_CONSENT_REVOKED",
+}
+
+
+def _map_call_precheck_code(reason: str) -> str:
+    normalized = str(reason).strip().lower()
+    return CALL_PRECHECK_ERROR_MAP.get(normalized, f"CALL_PRECHECK_{normalized.upper()[:40] or 'UNKNOWN'}")
+
+
+def _map_dispatch_error_code(message: str | None) -> str:
+    msg = str(message or "").lower()
+    if "reach max attempts" in msg:
+        return "REACH_MAX_ATTEMPTS"
+    if "dial failed" in msg:
+        return "DIAL_FAILED"
+    if "provider" in msg:
+        return "PROVIDER_ERROR"
+    if not msg:
+        return "UNKNOWN_DISPATCH_ERROR"
+    return f"DISPATCH_{msg[:40].upper().replace(' ', '_')}"
+
+
 def can_retry_call(call: CallSession) -> tuple[bool, str]:
     if call.status not in TERMINAL_STATUSES:
         return False, "call is not in terminal state"
@@ -252,37 +277,70 @@ async def dispatch_call_ids(
     call_ids: list[str],
     *,
     max_concurrency: int | None = None,
-) -> dict[str, int]:
+) -> dict[str, object]:
     if not call_ids:
-        return {"total": 0, "succeeded": 0, "skipped": 0, "failed": 0}
+        return {
+            "total": 0,
+            "target": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "skipped": 0,
+            "status": "completed",
+            "errors": [],
+            "error_codes": [],
+        }
 
     concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
 
-    async def _dispatch_one(call_id: str) -> bool:
+    async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
         with get_session() as session:
             call = session.get(CallSession, UUID(call_id))
             if not call:
-                return False
+                return call_id, "CALL_NOT_FOUND", "call session not found"
             try:
                 await place_call(session, call)
-                return call.status != CallStatus.FAILED
+                if call.status == CallStatus.FAILED:
+                    return call_id, _map_dispatch_error_code(call.last_error), call.last_error
+                return call_id, None, None
             except Exception:
-                return False
+                return call_id, "DISPATCH_EXCEPTION", "failed to dispatch call"
 
     sem = asyncio.Semaphore(concurrency)
 
-    async def _worker(call_id: str) -> bool:
+    async def _worker(call_id: str) -> tuple[str, str | None, str | None]:
         async with sem:
             return await _dispatch_one(call_id)
 
     results = await asyncio.gather(*(_worker(call_id) for call_id in call_ids), return_exceptions=True)
-    succeeded = sum(1 for item in results if item is True)
-    failed = len(results) - succeeded
+    succeeded = 0
+    errors: list[dict[str, object]] = []
+    for item in results:
+        if not isinstance(item, tuple) or len(item) != 3:
+            errors.append(
+                {
+                    "code": "UNKNOWN_DISPATCH_ERROR",
+                    "message": "unexpected dispatch worker result",
+                    "call_id": "",
+                }
+            )
+            continue
+
+        call_id, error_code, message = item
+        if error_code is None:
+            succeeded += 1
+            continue
+        errors.append({"code": error_code, "message": message, "call_id": str(call_id)})
+
+    failed = len(errors)
     return {
         "total": len(call_ids),
+        "target": len(call_ids),
         "succeeded": succeeded,
         "failed": failed,
         "skipped": 0,
+        "status": "completed",
+        "errors": errors,
+        "error_codes": sorted({item["code"] for item in errors}),
     }
 
 
@@ -306,15 +364,27 @@ def start_campaign(
     total = len(rels)
     created = 0
     skipped = 0
+    skip_reasons: list[dict[str, object]] = []
+    skipped_reason_counter: dict[str, int] = {}
     call_ids: list[str] = []
 
     for rel in rels:
         contact = session.get(Contact, rel.contact_id)
         if not contact or contact.tenant_id != tenant_id:
             skipped += 1
+            reason = {"code": "CONTACT_NOT_FOUND", "message": "contact not found", "contact_id": rel.contact_id}
+            skip_reasons.append(reason)
+            skipped_reason_counter["CONTACT_NOT_FOUND"] = skipped_reason_counter.get("CONTACT_NOT_FOUND", 0) + 1
             continue
         if only_active_contacts and not rel.is_active:
             skipped += 1
+            reason = {
+                "code": "CONTACT_INACTIVE",
+                "message": "contact inactive in campaign",
+                "contact_id": contact.id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter["CONTACT_INACTIVE"] = skipped_reason_counter.get("CONTACT_INACTIVE", 0) + 1
             continue
 
         try:
@@ -330,13 +400,37 @@ def start_campaign(
             session.refresh(call)
             call_ids.append(str(call.id))
             created += 1
-        except CallPermissionError:
+        except CallPermissionError as error:
             skipped += 1
+            code = _map_call_precheck_code(str(error))
+            reason = {
+                "code": code,
+                "message": str(error),
+                "phone": contact.phone,
+                "contact_id": contact.id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter[code] = skipped_reason_counter.get(code, 0) + 1
         except ValueError:
             skipped += 1
+            reason = {
+                "code": "INVALID_PHONE",
+                "message": "invalid phone or missing contact",
+                "phone": contact.phone if contact else None,
+                "contact_id": contact.id if contact else rel.contact_id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter["INVALID_PHONE"] = skipped_reason_counter.get("INVALID_PHONE", 0) + 1
             continue
 
-    return {"total_contacts": total, "created": created, "skipped": skipped, "call_ids": call_ids}
+    return {
+        "total_contacts": total,
+        "created": created,
+        "skipped": skipped,
+        "call_ids": call_ids,
+        "skip_reasons": skip_reasons,
+        "skipped_reason_codes": sorted(skipped_reason_counter.keys()),
+    }
 
 
 def resolve_campaign_script(session: Session, tenant_id: int, campaign_id: int | None) -> str:

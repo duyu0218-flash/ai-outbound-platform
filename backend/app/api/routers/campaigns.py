@@ -13,7 +13,13 @@ from ...services.call_service import (
     start_campaign as start_campaign_service,
     dispatch_call_ids,
 )
-from ...schemas import CampaignCreate, CampaignOut
+from ...schemas import (
+    CampaignCreate,
+    CampaignDispatchError,
+    CampaignDispatchResult,
+    CampaignOut,
+    CampaignStartResponse,
+)
 
 router = APIRouter(
     prefix="/api/v1/campaigns",
@@ -135,7 +141,7 @@ def delete_campaign(
     return {"result": "deleted"}
 
 
-@router.post("/{campaign_id}/start")
+@router.post("/{campaign_id}/start", response_model=CampaignStartResponse)
 async def start_campaign(
     campaign_id: int,
     background_tasks: BackgroundTasks,
@@ -158,8 +164,22 @@ async def start_campaign(
     else:
         result_call_ids = result["call_ids"]
 
+    skip_reasons = [CampaignDispatchError(**item) for item in result.get("skip_reasons", [])]
+    precheck_error_codes = sorted(
+        {str(item.get("code")) for item in result.get("skip_reasons", []) if item.get("code")}
+    )
+
     dialed = 0
-    dispatch_result: dict[str, object] = {"total": 0, "succeeded": 0, "failed": 0, "skipped": 0}
+    dispatch_result = CampaignDispatchResult(
+        total=result.get("total_contacts", 0),
+        target=min(len(result_call_ids), max_dials or len(result_call_ids)),
+        succeeded=0,
+        failed=0,
+        skipped=result.get("skipped", 0),
+        status="not_dispatched",
+        errors=[],
+        error_codes=precheck_error_codes,
+    )
     if auto_dial:
         target_call_ids = result_call_ids
         if max_dials is not None:
@@ -172,14 +192,16 @@ async def start_campaign(
                 max_concurrency=campaign.concurrency,
             )
             dialed = len(target_call_ids)
-            dispatch_result = {
-                "total": len(result_call_ids),
-                "target": len(target_call_ids),
-                "succeeded": 0,
-                "failed": 0,
-                "skipped": 0,
-                "status": "queued",
-            }
+            dispatch_result = CampaignDispatchResult(
+                total=len(result_call_ids),
+                target=len(target_call_ids),
+                succeeded=0,
+                failed=0,
+                skipped=0,
+                status="queued",
+                errors=[],
+                error_codes=precheck_error_codes,
+            )
         else:
             call_list: list[str] = []
             for call_id in target_call_ids:
@@ -187,16 +209,68 @@ async def start_campaign(
                 if not call:
                     continue
                 call_list.append(str(call.id))
-            dispatch_result = await dispatch_call_ids(call_list, max_concurrency=campaign.concurrency)
-            dialed = dispatch_result.get("succeeded", 0)
+            _dispatch_result = await dispatch_call_ids(call_list, max_concurrency=campaign.concurrency)
+            dispatch_result = CampaignDispatchResult(
+                total=_dispatch_result.get("total", 0),
+                target=_dispatch_result.get("target", 0),
+                succeeded=_dispatch_result.get("succeeded", 0),
+                failed=_dispatch_result.get("failed", 0),
+                skipped=_dispatch_result.get("skipped", 0),
+                status=_dispatch_result.get("status", "completed"),
+                errors=[CampaignDispatchError(**item) for item in _dispatch_result.get("errors", [])],
+                error_codes=_dispatch_result.get("error_codes", []),
+            )
+            dialed = dispatch_result.succeeded
+    if not auto_dial:
+        dispatch_result.target = 0
 
     campaign.status = "running"
     campaign.updated_at = datetime.utcnow()
     session.add(campaign)
     session.commit()
+
     result["campaign_status"] = "running"
     result["auto_dial_requested"] = auto_dial
     result["auto_dial_count"] = dialed
     result["dispatch_mode"] = "async" if auto_dial and async_dial else "sync"
     result["dispatch_result"] = dispatch_result
-    return result
+
+    result_code = "SUCCESS"
+    result_message = "campaign started"
+    error_codes = sorted(set(dispatch_result.error_codes + precheck_error_codes))
+    has_precheck_error = bool(precheck_error_codes) or result.get("skipped", 0) > 0 and result.get("created", 0) == 0
+
+    if has_precheck_error and dispatch_result.failed == 0 and dispatch_result.succeeded == 0:
+        result_code = "FAILED"
+        result_message = "campaign started with precheck blocking"
+    elif has_precheck_error:
+        result_code = "PARTIAL_SUCCESS"
+        result_message = "campaign started with precheck warnings"
+
+    if dispatch_result.failed > 0:
+        result_code = "PARTIAL_SUCCESS" if dispatch_result.succeeded > 0 or auto_dial else "FAILED"
+        result_message = "campaign started with errors"
+        error_codes = sorted(set(error_codes))
+    elif dispatch_result.succeeded == 0 and dispatch_result.status == "not_dispatched":
+        result_code = "NOT_DISPATCHED"
+        result_message = "campaign prepared, auto dial disabled"
+
+    response = CampaignStartResponse(
+        id=campaign.id,
+        tenant_id=campaign.tenant_id,
+        name=campaign.name,
+        status=campaign.status,
+        total_contacts=result["total_contacts"],
+        created=result["created"],
+        skipped=result["skipped"],
+        campaign_status=result["campaign_status"],
+        auto_dial_requested=result["auto_dial_requested"],
+        auto_dial_count=result["auto_dial_count"],
+        dispatch_mode=result["dispatch_mode"],
+        dispatch_result=dispatch_result,
+        result_code=result_code,
+        result_message=result_message,
+        error_codes=error_codes,
+        skip_reasons=skip_reasons,
+    )
+    return response

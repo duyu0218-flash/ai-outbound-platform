@@ -791,10 +791,14 @@ def _portal_page(
             method: 'POST',
             headers: getCommonHeaders(),
           });
-          setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个`);
+          const code = data.result_code ? `，结果码 ${data.result_code}` : '';
+          setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个${code}`);
           log(`campaign start: ${JSON.stringify(data)}`);
           if (data.dispatch_result) {
             log(`campaign dispatch: ${JSON.stringify(data.dispatch_result)}`);
+          }
+          if (data.error_codes && data.error_codes.length) {
+            log(`campaign error codes: ${JSON.stringify(data.error_codes)}`);
           }
           await searchCalls(true);
         } catch (err) {
