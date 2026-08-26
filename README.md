@@ -163,6 +163,28 @@ bash scripts/test-campaign-start.sh
 
 前端管理员页面已提供“异步”勾选开关，提交后返回 `dispatch_mode`（`async` 或 `sync`）与 `dispatch_result`。
 
+接口返回里新增了结构化结果码，便于前端强类型识别：
+
+- `result_code`: `SUCCESS | PARTIAL_SUCCESS | FAILED | NOT_DISPATCHED`
+- `result_message`: 业务文本说明
+- `error_codes`: 所有失败或警告的错误码聚合
+- `skip_reasons`: 预检阶段被跳过的联系人列表，带 `code/message/phone/contact_id`
+- `dispatch_result.error_codes`: 拨号执行阶段的错误码聚合
+- `dispatch_result.errors`: 每条拨号异常明细（含 `code/message/call_id`）
+
+常用错误码示例：
+
+- `CONTACT_DNC`：联系人在黑名单
+- `CONTACT_NOT_CONSENTED`：联系人未同意
+- `CONTACT_CONSENT_REVOKED`：已撤回同意
+- `CONTACT_NOT_FOUND`：活动联系人关系不存在
+- `INVALID_PHONE`：手机号无效
+- `DIAL_FAILED`：拨号失败（适配器返回异常）
+- `PROVIDER_ERROR`：提供商错误
+- `CALL_NOT_FOUND`：任务内通话 ID 丢失
+
+建议前端以 `result_code` 做主状态判断，以 `error_codes` 做告警展示，并读取 `dispatch_result` 做明细列表。
+
 ## 5. 关键生产要点
 
 - Webhook 安全：
