@@ -122,8 +122,8 @@ curl -i http://localhost:8000/api/v1/calls -H "x-api-key: dev-api-key" -H "x-ten
 
 验收要点：
 
-- `/health` 返回 JSON 中 `checks.db` 必须是 `ok`（若 DB 异常会返回 503）。
-- `/readyz` 返回 `status=ready` 且 `checks.db=ok`，可用于编排探针。
+- `/health` 为“存活探针”：返回 `200` 且 `checks.db=ok`、`checks.redis=ok`（或 `redis` 未配置时也可为 `ok`）。
+- `/readyz` 为“就绪探针”：除 `db/redis` 外还会检查 `ai_agent` 与 `telephony`，用于编排器和切流前置校验。
 - 所有 API 响应应包含 `request_id`，便于后续定位故障。
 - 触发频控场景应返回 `429`，且有 `Retry-After` 与 `X-RateLimit-*`。
 

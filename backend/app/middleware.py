@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from typing import Deque, Dict
 
 from fastapi import Request
+from redis import asyncio as redis_async
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -49,7 +50,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             request_id = getattr(request.state, "request_id", None)
             logger.warning("request timeout path=%s request_id=%s", request.url.path, request_id)
             return JSONResponse(
-                status_code=503,
+                status_code=504,
                 content={
                     "error": "timeout",
                     "message": f"request timeout after {timeout_sec}s",
@@ -91,11 +92,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Simple in-memory sliding-window rate limiter for API paths.
-
-    Notes: this is a single-instance safety valve. For multi-instance deployment,
-    pair with Redis (recommended) in a follow-up upgrade.
-    """
+    """Distributed rate limiting for API paths with in-memory fallback."""
 
     def __init__(self, app, path_limits: Dict[str, int] | None = None):
         super().__init__(app)
@@ -113,11 +110,38 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         }
         self._hits: Dict[str, Deque[float]] = defaultdict(deque)
         self._lock = asyncio.Lock()
+        self._key_prefix = "ai-outbound:rate-limit"
+        self._redis = self._connect_redis_client(settings.redis_url)
+        if self._redis is None:
+            logger.warning("rate limit uses in-memory fallback (redis unavailable or not configured)")
+        else:
+            logger.info("rate limit uses redis backend")
+
+    def _connect_redis_client(self, redis_url: str):
+        if not redis_url:
+            return None
+        try:
+            client = redis_async.from_url(redis_url, decode_responses=True)
+            # lazy-check: ensure endpoint is reachable at startup
+            return client
+        except Exception:
+            logger.exception("failed to initialize redis client, fallback to memory limiter")
+            return None
 
     async def _is_limit_ok(self, key: str, limit: int) -> bool:
         if not self.enabled:
             return True
 
+        if self._redis is not None:
+            try:
+                return await self._is_limit_ok_redis(key, limit)
+            except Exception:
+                logger.exception("redis rate-limit unavailable, fallback to memory limiter")
+                self._redis = None
+                return await self._is_limit_ok_memory(key, limit)
+        return await self._is_limit_ok_memory(key, limit)
+
+    async def _is_limit_ok_memory(self, key: str, limit: int) -> bool:
         window = self.window_sec
         cutoff = time.time() - window
 
@@ -130,6 +154,31 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return False
 
             bucket.append(time.time())
+            return True
+
+    async def _is_limit_ok_redis(self, key: str, limit: int) -> bool:
+        if not self._redis:
+            return await self._is_limit_ok_memory(key, limit)
+
+        now = time.time()
+        cutoff = now - self.window_sec
+        redis_key = f"{self._key_prefix}:{key}"
+        member = f"{now}:{uuid.uuid4().hex}"
+
+        async with self._redis.pipeline() as pipe:
+            await pipe.zremrangebyscore(redis_key, 0, cutoff)
+            await pipe.zcard(redis_key)
+            cardinality = await pipe.execute()
+
+            if not cardinality or len(cardinality) < 2:
+                logger.warning("redis rate-limit pipeline result abnormal, fallback to memory limiter: key=%s", redis_key)
+                return await self._is_limit_ok_memory(key, limit)
+
+            if int(cardinality[1]) >= limit:
+                return False
+
+            await self._redis.zadd(redis_key, {member: now})
+            await self._redis.expire(redis_key, self.window_sec)
             return True
 
     async def dispatch(self, request: Request, call_next):
@@ -152,7 +201,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if limit == 0:
             limit = self.default_rpm
 
-        # keep sensitive POST endpoints stricter than read-only endpoints
+        # keep read-only endpoints at default limit and stricter endpoints at configured cap
         if method in {"GET", "HEAD", "OPTIONS"}:
             limit = max(limit, self.default_rpm)
 

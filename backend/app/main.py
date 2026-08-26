@@ -29,12 +29,13 @@ from .middleware import (
 )
 from .models import Tenant
 from .services.auth import ensure_demo_users
-from .services.health import db_health_check
+from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check
 
 settings = get_settings()
 setup_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 config_origins = [x.strip() for x in settings.cors_allow_origins.split(",") if x.strip()]
+PROD_ALLOWED_ENVS = {"prod", "production"}
 
 
 @asynccontextmanager
@@ -53,6 +54,34 @@ if settings.trusted_hosts:
     )
 
 
+def _is_prod_env() -> bool:
+    return settings.env.lower() in PROD_ALLOWED_ENVS
+
+
+def _validate_production_runtime() -> None:
+    if not _is_prod_env():
+        return
+
+    issues = []
+    if settings.secret_key in {"", "change-me", "secret"}:
+        issues.append("SECRET_KEY")
+    if settings.jwt_secret in {"", "change-me", "jwt-change-me"}:
+        issues.append("JWT_SECRET")
+    if settings.api_key in {"", "dev-api-key"}:
+        issues.append("API_KEY")
+    if settings.cors_allow_origins.strip() == "*":
+        issues.append("CORS_ALLOW_ORIGINS=*")
+    if not settings.trusted_hosts.strip():
+        issues.append("TRUSTED_HOSTS")
+
+    if issues:
+        raise RuntimeError(
+            "Production runtime validation failed, invalid config: "
+            + ", ".join(issues)
+            + "。请替换为生产安全值后重启服务。"
+        )
+
+
 @app.on_event("startup")
 def _bootstrap_default_tenant():
     if settings.secret_key in {"", "change-me", "secret"}:
@@ -61,6 +90,7 @@ def _bootstrap_default_tenant():
         logger.warning("jwt_secret is using default value in settings, update in production")
     if settings.api_key in {"", "dev-api-key"}:
         logger.warning("api_key looks like demo value, update in production")
+    _validate_production_runtime()
 
     with get_session() as session:
         existing = session.get(Tenant, settings.default_tenant_id)
@@ -142,6 +172,7 @@ def health():
         "version": "1.0.0",
         "checks": {
             "db": db_health_check(),
+            "redis": redis_health_check(),
         },
     }
     if all(value == "ok" for value in payload["checks"].values()):
@@ -156,13 +187,17 @@ def healthz():
 
 @app.get("/readyz")
 def readyz() -> dict[str, Any]:
+    checks = {
+        "db": db_health_check(),
+        "redis": redis_health_check(),
+        "ai_agent": ai_agent_health_check(),
+        "telephony": telephony_http_health_check(),
+    }
     payload = {
         "status": "ready",
-        "checks": {
-            "db": db_health_check(),
-        },
+        "checks": checks,
     }
-    if payload["checks"]["db"] != "ok":
+    if not all(value == "ok" for value in payload["checks"].values()):
         return JSONResponse(status_code=503, content=payload)
     return payload
 
