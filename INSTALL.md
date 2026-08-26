@@ -237,6 +237,112 @@ bash scripts/test-demo-accounts.sh
 ```bash
 bash scripts/smoke-outbound-api.sh
 ```
+
+## 6.1 一体化验收命令清单（上/下线前可直接执行）
+
+建议在部署完成后，按顺序执行以下命令，任意一步失败即停止并排查。
+
+```bash
+set -euo pipefail
+
+# 统一环境变量
+export BASE_URL="${BASE_URL:-http://localhost:8000}"
+export API_KEY="${API_KEY:-dev-api-key}"
+export TENANT_ID="${TENANT_ID:-1}"
+export ADMIN_USER="${DEMO_ADMIN_USERNAME:-admin}"
+export ADMIN_PASS="${DEMO_ADMIN_PASSWORD:-12345678}"
+export AGENT_USER="${DEMO_AGENT_USERNAME:-1001@test}"
+export AGENT_PASS="${DEMO_AGENT_PASSWORD:-12345678}"
+
+echo "1) 健康检查"
+curl -sS "${BASE_URL}/health" | jq .
+curl -sS "${BASE_URL}/readyz" | jq .
+curl -sS "http://localhost:8001/health" | jq .
+
+echo "2) 页面入口检查"
+curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/admin"            # 200
+curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/agent"            # 200
+curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/docs.html"        # 302 -> /docs
+
+echo "3) 账号登录与权限链路"
+admin_login=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" | jq -r '.access_token')
+if [ -z "$admin_login" ] || [ "$admin_login" = "null" ]; then
+  echo "admin 登录失败"; exit 1
+fi
+echo "admin token: ${admin_login:0:20}..."
+
+agent_login=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"${AGENT_USER}\",\"password\":\"${AGENT_PASS}\"}" | jq -r '.access_token')
+if [ -z "$agent_login" ] || [ "$agent_login" = "null" ]; then
+  echo "agent 登录失败"; exit 1
+fi
+echo "agent token: ${agent_login:0:20}..."
+
+curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/auth/me" | jq -e --arg user "${ADMIN_USER}" '.username == $user'
+curl -sS -H "Authorization: Bearer ${agent_login}" "${BASE_URL}/api/v1/auth/me" | jq -e --arg user "${AGENT_USER}" '.username == $user'
+
+curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/admin/dashboard" | jq
+curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/agent/dashboard" | jq
+curl -sS -H "Authorization: Bearer ${agent_login}" "${BASE_URL}/api/v1/agent/dashboard" | jq
+
+# 角色隔离：座席不可访问 admin dashboard
+agent_admin_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+  -H "Authorization: Bearer ${agent_login}" \
+  "${BASE_URL}/api/v1/admin/dashboard")
+if [ "${agent_admin_code}" != "403" ]; then
+  echo "角色隔离异常：agent_admin_code=${agent_admin_code}"; exit 1
+fi
+
+echo "4) 核心链路 smoke（联系人→模板→活动→启动→查询）"
+contact_id=$(curl -sS -X POST "${BASE_URL}/api/v1/contacts" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800000000","name":"验收用户","consent_state":"consented"}' | jq -r '.id')
+if [ -z "$contact_id" ] || [ "$contact_id" = "null" ]; then
+  echo "新建联系人失败"; exit 1
+fi
+
+template_id=$(curl -sS -X POST "${BASE_URL}/api/v1/script-templates" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"验收话术","category":"sales","content":"您好，{客户姓名}，我是AI外呼助手。","is_active":true}' | jq -r '.id')
+if [ -z "$template_id" ] || [ "$template_id" = "null" ]; then
+  echo "新建话术模板失败"; exit 1
+fi
+
+campaign_id=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"验收活动\",\"mode\":\"ai_handoff\",\"script_template_id\":${template_id},\"contact_ids\":[${contact_id}]}" | jq -r '.id')
+if [ -z "$campaign_id" ] || [ "$campaign_id" = "null" ]; then
+  echo "新建活动失败"; exit 1
+fi
+
+curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${campaign_id}/start?max_dials=1" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq
+
+curl -sS -G "${BASE_URL}/api/v1/calls" \
+  --data-urlencode "page=1" \
+  --data-urlencode "size=5" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq
+
+echo "5) 限流和告警检查（可选）"
+status_code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/healthz")
+echo "healthz status=${status_code}"
+
+echo "验收完成：PASS"
+```
+
+注意：`jq -e` 或 JSON 结构不同会使命令失败，这说明链路返回格式与预期不一致，需回到对应接口日志排查。
+
 ## 7. 核心模式说明
 
 - **纯人工**：`human_only`（只建立呼叫，不触发 AI）
