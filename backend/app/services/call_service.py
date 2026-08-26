@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -9,6 +10,7 @@ from sqlmodel import Session, select
 from ..config import get_settings
 from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
+from ..db import get_session
 
 settings = get_settings()
 
@@ -244,6 +246,44 @@ async def retry_call(
     session.add(call)
     session.commit()
     return await place_call(session, call)
+
+
+async def dispatch_call_ids(
+    call_ids: list[str],
+    *,
+    max_concurrency: int | None = None,
+) -> dict[str, int]:
+    if not call_ids:
+        return {"total": 0, "succeeded": 0, "skipped": 0, "failed": 0}
+
+    concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
+
+    async def _dispatch_one(call_id: str) -> bool:
+        with get_session() as session:
+            call = session.get(CallSession, UUID(call_id))
+            if not call:
+                return False
+            try:
+                await place_call(session, call)
+                return call.status != CallStatus.FAILED
+            except Exception:
+                return False
+
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _worker(call_id: str) -> bool:
+        async with sem:
+            return await _dispatch_one(call_id)
+
+    results = await asyncio.gather(*(_worker(call_id) for call_id in call_ids), return_exceptions=True)
+    succeeded = sum(1 for item in results if item is True)
+    failed = len(results) - succeeded
+    return {
+        "total": len(call_ids),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": 0,
+    }
 
 
 def start_campaign(

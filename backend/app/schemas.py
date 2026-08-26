@@ -88,6 +88,29 @@ class CallEventOut(BaseModel):
     created_at: datetime
 
 
+class WebhookEventIngestOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    event_type: str
+    source: str
+    provider_event_key: str
+    repeat_count: int = 1
+    created_at: datetime
+
+
+class CallWebhookStatsItem(BaseModel):
+    event_type: str
+    source: str
+    count: int
+
+
+class CallWebhookStatsOut(BaseModel):
+    total: int
+    unique: int
+    duplicate_estimate: int
+    buckets: list[CallWebhookStatsItem]
+
+
 class WebhookEvent(BaseModel):
     call_id: UUID
     kind: str

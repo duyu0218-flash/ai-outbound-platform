@@ -6,10 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
 from sqlmodel import select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id, require_roles_if_authenticated
 from ...db import get_session
-from ...models import CallEvent, CallStatus
-from ...schemas import CallEventOut, CallSessionOut, StartCallRequest
+from ...models import CallEvent, CallStatus, WebhookEventIngest
+from ...schemas import (
+    CallEventOut,
+    CallSessionOut,
+    CallWebhookStatsItem,
+    CallWebhookStatsOut,
+    StartCallRequest,
+    WebhookEventIngestOut,
+)
 from ...services.call_service import (
     CallPermissionError,
     NotFoundError,
@@ -21,7 +28,11 @@ from ...services.call_service import (
     place_call,
 )
 
-router = APIRouter(prefix="/api/v1/calls", tags=["calls"], dependencies=[Depends(check_api_key)])
+router = APIRouter(
+    prefix="/api/v1/calls",
+    tags=["calls"],
+    dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin", "agent"))],
+)
 
 
 @router.post("", response_model=CallSessionOut)
@@ -148,6 +159,60 @@ def list_call_events(
         .limit(limit)
     ).all()
     return events
+
+
+@router.get("/{call_id}/webhook-events", response_model=list[WebhookEventIngestOut])
+def list_webhook_events(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    get_call(session, tenant_id, call_id)
+    skip, limit = get_pagination(page=page, size=size)
+    records = session.exec(
+        select(WebhookEventIngest)
+        .where(WebhookEventIngest.call_session_id == call_id)
+        .order_by(WebhookEventIngest.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).all()
+    return records
+
+
+@router.get("/{call_id}/webhook-stats", response_model=CallWebhookStatsOut)
+def get_webhook_stats(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id),
+    session: Session = Depends(get_session),
+):
+    get_call(session, tenant_id, call_id)
+
+    records = session.exec(
+        select(WebhookEventIngest)
+        .where(WebhookEventIngest.call_session_id == call_id)
+        .order_by(WebhookEventIngest.created_at.asc())
+    ).all()
+
+    bucket: dict[str, int] = {}
+    for item in records:
+        key = f"{item.source}:{item.event_type}"
+        bucket[key] = bucket.get(key, 0) + 1
+
+    buckets = []
+    for raw_key, count in sorted(bucket.items()):
+        source, event_type = raw_key.split(":", 1)
+        buckets.append(CallWebhookStatsItem(event_type=event_type, source=source, count=count))
+
+    duplicate_count = sum((item.repeat_count or 1) - 1 for item in records)
+
+    return {
+        "total": len(records),
+        "unique": len(records),
+        "duplicate_estimate": duplicate_count,
+        "buckets": buckets,
+    }
 
 
 @router.post("/{call_id}/retry", response_model=CallSessionOut)

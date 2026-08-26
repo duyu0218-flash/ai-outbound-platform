@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id, require_roles_if_authenticated
 from ...db import get_session
 from ...models import ScriptTemplate
 from ...schemas import ScriptTemplateCreate, ScriptTemplateOut, ScriptTemplateUpdate
@@ -13,7 +13,10 @@ from ...schemas import ScriptTemplateCreate, ScriptTemplateOut, ScriptTemplateUp
 router = APIRouter(
     prefix="/api/v1/script-templates",
     tags=["script-templates"],
-    dependencies=[Depends(check_api_key)],
+    dependencies=[
+        Depends(check_api_key),
+        Depends(require_roles_if_authenticated("admin")),
+    ],
 )
 
 

@@ -128,6 +128,14 @@ curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/hangup?reason=系统�
 curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events?page=1&size=20" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 
+# 查询 webhook 去重统计
+curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/webhook-stats" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 查询 webhook 去重原始记录
+curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/webhook-events?page=1&size=20" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
 # 重试失败的外呼（达到最大尝试数后会拒绝）
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/retry" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
@@ -137,7 +145,23 @@ curl -X GET http://localhost:8000/api/v1/admin/dashboard \
   -H "Authorization: Bearer <admin_access_token>"
 curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   -H "Authorization: Bearer <agent_access_token>"
+
+# 快速校验 webhook 去重
+bash scripts/test-webhook-idempotent.sh
+
+# 活动启动参数快速验收（sync/async + max_dials）
+bash scripts/test-campaign-start.sh
 ```
+
+### 4.1 活动启动参数
+
+`POST /api/v1/campaigns/{campaign_id}/start` 支持以下参数：
+
+- `max_dials`：最多发起的外呼数量（可选）
+- `auto_dial`：是否自动发起（默认 `true`）
+- `async_dial`：是否异步派发（默认 `true`）
+
+前端管理员页面已提供“异步”勾选开关，提交后返回 `dispatch_mode`（`async` 或 `sync`）与 `dispatch_result`。
 
 ## 5. 关键生产要点
 
@@ -159,6 +183,12 @@ curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
 - 合规：
   - 联系人必须经过同意/撤回、黑名单（DNC）检查。
+- 登录态增强：
+  - `current_user_optional` 与 `require_roles_if_authenticated` 上线：携带 Bearer Token 的请求会做角色检查；纯 API Key 调用保持兼容。
+- webhook 增强：
+  - 回调事件追加幂等记录：重复回调不会重复落盘事件快照，减少脏状态风险。
+- 活动拨号（新）：
+  - `POST /api/v1/campaigns/{campaign_id}/start` 新增 `async_dial`：默认 `true`，采用后台异步并发拨号（仍可选 `async_dial=false` 做阻塞式串行验证）。
 
 ## 6. 接入 PBX / 短信
 

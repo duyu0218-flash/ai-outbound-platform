@@ -240,6 +240,56 @@ bash scripts/smoke-outbound-api.sh
 
 ## 6.1 一体化验收命令清单（上/下线前可直接执行）
 
+### 6.1.1 活动异步拨号增强验收
+
+建议执行一次异步启动链路（`async_dial=true`）：
+
+```bash
+CAMPAIGN_ID=<你的活动ID>
+curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=true&max_dials=5" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+返回 `dispatch_mode=async` 且 `dispatch_result.status=queued` 视为通过。随后立即查询：
+
+```bash
+curl -sS -X GET "${BASE_URL}/api/v1/calls?page=1&size=20" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+如果你要切回同步可控验证，用 `async_dial=false`。
+
+### 6.1.2 webhook 回调幂等增强验收
+
+取任意会话 ID（如 `/api/v1/calls` 首条），重复同一 webhook 回调两次，事件只应记录一次（前提：回调 payload 去重）：
+
+```bash
+CALL_ID=<你的通话ID>
+curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
+  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
+
+curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
+  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
+
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+理想现象：重复请求都返回 200，但事件列表仅新增 1 条（同一通话状态快照不重复）。
+
+执行后续命令可把验收标准化（查询 webhook 去重计数/重复记录）：
+
+```bash
+bash scripts/test-webhook-idempotent.sh
+```
+
 建议在部署完成后，按顺序执行以下命令，任意一步失败即停止并排查。
 
 ```bash
@@ -342,6 +392,71 @@ echo "验收完成：PASS"
 ```
 
 注意：`jq -e` 或 JSON 结构不同会使命令失败，这说明链路返回格式与预期不一致，需回到对应接口日志排查。
+
+### 6.3 上线前 0-5 标准验收清单（建议直接粘贴到发布记录）
+
+```bash
+export BASE_URL="${BASE_URL:-http://localhost:8000}"
+export API_KEY="${API_KEY:-dev-api-key}"
+export TENANT_ID="${TENANT_ID:-1}"
+export ADMIN_USER="${DEMO_ADMIN_USERNAME:-admin}"
+export ADMIN_PASS="${DEMO_ADMIN_PASSWORD:-12345678}"
+export AGENT_USER="${DEMO_AGENT_USERNAME:-1001@test}"
+export AGENT_PASS="${DEMO_AGENT_PASSWORD:-12345678}"
+
+set -euo pipefail
+
+# 0. 控制面可达
+curl -fS "${BASE_URL}/health" >/dev/null
+curl -fS "${BASE_URL}/readyz" >/dev/null
+curl -fS "${BASE_URL}/healthz" >/dev/null
+curl -fS "http://localhost:8001/health" >/dev/null
+
+# 1. 页面入口
+for u in /admin /agent /docs.html; do
+  code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}${u}")
+  [ "$code" -ge 200 ] && [ "$code" -le 399 ]
+done
+
+# 2. 鉴权角色链路
+ADMIN_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" | jq -r '.access_token')
+AGENT_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${AGENT_USER}\",\"password\":\"${AGENT_PASS}\"}" | jq -r '.access_token')
+curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${ADMIN_TOKEN}"
+curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/agent/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}"
+agent_admin_code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}")
+[ "$agent_admin_code" = "403" ]
+
+# 3. 核心链路（联系人→模板→活动）
+CONTACT_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/contacts" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"phone":"13800000001","name":"验收联系人","consent_state":"consented","dnc":false}' | jq -r '.id')
+TEMPLATE_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/script-templates" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"name":"上线验收话术","content":"您好，我来协助核对业务问题。","category":"check","is_active":true}' | jq -r '.id')
+CAMPAIGN_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d "{\"name\":\"上线验收活动\",\"mode\":\"ai_handoff\",\"script_template_id\":${TEMPLATE_ID},\"contact_ids\":[${CONTACT_ID}]}" | jq -r '.id')
+START=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=false&max_dials=1" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" | jq -r '.dispatch_mode')
+[ "$START" = "sync" ]
+
+# 4. 事件闭环
+CALL_ID=$(curl -sS -G "${BASE_URL}/api/v1/calls" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" --data-urlencode "page=1" --data-urlencode "size=1" | jq -r '.[0].id')
+[ -n "$CALL_ID" ] && [ "$CALL_ID" != "null" ]
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/webhook-stats" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
+
+# 5. 复测脚本
+bash scripts/test-demo-accounts.sh
+bash scripts/test-webhook-idempotent.sh
+bash scripts/test-campaign-start.sh
+
+echo "上线前验收通过"
+```
+
+另外，若你只想快速验证活动启动参数（`async_dial` 与 `max_dials`）：
+
+```bash
+bash scripts/test-campaign-start.sh
+```
+
+脚本会分别验证：
+- `async_dial=false` 的同步发起是否返回 `dispatch_mode=sync`；
+- `async_dial=true` 的异步发起是否返回 `dispatch_mode=async` 且 `dispatch_result.status=queued`；
+- `max_dials` 是否限制最终会话条目不超出预期。
 
 ## 7. 核心模式说明
 
