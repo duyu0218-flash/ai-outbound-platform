@@ -67,8 +67,15 @@ SYNC_RESULT=$(curl -sS -X POST "$BASE_URL/api/v1/campaigns/$CAMPAIGN_ID/start?ma
 SYNC_MODE=$(echo "$SYNC_RESULT" | jq -r '.dispatch_mode // ""')
 SYNC_STATUS=$(echo "$SYNC_RESULT" | jq -r '.dispatch_result.status // ""')
 SYNC_SUCCEEDED=$(echo "$SYNC_RESULT" | jq -r '.dispatch_result.succeeded // 0')
+SYNC_CODE=$(echo "$SYNC_RESULT" | jq -r '.result_code // ""')
+SYNC_ERROR_CODES=$(echo "$SYNC_RESULT" | jq -r '.error_codes // []')
 if [ "$SYNC_MODE" != "sync" ]; then
   echo "同步启动失败，dispatch_mode=$SYNC_MODE" >&2
+  echo "$SYNC_RESULT"
+  exit 1
+fi
+if [[ -z "$SYNC_CODE" ]]; then
+  echo "同步启动未返回 result_code" >&2
   echo "$SYNC_RESULT"
   exit 1
 fi
@@ -100,6 +107,8 @@ ASYNC_RESULT=$(curl -sS -X POST "$BASE_URL/api/v1/campaigns/$CAMPAIGN_ASYNC_ID/s
   -H "x-tenant-id: ${TENANT_ID}")
 ASYNC_MODE=$(echo "$ASYNC_RESULT" | jq -r '.dispatch_mode // ""')
 ASYNC_STATUS=$(echo "$ASYNC_RESULT" | jq -r '.dispatch_result.status // ""')
+ASYNC_CODE=$(echo "$ASYNC_RESULT" | jq -r '.result_code // ""')
+ASYNC_ERROR_CODES=$(echo "$ASYNC_RESULT" | jq -r '.error_codes // []')
 if [ "$ASYNC_MODE" != "async" ]; then
   echo "异步启动失败，dispatch_mode=$ASYNC_MODE" >&2
   echo "$ASYNC_RESULT"
@@ -107,6 +116,11 @@ if [ "$ASYNC_MODE" != "async" ]; then
 fi
 if [ "$ASYNC_STATUS" != "queued" ]; then
   echo "异步启动状态异常，dispatch_result.status=$ASYNC_STATUS" >&2
+  echo "$ASYNC_RESULT"
+  exit 1
+fi
+if [[ -z "$ASYNC_CODE" ]]; then
+  echo "异步启动未返回 result_code" >&2
   echo "$ASYNC_RESULT"
   exit 1
 fi
@@ -130,3 +144,5 @@ if [ "$CALL_COUNT_SYNC" -gt 1 ] || [ "$CALL_COUNT_ASYNC" -gt 1 ]; then
 fi
 
 echo "PASS: campaign start sync/async and max_dials basic checks"
+echo "SYNC_RESULT: result_code=${SYNC_CODE}, error_codes=${SYNC_ERROR_CODES}"
+echo "ASYNC_RESULT: result_code=${ASYNC_CODE}, error_codes=${ASYNC_ERROR_CODES}"
