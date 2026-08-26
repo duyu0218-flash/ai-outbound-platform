@@ -4,13 +4,17 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id, require_roles_if_authenticated
 from ...db import get_session
 from ...models import Contact, ConsentState
 from ...schemas import ContactCreate, ContactPatch, ContactOut
 from ...services.call_service import normalize_phone
 
-router = APIRouter(prefix="/api/v1/contacts", tags=["contacts"], dependencies=[Depends(check_api_key)])
+router = APIRouter(
+    prefix="/api/v1/contacts",
+    tags=["contacts"],
+    dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin"))],
+)
 
 
 @router.post("", response_model=ContactOut)

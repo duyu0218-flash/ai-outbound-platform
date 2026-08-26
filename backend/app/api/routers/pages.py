@@ -328,6 +328,10 @@ def _portal_page(
           <div class="row">
             <label>联系人ID</label><input id="campaignContactIds" value="" placeholder="1,2,3" />
             <label>max_dials</label><input id="campaignMaxDials" value="1" type="number" min="1" style="max-width:96px;" />
+            <label>异步</label><input id="campaignAsyncDial" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label>启动提示</label><span class="small">异步模式下先返回排队结果，再到“外呼与会话”页刷新状态</span>
           </div>
           <div class="btns">
             <button onclick="createCampaign()">创建活动</button>
@@ -775,15 +779,23 @@ def _portal_page(
       async function startCampaign(campaignId, maxDial) {
         try {
           let url = `/api/v1/campaigns/${campaignId}/start`;
+          const asyncDial = document.getElementById('campaignAsyncDial').checked;
+          const query = new URLSearchParams();
+          query.set('async_dial', asyncDial ? 'true' : 'false');
+          query.set('auto_dial', 'true');
           if (maxDial) {
-            url += `?max_dials=${maxDial}`;
+            query.set('max_dials', String(maxDial));
           }
+          url += `?${query.toString()}`;
           const data = await requestJson(url, {
             method: 'POST',
             headers: getCommonHeaders(),
           });
           setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个`);
           log(`campaign start: ${JSON.stringify(data)}`);
+          if (data.dispatch_result) {
+            log(`campaign dispatch: ${JSON.stringify(data.dispatch_result)}`);
+          }
           await searchCalls(true);
         } catch (err) {
           setStatus('campaignStatus', `启动失败：${err.message}`, true);
@@ -839,6 +851,7 @@ def _portal_page(
                   <button class=\"danger\" onclick=\"hangupCall('${item.id}')\">挂断</button>
                   <button class=\"secondary\" onclick=\"retryCall('${item.id}')\">重试</button>
                   <button class=\"secondary\" onclick=\"openEvents('${item.id}')\">事件</button>
+                  <button class=\"secondary\" onclick=\"openWebhookEvents('${item.id}')\">Webhook去重</button>
                 </div>
               </td>
             `;
@@ -880,14 +893,40 @@ def _portal_page(
 
       async function openEvents(callId) {
         try {
-          const data = await requestJson(`/api/v1/calls/${callId}/events?page=1&size=20`, {
-            headers: getCommonHeaders(),
-          });
-          log(`events ${callId}: ${JSON.stringify(data)}`);
-          setStatus('callStatus', `已拉取事件：${callId}`);
+          const [rawEvents, stats] = await Promise.all([
+            requestJson(`/api/v1/calls/${callId}/events?page=1&size=20`, {
+              headers: getCommonHeaders(),
+            }),
+            requestJson(`/api/v1/calls/${callId}/webhook-stats`, {
+              headers: getCommonHeaders(),
+            }),
+          ]);
+          const data = rawEvents;
+          const dupText = stats && stats.duplicate_estimate !== undefined
+            ? `，去重重复计数${stats.duplicate_estimate}，总事件${stats.total}`
+            : '';
+          const bucketText = Array.isArray(stats?.buckets) && stats.buckets.length
+            ? `；按类：${stats.buckets.map((item) => `${item.source}:${item.event_type}=${item.count}`).join('，')}`
+            : '';
+          const extra = `${dupText}${bucketText}`;
+          log(`events ${callId}: ${JSON.stringify(data)}${extra}`);
+          setStatus('callStatus', `已拉取事件：${callId}${extra}`);
         } catch (err) {
           setStatus('callStatus', `事件查询失败：${err.message}`, true);
           log(`events fail ${callId}: ${err.message}`);
+        }
+      }
+
+      async function openWebhookEvents(callId) {
+        try {
+          const data = await requestJson(`/api/v1/calls/${callId}/webhook-events?page=1&size=20`, {
+            headers: getCommonHeaders(),
+          });
+          log(`webhook-events ${callId}: ${JSON.stringify(data)}`);
+          setStatus('callStatus', `已拉取 webhook 去重记录：${callId}`);
+        } catch (err) {
+          setStatus('callStatus', `Webhook 记录查询失败：${err.message}`, true);
+          log(`webhook-events fail ${callId}: ${err.message}`);
         }
       }
 

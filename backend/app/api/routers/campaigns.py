@@ -1,21 +1,25 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlmodel import Session, select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id, require_roles_if_authenticated
 from ...db import get_session
 from ...models import Campaign, CampaignContact, CallSession, Contact, ScriptTemplate
 from ...services.call_service import (
     NotFoundError,
     resolve_campaign_script,
     start_campaign as start_campaign_service,
-    place_call,
+    dispatch_call_ids,
 )
 from ...schemas import CampaignCreate, CampaignOut
 
-router = APIRouter(prefix="/api/v1/campaigns", tags=["campaigns"], dependencies=[Depends(check_api_key)])
+router = APIRouter(
+    prefix="/api/v1/campaigns",
+    tags=["campaigns"],
+    dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin"))],
+)
 
 
 @router.post("", response_model=CampaignOut)
@@ -134,10 +138,12 @@ def delete_campaign(
 @router.post("/{campaign_id}/start")
 async def start_campaign(
     campaign_id: int,
+    background_tasks: BackgroundTasks,
     tenant_id: int = Depends(get_tenant_id),
     session: Session = Depends(get_session),
     auto_dial: bool = True,
     max_dials: int | None = Query(default=None, ge=1),
+    async_dial: bool = Query(default=True),
 ):
     try:
         result = start_campaign_service(session, tenant_id=tenant_id, campaign_id=campaign_id, only_active_contacts=True)
@@ -153,13 +159,36 @@ async def start_campaign(
         result_call_ids = result["call_ids"]
 
     dialed = 0
+    dispatch_result: dict[str, object] = {"total": 0, "succeeded": 0, "failed": 0, "skipped": 0}
     if auto_dial:
-        for call_id in result_call_ids:
-            call = session.get(CallSession, call_id)
-            if not call:
-                continue
-            await place_call(session=session, call=call)
-            dialed += 1
+        target_call_ids = result_call_ids
+        if max_dials is not None:
+            target_call_ids = target_call_ids[:max_dials]
+
+        if async_dial:
+            background_tasks.add_task(
+                dispatch_call_ids,
+                [str(call_id) for call_id in target_call_ids],
+                max_concurrency=campaign.concurrency,
+            )
+            dialed = len(target_call_ids)
+            dispatch_result = {
+                "total": len(result_call_ids),
+                "target": len(target_call_ids),
+                "succeeded": 0,
+                "failed": 0,
+                "skipped": 0,
+                "status": "queued",
+            }
+        else:
+            call_list: list[str] = []
+            for call_id in target_call_ids:
+                call = session.get(CallSession, call_id)
+                if not call:
+                    continue
+                call_list.append(str(call.id))
+            dispatch_result = await dispatch_call_ids(call_list, max_concurrency=campaign.concurrency)
+            dialed = dispatch_result.get("succeeded", 0)
 
     campaign.status = "running"
     campaign.updated_at = datetime.utcnow()
@@ -168,4 +197,6 @@ async def start_campaign(
     result["campaign_status"] = "running"
     result["auto_dial_requested"] = auto_dial
     result["auto_dial_count"] = dialed
+    result["dispatch_mode"] = "async" if auto_dial and async_dial else "sync"
+    result["dispatch_result"] = dispatch_result
     return result

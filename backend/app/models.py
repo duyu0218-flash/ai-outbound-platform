@@ -160,6 +160,16 @@ class CallEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class WebhookEventIngest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    event_type: str = Field(index=True)
+    source: str = Field(index=True)
+    provider_event_key: str = Field(index=True, unique=True)
+    repeat_count: int = 1
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class SmsLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")

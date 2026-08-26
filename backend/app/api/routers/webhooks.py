@@ -1,11 +1,12 @@
 import json
+import hashlib
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ...api.deps import check_webhook_token, get_session
-from ...models import CallEvent, CallSession, CallStatus
+from ...models import CallEvent, CallSession, CallStatus, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
 
@@ -30,14 +31,50 @@ def _status_to_call_status(raw_status: str) -> CallStatus | None:
 
 
 def _add_event(session: Session, call_id, event_type: str, source: str, payload: dict) -> None:
+    payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    provider_key = _make_provider_event_key(call_id, event_type, source, payload_json, payload.get("event_id") if isinstance(payload, dict) else None)
+    existed = _get_duplicate_event(session, call_id, provider_key)
+    if existed is not None:
+        existed.repeat_count = max(1, int(existed.repeat_count or 1)) + 1
+        session.add(existed)
+        return
+
     session.add(
         CallEvent(
             call_session_id=call_id,
             event_type=event_type,
             source=source,
-            payload=json.dumps(payload, ensure_ascii=False),
+            payload=payload_json,
         )
     )
+    session.add(
+        WebhookEventIngest(
+            call_session_id=call_id,
+            event_type=event_type,
+            source=source,
+            provider_event_key=provider_key,
+        )
+    )
+
+
+def _make_provider_event_key(
+    call_id,
+    event_type: str,
+    source: str,
+    payload_json: str,
+    explicit_event_id: str | None = None,
+) -> str:
+    seed = explicit_event_id or f"{call_id}:{event_type}:{source}:{payload_json}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def _get_duplicate_event(session: Session, call_id, provider_key: str) -> WebhookEventIngest | None:
+    return session.exec(
+        select(WebhookEventIngest).where(
+            WebhookEventIngest.call_session_id == call_id,
+            WebhookEventIngest.provider_event_key == provider_key,
+        )
+    ).first()
 
 
 @router.post("/telephony/status")
@@ -119,4 +156,3 @@ def telephony_recording(
     _add_event(session, call.id, "recording", "telephony", payload.payload)
     session.commit()
     return {"result": "ok"}
-

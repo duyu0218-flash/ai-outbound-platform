@@ -136,7 +136,7 @@ echo "== 6) 启动活动（1 条）=="
 CODE=$(curl -sS -o /tmp/smoke_resp.json -w '%{http_code}' -X POST \
   -H "x-api-key: $API_KEY" \
   -H "x-tenant-id: $TENANT_ID" \
-  "$BASE_URL/api/v1/campaigns/$CAMPAIGN_ID/start?max_dials=1")
+  "$BASE_URL/api/v1/campaigns/$CAMPAIGN_ID/start?max_dials=1&async_dial=false")
 assert_ok "$CODE" "POST /api/v1/campaigns/{id}/start"
 CALL_IDS_COUNT=$(jq -r '.auto_dial_count // 0' /tmp/smoke_resp.json)
 echo "created call count: $CALL_IDS_COUNT"
