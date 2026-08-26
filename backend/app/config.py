@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "AI-Outbound-Platform"
-    env: str = "prod"
+    env: str = "dev"
     api_version: str = "v1"
     debug: bool = False
     log_level: str = "INFO"

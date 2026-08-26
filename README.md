@@ -149,7 +149,7 @@ curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   - 统一身份追踪：`Request-ID` 透传与回写。
   - 限流防护：`RATE_LIMIT_*` 限制 API 异常流量，`/api/v1/auth/login` 有独立配额。
   - 安全头：默认注入常见 HTTP 安全头（禁用内嵌、MIME 保护、缓存控制等）。
-  - 健康探针：`/health` 增加数据库存活检查；新增 `/readyz` 作为可编排平台就绪检查。
+  - 健康探针：`/health` 校验控制面数据库/Redis 可达（不阻塞核心外部依赖）；`/readyz` 检查数据库、Redis、AI 服务与 PBX 就绪状态，用于编排。
   - 输入与异常统一处理：请求参数错误返回 400，HTTP 异常保留原始状态码。
   - 信任主机：可通过 `TRUSTED_HOSTS` 固定可访问域名。
 - 活动拨号：
