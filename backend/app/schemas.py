@@ -51,6 +51,112 @@ class CampaignOut(CampaignCreate):
     updated_at: datetime
 
 
+class CampaignDispatchError(BaseModel):
+    code: str
+    message: str
+    phone: Optional[str] = None
+    contact_id: Optional[int] = None
+    call_id: Optional[str] = None
+
+
+class CampaignDispatchResult(BaseModel):
+    total: int
+    target: int
+    succeeded: int
+    failed: int
+    skipped: int
+    status: str
+    errors: List[CampaignDispatchError] = Field(default_factory=list)
+    error_codes: List[str] = Field(default_factory=list)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "total": 100,
+                    "target": 10,
+                    "succeeded": 8,
+                    "failed": 1,
+                    "skipped": 1,
+                    "status": "completed",
+                    "errors": [
+                        {
+                            "code": "dial_failed",
+                            "message": "telephony provider return 503",
+                            "call_id": "3f9f8f3d-5a66-4bb1-8f2c-2b4de3f9db3d",
+                        }
+                    ],
+                    "error_codes": ["dial_failed"],
+                }
+            ]
+        }
+    }
+
+
+class CampaignStartResponse(BaseModel):
+    id: int
+    tenant_id: int
+    name: str
+    status: str
+    total_contacts: int
+    created: int
+    skipped: int
+    campaign_status: str
+    auto_dial_requested: bool
+    auto_dial_count: int
+    dispatch_mode: str
+    dispatch_result: CampaignDispatchResult
+    result_code: str
+    result_message: str
+    error_codes: List[str] = Field(default_factory=list)
+    skip_reasons: List[CampaignDispatchError] = Field(default_factory=list)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "id": 11,
+                "tenant_id": 1,
+                "name": "demo campaign",
+                "status": "running",
+                "total_contacts": 20,
+                "created": 10,
+                "skipped": 2,
+                "campaign_status": "running",
+                "auto_dial_requested": True,
+                "auto_dial_count": 10,
+                "dispatch_mode": "sync",
+                "dispatch_result": {
+                    "total": 12,
+                    "target": 10,
+                    "succeeded": 9,
+                    "failed": 1,
+                    "skipped": 2,
+                    "status": "completed",
+                    "errors": [
+                        {
+                            "code": "dial_failed",
+                            "message": "provider timeout",
+                            "call_id": "3f9f8f3d-5a66-4bb1-8f2c-2b4de3f9db3d",
+                        }
+                    ],
+                    "error_codes": ["dial_failed"],
+                },
+                "result_code": "PARTIAL_SUCCESS",
+                "result_message": "campaign started with partial success",
+                "error_codes": ["dial_failed", "contact_dnc"],
+                "skip_reasons": [
+                    {
+                        "code": "contact_dnc",
+                        "message": "contact dnc",
+                        "phone": "13800138000",
+                        "contact_id": 8,
+                    }
+                ],
+            }
+        }
+    }
+
+
 class StartCallRequest(BaseModel):
     phone: Optional[str] = None
     mode: CallMode = CallMode.AI_HANDOFF
