@@ -6,13 +6,21 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
 from sqlmodel import select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
-from ...models import CallEvent, CallStatus
-from ...schemas import CallEventOut, CallSessionOut, StartCallRequest
+from ...models import CallEvent, CallStatus, WebhookEventIngest
+from ...schemas import (
+    CallEventOut,
+    CallSessionOut,
+    CallWebhookStatsItem,
+    CallWebhookStatsOut,
+    StartCallRequest,
+    WebhookEventIngestOut,
+)
 from ...services.call_service import (
     CallPermissionError,
     NotFoundError,
+    TERMINAL_STATUSES,
     create_call,
     get_call,
     retry_call,
@@ -21,13 +29,17 @@ from ...services.call_service import (
     place_call,
 )
 
-router = APIRouter(prefix="/api/v1/calls", tags=["calls"], dependencies=[Depends(check_api_key)])
+router = APIRouter(
+    prefix="/api/v1/calls",
+    tags=["calls"],
+    dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin", "agent"))],
+)
 
 
 @router.post("", response_model=CallSessionOut)
 async def create_call_api(
     payload: StartCallRequest,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     try:
@@ -52,7 +64,7 @@ async def create_call_api(
 
 @router.get("", response_model=List[CallSessionOut])
 def list_calls_api(
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     status_filter: str | None = Query(default=None, alias="status"),
     campaign_id: int | None = Query(default=None),
     page: int = Query(default=1, ge=1),
@@ -77,7 +89,7 @@ def list_calls_api(
 @router.get("/{call_id}", response_model=CallSessionOut)
 def get_call_api(
     call_id: UUID,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     try:
@@ -89,7 +101,7 @@ def get_call_api(
 @router.post("/{call_id}/handover", response_model=CallSessionOut)
 async def handover_api(
     call_id: UUID,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     reason: str = Query(default="operator_request"),
     target_group: str | None = Query(default=None),
     session: Session = Depends(get_session),
@@ -104,12 +116,14 @@ async def handover_api(
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except CallPermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
 @router.post("/{call_id}/hangup", response_model=CallSessionOut)
 async def hangup_api(
     call_id: UUID,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     reason: str = Query(default="hangup"),
     session: Session = Depends(get_session),
 ):
@@ -119,9 +133,11 @@ async def hangup_api(
 
         adapter = get_telephony_adapter()
         await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
+        if call.status in TERMINAL_STATUSES:
+            return call
+
         call.status = CallStatus.COMPLETED
         call.finished_at = datetime.utcnow()
-        call.last_error = None
         session.add(call)
         session.commit()
         return call
@@ -132,7 +148,7 @@ async def hangup_api(
 @router.get("/{call_id}/events", response_model=List[CallEventOut])
 def list_call_events(
     call_id: UUID,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     page: int = Query(default=1, ge=1),
     size: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_session),
@@ -150,10 +166,64 @@ def list_call_events(
     return events
 
 
+@router.get("/{call_id}/webhook-events", response_model=list[WebhookEventIngestOut])
+def list_webhook_events(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    get_call(session, tenant_id, call_id)
+    skip, limit = get_pagination(page=page, size=size)
+    records = session.exec(
+        select(WebhookEventIngest)
+        .where(WebhookEventIngest.call_session_id == call_id)
+        .order_by(WebhookEventIngest.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    ).all()
+    return records
+
+
+@router.get("/{call_id}/webhook-stats", response_model=CallWebhookStatsOut)
+def get_webhook_stats(
+    call_id: UUID,
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
+    get_call(session, tenant_id, call_id)
+
+    records = session.exec(
+        select(WebhookEventIngest)
+        .where(WebhookEventIngest.call_session_id == call_id)
+        .order_by(WebhookEventIngest.created_at.asc())
+    ).all()
+
+    bucket: dict[str, int] = {}
+    for item in records:
+        key = f"{item.source}:{item.event_type}"
+        bucket[key] = bucket.get(key, 0) + 1
+
+    buckets = []
+    for raw_key, count in sorted(bucket.items()):
+        source, event_type = raw_key.split(":", 1)
+        buckets.append(CallWebhookStatsItem(event_type=event_type, source=source, count=count))
+
+    duplicate_count = sum((item.repeat_count or 1) - 1 for item in records)
+
+    return {
+        "total": len(records),
+        "unique": len(records),
+        "duplicate_estimate": duplicate_count,
+        "buckets": buckets,
+    }
+
+
 @router.post("/{call_id}/retry", response_model=CallSessionOut)
 async def retry_call_api(
     call_id: UUID,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     try:

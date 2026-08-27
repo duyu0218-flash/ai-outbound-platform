@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -74,7 +75,7 @@ def authenticate_user(session: Session, username: str, raw_password: str) -> Opt
     user = session.exec(select(User).where(User.username == username)).first()
     if not user or not user.enabled:
         return None
-    if user.password_hash != _hash_password(raw_password):
+    if not hmac.compare_digest(user.password_hash, _hash_password(raw_password)):
         return None
     return user
 
@@ -101,9 +102,27 @@ def parse_token(token: str) -> dict:
 def find_user_by_token(session: Session, token: str) -> Optional[User]:
     payload = parse_token(token)
     username = payload.get("sub")
+    user_id = payload.get("uid")
     if not username:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    user = session.exec(select(User).where(User.username == username)).first()
+
+    if not isinstance(user_id, int):
+        if isinstance(user_id, str) and user_id.isdigit():
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                user_id = None
+        else:
+            user_id = None
+
+    user: Optional[User] | None = None
+    if isinstance(user_id, int):
+        user = session.exec(select(User).where(User.id == user_id)).first()
+    if user is None:
+        user = session.exec(select(User).where(User.username == username)).first()
     if user is None or not user.enabled:
         return None
+    # Prevent token/user mismatch (e.g., old token with replaced id/username data drift)
+    if str(user.username) != str(username) or (user_id is not None and user.id != user_id):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
     return user
