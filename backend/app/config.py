@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "jwt-change-me"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 12 * 60 * 60
+    demo_users_enabled: bool = True
     demo_admin_username: str = "admin"
     demo_admin_password: str = "12345678"
     demo_agent_username: str = "1001@test"
@@ -30,6 +31,10 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "*"
 
     database_url: str = "sqlite:///./ai_outbound.db"
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_pool_timeout_sec: int = 30
+    database_pool_recycle_sec: int = 1800
     redis_url: str = "redis://localhost:6379/0"
 
     minio_endpoint: str = ""

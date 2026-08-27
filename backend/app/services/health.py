@@ -28,7 +28,11 @@ def redis_health_check() -> str:
     if not settings.redis_url:
         return "ok"
     try:
-        redis.from_url(settings.redis_url).ping()
+        redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=1.5,
+            socket_timeout=1.5,
+        ).ping()
         return "ok"
     except Exception:
         return "unavailable"

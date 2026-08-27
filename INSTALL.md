@@ -30,7 +30,7 @@ brew install jq
 - `agent/`：AI 话术策略服务（FastAPI）
 - `docker-compose.yml`：本地一键启动文件
 - `.env.example`：环境变量示例
-- `.github/workflows/ci.yml`：CI 静态编译检查
+- `.github/workflows/ci.yml`：CI 静态编译与后端回归测试
 
 ## 2. 一次性获取代码
 
@@ -66,6 +66,10 @@ cp .env.example .env
   - `RATE_LIMIT_DEFAULT_RPM=600`
   - `RATE_LIMIT_AUTH_RPM=60`
   - `RATE_LIMIT_WINDOW_SEC=60`
+  - `DATABASE_POOL_SIZE=10`
+  - `DATABASE_MAX_OVERFLOW=20`
+  - `DATABASE_POOL_TIMEOUT_SEC=30`
+  - `DATABASE_POOL_RECYCLE_SEC=1800`
 
 ### 3.2 默认测试账号体系（推荐先验收）
 
@@ -87,6 +91,8 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"12345678"}'
 ```
+
+生产环境必须在数据库中预置正式管理员账号后设置 `DEMO_USERS_ENABLED=false`；演示密码不得带入生产。当前仓库尚未提供生产用户管理界面，正式账号的开通、停用与密码重置流程属于上线前置项。
 
 ## 4. Docker 方式启动（推荐）
 
@@ -240,6 +246,56 @@ bash scripts/smoke-outbound-api.sh
 
 ## 6.1 一体化验收命令清单（上/下线前可直接执行）
 
+### 6.1.1 活动异步拨号增强验收
+
+建议执行一次异步启动链路（`async_dial=true`）：
+
+```bash
+CAMPAIGN_ID=<你的活动ID>
+curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=true&max_dials=5" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+返回 `dispatch_mode=async` 且 `dispatch_result.status=queued` 视为通过。随后立即查询：
+
+```bash
+curl -sS -X GET "${BASE_URL}/api/v1/calls?page=1&size=20" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+如果你要切回同步可控验证，用 `async_dial=false`。
+
+### 6.1.2 webhook 回调幂等增强验收
+
+取任意会话 ID（如 `/api/v1/calls` 首条），重复同一 webhook 回调两次，事件只应记录一次（前提：回调 payload 去重）：
+
+```bash
+CALL_ID=<你的通话ID>
+curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
+  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
+
+curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
+  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
+
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-tenant-id: ${TENANT_ID}" | jq .
+```
+
+理想现象：重复请求都返回 200，但事件列表仅新增 1 条（同一通话状态快照不重复）。
+
+执行后续命令可把验收标准化（查询 webhook 去重计数/重复记录）：
+
+```bash
+bash scripts/test-webhook-idempotent.sh
+```
+
 建议在部署完成后，按顺序执行以下命令，任意一步失败即停止并排查。
 
 ```bash
@@ -343,6 +399,71 @@ echo "验收完成：PASS"
 
 注意：`jq -e` 或 JSON 结构不同会使命令失败，这说明链路返回格式与预期不一致，需回到对应接口日志排查。
 
+### 6.3 上线前 0-5 标准验收清单（建议直接粘贴到发布记录）
+
+```bash
+export BASE_URL="${BASE_URL:-http://localhost:8000}"
+export API_KEY="${API_KEY:-dev-api-key}"
+export TENANT_ID="${TENANT_ID:-1}"
+export ADMIN_USER="${DEMO_ADMIN_USERNAME:-admin}"
+export ADMIN_PASS="${DEMO_ADMIN_PASSWORD:-12345678}"
+export AGENT_USER="${DEMO_AGENT_USERNAME:-1001@test}"
+export AGENT_PASS="${DEMO_AGENT_PASSWORD:-12345678}"
+
+set -euo pipefail
+
+# 0. 控制面可达
+curl -fS "${BASE_URL}/health" >/dev/null
+curl -fS "${BASE_URL}/readyz" >/dev/null
+curl -fS "${BASE_URL}/healthz" >/dev/null
+curl -fS "http://localhost:8001/health" >/dev/null
+
+# 1. 页面入口
+for u in /admin /agent /docs.html; do
+  code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}${u}")
+  [ "$code" -ge 200 ] && [ "$code" -le 399 ]
+done
+
+# 2. 鉴权角色链路
+ADMIN_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" | jq -r '.access_token')
+AGENT_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${AGENT_USER}\",\"password\":\"${AGENT_PASS}\"}" | jq -r '.access_token')
+curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${ADMIN_TOKEN}"
+curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/agent/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}"
+agent_admin_code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}")
+[ "$agent_admin_code" = "403" ]
+
+# 3. 核心链路（联系人→模板→活动）
+CONTACT_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/contacts" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"phone":"13800000001","name":"验收联系人","consent_state":"consented","dnc":false}' | jq -r '.id')
+TEMPLATE_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/script-templates" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"name":"上线验收话术","content":"您好，我来协助核对业务问题。","category":"check","is_active":true}' | jq -r '.id')
+CAMPAIGN_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d "{\"name\":\"上线验收活动\",\"mode\":\"ai_handoff\",\"script_template_id\":${TEMPLATE_ID},\"contact_ids\":[${CONTACT_ID}]}" | jq -r '.id')
+START=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=false&max_dials=1" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" | jq -r '.dispatch_mode')
+[ "$START" = "sync" ]
+
+# 4. 事件闭环
+CALL_ID=$(curl -sS -G "${BASE_URL}/api/v1/calls" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" --data-urlencode "page=1" --data-urlencode "size=1" | jq -r '.[0].id')
+[ -n "$CALL_ID" ] && [ "$CALL_ID" != "null" ]
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
+curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/webhook-stats" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
+
+# 5. 复测脚本
+bash scripts/test-demo-accounts.sh
+bash scripts/test-webhook-idempotent.sh
+bash scripts/test-campaign-start.sh
+
+echo "上线前验收通过"
+```
+
+另外，若你只想快速验证活动启动参数（`async_dial` 与 `max_dials`）：
+
+```bash
+bash scripts/test-campaign-start.sh
+```
+
+脚本会分别验证：
+- `async_dial=false` 的同步发起是否返回 `dispatch_mode=sync`；
+- `async_dial=true` 的异步发起是否返回 `dispatch_mode=async` 且 `dispatch_result.status=queued`；
+- `max_dials` 是否限制最终会话条目不超出预期。
+
 ## 7. 核心模式说明
 
 - **纯人工**：`human_only`（只建立呼叫，不触发 AI）
@@ -385,7 +506,26 @@ echo "验收完成：PASS"
 ### 10.1 镜像与版本策略
 
 - `control-api`、`ai-agent` 建议使用固定镜像 tag（例如 `v1.x.x`）
-- 变更 SQL 模型后，按你的数据库管理方式进行变更（如 Alembic）
+- 生产升级禁止只依赖 `create_all`。本版本 PostgreSQL 升级脚本位于：
+  `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
+
+发布顺序：
+
+```bash
+# 1. 备份（替换连接信息与文件名）
+pg_dump --format=custom --file=ai_outbound_before_20260828.dump "$DATABASE_URL"
+
+# 2. 暂停写入流量/活动派发后执行结构升级
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f backend/migrations/postgresql/20260828_event_audit_indexes.sql
+
+# 3. 发布固定版本镜像，启动后检查
+curl -fS http://localhost:8000/health
+curl -fS http://localhost:8000/readyz
+```
+
+脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，并补齐事件类型、通话状态和更新时间索引。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
 
 ### 10.2 安全建议（生产必做）
 
@@ -395,6 +535,24 @@ echo "验收完成：PASS"
 - 日志中打码手机号（如有敏感合规要求）
 - 对接短信/电话接口增加重试和幂等保护
 - 强制设置 `TRUSTED_HOSTS`，避免 Host 头注入
+- `ENV=production` 时服务会拒绝默认密钥、SQLite、空 Redis、`mock` 电话适配器、通配 CORS、演示账号或空 webhook token
+- 设置 `CORS_ALLOW_ORIGINS=https://你的管理域名`，不要使用 `*`
+- 设置 `DEMO_USERS_ENABLED=false`，并轮换 `SECRET_KEY`、`JWT_SECRET`、`API_KEY`
+
+### 10.3 代码级回归检查
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+pytest -q tests
+cd ..
+PYTHONPYCACHEPREFIX=/tmp/ai-outbound-pycache python3 -m compileall -q backend/app agent/app
+git diff --check
+```
+
+以上检查通过只代表代码和开发环境回归通过，不等同于真实 PBX、短信、录音存储、多实例 Redis/PostgreSQL 或生产网络验收通过。
 
 ## 11. 常见故障排查
 

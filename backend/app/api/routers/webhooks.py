@@ -1,14 +1,14 @@
-import json
 import hashlib
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlmodel import Session, select
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
 
 from ...api.deps import check_webhook_token, get_session
-from ...models import CallEvent, CallSession, CallStatus, WebhookEventIngest
+from ...models import CallEvent, CallMode, CallSession, CallStatus, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
 
@@ -133,7 +133,11 @@ def _make_provider_event_key(
     payload_json: str,
     explicit_event_id: str | None = None,
 ) -> str:
-    seed = explicit_event_id or f"{call_id}:{event_type}:{source}:{payload_json}"
+    seed = (
+        f"{call_id}:{source}:event_id:{explicit_event_id}"
+        if explicit_event_id
+        else f"{call_id}:{event_type}:{source}:{payload_json}"
+    )
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
@@ -163,19 +167,18 @@ def telephony_status(
     if is_duplicate:
         return {"result": "ok"}
 
-    if mapped and _apply_status_transition(session, call.id, mapped):
+    status_applied = bool(mapped and _apply_status_transition(session, call.id, mapped))
+    if status_applied:
         session.refresh(call)
         call = session.get(CallSession, call.id)
         if not call:
             return {"result": "ignore"}
-        if call.status != mapped:
-            call.status = mapped
     telephony_call_id = payload.payload.get("telephony_call_id")
     if telephony_call_id:
         call.telephony_call_id = str(telephony_call_id)
-    if payload.payload.get("hangup_reason"):
+    if payload.payload.get("hangup_reason") and (status_applied or not call.last_error):
         call.last_error = payload.payload.get("hangup_reason")
-    if mapped in {
+    if status_applied and mapped in {
         CallStatus.COMPLETED,
         CallStatus.FAILED,
         CallStatus.BUSY,
@@ -189,7 +192,7 @@ def telephony_status(
     session.add(call)
     session.commit()
 
-    if mapped == CallStatus.ANSWERED and str(call.mode) != "human_only":
+    if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
 
     return {"result": "ok"}
@@ -214,7 +217,7 @@ def telephony_transcript(
     session.add(call)
     session.commit()
 
-    if str(call.mode) != "human_only":
+    if call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
     return {"result": "ok"}
 

@@ -7,7 +7,7 @@ from typing import Any, Dict
 import httpx
 
 from ..config import get_settings
-from ..db import get_session
+from ..db import session_scope
 from ..models import CallEvent, CallSession, CallStatus, SmsLog
 from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
@@ -36,7 +36,7 @@ async def request_ai_turn(
     async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec) as client:
         response = await client.post(
             f"{settings.ai_agent_url}/agent/turn",
-            json=payload.model_dump(),
+            json=payload.model_dump(mode="json"),
         )
         if response.status_code != 200:
             raise RuntimeError(f"ai service error: {response.status_code} {response.text}")
@@ -68,7 +68,7 @@ async def run_ai_turn(
     transcript: str = "",
 ) -> None:
     # independent session for background execution
-    with get_session() as session:
+    with session_scope() as session:
         call = session.get(CallSession, call_id)
         if not call:
             return
@@ -92,7 +92,7 @@ async def run_ai_turn(
             result = await request_ai_turn(
                 call_id=str(call.id),
                 phone=call.phone,
-                mode=str(call.mode),
+                mode=call.mode.value,
                 script=campaign_script,
                 transcript=transcript,
                 context={"campaign_id": call.campaign_id, "tenant_id": call.tenant_id},
@@ -142,6 +142,20 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
 
     session.add(call)
     session.commit()
+    await append_event(
+        session=session,
+        call_id=call.id,
+        event_type="ai_decision",
+        source="dispatcher",
+        payload={
+            "action": result.action,
+            "handoff_to_human": result.handoff_to_human,
+            "hangup_sms": bool(result.hangup_sms),
+            "next_keywords": result.next_keywords,
+            "escalate_priority": result.escalate_priority,
+            "resulting_status": call.status.value,
+        },
+    )
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:

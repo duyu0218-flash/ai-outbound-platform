@@ -19,7 +19,7 @@ from .api.routers import (
     webhooks_router,
 )
 from .config import get_settings, setup_logging
-from .db import create_db_and_tables, get_session
+from .db import create_db_and_tables, session_scope
 from .middleware import (
     LoggingMiddleware,
     RateLimitMiddleware,
@@ -41,6 +41,7 @@ PROD_ALLOWED_ENVS = {"prod", "production"}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    _bootstrap_default_tenant()
     yield
 
 
@@ -73,6 +74,16 @@ def _validate_production_runtime() -> None:
         issues.append("CORS_ALLOW_ORIGINS=*")
     if not settings.trusted_hosts.strip():
         issues.append("TRUSTED_HOSTS")
+    if settings.demo_users_enabled:
+        issues.append("DEMO_USERS_ENABLED=true")
+    if not settings.telephony_webhook_token.strip():
+        issues.append("TELEPHONY_WEBHOOK_TOKEN")
+    if settings.database_url.startswith("sqlite"):
+        issues.append("DATABASE_URL=sqlite")
+    if not settings.redis_url.strip():
+        issues.append("REDIS_URL")
+    if (settings.telephony_provider or "mock").strip().lower() == "mock":
+        issues.append("TELEPHONY_PROVIDER=mock")
 
     if issues:
         raise RuntimeError(
@@ -82,7 +93,6 @@ def _validate_production_runtime() -> None:
         )
 
 
-@app.on_event("startup")
 def _bootstrap_default_tenant():
     if settings.secret_key in {"", "change-me", "secret"}:
         logger.warning("secret_key is using default value in settings, update in production")
@@ -92,7 +102,7 @@ def _bootstrap_default_tenant():
         logger.warning("api_key looks like demo value, update in production")
     _validate_production_runtime()
 
-    with get_session() as session:
+    with session_scope() as session:
         existing = session.get(Tenant, settings.default_tenant_id)
         if not existing:
             session.add(
@@ -104,13 +114,14 @@ def _bootstrap_default_tenant():
                 )
             )
             session.commit()
-        ensure_demo_users(session)
+        if settings.demo_users_enabled:
+            ensure_demo_users(session)
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config_origins or ["*"],
-    allow_credentials=True,
+    allow_credentials="*" not in (config_origins or ["*"]),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -153,11 +164,16 @@ def _http_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
 @app.exception_handler(Exception)
 def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = getattr(request.state, "request_id", None)
+    logger.error(
+        "unhandled request error request_id=%s",
+        request_id,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(
         status_code=500,
         content={
             "error": "internal_error",
-            "message": str(exc),
+            "message": str(exc) if settings.debug and not _is_prod_env() else "internal server error",
             "request_id": request_id,
         },
     )

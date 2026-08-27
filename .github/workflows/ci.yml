@@ -21,8 +21,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install --no-cache-dir .
+      - name: Install service
+        run: |
+          if [ "${{ matrix.service }}" = "backend" ]; then
+            pip install --no-cache-dir ".[dev]"
+          else
+            pip install --no-cache-dir .
+          fi
       - name: Compile check
         run: |
           mkdir -p /tmp/pycache
           PYTHONPYCACHEPREFIX=/tmp/pycache python -m compileall app
+      - name: Backend tests
+        if: matrix.service == 'backend'
+        env:
+          ENV: development
+          DATABASE_URL: sqlite:////tmp/ai-outbound-ci.db
+          REDIS_URL: ""
+          RATE_LIMIT_ENABLED: "false"
+          TELEPHONY_PROVIDER: mock
+          AI_AGENT_URL: http://127.0.0.1:8001
+        run: pytest -q tests
