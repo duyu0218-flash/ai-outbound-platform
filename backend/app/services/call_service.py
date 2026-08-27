@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import not_, update
 from sqlmodel import Session, select
 
 from ..config import get_settings
@@ -109,7 +109,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     now = _now()
     stmt = (
         update(CallSession)
-        .where(CallSession.id == call.id, CallSession.status.in_(DISPATCHABLE_STATUSES))
+        .where(
+            CallSession.id == call.id,
+            CallSession.status.in_(DISPATCHABLE_STATUSES),
+            CallSession.attempts < CallSession.max_attempts,
+        )
         .values(
             status=CallStatus.DIALING,
             attempts=CallSession.attempts + 1,
@@ -140,6 +144,30 @@ def _set_call_if_status_in(
     stmt = (
         update(CallSession)
         .where(CallSession.id == UUID(call_id), CallSession.status.in_(allowed_statuses))
+        .values(**values)
+    )
+    result = session.exec(stmt)
+    if result.rowcount:
+        session.commit()
+        return True
+    session.rollback()
+    return False
+
+
+def _set_call_metadata_if_active(
+    session: Session,
+    *,
+    call_id: str,
+    **values: object,
+) -> bool:
+    if not values:
+        return False
+    stmt = (
+        update(CallSession)
+        .where(
+            CallSession.id == UUID(call_id),
+            not_(CallSession.status.in_(TERMINAL_STATUSES)),
+        )
         .values(**values)
     )
     result = session.exec(stmt)
@@ -296,7 +324,8 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
                 metadata=payload,
             )
         )
-        _set_call_if_status_in(
+        session.refresh(call)
+        if not _set_call_if_status_in(
             session,
             call_id=str(call.id),
             allowed_statuses={CallStatus.DIALING},
@@ -305,8 +334,18 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
             status=CallStatus.DIALING,
             updated_at=_now(),
             last_error=None,
-        )
-        session.refresh(call)
+        ):
+            _set_call_metadata_if_active(
+                session,
+                call_id=str(call.id),
+                telephony_call_id=result.get("provider_call_id"),
+                ai_session_id=result.get("provider_call_id"),
+                updated_at=_now(),
+                last_error=None,
+            )
+        call = session.get(CallSession, call.id)
+        if call is None:
+            raise NotFoundError("call not found")
     except Exception as exc:
         _set_call_if_status_in(
             session,
