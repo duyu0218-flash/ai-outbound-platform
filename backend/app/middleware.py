@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 import uuid
+import re
 from collections import defaultdict, deque
 from typing import Deque, Dict
 
@@ -15,6 +16,7 @@ from starlette.responses import JSONResponse
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -23,9 +25,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         settings = get_settings()
         header_name = settings.request_id_header or "X-Request-ID"
-        request_id = request.headers.get(header_name) or request.headers.get("X-Correlation-ID") or str(
-            uuid.uuid4()
-        )
+        supplied_id = request.headers.get(header_name) or request.headers.get("X-Correlation-ID")
+        request_id = supplied_id if supplied_id and REQUEST_ID_PATTERN.fullmatch(supplied_id) else str(uuid.uuid4())
         request.state.request_id = request_id
         response = await call_next(request)
         response.headers[header_name] = request_id
@@ -165,21 +166,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         redis_key = f"{self._key_prefix}:{key}"
         member = f"{now}:{uuid.uuid4().hex}"
 
-        async with self._redis.pipeline() as pipe:
-            await pipe.zremrangebyscore(redis_key, 0, cutoff)
-            await pipe.zcard(redis_key)
-            cardinality = await pipe.execute()
-
-            if not cardinality or len(cardinality) < 2:
-                logger.warning("redis rate-limit pipeline result abnormal, fallback to memory limiter: key=%s", redis_key)
-                return await self._is_limit_ok_memory(key, limit)
-
-            if int(cardinality[1]) >= limit:
-                return False
-
-            await self._redis.zadd(redis_key, {member: now})
-            await self._redis.expire(redis_key, self.window_sec)
-            return True
+        script = """
+        redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
+        local count = redis.call('ZCARD', KEYS[1])
+        if count >= tonumber(ARGV[2]) then
+            return 0
+        end
+        redis.call('ZADD', KEYS[1], ARGV[3], ARGV[4])
+        redis.call('EXPIRE', KEYS[1], ARGV[5])
+        return 1
+        """
+        allowed = await self._redis.eval(
+            script,
+            1,
+            redis_key,
+            cutoff,
+            limit,
+            now,
+            member,
+            self.window_sec,
+        )
+        return bool(allowed)
 
     async def dispatch(self, request: Request, call_next):
         settings = get_settings()
@@ -194,9 +201,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         limit = 0
+        bucket_path = "/api"
         for prefix, rpm in self.path_limits.items():
             if path.startswith(prefix):
                 limit = rpm
+                bucket_path = prefix
                 break
         if limit == 0:
             limit = self.default_rpm
@@ -206,7 +215,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             limit = max(limit, self.default_rpm)
 
         client_host = request.client.host if request.client else "unknown"
-        key = f"{client_host}:{path}"
+        key = f"{client_host}:{bucket_path}"
         if not await self._is_limit_ok(key, limit):
             request_id = getattr(request.state, "request_id", None)
             headers = {

@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id
+from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...models import ScriptTemplate
 from ...schemas import ScriptTemplateCreate, ScriptTemplateOut, ScriptTemplateUpdate
@@ -13,13 +13,16 @@ from ...schemas import ScriptTemplateCreate, ScriptTemplateOut, ScriptTemplateUp
 router = APIRouter(
     prefix="/api/v1/script-templates",
     tags=["script-templates"],
-    dependencies=[Depends(check_api_key)],
+    dependencies=[
+        Depends(check_api_key),
+        Depends(require_roles_if_authenticated("admin")),
+    ],
 )
 
 
 @router.get("", response_model=List[ScriptTemplateOut])
 def list_templates(
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     active_only: bool = Query(default=False),
     category: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
@@ -40,7 +43,7 @@ def list_templates(
 @router.get("/{template_id}", response_model=ScriptTemplateOut)
 def get_template(
     template_id: int,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     template = session.get(ScriptTemplate, template_id)
@@ -52,7 +55,7 @@ def get_template(
 @router.post("", response_model=ScriptTemplateOut)
 def create_template(
     payload: ScriptTemplateCreate,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     template = ScriptTemplate(
@@ -75,7 +78,7 @@ def create_template(
 def update_template(
     template_id: int,
     payload: ScriptTemplateUpdate,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     template = session.get(ScriptTemplate, template_id)
@@ -107,7 +110,7 @@ def update_template(
 @router.delete("/{template_id}")
 def delete_template(
     template_id: int,
-    tenant_id: int = Depends(get_tenant_id),
+    tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
     template = session.get(ScriptTemplate, template_id)

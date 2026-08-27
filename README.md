@@ -10,6 +10,8 @@
 - 通话事件追溯（`CallEvent`）
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 - 话术模板（`/api/v1/script-templates`）与活动绑定
+- Webhook 原子幂等、并发拨号抢占与 AI 决策审计事件
+- 管理员/座席角色隔离、租户绑定、PBKDF2 密码哈希与生产配置启动校验
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 ## 2bis. 测试账号体系（新）
@@ -54,6 +56,8 @@ docker compose up -d --build
 | `API_KEY` | 管理 API 鉴权头 `x-api-key`（主 key） |
 | `UI_API_KEY` | 可选备用 API key |
 | `DATABASE_URL` | 数据库链接（建议 PostgreSQL） |
+| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | PostgreSQL 连接池常驻连接/溢出连接数 |
+| `DATABASE_POOL_TIMEOUT_SEC` / `DATABASE_POOL_RECYCLE_SEC` | 获取连接超时/连接回收秒数 |
 | `REDIS_URL` | Redis 链接 |
 | `DEFAULT_TENANT_ID` | 默认租户 ID |
 | `TELEPHONY_PROVIDER` | `mock` 或 `http` |
@@ -70,6 +74,7 @@ docker compose up -d --build
 | `RATE_LIMIT_DEFAULT_RPM` | 默认每分钟请求数 |
 | `RATE_LIMIT_AUTH_RPM` | `/api/v1/auth/login` 每分钟请求数（更严格） |
 | `RATE_LIMIT_WINDOW_SEC` | 限流滑动窗口秒数 |
+| `DEMO_USERS_ENABLED` | 是否自动创建演示账号；生产必须为 `false` |
 
 ## 4. 示例 API
 
@@ -128,6 +133,14 @@ curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/hangup?reason=系统�
 curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events?page=1&size=20" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 
+# 查询 webhook 去重统计
+curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/webhook-stats" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
+# 查询 webhook 去重原始记录
+curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/webhook-events?page=1&size=20" \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+
 # 重试失败的外呼（达到最大尝试数后会拒绝）
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/retry" \
   -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
@@ -137,7 +150,45 @@ curl -X GET http://localhost:8000/api/v1/admin/dashboard \
   -H "Authorization: Bearer <admin_access_token>"
 curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   -H "Authorization: Bearer <agent_access_token>"
+
+# 快速校验 webhook 去重
+bash scripts/test-webhook-idempotent.sh
+
+# 活动启动参数快速验收（sync/async + max_dials）
+bash scripts/test-campaign-start.sh
 ```
+
+### 4.1 活动启动参数
+
+`POST /api/v1/campaigns/{campaign_id}/start` 支持以下参数：
+
+- `max_dials`：最多发起的外呼数量（可选）
+- `auto_dial`：是否自动发起（默认 `true`）
+- `async_dial`：是否异步派发（默认 `true`）
+
+前端管理员页面已提供“异步”勾选开关，提交后返回 `dispatch_mode`（`async` 或 `sync`）与 `dispatch_result`。
+
+接口返回里新增了结构化结果码，便于前端强类型识别：
+
+- `result_code`: `SUCCESS | PARTIAL_SUCCESS | FAILED | NOT_DISPATCHED`
+- `result_message`: 业务文本说明
+- `error_codes`: 所有失败或警告的错误码聚合
+- `skip_reasons`: 预检阶段被跳过的联系人列表，带 `code/message/phone/contact_id`
+- `dispatch_result.error_codes`: 拨号执行阶段的错误码聚合
+- `dispatch_result.errors`: 每条拨号异常明细（含 `code/message/call_id`）
+
+常用错误码示例：
+
+- `CONTACT_DNC`：联系人在黑名单
+- `CONTACT_NOT_CONSENTED`：联系人未同意
+- `CONTACT_CONSENT_REVOKED`：已撤回同意
+- `CONTACT_NOT_FOUND`：活动联系人关系不存在
+- `INVALID_PHONE`：手机号无效
+- `DIAL_FAILED`：拨号失败（适配器返回异常）
+- `PROVIDER_ERROR`：提供商错误
+- `CALL_NOT_FOUND`：任务内通话 ID 丢失
+
+建议前端以 `result_code` 做主状态判断，以 `error_codes` 做告警展示，并读取 `dispatch_result` 做明细列表。
 
 ## 5. 关键生产要点
 
@@ -159,6 +210,15 @@ curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
 - 合规：
   - 联系人必须经过同意/撤回、黑名单（DNC）检查。
+- 登录态增强：
+  - `current_user_optional` 与 `require_roles_if_authenticated` 上线：携带 Bearer Token 的请求会做角色检查；纯 API Key 调用保持兼容。
+- webhook 增强：
+  - 回调事件使用唯一键和原子计数去重；乱序的晚到回调不会把终态通话重新打开。
+- 凭据与租户隔离：
+  - 页面登录使用 Bearer Token，服务端 API Key 不再注入 HTML；用户态请求只能访问其所属租户。
+  - 新密码使用随机盐 PBKDF2-SHA256，旧哈希登录成功后自动升级。
+- 活动拨号（新）：
+  - `POST /api/v1/campaigns/{campaign_id}/start` 新增 `async_dial`：默认 `true`，采用后台异步并发拨号（仍可选 `async_dial=false` 做阻塞式串行验证）。
 
 ## 6. 接入 PBX / 短信
 
@@ -171,9 +231,9 @@ curl -X GET http://localhost:8000/api/v1/agent/dashboard \
   - `POST /api/v1/webhooks/telephony/recording`
 - `agent/app/policy.py` 先作为规则引擎占位，建议替换为真实 LLM policy。
 
-## 7. 下一个可交付版本（建议）
+## 7. 上线仍需完成的外部集成
 
-- CI/CD（GitHub Actions）：镜像构建、单元测试、配置扫描
-- 分布式任务队列（Celery/Temporal）：任务并发、限流、重试、死信队列
+- GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
+- 将进程内后台任务替换为分布式任务队列（Celery/Temporal）：任务并发、限流、重试、死信队列。
 - 操作日志与审计、工单系统/CRM 双向同步
 - 海外扩展：时区、隐私条款、国际电销规则与时段管控

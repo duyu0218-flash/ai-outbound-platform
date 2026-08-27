@@ -237,7 +237,7 @@ def _portal_page(
       </div>
 
       <div class="grid">
-        <section class="card col-4">
+        <section class="card col-4 __ADMIN_ONLY__">
           <div class="toolbar">
             <h2>联系人管理</h2>
             <div class="small">联系人可批量用于活动</div>
@@ -276,7 +276,7 @@ def _portal_page(
           <div id="contactStatus2" class="small"></div>
         </section>
 
-        <section class="card col-8">
+        <section class="card col-8 __ADMIN_ONLY__">
           <div class="toolbar">
             <h2>话术模板</h2>
             <div class="small">支持创建模板后，在活动中复用</div>
@@ -328,6 +328,10 @@ def _portal_page(
           <div class="row">
             <label>联系人ID</label><input id="campaignContactIds" value="" placeholder="1,2,3" />
             <label>max_dials</label><input id="campaignMaxDials" value="1" type="number" min="1" style="max-width:96px;" />
+            <label>异步</label><input id="campaignAsyncDial" type="checkbox" checked />
+          </div>
+          <div class="row">
+            <label>启动提示</label><span class="small">异步模式下先返回排队结果，再到“外呼与会话”页刷新状态</span>
           </div>
           <div class="btns">
             <button onclick="createCampaign()">创建活动</button>
@@ -450,7 +454,11 @@ def _portal_page(
 
       function saveToken(token) {
         state.token = token || '';
-        localStorage.setItem(state.storageKey, state.token);
+        if (state.token) {
+          sessionStorage.setItem(state.storageKey, state.token);
+        } else {
+          sessionStorage.removeItem(state.storageKey);
+        }
         document.getElementById('tokenDisplay').value = state.token ? `${state.token.slice(0, 20)}...` : '未登录';
       }
 
@@ -461,7 +469,7 @@ def _portal_page(
       }
 
       function restoreToken() {
-        const t = localStorage.getItem(state.storageKey);
+        const t = sessionStorage.getItem(state.storageKey);
         if (t) {
           saveToken(t);
           setStatus('authStatus', '已恢复本地会话');
@@ -486,8 +494,9 @@ def _portal_page(
           });
           saveToken(data.access_token);
           setStatus('authStatus', `登录成功：${data.username}/${data.role}`);
-          log(`登录成功: ${JSON.stringify(data)}`);
+          log(`登录成功: ${data.username}/${data.role}, tenant=${data.tenant_id}`);
           await checkMe();
+          await refreshPortalData();
         } catch (err) {
           setStatus('authStatus', `登录失败：${err.message}`, true);
           log(`登录失败: ${err.message}`);
@@ -567,7 +576,7 @@ def _portal_page(
         const size = state.page.contactsSize;
         try {
           const data = await requestJson(`/api/v1/contacts?page=${page}&size=${size}`, {
-            headers: getCommonHeaders({auth:false}),
+            headers: getCommonHeaders(),
           });
           const tbody = document.getElementById('contactsTbody');
           tbody.innerHTML = '';
@@ -596,7 +605,7 @@ def _portal_page(
         const size = 50;
         try {
           const data = await requestJson(`/api/v1/script-templates?active_only=false&page=${page}&size=${size}`, {
-            headers: getCommonHeaders({auth:false}),
+            headers: getCommonHeaders(),
           });
           const tbody = document.getElementById('templatesTbody');
           tbody.innerHTML = '';
@@ -670,7 +679,7 @@ def _portal_page(
       async function useTemplateForCampaign(templateId) {
         try {
           const data = await requestJson(`/api/v1/script-templates/${templateId}`, {
-            headers: getCommonHeaders({auth:false}),
+            headers: getCommonHeaders(),
           });
           document.getElementById('campaignTemplateId').value = String(templateId);
           if (data && data.content) {
@@ -740,7 +749,7 @@ def _portal_page(
       async function searchCampaigns(force=false) {
         try {
           const data = await requestJson('/api/v1/campaigns?page=1&size=50', {
-            headers: getCommonHeaders({auth:false}),
+            headers: getCommonHeaders(),
           });
           const tbody = document.getElementById('campaignsTbody');
           tbody.innerHTML = '';
@@ -775,15 +784,27 @@ def _portal_page(
       async function startCampaign(campaignId, maxDial) {
         try {
           let url = `/api/v1/campaigns/${campaignId}/start`;
+          const asyncDial = document.getElementById('campaignAsyncDial').checked;
+          const query = new URLSearchParams();
+          query.set('async_dial', asyncDial ? 'true' : 'false');
+          query.set('auto_dial', 'true');
           if (maxDial) {
-            url += `?max_dials=${maxDial}`;
+            query.set('max_dials', String(maxDial));
           }
+          url += `?${query.toString()}`;
           const data = await requestJson(url, {
             method: 'POST',
             headers: getCommonHeaders(),
           });
-          setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个`);
+          const code = data.result_code ? `，结果码 ${data.result_code}` : '';
+          setStatus('campaignStatus', `活动 ${campaignId} 启动，拨号${data.auto_dial_count || 0}个${code}`);
           log(`campaign start: ${JSON.stringify(data)}`);
+          if (data.dispatch_result) {
+            log(`campaign dispatch: ${JSON.stringify(data.dispatch_result)}`);
+          }
+          if (data.error_codes && data.error_codes.length) {
+            log(`campaign error codes: ${JSON.stringify(data.error_codes)}`);
+          }
           await searchCalls(true);
         } catch (err) {
           setStatus('campaignStatus', `启动失败：${err.message}`, true);
@@ -839,6 +860,7 @@ def _portal_page(
                   <button class=\"danger\" onclick=\"hangupCall('${item.id}')\">挂断</button>
                   <button class=\"secondary\" onclick=\"retryCall('${item.id}')\">重试</button>
                   <button class=\"secondary\" onclick=\"openEvents('${item.id}')\">事件</button>
+                  <button class=\"secondary\" onclick=\"openWebhookEvents('${item.id}')\">Webhook去重</button>
                 </div>
               </td>
             `;
@@ -880,14 +902,40 @@ def _portal_page(
 
       async function openEvents(callId) {
         try {
-          const data = await requestJson(`/api/v1/calls/${callId}/events?page=1&size=20`, {
-            headers: getCommonHeaders(),
-          });
-          log(`events ${callId}: ${JSON.stringify(data)}`);
-          setStatus('callStatus', `已拉取事件：${callId}`);
+          const [rawEvents, stats] = await Promise.all([
+            requestJson(`/api/v1/calls/${callId}/events?page=1&size=20`, {
+              headers: getCommonHeaders(),
+            }),
+            requestJson(`/api/v1/calls/${callId}/webhook-stats`, {
+              headers: getCommonHeaders(),
+            }),
+          ]);
+          const data = rawEvents;
+          const dupText = stats && stats.duplicate_estimate !== undefined
+            ? `，去重重复计数${stats.duplicate_estimate}，总事件${stats.total}`
+            : '';
+          const bucketText = Array.isArray(stats?.buckets) && stats.buckets.length
+            ? `；按类：${stats.buckets.map((item) => `${item.source}:${item.event_type}=${item.count}`).join('，')}`
+            : '';
+          const extra = `${dupText}${bucketText}`;
+          log(`events ${callId}: ${JSON.stringify(data)}${extra}`);
+          setStatus('callStatus', `已拉取事件：${callId}${extra}`);
         } catch (err) {
           setStatus('callStatus', `事件查询失败：${err.message}`, true);
           log(`events fail ${callId}: ${err.message}`);
+        }
+      }
+
+      async function openWebhookEvents(callId) {
+        try {
+          const data = await requestJson(`/api/v1/calls/${callId}/webhook-events?page=1&size=20`, {
+            headers: getCommonHeaders(),
+          });
+          log(`webhook-events ${callId}: ${JSON.stringify(data)}`);
+          setStatus('callStatus', `已拉取 webhook 去重记录：${callId}`);
+        } catch (err) {
+          setStatus('callStatus', `Webhook 记录查询失败：${err.message}`, true);
+          log(`webhook-events fail ${callId}: ${err.message}`);
         }
       }
 
@@ -899,15 +947,20 @@ def _portal_page(
         }
       }
 
+      async function refreshPortalData() {
+        const tasks = [searchCalls(true)];
+        if (state.isAdmin) {
+          tasks.push(searchContacts(true), searchTemplates(true), searchCampaigns(true));
+        }
+        await Promise.all(tasks);
+      }
+
       window.addEventListener('load', async () => {
         restoreToken();
         toggleAdminBlocks();
-        await Promise.all([
-          searchContacts(true),
-          searchTemplates(true),
-          searchCampaigns(true),
-          searchCalls(true),
-        ]);
+        if (state.token || document.getElementById('apiKey').value.trim()) {
+          await refreshPortalData();
+        }
         log('页面加载完成');
       });
     </script>
@@ -923,7 +976,7 @@ def _portal_page(
         .replace("__DEFAULT_ROLE__", default_role)
         .replace("__DASHBOARD_PATH__", dashboard_path)
         .replace("__DEFAULT_API_KEY__", api_key)
-        .replace("__IS_ADMIN__", "1" if show_manage else "0")
+        .replace("__IS_ADMIN__", "'1'" if show_manage else "'0'")
         .replace("__ADMIN_ONLY__", selected)
     )
 
@@ -946,7 +999,7 @@ def admin_page():
         default_password=settings.demo_admin_password,
         default_role="admin",
         dashboard_path="admin/dashboard",
-        api_key=settings.api_key,
+        api_key="",
         show_manage=True,
     )
 
@@ -959,7 +1012,7 @@ def agent_page():
         default_password=settings.demo_agent_password,
         default_role="agent",
         dashboard_path="agent/dashboard",
-        api_key=settings.api_key,
+        api_key="",
         show_manage=False,
     )
 

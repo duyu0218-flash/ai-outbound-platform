@@ -5,13 +5,13 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import not_, update
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
-from ..db import get_session
+from ..db import session_scope
 
 settings = get_settings()
 
@@ -27,7 +27,7 @@ class NotFoundError(ValueError):
 def normalize_phone(phone: str) -> str:
     if not phone:
         return ""
-    return "".join(c for c in phone if c.isdigit() or c == "+").lstrip("+")
+    return "".join(c for c in phone if c.isdigit())
 
 
 def _now() -> datetime:
@@ -137,15 +137,15 @@ def _set_call_if_status_in(
     *,
     call_id: str,
     allowed_statuses: set[CallStatus],
+    expected_attempt: int | None = None,
     **values: object,
 ) -> bool:
     if not allowed_statuses:
         return False
-    stmt = (
-        update(CallSession)
-        .where(CallSession.id == UUID(call_id), CallSession.status.in_(allowed_statuses))
-        .values(**values)
-    )
+    conditions = [CallSession.id == UUID(call_id), CallSession.status.in_(allowed_statuses)]
+    if expected_attempt is not None:
+        conditions.append(CallSession.attempts == expected_attempt)
+    stmt = update(CallSession).where(*conditions).values(**values)
     result = session.exec(stmt)
     if result.rowcount:
         session.commit()
@@ -154,20 +154,18 @@ def _set_call_if_status_in(
     return False
 
 
-def _set_call_metadata_if_active(
+def _set_call_metadata_for_attempt(
     session: Session,
     *,
     call_id: str,
+    expected_attempt: int,
     **values: object,
 ) -> bool:
     if not values:
         return False
     stmt = (
         update(CallSession)
-        .where(
-            CallSession.id == UUID(call_id),
-            not_(CallSession.status.in_(TERMINAL_STATUSES)),
-        )
+        .where(CallSession.id == UUID(call_id), CallSession.attempts == expected_attempt)
         .values(**values)
     )
     result = session.exec(stmt)
@@ -239,6 +237,8 @@ def create_call(
             normalized = normalize_phone(contact.phone)
     if not normalized:
         raise ValueError("phone is required when contact_id is not provided")
+    if not 6 <= len(normalized) <= 15:
+        raise ValueError("phone must contain 6 to 15 digits")
 
     can_call, reason = can_call_contact_sync(session, tenant_id, normalized)
     if not can_call:
@@ -286,9 +286,9 @@ def get_call(session: Session, tenant_id: int, call_id: UUID) -> CallSession:
     return call
 
 
-async def place_call(session: Session, call: CallSession) -> CallSession:
+async def _place_call_with_result(session: Session, call: CallSession) -> tuple[CallSession, bool]:
     if call.status not in DISPATCHABLE_STATUSES:
-        return call
+        return call, False
 
     if call.attempts >= call.max_attempts:
         _set_call_if_status_in(
@@ -300,11 +300,13 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
             updated_at=_now(),
         )
         session.refresh(call)
-        return call
+        return call, False
 
     if not _claim_dispatch_slot(session, call):
         session.refresh(call)
-        return call
+        return call, False
+
+    claimed_attempt = call.attempts
 
     adapter = get_telephony_adapter()
     callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
@@ -312,7 +314,7 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
         "tenant_id": call.tenant_id,
         "campaign_id": call.campaign_id,
         "contact_id": call.contact_id,
-        "mode": str(call.mode),
+        "mode": call.mode.value,
     }
 
     try:
@@ -329,19 +331,20 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
             session,
             call_id=str(call.id),
             allowed_statuses={CallStatus.DIALING},
+            expected_attempt=claimed_attempt,
             telephony_call_id=result.get("provider_call_id"),
             ai_session_id=result.get("provider_call_id"),
             status=CallStatus.DIALING,
             updated_at=_now(),
             last_error=None,
         ):
-            _set_call_metadata_if_active(
+            _set_call_metadata_for_attempt(
                 session,
                 call_id=str(call.id),
+                expected_attempt=claimed_attempt,
                 telephony_call_id=result.get("provider_call_id"),
                 ai_session_id=result.get("provider_call_id"),
                 updated_at=_now(),
-                last_error=None,
             )
         call = session.get(CallSession, call.id)
         if call is None:
@@ -351,12 +354,18 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
             session,
             call_id=str(call.id),
             allowed_statuses={CallStatus.DIALING},
+            expected_attempt=claimed_attempt,
             status=CallStatus.FAILED,
             last_error=f"dial failed: {exc}",
             updated_at=_now(),
         )
         session.refresh(call)
 
+    return call, True
+
+
+async def place_call(session: Session, call: CallSession) -> CallSession:
+    call, _ = await _place_call_with_result(session, call)
     return call
 
 
@@ -454,15 +463,31 @@ async def dispatch_call_ids(
 
     deduped: list[str] = []
     seen: set[str] = set()
+    input_errors: list[dict[str, object]] = []
     for raw_id in call_ids:
+        normalized_id = str(raw_id)
         try:
-            UUID(raw_id)
+            UUID(normalized_id)
         except (TypeError, ValueError):
+            input_errors.append(
+                {
+                    "code": "INVALID_CALL_ID",
+                    "message": "call id is not a valid UUID",
+                    "call_id": normalized_id,
+                }
+            )
             continue
-        if raw_id in seen:
+        if normalized_id in seen:
+            input_errors.append(
+                {
+                    "code": "DUPLICATE_CALL_ID",
+                    "message": "duplicate call id ignored in batch",
+                    "call_id": normalized_id,
+                }
+            )
             continue
-        seen.add(raw_id)
-        deduped.append(raw_id)
+        seen.add(normalized_id)
+        deduped.append(normalized_id)
 
     if not deduped:
         return {
@@ -472,28 +497,24 @@ async def dispatch_call_ids(
             "failed": 0,
             "skipped": len(call_ids),
             "status": "completed",
-            "errors": [
-                {
-                    "code": "INVALID_CALL_ID",
-                    "message": "all ids invalid or duplicated",
-                    "call_id": "",
-                }
-            ],
-            "error_codes": ["INVALID_CALL_ID"],
+            "errors": input_errors,
+            "error_codes": sorted({str(item["code"]) for item in input_errors}),
         }
 
-    duplicate_count = len(call_ids) - len(deduped)
+    skipped_count = len(input_errors)
     concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
 
     async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
-        with get_session() as session:
+        with session_scope() as session:
             call = session.get(CallSession, UUID(call_id))
             if not call:
                 return call_id, "CALL_NOT_FOUND", "call session not found"
             try:
-                await place_call(session, call)
+                call, attempted = await _place_call_with_result(session, call)
                 if call.status == CallStatus.FAILED:
                     return call_id, _map_dispatch_error_code(call.last_error), call.last_error
+                if not attempted:
+                    return call_id, "CALL_NOT_DISPATCHABLE", f"call status is {call.status.value}"
                 return call_id, None, None
             except Exception:
                 return call_id, "DISPATCH_EXCEPTION", "failed to dispatch call"
@@ -506,7 +527,7 @@ async def dispatch_call_ids(
 
     results = await asyncio.gather(*(_worker(call_id) for call_id in deduped), return_exceptions=True)
     succeeded = 0
-    errors: list[dict[str, object]] = []
+    errors: list[dict[str, object]] = list(input_errors)
     for item in results:
         if not isinstance(item, tuple) or len(item) != 3:
             errors.append(
@@ -524,22 +545,13 @@ async def dispatch_call_ids(
             continue
         errors.append({"code": error_code, "message": message, "call_id": str(call_id)})
 
-    for _ in range(max(duplicate_count, 0)):
-        errors.append(
-            {
-                "code": "DUPLICATE_CALL_ID",
-                "message": "duplicate call id ignored in batch",
-                "call_id": "",
-            }
-        )
-
-    failed = len(errors)
+    failed = len(errors) - skipped_count
     return {
         "total": len(call_ids),
         "target": len(deduped),
         "succeeded": succeeded,
         "failed": failed,
-        "skipped": duplicate_count,
+        "skipped": skipped_count,
         "status": "completed",
         "errors": errors,
         "error_codes": sorted({item["code"] for item in errors}),

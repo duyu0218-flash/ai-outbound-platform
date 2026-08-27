@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import secrets
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from binascii import Error as BinasciiError
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -13,11 +16,51 @@ from ..config import get_settings
 from ..models import User
 
 settings = get_settings()
+PASSWORD_SCHEME = "pbkdf2_sha256"
+PASSWORD_ITERATIONS = 600_000
+
+
+def _legacy_hash_password(raw_password: str) -> str:
+    salt = settings.jwt_secret or settings.secret_key
+    return hashlib.sha256(f"{salt}:{raw_password}".encode("utf-8")).hexdigest()
 
 
 def _hash_password(raw_password: str) -> str:
-    salt = settings.jwt_secret or settings.secret_key
-    return hashlib.sha256(f"{salt}:{raw_password}".encode("utf-8")).hexdigest()
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        raw_password.encode("utf-8"),
+        salt,
+        PASSWORD_ITERATIONS,
+    )
+    return "$".join(
+        [
+            PASSWORD_SCHEME,
+            str(PASSWORD_ITERATIONS),
+            urlsafe_b64encode(salt).decode("ascii"),
+            urlsafe_b64encode(digest).decode("ascii"),
+        ]
+    )
+
+
+def _verify_password(stored_hash: str, raw_password: str) -> bool:
+    if stored_hash.startswith(f"{PASSWORD_SCHEME}$"):
+        try:
+            _, iterations_raw, salt_raw, digest_raw = stored_hash.split("$", 3)
+            iterations = int(iterations_raw)
+            if iterations < 100_000 or iterations > 2_000_000:
+                return False
+            actual = hashlib.pbkdf2_hmac(
+                "sha256",
+                raw_password.encode("utf-8"),
+                urlsafe_b64decode(salt_raw.encode("ascii")),
+                iterations,
+            )
+            expected = urlsafe_b64decode(digest_raw.encode("ascii"))
+            return hmac.compare_digest(actual, expected)
+        except (BinasciiError, TypeError, ValueError):
+            return False
+    return hmac.compare_digest(stored_hash, _legacy_hash_password(raw_password))
 
 
 def ensure_demo_users(session: Session) -> None:
@@ -45,13 +88,12 @@ def ensure_demo_users(session: Session) -> None:
             .where(User.username == info["username"])
             .where(User.tenant_id == tenant_id)
         ).first()
-        password_hash = _hash_password(info["password"])
         if user is None:
             session.add(
                 User(
                     tenant_id=tenant_id,
                     username=info["username"],
-                    password_hash=password_hash,
+                    password_hash=_hash_password(info["password"]),
                     full_name=info["full_name"],
                     role=info["role"],
                     is_supervisor=info["is_supervisor"],
@@ -60,7 +102,8 @@ def ensure_demo_users(session: Session) -> None:
             )
         else:
             # keep id stable, sync demo credential for local test
-            user.password_hash = password_hash
+            if not _verify_password(user.password_hash, info["password"]):
+                user.password_hash = _hash_password(info["password"])
             user.role = info["role"]
             user.full_name = info["full_name"]
             user.enabled = True
@@ -75,8 +118,14 @@ def authenticate_user(session: Session, username: str, raw_password: str) -> Opt
     user = session.exec(select(User).where(User.username == username)).first()
     if not user or not user.enabled:
         return None
-    if not hmac.compare_digest(user.password_hash, _hash_password(raw_password)):
+    if not _verify_password(user.password_hash, raw_password):
         return None
+    if not user.password_hash.startswith(f"{PASSWORD_SCHEME}$"):
+        user.password_hash = _hash_password(raw_password)
+        user.updated_at = datetime.utcnow()
+        session.add(user)
+        session.commit()
+        session.refresh(user)
     return user
 
 

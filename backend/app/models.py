@@ -154,7 +154,9 @@ class CallSession(SQLModel, table=True):
 class CallEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
-    event_type: EventType
+    # Event names are extensible (for example ai_start / ai_decision), so this
+    # column must not be constrained to the original telephony-only enum.
+    event_type: str = Field(index=True, max_length=64)
     source: str = "platform"
     payload: str = "{}"
     created_at: datetime = Field(default_factory=datetime.utcnow)
