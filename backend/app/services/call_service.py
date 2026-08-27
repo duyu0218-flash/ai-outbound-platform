@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
+from ..db import get_session
 
 settings = get_settings()
 
@@ -70,6 +73,103 @@ TERMINAL_STATUSES = {
     CallStatus.BUSY,
     CallStatus.VOICEMAIL,
 }
+DISPATCHABLE_STATUSES = {CallStatus.QUEUED, CallStatus.CREATED, CallStatus.FAILED}
+HANDOVERABLE_STATUSES = {CallStatus.DIALING, CallStatus.ANSWERED, CallStatus.IN_AI, CallStatus.WAITING_HUMAN}
+
+
+CALL_PRECHECK_ERROR_MAP = {
+    "contact_dnc": "CONTACT_DNC",
+    "not_consented": "CONTACT_NOT_CONSENTED",
+    "consent_revoked": "CONTACT_CONSENT_REVOKED",
+}
+
+
+def _map_call_precheck_code(reason: str) -> str:
+    normalized = str(reason).strip().lower()
+    return CALL_PRECHECK_ERROR_MAP.get(normalized, f"CALL_PRECHECK_{normalized.upper()[:40] or 'UNKNOWN'}")
+
+
+def _map_dispatch_error_code(message: str | None) -> str:
+    msg = str(message or "").lower()
+    if "reach max attempts" in msg:
+        return "REACH_MAX_ATTEMPTS"
+    if "dial failed" in msg:
+        return "DIAL_FAILED"
+    if "provider" in msg:
+        return "PROVIDER_ERROR"
+    if not msg:
+        return "UNKNOWN_DISPATCH_ERROR"
+    return f"DISPATCH_{msg[:40].upper().replace(' ', '_')}"
+
+
+def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
+    if call.attempts >= call.max_attempts:
+        return False
+
+    now = _now()
+    stmt = (
+        update(CallSession)
+        .where(CallSession.id == call.id, CallSession.status.in_(DISPATCHABLE_STATUSES))
+        .values(
+            status=CallStatus.DIALING,
+            attempts=CallSession.attempts + 1,
+            started_at=now,
+            updated_at=now,
+            last_error=None,
+        )
+    )
+    result = session.exec(stmt)
+    updated = result.rowcount
+    if not updated:
+        session.rollback()
+        return False
+    session.commit()
+    session.refresh(call)
+    return True
+
+
+def _set_call_if_status_in(
+    session: Session,
+    *,
+    call_id: str,
+    allowed_statuses: set[CallStatus],
+    **values: object,
+) -> bool:
+    if not allowed_statuses:
+        return False
+    stmt = (
+        update(CallSession)
+        .where(CallSession.id == UUID(call_id), CallSession.status.in_(allowed_statuses))
+        .values(**values)
+    )
+    result = session.exec(stmt)
+    if result.rowcount:
+        session.commit()
+        return True
+    session.rollback()
+    return False
+
+
+def _set_call_if_status_in_uuid(
+    session: Session,
+    *,
+    call_id: UUID,
+    allowed_statuses: set[CallStatus],
+    **values: object,
+) -> bool:
+    if not allowed_statuses:
+        return False
+    stmt = (
+        update(CallSession)
+        .where(CallSession.id == call_id, CallSession.status.in_(allowed_statuses))
+        .values(**values)
+    )
+    result = session.exec(stmt)
+    if result.rowcount:
+        session.commit()
+        return True
+    session.rollback()
+    return False
 
 
 def can_retry_call(call: CallSession) -> tuple[bool, str]:
@@ -159,15 +259,23 @@ def get_call(session: Session, tenant_id: int, call_id: UUID) -> CallSession:
 
 
 async def place_call(session: Session, call: CallSession) -> CallSession:
-    if call.status not in {CallStatus.QUEUED, CallStatus.CREATED, CallStatus.FAILED}:
+    if call.status not in DISPATCHABLE_STATUSES:
         return call
 
     if call.attempts >= call.max_attempts:
-        call.status = CallStatus.FAILED
-        call.last_error = "reach max attempts"
-        call.updated_at = _now()
-        session.add(call)
-        session.commit()
+        _set_call_if_status_in(
+            session,
+            call_id=str(call.id),
+            allowed_statuses=DISPATCHABLE_STATUSES,
+            status=CallStatus.FAILED,
+            last_error="reach max attempts",
+            updated_at=_now(),
+        )
+        session.refresh(call)
+        return call
+
+    if not _claim_dispatch_slot(session, call):
+        session.refresh(call)
         return call
 
     adapter = get_telephony_adapter()
@@ -188,21 +296,28 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
                 metadata=payload,
             )
         )
-        call.telephony_call_id = result.get("provider_call_id")
-        call.ai_session_id = result.get("provider_call_id")
-        call.status = CallStatus.DIALING
-        call.started_at = _now()
-        call.attempts += 1
-        call.updated_at = _now()
-        call.last_error = None
+        _set_call_if_status_in(
+            session,
+            call_id=str(call.id),
+            allowed_statuses={CallStatus.DIALING},
+            telephony_call_id=result.get("provider_call_id"),
+            ai_session_id=result.get("provider_call_id"),
+            status=CallStatus.DIALING,
+            updated_at=_now(),
+            last_error=None,
+        )
+        session.refresh(call)
     except Exception as exc:
-        call.status = CallStatus.FAILED
-        call.last_error = f"dial failed: {exc}"
-        call.updated_at = _now()
+        _set_call_if_status_in(
+            session,
+            call_id=str(call.id),
+            allowed_statuses={CallStatus.DIALING},
+            status=CallStatus.FAILED,
+            last_error=f"dial failed: {exc}",
+            updated_at=_now(),
+        )
+        session.refresh(call)
 
-    session.add(call)
-    session.commit()
-    session.refresh(call)
     return call
 
 
@@ -215,15 +330,40 @@ async def handover_to_human(
     target_group: str | None = None,
 ) -> CallSession:
     call = get_call(session, tenant_id, call_id)
+    if not _set_call_if_status_in_uuid(
+        session,
+        call_id=call.id,
+        allowed_statuses=HANDOVERABLE_STATUSES,
+        status=CallStatus.HANDOFF_TRANSFERRING,
+        handoff_reason=reason,
+        updated_at=_now(),
+    ):
+        raise CallPermissionError("call status not handover-able")
+
     adapter = get_telephony_adapter()
-    await with_retry(
-        lambda: adapter.transfer_to_human(call_id=str(call.id), reason=reason, target_group=target_group)
+    try:
+        await with_retry(
+            lambda: adapter.transfer_to_human(call_id=str(call.id), reason=reason, target_group=target_group)
+        )
+    except Exception as exc:
+        _set_call_if_status_in_uuid(
+            session,
+            call_id=call.id,
+            allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
+            status=CallStatus.FAILED,
+            last_error=f"handover failed: {exc}",
+            updated_at=_now(),
+        )
+        raise
+
+    _set_call_if_status_in_uuid(
+        session,
+        call_id=call.id,
+        allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
+        status=CallStatus.WAITING_HUMAN,
+        handoff_reason=reason,
+        updated_at=_now(),
     )
-    call.status = CallStatus.HANDOFF_TRANSFERRING
-    call.handoff_reason = reason
-    call.updated_at = _now()
-    session.add(call)
-    session.commit()
     session.refresh(call)
     return call
 
@@ -239,11 +379,132 @@ async def retry_call(
     if not can_retry:
         raise CallPermissionError(reason)
 
-    call.status = CallStatus.QUEUED
-    call.last_error = None
-    session.add(call)
-    session.commit()
+    if not _set_call_if_status_in_uuid(
+        session,
+        call_id=call.id,
+        allowed_statuses=TERMINAL_STATUSES,
+        status=CallStatus.QUEUED,
+        last_error=None,
+        updated_at=_now(),
+    ):
+        raise CallPermissionError("call status changed, retry denied")
+
+    call = session.get(CallSession, call.id)
+    if call is None:
+        raise NotFoundError("call not found")
+
     return await place_call(session, call)
+
+
+async def dispatch_call_ids(
+    call_ids: list[str],
+    *,
+    max_concurrency: int | None = None,
+) -> dict[str, object]:
+    if not call_ids:
+        return {
+            "total": 0,
+            "target": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "skipped": 0,
+            "status": "completed",
+            "errors": [],
+            "error_codes": [],
+        }
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for raw_id in call_ids:
+        try:
+            UUID(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if raw_id in seen:
+            continue
+        seen.add(raw_id)
+        deduped.append(raw_id)
+
+    if not deduped:
+        return {
+            "total": len(call_ids),
+            "target": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "skipped": len(call_ids),
+            "status": "completed",
+            "errors": [
+                {
+                    "code": "INVALID_CALL_ID",
+                    "message": "all ids invalid or duplicated",
+                    "call_id": "",
+                }
+            ],
+            "error_codes": ["INVALID_CALL_ID"],
+        }
+
+    duplicate_count = len(call_ids) - len(deduped)
+    concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
+
+    async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
+        with get_session() as session:
+            call = session.get(CallSession, UUID(call_id))
+            if not call:
+                return call_id, "CALL_NOT_FOUND", "call session not found"
+            try:
+                await place_call(session, call)
+                if call.status == CallStatus.FAILED:
+                    return call_id, _map_dispatch_error_code(call.last_error), call.last_error
+                return call_id, None, None
+            except Exception:
+                return call_id, "DISPATCH_EXCEPTION", "failed to dispatch call"
+
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _worker(call_id: str) -> tuple[str, str | None, str | None]:
+        async with sem:
+            return await _dispatch_one(call_id)
+
+    results = await asyncio.gather(*(_worker(call_id) for call_id in deduped), return_exceptions=True)
+    succeeded = 0
+    errors: list[dict[str, object]] = []
+    for item in results:
+        if not isinstance(item, tuple) or len(item) != 3:
+            errors.append(
+                {
+                    "code": "UNKNOWN_DISPATCH_ERROR",
+                    "message": "unexpected dispatch worker result",
+                    "call_id": "",
+                }
+            )
+            continue
+
+        call_id, error_code, message = item
+        if error_code is None:
+            succeeded += 1
+            continue
+        errors.append({"code": error_code, "message": message, "call_id": str(call_id)})
+
+    for _ in range(max(duplicate_count, 0)):
+        errors.append(
+            {
+                "code": "DUPLICATE_CALL_ID",
+                "message": "duplicate call id ignored in batch",
+                "call_id": "",
+            }
+        )
+
+    failed = len(errors)
+    return {
+        "total": len(call_ids),
+        "target": len(deduped),
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": duplicate_count,
+        "status": "completed",
+        "errors": errors,
+        "error_codes": sorted({item["code"] for item in errors}),
+    }
 
 
 def start_campaign(
@@ -266,15 +527,27 @@ def start_campaign(
     total = len(rels)
     created = 0
     skipped = 0
+    skip_reasons: list[dict[str, object]] = []
+    skipped_reason_counter: dict[str, int] = {}
     call_ids: list[str] = []
 
     for rel in rels:
         contact = session.get(Contact, rel.contact_id)
         if not contact or contact.tenant_id != tenant_id:
             skipped += 1
+            reason = {"code": "CONTACT_NOT_FOUND", "message": "contact not found", "contact_id": rel.contact_id}
+            skip_reasons.append(reason)
+            skipped_reason_counter["CONTACT_NOT_FOUND"] = skipped_reason_counter.get("CONTACT_NOT_FOUND", 0) + 1
             continue
         if only_active_contacts and not rel.is_active:
             skipped += 1
+            reason = {
+                "code": "CONTACT_INACTIVE",
+                "message": "contact inactive in campaign",
+                "contact_id": contact.id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter["CONTACT_INACTIVE"] = skipped_reason_counter.get("CONTACT_INACTIVE", 0) + 1
             continue
 
         try:
@@ -290,13 +563,37 @@ def start_campaign(
             session.refresh(call)
             call_ids.append(str(call.id))
             created += 1
-        except CallPermissionError:
+        except CallPermissionError as error:
             skipped += 1
+            code = _map_call_precheck_code(str(error))
+            reason = {
+                "code": code,
+                "message": str(error),
+                "phone": contact.phone,
+                "contact_id": contact.id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter[code] = skipped_reason_counter.get(code, 0) + 1
         except ValueError:
             skipped += 1
+            reason = {
+                "code": "INVALID_PHONE",
+                "message": "invalid phone or missing contact",
+                "phone": contact.phone if contact else None,
+                "contact_id": contact.id if contact else rel.contact_id,
+            }
+            skip_reasons.append(reason)
+            skipped_reason_counter["INVALID_PHONE"] = skipped_reason_counter.get("INVALID_PHONE", 0) + 1
             continue
 
-    return {"total_contacts": total, "created": created, "skipped": skipped, "call_ids": call_ids}
+    return {
+        "total_contacts": total,
+        "created": created,
+        "skipped": skipped,
+        "call_ids": call_ids,
+        "skip_reasons": skip_reasons,
+        "skipped_reason_codes": sorted(skipped_reason_counter.keys()),
+    }
 
 
 def resolve_campaign_script(session: Session, tenant_id: int, campaign_id: int | None) -> str:

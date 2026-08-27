@@ -133,7 +133,7 @@ class CallSession(SQLModel, table=True):
     contact_id: Optional[int] = Field(default=None, foreign_key="contact.id")
     phone: str
     mode: CallMode
-    status: CallStatus = Field(default=CallStatus.CREATED)
+    status: CallStatus = Field(default=CallStatus.CREATED, index=True)
     attempts: int = 0
     max_attempts: int = 1
     last_error: Optional[str] = None
@@ -148,7 +148,7 @@ class CallSession(SQLModel, table=True):
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
 class CallEvent(SQLModel, table=True):
@@ -157,6 +157,16 @@ class CallEvent(SQLModel, table=True):
     event_type: EventType
     source: str = "platform"
     payload: str = "{}"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WebhookEventIngest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    event_type: str = Field(index=True)
+    source: str = Field(index=True)
+    provider_event_key: str = Field(index=True, unique=True)
+    repeat_count: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
