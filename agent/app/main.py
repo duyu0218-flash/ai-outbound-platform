@@ -35,12 +35,16 @@ def health():
 
 @app.post("/agent/turn")
 def turn(payload: TurnRequest):
-    keywords = get_default_keywords()
+    language = str(payload.context.get("language") or "zh-CN")
+    keywords = get_default_keywords(language)
     handoff, hangup_sms, tts, escalate_priority = resolve_action(
         payload.mode,
         payload.script,
         payload.transcript,
+        language,
     )
+    if not bool(payload.context.get("hangup_sms_enabled", True)):
+        hangup_sms = None
     action = "handoff" if handoff else "speak"
     return TurnResult(
         action=action,
@@ -54,10 +58,11 @@ def turn(payload: TurnRequest):
 
 @app.post("/agent/start")
 def start(payload: TurnRequest):
-    tts = ai_reply(payload.mode, payload.script, "")
+    language = str(payload.context.get("language") or "zh-CN")
+    tts = ai_reply(payload.mode, payload.script, "", language)
     return TurnResult(
         action="greeting",
         tts_text=tts,
         handoff_to_human=False,
-        next_keywords=get_default_keywords(),
+        next_keywords=get_default_keywords(language),
     )

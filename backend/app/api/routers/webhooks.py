@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_webhook_token, get_session
 from ...clock import utc_now
-from ...models import CallEvent, CallMode, CallSession, CallStatus, WebhookEventIngest
+from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
 
@@ -78,6 +78,33 @@ def _status_to_call_status(raw_status: str) -> CallStatus | None:
         "voicemail": CallStatus.VOICEMAIL,
     }
     return mapping.get(status)
+
+
+def _complete_campaign_if_terminal(session: Session, campaign_id: int | None) -> None:
+    if campaign_id is None:
+        return
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign or campaign.status != "running":
+        return
+    active_call = session.exec(
+        select(CallSession.id).where(
+            CallSession.campaign_id == campaign_id,
+            CallSession.status.notin_(
+                {
+                    CallStatus.COMPLETED,
+                    CallStatus.FAILED,
+                    CallStatus.NO_ANSWER,
+                    CallStatus.BUSY,
+                    CallStatus.VOICEMAIL,
+                }
+            ),
+        )
+    ).first()
+    if active_call is None:
+        campaign.status = "completed"
+        campaign.updated_at = utc_now()
+        session.add(campaign)
+        session.commit()
 
 
 def _add_event(session: Session, call_id, event_type: str, source: str, payload: dict) -> bool:
@@ -191,6 +218,14 @@ def telephony_status(
 
     session.add(call)
     session.commit()
+    if mapped in {
+        CallStatus.COMPLETED,
+        CallStatus.FAILED,
+        CallStatus.BUSY,
+        CallStatus.VOICEMAIL,
+        CallStatus.NO_ANSWER,
+    }:
+        _complete_campaign_if_terminal(session, call.campaign_id)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
@@ -234,6 +269,9 @@ def telephony_recording(
     is_duplicate = _add_event(session, call.id, "recording", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
+    campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+    if campaign and not campaign.recording_enabled:
+        return {"result": "ignored", "reason": "recording_disabled"}
     url = payload.payload.get("url")
     if url:
         call.recording_url = str(url)

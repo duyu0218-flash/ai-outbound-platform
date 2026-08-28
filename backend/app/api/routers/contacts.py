@@ -1,12 +1,13 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...clock import utc_now
-from ...models import Contact, ConsentState
+from ...models import CallSession, Campaign, CampaignContact, Contact, ConsentState
 from ...schemas import ContactCreate, ContactPatch, ContactOut
 from ...services.call_service import normalize_phone
 
@@ -22,6 +23,11 @@ def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_i
     normalized_phone = normalize_phone(payload.phone)
     if not 6 <= len(normalized_phone) <= 15:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="phone must contain 6 to 15 digits")
+    existing = session.exec(
+        select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized_phone)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="contact phone already exists")
     contact = Contact(
         tenant_id=tenant_id,
         phone=normalized_phone,
@@ -33,7 +39,11 @@ def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_i
         consented_at=utc_now() if payload.consent_state == ConsentState.CONSENTED else None,
     )
     session.add(contact)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="contact phone already exists")
     session.refresh(contact)
     return contact
 
@@ -97,6 +107,26 @@ def delete_contact(contact_id: int, tenant_id: int = Depends(get_tenant_id_for_r
     contact = session.get(Contact, contact_id)
     if not contact or contact.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
+    campaign_reference = session.exec(
+        select(CampaignContact)
+        .join(Campaign, Campaign.id == CampaignContact.campaign_id)
+        .where(
+            CampaignContact.contact_id == contact_id,
+            Campaign.tenant_id == tenant_id,
+            Campaign.status != "deleted",
+        )
+    ).first()
+    call_reference = session.exec(
+        select(CallSession.id).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.contact_id == contact_id,
+        )
+    ).first()
+    if campaign_reference or call_reference:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="contact is referenced by campaign or call history; mark it DNC instead",
+        )
     session.delete(contact)
     session.commit()
     return {"result": "deleted"}

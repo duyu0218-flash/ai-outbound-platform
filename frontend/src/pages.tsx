@@ -11,6 +11,8 @@ import {
   FileTextOutlined,
   KeyOutlined,
   PhoneOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   RocketOutlined,
@@ -18,6 +20,7 @@ import {
   SearchOutlined,
   SettingOutlined,
   SoundOutlined,
+  StopOutlined,
   TeamOutlined,
   UserAddOutlined,
 } from '@ant-design/icons'
@@ -53,7 +56,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SystemOverview, TelephonyLine } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SmsLog, SystemOverview, TelephonyLine } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -272,11 +275,16 @@ export function ScriptsPage() {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['scripts'] }) },
     onError: (error) => message.error(error.message),
   })
+  const remove = useMutation({
+    mutationFn: (item: ScriptTemplate) => apiRequest(`/api/v1/script-templates/${item.id}`, { method: 'DELETE' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['scripts'] }) },
+    onError: (error) => message.error(error.message),
+  })
   const openEdit = (item?: ScriptTemplate) => { setEditing(item || null); form.setFieldsValue(item || { category: 'default', is_active: true }); setModalOpen(true) }
   return (
     <>
       <PageTitle title={t('scripts')} description={t('scriptHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('createScript')}</Button>} />
-      <Row gutter={[16, 16]}>{(query.data || []).map((item) => <Col xs={24} lg={12} xl={8} key={item.id}><Card loading={query.isLoading} className="script-card" title={<Space><FileTextOutlined /><span>{item.name}</span></Space>} extra={<Switch size="small" checked={item.is_active} onChange={() => toggle.mutate(item)} />} actions={[<Button type="text" icon={<EditOutlined />} onClick={() => openEdit(item)}>{t('edit')}</Button>]}><Space wrap><Tag>{item.category}</Tag><Tag>v{item.version}</Tag>{item.tags && <Tag color="blue">{item.tags}</Tag>}</Space><Paragraph ellipsis={{ rows: 4, expandable: true }} className="script-preview">{item.content}</Paragraph><Text type="secondary">{formatDate(item.updated_at)}</Text></Card></Col>)}</Row>
+      <Row gutter={[16, 16]}>{(query.data || []).map((item) => <Col xs={24} lg={12} xl={8} key={item.id}><Card loading={query.isLoading} className="script-card" title={<Space><FileTextOutlined /><span>{item.name}</span></Space>} extra={<Switch size="small" checked={item.is_active} onChange={() => toggle.mutate(item)} />} actions={[<Button type="text" icon={<EditOutlined />} onClick={() => openEdit(item)}>{t('edit')}</Button>, <Popconfirm title={t('confirmDelete')} onConfirm={() => remove.mutate(item)}><Button type="text" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>]}><Space wrap><Tag>{item.category}</Tag><Tag>v{item.version}</Tag>{item.tags && <Tag color="blue">{item.tags}</Tag>}</Space><Paragraph ellipsis={{ rows: 4, expandable: true }} className="script-preview">{item.content}</Paragraph><Text type="secondary">{formatDate(item.updated_at)}</Text></Card></Col>)}</Row>
       {!query.isLoading && !query.data?.length && <Card><Empty description={t('empty')} /></Card>}
       <Modal width={680} title={editing ? t('edit') : t('createScript')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={mutation.isPending} destroyOnHidden>
         <Form<ScriptFormValues> form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>
@@ -300,10 +308,11 @@ export function CampaignsPage() {
   const contacts = useSecureQuery<Contact[]>(['contacts', 'campaign-options'], '/api/v1/contacts?page=1&size=200')
   const scripts = useSecureQuery<ScriptTemplate[]>(['scripts', 'campaign-options'], '/api/v1/script-templates?active_only=true&page=1&size=200')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<Campaign | null>(null)
   const [form] = Form.useForm<CampaignFormValues>()
-  const createMutation = useMutation({
-    mutationFn: (values: CampaignFormValues) => apiRequest<Campaign>('/api/v1/campaigns', { method: 'POST', body: JSON.stringify(values) }, token),
-    onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }) },
+  const saveMutation = useMutation({
+    mutationFn: (values: CampaignFormValues) => apiRequest<Campaign>(editing ? `/api/v1/campaigns/${editing.id}` : '/api/v1/campaigns', { method: editing ? 'PUT' : 'POST', body: JSON.stringify(values) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }) },
     onError: (error) => message.error(error.message),
   })
   const startMutation = useMutation({
@@ -311,9 +320,24 @@ export function CampaignsPage() {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
+  const statusMutation = useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'pause' | 'resume' | 'stop' }) => apiRequest<Campaign>(`/api/v1/campaigns/${id}/${action}`, { method: 'POST' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/v1/campaigns/${id}`, { method: 'DELETE' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const openEdit = (campaign?: Campaign) => {
+    setEditing(campaign || null)
+    form.setFieldsValue(campaign || { mode: 'ai_handoff', concurrency: 5, retry_limit: 1, retry_interval_sec: 30, attempt_interval_sec: 1200, recording_enabled: true, hangup_sms_enabled: true, contact_ids: [] })
+    setModalOpen(true)
+  }
   return (
     <>
-      <PageTitle title={t('campaigns')} description={t('campaignHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => { form.setFieldsValue({ mode: 'ai_handoff', concurrency: 5, retry_limit: 1, retry_interval_sec: 30, attempt_interval_sec: 1200, recording_enabled: true, hangup_sms_enabled: true, contact_ids: [] }); setModalOpen(true) }}>{t('createCampaign')}</Button>} />
+      <PageTitle title={t('campaigns')} description={t('campaignHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('createCampaign')}</Button>} />
       <Card>
         <Table<Campaign> rowKey="id" loading={query.isLoading} dataSource={(query.data || []).filter((item) => item.status !== 'deleted')} locale={{ emptyText: t('empty') }} scroll={{ x: 900 }} columns={[
           { title: 'ID', dataIndex: 'id', width: 70 },
@@ -323,11 +347,18 @@ export function CampaignsPage() {
           { title: t('concurrency'), dataIndex: 'concurrency' },
           { title: t('status'), dataIndex: 'status', render: (value) => <StatusTag status={value} /> },
           { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
-          { title: t('actions'), fixed: 'right', width: 120, render: (_, record) => <Popconfirm title={t('confirmStart')} onConfirm={() => startMutation.mutate(record.id)}><Button type="primary" ghost size="small" icon={<RocketOutlined />} loading={startMutation.isPending}>{t('start')}</Button></Popconfirm> },
+          { title: t('actions'), fixed: 'right', width: 360, render: (_, record) => <Space size={4} wrap>
+            {['draft', 'failed', 'stopped'].includes(record.status) && <Popconfirm title={t('confirmStart')} onConfirm={() => startMutation.mutate(record.id)}><Button type="primary" ghost size="small" icon={<RocketOutlined />} loading={startMutation.isPending}>{t('start')}</Button></Popconfirm>}
+            {['draft', 'failed', 'stopped'].includes(record.status) && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button>}
+            {record.status === 'running' && <Button size="small" icon={<PauseCircleOutlined />} onClick={() => statusMutation.mutate({ id: record.id, action: 'pause' })}>{t('pause')}</Button>}
+            {record.status === 'paused' && <Button size="small" icon={<PlayCircleOutlined />} onClick={() => statusMutation.mutate({ id: record.id, action: 'resume' })}>{t('resume')}</Button>}
+            {['running', 'paused'].includes(record.status) && <Popconfirm title={t('confirmStop')} onConfirm={() => statusMutation.mutate({ id: record.id, action: 'stop' })}><Button size="small" danger icon={<StopOutlined />}>{t('stop')}</Button></Popconfirm>}
+            {!['running', 'paused'].includes(record.status) && <Popconfirm title={t('confirmDelete')} onConfirm={() => deleteMutation.mutate(record.id)}><Button size="small" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>}
+          </Space> },
         ]} />
       </Card>
-      <Modal width={760} title={t('createCampaign')} open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} confirmLoading={createMutation.isPending} destroyOnHidden>
-        <Form<CampaignFormValues> form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)}>
+      <Modal width={760} title={editing ? t('editCampaign') : t('createCampaign')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
+        <Form<CampaignFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
           <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('mode')} name="mode" rules={[{ required: true }]}><Select options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item></Col></Row>
           <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><Select mode="multiple" optionFilterProp="label" options={(contacts.data || []).map((item) => ({ value: item.id, label: `${item.name || '-'} · ${item.phone}` }))} /></Form.Item>
           <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
@@ -345,6 +376,8 @@ interface CallFormValues { phone: string; mode: CallMode; campaign_id?: number; 
 
 function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[]; loading: boolean; onAction: (call: CallSession, action: 'handover' | 'hangup' | 'retry') => void; onEvents: (call: CallSession) => void }) {
   const { t } = useTranslation()
+  const handoverable = (status: string) => ['dialing', 'answered', 'in_ai'].includes(status)
+  const terminal = (status: string) => ['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(status)
   return <Table<CallSession> rowKey="id" loading={loading} dataSource={calls} locale={{ emptyText: t('empty') }} scroll={{ x: 1100 }} columns={[
     { title: t('phone'), dataIndex: 'phone', width: 150 },
     { title: t('mode'), dataIndex: 'mode', width: 150, render: (value) => t(modeOptions.find((item) => item.value === value)?.labelKey || value) },
@@ -352,7 +385,7 @@ function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[
     { title: t('attempts'), dataIndex: 'attempts', width: 100, render: (value, record) => `${value}/${record.max_attempts}` },
     { title: t('campaignId'), dataIndex: 'campaign_id', width: 110, render: (value) => value || '-' },
     { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
-    { title: t('actions'), fixed: 'right', width: 280, render: (_, record) => <Space size={4}><Button size="small" onClick={() => onEvents(record)}>{t('events')}</Button><Button size="small" onClick={() => onAction(record, 'handover')}>{t('handoff')}</Button><Button size="small" danger onClick={() => onAction(record, 'hangup')}>{t('hangup')}</Button><Button size="small" onClick={() => onAction(record, 'retry')}>{t('retry')}</Button></Space> },
+    { title: t('actions'), fixed: 'right', width: 300, render: (_, record) => <Space size={4}><Button size="small" onClick={() => onEvents(record)}>{t('events')}</Button><Popconfirm title={t('confirmHandoff')} onConfirm={() => onAction(record, 'handover')} disabled={!handoverable(record.status)}><Button size="small" disabled={!handoverable(record.status)}>{t('handoff')}</Button></Popconfirm><Popconfirm title={t('confirmHangup')} onConfirm={() => onAction(record, 'hangup')} disabled={terminal(record.status)}><Button size="small" danger disabled={terminal(record.status)}>{t('hangup')}</Button></Popconfirm><Popconfirm title={t('confirmRetry')} onConfirm={() => onAction(record, 'retry')} disabled={!terminal(record.status) || record.attempts >= record.max_attempts}><Button size="small" disabled={!terminal(record.status) || record.attempts >= record.max_attempts}>{t('retry')}</Button></Popconfirm></Space> },
   ]} />
 }
 
@@ -382,7 +415,7 @@ export function CallsPage({ role }: { role: Role }) {
       <Card><CallTable calls={query.data || []} loading={query.isLoading} onEvents={setSelectedCall} onAction={(call, action) => actionMutation.mutate({ call, action })} /></Card>
       <Modal title={t('startCall')} open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} confirmLoading={createMutation.isPending} destroyOnHidden>
         <Form<CallFormValues> form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)}>
-          <Form.Item label={t('phone')} name="phone" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item label={t('phone')} name="phone" rules={[{ required: true }, { pattern: /^\+?[0-9 ()-]{6,32}$/, message: t('invalidPhone') }]}><Input /></Form.Item>
           <Form.Item label={t('mode')} name="mode" rules={[{ required: true }]}><Select options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item>
           <Row gutter={12}><Col span={8}><Form.Item label={t('campaignId')} name="campaign_id"><InputNumber className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('contactId')} name="contact_id"><InputNumber className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('attempts')} name="max_attempts"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col></Row>
         </Form>
@@ -564,8 +597,16 @@ export function SettingsPage() {
 
 export function SystemPage() {
   const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
   const overview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
   const audits = useSecureQuery<AuditLog[]>(['audit-logs'], '/api/v1/admin/audit-logs?page=1&size=100')
+  const smsLogs = useSecureQuery<SmsLog[]>(['sms-logs'], '/api/v1/admin/sms-logs?page=1&size=100')
+  const retrySms = useMutation({
+    mutationFn: (item: SmsLog) => apiRequest<SmsLog>(`/api/v1/admin/sms-logs/${item.id}/retry`, { method: 'POST' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['sms-logs'] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
+    onError: (error) => message.error(error.message),
+  })
   const serviceLabels: Record<string, string> = { database: t('database'), redis: 'Redis', ai_agent: t('aiService'), telephony: t('telephony') }
   return (
     <>
@@ -582,6 +623,14 @@ export function SystemPage() {
         { title: t('resourceId'), dataIndex: 'resource_id', width: 120, render: (value) => value || '-' },
         { title: t('details'), dataIndex: 'detail', ellipsis: true },
       ]} /></Card>
+      <Card title={<Space><SoundOutlined />{t('smsLogs')}</Space>} className="audit-card"><Table<SmsLog> rowKey="id" loading={smsLogs.isLoading} dataSource={smsLogs.data || []} pagination={{ pageSize: 12 }} scroll={{ x: 900 }} columns={[
+        { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
+        { title: t('phone'), dataIndex: 'to_phone', width: 150 },
+        { title: t('status'), dataIndex: 'state', width: 120, render: (value) => <Tag color={String(value).includes('failed') ? 'error' : 'success'}>{value}</Tag> },
+        { title: t('content'), dataIndex: 'content', ellipsis: true },
+        { title: t('sentAt'), dataIndex: 'sent_at', width: 170, render: formatDate },
+        { title: t('actions'), fixed: 'right', width: 100, render: (_, record) => <Button size="small" disabled={!['failed', 'disabled'].includes(record.state)} loading={retrySms.isPending} onClick={() => retrySms.mutate(record)}>{t('retry')}</Button> },
+      ]} /></Card>
     </>
   )
 }
@@ -597,6 +646,11 @@ export function AgentWorkspacePage() {
     onSuccess: () => { message.success(t('operationSuccess')); form.resetFields(); form.setFieldsValue({ mode: 'ai_handoff', max_attempts: 1 }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
+  const handoffMutation = useMutation({
+    mutationFn: (call: CallSession) => apiRequest<CallSession>(`/api/v1/calls/${call.id}/handover?reason=agent_workspace`, { method: 'POST' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onError: (error) => message.error(error.message),
+  })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy'].includes(item.status)), [query.data])
 
   return (
@@ -606,7 +660,7 @@ export function AgentWorkspacePage() {
         <Col xs={24} xl={9}>
           <Card className="dialer-card" title={<Space><PhoneOutlined />{t('callNow')}</Space>}>
             <Form<CallFormValues> form={form} layout="vertical" initialValues={{ mode: 'ai_handoff', max_attempts: 1 }} onFinish={(values) => mutation.mutate(values)}>
-              <Form.Item label={t('phone')} name="phone" rules={[{ required: true }]}><Input size="large" placeholder="13800000000" /></Form.Item>
+              <Form.Item label={t('phone')} name="phone" rules={[{ required: true }, { pattern: /^\+?[0-9 ()-]{6,32}$/, message: t('invalidPhone') }]}><Input size="large" placeholder="13800000000" /></Form.Item>
               <Form.Item label={t('mode')} name="mode"><Select size="large" options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item>
               <Form.Item label={t('attempts')} name="max_attempts"><InputNumber min={1} max={10} size="large" className="full-width" /></Form.Item>
               <Button type="primary" size="large" block icon={<PhoneOutlined />} htmlType="submit" loading={mutation.isPending}>{t('callNow')}</Button>
@@ -618,7 +672,7 @@ export function AgentWorkspacePage() {
         </Col>
         <Col xs={24} xl={15}>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
-            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
+            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={!['dialing', 'answered', 'in_ai'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
           </Card>
         </Col>
       </Row>

@@ -7,6 +7,7 @@
 - 租户隔离与 API Key 鉴权
 - Webhook 回调链路（状态 / 识别 / 录音）
 - 挂断短信记录（`SmsLog`）
+- 失败短信查询与管理员重试（`/api/v1/admin/sms-logs`）
 - 通话事件追溯（`CallEvent`）
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 - 话术模板（`/api/v1/script-templates`）与活动绑定
@@ -15,6 +16,8 @@
 - 管理端与座席端支持中文/English 实时切换，并在本机浏览器保存语言偏好
 - React + TypeScript + Ant Design 多页面前端：管理端包含运营、用户与座席、线路、系统配置、监控与审计；座席端包含工作台和通话记录
 - 管理后台支持正式账号开通/停用/改密、线路并发配置、AI/短信/合规/Webhook 配置和管理员操作审计
+- 活动支持草稿启动、暂停、恢复、停止和删除；运行中的活动禁止直接修改或删除
+- 联系人号码按租户唯一，已有活动或通话历史的联系人禁止物理删除（可改为 DNC）
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 ## 2bis. 测试账号体系（新）
@@ -83,7 +86,7 @@ docker compose up -d --build
 | `DATABASE_POOL_TIMEOUT_SEC` / `DATABASE_POOL_RECYCLE_SEC` | 获取连接超时/连接回收秒数 |
 | `REDIS_URL` | Redis 链接 |
 | `DEFAULT_TENANT_ID` | 默认租户 ID |
-| `TELEPHONY_PROVIDER` | `mock` 或 `http` |
+| `TELEPHONY_PROVIDER` | `mock`、`http` 或 `tenant`；`tenant` 按租户读取管理端启用线路 |
 | `TELEPHONY_PROVIDER_ENDPOINT` | `http` 模式下电信/网关 API 地址 |
 | `TELEPHONY_WEBHOOK_BASE` | 回调基础地址（控制面地址） |
 | `TELEPHONY_WEBHOOK_TOKEN` | 回调鉴权 Token（可选，设置后会校验 `x-webhook-token`） |
@@ -145,6 +148,14 @@ curl -X POST http://localhost:8000/api/v1/calls \
 curl -X POST "http://localhost:8000/api/v1/campaigns/1/start?max_dials=100" \
   -H "x-api-key: dev-api-key" \
   -H "x-tenant-id: 1"
+
+# 暂停 / 恢复 / 停止活动
+curl -X POST http://localhost:8000/api/v1/campaigns/1/pause \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+curl -X POST http://localhost:8000/api/v1/campaigns/1/resume \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
+curl -X POST http://localhost:8000/api/v1/campaigns/1/stop \
+  -H "x-api-key: dev-api-key" -H "x-tenant-id: 1"
 
 # 手工挂断 / 转人工
 curl -X POST "http://localhost:8000/api/v1/calls/<call_id>/handover?reason=客户要求" \
@@ -228,11 +239,14 @@ bash scripts/test-campaign-start.sh
   - 信任主机：可通过 `TRUSTED_HOSTS` 固定可访问域名。
 - 活动拨号：
   - `POST /api/v1/campaigns/{campaign_id}/start` 支持 `auto_dial` 与 `max_dials`。
+  - `pause` 停止继续派发，`resume` 继续派发可重试任务，`stop` 终止尚未拨出的任务；已进入运营商链路的通话需单独挂断。
+  - 录音回调与挂断短信均服从活动的 `recording_enabled` / `hangup_sms_enabled` 开关。
   - 建议后续接入分布式任务队列，避免活动一次性同步阻塞。
 - 外呼闭环：
   - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
 - 合规：
   - 联系人必须经过同意/撤回、黑名单（DNC）检查。
+  - 同一租户不允许重复号码；已有活动或通话引用的联系人不允许删除，以防历史记录断链。
 - 登录态增强：
   - `current_user_optional` 与 `require_roles_if_authenticated` 上线：携带 Bearer Token 的请求会做角色检查；纯 API Key 调用保持兼容。
 - webhook 增强：
@@ -248,6 +262,7 @@ bash scripts/test-campaign-start.sh
 - `backend/app/services/telephony.py`:
   - `mock`：联调演练；
   - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/transfer`、`/v1/call/hangup`。
+  - `tenant`：从当前租户的启用线路读取网关配置；当前只支持 HTTP 语音桥接地址，SIP 注册、媒体协商与坐席软电话仍需对接 FreeSWITCH/Asterisk 或运营商平台。
 - 回调地址固定为：
   - `POST /api/v1/webhooks/telephony/status`
   - `POST /api/v1/webhooks/telephony/transcript`
@@ -258,5 +273,9 @@ bash scripts/test-campaign-start.sh
 
 - GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
 - 将进程内后台任务替换为分布式任务队列（Celery/Temporal）：任务并发、限流、重试、死信队列。
+- 对接并验收真实运营商/PBX、SIP 中继、坐席 WebRTC 软电话、排队分配和人工接听状态；当前页面不是媒体终端。
+- 将规则型 AI 服务替换为真实 ASR、LLM、TTS 流式链路，并做中文/英文口音、打断、延迟、降级和敏感词验收。
+- 将录音 URL 回调扩展为受控下载、MinIO 对象存储、签名访问、生命周期和删除审计；当前不代存录音文件。
+- 对接真实短信供应商并验证签名、模板、退订、频控、失败重试和回执。当前管理员可以查看与重试失败记录，但供应商能力取决于外部配置。
 - 操作日志与审计、工单系统/CRM 双向同步
 - 海外扩展：时区、隐私条款、国际电销规则与时段管控

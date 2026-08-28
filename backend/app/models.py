@@ -72,6 +72,8 @@ class User(SQLModel, table=True):
 
 
 class Contact(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "phone", name="uq_contact_tenant_phone"),)
+
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     phone: str = Field(index=True)

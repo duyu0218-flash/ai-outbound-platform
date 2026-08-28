@@ -13,7 +13,23 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const response = await fetch(path, { ...options, headers })
+  const timeoutController = new AbortController()
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), 20_000)
+  const externalSignal = options.signal
+  const abortFromExternal = () => timeoutController.abort()
+  externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
+  let response: Response
+  try {
+    response = await fetch(path, { ...options, headers, signal: timeoutController.signal })
+  } catch (error) {
+    if (timeoutController.signal.aborted && !externalSignal?.aborted) {
+      throw new ApiError('Request timed out after 20 seconds', 504)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+    externalSignal?.removeEventListener('abort', abortFromExternal)
+  }
   const contentType = response.headers.get('content-type') || ''
   const body = contentType.includes('application/json') ? await response.json() : await response.text()
 

@@ -14,10 +14,10 @@ const zh = {
   phone: '手机号', name: '名称', contactName: '姓名', tags: '标签', consent: '同意状态', dnc: '禁打', timezone: '时区', createdAt: '创建时间', yes: '是', no: '否',
   contactHint: '集中管理客户、同意状态与禁打名单', scriptHint: '配置可复用的 AI 外呼话术', campaignHint: '组合客户、话术和拨打策略', callHint: '查询通话状态、事件与人工接管',
   category: '分类', version: '版本', enabled: '启用', content: '话术内容', description: '说明',
-  mode: '模式', concurrency: '并发数', retryLimit: '重试次数', retryInterval: '重试间隔（秒）', contactsSelected: '选择客户', scriptTemplate: '话术模板', recording: '通话录音', hangupSms: '挂机短信', status: '状态', start: '启动',
+  mode: '模式', concurrency: '并发数', retryLimit: '重试次数', retryInterval: '重试间隔（秒）', contactsSelected: '选择客户', scriptTemplate: '话术模板', recording: '通话录音', hangupSms: '挂机短信', status: '状态', start: '启动', pause: '暂停', resume: '恢复', stop: '停止', stopped: '已停止', paused: '已暂停', editCampaign: '编辑任务', confirmStop: '确认停止该外呼任务？', invalidPhone: '请输入 6 至 15 位有效号码',
   attempts: '尝试次数', campaignId: '任务 ID', contactId: '客户 ID', handoff: '转人工', hangup: '挂断', retry: '重拨', events: '事件',
   callNow: '立即呼叫', workbenchHint: '发起单路外呼并处理需要人工介入的会话', activeQueue: '当前会话', agentStatus: '座席状态', ready: '空闲',
-  operationSuccess: '操作成功', loadFailed: '加载失败', loginFailed: '登录失败', empty: '暂无数据', confirmDelete: '确认删除这条记录？', confirmStart: '确认启动该外呼任务？',
+  operationSuccess: '操作成功', loadFailed: '加载失败', loginFailed: '登录失败', empty: '暂无数据', confirmDelete: '确认删除这条记录？', confirmStart: '确认启动该外呼任务？', confirmHandoff: '确认将该通话转接人工？', confirmHangup: '确认挂断该通话？', confirmRetry: '确认重新拨打该通话？',
   all: '全部', unknown: '未知', consented: '已同意', notConsented: '未同意', revoked: '已撤回', draft: '草稿', running: '运行中', completed: '已完成', failed: '失败', deleted: '已删除',
   created: '已创建', queued: '排队中', dialing: '拨号中', answered: '已接听', in_ai: 'AI 通话中', waiting_human: '等待人工', handoff_transferring: '转接中', no_answer: '无人接听', busy: '忙线', voicemail: '语音信箱',
   humanOnly: '纯人工', aiOnly: '纯 AI', aiHandoff: 'AI 转人工', aiWithSms: 'AI + 短信', mixedHumanFirst: '人工优先',
@@ -27,7 +27,7 @@ const zh = {
   settingsHint: '集中配置 AI、语音、短信、合规和业务回调', settingsSecurityHint: '敏感密钥不在页面中保存；生产凭证应通过环境变量或密钥管理服务注入。', aiVoice: 'AI 与语音', smsSettings: '短信配置', compliance: '合规策略', integrations: '接口与回调',
   aiEnabled: '启用 AI 服务', agentUrl: 'AI 服务地址', llmProvider: '大模型服务商', llmModel: '模型名称', asrProvider: '语音识别服务', ttsProvider: '语音合成服务', voice: '音色', smsEnabled: '启用短信', senderId: '短信签名', endpoint: '服务地址', hangupTemplate: '挂机短信模板',
   dncEnforced: '强制禁呼检查', recordingNotice: '播放录音告知', maxAttemptsDay: '每日最大尝试次数', startHour: '允许开始小时', endHour: '允许结束小时', callbackEnabled: '启用业务回调', webhookBaseUrl: 'Webhook 地址', webhookTimeout: '回调超时', seconds: '秒', lastUpdated: '最后更新',
-  systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID',
+  systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', smsLogs: '短信发送记录', sentAt: '发送时间', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID',
 }
 
 const en: typeof zh = {
@@ -43,10 +43,10 @@ const en: typeof zh = {
   phone: 'Phone', name: 'Name', contactName: 'Contact name', tags: 'Tags', consent: 'Consent', dnc: 'Do not call', timezone: 'Timezone', createdAt: 'Created at', yes: 'Yes', no: 'No',
   contactHint: 'Manage contacts, consent and do-not-call status', scriptHint: 'Configure reusable AI outbound scripts', campaignHint: 'Combine contacts, scripts and dialing policies', callHint: 'Review calls, events and human handoffs',
   category: 'Category', version: 'Version', enabled: 'Enabled', content: 'Script content', description: 'Description',
-  mode: 'Mode', concurrency: 'Concurrency', retryLimit: 'Retry limit', retryInterval: 'Retry interval (sec)', contactsSelected: 'Contacts', scriptTemplate: 'Script template', recording: 'Recording', hangupSms: 'Hangup SMS', status: 'Status', start: 'Start',
+  mode: 'Mode', concurrency: 'Concurrency', retryLimit: 'Retry limit', retryInterval: 'Retry interval (sec)', contactsSelected: 'Contacts', scriptTemplate: 'Script template', recording: 'Recording', hangupSms: 'Hangup SMS', status: 'Status', start: 'Start', pause: 'Pause', resume: 'Resume', stop: 'Stop', stopped: 'Stopped', paused: 'Paused', editCampaign: 'Edit campaign', confirmStop: 'Stop this campaign?', invalidPhone: 'Enter a valid phone number with 6 to 15 digits',
   attempts: 'Attempts', campaignId: 'Campaign ID', contactId: 'Contact ID', handoff: 'Handoff', hangup: 'Hang up', retry: 'Retry', events: 'Events',
   callNow: 'Call now', workbenchHint: 'Start outbound calls and handle sessions that need an agent', activeQueue: 'Active sessions', agentStatus: 'Agent status', ready: 'Ready',
-  operationSuccess: 'Operation completed', loadFailed: 'Failed to load', loginFailed: 'Sign-in failed', empty: 'No data', confirmDelete: 'Delete this record?', confirmStart: 'Start this campaign?',
+  operationSuccess: 'Operation completed', loadFailed: 'Failed to load', loginFailed: 'Sign-in failed', empty: 'No data', confirmDelete: 'Delete this record?', confirmStart: 'Start this campaign?', confirmHandoff: 'Transfer this call to a human agent?', confirmHangup: 'Hang up this call?', confirmRetry: 'Retry this call?',
   all: 'All', unknown: 'Unknown', consented: 'Consented', notConsented: 'Not consented', revoked: 'Revoked', draft: 'Draft', running: 'Running', completed: 'Completed', failed: 'Failed', deleted: 'Deleted',
   created: 'Created', queued: 'Queued', dialing: 'Dialing', answered: 'Answered', in_ai: 'In AI call', waiting_human: 'Waiting for agent', handoff_transferring: 'Transferring', no_answer: 'No answer', busy: 'Busy', voicemail: 'Voicemail',
   humanOnly: 'Human only', aiOnly: 'AI only', aiHandoff: 'AI handoff', aiWithSms: 'AI + SMS', mixedHumanFirst: 'Human first',
@@ -56,7 +56,7 @@ const en: typeof zh = {
   settingsHint: 'Configure AI, voice, SMS, compliance and business callbacks', settingsSecurityHint: 'Secrets are not stored on this page. Inject production credentials through environment variables or a secrets manager.', aiVoice: 'AI & Voice', smsSettings: 'SMS Settings', compliance: 'Compliance', integrations: 'Integrations',
   aiEnabled: 'Enable AI service', agentUrl: 'AI service URL', llmProvider: 'LLM provider', llmModel: 'Model', asrProvider: 'ASR provider', ttsProvider: 'TTS provider', voice: 'Voice', smsEnabled: 'Enable SMS', senderId: 'Sender ID', endpoint: 'Endpoint', hangupTemplate: 'Hangup SMS template',
   dncEnforced: 'Enforce DNC checks', recordingNotice: 'Play recording notice', maxAttemptsDay: 'Max attempts per day', startHour: 'Allowed start hour', endHour: 'Allowed end hour', callbackEnabled: 'Enable callback', webhookBaseUrl: 'Webhook URL', webhookTimeout: 'Webhook timeout', seconds: 'sec', lastUpdated: 'Last updated',
-  systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID',
+  systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', smsLogs: 'SMS delivery logs', sentAt: 'Sent at', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID',
 }
 
 const savedLanguage = localStorage.getItem('ai-platform-language') || 'zh-CN'

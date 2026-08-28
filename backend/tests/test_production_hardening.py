@@ -4,6 +4,7 @@ import asyncio
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,10 +24,10 @@ os.environ["TELEPHONY_RETRY_TIMES"] = "0"
 from app.db import session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import CallEvent, CallMode, CallSession, CallStatus, User  # noqa: E402
+from app.models import CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
-from app.services import dispatcher  # noqa: E402
-from app.services.call_service import create_call, dispatch_call_ids  # noqa: E402
+from app.services import dispatcher, telephony  # noqa: E402
+from app.services.call_service import create_call, dispatch_call_ids, place_call, retry_call  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -98,6 +99,36 @@ def test_role_and_tenant_boundaries(client: TestClient):
         headers=_bearer(admin_token, **{"x-tenant-id": "2"}),
     )
     assert response.status_code == 403
+
+
+def test_contact_phone_is_unique_and_referenced_contact_cannot_be_deleted(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    created = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "+86 138 0013 8010", "name": "integrity-contact", "consent_state": "consented"},
+    )
+    assert created.status_code == 200, created.text
+    duplicate = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "8613800138010", "name": "duplicate", "consent_state": "consented"},
+    )
+    assert duplicate.status_code == 409, duplicate.text
+
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={
+            "name": "integrity-campaign",
+            "mode": "human_only",
+            "contact_ids": [created.json()["id"]],
+        },
+    )
+    assert campaign.status_code == 200, campaign.text
+    blocked = client.delete(f"/api/v1/contacts/{created.json()['id']}", headers=headers)
+    assert blocked.status_code == 409, blocked.text
 
 
 def test_campaign_crud_and_structured_sync_dispatch(client: TestClient):
@@ -186,6 +217,75 @@ def test_concurrent_dispatch_claims_once(client: TestClient):
         assert persisted.attempts == 1
 
 
+@pytest.mark.asyncio
+async def test_retry_attempt_is_included_in_provider_metadata(client: TestClient, monkeypatch):
+    captured_attempts: list[int] = []
+
+    class CapturingAdapter:
+        async def dial(self, *, call_id, phone, webhook_url, metadata):
+            captured_attempts.append(metadata["attempt"])
+            return {"provider_call_id": f"capture-{call_id}-{metadata['attempt']}"}
+
+    monkeypatch.setattr(
+        "app.services.call_service.get_telephony_adapter",
+        lambda **_: CapturingAdapter(),
+    )
+    with session_scope() as session:
+        call = create_call(
+            session,
+            tenant_id=1,
+            phone="13800138013",
+            mode=CallMode.HUMAN_ONLY,
+            campaign_id=None,
+            contact_id=None,
+            max_attempts=2,
+        )
+        call = await place_call(session, call)
+        call.status = CallStatus.COMPLETED
+        session.add(call)
+        session.commit()
+        await retry_call(session, tenant_id=1, call_id=call.id)
+
+    assert captured_attempts == [1, 2]
+
+
+def test_tenant_telephony_mode_selects_line_and_rejects_direct_sip(monkeypatch):
+    class Result:
+        def __init__(self, line):
+            self.line = line
+
+        def first(self):
+            return self.line
+
+    class FakeSession:
+        def __init__(self, line):
+            self.line = line
+
+        def exec(self, _query):
+            return Result(self.line)
+
+    monkeypatch.setattr(telephony.settings, "telephony_provider", "tenant")
+    mock_line = TelephonyLine(
+        tenant_id=1,
+        name="tenant-mock",
+        provider="mock",
+        gateway_url="",
+    )
+    assert isinstance(
+        telephony.get_telephony_adapter(session=FakeSession(mock_line), tenant_id=1),
+        telephony.MockAdapter,
+    )
+
+    sip_line = TelephonyLine(
+        tenant_id=1,
+        name="tenant-sip",
+        provider="sip",
+        gateway_url="sip:carrier.example.com",
+    )
+    with pytest.raises(RuntimeError, match="HTTP bridge"):
+        telephony.get_telephony_adapter(session=FakeSession(sip_line), tenant_id=1)
+
+
 def test_webhook_is_idempotent_and_late_answer_cannot_reopen_call(client: TestClient):
     token = _login(client, "admin")
     created = client.post(
@@ -264,6 +364,84 @@ async def test_ai_events_are_extensible_and_mode_uses_wire_value(client: TestCli
         ).all()
         assert "ai_start" in event_types
     assert captured["mode"] == "ai_only"
+
+
+@pytest.mark.asyncio
+async def test_campaign_disables_hangup_sms_and_passes_language_context(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "13800138011", "name": "flag-contact", "consent_state": "consented"},
+    ).json()
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={
+            "name": "flag-campaign",
+            "mode": "ai_with_sms",
+            "contact_ids": [contact["id"]],
+            "recording_enabled": False,
+            "hangup_sms_enabled": False,
+        },
+    ).json()
+    started = client.post(
+        f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false",
+        headers=headers,
+    )
+    assert started.status_code == 200, started.text
+    calls = client.get(f"/api/v1/calls?campaign_id={campaign['id']}", headers=headers).json()
+    assert len(calls) == 1
+
+    captured: dict[str, object] = {}
+
+    async def _fake_ai_turn(**kwargs):
+        captured.update(kwargs["context"])
+        return AiTurnResult(action="speak", tts_text="ok", hangup_sms="must be suppressed")
+
+    monkeypatch.setattr(dispatcher, "request_ai_turn", _fake_ai_turn)
+    with session_scope() as session:
+        call = session.get(CallSession, UUID(calls[0]["id"]))
+        assert call is not None
+        call.status = CallStatus.ANSWERED
+        session.add(call)
+        session.commit()
+    await dispatcher.run_ai_turn(call_id=UUID(calls[0]["id"]), transcript="hello")
+    assert captured["recording_enabled"] is False
+    assert captured["hangup_sms_enabled"] is False
+    assert captured["language"] in {"zh-CN", "en-US"}
+    with session_scope() as session:
+        sms_count = session.exec(select(SmsLog).where(SmsLog.call_session_id == UUID(calls[0]["id"]))).all()
+        assert sms_count == []
+
+
+def test_campaign_pause_resume_stop_lifecycle(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "13800138012", "name": "lifecycle-contact", "consent_state": "consented"},
+    ).json()
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={"name": "lifecycle", "mode": "human_only", "contact_ids": [contact["id"]]},
+    ).json()
+    started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
+    assert started.status_code == 200, started.text
+    assert started.json()["campaign_status"] == "running"
+    assert client.post(f"/api/v1/campaigns/{campaign['id']}/start", headers=headers).status_code == 409
+    paused = client.post(f"/api/v1/campaigns/{campaign['id']}/pause", headers=headers)
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["status"] == "paused"
+    resumed = client.post(f"/api/v1/campaigns/{campaign['id']}/resume", headers=headers)
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["status"] == "running"
+    stopped = client.post(f"/api/v1/campaigns/{campaign['id']}/stop", headers=headers)
+    assert stopped.status_code == 200, stopped.text
+    assert stopped.json()["status"] == "stopped"
 
 
 def test_admin_management_crud_settings_and_audit(client: TestClient):

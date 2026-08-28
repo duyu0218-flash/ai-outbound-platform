@@ -1,10 +1,15 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Awaitable
+from typing import Any, Callable, Dict, Awaitable, TYPE_CHECKING
 
 import httpx
+from sqlmodel import select
 
 from ..config import get_settings
+from ..models import TelephonyLine
+
+if TYPE_CHECKING:
+    from sqlmodel import Session
 
 settings = get_settings()
 
@@ -137,10 +142,29 @@ class HttpSmsAdapter(SmsAdapter):
         return response.json()
 
 
-def get_telephony_adapter() -> TelephonyAdapter:
+def get_telephony_adapter(*, session: "Session | None" = None, tenant_id: int | None = None) -> TelephonyAdapter:
     provider = (settings.telephony_provider or "mock").strip().lower()
+    endpoint = settings.telephony_provider_endpoint or settings.sip_provider_endpoint
+    if provider == "tenant":
+        if session is None or tenant_id is None:
+            raise RuntimeError("tenant telephony provider requires tenant context")
+        line = session.exec(
+            select(TelephonyLine)
+            .where(TelephonyLine.tenant_id == tenant_id, TelephonyLine.enabled.is_(True))
+            .order_by(TelephonyLine.created_at.desc())
+        ).first()
+        if line is None:
+            raise RuntimeError("no enabled telephony line configured for tenant")
+        provider = line.provider.strip().lower()
+        endpoint = line.gateway_url.strip()
+        if provider == "mock":
+            return MockAdapter()
+        if not endpoint.startswith(("http://", "https://")):
+            raise RuntimeError(
+                "tenant telephony line must point to an HTTP bridge endpoint; direct SIP dialing is not supported by the control service"
+            )
+        return HttpAdapter(endpoint)
     if provider == "http":
-        endpoint = settings.telephony_provider_endpoint or settings.sip_provider_endpoint
         if not endpoint:
             raise RuntimeError("telephony provider is HTTP but endpoint is not configured")
         return HttpAdapter(endpoint)

@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...clock import utc_now
-from ...models import Campaign, CampaignContact, Contact, ScriptTemplate
+from ...models import CallSession, CallStatus, Campaign, CampaignContact, Contact, ScriptTemplate
 from ...services.call_service import (
     NotFoundError,
     resolve_campaign_script,
@@ -131,6 +131,8 @@ def update_campaign(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
     if campaign.status == "deleted":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deleted campaign cannot be updated")
+    if campaign.status in {"running", "paused"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="pause or stop campaign before editing")
     contacts = _validate_contacts(session, tenant_id, payload.contact_ids)
     _validate_script_template(session, tenant_id, payload.script_template_id)
     if payload.name:
@@ -179,6 +181,8 @@ def delete_campaign(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
     if campaign.status == "deleted":
         return {"result": "deleted"}
+    if campaign.status in {"running", "paused"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="stop campaign before deleting")
     campaign.status = "deleted"
     campaign.updated_at = utc_now()
     session.add(campaign)
@@ -201,6 +205,11 @@ async def start_campaign(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
     if campaign.status == "deleted":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deleted campaign cannot be started")
+    if campaign.status not in {"draft", "failed", "stopped"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"campaign cannot be started from status {campaign.status}",
+        )
 
     try:
         result = start_campaign_service(session, tenant_id=tenant_id, campaign_id=campaign_id, only_active_contacts=True)
@@ -228,6 +237,14 @@ async def start_campaign(
         errors=[],
         error_codes=precheck_error_codes,
     )
+    if result.get("created", 0) > 0:
+        # Persist the running state before synchronous workers inspect it.
+        # Background tasks are started after the response, but sync dispatch
+        # happens inside this request.
+        campaign.status = "running"
+        campaign.updated_at = utc_now()
+        session.add(campaign)
+        session.commit()
     if auto_dial:
         target_call_ids = result_call_ids
         if max_dials is not None:
@@ -323,3 +340,88 @@ async def start_campaign(
         skip_reasons=skip_reasons,
     )
     return response
+
+
+def _get_mutable_campaign(session: Session, tenant_id: int, campaign_id: int) -> Campaign:
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign or campaign.tenant_id != tenant_id or campaign.status == "deleted":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
+    return campaign
+
+
+@router.post("/{campaign_id}/pause", response_model=CampaignOut)
+def pause_campaign(
+    campaign_id: int,
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
+    campaign = _get_mutable_campaign(session, tenant_id, campaign_id)
+    if campaign.status != "running":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a running campaign can be paused")
+    campaign.status = "paused"
+    campaign.updated_at = utc_now()
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+    return _campaign_out(session, campaign)
+
+
+@router.post("/{campaign_id}/resume", response_model=CampaignOut)
+def resume_campaign(
+    campaign_id: int,
+    background_tasks: BackgroundTasks,
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
+    campaign = _get_mutable_campaign(session, tenant_id, campaign_id)
+    if campaign.status != "paused":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a paused campaign can be resumed")
+    campaign.status = "running"
+    campaign.updated_at = utc_now()
+    session.add(campaign)
+    session.commit()
+    queued_ids = session.exec(
+        select(CallSession.id).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.campaign_id == campaign_id,
+            CallSession.status.in_({CallStatus.CREATED, CallStatus.QUEUED, CallStatus.FAILED}),
+            CallSession.attempts < CallSession.max_attempts,
+        )
+    ).all()
+    if queued_ids:
+        background_tasks.add_task(
+            dispatch_call_ids,
+            [str(call_id) for call_id in queued_ids],
+            max_concurrency=campaign.concurrency,
+        )
+    session.refresh(campaign)
+    return _campaign_out(session, campaign)
+
+
+@router.post("/{campaign_id}/stop", response_model=CampaignOut)
+def stop_campaign(
+    campaign_id: int,
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
+    campaign = _get_mutable_campaign(session, tenant_id, campaign_id)
+    if campaign.status not in {"running", "paused"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a running or paused campaign can be stopped")
+    queued_calls = session.exec(
+        select(CallSession).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.campaign_id == campaign_id,
+            CallSession.status.in_({CallStatus.CREATED, CallStatus.QUEUED}),
+        )
+    ).all()
+    for call in queued_calls:
+        call.status = CallStatus.FAILED
+        call.last_error = "campaign stopped before dispatch"
+        call.updated_at = utc_now()
+        session.add(call)
+    campaign.status = "stopped"
+    campaign.updated_at = utc_now()
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+    return _campaign_out(session, campaign)

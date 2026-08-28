@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: ai_outbound
       POSTGRES_USER: ai_user
-      POSTGRES_PASSWORD: ai_pass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     healthcheck:
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: minio_admin
-      MINIO_ROOT_PASSWORD: miniopass123
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -66,7 +66,7 @@ services:
       retries: 20
     ports:
       - "8000:8000"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "15", "--log-level", "info"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${CONTROL_API_WORKERS:-2}", "--timeout-keep-alive", "15", "--log-level", "info"]
 
   ai-agent:
     build:
