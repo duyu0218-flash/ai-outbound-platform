@@ -9,6 +9,7 @@ from sqlalchemy import update
 from sqlmodel import Session, select
 
 from ..config import get_settings
+from ..clock import utc_now
 from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
 from ..db import session_scope
@@ -31,7 +32,7 @@ def normalize_phone(phone: str) -> str:
 
 
 def _now() -> datetime:
-    return datetime.utcnow()
+    return utc_now()
 
 
 def _get_tenant(session: Session, tenant_id: int) -> Tenant:

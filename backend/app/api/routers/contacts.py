@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,6 +5,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
+from ...clock import utc_now
 from ...models import Contact, ConsentState
 from ...schemas import ContactCreate, ContactPatch, ContactOut
 from ...services.call_service import normalize_phone
@@ -30,7 +30,7 @@ def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_i
         consent_state=payload.consent_state,
         dnc=payload.dnc,
         timezone=payload.timezone,
-        consented_at=datetime.utcnow() if payload.consent_state == ConsentState.CONSENTED else None,
+        consented_at=utc_now() if payload.consent_state == ConsentState.CONSENTED else None,
     )
     session.add(contact)
     session.commit()
@@ -83,7 +83,7 @@ def patch_contact(
         setattr(contact, k, v)
     if payload.consent_state is not None:
         if payload.consent_state == ConsentState.CONSENTED:
-            contact.consented_at = datetime.utcnow()
+            contact.consented_at = utc_now()
         else:
             contact.consented_at = None
     session.add(contact)

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 from uuid import UUID
 
@@ -8,6 +7,7 @@ from sqlmodel import select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
+from ...clock import utc_now
 from ...models import CallEvent, CallStatus, WebhookEventIngest
 from ...schemas import (
     CallEventOut,
@@ -137,7 +137,7 @@ async def hangup_api(
             return call
 
         call.status = CallStatus.COMPLETED
-        call.finished_at = datetime.utcnow()
+        call.finished_at = utc_now()
         session.add(call)
         session.commit()
         return call

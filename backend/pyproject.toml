@@ -21,7 +21,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio"]
+dev = ["pytest", "pytest-asyncio", "httpx2>=2.12"]
+
+[tool.pytest.ini_options]
+filterwarnings = ["error"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

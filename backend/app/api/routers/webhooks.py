@@ -1,6 +1,5 @@
 import hashlib
 import json
-from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import update
@@ -8,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ...api.deps import check_webhook_token, get_session
+from ...clock import utc_now
 from ...models import CallEvent, CallMode, CallSession, CallStatus, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
@@ -54,7 +54,7 @@ def _apply_status_transition(session: Session, call_id, mapped_status: CallStatu
     if not safe_sources:
         return False
 
-    now = datetime.utcnow()
+    now = utc_now()
     result = session.exec(
         update(CallSession)
         .where(CallSession.id == call_id, CallSession.status.in_(safe_sources))
@@ -185,7 +185,7 @@ def telephony_status(
         CallStatus.VOICEMAIL,
         CallStatus.NO_ANSWER,
     }:
-        call.finished_at = datetime.utcnow()
+        call.finished_at = utc_now()
     if payload.payload.get("summary"):
         call.summary = (call.summary or "") + "\n" + str(payload.payload.get("summary"))
 
