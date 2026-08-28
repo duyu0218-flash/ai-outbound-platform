@@ -21,6 +21,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        if: matrix.service == 'backend'
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        if: matrix.service == 'backend'
+        working-directory: frontend
+        run: corepack enable
+      - name: Install frontend
+        if: matrix.service == 'backend'
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Build frontend
+        if: matrix.service == 'backend'
+        working-directory: frontend
+        run: pnpm build
       - name: Install service
         run: |
           if [ "${{ matrix.service }}" = "backend" ]; then

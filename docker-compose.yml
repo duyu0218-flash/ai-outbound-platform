@@ -47,7 +47,8 @@ services:
 
   control-api:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: ai-outbound-control
     restart: unless-stopped
     env_file: .env

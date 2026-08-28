@@ -1,0 +1,11 @@
+.git
+.env
+.idea
+.vscode
+artifacts
+frontend/node_modules
+backend/app/static
+backend/.pytest_cache
+**/__pycache__
+*.pyc
+*.log

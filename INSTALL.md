@@ -91,6 +91,13 @@ cp .env.example .env
 - 语言偏好保存在浏览器本地，并在 `/admin` 与 `/agent` 之间共享。
 - 语言偏好只保存 `zh-CN` 或 `en-US`，不会保存密码、Token 或 API Key。
 
+### 3.4 前端页面结构
+
+- 管理端：`/admin` 仪表盘、`/admin/contacts` 客户管理、`/admin/scripts` 话术管理、`/admin/campaigns` 外呼任务、`/admin/calls` 通话记录。
+- 座席端：`/agent` 座席工作台、`/agent/calls` 通话记录。
+- 登录入口：`/admin/login` 与 `/agent/login`。
+- Docker 构建会自动安装并编译 `frontend`；本地直接运行后端前，请先在 `frontend` 执行 `pnpm install && pnpm build`。
+
 直接登录 API：
 
 ```bash
