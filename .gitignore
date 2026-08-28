@@ -8,6 +8,12 @@ __pycache__/
 .env
 venv/
 node_modules/
+.pnpm-store/
+*.tsbuildinfo
 dist/
 build/
+backend/app/static/
+artifacts/
+frontend/vite.config.js
+frontend/vite.config.d.ts
 *.egg-info/

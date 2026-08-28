@@ -55,21 +55,13 @@ def test_utc_now_preserves_naive_database_contract():
 
 
 def test_pages_login_and_server_key_not_exposed(client: TestClient):
-    for path in ("/admin", "/agent"):
+    for path in ("/admin", "/admin/contacts", "/agent", "/agent/calls"):
         response = client.get(path)
         assert response.status_code == 200
-        assert 'id="apiKey" value=""' in response.text
-        assert 'id="apiKey" value="dev-api-key"' not in response.text
-        assert 'id="languageSelect"' in response.text
-        assert "'en-US':" in response.text
-        assert "AI Outbound Platform" in response.text
-        assert "function changeLanguage(language)" in response.text
-        assert "ai-platform-language" in response.text
-
-    agent_page = client.get("/agent")
-    assert 'class="card col-4 hidden"' in agent_page.text
-    assert 'class="card col-8 hidden"' in agent_page.text
-    assert 'class="card col-12 hidden"' in agent_page.text
+        assert '<div id="root"></div>' in response.text
+        assert '/assets/' in response.text
+        assert "dev-api-key" not in response.text
+        assert "12345678" not in response.text
 
     admin_token = _login(client, "admin")
     agent_token = _login(client, "1001@test")

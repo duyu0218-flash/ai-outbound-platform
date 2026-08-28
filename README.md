@@ -13,6 +13,7 @@
 - Webhook 原子幂等、并发拨号抢占与 AI 决策审计事件
 - 管理员/座席角色隔离、租户绑定、PBKDF2 密码哈希与生产配置启动校验
 - 管理端与座席端支持中文/English 实时切换，并在本机浏览器保存语言偏好
+- React + TypeScript + Ant Design 多页面前端：管理端包含仪表盘、客户、话术、任务、通话记录；座席端包含工作台和通话记录
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 ## 2bis. 测试账号体系（新）
@@ -24,6 +25,15 @@
 - 文档页：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)（指向 `/docs`）
 
 管理端和座席端右上角均提供 `中文 / English` 选择器。切换后，页面标题、表单、表格、操作按钮以及后续状态提示会使用所选语言；语言偏好在两个端之间共享。
+
+前端采用独立工程，生产构建会输出到 `backend/app/static`，由控制服务同源托管。开发或修改页面：
+
+```bash
+cd frontend
+corepack enable
+pnpm install
+pnpm build
+```
 
 > 登录成功会返回 `access_token`（Bearer）。用于后续用户态接口验证：
 `Authorization: Bearer <access_token>`
