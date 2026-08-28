@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -24,10 +24,17 @@ os.environ["TELEPHONY_RETRY_TIMES"] = "0"
 from app.db import session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
+from app.models import Campaign, CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
-from app.services.call_service import create_call, dispatch_call_ids, place_call, retry_call  # noqa: E402
+from app.services.call_service import (  # noqa: E402
+    create_call,
+    dispatch_call_ids,
+    dispatch_due_retries,
+    place_call,
+    retry_call,
+    schedule_campaign_retry,
+)
 
 
 @pytest.fixture(scope="module")
@@ -327,6 +334,192 @@ def test_webhook_is_idempotent_and_late_answer_cannot_reopen_call(client: TestCl
     assert stats.json()["duplicate_estimate"] >= 1
     events = client.get(f"/api/v1/calls/{call_id}/events", headers=_bearer(token))
     assert events.status_code == 200, events.text
+
+
+def test_stale_attempt_webhooks_are_recorded_but_cannot_mutate_current_call(client: TestClient):
+    token = _login(client, "admin")
+    created = client.post(
+        "/api/v1/calls",
+        headers=_bearer(token),
+        json={"phone": "13800138014", "mode": "human_only", "max_attempts": 2},
+    )
+    assert created.status_code == 200, created.text
+    call_id = UUID(created.json()["id"])
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        call.attempts = 2
+        call.status = CallStatus.DIALING
+        session.add(call)
+        session.commit()
+
+    stale = client.post(
+        "/api/v1/webhooks/telephony/status",
+        json={
+            "call_id": str(call_id),
+            "kind": "status",
+            "payload": {"status": "ended", "attempt": 1, "event_id": "old-attempt-ended"},
+        },
+    )
+    assert stale.status_code == 200, stale.text
+    assert stale.json() == {"result": "ignored", "reason": "stale_attempt"}
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        assert call.status == CallStatus.DIALING
+
+
+@pytest.mark.asyncio
+async def test_dispatch_respects_effective_line_concurrency(client: TestClient, monkeypatch):
+    active = 0
+    max_active = 0
+
+    class SlowAdapter:
+        async def dial(self, *, call_id, phone, webhook_url, metadata):
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            await asyncio.sleep(0.02)
+            active -= 1
+            return {"provider_call_id": f"slow-{call_id}"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: SlowAdapter())
+    monkeypatch.setattr("app.services.call_service.get_telephony_concurrency_limit", lambda **_: 1)
+    call_ids: list[str] = []
+    with session_scope() as session:
+        for suffix in range(3):
+            call = create_call(
+                session,
+                tenant_id=1,
+                phone=f"138001381{suffix:02d}",
+                mode=CallMode.HUMAN_ONLY,
+                campaign_id=None,
+                contact_id=None,
+            )
+            call_ids.append(str(call.id))
+
+    result = await dispatch_call_ids(call_ids, max_concurrency=10)
+    assert result["succeeded"] == 3
+    assert max_active == 1
+
+
+@pytest.mark.asyncio
+async def test_tenant_line_capacity_is_enforced_across_dispatch_batches(client: TestClient, monkeypatch):
+    monkeypatch.setattr(telephony.settings, "telephony_provider", "tenant")
+
+    class CapturingAdapter:
+        async def dial(self, *, call_id, phone, webhook_url, metadata):
+            return {"provider_call_id": f"capacity-{call_id}"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: CapturingAdapter())
+    call_ids: list[str] = []
+    with session_scope() as session:
+        for existing_call in session.exec(
+            select(CallSession).where(
+                CallSession.tenant_id == 1,
+                CallSession.status.in_(
+                    {
+                        CallStatus.DIALING,
+                        CallStatus.ANSWERED,
+                        CallStatus.IN_AI,
+                        CallStatus.WAITING_HUMAN,
+                        CallStatus.HANDOFF_TRANSFERRING,
+                    }
+                ),
+            )
+        ).all():
+            existing_call.status = CallStatus.COMPLETED
+            session.add(existing_call)
+        for line in session.exec(select(TelephonyLine).where(TelephonyLine.tenant_id == 1)).all():
+            line.enabled = False
+            session.add(line)
+        session.add(
+            TelephonyLine(
+                tenant_id=1,
+                name="hard-cap-one",
+                provider="mock",
+                gateway_url="",
+                max_concurrency=1,
+                enabled=True,
+                created_at=utc_now() + timedelta(days=1),
+            )
+        )
+        session.commit()
+        for suffix in range(2):
+            call = create_call(
+                session,
+                tenant_id=1,
+                phone=f"138001382{suffix:02d}",
+                mode=CallMode.HUMAN_ONLY,
+                campaign_id=None,
+                contact_id=None,
+            )
+            call_ids.append(str(call.id))
+
+    first = await dispatch_call_ids([call_ids[0]], max_concurrency=10)
+    second = await dispatch_call_ids([call_ids[1]], max_concurrency=10)
+    assert first["succeeded"] == 1
+    assert second["succeeded"] == 0
+    with session_scope() as session:
+        assert session.get(CallSession, UUID(call_ids[0])).status == CallStatus.DIALING
+        assert session.get(CallSession, UUID(call_ids[1])).status == CallStatus.QUEUED
+
+
+@pytest.mark.asyncio
+async def test_due_campaign_retry_is_persisted_and_dispatched(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "13800138015", "name": "retry-contact", "consent_state": "consented"},
+    ).json()
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={
+            "name": "scheduled-retry",
+            "mode": "human_only",
+            "contact_ids": [contact["id"]],
+            "retry_limit": 2,
+            "retry_interval_sec": 2,
+            "attempt_interval_sec": 3,
+        },
+    ).json()
+    started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
+    assert started.status_code == 200, started.text
+    call_id = UUID(client.get(f"/api/v1/calls?campaign_id={campaign['id']}", headers=headers).json()[0]["id"])
+
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        call.attempts = 1
+        call.status = CallStatus.BUSY
+        assert schedule_campaign_retry(session, call, CallStatus.BUSY) is True
+        assert call.next_attempt_at is not None
+        assert call.next_attempt_at >= utc_now() + timedelta(seconds=2)
+        call.next_attempt_at = utc_now() - timedelta(seconds=1)
+        session.add(call)
+        session.commit()
+
+    attempts: list[int] = []
+
+    class CapturingAdapter:
+        async def dial(self, *, call_id, phone, webhook_url, metadata):
+            attempts.append(metadata["attempt"])
+            return {"provider_call_id": f"retry-{call_id}-{metadata['attempt']}"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: CapturingAdapter())
+    claimed = await dispatch_due_retries()
+    assert claimed == 1
+    assert attempts == [2]
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        assert call.attempts == 2
+        assert call.status == CallStatus.DIALING
+        assert call.next_attempt_at is None
+        assert session.get(Campaign, campaign["id"]).status == "running"
 
 
 @pytest.mark.asyncio

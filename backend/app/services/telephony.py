@@ -14,6 +14,31 @@ if TYPE_CHECKING:
 settings = get_settings()
 
 
+def get_tenant_telephony_line(
+    session: "Session",
+    tenant_id: int,
+    *,
+    for_update: bool = False,
+) -> TelephonyLine | None:
+    query = (
+        select(TelephonyLine)
+        .where(TelephonyLine.tenant_id == tenant_id, TelephonyLine.enabled.is_(True))
+        .order_by(TelephonyLine.created_at.desc())
+    )
+    if for_update:
+        query = query.with_for_update()
+    return session.exec(query).first()
+
+
+def get_telephony_concurrency_limit(*, session: "Session", tenant_id: int) -> int | None:
+    if (settings.telephony_provider or "mock").strip().lower() != "tenant":
+        return None
+    line = get_tenant_telephony_line(session, tenant_id)
+    if line is None:
+        return None
+    return max(1, int(line.max_concurrency))
+
+
 class TelephonyAdapter(ABC):
     @abstractmethod
     async def dial(self, *, call_id: str, phone: str, webhook_url: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -148,11 +173,7 @@ def get_telephony_adapter(*, session: "Session | None" = None, tenant_id: int | 
     if provider == "tenant":
         if session is None or tenant_id is None:
             raise RuntimeError("tenant telephony provider requires tenant context")
-        line = session.exec(
-            select(TelephonyLine)
-            .where(TelephonyLine.tenant_id == tenant_id, TelephonyLine.enabled.is_(True))
-            .order_by(TelephonyLine.created_at.desc())
-        ).first()
+        line = get_tenant_telephony_line(session, tenant_id)
         if line is None:
             raise RuntimeError("no enabled telephony line configured for tenant")
         provider = line.provider.strip().lower()

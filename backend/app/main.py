@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ from .middleware import (
 from .models import Tenant
 from .services.auth import ensure_demo_users
 from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check
+from .services.call_service import run_retry_scheduler
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -45,7 +47,17 @@ PROD_ALLOWED_ENVS = {"prod", "production"}
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     _bootstrap_default_tenant()
-    yield
+    retry_stop_event = asyncio.Event()
+    retry_task = asyncio.create_task(run_retry_scheduler(retry_stop_event))
+    try:
+        yield
+    finally:
+        retry_stop_event.set()
+        retry_task.cancel()
+        try:
+            await retry_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)

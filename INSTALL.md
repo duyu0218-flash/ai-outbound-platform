@@ -529,6 +529,7 @@ bash scripts/test-campaign-start.sh
   - `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
   - `backend/migrations/postgresql/20260828_admin_management.sql`
   - `backend/migrations/postgresql/20260828_contact_integrity.sql`
+  - `backend/migrations/postgresql/20260828_call_retry_schedule.sql`
 
 发布顺序：
 
@@ -550,12 +551,16 @@ psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   -f backend/migrations/postgresql/20260828_contact_integrity.sql
 
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f backend/migrations/postgresql/20260828_call_retry_schedule.sql
+
 # 3. 发布固定版本镜像，启动后检查
 curl -fS http://localhost:8000/health
 curl -fS http://localhost:8000/readyz
 ```
 
-脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，补齐事件类型、通话状态和更新时间索引，并增加 `(tenant_id, phone)` 联系人唯一约束。联系人迁移发现重复数据会失败；应先选定保留记录、把活动和通话引用合并到该记录，再删除重复项。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
+脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，补齐事件类型、通话状态和更新时间索引，增加 `(tenant_id, phone)` 联系人唯一约束，并增加持久化重试时间字段及索引。联系人迁移发现重复数据会失败；应先选定保留记录、把活动和通话引用合并到该记录，再删除重复项。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
 
 ### 10.2 安全建议（生产必做）
 

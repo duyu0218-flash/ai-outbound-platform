@@ -11,6 +11,7 @@ from ...clock import utc_now
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
+from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -80,33 +81,6 @@ def _status_to_call_status(raw_status: str) -> CallStatus | None:
     return mapping.get(status)
 
 
-def _complete_campaign_if_terminal(session: Session, campaign_id: int | None) -> None:
-    if campaign_id is None:
-        return
-    campaign = session.get(Campaign, campaign_id)
-    if not campaign or campaign.status != "running":
-        return
-    active_call = session.exec(
-        select(CallSession.id).where(
-            CallSession.campaign_id == campaign_id,
-            CallSession.status.notin_(
-                {
-                    CallStatus.COMPLETED,
-                    CallStatus.FAILED,
-                    CallStatus.NO_ANSWER,
-                    CallStatus.BUSY,
-                    CallStatus.VOICEMAIL,
-                }
-            ),
-        )
-    ).first()
-    if active_call is None:
-        campaign.status = "completed"
-        campaign.updated_at = utc_now()
-        session.add(campaign)
-        session.commit()
-
-
 def _add_event(session: Session, call_id, event_type: str, source: str, payload: dict) -> bool:
     payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     provider_key = _make_provider_event_key(call_id, event_type, source, payload_json, payload.get("event_id") if isinstance(payload, dict) else None)
@@ -153,6 +127,16 @@ def _add_event(session: Session, call_id, event_type: str, source: str, payload:
     return False
 
 
+def _event_matches_current_attempt(call: CallSession, payload: dict) -> bool:
+    raw_attempt = payload.get("attempt")
+    if raw_attempt is None:
+        return True
+    try:
+        return int(raw_attempt) == call.attempts
+    except (TypeError, ValueError):
+        return False
+
+
 def _make_provider_event_key(
     call_id,
     event_type: str,
@@ -193,6 +177,8 @@ def telephony_status(
     is_duplicate = _add_event(session, call.id, "status", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
+    if not _event_matches_current_attempt(call, payload.payload):
+        return {"result": "ignored", "reason": "stale_attempt"}
 
     status_applied = bool(mapped and _apply_status_transition(session, call.id, mapped))
     if status_applied:
@@ -217,6 +203,8 @@ def telephony_status(
         call.summary = (call.summary or "") + "\n" + str(payload.payload.get("summary"))
 
     session.add(call)
+    if status_applied and mapped is not None:
+        schedule_campaign_retry(session, call, mapped)
     session.commit()
     if mapped in {
         CallStatus.COMPLETED,
@@ -225,7 +213,7 @@ def telephony_status(
         CallStatus.VOICEMAIL,
         CallStatus.NO_ANSWER,
     }:
-        _complete_campaign_if_terminal(session, call.campaign_id)
+        complete_campaign_if_terminal(session, call.campaign_id)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
@@ -246,6 +234,8 @@ def telephony_transcript(
     is_duplicate = _add_event(session, call.id, "transcript", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
+    if not _event_matches_current_attempt(call, payload.payload):
+        return {"result": "ignored", "reason": "stale_attempt"}
     call.last_transcript = payload.transcript
     if payload.transcript:
         call.summary = f"{(call.summary or '').rstrip()}\n{payload.transcript}".strip()
@@ -269,6 +259,8 @@ def telephony_recording(
     is_duplicate = _add_event(session, call.id, "recording", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
+    if not _event_matches_current_attempt(call, payload.payload):
+        return {"result": "ignored", "reason": "stale_attempt"}
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     if campaign and not campaign.recording_enabled:
         return {"result": "ignored", "reason": "recording_disabled"}
