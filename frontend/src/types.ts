@@ -121,6 +121,18 @@ export interface TelephonyLine {
   updated_at: string
 }
 
+export interface SmsLog {
+  id: number
+  tenant_id: number
+  call_session_id?: string
+  to_phone: string
+  template_code?: string
+  content: string
+  state: string
+  sent_at?: string
+  created_at: string
+}
+
 export type SettingSection = 'ai' | 'sms' | 'compliance' | 'integration'
 
 export interface AdminSetting {

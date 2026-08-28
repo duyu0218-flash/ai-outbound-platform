@@ -518,6 +518,8 @@ bash scripts/test-campaign-start.sh
 
 请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。
 
+多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会按当前租户选择最近更新且启用的线路配置：`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
+
 ## 10. 升级与部署（生产）
 
 ### 10.1 镜像与版本策略
@@ -526,6 +528,7 @@ bash scripts/test-campaign-start.sh
 - 生产升级禁止只依赖 `create_all`。本版本 PostgreSQL 升级脚本位于：
   - `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
   - `backend/migrations/postgresql/20260828_admin_management.sql`
+  - `backend/migrations/postgresql/20260828_contact_integrity.sql`
 
 发布顺序：
 
@@ -542,12 +545,17 @@ psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   -f backend/migrations/postgresql/20260828_admin_management.sql
 
+# 执行前必须先处理同租户重复号码；发现重复时脚本会主动终止，不会静默删数据
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f backend/migrations/postgresql/20260828_contact_integrity.sql
+
 # 3. 发布固定版本镜像，启动后检查
 curl -fS http://localhost:8000/health
 curl -fS http://localhost:8000/readyz
 ```
 
-脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，并补齐事件类型、通话状态和更新时间索引。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
+脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，补齐事件类型、通话状态和更新时间索引，并增加 `(tenant_id, phone)` 联系人唯一约束。联系人迁移发现重复数据会失败；应先选定保留记录、把活动和通话引用合并到该记录，再删除重复项。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
 
 ### 10.2 安全建议（生产必做）
 
@@ -570,11 +578,36 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 pytest -q tests
 cd ..
+
+cd agent
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+pytest -q tests
+cd ..
+
+cd frontend
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+cd ..
+
 PYTHONPYCACHEPREFIX=/tmp/ai-outbound-pycache python3 -m compileall -q backend/app agent/app
 git diff --check
 ```
 
+GitHub Actions 会分别执行控制服务和 AI 服务测试，并在控制服务任务中重新构建、校验前端产物。合并前应确认两个矩阵任务均为绿色。
+
 以上检查通过只代表代码和开发环境回归通过，不等同于真实 PBX、短信、录音存储、多实例 Redis/PostgreSQL 或生产网络验收通过。
+
+### 10.4 本版本功能边界
+
+- 活动：支持启动、暂停、恢复、停止和删除。停止只终止未派发任务，已经提交给运营商的通话要逐通挂断。
+- 录音与短信：活动开关已在服务端强制执行；系统保存录音回调 URL 和短信日志，但真实对象存储与短信送达取决于外部服务。
+- 短信重试：管理员可在 `/admin/system` 查看并重试失败/禁用状态的日志；成功记录不能重复发送。
+- 双语：管理端、座席端和规则型 AI 回复支持中文/英文。真实 ASR/LLM/TTS 的双语效果需要接入后另行验收。
+- 坐席工作台：具备通话列表、状态操作和转人工请求，不包含浏览器 WebRTC 媒体通话、耳麦设备检测、自动排队抢单和通话保持。
+- 生产部署：`scripts/bootstrap.sh` 不再覆盖已有 `.env`；控制 API worker 可通过 `CONTROL_API_WORKERS` 配置。多实例仍应配套 Redis 限流、分布式任务队列和压测容量模型。
 
 ## 11. 常见故障排查
 

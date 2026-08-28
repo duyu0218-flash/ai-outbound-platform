@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,7 +10,7 @@ from sqlmodel import Session, select
 from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
 from ...db import get_session
-from ...models import AdminSetting, AuditLog, CallSession, TelephonyLine, User
+from ...models import AdminSetting, AuditLog, CallSession, SmsLog, TelephonyLine, User
 from ...schemas import (
     AdminPasswordReset,
     AdminSettingOut,
@@ -21,10 +22,12 @@ from ...schemas import (
     TelephonyLineCreate,
     TelephonyLineOut,
     TelephonyLineUpdate,
+    SmsLogOut,
 )
 from ...services.auth import hash_password
 from ...services.admin_settings import SETTING_DEFAULTS, get_admin_setting
 from ...services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check
+from ...services.telephony import get_sms_adapter, with_retry
 
 
 router = APIRouter(
@@ -32,6 +35,7 @@ router = APIRouter(
     tags=["admin-management"],
     dependencies=[Depends(require_role("admin"))],
 )
+logger = logging.getLogger(__name__)
 
 def _audit(
     session: Session,
@@ -255,6 +259,54 @@ def disable_line(
     _audit(session, current, "disable", "telephony_line", line.id, f"name={line.name}")
     session.commit()
     return {"result": "disabled"}
+
+
+@router.get("/sms-logs", response_model=list[SmsLogOut])
+def list_sms_logs(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=100, ge=1, le=200),
+    state: str | None = Query(default=None, max_length=64),
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    skip, limit = get_pagination(page=page, size=size)
+    query = select(SmsLog).where(SmsLog.tenant_id == current.tenant_id)
+    if state:
+        query = query.where(SmsLog.state == state)
+    return session.exec(query.order_by(SmsLog.created_at.desc()).offset(skip).limit(limit)).all()
+
+
+@router.post("/sms-logs/{sms_log_id}/retry", response_model=SmsLogOut)
+async def retry_sms_log(
+    sms_log_id: int,
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    sms_log = session.get(SmsLog, sms_log_id)
+    if not sms_log or sms_log.tenant_id != current.tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sms log not found")
+    if sms_log.state not in {"failed", "disabled"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only failed or disabled SMS can be retried")
+    sms_config = get_admin_setting(session, current.tenant_id, "sms")
+    if not sms_config.get("enabled", True):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="SMS service is disabled")
+    adapter = get_sms_adapter(sms_config)
+    try:
+        result = await with_retry(lambda: adapter.send_sms(sms_log.to_phone, sms_log.content))
+    except Exception as exc:
+        logger.warning("SMS retry failed tenant_id=%s sms_log_id=%s error=%s", current.tenant_id, sms_log.id, exc)
+        sms_log.state = "failed"
+        session.add(sms_log)
+        _audit(session, current, "retry_failed", "sms_log", sms_log.id, "provider request failed")
+        session.commit()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="SMS provider request failed")
+    sms_log.state = str(result.get("state", "sent"))
+    sms_log.sent_at = utc_now()
+    session.add(sms_log)
+    _audit(session, current, "retry", "sms_log", sms_log.id, f"state={sms_log.state}")
+    session.commit()
+    session.refresh(sms_log)
+    return sms_log
 
 
 def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:

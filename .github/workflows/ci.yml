@@ -38,12 +38,7 @@ jobs:
         working-directory: frontend
         run: pnpm build
       - name: Install service
-        run: |
-          if [ "${{ matrix.service }}" = "backend" ]; then
-            pip install --no-cache-dir ".[dev]"
-          else
-            pip install --no-cache-dir .
-          fi
+        run: pip install --no-cache-dir ".[dev]"
       - name: Compile check
         run: |
           mkdir -p /tmp/pycache
@@ -52,8 +47,7 @@ jobs:
         if: matrix.service == 'backend'
         run: |
           python -c "from app.api.routers.pages import INDEX_FILE; assert INDEX_FILE.is_file(), f'missing packaged frontend: {INDEX_FILE}'"
-      - name: Backend tests
-        if: matrix.service == 'backend'
+      - name: Service tests
         env:
           ENV: development
           DATABASE_URL: sqlite:////tmp/ai-outbound-ci.db

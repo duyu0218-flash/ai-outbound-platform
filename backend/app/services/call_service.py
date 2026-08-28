@@ -344,14 +344,22 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
 
     claimed_attempt = call.attempts
 
-    adapter = get_telephony_adapter()
+    adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id)
     callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
     payload = {
         "tenant_id": call.tenant_id,
         "campaign_id": call.campaign_id,
         "contact_id": call.contact_id,
         "mode": call.mode.value,
+        # Providers that do not send their own event id still need callbacks
+        # from a retry attempt to be distinguishable from the first attempt.
+        "attempt": claimed_attempt,
     }
+    if call.campaign_id is not None:
+        campaign = session.get(Campaign, call.campaign_id)
+        if campaign and campaign.tenant_id == call.tenant_id:
+            payload["recording_enabled"] = campaign.recording_enabled
+            payload["hangup_sms_enabled"] = campaign.hangup_sms_enabled
 
     try:
         result = await with_retry(
@@ -424,7 +432,7 @@ async def handover_to_human(
     ):
         raise CallPermissionError("call status not handover-able")
 
-    adapter = get_telephony_adapter()
+    adapter = get_telephony_adapter(session=session, tenant_id=tenant_id)
     try:
         await with_retry(
             lambda: adapter.transfer_to_human(call_id=str(call.id), reason=reason, target_group=target_group)
@@ -545,6 +553,10 @@ async def dispatch_call_ids(
             call = session.get(CallSession, UUID(call_id))
             if not call:
                 return call_id, "CALL_NOT_FOUND", "call session not found"
+            if call.campaign_id is not None:
+                campaign = session.get(Campaign, call.campaign_id)
+                if not campaign or campaign.status != "running":
+                    return call_id, "CAMPAIGN_NOT_RUNNING", "campaign is not running"
             try:
                 call, attempted = await _place_call_with_result(session, call)
                 if call.status == CallStatus.FAILED:

@@ -131,7 +131,7 @@ async def hangup_api(
         call = get_call(session, tenant_id, call_id)
         from ...services.telephony import get_telephony_adapter, with_retry
 
-        adapter = get_telephony_adapter()
+        adapter = get_telephony_adapter(session=session, tenant_id=tenant_id)
         await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
         if call.status in TERMINAL_STATUSES:
             return call

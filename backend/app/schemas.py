@@ -357,6 +357,18 @@ class TelephonyLineOut(TelephonyLineCreate):
     updated_at: datetime
 
 
+class SmsLogOut(BaseModel):
+    id: int
+    tenant_id: int
+    call_session_id: Optional[UUID] = None
+    to_phone: str
+    template_code: Optional[str] = None
+    content: str
+    state: str
+    sent_at: Optional[datetime] = None
+    created_at: datetime
+
+
 class AdminSettingUpdate(BaseModel):
     data: dict[str, Any]
 
