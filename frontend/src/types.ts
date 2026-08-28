@@ -101,3 +101,54 @@ export interface AdminDashboard {
     calls: number
   }
 }
+
+export interface AdminUser extends User {
+  phone?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TelephonyLine {
+  id: number
+  tenant_id: number
+  name: string
+  provider: string
+  gateway_url: string
+  caller_id: string
+  max_concurrency: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type SettingSection = 'ai' | 'sms' | 'compliance' | 'integration'
+
+export interface AdminSetting {
+  section: SettingSection
+  data: Record<string, string | number | boolean>
+  updated_at?: string
+}
+
+export interface AuditLog {
+  id: number
+  tenant_id: number
+  actor_user_id?: number
+  actor_username: string
+  action: string
+  resource_type: string
+  resource_id?: string
+  detail: string
+  created_at: string
+}
+
+export interface SystemOverview {
+  services: Record<string, string>
+  resources: {
+    users: number
+    enabled_users: number
+    lines: number
+    enabled_lines: number
+  }
+  call_statuses: Record<string, number>
+  generated_at: string
+}

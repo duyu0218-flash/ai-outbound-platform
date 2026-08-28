@@ -38,9 +38,9 @@ def redis_health_check() -> str:
         return "unavailable"
 
 
-def ai_agent_health_check(path: str = "/health") -> str:
+def ai_agent_health_check(path: str = "/health", base_url: Optional[str] = None) -> str:
     settings = get_settings()
-    return _probe_http(settings.ai_agent_url, path)
+    return _probe_http(base_url or settings.ai_agent_url, path)
 
 
 def telephony_http_health_check() -> str:

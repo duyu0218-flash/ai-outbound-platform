@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next'
 const zh = {
   product: 'AI 外呼平台', adminPortal: '管理中心', agentPortal: '座席中心',
   dashboard: '仪表盘', contacts: '客户管理', scripts: '话术管理', campaigns: '外呼任务', calls: '通话记录',
+  users: '用户与座席', lines: '外呼线路', settings: '系统配置', system: '监控与审计',
   workspace: '座席工作台', apiDocs: 'API 文档', logout: '退出登录', language: '语言', online: '服务正常', offline: '服务异常',
   welcomeBack: '欢迎回来', loginHint: '登录后进入安全工作台', username: '用户名', password: '密码', signIn: '登录',
   adminDemo: '管理员演示账号：admin / 12345678', agentDemo: '座席演示账号：1001@test / 12345678',
@@ -21,11 +22,18 @@ const zh = {
   created: '已创建', queued: '排队中', dialing: '拨号中', answered: '已接听', in_ai: 'AI 通话中', waiting_human: '等待人工', handoff_transferring: '转接中', no_answer: '无人接听', busy: '忙线', voicemail: '语音信箱',
   humanOnly: '纯人工', aiOnly: '纯 AI', aiHandoff: 'AI 转人工', aiWithSms: 'AI + 短信', mixedHumanFirst: '人工优先',
   systemStatus: '系统状态', tenant: '租户', role: '角色', profile: '当前账号', noPermission: '无权访问该页面', backHome: '返回首页',
+  usersHint: '管理管理员、座席账号、角色和启停状态', addUser: '新增用户', editUser: '编辑用户', newPasswordOptional: '新密码（不修改请留空）', supervisor: '班组长', administrator: '管理员', agent: '座席',
+  linesHint: '配置运营商、SIP 网关、主叫号码和线路并发', addLine: '新增线路', editLine: '编辑线路', provider: '服务商', gatewayUrl: '网关地址', callerId: '主叫号码', aliyun: '阿里云',
+  settingsHint: '集中配置 AI、语音、短信、合规和业务回调', settingsSecurityHint: '敏感密钥不在页面中保存；生产凭证应通过环境变量或密钥管理服务注入。', aiVoice: 'AI 与语音', smsSettings: '短信配置', compliance: '合规策略', integrations: '接口与回调',
+  aiEnabled: '启用 AI 服务', agentUrl: 'AI 服务地址', llmProvider: '大模型服务商', llmModel: '模型名称', asrProvider: '语音识别服务', ttsProvider: '语音合成服务', voice: '音色', smsEnabled: '启用短信', senderId: '短信签名', endpoint: '服务地址', hangupTemplate: '挂机短信模板',
+  dncEnforced: '强制禁呼检查', recordingNotice: '播放录音告知', maxAttemptsDay: '每日最大尝试次数', startHour: '允许开始小时', endHour: '允许结束小时', callbackEnabled: '启用业务回调', webhookBaseUrl: 'Webhook 地址', webhookTimeout: '回调超时', seconds: '秒', lastUpdated: '最后更新',
+  systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID',
 }
 
 const en: typeof zh = {
   product: 'AI Outbound Platform', adminPortal: 'Admin Center', agentPortal: 'Agent Center',
   dashboard: 'Dashboard', contacts: 'Contacts', scripts: 'Scripts', campaigns: 'Campaigns', calls: 'Call History',
+  users: 'Users & Agents', lines: 'Telephony Lines', settings: 'System Settings', system: 'Monitoring & Audit',
   workspace: 'Agent Workspace', apiDocs: 'API Docs', logout: 'Sign out', language: 'Language', online: 'Service healthy', offline: 'Service unavailable',
   welcomeBack: 'Welcome back', loginHint: 'Sign in to your secure workspace', username: 'Username', password: 'Password', signIn: 'Sign in',
   adminDemo: 'Admin demo: admin / 12345678', agentDemo: 'Agent demo: 1001@test / 12345678',
@@ -43,6 +51,12 @@ const en: typeof zh = {
   created: 'Created', queued: 'Queued', dialing: 'Dialing', answered: 'Answered', in_ai: 'In AI call', waiting_human: 'Waiting for agent', handoff_transferring: 'Transferring', no_answer: 'No answer', busy: 'Busy', voicemail: 'Voicemail',
   humanOnly: 'Human only', aiOnly: 'AI only', aiHandoff: 'AI handoff', aiWithSms: 'AI + SMS', mixedHumanFirst: 'Human first',
   systemStatus: 'System status', tenant: 'Tenant', role: 'Role', profile: 'Account', noPermission: 'You do not have access to this page', backHome: 'Back to home',
+  usersHint: 'Manage administrators, agents, roles and account status', addUser: 'Add user', editUser: 'Edit user', newPasswordOptional: 'New password (leave blank to keep)', supervisor: 'Supervisor', administrator: 'Administrator', agent: 'Agent',
+  linesHint: 'Configure carriers, SIP gateways, caller IDs and line concurrency', addLine: 'Add line', editLine: 'Edit line', provider: 'Provider', gatewayUrl: 'Gateway URL', callerId: 'Caller ID', aliyun: 'Alibaba Cloud',
+  settingsHint: 'Configure AI, voice, SMS, compliance and business callbacks', settingsSecurityHint: 'Secrets are not stored on this page. Inject production credentials through environment variables or a secrets manager.', aiVoice: 'AI & Voice', smsSettings: 'SMS Settings', compliance: 'Compliance', integrations: 'Integrations',
+  aiEnabled: 'Enable AI service', agentUrl: 'AI service URL', llmProvider: 'LLM provider', llmModel: 'Model', asrProvider: 'ASR provider', ttsProvider: 'TTS provider', voice: 'Voice', smsEnabled: 'Enable SMS', senderId: 'Sender ID', endpoint: 'Endpoint', hangupTemplate: 'Hangup SMS template',
+  dncEnforced: 'Enforce DNC checks', recordingNotice: 'Play recording notice', maxAttemptsDay: 'Max attempts per day', startHour: 'Allowed start hour', endHour: 'Allowed end hour', callbackEnabled: 'Enable callback', webhookBaseUrl: 'Webhook URL', webhookTimeout: 'Webhook timeout', seconds: 'sec', lastUpdated: 'Last updated',
+  systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID',
 }
 
 const savedLanguage = localStorage.getItem('ai-platform-language') || 'zh-CN'

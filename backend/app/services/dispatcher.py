@@ -12,6 +12,7 @@ from ..models import CallEvent, CallSession, CallStatus, SmsLog
 from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
+from .admin_settings import get_admin_setting
 
 settings = get_settings()
 
@@ -24,6 +25,7 @@ async def request_ai_turn(
     script: str = "",
     transcript: str = "",
     context: Dict[str, Any] | None = None,
+    agent_url: str | None = None,
 ) -> AiTurnResult:
     payload = AiTurnRequest(
         call_id=call_id,
@@ -35,7 +37,7 @@ async def request_ai_turn(
     )
     async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec) as client:
         response = await client.post(
-            f"{settings.ai_agent_url}/agent/turn",
+            f"{(agent_url or settings.ai_agent_url).rstrip('/')}/agent/turn",
             json=payload.model_dump(mode="json"),
         )
         if response.status_code != 200:
@@ -84,6 +86,9 @@ async def run_ai_turn(
         )
 
         try:
+            ai_config = get_admin_setting(session, call.tenant_id, "ai")
+            if not ai_config.get("enabled", True):
+                raise RuntimeError("AI service is disabled for tenant")
             campaign_script = resolve_campaign_script(
                 session,
                 tenant_id=call.tenant_id,
@@ -96,6 +101,7 @@ async def run_ai_turn(
                 script=campaign_script,
                 transcript=transcript,
                 context={"campaign_id": call.campaign_id, "tenant_id": call.tenant_id},
+                agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
             )
             await _apply_ai_action(session=session, call=call, result=result)
         except Exception as exc:
@@ -159,7 +165,21 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:
-    adapter: SmsAdapter = get_sms_adapter()
+    sms_config = get_admin_setting(session, call.tenant_id, "sms")
+    if not sms_config.get("enabled", True):
+        state = "disabled"
+        sms_log = SmsLog(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            to_phone=call.phone,
+            template_code="hangup_sms",
+            content=text,
+            state=state,
+        )
+        session.add(sms_log)
+        session.commit()
+        return
+    adapter: SmsAdapter = get_sms_adapter(sms_config)
     try:
         sms_result = await with_retry(lambda: adapter.send_sms(call.phone, text))
         state = str(sms_result.get("state", "sent"))

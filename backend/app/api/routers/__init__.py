@@ -5,6 +5,7 @@ from .webhooks import router as webhooks_router
 from .auth import router as auth_router
 from .script_templates import router as script_templates_router
 from .pages import router as pages_router
+from .admin_management import router as admin_management_router
 
 __all__ = [
     "calls_router",
@@ -14,4 +15,5 @@ __all__ = [
     "auth_router",
     "script_templates_router",
     "pages_router",
+    "admin_management_router",
 ]

@@ -125,7 +125,7 @@ class HttpSmsAdapter(SmsAdapter):
             "to": phone,
             "text": text,
             "from": self.sender,
-            "sender_id": settings.sms_sender_id,
+            "sender_id": self.sender,
             "callback_url": settings.sms_callback_url,
         }
         response = await self.client.post(
@@ -152,13 +152,15 @@ def get_adapter() -> TelephonyAdapter:
     return get_telephony_adapter()
 
 
-def get_sms_adapter() -> SmsAdapter:
-    provider = (settings.sms_provider or "mock").strip().lower()
+def get_sms_adapter(tenant_config: Dict[str, Any] | None = None) -> SmsAdapter:
+    config = tenant_config or {}
+    provider = str(config.get("provider") or settings.sms_provider or "mock").strip().lower()
     if provider == "http":
-        sms_endpoint = getattr(settings, "sms_provider_endpoint", "").strip()
+        sms_endpoint = str(config.get("endpoint") or getattr(settings, "sms_provider_endpoint", "")).strip()
         if not sms_endpoint:
             raise RuntimeError("SMS provider is HTTP but sms_provider_endpoint is not configured")
-        return HttpSmsAdapter(sms_endpoint, settings.sms_api_key, settings.sms_sender_id)
+        sender_id = str(config.get("sender_id") or settings.sms_sender_id)
+        return HttpSmsAdapter(sms_endpoint, settings.sms_api_key, sender_id)
     return MockSmsAdapter()
 
 

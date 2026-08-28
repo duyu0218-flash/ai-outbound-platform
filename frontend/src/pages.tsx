@@ -1,16 +1,25 @@
 import {
+  ApiOutlined,
+  AuditOutlined,
   CheckCircleOutlined,
+  CloudServerOutlined,
+  ControlOutlined,
   CustomerServiceOutlined,
+  DatabaseOutlined,
   DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
+  KeyOutlined,
   PhoneOutlined,
   PlusOutlined,
   ReloadOutlined,
   RocketOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
+  SettingOutlined,
   SoundOutlined,
   TeamOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -32,6 +41,7 @@ import {
   Space,
   Statistic,
   Switch,
+  Tabs,
   Table,
   Tag,
   Typography,
@@ -43,7 +53,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SystemOverview, TelephonyLine } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -381,6 +391,197 @@ export function CallsPage({ role }: { role: Role }) {
         <Descriptions size="small" column={1} bordered items={selectedCall ? [{ key: 'id', label: 'ID', children: selectedCall.id }, { key: 'status', label: t('status'), children: <StatusTag status={selectedCall.status} /> }, { key: 'mode', label: t('mode'), children: t(modeOptions.find((item) => item.value === selectedCall.mode)?.labelKey || selectedCall.mode) }] : []} />
         <List className="event-list" loading={events.isLoading} dataSource={events.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.event_type}</Tag><Text type="secondary">{formatDate(item.created_at)}</Text></Space>} description={<pre>{item.payload}</pre>} /></List.Item>} />
       </Drawer>
+    </>
+  )
+}
+
+interface AdminUserFormValues {
+  username: string
+  password?: string
+  full_name: string
+  phone?: string
+  role: Role
+  is_supervisor: boolean
+  enabled: boolean
+}
+
+export function UsersPage() {
+  const { t } = useTranslation()
+  const { token, user: currentUser } = useAuth()
+  const queryClient = useQueryClient()
+  const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form] = Form.useForm<AdminUserFormValues>()
+  const query = useSecureQuery<AdminUser[]>(['admin-users', searchKeyword], `/api/v1/admin/users?page=1&size=200${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
+  const saveMutation = useMutation({
+    mutationFn: async (values: AdminUserFormValues) => {
+      const { password, ...payload } = values
+      const saved = await apiRequest<AdminUser>(editing ? `/api/v1/admin/users/${editing.id}` : '/api/v1/admin/users', {
+        method: editing ? 'PUT' : 'POST',
+        body: JSON.stringify(editing ? payload : { ...payload, password }),
+      }, token)
+      if (editing && password) {
+        await apiRequest(`/api/v1/admin/users/${editing.id}/reset-password`, { method: 'POST', body: JSON.stringify({ password }) }, token)
+      }
+      return saved
+    },
+    onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['admin-users'] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const toggleMutation = useMutation({
+    mutationFn: (item: AdminUser) => apiRequest(`/api/v1/admin/users/${item.id}`, { method: 'PUT', body: JSON.stringify({ enabled: !item.enabled }) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-users'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const openEdit = (item?: AdminUser) => {
+    setEditing(item || null)
+    form.setFieldsValue(item ? { ...item, password: undefined } : { role: 'agent', enabled: true, is_supervisor: false })
+    setModalOpen(true)
+  }
+  return (
+    <>
+      <PageTitle title={t('users')} description={t('usersHint')} action={<Button type="primary" icon={<UserAddOutlined />} onClick={() => openEdit()}>{t('addUser')}</Button>} />
+      <Card>
+        <div className="table-toolbar">
+          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('username')} / ${t('contactName')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => setSearchKeyword(keyword)} />
+          <Button type="primary" onClick={() => setSearchKeyword(keyword)}>{t('search')}</Button>
+          <Button onClick={() => { setKeyword(''); setSearchKeyword('') }}>{t('reset')}</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>
+        </div>
+        <Table<AdminUser> rowKey="id" loading={query.isLoading} dataSource={query.data || []} scroll={{ x: 980 }} columns={[
+          { title: t('username'), dataIndex: 'username', width: 180 },
+          { title: t('contactName'), dataIndex: 'full_name', width: 180 },
+          { title: t('phone'), dataIndex: 'phone', width: 150, render: (value) => value || '-' },
+          { title: t('role'), dataIndex: 'role', width: 110, render: (value) => <Tag color={value === 'admin' ? 'blue' : 'cyan'}>{value}</Tag> },
+          { title: t('supervisor'), dataIndex: 'is_supervisor', width: 100, render: (value) => value ? t('yes') : t('no') },
+          { title: t('enabled'), dataIndex: 'enabled', width: 100, render: (_, record) => <Switch checked={record.enabled} disabled={record.id === currentUser?.id} loading={toggleMutation.isPending} onChange={() => toggleMutation.mutate(record)} /> },
+          { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
+          { title: t('actions'), fixed: 'right', width: 100, render: (_, record) => <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button> },
+        ]} />
+      </Card>
+      <Modal title={editing ? t('editUser') : t('addUser')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
+        <Form<AdminUserFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('username')} name="username" rules={[{ required: true }]}><Input disabled={Boolean(editing)} /></Form.Item></Col><Col span={12}><Form.Item label={t('contactName')} name="full_name" rules={[{ required: true }]}><Input /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={editing ? t('newPasswordOptional') : t('password')} name="password" rules={[{ required: !editing }, { min: 8 }]}><Input.Password autoComplete="new-password" /></Form.Item></Col><Col span={12}><Form.Item label={t('phone')} name="phone"><Input /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('role')} name="role" rules={[{ required: true }]}><Select options={[{ value: 'admin', label: t('administrator') }, { value: 'agent', label: t('agent') }]} /></Form.Item></Col><Col span={6}><Form.Item label={t('supervisor')} name="is_supervisor" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('enabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col></Row>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
+interface LineFormValues {
+  name: string
+  provider: string
+  gateway_url: string
+  caller_id: string
+  max_concurrency: number
+  enabled: boolean
+}
+
+export function LinesPage() {
+  const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const query = useSecureQuery<TelephonyLine[]>(['admin-lines'], '/api/v1/admin/lines')
+  const [editing, setEditing] = useState<TelephonyLine | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form] = Form.useForm<LineFormValues>()
+  const saveMutation = useMutation({
+    mutationFn: (values: LineFormValues) => apiRequest<TelephonyLine>(editing ? `/api/v1/admin/lines/${editing.id}` : '/api/v1/admin/lines', { method: editing ? 'PUT' : 'POST', body: JSON.stringify(values) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['admin-lines'] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const toggleMutation = useMutation({
+    mutationFn: (item: TelephonyLine) => apiRequest(`/api/v1/admin/lines/${item.id}`, { method: 'PUT', body: JSON.stringify({ enabled: !item.enabled }) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-lines'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const openEdit = (item?: TelephonyLine) => { setEditing(item || null); form.setFieldsValue(item || { provider: 'sip', gateway_url: '', caller_id: '', max_concurrency: 10, enabled: true }); setModalOpen(true) }
+  return (
+    <>
+      <PageTitle title={t('lines')} description={t('linesHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('addLine')}</Button>} />
+      <Card>
+        <Table<TelephonyLine> rowKey="id" loading={query.isLoading} dataSource={query.data || []} scroll={{ x: 900 }} columns={[
+          { title: t('name'), dataIndex: 'name', width: 180 },
+          { title: t('provider'), dataIndex: 'provider', width: 130, render: (value) => <Tag>{value}</Tag> },
+          { title: t('gatewayUrl'), dataIndex: 'gateway_url', ellipsis: true },
+          { title: t('callerId'), dataIndex: 'caller_id', width: 150, render: (value) => value || '-' },
+          { title: t('concurrency'), dataIndex: 'max_concurrency', width: 110 },
+          { title: t('enabled'), dataIndex: 'enabled', width: 100, render: (_, record) => <Switch checked={record.enabled} loading={toggleMutation.isPending} onChange={() => toggleMutation.mutate(record)} /> },
+          { title: t('actions'), fixed: 'right', width: 100, render: (_, record) => <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button> },
+        ]} />
+      </Card>
+      <Modal title={editing ? t('editLine') : t('addLine')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
+        <Form<LineFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('provider')} name="provider" rules={[{ required: true }]}><Select options={[{ value: 'sip', label: 'SIP' }, { value: 'http', label: 'HTTP API' }, { value: 'twilio', label: 'Twilio' }, { value: 'aliyun', label: t('aliyun') }]} /></Form.Item></Col></Row>
+          <Form.Item label={t('gatewayUrl')} name="gateway_url"><Input placeholder="https://voice-provider.example.com" /></Form.Item>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('callerId')} name="caller_id"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('concurrency')} name="max_concurrency"><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col span={4}><Form.Item label={t('enabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col></Row>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
+function SettingSectionForm({ section }: { section: SettingSection }) {
+  const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const [form] = Form.useForm<Record<string, string | number | boolean>>()
+  const query = useSecureQuery<AdminSetting>(['admin-setting', section], `/api/v1/admin/settings/${section}`)
+  useEffect(() => { if (query.data) form.setFieldsValue(query.data.data) }, [form, query.data])
+  const mutation = useMutation({
+    mutationFn: (values: Record<string, string | number | boolean>) => apiRequest<AdminSetting>(`/api/v1/admin/settings/${section}`, { method: 'PUT', body: JSON.stringify({ data: values }) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-setting', section] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const fields: Record<SettingSection, ReactNode> = {
+    ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></>,
+    sms: <><Form.Item label={t('smsEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item><Row gutter={16}><Col span={12}><Form.Item label={t('provider')} name="provider"><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('senderId')} name="sender_id"><Input /></Form.Item></Col></Row><Form.Item label={t('endpoint')} name="endpoint"><Input /></Form.Item><Form.Item label={t('hangupTemplate')} name="hangup_template"><Input.TextArea rows={4} /></Form.Item></>,
+    compliance: <><Row gutter={16}><Col span={8}><Form.Item label={t('dncEnforced')} name="dnc_enforced" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('recordingNotice')} name="recording_notice" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('maxAttemptsDay')} name="max_attempts_per_day"><InputNumber min={1} max={20} className="full-width" /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('startHour')} name="allowed_start_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('endHour')} name="allowed_end_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('timezone')} name="timezone"><Input /></Form.Item></Col></Row></>,
+    integration: <><Form.Item label={t('callbackEnabled')} name="callback_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('webhookBaseUrl')} name="webhook_base_url"><Input /></Form.Item><Form.Item label={t('webhookTimeout')} name="webhook_timeout_sec"><InputNumber min={1} max={120} addonAfter={t('seconds')} /></Form.Item></>,
+  }
+  return <Card loading={query.isLoading} className="settings-card"><Form form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>{fields[section]}<Space><Button type="primary" htmlType="submit" loading={mutation.isPending}>{t('save')}</Button>{query.data?.updated_at && <Text type="secondary">{t('lastUpdated')}: {formatDate(query.data.updated_at)}</Text>}</Space></Form></Card>
+}
+
+export function SettingsPage() {
+  const { t } = useTranslation()
+  return (
+    <>
+      <PageTitle title={t('settings')} description={t('settingsHint')} />
+      <Alert type="info" showIcon message={t('settingsSecurityHint')} style={{ marginBottom: 16 }} />
+      <Tabs items={[
+        { key: 'ai', label: <Space><ControlOutlined />{t('aiVoice')}</Space>, children: <SettingSectionForm section="ai" /> },
+        { key: 'sms', label: <Space><SoundOutlined />{t('smsSettings')}</Space>, children: <SettingSectionForm section="sms" /> },
+        { key: 'compliance', label: <Space><SafetyCertificateOutlined />{t('compliance')}</Space>, children: <SettingSectionForm section="compliance" /> },
+        { key: 'integration', label: <Space><ApiOutlined />{t('integrations')}</Space>, children: <SettingSectionForm section="integration" /> },
+      ]} />
+    </>
+  )
+}
+
+export function SystemPage() {
+  const { t } = useTranslation()
+  const overview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
+  const audits = useSecureQuery<AuditLog[]>(['audit-logs'], '/api/v1/admin/audit-logs?page=1&size=100')
+  const serviceLabels: Record<string, string> = { database: t('database'), redis: 'Redis', ai_agent: t('aiService'), telephony: t('telephony') }
+  return (
+    <>
+      <PageTitle title={t('system')} description={t('systemHint')} action={<Button icon={<ReloadOutlined />} onClick={() => { void overview.refetch(); void audits.refetch() }}>{t('refresh')}</Button>} />
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={10}><Card title={<Space><CloudServerOutlined />{t('serviceHealth')}</Space>} loading={overview.isLoading}><Descriptions column={1} bordered size="small" items={Object.entries(overview.data?.services || {}).map(([key, value]) => ({ key, label: serviceLabels[key] || key, children: <Tag color={value === 'ok' ? 'success' : value === 'unconfigured' ? 'warning' : 'error'}>{value}</Tag> }))} /></Card></Col>
+        <Col xs={24} lg={14}><Row gutter={[16, 16]}><Col span={12}><Card><Statistic title={t('enabledUsers')} value={overview.data?.resources.enabled_users || 0} suffix={`/ ${overview.data?.resources.users || 0}`} prefix={<TeamOutlined />} /></Card></Col><Col span={12}><Card><Statistic title={t('enabledLines')} value={overview.data?.resources.enabled_lines || 0} suffix={`/ ${overview.data?.resources.lines || 0}`} prefix={<PhoneOutlined />} /></Card></Col><Col span={24}><Card title={t('callStatusDistribution')}><Space wrap>{Object.entries(overview.data?.call_statuses || {}).map(([key, value]) => <Tag key={key} color="blue">{t(key, { defaultValue: key })}: {value}</Tag>)}{!Object.keys(overview.data?.call_statuses || {}).length && <Text type="secondary">{t('empty')}</Text>}</Space></Card></Col></Row></Col>
+      </Row>
+      <Card title={<Space><AuditOutlined />{t('auditLogs')}</Space>} className="audit-card"><Table<AuditLog> rowKey="id" loading={audits.isLoading} dataSource={audits.data || []} pagination={{ pageSize: 12 }} scroll={{ x: 900 }} columns={[
+        { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
+        { title: t('operator'), dataIndex: 'actor_username', width: 150 },
+        { title: t('action'), dataIndex: 'action', width: 130, render: (value) => <Tag>{value}</Tag> },
+        { title: t('resource'), dataIndex: 'resource_type', width: 150 },
+        { title: t('resourceId'), dataIndex: 'resource_id', width: 120, render: (value) => value || '-' },
+        { title: t('details'), dataIndex: 'detail', ellipsis: true },
+      ]} /></Card>
     </>
   )
 }

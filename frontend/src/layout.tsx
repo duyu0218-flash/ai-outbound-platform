@@ -1,5 +1,6 @@
 import {
   ApiOutlined,
+  AuditOutlined,
   BarChartOutlined,
   CustomerServiceOutlined,
   FileTextOutlined,
@@ -9,6 +10,7 @@ import {
   MenuUnfoldOutlined,
   PhoneOutlined,
   SoundOutlined,
+  SettingOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -37,6 +39,10 @@ const adminNavigation = [
   { key: '/admin/scripts', icon: <FileTextOutlined />, labelKey: 'scripts' },
   { key: '/admin/campaigns', icon: <SoundOutlined />, labelKey: 'campaigns' },
   { key: '/admin/calls', icon: <PhoneOutlined />, labelKey: 'calls' },
+  { key: '/admin/users', icon: <TeamOutlined />, labelKey: 'users' },
+  { key: '/admin/lines', icon: <CustomerServiceOutlined />, labelKey: 'lines' },
+  { key: '/admin/settings', icon: <SettingOutlined />, labelKey: 'settings' },
+  { key: '/admin/system', icon: <AuditOutlined />, labelKey: 'system' },
 ]
 
 const agentNavigation = [
