@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..clock import utc_now
-from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
+from ..models import AdminSetting, CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import get_telephony_adapter, with_retry
+from .admin_settings import get_admin_setting
 from ..db import session_scope
 
 settings = get_settings()
@@ -48,18 +50,48 @@ async def ensure_tenant(session: Session, tenant_id: int) -> Tenant:
 
 def can_call_contact_sync(session: Session, tenant_id: int, phone: str) -> tuple[bool, str]:
     normalized = normalize_phone(phone)
+    compliance = get_admin_setting(session, tenant_id, "compliance")
+    has_tenant_policy = session.exec(
+        select(AdminSetting.id).where(
+            AdminSetting.tenant_id == tenant_id,
+            AdminSetting.section == "compliance",
+        )
+    ).first() is not None
     contact = session.exec(
         select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized)
     ).first()
 
-    if not contact:
-        return True, ""
-    if contact.dnc:
+    if contact and contact.dnc and compliance.get("dnc_enforced", True):
         return False, "contact_dnc"
-    if contact.consent_state == ConsentState.NOT_CONSENTED:
+    if contact and contact.consent_state == ConsentState.NOT_CONSENTED:
         return False, "not_consented"
-    if contact.consent_state == ConsentState.REVOKED:
+    if contact and contact.consent_state == ConsentState.REVOKED:
         return False, "consent_revoked"
+
+    # Preserve existing installations until an administrator explicitly saves
+    # a tenant compliance policy, then enforce its time window and daily cap.
+    if has_tenant_policy:
+        try:
+            tenant_zone = ZoneInfo(str(compliance.get("timezone") or "Asia/Shanghai"))
+        except ZoneInfoNotFoundError:
+            return False, "invalid_compliance_timezone"
+        local_now = datetime.now(timezone.utc).astimezone(tenant_zone)
+        start_hour = int(compliance.get("allowed_start_hour", 9))
+        end_hour = int(compliance.get("allowed_end_hour", 20))
+        if not start_hour <= local_now.hour < end_hour:
+            return False, "outside_calling_hours"
+        max_attempts = int(compliance.get("max_attempts_per_day", 3))
+        local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        utc_day_start = local_day_start.astimezone(timezone.utc).replace(tzinfo=None)
+        attempts_today = session.exec(
+            select(func.count(CallSession.id)).where(
+                CallSession.tenant_id == tenant_id,
+                CallSession.phone == normalized,
+                CallSession.created_at >= utc_day_start,
+            )
+        ).one()
+        if attempts_today >= max_attempts:
+            return False, "daily_attempt_limit"
     return True, ""
 
 
@@ -82,6 +114,9 @@ CALL_PRECHECK_ERROR_MAP = {
     "contact_dnc": "CONTACT_DNC",
     "not_consented": "CONTACT_NOT_CONSENTED",
     "consent_revoked": "CONTACT_CONSENT_REVOKED",
+    "outside_calling_hours": "OUTSIDE_CALLING_HOURS",
+    "daily_attempt_limit": "DAILY_ATTEMPT_LIMIT",
+    "invalid_compliance_timezone": "INVALID_COMPLIANCE_TIMEZONE",
 }
 
 

@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from .clock import utc_now
@@ -184,3 +185,41 @@ class SmsLog(SQLModel, table=True):
     state: str = "pending"
     sent_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class TelephonyLine(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_telephonyline_tenant_name"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    name: str = Field(index=True, max_length=200)
+    provider: str = Field(default="sip", max_length=100)
+    gateway_url: str = Field(default="", max_length=1000)
+    caller_id: str = Field(default="", max_length=64)
+    max_concurrency: int = 10
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class AdminSetting(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "section", name="uq_adminsetting_tenant_section"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    section: str = Field(index=True, max_length=64)
+    data_json: str = "{}"
+    updated_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class AuditLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    actor_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    actor_username: str = Field(default="system", index=True, max_length=200)
+    action: str = Field(index=True, max_length=100)
+    resource_type: str = Field(index=True, max_length=100)
+    resource_id: Optional[str] = Field(default=None, max_length=200)
+    detail: str = Field(default="", max_length=4000)
+    created_at: datetime = Field(default_factory=utc_now, index=True)

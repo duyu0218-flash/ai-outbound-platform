@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from .api.routers import (
+    admin_management_router,
     auth_router,
     calls_router,
     campaigns_router,
@@ -228,4 +229,5 @@ app.include_router(contacts_router)
 app.include_router(webhooks_router)
 app.include_router(auth_router)
 app.include_router(script_templates_router)
+app.include_router(admin_management_router)
 app.include_router(pages_router)

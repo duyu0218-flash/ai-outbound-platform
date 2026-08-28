@@ -264,3 +264,100 @@ async def test_ai_events_are_extensible_and_mode_uses_wire_value(client: TestCli
         ).all()
         assert "ai_start" in event_types
     assert captured["mode"] == "ai_only"
+
+
+def test_admin_management_crud_settings_and_audit(client: TestClient):
+    admin_token = _login(client, "admin")
+    agent_token = _login(client, "1001@test")
+    headers = _bearer(admin_token)
+
+    assert client.get("/api/v1/admin/users", headers=_bearer(agent_token)).status_code == 403
+
+    created_user = client.post(
+        "/api/v1/admin/users",
+        headers=headers,
+        json={
+            "username": "acceptance-agent",
+            "password": "acceptance-pass-123",
+            "full_name": "验收座席",
+            "phone": "13800138999",
+            "role": "agent",
+            "enabled": True,
+        },
+    )
+    assert created_user.status_code == 200, created_user.text
+    user_id = created_user.json()["id"]
+
+    updated_user = client.put(
+        f"/api/v1/admin/users/{user_id}",
+        headers=headers,
+        json={"full_name": "验收座席已更新", "is_supervisor": True},
+    )
+    assert updated_user.status_code == 200, updated_user.text
+    assert updated_user.json()["full_name"] == "验收座席已更新"
+    assert updated_user.json()["is_supervisor"] is True
+
+    password_reset = client.post(
+        f"/api/v1/admin/users/{user_id}/reset-password",
+        headers=headers,
+        json={"password": "new-acceptance-pass-123"},
+    )
+    assert password_reset.status_code == 200, password_reset.text
+    assert _login(client, "acceptance-agent", "new-acceptance-pass-123")
+
+    created_line = client.post(
+        "/api/v1/admin/lines",
+        headers=headers,
+        json={
+            "name": "acceptance-sip",
+            "provider": "sip",
+            "gateway_url": "https://voice.example.com",
+            "caller_id": "4008000000",
+            "max_concurrency": 20,
+            "enabled": True,
+        },
+    )
+    assert created_line.status_code == 200, created_line.text
+    line_id = created_line.json()["id"]
+    updated_line = client.put(
+        f"/api/v1/admin/lines/{line_id}",
+        headers=headers,
+        json={"max_concurrency": 30},
+    )
+    assert updated_line.status_code == 200, updated_line.text
+    assert updated_line.json()["max_concurrency"] == 30
+
+    setting = client.put(
+        "/api/v1/admin/settings/compliance",
+        headers=headers,
+        json={
+            "data": {
+                "dnc_enforced": True,
+                "recording_notice": True,
+                "allowed_start_hour": 8,
+                "allowed_end_hour": 19,
+                "timezone": "Asia/Shanghai",
+                "max_attempts_per_day": 2,
+            }
+        },
+    )
+    assert setting.status_code == 200, setting.text
+    assert setting.json()["data"]["allowed_end_hour"] == 19
+    assert client.get("/api/v1/admin/settings/compliance", headers=headers).json()["data"]["max_attempts_per_day"] == 2
+
+    invalid_setting = client.put(
+        "/api/v1/admin/settings/ai",
+        headers=headers,
+        json={"data": {"api_key": "must-not-be-stored"}},
+    )
+    assert invalid_setting.status_code == 400
+
+    overview = client.get("/api/v1/admin/system-overview", headers=headers)
+    assert overview.status_code == 200, overview.text
+    assert overview.json()["resources"]["users"] >= 3
+    assert overview.json()["resources"]["lines"] >= 1
+
+    audits = client.get("/api/v1/admin/audit-logs", headers=headers)
+    assert audits.status_code == 200, audits.text
+    actions = {item["action"] for item in audits.json()}
+    assert {"create", "update", "reset_password"}.issubset(actions)

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 from pydantic import Field
 from pydantic import BaseModel
@@ -302,3 +302,78 @@ class ScriptTemplateOut(ScriptTemplateCreate):
     created_by: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class AdminUserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=200, pattern=r"^[A-Za-z0-9@._-]+$")
+    password: str = Field(min_length=8, max_length=1024)
+    full_name: str = Field(min_length=1, max_length=200)
+    phone: Optional[str] = Field(default=None, max_length=32)
+    role: str = Field(default="agent", pattern=r"^(admin|agent)$")
+    is_supervisor: bool = False
+    enabled: bool = True
+
+
+class AdminUserUpdate(BaseModel):
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    phone: Optional[str] = Field(default=None, max_length=32)
+    role: Optional[str] = Field(default=None, pattern=r"^(admin|agent)$")
+    is_supervisor: Optional[bool] = None
+    enabled: Optional[bool] = None
+
+
+class AdminPasswordReset(BaseModel):
+    password: str = Field(min_length=8, max_length=1024)
+
+
+class AdminUserOut(UserOut):
+    phone: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TelephonyLineCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    provider: str = Field(default="sip", min_length=1, max_length=100)
+    gateway_url: str = Field(default="", max_length=1000)
+    caller_id: str = Field(default="", max_length=64)
+    max_concurrency: int = Field(default=10, ge=1, le=10_000)
+    enabled: bool = True
+
+
+class TelephonyLineUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    provider: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    gateway_url: Optional[str] = Field(default=None, max_length=1000)
+    caller_id: Optional[str] = Field(default=None, max_length=64)
+    max_concurrency: Optional[int] = Field(default=None, ge=1, le=10_000)
+    enabled: Optional[bool] = None
+
+
+class TelephonyLineOut(TelephonyLineCreate):
+    id: int
+    tenant_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminSettingUpdate(BaseModel):
+    data: dict[str, Any]
+
+
+class AdminSettingOut(BaseModel):
+    section: str
+    data: dict[str, Any]
+    updated_at: Optional[datetime] = None
+
+
+class AuditLogOut(BaseModel):
+    id: int
+    tenant_id: int
+    actor_user_id: Optional[int] = None
+    actor_username: str
+    action: str
+    resource_type: str
+    resource_id: Optional[str] = None
+    detail: str
+    created_at: datetime

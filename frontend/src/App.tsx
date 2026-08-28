@@ -10,8 +10,12 @@ import {
   CampaignsPage,
   ContactsPage,
   DashboardPage,
+  LinesPage,
   LoginPage,
   ScriptsPage,
+  SettingsPage,
+  SystemPage,
+  UsersPage,
 } from './pages'
 
 function NotFoundPage() {
@@ -40,6 +44,10 @@ export default function App() {
               <Route path="scripts" element={<ScriptsPage />} />
               <Route path="campaigns" element={<CampaignsPage />} />
               <Route path="calls" element={<CallsPage role="admin" />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="lines" element={<LinesPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="system" element={<SystemPage />} />
             </Route>
           </Route>
 

@@ -44,6 +44,11 @@ def _hash_password(raw_password: str) -> str:
     )
 
 
+def hash_password(raw_password: str) -> str:
+    """Hash a password for administrator-managed user accounts."""
+    return _hash_password(raw_password)
+
+
 def _verify_password(stored_hash: str, raw_password: str) -> bool:
     if stored_hash.startswith(f"{PASSWORD_SCHEME}$"):
         try:

@@ -93,7 +93,8 @@ cp .env.example .env
 
 ### 3.4 前端页面结构
 
-- 管理端：`/admin` 仪表盘、`/admin/contacts` 客户管理、`/admin/scripts` 话术管理、`/admin/campaigns` 外呼任务、`/admin/calls` 通话记录。
+- 管理端运营模块：`/admin` 仪表盘、`/admin/contacts` 客户管理、`/admin/scripts` 话术管理、`/admin/campaigns` 外呼任务、`/admin/calls` 通话记录。
+- 管理端系统模块：`/admin/users` 用户与座席、`/admin/lines` 外呼线路、`/admin/settings` 系统配置、`/admin/system` 监控与审计。
 - 座席端：`/agent` 座席工作台、`/agent/calls` 通话记录。
 - 登录入口：`/admin/login` 与 `/agent/login`。
 - Docker 构建会自动安装并编译 `frontend`；本地直接运行后端前，请先在 `frontend` 执行 `pnpm install && pnpm build`。
@@ -106,7 +107,9 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   -d '{"username":"admin","password":"12345678"}'
 ```
 
-生产环境必须在数据库中预置正式管理员账号后设置 `DEMO_USERS_ENABLED=false`；演示密码不得带入生产。当前仓库尚未提供生产用户管理界面，正式账号的开通、停用与密码重置流程属于上线前置项。
+生产环境先使用预置管理员登录 `/admin/users` 创建正式账号、完成权限与密码验收，再设置 `DEMO_USERS_ENABLED=false` 并重启。演示密码不得带入生产。系统禁止管理员停用或降级自己，并保证每个租户至少保留一个启用的管理员。
+
+管理页面不会保存短信、线路或大模型密钥。生产密钥必须通过环境变量或独立密钥管理服务注入，避免在浏览器和审计日志中泄露。
 
 ## 4. Docker 方式启动（推荐）
 
@@ -521,7 +524,8 @@ bash scripts/test-campaign-start.sh
 
 - `control-api`、`ai-agent` 建议使用固定镜像 tag（例如 `v1.x.x`）
 - 生产升级禁止只依赖 `create_all`。本版本 PostgreSQL 升级脚本位于：
-  `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
+  - `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
+  - `backend/migrations/postgresql/20260828_admin_management.sql`
 
 发布顺序：
 
@@ -533,6 +537,10 @@ pg_dump --format=custom --file=ai_outbound_before_20260828.dump "$DATABASE_URL"
 psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   -f backend/migrations/postgresql/20260828_event_audit_indexes.sql
+
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f backend/migrations/postgresql/20260828_admin_management.sql
 
 # 3. 发布固定版本镜像，启动后检查
 curl -fS http://localhost:8000/health
