@@ -152,6 +152,7 @@ class CallSession(SQLModel, table=True):
     summary: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+    next_attempt_at: Optional[datetime] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now, index=True)
 

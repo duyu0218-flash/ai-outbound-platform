@@ -1,22 +1,29 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func, update
+from sqlalchemy import func, or_, update
 from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..clock import utc_now
 from ..models import AdminSetting, CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
-from .telephony import get_telephony_adapter, with_retry
+from .telephony import (
+    get_telephony_adapter,
+    get_telephony_concurrency_limit,
+    get_tenant_telephony_line,
+    with_retry,
+)
 from .admin_settings import get_admin_setting
 from ..db import session_scope
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class CallPermissionError(ValueError):
@@ -108,6 +115,13 @@ TERMINAL_STATUSES = {
 }
 DISPATCHABLE_STATUSES = {CallStatus.QUEUED, CallStatus.CREATED, CallStatus.FAILED}
 HANDOVERABLE_STATUSES = {CallStatus.DIALING, CallStatus.ANSWERED, CallStatus.IN_AI, CallStatus.WAITING_HUMAN}
+CAPACITY_STATUSES = {
+    CallStatus.DIALING,
+    CallStatus.ANSWERED,
+    CallStatus.IN_AI,
+    CallStatus.WAITING_HUMAN,
+    CallStatus.HANDOFF_TRANSFERRING,
+}
 
 
 CALL_PRECHECK_ERROR_MAP = {
@@ -142,6 +156,41 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
+    if tenant is None or not tenant.enabled:
+        session.rollback()
+        return False
+    effective_tenant_limit = max(1, int(settings.max_concurrent_calls))
+    if (settings.telephony_provider or "mock").strip().lower() == "tenant":
+        line = get_tenant_telephony_line(session, call.tenant_id)
+        if line is None:
+            session.rollback()
+            return False
+        effective_tenant_limit = min(effective_tenant_limit, max(1, int(line.max_concurrency)))
+    active_count = session.exec(
+        select(func.count(CallSession.id)).where(
+            CallSession.tenant_id == call.tenant_id,
+            CallSession.status.in_(CAPACITY_STATUSES),
+        )
+    ).one()
+    if active_count >= effective_tenant_limit:
+        session.rollback()
+        return False
+    if call.campaign_id is not None:
+        campaign = session.get(Campaign, call.campaign_id)
+        if not campaign or campaign.tenant_id != call.tenant_id or campaign.status != "running":
+            session.rollback()
+            return False
+        campaign_active_count = session.exec(
+            select(func.count(CallSession.id)).where(
+                CallSession.campaign_id == call.campaign_id,
+                CallSession.status.in_(CAPACITY_STATUSES),
+            )
+        ).one()
+        if campaign_active_count >= max(1, int(campaign.concurrency)):
+            session.rollback()
+            return False
+
     now = _now()
     stmt = (
         update(CallSession)
@@ -154,6 +203,7 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             status=CallStatus.DIALING,
             attempts=CallSession.attempts + 1,
             started_at=now,
+            finished_at=None,
             updated_at=now,
             last_error=None,
         )
@@ -240,6 +290,48 @@ def can_retry_call(call: CallSession) -> tuple[bool, str]:
     if call.attempts >= call.max_attempts:
         return False, "reach max attempts"
     return True, ""
+
+
+def schedule_campaign_retry(session: Session, call: CallSession, terminal_status: CallStatus) -> bool:
+    if terminal_status not in {CallStatus.FAILED, CallStatus.NO_ANSWER, CallStatus.BUSY, CallStatus.VOICEMAIL}:
+        call.next_attempt_at = None
+        return False
+    if call.campaign_id is None or call.attempts >= call.max_attempts:
+        call.next_attempt_at = None
+        return False
+    campaign = session.get(Campaign, call.campaign_id)
+    if not campaign or campaign.tenant_id != call.tenant_id or campaign.status not in {"running", "paused"}:
+        call.next_attempt_at = None
+        return False
+    delay_seconds = (
+        campaign.retry_interval_sec
+        if terminal_status == CallStatus.FAILED
+        else campaign.attempt_interval_sec
+    )
+    call.next_attempt_at = _now() + timedelta(seconds=max(1, int(delay_seconds)))
+    return True
+
+
+def complete_campaign_if_terminal(session: Session, campaign_id: int | None) -> None:
+    if campaign_id is None:
+        return
+    campaign = session.get(Campaign, campaign_id)
+    if not campaign or campaign.status != "running":
+        return
+    active_call = session.exec(
+        select(CallSession.id).where(
+            CallSession.campaign_id == campaign_id,
+            or_(
+                CallSession.status.notin_(TERMINAL_STATUSES),
+                CallSession.next_attempt_at.is_not(None),
+            ),
+        )
+    ).first()
+    if active_call is None:
+        campaign.status = "completed"
+        campaign.updated_at = _now()
+        session.add(campaign)
+        session.commit()
 
 
 def _require_campaign(session: Session, tenant_id: int, campaign_id: Optional[int]) -> None:
@@ -336,6 +428,9 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             updated_at=_now(),
         )
         session.refresh(call)
+        schedule_campaign_retry(session, call, CallStatus.FAILED)
+        session.add(call)
+        session.commit()
         return call, False
 
     if not _claim_dispatch_slot(session, call):
@@ -404,6 +499,10 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             updated_at=_now(),
         )
         session.refresh(call)
+        schedule_campaign_retry(session, call, CallStatus.FAILED)
+        session.add(call)
+        session.commit()
+        complete_campaign_if_terminal(session, call.campaign_id)
 
     return call, True
 
@@ -477,6 +576,7 @@ async def retry_call(
         allowed_statuses=TERMINAL_STATUSES,
         status=CallStatus.QUEUED,
         last_error=None,
+        next_attempt_at=None,
         updated_at=_now(),
     ):
         raise CallPermissionError("call status changed, retry denied")
@@ -546,7 +646,22 @@ async def dispatch_call_ids(
         }
 
     skipped_count = len(input_errors)
-    concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
+    requested_concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
+    concurrency = min(requested_concurrency, max(1, int(settings.max_concurrent_calls)))
+    call_uuids = [UUID(call_id) for call_id in deduped]
+    with session_scope() as limit_session:
+        tenant_ids = set(
+            limit_session.exec(
+                select(CallSession.tenant_id).where(CallSession.id.in_(call_uuids))
+            ).all()
+        )
+        line_limits = [
+            limit
+            for tenant_id in tenant_ids
+            if (limit := get_telephony_concurrency_limit(session=limit_session, tenant_id=tenant_id)) is not None
+        ]
+    if line_limits:
+        concurrency = min(concurrency, *line_limits)
 
     async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
         with session_scope() as session:
@@ -604,6 +719,85 @@ async def dispatch_call_ids(
         "errors": errors,
         "error_codes": sorted({item["code"] for item in errors}),
     }
+
+
+async def dispatch_due_retries(*, batch_size: int = 200) -> int:
+    now = _now()
+    claimed_ids: list[str] = []
+    with session_scope() as session:
+        due_ids = session.exec(
+            select(CallSession.id)
+            .join(Campaign, Campaign.id == CallSession.campaign_id)
+            .where(
+                Campaign.status == "running",
+                CallSession.status.in_(TERMINAL_STATUSES),
+                CallSession.next_attempt_at.is_not(None),
+                CallSession.next_attempt_at <= now,
+                CallSession.attempts < CallSession.max_attempts,
+            )
+            .order_by(CallSession.next_attempt_at.asc())
+            .limit(batch_size)
+        ).all()
+        for call_id in due_ids:
+            result = session.exec(
+                update(CallSession)
+                .where(
+                    CallSession.id == call_id,
+                    CallSession.status.in_(TERMINAL_STATUSES),
+                    CallSession.next_attempt_at.is_not(None),
+                    CallSession.next_attempt_at <= now,
+                    CallSession.attempts < CallSession.max_attempts,
+                )
+                .values(status=CallStatus.QUEUED, next_attempt_at=None, last_error=None, updated_at=now)
+            )
+            if result.rowcount:
+                claimed_ids.append(str(call_id))
+        session.commit()
+    if claimed_ids:
+        await dispatch_call_ids(claimed_ids)
+        with session_scope() as session:
+            campaign_ids = set(
+                session.exec(
+                    select(CallSession.campaign_id).where(CallSession.id.in_([UUID(item) for item in claimed_ids]))
+                ).all()
+            )
+            for campaign_id in campaign_ids:
+                complete_campaign_if_terminal(session, campaign_id)
+    return len(claimed_ids)
+
+
+async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
+    with session_scope() as session:
+        pending_ids = session.exec(
+            select(CallSession.id)
+            .outerjoin(Campaign, Campaign.id == CallSession.campaign_id)
+            .where(
+                CallSession.status == CallStatus.QUEUED,
+                CallSession.next_attempt_at.is_(None),
+                CallSession.attempts < CallSession.max_attempts,
+                or_(CallSession.campaign_id.is_(None), Campaign.status == "running"),
+            )
+            .order_by(CallSession.updated_at.asc())
+            .limit(batch_size)
+        ).all()
+    if pending_ids:
+        await dispatch_call_ids([str(call_id) for call_id in pending_ids])
+    return len(pending_ids)
+
+
+async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float = 1.0) -> None:
+    while not stop_event.is_set():
+        try:
+            await dispatch_due_retries()
+            await dispatch_pending_calls()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("scheduled call retry scan failed")
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=max(0.1, poll_interval_sec))
+        except asyncio.TimeoutError:
+            continue
 
 
 def start_campaign(

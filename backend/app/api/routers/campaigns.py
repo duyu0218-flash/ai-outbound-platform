@@ -290,7 +290,17 @@ async def start_campaign(
         and dispatch_result.target > 0
         and dispatch_result.succeeded == 0
     )
-    campaign.status = "failed" if result.get("created", 0) == 0 or all_sync_dispatches_failed else "running"
+    has_scheduled_retries = session.exec(
+        select(CallSession.id).where(
+            CallSession.campaign_id == campaign_id,
+            CallSession.next_attempt_at.is_not(None),
+        )
+    ).first() is not None
+    campaign.status = (
+        "failed"
+        if result.get("created", 0) == 0 or (all_sync_dispatches_failed and not has_scheduled_retries)
+        else "running"
+    )
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
@@ -418,6 +428,16 @@ def stop_campaign(
         call.status = CallStatus.FAILED
         call.last_error = "campaign stopped before dispatch"
         call.updated_at = utc_now()
+        session.add(call)
+    scheduled_calls = session.exec(
+        select(CallSession).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.campaign_id == campaign_id,
+            CallSession.next_attempt_at.is_not(None),
+        )
+    ).all()
+    for call in scheduled_calls:
+        call.next_attempt_at = None
         session.add(call)
     campaign.status = "stopped"
     campaign.updated_at = utc_now()

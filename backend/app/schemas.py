@@ -181,6 +181,7 @@ class CallSessionOut(BaseModel):
     last_error: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+    next_attempt_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
