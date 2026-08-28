@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ os.environ["TELEPHONY_TIMEOUT_SEC"] = "1"
 os.environ["TELEPHONY_RETRY_TIMES"] = "0"
 
 from app.db import session_scope  # noqa: E402
+from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import CallEvent, CallMode, CallSession, CallStatus, User  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
@@ -41,6 +43,15 @@ def _login(client: TestClient, username: str, password: str = "12345678") -> str
 
 def _bearer(token: str, **extra: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", **extra}
+
+
+def test_utc_now_preserves_naive_database_contract():
+    before = datetime.now(UTC).replace(tzinfo=None)
+    value = utc_now()
+    after = datetime.now(UTC).replace(tzinfo=None)
+
+    assert value.tzinfo is None
+    assert before <= value <= after
 
 
 def test_pages_login_and_server_key_not_exposed(client: TestClient):

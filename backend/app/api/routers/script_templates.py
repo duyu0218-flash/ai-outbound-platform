@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,6 +5,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
+from ...clock import utc_now
 from ...models import ScriptTemplate
 from ...schemas import ScriptTemplateCreate, ScriptTemplateOut, ScriptTemplateUpdate
 
@@ -100,7 +100,7 @@ def update_template(
         template.tags = data["tags"]
 
     template.version += 1
-    template.updated_at = datetime.utcnow()
+    template.updated_at = utc_now()
     session.add(template)
     session.commit()
     session.refresh(template)
@@ -118,7 +118,7 @@ def delete_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="template not found")
     # keep historical integrity: soft remove only for campaign references
     template.is_active = False
-    template.updated_at = datetime.utcnow()
+    template.updated_at = utc_now()
     session.add(template)
     session.commit()
     return {"result": "deleted"}

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
@@ -6,6 +5,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
+from ...clock import utc_now
 from ...models import Campaign, CampaignContact, Contact, ScriptTemplate
 from ...services.call_service import (
     NotFoundError,
@@ -161,7 +161,7 @@ def update_campaign(
     for index, contact in enumerate(contacts):
         session.add(CampaignContact(campaign_id=campaign.id, contact_id=contact.id, contact_order=index))
 
-    campaign.updated_at = datetime.utcnow()
+    campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
     session.refresh(campaign)
@@ -180,7 +180,7 @@ def delete_campaign(
     if campaign.status == "deleted":
         return {"result": "deleted"}
     campaign.status = "deleted"
-    campaign.updated_at = datetime.utcnow()
+    campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
     return {"result": "deleted"}
@@ -274,7 +274,7 @@ async def start_campaign(
         and dispatch_result.succeeded == 0
     )
     campaign.status = "failed" if result.get("created", 0) == 0 or all_sync_dispatches_failed else "running"
-    campaign.updated_at = datetime.utcnow()
+    campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
 

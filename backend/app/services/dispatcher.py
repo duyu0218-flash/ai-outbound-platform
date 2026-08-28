@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Any, Dict
 
 import httpx
 
 from ..config import get_settings
+from ..clock import utc_now
 from ..db import session_scope
 from ..models import CallEvent, CallSession, CallStatus, SmsLog
 from ..schemas import AiTurnRequest, AiTurnResult
@@ -115,7 +115,7 @@ async def run_ai_turn(
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
     if result.action == "hangup":
         call.status = CallStatus.COMPLETED
-        call.finished_at = datetime.utcnow()
+        call.finished_at = utc_now()
     elif result.action == "handoff" or result.handoff_to_human:
         adapter = get_telephony_adapter()
         await with_retry(lambda: adapter.transfer_to_human(call_id=str(call.id), reason="ai_decision"))
@@ -128,7 +128,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         await send_sms_text(session, call, result.hangup_sms)
         if call.status != CallStatus.WAITING_HUMAN:
             call.status = CallStatus.COMPLETED
-            call.finished_at = datetime.utcnow()
+            call.finished_at = utc_now()
 
     if result.escalate_priority:
         call.handoff_reason = f"escalate_priority={result.escalate_priority}"
@@ -174,7 +174,7 @@ async def send_sms_text(session, call: CallSession, text: str) -> None:
         template_code="hangup_sms",
         content=text,
         state=state,
-        sent_at=datetime.utcnow() if state != "failed" else None,
+        sent_at=utc_now() if state != "failed" else None,
     )
     session.add(sms_log)
     session.add(call)

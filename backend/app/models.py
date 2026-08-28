@@ -5,6 +5,8 @@ from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
 
+from .clock import utc_now
+
 
 class CallMode(str, Enum):
     HUMAN_ONLY = "human_only"
@@ -50,8 +52,8 @@ class Tenant(SQLModel, table=True):
     name: str
     code: str = Field(index=True, unique=True)
     enabled: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class User(SQLModel, table=True):
@@ -64,8 +66,8 @@ class User(SQLModel, table=True):
     role: str = "agent"
     is_supervisor: bool = False
     enabled: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class Contact(SQLModel, table=True):
@@ -80,8 +82,8 @@ class Contact(SQLModel, table=True):
     dnc: bool = False
     dnc_reason: Optional[str] = None
     timezone: Optional[str] = "Asia/Shanghai"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class Campaign(SQLModel, table=True):
@@ -99,8 +101,8 @@ class Campaign(SQLModel, table=True):
     hangup_sms_enabled: bool = True
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     status: str = "draft"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class CampaignContact(SQLModel, table=True):
@@ -122,8 +124,8 @@ class ScriptTemplate(SQLModel, table=True):
     is_active: bool = True
     version: int = 1
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class CallSession(SQLModel, table=True):
@@ -147,8 +149,8 @@ class CallSession(SQLModel, table=True):
     summary: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 class CallEvent(SQLModel, table=True):
@@ -159,7 +161,7 @@ class CallEvent(SQLModel, table=True):
     event_type: str = Field(index=True, max_length=64)
     source: str = "platform"
     payload: str = "{}"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class WebhookEventIngest(SQLModel, table=True):
@@ -169,7 +171,7 @@ class WebhookEventIngest(SQLModel, table=True):
     source: str = Field(index=True)
     provider_event_key: str = Field(index=True, unique=True)
     repeat_count: int = 1
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class SmsLog(SQLModel, table=True):
@@ -181,4 +183,4 @@ class SmsLog(SQLModel, table=True):
     content: str
     state: str = "pending"
     sent_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)

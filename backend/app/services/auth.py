@@ -13,6 +13,7 @@ from jose import JWTError, jwt
 from sqlmodel import Session, select
 
 from ..config import get_settings
+from ..clock import utc_now
 from ..models import User
 
 settings = get_settings()
@@ -108,7 +109,7 @@ def ensure_demo_users(session: Session) -> None:
             user.full_name = info["full_name"]
             user.enabled = True
             user.is_supervisor = info["is_supervisor"]
-            user.updated_at = datetime.utcnow()
+            user.updated_at = utc_now()
             session.add(user)
 
     session.commit()
@@ -122,7 +123,7 @@ def authenticate_user(session: Session, username: str, raw_password: str) -> Opt
         return None
     if not user.password_hash.startswith(f"{PASSWORD_SCHEME}$"):
         user.password_hash = _hash_password(raw_password)
-        user.updated_at = datetime.utcnow()
+        user.updated_at = utc_now()
         session.add(user)
         session.commit()
         session.refresh(user)
