@@ -49,6 +49,11 @@ def test_pages_login_and_server_key_not_exposed(client: TestClient):
         assert response.status_code == 200
         assert 'id="apiKey" value=""' in response.text
         assert 'id="apiKey" value="dev-api-key"' not in response.text
+        assert 'id="languageSelect"' in response.text
+        assert "'en-US':" in response.text
+        assert "AI Outbound Platform" in response.text
+        assert "function changeLanguage(language)" in response.text
+        assert "ai-platform-language" in response.text
 
     agent_page = client.get("/agent")
     assert 'class="card col-4 hidden"' in agent_page.text
