@@ -29,3 +29,6 @@ filterwarnings = ["error"]
 [tool.setuptools.packages.find]
 include = ["app*"]
 exclude = ["tests*", "migrations*"]
+
+[tool.setuptools.package-data]
+app = ["static/index.html", "static/assets/*"]
