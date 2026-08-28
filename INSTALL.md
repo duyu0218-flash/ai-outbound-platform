@@ -84,6 +84,13 @@ cp .env.example .env
 - 座席端地址：[http://localhost:8000/agent](http://localhost:8000/agent)
 - 文档地址：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)
 
+### 3.3 中英文界面切换
+
+- 管理端和座席端右上角均有 `中文 / English` 选择器。
+- 语言切换即时生效，无需重新登录。
+- 语言偏好保存在浏览器本地，并在 `/admin` 与 `/agent` 之间共享。
+- 语言偏好只保存 `zh-CN` 或 `en-US`，不会保存密码、Token 或 API Key。
+
 直接登录 API：
 
 ```bash

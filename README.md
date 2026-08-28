@@ -12,6 +12,7 @@
 - 话术模板（`/api/v1/script-templates`）与活动绑定
 - Webhook 原子幂等、并发拨号抢占与 AI 决策审计事件
 - 管理员/座席角色隔离、租户绑定、PBKDF2 密码哈希与生产配置启动校验
+- 管理端与座席端支持中文/English 实时切换，并在本机浏览器保存语言偏好
 
 当前版本是“可上线前评估”状态，不依赖第三方前端，先从 API 与服务能力落地。
 ## 2bis. 测试账号体系（新）
@@ -21,6 +22,8 @@
 - 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)  
   默认账号：`1001@test` / `12345678`
 - 文档页：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)（指向 `/docs`）
+
+管理端和座席端右上角均提供 `中文 / English` 选择器。切换后，页面标题、表单、表格、操作按钮以及后续状态提示会使用所选语言；语言偏好在两个端之间共享。
 
 > 登录成功会返回 `access_token`（Bearer）。用于后续用户态接口验证：
 `Authorization: Bearer <access_token>`
