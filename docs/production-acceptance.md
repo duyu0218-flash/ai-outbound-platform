@@ -10,6 +10,12 @@
 - Compose 镜像从空缓存可构建，所有服务进入 healthy，版本化迁移重复执行为 `none`。
 - 无 `dead` 任务、无超时 `processing` 任务、无录音删除失败。
 
+## 经营指标口径
+
+- 管理首页的“有效接通”按当前状态为 `answered`、`in_ai`、`waiting_human`、`handoff_transferring`、`completed`，或分析/人工复核结果为 `rejected`、`completed` 及意向类结果统计；供应商若在接通后直接回传失败终态，需在正式对接时补充独立的 answered 时间字段或标准事件再校准口径。
+- “意向线索”按自动分析或人工复核结果为 `interested`、`qualified_lead`、`positive_lead`、`appointment` 或 `converted` 统计。
+- 人工校正应由管理员或班组长执行；市场复盘前需关注“待复核”数量，避免把未经抽检的自动分类直接当作最终成交口径。
+
 ## 真实语音验收
 
 运营商、PBX、ASR、TTS、LLM、短信和对象存储必须使用候选生产服务，不得使用 mock。验收号码由测试人员控制，并已获得接听与录音同意。

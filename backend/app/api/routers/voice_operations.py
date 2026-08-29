@@ -32,6 +32,7 @@ from ...schemas import (
     CallAnalysisOut,
     CallAnalysisReview,
     CallMetricOut,
+    HandoffQueueItemOut,
     HandoffRequestOut,
     KnowledgeItemCreate,
     KnowledgeItemOut,
@@ -182,7 +183,7 @@ def list_handoffs(
     ).all()
 
 
-@router.get("/handoffs", response_model=list[HandoffRequestOut])
+@router.get("/handoffs", response_model=list[HandoffQueueItemOut])
 def list_handoff_queue(
     handoff_state: HandoffState = Query(default=HandoffState.WAITING, alias="state"),
     tenant_id: int = Depends(get_tenant_id_for_request),
@@ -195,7 +196,23 @@ def list_handoff_queue(
     )
     if current is not None and current.role == "agent" and not current.is_supervisor:
         query = query.where(HandoffRequest.assigned_agent_id.in_([None, current.id]))
-    return session.exec(query.order_by(HandoffRequest.requested_at.asc())).all()
+    handoffs = session.exec(query.order_by(HandoffRequest.requested_at.asc())).all()
+    now = utc_now()
+    result: list[HandoffQueueItemOut] = []
+    for handoff in handoffs:
+        call = session.get(CallSession, handoff.call_session_id)
+        if call is None or call.tenant_id != tenant_id:
+            continue
+        result.append(
+            HandoffQueueItemOut(
+                **handoff.model_dump(),
+                phone=call.phone,
+                mode=call.mode,
+                campaign_id=call.campaign_id,
+                wait_seconds=max(0, int((now - handoff.requested_at).total_seconds())),
+            )
+        )
+    return result
 
 
 @router.post("/calls/{call_id}/handoffs/{handoff_id}/accept", response_model=HandoffRequestOut)

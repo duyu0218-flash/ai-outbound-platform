@@ -42,6 +42,7 @@ import {
   Row,
   Select,
   Space,
+  Spin,
   Statistic,
   Switch,
   Tabs,
@@ -56,7 +57,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, RecordingAsset, Role, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, RecordingAsset, Role, RuntimeInfo, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -93,8 +94,11 @@ export function LoginPage({ role }: { role: Role }) {
   const { login, user } = useAuth()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
+  const runtime = useQuery({ queryKey: ['runtime'], queryFn: () => apiRequest<RuntimeInfo>('/api/v1/runtime') })
+  const demoEnabled = runtime.data?.demo_users_enabled === true
 
   if (user) return <Navigate to={user.role === 'admin' && role === 'admin' ? '/admin' : '/agent'} replace />
+  if (runtime.isLoading) return <div className="app-loading"><Spin size="large" /></div>
 
   const submit = async (values: { username: string; password: string }) => {
     setSubmitting(true)
@@ -134,12 +138,12 @@ export function LoginPage({ role }: { role: Role }) {
         </div>
         <Title level={2}>{t('welcomeBack')}</Title>
         <Paragraph type="secondary">{t('loginHint')}</Paragraph>
-        <Form layout="vertical" size="large" initialValues={{ username: role === 'admin' ? 'admin' : '1001@test', password: '12345678' }} onFinish={submit}>
+        <Form layout="vertical" size="large" onFinish={submit}>
           <Form.Item label={t('username')} name="username" rules={[{ required: true }]}><Input autoComplete="username" /></Form.Item>
           <Form.Item label={t('password')} name="password" rules={[{ required: true }]}><Input.Password autoComplete="current-password" /></Form.Item>
           <Button type="primary" htmlType="submit" block loading={submitting}>{t('signIn')}</Button>
         </Form>
-        <Alert className="demo-account" type="info" showIcon message={role === 'admin' ? t('adminDemo') : t('agentDemo')} />
+        {demoEnabled && <Alert className="demo-account" type="info" showIcon message={role === 'admin' ? t('adminDemo') : t('agentDemo')} />}
         <Button type="link" block onClick={() => navigate(role === 'admin' ? '/agent/login' : '/admin/login')}>
           {role === 'admin' ? t('agentPortal') : t('adminPortal')}
         </Button>
@@ -151,20 +155,22 @@ export function LoginPage({ role }: { role: Role }) {
 export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const dashboard = useSecureQuery<AdminDashboard>(['admin-dashboard'], '/api/v1/admin/dashboard')
+  const [days, setDays] = useState(30)
+  const dashboard = useSecureQuery<AdminDashboard>(['admin-dashboard', String(days)], `/api/v1/admin/dashboard?days=${days}`)
   const calls = useSecureQuery<CallSession[]>(['calls', 'dashboard'], '/api/v1/calls?page=1&size=200')
   const loading = dashboard.isLoading || calls.isLoading
   const stats = [
-    { title: t('totalContacts'), value: dashboard.data?.stats.contacts || 0, icon: <TeamOutlined />, color: 'blue' },
-    { title: t('activeScripts'), value: dashboard.data?.stats.active_scripts || 0, icon: <FileTextOutlined />, color: 'purple' },
-    { title: t('totalCampaigns'), value: dashboard.data?.stats.campaigns || 0, icon: <SoundOutlined />, color: 'orange' },
-    { title: t('totalCalls'), value: dashboard.data?.stats.calls || 0, icon: <PhoneOutlined />, color: 'green' },
+    { title: t('periodCalls'), value: dashboard.data?.period.calls || 0, icon: <PhoneOutlined />, color: 'blue' },
+    { title: t('reachedCalls'), value: dashboard.data?.period.reached || 0, suffix: `${dashboard.data?.period.reach_rate || 0}%`, icon: <CustomerServiceOutlined />, color: 'green' },
+    { title: t('interestedLeads'), value: dashboard.data?.period.interested || 0, suffix: `${dashboard.data?.period.interest_rate || 0}%`, icon: <RocketOutlined />, color: 'orange' },
+    { title: t('averageQaScore'), value: dashboard.data?.period.average_qa_score || 0, suffix: '/ 100', icon: <AuditOutlined />, color: 'purple' },
   ]
   return (
     <>
-      <PageTitle title={t('overview')} description={t('overviewHint')} />
+      <PageTitle title={t('overview')} description={t('overviewHint')} action={<Select value={days} onChange={setDays} options={[{ value: 7, label: t('last7Days') }, { value: 30, label: t('last30Days') }, { value: 90, label: t('last90Days') }]} />} />
+      {dashboard.isError && <Alert type="error" showIcon message={t('loadFailed')} description={dashboard.error.message} style={{ marginBottom: 16 }} />}
       <Row gutter={[16, 16]}>
-        {stats.map((item) => <Col xs={24} sm={12} xl={6} key={item.title}><Card loading={loading} className="metric-card"><div className={`metric-icon ${item.color}`}>{item.icon}</div><Statistic title={item.title} value={item.value} /></Card></Col>)}
+        {stats.map((item) => <Col xs={24} sm={12} xl={6} key={item.title}><Card loading={loading} className="metric-card"><div className={`metric-icon ${item.color}`}>{item.icon}</div><Statistic title={item.title} value={item.value} suffix={item.suffix} /></Card></Col>)}
       </Row>
       <Row gutter={[16, 16]} className="dashboard-grid">
         <Col xs={24} xl={16}>
@@ -189,6 +195,18 @@ export function DashboardPage() {
           </Card>
         </Col>
       </Row>
+      <Card title={t('campaignPerformance')} className="audit-card" extra={<Text type="secondary">{t('metricScopeHint', { days })}</Text>}>
+        <Table rowKey="campaign_id" loading={dashboard.isLoading} dataSource={dashboard.data?.campaign_performance || []} pagination={false} locale={{ emptyText: t('empty') }} columns={[
+          { title: t('campaignId'), dataIndex: 'campaign_id', width: 100 },
+          { title: t('name'), dataIndex: 'name' },
+          { title: t('periodCalls'), dataIndex: 'calls', width: 120 },
+          { title: t('reachedCalls'), dataIndex: 'reached', width: 120 },
+          { title: t('reachRate'), dataIndex: 'reach_rate', width: 120, render: (value) => `${value}%` },
+          { title: t('interestedLeads'), dataIndex: 'interested', width: 120 },
+          { title: t('interestRate'), dataIndex: 'interest_rate', width: 120, render: (value) => `${value}%` },
+        ]} />
+        <Text type="secondary">{dashboard.data?.metric_definitions.reached}；{dashboard.data?.metric_definitions.interested}</Text>
+      </Card>
     </>
   )
 }
@@ -475,6 +493,7 @@ export function CampaignsPage() {
 }
 
 interface CallFormValues { phone: string; mode: CallMode; campaign_id?: number; contact_id?: number; max_attempts: number }
+interface CallAnalysisReviewValues { result_code: string; intent: string; sentiment: string; qa_score: number; qa_flags: string; summary: string }
 
 function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[]; loading: boolean; onAction: (call: CallSession, action: 'handover' | 'hangup' | 'retry') => void; onEvents: (call: CallSession) => void }) {
   const { t } = useTranslation()
@@ -493,11 +512,13 @@ function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[
 
 export function CallsPage({ role }: { role: Role }) {
   const { t } = useTranslation()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [selectedCall, setSelectedCall] = useState<CallSession | null>(null)
   const [form] = Form.useForm<CallFormValues>()
+  const [reviewForm] = Form.useForm<CallAnalysisReviewValues>()
   const query = useSecureQuery<CallSession[]>(['calls', role], '/api/v1/calls?page=1&size=100')
   const events = useSecureQuery<CallEvent[]>(['call-events', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/events?page=1&size=100` : '', Boolean(selectedCall))
   const speechTurns = useSecureQuery<SpeechTurn[]>(['call-speech', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/speech-turns` : '', Boolean(selectedCall))
@@ -514,6 +535,33 @@ export function CallsPage({ role }: { role: Role }) {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
+  const reviewMutation = useMutation({
+    mutationFn: (values: CallAnalysisReviewValues) => apiRequest<CallAnalysis>(`/api/v1/calls/${selectedCall!.id}/analysis`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...values, qa_flags: values.qa_flags.split(/[,，]/).map((item) => item.trim()).filter(Boolean) }),
+    }, token),
+    onSuccess: () => {
+      message.success(t('reviewSaved'))
+      setReviewOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ['call-analysis', selectedCall?.id || ''] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] })
+    },
+    onError: (error) => message.error(error.message),
+  })
+  const openReview = () => {
+    if (!analysis.data) return
+    let flags = analysis.data.qa_flags_json
+    try { flags = (JSON.parse(flags) as string[]).join(', ') } catch { /* keep raw value for correction */ }
+    reviewForm.setFieldsValue({
+      result_code: analysis.data.result_code,
+      intent: analysis.data.intent,
+      sentiment: analysis.data.sentiment,
+      qa_score: analysis.data.qa_score,
+      qa_flags: flags,
+      summary: analysis.data.summary,
+    })
+    setReviewOpen(true)
+  }
   const openCreate = () => { form.setFieldsValue({ mode: 'ai_handoff', max_attempts: 1 }); setModalOpen(true) }
   return (
     <>
@@ -530,12 +578,20 @@ export function CallsPage({ role }: { role: Role }) {
         <Descriptions size="small" column={1} bordered items={selectedCall ? [{ key: 'id', label: 'ID', children: selectedCall.id }, { key: 'status', label: t('status'), children: <StatusTag status={selectedCall.status} /> }, { key: 'mode', label: t('mode'), children: t(modeOptions.find((item) => item.value === selectedCall.mode)?.labelKey || selectedCall.mode) }] : []} />
         <Tabs style={{ marginTop: 16 }} items={[
           { key: 'speech', label: '结构化转写', children: <List loading={speechTurns.isLoading} dataSource={speechTurns.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag color={item.is_final ? 'blue' : 'default'}>{item.speaker_role} · {item.is_final ? '最终' : '临时'}</Tag><Text type="secondary">置信度 {item.confidence == null ? '-' : `${Math.round(item.confidence * 100)}%`}</Text></Space>} description={item.transcript || '（空转写）'} /></List.Item>} /> },
-          { key: 'analysis', label: '结果与质检', children: analysis.data ? <Descriptions bordered size="small" column={1} items={[{ key: 'result', label: '结果', children: analysis.data.result_code }, { key: 'intent', label: '意图', children: analysis.data.intent }, { key: 'sentiment', label: '情绪', children: analysis.data.sentiment }, { key: 'score', label: '质检分', children: analysis.data.qa_score }, { key: 'flags', label: '质检标记', children: analysis.data.qa_flags_json }, { key: 'summary', label: '摘要', children: analysis.data.summary }]} /> : <Empty description={analysis.isLoading ? '加载中' : t('empty')} /> },
+          { key: 'analysis', label: t('resultsAndQa'), children: analysis.data ? <Space direction="vertical" size="middle" className="full-width"><Descriptions bordered size="small" column={1} items={[{ key: 'result', label: t('callResult'), children: analysis.data.result_code }, { key: 'intent', label: t('intent'), children: analysis.data.intent }, { key: 'sentiment', label: t('sentiment'), children: analysis.data.sentiment }, { key: 'score', label: t('qaScore'), children: analysis.data.qa_score }, { key: 'flags', label: t('qaFlags'), children: analysis.data.qa_flags_json }, { key: 'review', label: t('reviewState'), children: <StatusTag status={analysis.data.review_state} /> }, { key: 'summary', label: t('summary'), children: analysis.data.summary }]} />{(role === 'admin' || user?.is_supervisor) && <Button type="primary" onClick={openReview}>{t('correctAnalysis')}</Button>}</Space> : <Empty description={analysis.isLoading ? t('loading') : t('empty')} /> },
           { key: 'recordings', label: '录音资产', children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Text>{item.media_format || 'unknown'}</Text><Text type="secondary">{item.duration_sec == null ? '-' : `${item.duration_sec}s`}</Text></Space>} description={item.storage_uri || item.provider_url} /></List.Item>} /> },
           { key: 'metrics', label: '阶段指标', children: <Table<CallMetric> size="small" rowKey="id" pagination={false} loading={metrics.isLoading} dataSource={metrics.data || []} columns={[{ title: '阶段', dataIndex: 'stage' }, { title: '耗时', dataIndex: 'duration_ms', render: (value) => value == null ? '-' : `${value} ms` }, { title: '结果', dataIndex: 'success', render: (value) => <Tag color={value ? 'success' : 'error'}>{value ? '成功' : '失败'}</Tag> }, { title: '错误码', dataIndex: 'error_code', render: (value) => value || '-' }]} /> },
           { key: 'events', label: t('events'), children: <List className="event-list" loading={events.isLoading} dataSource={events.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.event_type}</Tag><Text type="secondary">{formatDate(item.created_at)}</Text></Space>} description={<pre>{item.payload}</pre>} /></List.Item>} /> },
         ]} />
       </Drawer>
+      <Modal title={t('correctAnalysis')} open={reviewOpen} onCancel={() => setReviewOpen(false)} onOk={() => reviewForm.submit()} confirmLoading={reviewMutation.isPending} destroyOnHidden>
+        <Form<CallAnalysisReviewValues> form={reviewForm} layout="vertical" onFinish={(values) => reviewMutation.mutate(values)}>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('callResult')} name="result_code" rules={[{ required: true }]}><Select options={['interested', 'qualified_lead', 'rejected', 'completed', 'no_answer', 'busy', 'failed'].map((value) => ({ value, label: value }))} /></Form.Item></Col><Col span={12}><Form.Item label={t('intent')} name="intent" rules={[{ required: true }]}><Input /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('sentiment')} name="sentiment" rules={[{ required: true }]}><Select options={['positive', 'neutral', 'negative'].map((value) => ({ value, label: value }))} /></Form.Item></Col><Col span={12}><Form.Item label={t('qaScore')} name="qa_score" rules={[{ required: true }]}><InputNumber min={0} max={100} className="full-width" /></Form.Item></Col></Row>
+          <Form.Item label={t('qaFlags')} name="qa_flags" extra={t('qaFlagsHint')}><Input /></Form.Item>
+          <Form.Item label={t('summary')} name="summary" rules={[{ required: true }]}><Input.TextArea rows={5} /></Form.Item>
+        </Form>
+      </Modal>
     </>
   )
 }
@@ -856,7 +912,7 @@ export function AgentWorkspacePage() {
         </Col>
         <Col xs={24} xl={15}>
           <Card title={t('handoffQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void handoffQueue.refetch()}>{t('refresh')}</Button>} style={{ marginBottom: 16 }}>
-            {(handoffQueue.data || []).length ? <List dataSource={handoffQueue.data} renderItem={(item) => <List.Item actions={[<Button key="accept" type="primary" loading={respondHandoff.isPending} disabled={presenceStatus !== 'ready'} onClick={() => respondHandoff.mutate({ item, action: 'accept' })}>{t('accept')}</Button>, <Button key="reject" danger disabled={respondHandoff.isPending} onClick={() => respondHandoff.mutate({ item, action: 'reject' })}>{t('reject')}</Button>]}><List.Item.Meta title={`${t('callId')}: ${item.call_session_id}`} description={`${item.reason || '-'} · ${formatDate(item.requested_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
+            {(handoffQueue.data || []).length ? <List dataSource={handoffQueue.data} renderItem={(item) => <List.Item actions={[<Button key="accept" type="primary" loading={respondHandoff.isPending} disabled={presenceStatus !== 'ready'} onClick={() => respondHandoff.mutate({ item, action: 'accept' })}>{t('accept')}</Button>, <Button key="reject" danger disabled={respondHandoff.isPending} onClick={() => respondHandoff.mutate({ item, action: 'reject' })}>{t('reject')}</Button>]}><List.Item.Meta title={<Space>{item.phone || item.call_session_id}<StatusTag status="waiting_human" /></Space>} description={`${t('mode')}: ${t(modeOptions.find((option) => option.value === item.mode)?.labelKey || item.mode || 'unknown')} · ${t('waitedSeconds', { count: item.wait_seconds || 0 })} · ${item.reason || '-'}`} /></List.Item>} /> : <Empty description={handoffQueue.isLoading ? t('loading') : t('empty')} />}
           </Card>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
             {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={presenceStatus !== 'ready' || !['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}

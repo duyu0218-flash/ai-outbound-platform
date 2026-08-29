@@ -334,6 +334,61 @@ def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):
         assert matches and matches[0]["id"] == str(item_id)
 
 
+def test_public_runtime_and_admin_business_dashboard(client: TestClient):
+    runtime = client.get("/api/v1/runtime")
+    assert runtime.status_code == 200
+    assert runtime.json() == {"app_name": "AI-Outbound-Platform", "demo_users_enabled": True}
+    assert "password" not in runtime.text.lower()
+
+    with session_scope() as session:
+        campaign = Campaign(tenant_id=1, name="dashboard-performance", mode=CallMode.AI_HANDOFF, status="completed")
+        session.add(campaign)
+        session.flush()
+        reached = CallSession(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            phone="13800138121",
+            mode=CallMode.AI_HANDOFF,
+            status=CallStatus.COMPLETED,
+        )
+        missed = CallSession(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            phone="13800138122",
+            mode=CallMode.AI_HANDOFF,
+            status=CallStatus.NO_ANSWER,
+        )
+        session.add(reached)
+        session.add(missed)
+        session.flush()
+        session.add(
+            CallAnalysis(
+                tenant_id=1,
+                call_session_id=reached.id,
+                result_code="qualified_lead",
+                qa_score=92,
+                review_state="reviewed",
+            )
+        )
+        session.commit()
+        campaign_id = campaign.id
+
+    token = _login(client, "admin")
+    response = client.get("/api/v1/admin/dashboard?days=30", headers=_bearer(token))
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["period"]["calls"] >= 2
+    assert payload["period"]["reached"] >= 1
+    assert payload["period"]["interested"] >= 1
+    assert payload["period"]["reach_rate"] >= 0
+    row = next(item for item in payload["campaign_performance"] if item["campaign_id"] == campaign_id)
+    assert row["calls"] == 2
+    assert row["reached"] == 1
+    assert row["interested"] == 1
+    assert row["reach_rate"] == 50.0
+    assert row["interest_rate"] == 100.0
+
+
 def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypatch):
     token = _login(client, "admin")
     headers = _bearer(token)
@@ -372,7 +427,10 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
     )
     queued = client.get("/api/v1/handoffs?state=waiting", headers=headers)
     assert queued.status_code == 200
-    assert any(item["id"] == handoff_id for item in queued.json())
+    queued_item = next(item for item in queued.json() if item["id"] == handoff_id)
+    assert queued_item["phone"] == "13800138103"
+    assert queued_item["mode"] == "human_only"
+    assert queued_item["wait_seconds"] >= 0
     accepted = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["state"] == "accepted"
