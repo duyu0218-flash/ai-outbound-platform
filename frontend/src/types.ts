@@ -276,6 +276,9 @@ export interface SystemOverview {
   operations: {
     durable_tasks: Record<string, number>
     average_ai_turn_ms?: number
+    stale_processing_tasks: number
+    oldest_open_task_age_sec: number
+    recording_deletion_failures: number
   }
   generated_at: string
 }

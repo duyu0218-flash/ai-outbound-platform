@@ -7,17 +7,18 @@ from sqlmodel import select
 from ..clock import utc_now
 from ..config import get_settings
 from ..db import session_scope
-from ..models import RecordingAsset, SpeechTurn
+from ..models import RecordingAsset, SpeechTurn, TaskState
+from .task_queue import enqueue_task
 
 settings = get_settings()
 
 
 def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
-    """Purge transient ASR text and tombstone expired recording locations."""
+    """Purge transient ASR text and queue durable recording deletion."""
     now = utc_now()
     partial_cutoff = now - timedelta(hours=max(1, settings.partial_transcript_retention_hours))
     deleted_partials = 0
-    tombstoned_recordings = 0
+    queued_recordings = 0
     with session_scope() as session:
         partials = session.exec(
             select(SpeechTurn)
@@ -39,12 +40,25 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
             .limit(max(1, batch_size))
         ).all()
         for asset in recordings:
-            asset.provider_url = ""
-            asset.storage_uri = ""
-            asset.state = "deleted"
-            asset.deleted_at = now
+            asset.state = "deletion_pending"
             asset.updated_at = now
             session.add(asset)
-            tombstoned_recordings += 1
+            task = enqueue_task(
+                session,
+                tenant_id=asset.tenant_id,
+                task_type="recording_delete",
+                aggregate_id=str(asset.id),
+                idempotency_key=f"recording-delete:{asset.id}",
+                payload={"recording_asset_id": asset.id},
+            )
+            if task.state == TaskState.DEAD:
+                asset.state = "deletion_failed"
+                session.add(asset)
+            else:
+                queued_recordings += 1
         session.commit()
-    return {"partial_transcripts": deleted_partials, "recordings": tombstoned_recordings}
+    return {
+        "partial_transcripts": deleted_partials,
+        "recordings": queued_recordings,
+        "recording_deletion_tasks": queued_recordings,
+    }

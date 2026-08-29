@@ -24,15 +24,16 @@ async def deliver_business_callback(
     call_id,
     event_type: str,
     data: dict[str, Any],
-) -> None:
+    raise_on_failure: bool = False,
+) -> bool:
     with session_scope() as session:
         config = get_admin_setting(session, tenant_id, "integration")
         callback_url = str(config.get("webhook_base_url") or "").strip()
         if not config.get("callback_enabled", False) or not callback_url:
-            return
+            return True
         call = session.get(CallSession, call_id)
         if call is None or call.tenant_id != tenant_id:
-            return
+            return True
         payload = {
             "event": event_type,
             "tenant_id": tenant_id,
@@ -91,3 +92,6 @@ async def deliver_business_callback(
             )
         )
         session.commit()
+    if last_error is not None and raise_on_failure:
+        raise RuntimeError(str(last_error)) from last_error
+    return last_error is None

@@ -4,30 +4,32 @@ import asyncio
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, delete, inspect, text
 from sqlmodel import select
 
 
 TEST_DB = Path("/tmp/ai-outbound-pytest.db")
-TEST_DB.unlink(missing_ok=True)
-os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
-os.environ["REDIS_URL"] = ""
-os.environ["RATE_LIMIT_ENABLED"] = "false"
-os.environ["DEMO_USERS_ENABLED"] = "true"
-os.environ["TELEPHONY_WEBHOOK_BASE"] = "http://127.0.0.1:9"
-os.environ["TELEPHONY_TIMEOUT_SEC"] = "1"
-os.environ["TELEPHONY_RETRY_TIMES"] = "0"
-os.environ["SCHEDULER_ENABLED"] = "false"
+if "DATABASE_URL" not in os.environ:
+    TEST_DB.unlink(missing_ok=True)
+    os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
+os.environ.setdefault("REDIS_URL", "")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("DEMO_USERS_ENABLED", "true")
+os.environ.setdefault("TELEPHONY_WEBHOOK_BASE", "http://127.0.0.1:9")
+os.environ.setdefault("TELEPHONY_TIMEOUT_SEC", "1")
+os.environ.setdefault("TELEPHONY_RETRY_TIMES", "0")
+os.environ.setdefault("SCHEDULER_ENABLED", "false")
 
 from app.db import session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app import main as app_main  # noqa: E402
 from app.models import (  # noqa: E402
+    AdminSetting,
     Campaign,
     CallAnalysis,
     CallEvent,
@@ -53,7 +55,12 @@ from app.services import business_callbacks  # noqa: E402
 from app.services.knowledge import retrieve_knowledge  # noqa: E402
 from app.services.retention import purge_expired_voice_data  # noqa: E402
 from app.services.script_flow import FlowValidationError, validate_graph  # noqa: E402
-from app.services.task_queue import enqueue_task, process_task  # noqa: E402
+from app.services.task_queue import (  # noqa: E402
+    enqueue_business_callback,
+    enqueue_task,
+    process_pending_tasks,
+    process_task,
+)
 from app.schemas import ScriptFlowGraph  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
@@ -70,6 +77,16 @@ from app.services.call_service import (  # noqa: E402
 def client():
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def reset_runtime_settings_after_test():
+    """Keep runtime settings from coupling otherwise independent tests."""
+
+    yield
+    with session_scope() as session:
+        session.exec(delete(AdminSetting))
+        session.commit()
 
 
 def _login(client: TestClient, username: str, password: str = "12345678") -> str:
@@ -428,8 +445,121 @@ async def test_durable_ai_task_is_idempotent_and_completes(monkeypatch):
         assert task is not None and task.state == TaskState.COMPLETED
 
 
-def test_retention_purges_partial_text_and_tombstones_recording(monkeypatch):
+@pytest.mark.asyncio
+async def test_scheduler_reclaims_stale_processing_task(monkeypatch):
+    called: list[str] = []
+
+    async def fake_run_ai_turn(*, call_id, transcript, durable=False):
+        called.append(str(call_id))
+
+    monkeypatch.setattr("app.services.dispatcher.run_ai_turn", fake_run_ai_turn)
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138993", mode=CallMode.AI_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        task = enqueue_task(
+            session,
+            tenant_id=1,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"stale-ai:{call.id}",
+            payload={"call_id": str(call.id), "transcript": "recover"},
+        )
+        task.state = TaskState.PROCESSING
+        task.attempts = 1
+        task.locked_at = utc_now() - timedelta(minutes=6)
+        session.add(task)
+        session.commit()
+        task_id = task.id
+
+    assert await process_pending_tasks(batch_size=10) == 1
+    assert len(called) == 1
+    with session_scope() as session:
+        recovered = session.get(TaskOutbox, task_id)
+        assert recovered is not None
+        assert recovered.state == TaskState.COMPLETED
+        assert recovered.attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_scheduler_marks_crashed_final_attempt_dead(monkeypatch):
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138996", mode=CallMode.AI_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        task = enqueue_task(
+            session,
+            tenant_id=1,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"exhausted-ai:{call.id}",
+            payload={"call_id": str(call.id), "transcript": "final attempt"},
+            max_attempts=1,
+        )
+        task.state = TaskState.PROCESSING
+        task.attempts = 1
+        task.locked_at = utc_now() - timedelta(minutes=6)
+        session.add(task)
+        session.commit()
+        task_id = task.id
+        call_id = call.id
+
+    assert await process_pending_tasks(batch_size=10) == 0
+    with session_scope() as session:
+        exhausted = session.get(TaskOutbox, task_id)
+        failed_call = session.get(CallSession, call_id)
+        assert exhausted is not None and exhausted.state == TaskState.DEAD
+        assert exhausted.locked_at is None
+        assert failed_call is not None and failed_call.status == CallStatus.FAILED
+
+
+@pytest.mark.asyncio
+async def test_business_callback_task_is_durable_and_idempotent(monkeypatch):
+    delivered: list[str] = []
+
+    async def fake_delivery(*, call_id, raise_on_failure=False, **_):
+        assert raise_on_failure is True
+        delivered.append(str(call_id))
+        return True
+
+    monkeypatch.setattr("app.services.business_callbacks.deliver_business_callback", fake_delivery)
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138994", mode=CallMode.HUMAN_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        first = enqueue_business_callback(
+            session,
+            tenant_id=1,
+            call_id=call.id,
+            event_type="call.status",
+            data={"status": "completed"},
+        )
+        duplicate = enqueue_business_callback(
+            session,
+            tenant_id=1,
+            call_id=call.id,
+            event_type="call.status",
+            data={"status": "completed"},
+        )
+        assert first.id == duplicate.id
+        task_id = first.id
+
+    assert await process_task(task_id) is True
+    assert await process_task(task_id) is False
+    assert len(delivered) == 1
+
+
+@pytest.mark.asyncio
+async def test_retention_purges_partial_text_and_tombstones_recording(monkeypatch):
     monkeypatch.setattr("app.services.retention.settings.partial_transcript_retention_hours", 1)
+    deleted_assets: list[int] = []
+    monkeypatch.setattr(
+        "app.services.recording_storage.delete_recording_asset",
+        lambda asset: deleted_assets.append(asset.id),
+    )
     with session_scope() as session:
         call = CallSession(tenant_id=1, phone="13800138992", mode=CallMode.HUMAN_ONLY)
         session.add(call)
@@ -462,9 +592,125 @@ def test_retention_purges_partial_text_and_tombstones_recording(monkeypatch):
     with session_scope() as session:
         recording = session.get(RecordingAsset, recording_id)
         assert recording is not None
+        assert recording.state == "deletion_pending"
+        assert recording.provider_url
+        assert recording.storage_uri
+    assert await process_pending_tasks(batch_size=100) >= 1
+    with session_scope() as session:
+        recording = session.get(RecordingAsset, recording_id)
+        assert recording is not None
         assert recording.state == "deleted"
         assert recording.provider_url == ""
         assert recording.storage_uri == ""
+        assert recording.deleted_at is not None
+    assert recording_id in deleted_assets
+
+
+@pytest.mark.asyncio
+async def test_retention_preserves_location_when_remote_deletion_fails(monkeypatch):
+    from app.services.recording_storage import RecordingDeletionError
+
+    def fail_delete(_asset):
+        raise RecordingDeletionError("storage unavailable")
+
+    monkeypatch.setattr("app.services.recording_storage.delete_recording_asset", fail_delete)
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138995", mode=CallMode.HUMAN_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        recording = RecordingAsset(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_url="https://example.invalid/keep.wav",
+            storage_uri="s3://bucket/keep.wav",
+            retention_until=utc_now() - timedelta(seconds=1),
+        )
+        session.add(recording)
+        session.commit()
+        session.refresh(recording)
+        recording_id = recording.id
+
+    result = purge_expired_voice_data()
+    assert result["recording_deletion_tasks"] >= 1
+    with session_scope() as session:
+        task = session.exec(
+            select(TaskOutbox).where(
+                TaskOutbox.task_type == "recording_delete",
+                TaskOutbox.aggregate_id == str(recording_id),
+            )
+        ).one()
+        task.max_attempts = 1
+        session.add(task)
+        session.commit()
+    assert await process_pending_tasks(batch_size=100) == 0
+    with session_scope() as session:
+        preserved = session.get(RecordingAsset, recording_id)
+        task = session.exec(
+            select(TaskOutbox).where(
+                TaskOutbox.task_type == "recording_delete",
+                TaskOutbox.aggregate_id == str(recording_id),
+            )
+        ).one()
+        assert preserved is not None
+        assert preserved.state == "deletion_failed"
+        assert preserved.deleted_at is None
+        assert preserved.provider_url == "https://example.invalid/keep.wav"
+        assert preserved.storage_uri == "s3://bucket/keep.wav"
+        assert task.state == TaskState.DEAD
+
+
+def test_recording_storage_adapter_requires_remote_confirmation(monkeypatch):
+    from app.services import recording_storage
+    from app.services.recording_storage import RecordingDeletionError
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        content = b'{"deleted":true}'
+        headers = {"content-type": "application/json"}
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"deleted": True}
+
+    class FakeClient:
+        def __init__(self, *, timeout):
+            captured["timeout"] = timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def post(self, endpoint, *, headers, json):
+            captured.update({"endpoint": endpoint, "headers": headers, "payload": json})
+            return FakeResponse()
+
+    monkeypatch.setattr(recording_storage.settings, "recording_delete_endpoint", "https://storage.example/delete")
+    monkeypatch.setattr(recording_storage.settings, "recording_delete_service_token", "recording-delete-token")
+    monkeypatch.setattr(recording_storage.httpx, "Client", FakeClient)
+    asset = RecordingAsset(
+        tenant_id=1,
+        call_session_id=uuid4(),
+        provider_recording_id="provider-recording-1",
+        provider_url="https://provider.example/audio.wav",
+        storage_uri="s3://bucket/audio.wav",
+    )
+    recording_storage.delete_recording_asset(asset)
+    assert captured["endpoint"] == "https://storage.example/delete"
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer recording-delete-token",
+    }
+    assert captured["payload"]["provider_recording_id"] == "provider-recording-1"
+
+    monkeypatch.setattr(recording_storage.settings, "recording_delete_endpoint", "")
+    with pytest.raises(RecordingDeletionError, match="not configured"):
+        recording_storage.delete_recording_asset(asset)
 
 
 def test_pages_login_and_server_key_not_exposed(client: TestClient):
@@ -943,6 +1189,9 @@ async def test_admin_capacity_setting_takes_effect_without_restart(client: TestC
     assert overview.status_code == 200, overview.text
     assert overview.json()["capacity"]["configured_max_concurrent_calls"] == 1
     assert overview.json()["capacity"]["effective_max_concurrent_calls"] == 1
+    assert overview.json()["operations"]["stale_processing_tasks"] >= 0
+    assert overview.json()["operations"]["oldest_open_task_age_sec"] >= 0
+    assert overview.json()["operations"]["recording_deletion_failures"] >= 0
 
     class CapturingAdapter:
         async def dial(self, *, call_id, phone, webhook_url, metadata):

@@ -36,7 +36,7 @@ from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
 from .admin_settings import get_admin_setting
-from .business_callbacks import deliver_business_callback
+from .task_queue import enqueue_business_callback, process_task
 from .knowledge import retrieve_knowledge
 from .script_flow import load_graph, simulate
 
@@ -222,7 +222,7 @@ async def append_event(
     event_type: str,
     source: str,
     payload: Dict[str, Any],
-) -> None:
+) -> CallEvent:
     event = CallEvent(
         call_session_id=call_id,
         event_type=event_type,
@@ -231,6 +231,8 @@ async def append_event(
     )
     session.add(event)
     session.commit()
+    session.refresh(event)
+    return event
 
 
 async def run_ai_turn(
@@ -479,7 +481,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
 
     session.add(call)
     session.commit()
-    await append_event(
+    decision_event = await append_event(
         session=session,
         call_id=call.id,
         event_type="ai_decision",
@@ -494,7 +496,8 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             "resulting_status": call.status.value,
         },
     )
-    await deliver_business_callback(
+    callback_task = enqueue_business_callback(
+        session,
         tenant_id=call.tenant_id,
         call_id=call.id,
         event_type="call.ai_decision",
@@ -504,7 +507,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             "tts_dispatched": bool(result.tts_text),
             "resulting_status": call.status.value,
         },
+        idempotency_key=f"callback:ai-decision:{decision_event.id}",
     )
+    await process_task(callback_task.id)
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:

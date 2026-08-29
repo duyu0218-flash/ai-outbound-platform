@@ -7,6 +7,7 @@ __pycache__/
 .DS_Store
 .env
 venv/
+.venv/
 node_modules/
 .pnpm-store/
 *.tsbuildinfo
@@ -16,4 +17,7 @@ backend/app/static/
 artifacts/
 frontend/vite.config.js
 frontend/vite.config.d.ts
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
 *.egg-info/
