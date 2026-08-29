@@ -7,6 +7,7 @@ from .script_templates import router as script_templates_router
 from .pages import router as pages_router
 from .admin_management import router as admin_management_router
 from .voice_operations import router as voice_operations_router
+from .script_flows import router as script_flows_router
 
 __all__ = [
     "calls_router",
@@ -18,4 +19,5 @@ __all__ = [
     "pages_router",
     "admin_management_router",
     "voice_operations_router",
+    "script_flows_router",
 ]

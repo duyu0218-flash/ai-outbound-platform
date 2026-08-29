@@ -20,6 +20,7 @@ from .api.routers import (
     campaigns_router,
     contacts_router,
     script_templates_router,
+    script_flows_router,
     pages_router,
     webhooks_router,
     voice_operations_router,
@@ -276,6 +277,7 @@ app.include_router(contacts_router)
 app.include_router(webhooks_router)
 app.include_router(auth_router)
 app.include_router(script_templates_router)
+app.include_router(script_flows_router)
 app.include_router(admin_management_router)
 app.include_router(voice_operations_router)
 app.include_router(pages_router)

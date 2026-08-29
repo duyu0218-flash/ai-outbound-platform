@@ -34,6 +34,7 @@ class CampaignCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     script: str = Field(default="", max_length=50_000)
     script_template_id: Optional[int] = None
+    script_flow_version_id: Optional[int] = None
     mode: CallMode
     concurrency: int = Field(default=5, ge=1, le=10_000)
     retry_limit: int = Field(default=1, ge=1, le=10)
@@ -174,6 +175,8 @@ class CallSessionOut(BaseModel):
     attempts: int
     max_attempts: int
     campaign_id: Optional[int] = None
+    script_flow_version_id: Optional[int] = None
+    flow_node_key: Optional[str] = None
     contact_id: Optional[int] = None
     handoff_reason: Optional[str] = None
     human_agent_id: Optional[int] = None
@@ -474,6 +477,72 @@ class ScriptTemplateOut(ScriptTemplateCreate):
     created_by: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class FlowPosition(BaseModel):
+    x: float = Field(ge=0, le=5000)
+    y: float = Field(ge=0, le=5000)
+
+
+class FlowNode(BaseModel):
+    id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+    type: str = Field(pattern=r"^(start|message|listen|handoff|hangup)$")
+    label: str = Field(min_length=1, max_length=200)
+    prompt: str = Field(default="", max_length=20_000)
+    position: FlowPosition
+
+
+class FlowEdge(BaseModel):
+    id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+    source: str = Field(min_length=1, max_length=128)
+    target: str = Field(min_length=1, max_length=128)
+    condition: str = Field(default="always", pattern=r"^(always|keyword|silence)$")
+    keywords: List[str] = Field(default_factory=list, max_length=50)
+
+
+class ScriptFlowGraph(BaseModel):
+    nodes: List[FlowNode] = Field(default_factory=list, max_length=200)
+    edges: List[FlowEdge] = Field(default_factory=list, max_length=500)
+
+
+class ScriptFlowCreate(BaseModel):
+    name: str = Field(default="", max_length=200)
+    description: str = Field(default="", max_length=2000)
+    clone_version_id: Optional[int] = None
+
+
+class ScriptFlowUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    graph: ScriptFlowGraph
+
+
+class ScriptFlowOut(BaseModel):
+    id: int
+    tenant_id: int
+    script_template_id: int
+    version: int
+    name: str
+    description: str
+    status: str
+    graph: ScriptFlowGraph
+    published_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ScriptFlowSimulateRequest(BaseModel):
+    current_node_id: Optional[str] = None
+    transcript: str = Field(default="", max_length=20_000)
+    silence: bool = False
+
+
+class ScriptFlowSimulateOut(BaseModel):
+    current_node_id: str
+    next_node_id: Optional[str] = None
+    action: str
+    prompt: str = ""
+    matched_edge_id: Optional[str] = None
 
 
 class AdminUserCreate(BaseModel):

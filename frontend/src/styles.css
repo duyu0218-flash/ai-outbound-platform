@@ -46,6 +46,23 @@ button, input, textarea, select { font: inherit; }
 .full-width { width: 100%; }
 .script-card { height: 100%; }
 .script-preview { min-height: 88px; margin-top: 16px; white-space: pre-wrap; }
+.flow-designer { height: 100%; display: flex; flex-direction: column; }
+.flow-toolbar { height: 56px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e8edf5; }
+.flow-workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: 112px minmax(600px, 1fr) 260px; }
+.flow-palette, .flow-inspector { padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #fafcff; overflow-y: auto; }
+.flow-palette { border-right: 1px solid #e8edf5; }
+.flow-inspector { border-left: 1px solid #e8edf5; }
+.flow-canvas { position: relative; overflow: auto; min-height: 560px; background-color: #f7f9fc; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; }
+.flow-lines { position: absolute; inset: 0; width: 1400px; height: 900px; pointer-events: none; }
+.flow-lines line { stroke: #8aa4d8; stroke-width: 2; }
+.flow-lines text { fill: #64748b; font-size: 11px; }
+.flow-node { position: absolute; width: 152px; height: 60px; padding: 8px 12px; border: 2px solid #b8c9eb; border-radius: 10px; color: #1c315e; background: white; box-shadow: 0 5px 16px rgba(26, 53, 100, .1); cursor: move; text-align: left; }
+.flow-node span { display: block; margin-top: 3px; color: #7b8ba8; font-size: 11px; }
+.flow-node.selected { border-color: #2f6bff; box-shadow: 0 0 0 3px rgba(47,107,255,.14); }
+.flow-node-start { border-radius: 30px; background: #edf8f3; border-color: #69c397; }
+.flow-node-handoff { background: #fff8e8; border-color: #e8b24e; }
+.flow-node-hangup { background: #fff0f0; border-color: #e47777; }
+.flow-edge-form { margin-top: 12px; padding-top: 14px; border-top: 1px solid #e8edf5; }
 .event-list { margin-top: 20px; }
 .event-list pre { white-space: pre-wrap; word-break: break-word; margin: 4px 0 0; background: #f7f9fc; border-radius: 8px; padding: 10px; }
 .dialer-card { margin-bottom: 16px; }

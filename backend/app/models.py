@@ -114,6 +114,7 @@ class Campaign(SQLModel, table=True):
     name: str
     script: str = ""
     script_template_id: Optional[int] = Field(default=None, foreign_key="scripttemplate.id")
+    script_flow_version_id: Optional[int] = Field(default=None, foreign_key="scriptflowversion.id")
     mode: CallMode = Field(default=CallMode.AI_HANDOFF)
     concurrency: int = 5
     retry_limit: int = 1
@@ -150,10 +151,31 @@ class ScriptTemplate(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class ScriptFlowVersion(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("script_template_id", "version", name="uq_script_flow_template_version"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    script_template_id: int = Field(index=True, foreign_key="scripttemplate.id")
+    version: int = Field(default=1)
+    name: str = ""
+    description: str = ""
+    status: str = Field(default="draft", index=True, max_length=32)
+    graph_json: str = "{}"
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    published_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class CallSession(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     campaign_id: Optional[int] = Field(default=None, foreign_key="campaign.id")
+    script_flow_version_id: Optional[int] = Field(default=None, foreign_key="scriptflowversion.id")
+    flow_node_key: Optional[str] = Field(default=None, max_length=128)
     contact_id: Optional[int] = Field(default=None, foreign_key="contact.id")
     phone: str
     mode: CallMode

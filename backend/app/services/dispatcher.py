@@ -20,6 +20,7 @@ from ..models import (
     HandoffRequest,
     RealtimeSession,
     RealtimeState,
+    ScriptFlowVersion,
     SmsLog,
     User,
 )
@@ -29,8 +30,36 @@ from .call_service import resolve_campaign_script
 from .admin_settings import get_admin_setting
 from .business_callbacks import deliver_business_callback
 from .knowledge import retrieve_knowledge
+from .script_flow import load_graph, simulate
 
 settings = get_settings()
+
+
+def _run_script_flow_turn(*, session, call: CallSession, transcript: str) -> AiTurnResult | None:
+    if call.script_flow_version_id is None:
+        return None
+    version = session.get(ScriptFlowVersion, call.script_flow_version_id)
+    if not version or version.tenant_id != call.tenant_id or version.status != "published":
+        raise RuntimeError("bound script flow version is unavailable")
+    graph = load_graph(version.graph_json)
+    decision = simulate(graph, call.flow_node_key, transcript, silence=not transcript.strip())
+    node_map = {node.id: node for node in graph.nodes}
+    current = node_map.get(decision.current_node_id)
+    target = node_map.get(decision.next_node_id or "")
+    # A customer may respond immediately after a message. Advance through the
+    # deterministic message->listen edge, then evaluate that same transcript
+    # against the listen node so the first answer is never discarded.
+    if transcript.strip() and current and current.type in {"start", "message"} and target and target.type == "listen":
+        decision = simulate(graph, target.id, transcript, silence=False)
+    call.flow_node_key = decision.next_node_id or decision.current_node_id
+    action = decision.action
+    if action in {"wait", "listen", "continue"}:
+        action = "continue"
+    return AiTurnResult(
+        action=action,
+        tts_text=decision.prompt or None,
+        handoff_to_human=action == "handoff",
+    )
 
 
 async def request_ai_turn(
@@ -104,40 +133,45 @@ async def run_ai_turn(
         try:
             ai_started = perf_counter()
             ai_config = get_admin_setting(session, call.tenant_id, "ai")
-            if not ai_config.get("enabled", True):
-                raise RuntimeError("AI service is disabled for tenant")
-            campaign_script = resolve_campaign_script(
-                session,
-                tenant_id=call.tenant_id,
-                campaign_id=call.campaign_id,
-            )
             campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
             language = str(ai_config.get("language") or "zh-CN")
-            knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
-            result = await request_ai_turn(
-                call_id=str(call.id),
-                phone=call.phone,
-                mode=call.mode.value,
-                script=campaign_script,
-                transcript=transcript,
-                context={
-                    "campaign_id": call.campaign_id,
-                    "tenant_id": call.tenant_id,
-                    "language": language,
-                    "recording_enabled": campaign.recording_enabled if campaign else True,
-                    "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
-                    "llm_provider": str(ai_config.get("llm_provider") or "rule"),
-                    "llm_model": str(ai_config.get("llm_model") or ""),
-                    "knowledge": knowledge,
-                },
-                agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
-            )
+            result = _run_script_flow_turn(session=session, call=call, transcript=transcript)
+            provider = "script_flow"
+            knowledge: list[dict[str, Any]] = []
+            if result is None:
+                if not ai_config.get("enabled", True):
+                    raise RuntimeError("AI service is disabled for tenant")
+                campaign_script = resolve_campaign_script(
+                    session,
+                    tenant_id=call.tenant_id,
+                    campaign_id=call.campaign_id,
+                )
+                knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
+                provider = str(ai_config.get("llm_provider") or "rule")
+                result = await request_ai_turn(
+                    call_id=str(call.id),
+                    phone=call.phone,
+                    mode=call.mode.value,
+                    script=campaign_script,
+                    transcript=transcript,
+                    context={
+                        "campaign_id": call.campaign_id,
+                        "tenant_id": call.tenant_id,
+                        "language": language,
+                        "recording_enabled": campaign.recording_enabled if campaign else True,
+                        "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
+                        "llm_provider": str(ai_config.get("llm_provider") or "rule"),
+                        "llm_model": str(ai_config.get("llm_model") or ""),
+                        "knowledge": knowledge,
+                    },
+                    agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
+                )
             session.add(
                 CallMetric(
                     tenant_id=call.tenant_id,
                     call_session_id=call.id,
                     stage="ai.turn",
-                    provider=str(ai_config.get("llm_provider") or "rule"),
+                    provider=provider,
                     duration_ms=int((perf_counter() - ai_started) * 1000),
                     success=True,
                     detail=f"knowledge_hits={len(knowledge)}",

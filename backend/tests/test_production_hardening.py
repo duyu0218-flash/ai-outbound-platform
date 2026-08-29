@@ -76,6 +76,101 @@ def _bearer(token: str, **extra: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", **extra}
 
 
+def test_script_flow_version_publish_bind_and_simulate(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    template_response = client.post(
+        "/api/v1/script-templates",
+        headers=headers,
+        json={"name": "flow acceptance", "content": "您好，这是开场白。", "category": "acceptance"},
+    )
+    assert template_response.status_code == 200, template_response.text
+    template_id = template_response.json()["id"]
+
+    created = client.post(
+        f"/api/v1/script-templates/{template_id}/flows",
+        headers=headers,
+        json={"name": "acceptance v1"},
+    )
+    assert created.status_code == 200, created.text
+    flow = created.json()
+    assert flow["status"] == "draft"
+    assert len(flow["graph"]["nodes"]) == 4
+
+    graph = flow["graph"]
+    graph["edges"][-1] = {
+        "id": "e-listen-hangup",
+        "source": "listen",
+        "target": "hangup",
+        "condition": "keyword",
+        "keywords": ["不用了"],
+    }
+    saved = client.put(
+        f"/api/v1/script-templates/{template_id}/flows/{flow['id']}",
+        headers=headers,
+        json={"name": "acceptance v1", "graph": graph},
+    )
+    assert saved.status_code == 200, saved.text
+    published = client.post(
+        f"/api/v1/script-templates/{template_id}/flows/{flow['id']}/publish",
+        headers=headers,
+    )
+    assert published.status_code == 200, published.text
+    assert published.json()["status"] == "published"
+
+    simulated = client.post(
+        f"/api/v1/script-templates/{template_id}/flows/{flow['id']}/simulate",
+        headers=headers,
+        json={"current_node_id": "listen", "transcript": "不用了，谢谢"},
+    )
+    assert simulated.status_code == 200, simulated.text
+    assert simulated.json()["action"] == "hangup"
+
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={
+            "name": "flow campaign",
+            "script_template_id": template_id,
+            "script_flow_version_id": flow["id"],
+            "mode": "ai_handoff",
+            "contact_ids": [],
+        },
+    )
+    assert campaign.status_code == 200, campaign.text
+    assert campaign.json()["script_flow_version_id"] == flow["id"]
+
+    with session_scope() as session:
+        call = CallSession(
+            tenant_id=1,
+            campaign_id=campaign.json()["id"],
+            phone="13800138222",
+            mode=CallMode.AI_HANDOFF,
+            status=CallStatus.ANSWERED,
+            script_flow_version_id=flow["id"],
+            flow_node_key="start",
+        )
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        opening = dispatcher._run_script_flow_turn(session=session, call=call, transcript="")
+        assert opening is not None
+        assert opening.action == "speak"
+        assert opening.tts_text == "您好，这是开场白。"
+        assert call.flow_node_key == "opening"
+        ending = dispatcher._run_script_flow_turn(session=session, call=call, transcript="不用了，谢谢")
+        assert ending is not None
+        assert ending.action == "hangup"
+        assert call.flow_node_key == "hangup"
+
+    immutable = client.put(
+        f"/api/v1/script-templates/{template_id}/flows/{flow['id']}",
+        headers=headers,
+        json={"graph": graph},
+    )
+    assert immutable.status_code == 409
+
+
 def test_utc_now_preserves_naive_database_contract():
     before = datetime.now(UTC).replace(tzinfo=None)
     value = utc_now()

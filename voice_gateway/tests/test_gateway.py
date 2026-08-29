@@ -1,0 +1,38 @@
+import struct
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+from app.rtp import RtpPacket, pcma_to_pcm16, pcm16_to_pcma, pcm16_to_pcmu, pcmu_to_pcm16
+
+
+def test_health_and_call_contract():
+    with TestClient(app) as client:
+        assert client.get("/readyz").status_code == 200
+        result = client.post("/v1/call/speak", json={"call_id": "c-1", "text": "hello"})
+        assert result.status_code == 200
+        assert result.json()["action"] == "speak"
+
+
+def test_rtp_packet_round_trip():
+    packet = RtpPacket(payload_type=0, sequence=65537, timestamp=160, ssrc=42, payload=b"abc", marker=True)
+    decoded = RtpPacket.decode(packet.encode())
+    assert decoded.sequence == 1
+    assert decoded.payload == b"abc"
+    assert decoded.marker is True
+
+
+def test_pcmu_codec_shape_and_sign():
+    pcm = struct.pack("<hhh", -1000, 0, 1000)
+    encoded = pcm16_to_pcmu(pcm)
+    decoded = struct.unpack("<hhh", pcmu_to_pcm16(encoded))
+    assert len(encoded) == 3
+    assert decoded[0] < 0 < decoded[2]
+
+
+def test_pcma_codec_shape_and_sign():
+    pcm = struct.pack("<hhh", -1000, 0, 1000)
+    encoded = pcm16_to_pcma(pcm)
+    decoded = struct.unpack("<hhh", pcma_to_pcm16(encoded))
+    assert len(encoded) == 3
+    assert decoded[0] < 0 < decoded[2]
