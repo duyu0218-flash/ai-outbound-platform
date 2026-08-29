@@ -1,4 +1,5 @@
 from typing import List
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
@@ -18,8 +19,18 @@ router = APIRouter(
 )
 
 
+def _validate_timezone(value: str | None) -> None:
+    if not value:
+        return
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid contact timezone")
+
+
 @router.post("", response_model=ContactOut)
 def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_id_for_request), session: Session = Depends(get_session)):
+    _validate_timezone(payload.timezone)
     normalized_phone = normalize_phone(payload.phone)
     if not 6 <= len(normalized_phone) <= 15:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="phone must contain 6 to 15 digits")
@@ -89,6 +100,8 @@ def patch_contact(
     if not contact or contact.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
     data = payload.dict(exclude_unset=True)
+    if "timezone" in data:
+        _validate_timezone(data["timezone"])
     for k, v in data.items():
         setattr(contact, k, v)
     if payload.consent_state is not None:

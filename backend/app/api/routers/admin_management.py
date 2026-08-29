@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -29,7 +30,7 @@ from ...services.auth import hash_password
 from ...services.admin_settings import SETTING_DEFAULTS, get_admin_setting, get_tenant_max_concurrent_calls
 from ...services.call_service import CAPACITY_STATUSES
 from ...services.health import ai_agent_health_check, db_health_check, redis_health_check, tenant_telephony_health_check
-from ...services.telephony import get_sms_adapter, get_tenant_telephony_line, with_retry
+from ...services.telephony import get_sms_adapter, list_tenant_telephony_lines, with_retry
 
 
 router = APIRouter(
@@ -207,7 +208,7 @@ def list_lines(
     return session.exec(
         select(TelephonyLine)
         .where(TelephonyLine.tenant_id == current.tenant_id)
-        .order_by(TelephonyLine.created_at.desc())
+        .order_by(TelephonyLine.priority.asc(), TelephonyLine.created_at.asc())
     ).all()
 
 
@@ -346,14 +347,41 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
         start = merged["allowed_start_hour"]
         end = merged["allowed_end_hour"]
         attempts = merged["max_attempts_per_day"]
-        if not isinstance(start, int) or not isinstance(end, int) or not (0 <= start <= 23 and 0 <= end <= 23 and start < end):
+        if not isinstance(start, int) or not isinstance(end, int) or not (0 <= start <= 23 and 0 <= end <= 23):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid allowed calling hours")
         if not isinstance(attempts, int) or not 1 <= attempts <= 20:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max attempts per day")
+        try:
+            ZoneInfo(str(merged["timezone"]))
+        except ZoneInfoNotFoundError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid compliance timezone")
     if section == "integration":
         timeout = merged["webhook_timeout_sec"]
         if not isinstance(timeout, int) or not 1 <= timeout <= 120:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid webhook timeout")
+        retry_times = merged["webhook_retry_times"]
+        retry_backoff = merged["webhook_retry_backoff_sec"]
+        if not isinstance(retry_times, int) or not 0 <= retry_times <= 10:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid webhook retry times")
+        if not isinstance(retry_backoff, int) or not 1 <= retry_backoff <= 60:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid webhook retry backoff")
+        secret_ref = str(merged["webhook_secret_ref"])
+        if secret_ref and (not secret_ref.replace("_", "").isalnum() or secret_ref.upper() != secret_ref):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid webhook secret reference")
+        if merged["callback_enabled"] and not str(merged["webhook_base_url"]).strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="enabled callback requires webhook_base_url")
+        if settings.env.lower() in {"prod", "production"} and merged["callback_enabled"] and not secret_ref:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="production callback requires a signing secret reference")
+    if section == "ai":
+        if merged["llm_provider"] not in {"rule", "openai-compatible"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported llm provider")
+        if merged["enabled"] and not str(merged["agent_url"]).strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="enabled AI requires agent_url")
+    if section == "sms":
+        if merged["provider"] not in {"mock", "http"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported SMS provider")
+        if merged["enabled"] and merged["provider"] == "http" and not str(merged["endpoint"]).strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP SMS provider requires endpoint")
     if section == "capacity":
         max_calls = merged["max_concurrent_calls"]
         if not isinstance(max_calls, int) or not 1 <= max_calls <= 10_000:
@@ -438,12 +466,12 @@ def system_overview(
             CallSession.status.in_(CAPACITY_STATUSES),
         )
     ).one()
-    line = (
-        get_tenant_telephony_line(session, tenant_id)
-        if (settings.telephony_provider or "mock").strip().lower() == "tenant"
+    enabled_lines = list_tenant_telephony_lines(session, tenant_id)
+    line_capacity = (
+        sum(max(1, int(line.max_concurrency)) for line in enabled_lines)
+        if enabled_lines
         else None
     )
-    line_capacity = max(1, int(line.max_concurrency)) if line is not None else None
     effective_capacity = min(configured_capacity, line_capacity) if line_capacity is not None else configured_capacity
     if line_capacity is None:
         limiting_source = "tenant_capacity"

@@ -59,19 +59,28 @@ def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
     provider = (settings.telephony_provider or "mock").strip().lower()
     if provider != "tenant":
         return telephony_http_health_check() if provider == "http" else "mock"
-    line = session.exec(
+    lines = session.exec(
         select(TelephonyLine)
         .where(TelephonyLine.tenant_id == tenant_id, TelephonyLine.enabled.is_(True))
-        .order_by(TelephonyLine.created_at.desc())
-    ).first()
-    if line is None:
+        .order_by(TelephonyLine.priority.asc(), TelephonyLine.created_at.asc())
+    ).all()
+    if not lines:
         return "unconfigured"
-    if line.provider.strip().lower() == "mock":
+    states: list[str] = []
+    for line in lines:
+        if line.provider.strip().lower() == "mock":
+            states.append("mock")
+            continue
+        endpoint = line.gateway_url.strip()
+        if not endpoint.startswith(("http://", "https://")):
+            states.append("unsupported")
+            continue
+        states.append(_probe_http(endpoint, "/health"))
+    if "ok" in states:
+        return "ok"
+    if all(state == "mock" for state in states):
         return "mock"
-    endpoint = line.gateway_url.strip()
-    if not endpoint.startswith(("http://", "https://")):
-        return "unsupported"
-    return _probe_http(endpoint, "/health")
+    return "unavailable"
 
 
 def _probe_http(base_url: Optional[str], path: str, timeout: float = 2.0) -> str:

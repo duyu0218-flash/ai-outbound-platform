@@ -27,6 +27,7 @@ class ContactPatch(BaseModel):
     tags: Optional[str] = None
     consent_state: Optional[ConsentState] = None
     dnc: Optional[bool] = None
+    timezone: Optional[str] = Field(default=None, max_length=64)
 
 
 class CampaignCreate(BaseModel):
@@ -34,9 +35,9 @@ class CampaignCreate(BaseModel):
     script: str = Field(default="", max_length=50_000)
     script_template_id: Optional[int] = None
     mode: CallMode
-    concurrency: int = Field(default=10, ge=1, le=1000)
+    concurrency: int = Field(default=5, ge=1, le=10_000)
     retry_limit: int = Field(default=1, ge=1, le=10)
-    retry_interval_sec: int = Field(default=1800, ge=1, le=604_800)
+    retry_interval_sec: int = Field(default=30, ge=1, le=604_800)
     attempt_interval_sec: int = Field(default=1800, ge=1, le=604_800)
     recording_enabled: bool = True
     hangup_sms_enabled: bool = True
@@ -179,6 +180,7 @@ class CallSessionOut(BaseModel):
     recording_url: Optional[str] = None
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
+    telephony_line_id: Optional[int] = None
     last_error: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
@@ -340,6 +342,9 @@ class TelephonyLineCreate(BaseModel):
     gateway_url: str = Field(default="", max_length=1000)
     caller_id: str = Field(default="", max_length=64)
     max_concurrency: int = Field(default=10, ge=1, le=10_000)
+    priority: int = Field(default=100, ge=1, le=10_000)
+    weight: int = Field(default=1, ge=1, le=100)
+    credential_ref: str = Field(default="", max_length=128, pattern=r"^[A-Za-z0-9_-]*$")
     enabled: bool = True
 
 
@@ -349,6 +354,9 @@ class TelephonyLineUpdate(BaseModel):
     gateway_url: Optional[str] = Field(default=None, max_length=1000)
     caller_id: Optional[str] = Field(default=None, max_length=64)
     max_concurrency: Optional[int] = Field(default=None, ge=1, le=10_000)
+    priority: Optional[int] = Field(default=None, ge=1, le=10_000)
+    weight: Optional[int] = Field(default=None, ge=1, le=100)
+    credential_ref: Optional[str] = Field(default=None, max_length=128, pattern=r"^[A-Za-z0-9_-]*$")
     enabled: Optional[bool] = None
 
 

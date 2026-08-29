@@ -132,7 +132,11 @@ async def run_ai_turn(
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
-    adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id)
+    adapter = get_telephony_adapter(
+        session=session,
+        tenant_id=call.tenant_id,
+        line_id=call.telephony_line_id,
+    )
     if result.tts_text:
         await with_retry(
             lambda: adapter.speak(

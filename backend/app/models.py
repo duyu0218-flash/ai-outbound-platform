@@ -147,6 +147,7 @@ class CallSession(SQLModel, table=True):
     recording_url: Optional[str] = None
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
+    telephony_line_id: Optional[int] = Field(default=None, foreign_key="telephonyline.id", index=True)
     conversation_id: Optional[str] = None
     last_transcript: Optional[str] = None
     summary: Optional[str] = None
@@ -200,6 +201,9 @@ class TelephonyLine(SQLModel, table=True):
     gateway_url: str = Field(default="", max_length=1000)
     caller_id: str = Field(default="", max_length=64)
     max_concurrency: int = 10
+    priority: int = 100
+    weight: int = 1
+    credential_ref: str = Field(default="", max_length=128)
     enabled: bool = True
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

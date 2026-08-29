@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
@@ -193,7 +193,6 @@ def delete_campaign(
 @router.post("/{campaign_id}/start", response_model=CampaignStartResponse)
 async def start_campaign(
     campaign_id: int,
-    background_tasks: BackgroundTasks,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
     auto_dial: bool = True,
@@ -212,7 +211,13 @@ async def start_campaign(
         )
 
     try:
-        result = start_campaign_service(session, tenant_id=tenant_id, campaign_id=campaign_id, only_active_contacts=True)
+        result = start_campaign_service(
+            session,
+            tenant_id=tenant_id,
+            campaign_id=campaign_id,
+            only_active_contacts=True,
+            max_calls=max_dials,
+        )
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
 
@@ -251,11 +256,8 @@ async def start_campaign(
             target_call_ids = target_call_ids[:max_dials]
 
         if async_dial:
-            background_tasks.add_task(
-                dispatch_call_ids,
-                [str(call_id) for call_id in target_call_ids],
-                max_concurrency=campaign.concurrency,
-            )
+            # Calls remain in the database queue and are consumed by the
+            # Redis-locked scheduler. They survive an API worker restart.
             dialed = len(target_call_ids)
             dispatch_result = CampaignDispatchResult(
                 total=len(result_call_ids),
@@ -379,7 +381,6 @@ def pause_campaign(
 @router.post("/{campaign_id}/resume", response_model=CampaignOut)
 def resume_campaign(
     campaign_id: int,
-    background_tasks: BackgroundTasks,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
@@ -390,20 +391,7 @@ def resume_campaign(
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
-    queued_ids = session.exec(
-        select(CallSession.id).where(
-            CallSession.tenant_id == tenant_id,
-            CallSession.campaign_id == campaign_id,
-            CallSession.status.in_({CallStatus.CREATED, CallStatus.QUEUED, CallStatus.FAILED}),
-            CallSession.attempts < CallSession.max_attempts,
-        )
-    ).all()
-    if queued_ids:
-        background_tasks.add_task(
-            dispatch_call_ids,
-            [str(call_id) for call_id in queued_ids],
-            max_concurrency=campaign.concurrency,
-        )
+    # The scheduler will pick up queued and due calls after the state commits.
     session.refresh(campaign)
     return _campaign_out(session, campaign)
 
