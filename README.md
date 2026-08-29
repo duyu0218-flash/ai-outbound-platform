@@ -272,7 +272,9 @@ bash scripts/test-campaign-start.sh
   - `POST /api/v1/webhooks/telephony/status`
   - `POST /api/v1/webhooks/telephony/transcript`
   - `POST /api/v1/webhooks/telephony/recording`
+  - `POST /api/v1/webhooks/sms/status`（短信供应商通过 `sms_log_id` 或 `provider_message_id` 更新送达状态）
 - AI 设置选择 `rule` 时使用本地规则模式；选择 `openai-compatible` 时，Agent 会使用环境变量中的 `OPENAI_BASE_URL`、`OPENAI_API_KEY` 调用兼容的 `/chat/completions`。
+- 坐席登录后状态进入 `ready`，工作台每 30 秒发送心跳，可切换忙碌/离线；AI 转人工会优先分配最近仍在线的空闲坐席，通话终止后自动释放。
 - 启用业务回调后，状态、转写、录音 URL 和 AI 决策会 POST 到配置的 Webhook；支持 HMAC-SHA256 签名、指数退避重试和投递审计事件。
 
 ## 7. 上线仍需完成的外部集成

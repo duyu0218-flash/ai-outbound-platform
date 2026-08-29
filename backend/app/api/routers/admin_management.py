@@ -320,7 +320,10 @@ async def retry_sms_log(
         session.commit()
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="SMS provider request failed")
     sms_log.state = str(result.get("state", "sent"))
+    sms_log.provider_message_id = str(result.get("message_id") or result.get("provider_message_id") or "") or sms_log.provider_message_id
+    sms_log.provider_error = None
     sms_log.sent_at = utc_now()
+    sms_log.updated_at = utc_now()
     session.add(sms_log)
     _audit(session, current, "retry", "sms_log", sms_log.id, f"state={sms_log.state}")
     session.commit()

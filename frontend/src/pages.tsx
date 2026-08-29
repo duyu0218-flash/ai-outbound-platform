@@ -56,7 +56,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SmsLog, SystemOverview, TelephonyLine } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SmsLog, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -639,6 +639,8 @@ export function SystemPage() {
         { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
         { title: t('phone'), dataIndex: 'to_phone', width: 150 },
         { title: t('status'), dataIndex: 'state', width: 120, render: (value) => <Tag color={String(value).includes('failed') ? 'error' : 'success'}>{value}</Tag> },
+        { title: t('providerMessageId'), dataIndex: 'provider_message_id', width: 190, ellipsis: true, render: (value) => value || '-' },
+        { title: t('providerError'), dataIndex: 'provider_error', width: 180, ellipsis: true, render: (value) => value || '-' },
         { title: t('content'), dataIndex: 'content', ellipsis: true },
         { title: t('sentAt'), dataIndex: 'sent_at', width: 170, render: formatDate },
         { title: t('actions'), fixed: 'right', width: 100, render: (_, record) => <Button size="small" disabled={!['failed', 'disabled'].includes(record.state)} loading={retrySms.isPending} onClick={() => retrySms.mutate(record)}>{t('retry')}</Button> },
@@ -653,6 +655,14 @@ export function AgentWorkspacePage() {
   const queryClient = useQueryClient()
   const query = useSecureQuery<CallSession[]>(['calls', 'agent-workspace'], '/api/v1/calls?page=1&size=20')
   const [form] = Form.useForm<CallFormValues>()
+  const [presenceStatus, setPresenceStatus] = useState<'ready' | 'busy' | 'offline'>(user?.agent_status || 'ready')
+  useEffect(() => {
+    if (!token || !user || user.role !== 'agent') return
+    const updatePresence = () => apiRequest<User>('/api/v1/auth/presence', { method: 'PUT', body: JSON.stringify({ status: presenceStatus }) }, token).catch(() => undefined)
+    void updatePresence()
+    const heartbeat = window.setInterval(() => void updatePresence(), 30_000)
+    return () => window.clearInterval(heartbeat)
+  }, [presenceStatus, token, user])
   const mutation = useMutation({
     mutationFn: (values: CallFormValues) => apiRequest<CallSession>('/api/v1/calls', { method: 'POST', body: JSON.stringify(values) }, token),
     onSuccess: () => { message.success(t('operationSuccess')); form.resetFields(); form.setFieldsValue({ mode: 'ai_handoff', max_attempts: 1 }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
@@ -660,7 +670,7 @@ export function AgentWorkspacePage() {
   })
   const handoffMutation = useMutation({
     mutationFn: (call: CallSession) => apiRequest<CallSession>(`/api/v1/calls/${call.id}/handover?reason=agent_workspace`, { method: 'POST' }, token),
-    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onSuccess: () => { message.success(t('operationSuccess')); setPresenceStatus('busy'); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])
@@ -679,12 +689,12 @@ export function AgentWorkspacePage() {
             </Form>
           </Card>
           <Card className="agent-profile-card" title={t('profile')}>
-            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }]} />
+            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }, { key: 'status', label: t('agentStatus'), children: <Select value={presenceStatus} style={{ width: 140 }} onChange={setPresenceStatus} options={[{ value: 'ready', label: t('agentReady') }, { value: 'busy', label: t('agentBusy') }, { value: 'offline', label: t('agentOffline') }]} /> }]} />
           </Card>
         </Col>
         <Col xs={24} xl={15}>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
-            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={!['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
+            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={presenceStatus !== 'ready' || !['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
           </Card>
         </Col>
       </Row>

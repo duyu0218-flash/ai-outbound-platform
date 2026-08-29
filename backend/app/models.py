@@ -66,6 +66,8 @@ class User(SQLModel, table=True):
     phone: Optional[str] = None
     role: str = "agent"
     is_supervisor: bool = False
+    agent_status: str = Field(default="offline", max_length=32)
+    last_seen_at: Optional[datetime] = None
     enabled: bool = True
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -187,8 +189,11 @@ class SmsLog(SQLModel, table=True):
     template_code: Optional[str] = None
     content: str
     state: str = "pending"
+    provider_message_id: Optional[str] = Field(default=None, index=True, max_length=255)
+    provider_error: Optional[str] = Field(default=None, max_length=2000)
     sent_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class TelephonyLine(SQLModel, table=True):

@@ -14,7 +14,7 @@ from redis import asyncio as async_redis
 
 from ..config import get_settings
 from ..clock import utc_now
-from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
+from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate, User
 from .telephony import (
     get_telephony_adapter,
     get_telephony_concurrency_limit,
@@ -588,6 +588,10 @@ async def handover_to_human(
     human_agent_id: int | None = None,
 ) -> CallSession:
     call = get_call(session, tenant_id, call_id)
+    assigned_agent = session.get(User, human_agent_id) if human_agent_id is not None else None
+    if assigned_agent is not None:
+        if assigned_agent.tenant_id != tenant_id or assigned_agent.role != "agent" or not assigned_agent.enabled:
+            raise CallPermissionError("assigned agent is not available")
     if not _set_call_if_status_in_uuid(
         session,
         call_id=call.id,
@@ -619,6 +623,13 @@ async def handover_to_human(
             updated_at=_now(),
         )
         raise
+
+    if assigned_agent is not None:
+        assigned_agent.agent_status = "busy"
+        assigned_agent.last_seen_at = _now()
+        assigned_agent.updated_at = _now()
+        session.add(assigned_agent)
+        session.commit()
 
     _set_call_if_status_in_uuid(
         session,

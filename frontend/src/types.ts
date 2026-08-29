@@ -7,6 +7,8 @@ export interface User {
   full_name: string
   role: Role
   is_supervisor: boolean
+  agent_status: 'ready' | 'busy' | 'offline'
+  last_seen_at?: string
   enabled: boolean
 }
 
@@ -134,6 +136,8 @@ export interface SmsLog {
   template_code?: string
   content: string
   state: string
+  provider_message_id?: string
+  provider_error?: string
   sent_at?: string
   created_at: string
 }

@@ -75,7 +75,7 @@ export function AppShell({ role }: { role: Role }) {
       { key: 'profile', icon: <UserOutlined />, label: `${user?.full_name || user?.username} · ${user?.role}` },
       { key: 'docs', icon: <ApiOutlined />, label: t('apiDocs'), onClick: () => window.open('/docs.html', '_blank', 'noopener,noreferrer') },
       { type: 'divider' as const },
-      { key: 'logout', danger: true, icon: <LogoutOutlined />, label: t('logout'), onClick: () => { logout(); navigate(`/${role}/login`, { replace: true }) } },
+      { key: 'logout', danger: true, icon: <LogoutOutlined />, label: t('logout'), onClick: async () => { await logout(); navigate(`/${role}/login`, { replace: true }) } },
     ],
   }
 

@@ -119,6 +119,11 @@ def _validate_production_runtime() -> None:
         issues.append("DEMO_USERS_ENABLED=true")
     if not settings.telephony_webhook_token.strip():
         issues.append("TELEPHONY_WEBHOOK_TOKEN")
+    if settings.sms_provider.strip().lower() == "http":
+        if not settings.sms_callback_url.strip():
+            issues.append("SMS_CALLBACK_URL")
+        if not settings.sms_webhook_token.strip():
+            issues.append("SMS_WEBHOOK_TOKEN")
     if settings.database_url.startswith("sqlite"):
         issues.append("DATABASE_URL=sqlite")
     if not settings.redis_url.strip():
