@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -33,7 +34,7 @@ from .middleware import (
 )
 from .models import Tenant
 from .services.auth import ensure_demo_users
-from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check
+from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check, tenant_telephony_health_check
 from .services.call_service import run_retry_scheduler
 
 settings = get_settings()
@@ -48,16 +49,21 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     _bootstrap_default_tenant()
     retry_stop_event = asyncio.Event()
-    retry_task = asyncio.create_task(run_retry_scheduler(retry_stop_event))
+    retry_task = (
+        asyncio.create_task(run_retry_scheduler(retry_stop_event))
+        if settings.scheduler_enabled
+        else None
+    )
     try:
         yield
     finally:
         retry_stop_event.set()
-        retry_task.cancel()
-        try:
-            await retry_task
-        except asyncio.CancelledError:
-            pass
+        if retry_task is not None:
+            retry_task.cancel()
+            try:
+                await retry_task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
@@ -81,11 +87,29 @@ def _validate_production_runtime() -> None:
         return
 
     issues = []
-    if settings.secret_key in {"", "change-me", "secret"}:
+
+    def weak_secret(value: str | None, minimum: int) -> bool:
+        normalized = str(value or "").strip().lower()
+        placeholder_parts = ("change-me", "replace-me", "example", "dev-", "your-")
+        return len(normalized) < minimum or any(part in normalized for part in placeholder_parts)
+
+    if weak_secret(settings.secret_key, 32):
         issues.append("SECRET_KEY")
-    if settings.jwt_secret in {"", "change-me", "jwt-change-me"}:
+    if weak_secret(settings.jwt_secret, 32) or settings.jwt_secret == settings.secret_key:
         issues.append("JWT_SECRET")
-    if settings.api_key in {"", "dev-api-key"}:
+    tenant_api_keys_valid = False
+    if settings.tenant_api_keys_json.strip():
+        try:
+            tenant_key_map = json.loads(settings.tenant_api_keys_json)
+            tenant_api_keys_valid = bool(tenant_key_map) and all(
+                str(key).isdigit() and int(key) > 0 and not weak_secret(str(value), 24)
+                for key, value in tenant_key_map.items()
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            tenant_api_keys_valid = False
+        if not tenant_api_keys_valid:
+            issues.append("TENANT_API_KEYS_JSON")
+    if weak_secret(settings.api_key, 24) and not tenant_api_keys_valid:
         issues.append("API_KEY")
     if settings.cors_allow_origins.strip() == "*":
         issues.append("CORS_ALLOW_ORIGINS=*")
@@ -220,11 +244,16 @@ def healthz():
 
 @app.get("/readyz")
 def readyz() -> dict[str, Any]:
+    if (settings.telephony_provider or "mock").strip().lower() == "tenant":
+        with session_scope() as session:
+            telephony_check = tenant_telephony_health_check(session, settings.default_tenant_id)
+    else:
+        telephony_check = telephony_http_health_check()
     checks = {
         "db": db_health_check(),
         "redis": redis_health_check(),
         "ai_agent": ai_agent_health_check(),
-        "telephony": telephony_http_health_check(),
+        "telephony": telephony_check,
     }
     payload = {
         "status": "ready",

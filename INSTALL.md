@@ -2,7 +2,7 @@
 
 本文档面向你们当前仓库，给出从开发环境到生产环境的完整可执行流程。按该文档可完成：
 
-- 基础服务部署（PostgreSQL/Redis/MinIO）
+- 基础服务部署（PostgreSQL/Redis）
 - 后端控制面（`control-api`）与 AI 服务（`ai-agent`）启动
 - 基础联调验证
 - 海外扩展的先期准备
@@ -51,7 +51,7 @@ cp .env.example .env
 
 编辑 `.env`，至少更新以下参数：
 
-- `API_KEY`：你的管理 API Key（用于所有控制面 API 调用）
+- `API_KEY`：默认租户的服务端 API Key；多租户集成请改用 `TENANT_API_KEYS_JSON={"1":"...","2":"..."}`
 - `DATABASE_URL`：数据库连接字符串
 - `REDIS_URL`：Redis 连接字符串
 - `TELEPHONY_PROVIDER`：`mock`（联调）或 `http`（接入真实 PBX）
@@ -70,6 +70,8 @@ cp .env.example .env
   - `DATABASE_MAX_OVERFLOW=20`
   - `DATABASE_POOL_TIMEOUT_SEC=30`
   - `DATABASE_POOL_RECYCLE_SEC=1800`
+  - `DEFAULT_CALL_TIMEOUT_SEC=120`（无终态回调时释放并发）
+  - `SCHEDULER_ENABLED=true`（异步活动必须开启）
 
 ### 3.2 默认测试账号体系（推荐先验收）
 
@@ -528,7 +530,7 @@ bash scripts/test-campaign-start.sh
 
 请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。`dial` 会携带 `caller_id` 和媒体参数；`speak` 接收 `text`、`language`、`voice`、`provider`，网关负责完成实际 TTS 或播放。
 
-多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会按当前租户选择最近更新且启用的线路配置：`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
+多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会对所有启用线路汇总并发容量，再按优先级、权重和当前占用率选路；选中后把 `telephony_line_id` 绑定到通话，后续播放、转接和挂断使用同一条线路。`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
 
 ## 10. 升级与部署（生产）
 
@@ -540,6 +542,7 @@ bash scripts/test-campaign-start.sh
   - `backend/migrations/postgresql/20260828_admin_management.sql`
   - `backend/migrations/postgresql/20260828_contact_integrity.sql`
   - `backend/migrations/postgresql/20260828_call_retry_schedule.sql`
+  - `backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql`
 
 发布顺序：
 
@@ -565,12 +568,16 @@ psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   -f backend/migrations/postgresql/20260828_call_retry_schedule.sql
 
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql
+
 # 3. 发布固定版本镜像，启动后检查
 curl -fS http://localhost:8000/health
 curl -fS http://localhost:8000/readyz
 ```
 
-脚本把 `callevent.event_type` 从固定枚举调整为 `VARCHAR(64)`，补齐事件类型、通话状态和更新时间索引，增加 `(tenant_id, phone)` 联系人唯一约束，并增加持久化重试时间字段及索引。联系人迁移发现重复数据会失败；应先选定保留记录、把活动和通话引用合并到该记录，再删除重复项。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
+最新脚本还会补齐坐席归属、通话线路绑定、线路优先级/权重/凭证引用字段及索引。应用启动时也会执行同等的幂等加列迁移，但生产环境仍建议先在维护窗口显式执行 SQL。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
 
 ### 10.2 安全建议（生产必做）
 
@@ -582,7 +589,7 @@ curl -fS http://localhost:8000/readyz
 - 强制设置 `TRUSTED_HOSTS`，避免 Host 头注入
 - `ENV=production` 时服务会拒绝默认密钥、SQLite、空 Redis、`mock` 电话适配器、通配 CORS、演示账号或空 webhook token
 - 设置 `CORS_ALLOW_ORIGINS=https://你的管理域名`，不要使用 `*`
-- 设置 `DEMO_USERS_ENABLED=false`，并轮换 `SECRET_KEY`、`JWT_SECRET`、`API_KEY`
+- 设置 `DEMO_USERS_ENABLED=false`，并使用至少 32 字符的非占位符 `SECRET_KEY` / `JWT_SECRET`；多租户服务调用配置 `TENANT_API_KEYS_JSON`
 
 ### 10.3 代码级回归检查
 
@@ -622,7 +629,7 @@ GitHub Actions 会分别执行控制服务和 AI 服务测试，并在控制服�
 - 短信重试：管理员可在 `/admin/system` 查看并重试失败/禁用状态的日志；成功记录不能重复发送。
 - 双语：管理端、座席端和规则型 AI 回复支持中文/英文。真实 ASR/LLM/TTS 的双语效果需要接入后另行验收。
 - 坐席工作台：具备通话列表、状态操作和转人工请求，不包含浏览器 WebRTC 媒体通话、耳麦设备检测、自动排队抢单和通话保持。
-- 生产部署：`scripts/bootstrap.sh` 不再覆盖已有 `.env`；控制 API worker 可通过 `CONTROL_API_WORKERS` 配置。多实例仍应配套 Redis 限流、分布式任务队列和压测容量模型。
+- 生产部署：`scripts/bootstrap.sh` 不再覆盖已有 `.env`；控制 API worker 可通过 `CONTROL_API_WORKERS` 配置。多 worker 调度已使用 Redis 主锁，Redis 不可用时生产调度器不会降级为无锁执行；仍必须执行实际 PBX/ASR/TTS 容量压测。
 
 ## 11. 常见故障排查
 

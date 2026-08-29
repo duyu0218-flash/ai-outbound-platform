@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, inspect, text
 from sqlmodel import select
 
 
@@ -20,18 +21,22 @@ os.environ["DEMO_USERS_ENABLED"] = "true"
 os.environ["TELEPHONY_WEBHOOK_BASE"] = "http://127.0.0.1:9"
 os.environ["TELEPHONY_TIMEOUT_SEC"] = "1"
 os.environ["TELEPHONY_RETRY_TIMES"] = "0"
+os.environ["SCHEDULER_ENABLED"] = "false"
 
 from app.db import session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
+from app import main as app_main  # noqa: E402
 from app.models import Campaign, CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
+from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
 from app.services import business_callbacks  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
     dispatch_call_ids,
     dispatch_due_retries,
+    expire_stale_calls,
     place_call,
     retry_call,
     schedule_campaign_retry,
@@ -99,6 +104,13 @@ def test_role_and_tenant_boundaries(client: TestClient):
     response = client.get("/api/v1/contacts", headers=_bearer(agent_token))
     assert response.status_code == 403
 
+    assert client.get("/api/v1/contacts", headers={"x-api-key": "dev-api-key"}).status_code == 200
+    api_cross_tenant = client.get(
+        "/api/v1/contacts",
+        headers={"x-api-key": "dev-api-key", "x-tenant-id": "2"},
+    )
+    assert api_cross_tenant.status_code == 403
+
     response = client.get("/api/v1/contacts", headers=_bearer("invalid-token"))
     assert response.status_code == 401
 
@@ -107,6 +119,56 @@ def test_role_and_tenant_boundaries(client: TestClient):
         headers=_bearer(admin_token, **{"x-tenant-id": "2"}),
     )
     assert response.status_code == 403
+
+
+def test_campaign_requires_explicit_contact_consent(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "13800138881", "name": "unknown-consent", "consent_state": "unknown"},
+    )
+    assert contact.status_code == 200, contact.text
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={"name": "consent-check", "mode": "human_only", "contact_ids": [contact.json()["id"]]},
+    )
+    assert campaign.status_code == 200, campaign.text
+    started = client.post(f"/api/v1/campaigns/{campaign.json()['id']}/start?auto_dial=false", headers=headers)
+    assert started.status_code == 200, started.text
+    assert started.json()["result_code"] == "FAILED"
+    assert "EXPLICIT_CONSENT_REQUIRED" in started.json()["error_codes"]
+
+
+def test_max_dials_limits_persisted_async_queue(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact_ids = []
+    for suffix in (3, 4):
+        contact = client.post(
+            "/api/v1/contacts",
+            headers=headers,
+            json={"phone": f"1380013888{suffix}", "name": f"dial-limit-{suffix}", "consent_state": "consented"},
+        )
+        assert contact.status_code == 200, contact.text
+        contact_ids.append(contact.json()["id"])
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={"name": "dial-limit", "mode": "human_only", "contact_ids": contact_ids},
+    )
+    assert campaign.status_code == 200, campaign.text
+    started = client.post(
+        f"/api/v1/campaigns/{campaign.json()['id']}/start?auto_dial=true&async_dial=true&max_dials=1",
+        headers=headers,
+    )
+    assert started.status_code == 200, started.text
+    assert started.json()["dispatch_result"]["target"] == 1
+    calls = client.get(f"/api/v1/calls?campaign_id={campaign.json()['id']}", headers=headers)
+    assert calls.status_code == 200, calls.text
+    assert len(calls.json()) == 1
 
 
 def test_contact_phone_is_unique_and_referenced_contact_cannot_be_deleted(client: TestClient):
@@ -580,6 +642,25 @@ async def test_due_campaign_retry_is_persisted_and_dispatched(client: TestClient
             return {"provider_call_id": f"retry-{call_id}-{metadata['attempt']}"}
 
     monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: CapturingAdapter())
+    with session_scope() as session:
+        for active_call in session.exec(
+            select(CallSession).where(
+                CallSession.tenant_id == 1,
+                CallSession.status.in_(
+                    {
+                        CallStatus.DIALING,
+                        CallStatus.ANSWERED,
+                        CallStatus.IN_AI,
+                        CallStatus.WAITING_HUMAN,
+                        CallStatus.HANDOFF_TRANSFERRING,
+                    }
+                ),
+            )
+        ).all():
+            if active_call.id != call_id:
+                active_call.status = CallStatus.COMPLETED
+                session.add(active_call)
+        session.commit()
     claimed = await dispatch_due_retries()
     assert claimed == 1
     assert attempts == [2]
@@ -682,9 +763,10 @@ async def test_business_callback_posts_and_records_delivery(client: TestClient, 
         async def __aexit__(self, *_):
             return None
 
-        async def post(self, url, json):
+        async def post(self, url, content, headers):
             delivered["url"] = url
-            delivered["payload"] = json
+            delivered["payload"] = business_callbacks.json.loads(content)
+            delivered["headers"] = headers
             return FakeResponse()
 
     monkeypatch.setattr(business_callbacks.httpx, "AsyncClient", FakeClient)
@@ -916,3 +998,64 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
     assert audits.status_code == 200, audits.text
     actions = {item["action"] for item in audits.json()}
     assert {"create", "update", "reset_password"}.issubset(actions)
+
+
+def test_runtime_migration_upgrades_existing_tables(tmp_path):
+    migration_db = tmp_path / "legacy.db"
+    migration_engine = create_engine(f"sqlite:///{migration_db}")
+    with migration_engine.begin() as connection:
+        connection.execute(text("CREATE TABLE callsession (id VARCHAR PRIMARY KEY, status VARCHAR)"))
+        connection.execute(text("CREATE TABLE telephonyline (id INTEGER PRIMARY KEY, name VARCHAR)"))
+    apply_runtime_migrations(migration_engine)
+    call_columns = {item["name"] for item in inspect(migration_engine).get_columns("callsession")}
+    line_columns = {item["name"] for item in inspect(migration_engine).get_columns("telephonyline")}
+    assert {"human_agent_id", "telephony_line_id"}.issubset(call_columns)
+    assert {"priority", "weight", "credential_ref"}.issubset(line_columns)
+
+
+def test_stale_provider_call_releases_capacity(client: TestClient):
+    with session_scope() as session:
+        for existing in session.exec(select(CallSession).where(CallSession.status.in_({CallStatus.DIALING, CallStatus.ANSWERED, CallStatus.IN_AI, CallStatus.WAITING_HUMAN, CallStatus.HANDOFF_TRANSFERRING}))).all():
+            existing.status = CallStatus.COMPLETED
+            session.add(existing)
+        call = create_call(
+            session,
+            tenant_id=1,
+            phone="13800138882",
+            mode=CallMode.HUMAN_ONLY,
+            campaign_id=None,
+            contact_id=None,
+        )
+        call.status = CallStatus.DIALING
+        call.attempts = 1
+        call.updated_at = utc_now() - timedelta(seconds=300)
+        session.add(call)
+        session.commit()
+        call_id = call.id
+    assert expire_stale_calls(batch_size=100) >= 1
+    with session_scope() as session:
+        persisted = session.get(CallSession, call_id)
+        assert persisted is not None
+        assert persisted.status == CallStatus.FAILED
+        assert persisted.last_error == "provider status timeout"
+
+
+def test_production_validation_rejects_placeholder_secrets(monkeypatch):
+    safe_values = {
+        "env": "production",
+        "secret_key": "replace-me-even-though-this-is-long-enough-123456",
+        "jwt_secret": "a-different-production-jwt-secret-value-123456",
+        "api_key": "a-production-api-key-value-123456",
+        "tenant_api_keys_json": "",
+        "cors_allow_origins": "https://console.example.com",
+        "trusted_hosts": "console.example.com",
+        "demo_users_enabled": False,
+        "telephony_webhook_token": "a-production-webhook-token",
+        "database_url": "postgresql+psycopg://user:pass@db/app",
+        "redis_url": "redis://redis:6379/0",
+        "telephony_provider": "tenant",
+    }
+    for key, value in safe_values.items():
+        monkeypatch.setattr(app_main.settings, key, value)
+    with pytest.raises(RuntimeError, match="SECRET_KEY"):
+        app_main._validate_production_runtime()

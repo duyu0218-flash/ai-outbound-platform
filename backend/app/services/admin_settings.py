@@ -16,9 +16,9 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
     },
     "ai": {
         "enabled": True,
-        "agent_url": "http://localhost:8001",
-        "llm_provider": "rule",
-        "llm_model": "gpt-4o-mini",
+        "agent_url": settings.ai_agent_url,
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.openai_model,
         "asr_provider": "provider-default",
         "tts_provider": "provider-default",
         "voice": "female-1",
@@ -26,13 +26,14 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
     },
     "sms": {
         "enabled": True,
-        "provider": "mock",
-        "endpoint": "",
-        "sender_id": "",
+        "provider": settings.sms_provider,
+        "endpoint": settings.sms_provider_endpoint,
+        "sender_id": settings.sms_sender_id,
         "hangup_template": "感谢您的接听，如需人工服务请回复 1。",
     },
     "compliance": {
         "dnc_enforced": True,
+        "require_explicit_consent": True,
         "recording_notice": True,
         "allowed_start_hour": 9,
         "allowed_end_hour": 20,
@@ -43,6 +44,9 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "callback_enabled": False,
         "webhook_base_url": "",
         "webhook_timeout_sec": 10,
+        "webhook_secret_ref": "",
+        "webhook_retry_times": 2,
+        "webhook_retry_backoff_sec": 1,
     },
 }
 

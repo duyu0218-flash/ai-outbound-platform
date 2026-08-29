@@ -1,7 +1,8 @@
 import hmac
+import json
 from typing import Annotated, Optional
 
-from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
 
@@ -31,6 +32,7 @@ def _secure_equals(left: str | None, right: str | None) -> bool:
 
 
 def check_api_key(
+    request: Request,
     x_api_key: str | None = Header(default=None, alias="x-api-key"),
     token: str = Depends(oauth2_scheme),
 ) -> None:
@@ -43,9 +45,27 @@ def check_api_key(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="api key not configured in server",
         )
-    if _secure_equals(x_api_key, settings.api_key):
+    tenant_keys: dict[int, str] = {}
+    if settings.tenant_api_keys_json.strip():
+        try:
+            raw_keys = json.loads(settings.tenant_api_keys_json)
+            tenant_keys = {int(key): str(value) for key, value in raw_keys.items() if str(value)}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="tenant api key configuration is invalid",
+            )
+    matched_tenant = next(
+        (tenant_id for tenant_id, key in tenant_keys.items() if _secure_equals(x_api_key, key)),
+        None,
+    )
+    if matched_tenant is not None:
+        request.state.api_tenant_id = matched_tenant
         return
-    if _secure_equals(x_api_key, settings.ui_api_key):
+    # Legacy keys remain supported, but are deliberately scoped to the default
+    # tenant instead of trusting a caller-controlled x-tenant-id header.
+    if _secure_equals(x_api_key, settings.api_key) or _secure_equals(x_api_key, settings.ui_api_key):
+        request.state.api_tenant_id = settings.default_tenant_id
         return
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key")
 
@@ -59,13 +79,19 @@ def get_tenant_id(x_tenant_id: int | None = Header(default=None, alias="x-tenant
 
 
 def get_tenant_id_for_request(
+    request: Request,
     x_tenant_id: int | None = Header(default=None, alias="x-tenant-id"),
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ) -> int:
     """Bind browser/API user requests to the tenant stored on the current user."""
     if not token:
-        return get_tenant_id(x_tenant_id)
+        api_tenant_id = getattr(request.state, "api_tenant_id", None)
+        if api_tenant_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="api tenant scope missing")
+        if x_tenant_id is not None and x_tenant_id != api_tenant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="tenant scope mismatch")
+        return int(api_tenant_id)
 
     user = find_user_by_token(session, token)
     if user is None:

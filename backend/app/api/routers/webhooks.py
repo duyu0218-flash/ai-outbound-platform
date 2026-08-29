@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_webhook_token, get_session
 from ...clock import utc_now
+from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
@@ -15,6 +16,7 @@ from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
+settings = get_settings()
 
 STATUS_ORDER = {
     CallStatus.CREATED: 0,
@@ -66,7 +68,15 @@ def _apply_status_transition(session: Session, call_id, mapped_status: CallStatu
 
 
 def _status_to_call_status(raw_status: str) -> CallStatus | None:
-    status = (raw_status or "").lower()
+    status = (raw_status or "").strip().lower()
+    configured = {
+        CallStatus.NO_ANSWER: {str(value).strip().lower() for value in settings.no_answer_codes},
+        CallStatus.BUSY: {str(value).strip().lower() for value in settings.busy_codes},
+        CallStatus.VOICEMAIL: {str(value).strip().lower() for value in settings.voicemail_codes},
+    }
+    for mapped_status, provider_codes in configured.items():
+        if status in provider_codes:
+            return mapped_status
     mapping = {
         "dialing": CallStatus.DIALING,
         "answering": CallStatus.ANSWERED,

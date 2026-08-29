@@ -77,6 +77,7 @@ export interface CallSession {
   contact_id?: number
   handoff_reason?: string
   human_agent_id?: number
+  telephony_line_id?: number
   recording_url?: string
   last_error?: string
   created_at: string
@@ -117,6 +118,9 @@ export interface TelephonyLine {
   gateway_url: string
   caller_id: string
   max_concurrency: number
+  priority: number
+  weight: number
+  credential_ref: string
   enabled: boolean
   created_at: string
   updated_at: string

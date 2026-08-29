@@ -37,23 +37,22 @@ class Settings(BaseSettings):
     database_pool_recycle_sec: int = 1800
     redis_url: str = "redis://localhost:6379/0"
 
-    minio_endpoint: str = ""
-    minio_access_key: str = ""
-    minio_secret_key: str = ""
-    minio_bucket: str = "call-recordings"
-    minio_secure: bool = False
-    minio_region: str = ""
-
     telephony_provider: str = "mock"
     telephony_provider_endpoint: str = ""
     telephony_webhook_base: str = "http://localhost:8000"
     sip_provider_endpoint: str = "http://localhost:8080"
     telephony_webhook_token: str = ""
     ai_agent_url: str = "http://localhost:8001"
+    llm_provider: str = "rule"
+    openai_model: str = "gpt-4o-mini"
     ai_callback_timeout_sec: int = 10
     telephony_timeout_sec: int = 8
     telephony_retry_times: int = 2
     telephony_retry_backoff_sec: float = 1.0
+    scheduler_enabled: bool = True
+    scheduler_poll_interval_sec: float = 1.0
+    scheduler_batch_size: int = 200
+    scheduler_lock_ttl_sec: int = 15
 
     # Production hardening
     request_timeout_ms: int = 15000
@@ -72,22 +71,16 @@ class Settings(BaseSettings):
 
     call_recording_event_url: str = "/api/v1/webhooks/telephony/recording"
     transcript_event_url: str = "/api/v1/webhooks/telephony/transcript"
-    max_call_retry: int = 2
     max_concurrent_calls: int = 20
     default_call_timeout_sec: int = 120
     no_answer_codes: List[str] = ["NOANSWER", "NO_ANSWER"]
     busy_codes: List[str] = ["BUSY"]
     voicemail_codes: List[str] = ["VOICEMAIL"]
 
-    ai_mode_default: str = "ai_handoff"
-    ai_handoff_keywords: List[str] = [
-        "转人工",
-        "人工",
-        "客服",
-        "坐席",
-        "投诉",
-    ]
-    ai_hangup_sms_text: str = "感谢您来电，我们未能继续为您服务，可回复“1”联系人工。"
+    # Optional per-tenant server API keys. JSON object format:
+    # {"1":"tenant-1-key","2":"tenant-2-key"}. The legacy API_KEY is
+    # always restricted to DEFAULT_TENANT_ID.
+    tenant_api_keys_json: str = ""
 
 
 def setup_logging(level: str) -> None:

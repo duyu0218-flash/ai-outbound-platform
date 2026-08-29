@@ -26,8 +26,10 @@ engine = create_engine(settings.database_url, **engine_options)
 
 def create_db_and_tables() -> None:
     from . import models  # noqa: F401
+    from .schema_migrations import apply_runtime_migrations
 
     SQLModel.metadata.create_all(engine)
+    apply_runtime_migrations(engine)
 
 
 def get_engine_url() -> str:

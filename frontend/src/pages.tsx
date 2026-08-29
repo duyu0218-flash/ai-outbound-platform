@@ -218,7 +218,7 @@ export function ContactsPage() {
 
   const openEdit = (contact?: Contact) => {
     setEditing(contact || null)
-    form.setFieldsValue(contact || { consent_state: 'consented', dnc: false, timezone: 'Asia/Shanghai' })
+    form.setFieldsValue(contact || { consent_state: 'unknown', dnc: false, timezone: 'Asia/Shanghai' })
     setModalOpen(true)
   }
 
@@ -308,7 +308,7 @@ export function CampaignsPage() {
   const contacts = useSecureQuery<Contact[]>(['contacts', 'campaign-options'], '/api/v1/contacts?page=1&size=200')
   const scripts = useSecureQuery<ScriptTemplate[]>(['scripts', 'campaign-options'], '/api/v1/script-templates?active_only=true&page=1&size=200')
   const systemOverview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
-  const effectiveCapacity = systemOverview.data?.capacity.effective_max_concurrent_calls || 1000
+  const effectiveCapacity = systemOverview.data?.capacity.effective_max_concurrent_calls
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [form] = Form.useForm<CampaignFormValues>()
@@ -318,7 +318,7 @@ export function CampaignsPage() {
     onError: (error) => message.error(error.message),
   })
   const startMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/v1/campaigns/${id}/start?max_dials=10&async_dial=true`, { method: 'POST' }, token),
+    mutationFn: (id: number) => apiRequest(`/api/v1/campaigns/${id}/start?async_dial=true`, { method: 'POST' }, token),
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
@@ -334,7 +334,7 @@ export function CampaignsPage() {
   })
   const openEdit = (campaign?: Campaign) => {
     setEditing(campaign || null)
-    form.setFieldsValue(campaign || { mode: 'ai_handoff', concurrency: 5, retry_limit: 1, retry_interval_sec: 30, attempt_interval_sec: 1200, recording_enabled: true, hangup_sms_enabled: true, contact_ids: [] })
+    form.setFieldsValue(campaign || { mode: 'ai_handoff', concurrency: 5, retry_limit: 1, retry_interval_sec: 30, attempt_interval_sec: 1800, recording_enabled: true, hangup_sms_enabled: true, contact_ids: [] })
     setModalOpen(true)
   }
   return (
@@ -365,8 +365,8 @@ export function CampaignsPage() {
           <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><Select mode="multiple" optionFilterProp="label" options={(contacts.data || []).map((item) => ({ value: item.id, label: `${item.name || '-'} · ${item.phone}` }))} /></Form.Item>
           <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label={t('content')} name="script"><Input.TextArea rows={5} /></Form.Item>
-          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={t('campaignConcurrencyHint', { count: effectiveCapacity })}><InputNumber min={1} max={effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
-          <Form.Item name="attempt_interval_sec" hidden><InputNumber /></Form.Item>
+          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={effectiveCapacity ? t('campaignConcurrencyHint', { count: effectiveCapacity }) : t('capacityLoading')}><InputNumber min={1} max={effectiveCapacity} disabled={!effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
+          <Form.Item label={t('attemptInterval')} name="attempt_interval_sec"><InputNumber min={1} className="full-width" addonAfter={t('seconds')} /></Form.Item>
           <Space size="large"><Form.Item label={t('recording')} name="recording_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('hangupSms')} name="hangup_sms_enabled" valuePropName="checked"><Switch /></Form.Item></Space>
         </Form>
       </Modal>
@@ -378,7 +378,7 @@ interface CallFormValues { phone: string; mode: CallMode; campaign_id?: number; 
 
 function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[]; loading: boolean; onAction: (call: CallSession, action: 'handover' | 'hangup' | 'retry') => void; onEvents: (call: CallSession) => void }) {
   const { t } = useTranslation()
-  const handoverable = (status: string) => ['dialing', 'answered', 'in_ai'].includes(status)
+  const handoverable = (status: string) => ['dialing', 'answered', 'in_ai', 'waiting_human'].includes(status)
   const terminal = (status: string) => ['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(status)
   return <Table<CallSession> rowKey="id" loading={loading} dataSource={calls} locale={{ emptyText: t('empty') }} scroll={{ x: 1100 }} columns={[
     { title: t('phone'), dataIndex: 'phone', width: 150 },
@@ -513,6 +513,9 @@ interface LineFormValues {
   gateway_url: string
   caller_id: string
   max_concurrency: number
+  priority: number
+  weight: number
+  credential_ref: string
   enabled: boolean
 }
 
@@ -534,7 +537,7 @@ export function LinesPage() {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-lines'] }) },
     onError: (error) => message.error(error.message),
   })
-  const openEdit = (item?: TelephonyLine) => { setEditing(item || null); form.setFieldsValue(item || { provider: 'http', gateway_url: '', caller_id: '', max_concurrency: 10, enabled: true }); setModalOpen(true) }
+  const openEdit = (item?: TelephonyLine) => { setEditing(item || null); form.setFieldsValue(item || { provider: 'http', gateway_url: '', caller_id: '', max_concurrency: 10, priority: 100, weight: 1, credential_ref: '', enabled: true }); setModalOpen(true) }
   return (
     <>
       <PageTitle title={t('lines')} description={t('linesHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('addLine')}</Button>} />
@@ -545,15 +548,18 @@ export function LinesPage() {
           { title: t('gatewayUrl'), dataIndex: 'gateway_url', ellipsis: true },
           { title: t('callerId'), dataIndex: 'caller_id', width: 150, render: (value) => value || '-' },
           { title: t('concurrency'), dataIndex: 'max_concurrency', width: 110 },
+          { title: t('linePriority'), dataIndex: 'priority', width: 90 },
+          { title: t('lineWeight'), dataIndex: 'weight', width: 80 },
           { title: t('enabled'), dataIndex: 'enabled', width: 100, render: (_, record) => <Switch checked={record.enabled} loading={toggleMutation.isPending} onChange={() => toggleMutation.mutate(record)} /> },
           { title: t('actions'), fixed: 'right', width: 100, render: (_, record) => <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button> },
         ]} />
       </Card>
       <Modal title={editing ? t('editLine') : t('addLine')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
         <Form<LineFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
-          <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('provider')} name="provider" rules={[{ required: true }]}><Select options={[{ value: 'http', label: 'HTTP Bridge' }, { value: 'mock', label: 'Mock（仅测试）' }]} /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('provider')} name="provider" rules={[{ required: true }]}><Select options={[{ value: 'http', label: 'HTTP Bridge' }, { value: 'mock', label: t('mockTestOnly') }]} /></Form.Item></Col></Row>
           <Form.Item label={t('gatewayUrl')} name="gateway_url"><Input placeholder="https://voice-provider.example.com" /></Form.Item>
-          <Row gutter={12}><Col span={12}><Form.Item label={t('callerId')} name="caller_id"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('concurrency')} name="max_concurrency"><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col span={4}><Form.Item label={t('enabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col></Row>
+          <Form.Item label={t('credentialRef')} name="credential_ref" extra={t('credentialRefHint')}><Input placeholder="PRIMARY_PBX" /></Form.Item>
+          <Row gutter={12}><Col span={8}><Form.Item label={t('callerId')} name="caller_id"><Input /></Form.Item></Col><Col span={6}><Form.Item label={t('concurrency')} name="max_concurrency"><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col span={4}><Form.Item label={t('linePriority')} name="priority"><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col span={4}><Form.Item label={t('lineWeight')} name="weight"><InputNumber min={1} max={100} className="full-width" /></Form.Item></Col><Col span={2}><Form.Item label={t('enabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col></Row>
         </Form>
       </Modal>
     </>
@@ -577,8 +583,8 @@ function SettingSectionForm({ section }: { section: SettingSection }) {
     capacity: <><Alert type="warning" showIcon message={t('capacityChangeWarning')} description={t('capacityChangeDescription')} style={{ marginBottom: 16 }} /><Row gutter={16}><Col xs={24} lg={12}><Form.Item label={t('tenantCallCapacity')} name="max_concurrent_calls" rules={[{ required: true }]} extra={t('tenantCallCapacityHint')}><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col xs={24} lg={12}><Card size="small" loading={capacityOverview.isLoading}><Descriptions column={1} size="small" items={[{ key: 'effective', label: t('effectiveCapacity'), children: capacityOverview.data?.capacity.effective_max_concurrent_calls ?? '-' }, { key: 'line', label: t('lineCapacity'), children: capacityOverview.data?.capacity.line_max_concurrency ?? t('notLimited') }, { key: 'active', label: t('activeCalls'), children: capacityOverview.data?.capacity.active_calls ?? '-' }, { key: 'available', label: t('availableSlots'), children: capacityOverview.data?.capacity.available_slots ?? '-' }, { key: 'source', label: t('limitingSource'), children: capacityOverview.data?.capacity.limiting_source ? t(capacityOverview.data.capacity.limiting_source) : '-' }]} /></Card></Col></Row></>,
     ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Select options={[{ value: 'rule', label: '规则模式（本地）' }, { value: 'openai-compatible', label: 'OpenAI-compatible' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></>,
     sms: <><Form.Item label={t('smsEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item><Row gutter={16}><Col span={12}><Form.Item label={t('provider')} name="provider"><Select options={[{ value: 'mock', label: 'Mock（仅测试）' }, { value: 'http', label: 'HTTP Bridge' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('senderId')} name="sender_id"><Input /></Form.Item></Col></Row><Form.Item label={t('endpoint')} name="endpoint"><Input /></Form.Item><Form.Item label={t('hangupTemplate')} name="hangup_template"><Input.TextArea rows={4} /></Form.Item></>,
-    compliance: <><Row gutter={16}><Col span={8}><Form.Item label={t('dncEnforced')} name="dnc_enforced" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('recordingNotice')} name="recording_notice" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('maxAttemptsDay')} name="max_attempts_per_day"><InputNumber min={1} max={20} className="full-width" /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('startHour')} name="allowed_start_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('endHour')} name="allowed_end_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('timezone')} name="timezone"><Input /></Form.Item></Col></Row></>,
-    integration: <><Form.Item label={t('callbackEnabled')} name="callback_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('webhookBaseUrl')} name="webhook_base_url"><Input /></Form.Item><Form.Item label={t('webhookTimeout')} name="webhook_timeout_sec"><InputNumber min={1} max={120} addonAfter={t('seconds')} /></Form.Item></>,
+    compliance: <><Row gutter={16}><Col span={6}><Form.Item label={t('dncEnforced')} name="dnc_enforced" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('requireExplicitConsent')} name="require_explicit_consent" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('recordingNotice')} name="recording_notice" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('maxAttemptsDay')} name="max_attempts_per_day"><InputNumber min={1} max={20} className="full-width" /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('startHour')} name="allowed_start_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('endHour')} name="allowed_end_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('timezone')} name="timezone"><Input /></Form.Item></Col></Row></>,
+    integration: <><Form.Item label={t('callbackEnabled')} name="callback_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('webhookBaseUrl')} name="webhook_base_url"><Input /></Form.Item><Form.Item label={t('webhookSecretRef')} name="webhook_secret_ref" extra={t('webhookSecretHint')}><Input placeholder="PRIMARY_CALLBACK" /></Form.Item><Row gutter={16}><Col span={8}><Form.Item label={t('webhookTimeout')} name="webhook_timeout_sec"><InputNumber min={1} max={120} addonAfter={t('seconds')} /></Form.Item></Col><Col span={8}><Form.Item label={t('webhookRetryTimes')} name="webhook_retry_times"><InputNumber min={0} max={10} /></Form.Item></Col><Col span={8}><Form.Item label={t('webhookRetryBackoff')} name="webhook_retry_backoff_sec"><InputNumber min={1} max={60} addonAfter={t('seconds')} /></Form.Item></Col></Row></>,
   }
   return <Card loading={query.isLoading} className="settings-card"><Form form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>{fields[section]}<Space><Button type="primary" htmlType="submit" loading={mutation.isPending}>{t('save')}</Button>{query.data?.updated_at && <Text type="secondary">{t('lastUpdated')}: {formatDate(query.data.updated_at)}</Text>}</Space></Form></Card>
 }
@@ -657,7 +663,7 @@ export function AgentWorkspacePage() {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
-  const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy'].includes(item.status)), [query.data])
+  const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])
 
   return (
     <>
@@ -678,7 +684,7 @@ export function AgentWorkspacePage() {
         </Col>
         <Col xs={24} xl={15}>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
-            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={!['dialing', 'answered', 'in_ai'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
+            {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={!['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
           </Card>
         </Col>
       </Row>

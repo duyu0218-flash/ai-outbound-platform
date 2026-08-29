@@ -36,6 +36,13 @@ router = APIRouter(
 )
 
 
+def _ensure_agent_call_access(call, current: User | None) -> None:
+    if current is None or current.role == "admin" or current.is_supervisor:
+        return
+    if call.human_agent_id not in {None, current.id}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="call is assigned to another agent")
+
+
 @router.post("", response_model=CallSessionOut)
 async def create_call_api(
     payload: StartCallRequest,
@@ -70,11 +77,12 @@ def list_calls_api(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     skip, limit = get_pagination(page=page, size=size)
     status_enum = status_filter if status_filter else None
     try:
-        return list_calls(
+        calls = list_calls(
             session,
             tenant_id,
             status=status_enum,
@@ -82,6 +90,9 @@ def list_calls_api(
             skip=skip,
             limit=limit,
         )
+        if current is not None and current.role == "agent" and not current.is_supervisor:
+            return [call for call in calls if call.human_agent_id in {None, current.id}]
+        return calls
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid status filter")
 
@@ -91,9 +102,12 @@ def get_call_api(
     call_id: UUID,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     try:
-        return get_call(session, tenant_id, call_id)
+        call = get_call(session, tenant_id, call_id)
+        _ensure_agent_call_access(call, current)
+        return call
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
@@ -108,6 +122,8 @@ async def handover_api(
     session: Session = Depends(get_session),
 ):
     try:
+        existing_call = get_call(session, tenant_id, call_id)
+        _ensure_agent_call_access(existing_call, current)
         return await handover_to_human(
             session,
             tenant_id=tenant_id,
@@ -128,12 +144,18 @@ async def hangup_api(
     tenant_id: int = Depends(get_tenant_id_for_request),
     reason: str = Query(default="hangup"),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     try:
         call = get_call(session, tenant_id, call_id)
+        _ensure_agent_call_access(call, current)
         from ...services.telephony import get_telephony_adapter, with_retry
 
-        adapter = get_telephony_adapter(session=session, tenant_id=tenant_id)
+        adapter = get_telephony_adapter(
+            session=session,
+            tenant_id=tenant_id,
+            line_id=call.telephony_line_id,
+        )
         await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
         if call.status in TERMINAL_STATUSES:
             return call
@@ -154,9 +176,11 @@ def list_call_events(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     # ensure visibility permission for tenant
-    get_call(session, tenant_id, call_id)
+    call = get_call(session, tenant_id, call_id)
+    _ensure_agent_call_access(call, current)
     skip, limit = get_pagination(page=page, size=size)
     events = session.exec(
         select(CallEvent)
@@ -175,8 +199,10 @@ def list_webhook_events(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
-    get_call(session, tenant_id, call_id)
+    call = get_call(session, tenant_id, call_id)
+    _ensure_agent_call_access(call, current)
     skip, limit = get_pagination(page=page, size=size)
     records = session.exec(
         select(WebhookEventIngest)
@@ -193,8 +219,10 @@ def get_webhook_stats(
     call_id: UUID,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
-    get_call(session, tenant_id, call_id)
+    call = get_call(session, tenant_id, call_id)
+    _ensure_agent_call_access(call, current)
 
     records = session.exec(
         select(WebhookEventIngest)
@@ -227,8 +255,11 @@ async def retry_call_api(
     call_id: UUID,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     try:
+        call = get_call(session, tenant_id, call_id)
+        _ensure_agent_call_access(call, current)
         return await retry_call(session=session, tenant_id=tenant_id, call_id=call_id)
     except CallPermissionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))

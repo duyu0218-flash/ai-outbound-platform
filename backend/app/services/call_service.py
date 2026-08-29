@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from secrets import token_urlsafe
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -9,14 +10,17 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func, or_, update
 from sqlmodel import Session, select
+from redis import asyncio as async_redis
 
 from ..config import get_settings
 from ..clock import utc_now
-from ..models import AdminSetting, CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
+from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate
 from .telephony import (
     get_telephony_adapter,
     get_telephony_concurrency_limit,
     get_tenant_telephony_line,
+    list_tenant_telephony_lines,
+    select_tenant_telephony_line,
     with_retry,
 )
 from .admin_settings import get_admin_setting, get_tenant_max_concurrent_calls
@@ -55,15 +59,15 @@ async def ensure_tenant(session: Session, tenant_id: int) -> Tenant:
     return _get_tenant(session, tenant_id)
 
 
-def can_call_contact_sync(session: Session, tenant_id: int, phone: str) -> tuple[bool, str]:
+def can_call_contact_sync(
+    session: Session,
+    tenant_id: int,
+    phone: str,
+    *,
+    require_contact_consent: bool = False,
+) -> tuple[bool, str]:
     normalized = normalize_phone(phone)
     compliance = get_admin_setting(session, tenant_id, "compliance")
-    has_tenant_policy = session.exec(
-        select(AdminSetting.id).where(
-            AdminSetting.tenant_id == tenant_id,
-            AdminSetting.section == "compliance",
-        )
-    ).first() is not None
     contact = session.exec(
         select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized)
     ).first()
@@ -74,31 +78,36 @@ def can_call_contact_sync(session: Session, tenant_id: int, phone: str) -> tuple
         return False, "not_consented"
     if contact and contact.consent_state == ConsentState.REVOKED:
         return False, "consent_revoked"
+    if (
+        require_contact_consent
+        and compliance.get("require_explicit_consent", True)
+        and (contact is None or contact.consent_state != ConsentState.CONSENTED)
+    ):
+        return False, "explicit_consent_required"
 
-    # Preserve existing installations until an administrator explicitly saves
-    # a tenant compliance policy, then enforce its time window and daily cap.
-    if has_tenant_policy:
-        try:
-            tenant_zone = ZoneInfo(str(compliance.get("timezone") or "Asia/Shanghai"))
-        except ZoneInfoNotFoundError:
-            return False, "invalid_compliance_timezone"
-        local_now = datetime.now(timezone.utc).astimezone(tenant_zone)
-        start_hour = int(compliance.get("allowed_start_hour", 9))
-        end_hour = int(compliance.get("allowed_end_hour", 20))
-        if not start_hour <= local_now.hour < end_hour:
-            return False, "outside_calling_hours"
-        max_attempts = int(compliance.get("max_attempts_per_day", 3))
-        local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-        utc_day_start = local_day_start.astimezone(timezone.utc).replace(tzinfo=None)
-        attempts_today = session.exec(
-            select(func.count(CallSession.id)).where(
-                CallSession.tenant_id == tenant_id,
-                CallSession.phone == normalized,
-                CallSession.created_at >= utc_day_start,
-            )
-        ).one()
-        if attempts_today >= max_attempts:
-            return False, "daily_attempt_limit"
+    zone_name = (contact.timezone if contact and contact.timezone else None) or compliance.get("timezone") or "Asia/Shanghai"
+    try:
+        tenant_zone = ZoneInfo(str(zone_name))
+    except ZoneInfoNotFoundError:
+        return False, "invalid_compliance_timezone"
+    local_now = datetime.now(timezone.utc).astimezone(tenant_zone)
+    start_hour = int(compliance.get("allowed_start_hour", 9))
+    end_hour = int(compliance.get("allowed_end_hour", 20))
+    # Equal start/end explicitly means a 24-hour window.
+    if start_hour != end_hour and not start_hour <= local_now.hour < end_hour:
+        return False, "outside_calling_hours"
+    max_attempts = int(compliance.get("max_attempts_per_day", 3))
+    local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_day_start = local_day_start.astimezone(timezone.utc).replace(tzinfo=None)
+    attempts_today = session.exec(
+        select(func.coalesce(func.sum(CallSession.attempts), 0)).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.phone == normalized,
+            CallSession.created_at >= utc_day_start,
+        )
+    ).one()
+    if int(attempts_today or 0) >= max_attempts:
+        return False, "daily_attempt_limit"
     return True, ""
 
 
@@ -131,6 +140,7 @@ CALL_PRECHECK_ERROR_MAP = {
     "outside_calling_hours": "OUTSIDE_CALLING_HOURS",
     "daily_attempt_limit": "DAILY_ATTEMPT_LIMIT",
     "invalid_compliance_timezone": "INVALID_COMPLIANCE_TIMEZONE",
+    "explicit_consent_required": "EXPLICIT_CONSENT_REQUIRED",
 }
 
 
@@ -156,17 +166,40 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    can_call, reason = can_call_contact_sync(
+        session,
+        call.tenant_id,
+        call.phone,
+        require_contact_consent=call.campaign_id is not None,
+    )
+    if not can_call:
+        call.status = CallStatus.FAILED
+        call.next_attempt_at = None
+        call.last_error = f"precheck failed: {reason}"
+        call.updated_at = _now()
+        session.add(call)
+        session.commit()
+        complete_campaign_if_terminal(session, call.campaign_id)
+        return False
+
     tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
     if tenant is None or not tenant.enabled:
         session.rollback()
         return False
     effective_tenant_limit = get_tenant_max_concurrent_calls(session, call.tenant_id)
-    if (settings.telephony_provider or "mock").strip().lower() == "tenant":
-        line = get_tenant_telephony_line(session, call.tenant_id)
-        if line is None:
+    lines = list_tenant_telephony_lines(session, call.tenant_id)
+    selected_line = select_tenant_telephony_line(session, call.tenant_id) if lines else None
+    if lines:
+        effective_tenant_limit = min(
+            effective_tenant_limit,
+            sum(max(1, int(line.max_concurrency)) for line in lines),
+        )
+        if selected_line is None:
             session.rollback()
             return False
-        effective_tenant_limit = min(effective_tenant_limit, max(1, int(line.max_concurrency)))
+    elif (settings.telephony_provider or "mock").strip().lower() == "tenant":
+        session.rollback()
+        return False
     active_count = session.exec(
         select(func.count(CallSession.id)).where(
             CallSession.tenant_id == call.tenant_id,
@@ -206,6 +239,7 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             finished_at=None,
             updated_at=now,
             last_error=None,
+            telephony_line_id=selected_line.id if selected_line is not None else None,
         )
     )
     result = session.exec(stmt)
@@ -368,7 +402,12 @@ def create_call(
     if not 6 <= len(normalized) <= 15:
         raise ValueError("phone must contain 6 to 15 digits")
 
-    can_call, reason = can_call_contact_sync(session, tenant_id, normalized)
+    can_call, reason = can_call_contact_sync(
+        session,
+        tenant_id,
+        normalized,
+        require_contact_consent=campaign_id is not None,
+    )
     if not can_call:
         raise CallPermissionError(reason)
 
@@ -439,7 +478,11 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
 
     claimed_attempt = call.attempts
 
-    adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id)
+    adapter = get_telephony_adapter(
+        session=session,
+        tenant_id=call.tenant_id,
+        line_id=call.telephony_line_id,
+    )
     callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
     payload = {
         "tenant_id": call.tenant_id,
@@ -449,6 +492,8 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         # Providers that do not send their own event id still need callbacks
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,
+        "transcript_webhook_url": f"{settings.telephony_webhook_base}{settings.transcript_event_url}",
+        "recording_webhook_url": f"{settings.telephony_webhook_base}{settings.call_recording_event_url}",
     }
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
     compliance_config = get_admin_setting(session, call.tenant_id, "compliance")
@@ -461,10 +506,16 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             "recording_notice": bool(compliance_config.get("recording_notice", True)),
         }
     )
-    if (settings.telephony_provider or "mock").strip().lower() == "tenant":
-        line = get_tenant_telephony_line(session, call.tenant_id)
+    if call.telephony_line_id is not None:
+        line = get_tenant_telephony_line(
+            session,
+            call.tenant_id,
+            line_id=call.telephony_line_id,
+            enabled_only=False,
+        )
         if line is not None:
             payload["caller_id"] = line.caller_id
+            payload["telephony_line_id"] = line.id
     if call.campaign_id is not None:
         campaign = session.get(Campaign, call.campaign_id)
         if campaign and campaign.tenant_id == call.tenant_id:
@@ -548,7 +599,11 @@ async def handover_to_human(
     ):
         raise CallPermissionError("call status not handover-able")
 
-    adapter = get_telephony_adapter(session=session, tenant_id=tenant_id)
+    adapter = get_telephony_adapter(
+        session=session,
+        tenant_id=tenant_id,
+        line_id=call.telephony_line_id,
+    )
     try:
         await with_retry(
             lambda: adapter.transfer_to_human(call_id=str(call.id), reason=reason, target_group=target_group)
@@ -809,19 +864,98 @@ async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
     return len(pending_ids)
 
 
-async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float = 1.0) -> None:
-    while not stop_event.is_set():
-        try:
-            await dispatch_due_retries()
-            await dispatch_pending_calls()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("scheduled call retry scan failed")
-        try:
-            await asyncio.wait_for(stop_event.wait(), timeout=max(0.1, poll_interval_sec))
-        except asyncio.TimeoutError:
-            continue
+def expire_stale_calls(*, batch_size: int = 200) -> int:
+    """Release capacity held by provider calls that never sent a terminal event."""
+    now = _now()
+    cutoff = now - timedelta(seconds=max(10, int(settings.default_call_timeout_sec)))
+    expired = 0
+    campaign_ids: set[int] = set()
+    with session_scope() as session:
+        calls = session.exec(
+            select(CallSession)
+            .where(
+                CallSession.status.in_(CAPACITY_STATUSES),
+                CallSession.updated_at <= cutoff,
+            )
+            .order_by(CallSession.updated_at.asc())
+            .limit(batch_size)
+        ).all()
+        for call in calls:
+            changed = _set_call_if_status_in_uuid(
+                session,
+                call_id=call.id,
+                allowed_statuses=CAPACITY_STATUSES,
+                status=CallStatus.FAILED,
+                finished_at=now,
+                last_error="provider status timeout",
+                updated_at=now,
+            )
+            if not changed:
+                continue
+            session.refresh(call)
+            schedule_campaign_retry(session, call, CallStatus.FAILED)
+            session.add(call)
+            session.commit()
+            expired += 1
+            if call.campaign_id is not None:
+                campaign_ids.add(call.campaign_id)
+        for campaign_id in campaign_ids:
+            complete_campaign_if_terminal(session, campaign_id)
+    return expired
+
+
+async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
+    poll_interval = max(0.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
+    batch_size = max(1, int(settings.scheduler_batch_size))
+    redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
+    lock_key = "ai-outbound:scheduler:leader"
+    lock_token = token_urlsafe(24)
+    try:
+        while not stop_event.is_set():
+            try:
+                lock_acquired = redis_client is None
+                if redis_client is not None:
+                    try:
+                        lock_acquired = bool(
+                            await redis_client.set(
+                                lock_key,
+                                lock_token,
+                                nx=True,
+                                ex=max(2, int(settings.scheduler_lock_ttl_sec)),
+                            )
+                        )
+                    except Exception:
+                        # A production process must not run an unlocked duplicate
+                        # scheduler. Development may keep working without Redis.
+                        lock_acquired = settings.env.lower() not in {"prod", "production"}
+                        logger.exception("scheduler Redis lock unavailable")
+                if lock_acquired:
+                    expire_stale_calls(batch_size=batch_size)
+                    await dispatch_due_retries(batch_size=batch_size)
+                    await dispatch_pending_calls(batch_size=batch_size)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("scheduled call retry scan failed")
+            finally:
+                if redis_client is not None:
+                    try:
+                        await redis_client.eval(
+                            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                            1,
+                            lock_key,
+                            lock_token,
+                        )
+                    except Exception:
+                        logger.debug("scheduler lock release failed", exc_info=True)
+            lock_token = token_urlsafe(24)
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=poll_interval)
+            except asyncio.TimeoutError:
+                continue
+    finally:
+        if redis_client is not None:
+            await redis_client.aclose()
 
 
 def start_campaign(
@@ -830,6 +964,7 @@ def start_campaign(
     tenant_id: int,
     campaign_id: int,
     only_active_contacts: bool = True,
+    max_calls: int | None = None,
 ) -> dict[str, object]:
     campaign = session.get(Campaign, campaign_id)
     if not campaign or campaign.tenant_id != tenant_id:
@@ -865,6 +1000,9 @@ def start_campaign(
             }
             skip_reasons.append(reason)
             skipped_reason_counter["CONTACT_INACTIVE"] = skipped_reason_counter.get("CONTACT_INACTIVE", 0) + 1
+            continue
+
+        if max_calls is not None and created >= max(0, int(max_calls)):
             continue
 
         try:

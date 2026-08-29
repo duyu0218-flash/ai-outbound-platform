@@ -81,6 +81,7 @@ docker compose up -d --build
 | `ENV` | 环境名 |
 | `API_KEY` | 管理 API 鉴权头 `x-api-key`（主 key） |
 | `UI_API_KEY` | 可选备用 API key |
+| `TENANT_API_KEYS_JSON` | 多租户服务端 Key 映射，例如 `{"1":"...","2":"..."}`；Key 只能访问绑定租户 |
 | `DATABASE_URL` | 数据库链接（建议 PostgreSQL） |
 | `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | PostgreSQL 连接池常驻连接/溢出连接数 |
 | `DATABASE_POOL_TIMEOUT_SEC` / `DATABASE_POOL_RECYCLE_SEC` | 获取连接超时/连接回收秒数 |
@@ -101,6 +102,8 @@ docker compose up -d --build
 | `RATE_LIMIT_AUTH_RPM` | `/api/v1/auth/login` 每分钟请求数（更严格） |
 | `RATE_LIMIT_WINDOW_SEC` | 限流滑动窗口秒数 |
 | `MAX_CONCURRENT_CALLS` | 租户未在管理端保存容量策略时的默认并发值；管理端保存后即时生效 |
+| `DEFAULT_CALL_TIMEOUT_SEC` | 运营商未回传终态时的通话超时回收时间 |
+| `SCHEDULER_*` | 持久化拨号队列的开关、扫描周期、批次和 Redis 主锁 TTL |
 | `DEMO_USERS_ENABLED` | 是否自动创建演示账号；生产必须为 `false` |
 
 ## 4. 示例 API
@@ -242,21 +245,22 @@ bash scripts/test-campaign-start.sh
   - `POST /api/v1/campaigns/{campaign_id}/start` 支持 `auto_dial` 与 `max_dials`。
   - `pause` 停止继续派发，`resume` 继续派发可重试任务，`stop` 终止尚未拨出的任务；已进入运营商链路的通话需单独挂断。
   - 录音回调与挂断短信均服从活动的 `recording_enabled` / `hangup_sms_enabled` 开关。
-  - 建议后续接入分布式任务队列，避免活动一次性同步阻塞。
+  - 默认异步模式把通话持久化为 `queued`，由 Redis 主锁保护的调度器拉取；API worker 重启不会丢失已入库任务。
+  - 运营商超过 `DEFAULT_CALL_TIMEOUT_SEC` 未回传终态时，系统会标记失败、释放并发并按活动策略重试。
 - 外呼闭环：
   - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
 - 合规：
-  - 联系人必须经过同意/撤回、黑名单（DNC）检查。
+  - 活动联系人默认必须是“已明确同意”；重试每次重新执行授权、DNC、时区时段和每日次数检查。
   - 同一租户不允许重复号码；已有活动或通话引用的联系人不允许删除，以防历史记录断链。
 - 登录态增强：
   - `current_user_optional` 与 `require_roles_if_authenticated` 上线：携带 Bearer Token 的请求会做角色检查；纯 API Key 调用保持兼容。
 - webhook 增强：
   - 回调事件使用唯一键和原子计数去重；乱序的晚到回调不会把终态通话重新打开。
 - 凭据与租户隔离：
-  - 页面登录使用 Bearer Token，服务端 API Key 不再注入 HTML；用户态请求只能访问其所属租户。
+  - 页面登录使用 Bearer Token，服务端 API Key 不再注入 HTML；用户态请求只能访问其所属租户。`API_KEY` 只绑定默认租户，多租户集成使用 `TENANT_API_KEYS_JSON`。
   - 新密码使用随机盐 PBKDF2-SHA256，旧哈希登录成功后自动升级。
 - 活动拨号（新）：
-  - `POST /api/v1/campaigns/{campaign_id}/start` 新增 `async_dial`：默认 `true`，采用后台异步并发拨号（仍可选 `async_dial=false` 做阻塞式串行验证）。
+  - `POST /api/v1/campaigns/{campaign_id}/start` 的 `async_dial=true` 使用持久化队列；`async_dial=false` 用于单次阻塞式联调。
 
 ## 6. 接入 PBX / 短信
 
@@ -269,12 +273,12 @@ bash scripts/test-campaign-start.sh
   - `POST /api/v1/webhooks/telephony/transcript`
   - `POST /api/v1/webhooks/telephony/recording`
 - AI 设置选择 `rule` 时使用本地规则模式；选择 `openai-compatible` 时，Agent 会使用环境变量中的 `OPENAI_BASE_URL`、`OPENAI_API_KEY` 调用兼容的 `/chat/completions`。
-- 启用业务回调后，状态、转写、录音 URL 和 AI 决策会 POST 到配置的 Webhook，并在通话事件中记录成功或失败。
+- 启用业务回调后，状态、转写、录音 URL 和 AI 决策会 POST 到配置的 Webhook；支持 HMAC-SHA256 签名、指数退避重试和投递审计事件。
 
 ## 7. 上线仍需完成的外部集成
 
 - GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
-- 将进程内后台任务替换为分布式任务队列（Celery/Temporal）：任务并发、限流、重试、死信队列。
+- 当需要跨机房、大规模调度或死信队列时，再将当前“数据库持久队列 + Redis 主锁”升级为 Celery/Temporal。
 - 对接并验收真实运营商/PBX、SIP 中继、坐席 WebRTC 软电话、排队分配和人工接听状态；当前页面不是媒体终端。
 - 将规则型 AI 服务替换为真实 ASR、LLM、TTS 流式链路，并做中文/英文口音、打断、延迟、降级和敏感词验收。
 - 将录音 URL 回调扩展为受控下载、MinIO 对象存储、签名访问、生命周期和删除审计；当前不代存录音文件。
