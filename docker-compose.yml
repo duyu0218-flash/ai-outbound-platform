@@ -3,10 +3,11 @@ services:
     image: redis:7-alpine
     container_name: ai-outbound-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-replace-redis-password}"]
+    expose:
+      - "6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-replace-redis-password}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -19,8 +20,8 @@ services:
       POSTGRES_DB: ai_outbound
       POSTGRES_USER: ai_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-replace-db-password}
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_outbound"]
       interval: 5s
@@ -44,8 +45,12 @@ services:
       voice-gateway:
         condition: service_healthy
     environment:
+      DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
+      REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
       TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
+      TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
+      AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3); print('ok')"]
       interval: 10s
@@ -63,8 +68,9 @@ services:
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       AI_CONTROL_URL: http://control-api:8000
-    ports:
-      - "8001:8001"
+      SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+    expose:
+      - "8001"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3); print('ok')"]
@@ -82,8 +88,9 @@ services:
     environment:
       VOICE_GATEWAY_DRIVER: ${VOICE_GATEWAY_DRIVER:-mock}
       WEBHOOK_TOKEN: ${TELEPHONY_WEBHOOK_TOKEN:-}
-    ports:
-      - "127.0.0.1:8002:8002"
+      SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
+    expose:
+      - "8002"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=3); print('ok')"]
       interval: 10s

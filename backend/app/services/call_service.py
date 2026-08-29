@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from secrets import token_urlsafe
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -29,6 +30,7 @@ from ..db import session_scope
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+_last_retention_scan = 0.0
 
 
 class CallPermissionError(ValueError):
@@ -929,6 +931,7 @@ def expire_stale_calls(*, batch_size: int = 200) -> int:
 
 
 async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
+    global _last_retention_scan
     poll_interval = max(0.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
     batch_size = max(1, int(settings.scheduler_batch_size))
     redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
@@ -957,6 +960,14 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
                     expire_stale_calls(batch_size=batch_size)
                     await dispatch_due_retries(batch_size=batch_size)
                     await dispatch_pending_calls(batch_size=batch_size)
+                    from .task_queue import process_pending_tasks
+
+                    await process_pending_tasks(batch_size=batch_size)
+                    if time.monotonic() - _last_retention_scan >= max(60, settings.retention_scan_interval_sec):
+                        from .retention import purge_expired_voice_data
+
+                        purge_expired_voice_data(batch_size=batch_size)
+                        _last_retention_scan = time.monotonic()
             except asyncio.CancelledError:
                 raise
             except Exception:

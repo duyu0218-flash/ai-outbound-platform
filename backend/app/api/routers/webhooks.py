@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import update
@@ -11,11 +12,11 @@ from ...clock import utc_now
 from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
 from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent
-from ...services import dispatcher
 from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 from ...services.call_analysis import analyze_call
 from ...services.realtime_voice import apply_media_event, ingest_speech_turn, interrupt_playback
+from ...services.task_queue import enqueue_task, process_task
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -253,7 +254,15 @@ def telephony_status(
         analyze_call(session, call)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
-        background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
+        task = enqueue_task(
+            session,
+            tenant_id=call.tenant_id,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"ai:{call.id}:answered:{call.attempts}",
+            payload={"call_id": str(call.id), "transcript": payload.transcript or ""},
+        )
+        background_tasks.add_task(process_task, task.id)
     if status_applied and mapped is not None:
         background_tasks.add_task(
             deliver_business_callback,
@@ -300,7 +309,7 @@ def telephony_transcript(
         barge_in=bool(payload.payload.get("barge_in", False)),
         attempt=payload.payload.get("attempt"),
     )
-    ingest_speech_turn(session, call, speech_payload)
+    turn, _ = ingest_speech_turn(session, call, speech_payload)
     call.last_transcript = payload.transcript
     if payload.transcript:
         call.summary = f"{(call.summary or '').rstrip()}\n{payload.transcript}".strip()
@@ -310,7 +319,15 @@ def telephony_transcript(
     if speech_payload.barge_in:
         background_tasks.add_task(interrupt_playback, call.id)
     if speech_payload.is_final and call.mode != CallMode.HUMAN_ONLY:
-        background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
+        task = enqueue_task(
+            session,
+            tenant_id=call.tenant_id,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"ai:{call.id}:speech:{turn.id}",
+            payload={"call_id": str(call.id), "transcript": payload.transcript or ""},
+        )
+        background_tasks.add_task(process_task, task.id)
     background_tasks.add_task(
         deliver_business_callback,
         tenant_id=call.tenant_id,
@@ -339,7 +356,15 @@ def telephony_speech(
     if payload.barge_in:
         background_tasks.add_task(interrupt_playback, call.id)
     if payload.is_final and call.mode != CallMode.HUMAN_ONLY:
-        background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript)
+        task = enqueue_task(
+            session,
+            tenant_id=call.tenant_id,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"ai:{call.id}:speech:{turn.id}",
+            payload={"call_id": str(call.id), "transcript": payload.transcript},
+        )
+        background_tasks.add_task(process_task, task.id)
     background_tasks.add_task(
         deliver_business_callback,
         tenant_id=call.tenant_id,
@@ -408,6 +433,7 @@ def telephony_recording(
                     media_format=str(payload.payload.get("format") or ""),
                     channel_count=int(payload.payload.get("channel_count") or 1),
                     checksum_sha256=payload.payload.get("checksum_sha256"),
+                    retention_until=utc_now() + timedelta(days=max(1, settings.recording_retention_days)),
                 )
             )
     session.add(call)

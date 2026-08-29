@@ -95,7 +95,9 @@ docker compose up -d --build
 | `TELEPHONY_PROVIDER_ENDPOINT` | `http` 模式下电信/网关 API 地址 |
 | `TELEPHONY_WEBHOOK_BASE` | 回调基础地址（控制面地址） |
 | `TELEPHONY_WEBHOOK_TOKEN` | 回调鉴权 Token（可选，设置后会校验 `x-webhook-token`） |
+| `TELEPHONY_SERVICE_TOKEN` | 控制服务调用语音网关的内部 Bearer Token |
 | `AI_AGENT_URL` | AI 服务地址 |
+| `AI_AGENT_SERVICE_TOKEN` | 控制服务调用 AI Agent 的内部 Bearer Token |
 | `SMS_PROVIDER_ENDPOINT` | 短信服务 API 地址 |
 | `SMS_API_KEY` | 短信服务鉴权 |
 | `REQUEST_TIMEOUT_MS` | 单请求超时（毫秒），用于后端防止长耗时请求 |

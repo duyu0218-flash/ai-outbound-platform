@@ -151,6 +151,29 @@ export interface RecordingAsset {
   created_at: string
 }
 
+export interface KnowledgeItem {
+  id: number
+  title: string
+  content: string
+  category: string
+  tags: string
+  version: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface HandoffRequest {
+  id: number
+  call_session_id: string
+  assigned_agent_id?: number
+  state: 'waiting' | 'accepting' | 'accepted' | 'rejected' | 'completed' | 'expired'
+  reason: string
+  target_group: string
+  requested_at: string
+  responded_at?: string
+}
+
 export interface CallAnalysis {
   id: number
   result_code: string
@@ -249,6 +272,10 @@ export interface SystemOverview {
     limiting_source: 'tenant_capacity' | 'telephony_line' | 'tenant_and_line'
     telephony_provider: string
     environment_default: number
+  }
+  operations: {
+    durable_tasks: Record<string, number>
+    average_ai_turn_ms?: number
   }
   generated_at: string
 }

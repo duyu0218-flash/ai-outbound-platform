@@ -39,8 +39,8 @@ router = APIRouter(
 def _ensure_agent_call_access(call, current: User | None) -> None:
     if current is None or current.role == "admin" or current.is_supervisor:
         return
-    if call.human_agent_id not in {None, current.id}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="call is assigned to another agent")
+    if call.human_agent_id != current.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="call is not assigned to this agent")
 
 
 @router.post("", response_model=CallSessionOut)
@@ -48,6 +48,7 @@ async def create_call_api(
     payload: StartCallRequest,
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
 ):
     try:
         call = create_call(
@@ -59,6 +60,11 @@ async def create_call_api(
             contact_id=payload.contact_id,
             max_attempts=payload.max_attempts,
         )
+        if current is not None and current.role == "agent":
+            call.human_agent_id = current.id
+            call.updated_at = utc_now()
+            session.add(call)
+            session.commit()
         call = await place_call(session=session, call=call)
         return call
     except CallPermissionError as exc:
@@ -91,7 +97,7 @@ def list_calls_api(
             limit=limit,
         )
         if current is not None and current.role == "agent" and not current.is_supervisor:
-            return [call for call in calls if call.human_agent_id in {None, current.id}]
+            return [call for call in calls if call.human_agent_id == current.id]
         return calls
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid status filter")
@@ -123,7 +129,13 @@ async def handover_api(
 ):
     try:
         existing_call = get_call(session, tenant_id, call_id)
-        _ensure_agent_call_access(existing_call, current)
+        if (
+            current is not None
+            and current.role == "agent"
+            and not current.is_supervisor
+            and existing_call.human_agent_id not in {None, current.id}
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="call is assigned to another agent")
         return await handover_to_human(
             session,
             tenant_id=tenant_id,

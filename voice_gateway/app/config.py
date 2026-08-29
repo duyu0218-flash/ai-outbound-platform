@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     rtp_port_start: int = 20000
     rtp_port_end: int = 30000
     webhook_token: str = ""
+    service_token: str = ""
 
     def validate_runtime(self) -> None:
         driver = self.voice_gateway_driver.strip().lower()
@@ -20,6 +21,8 @@ class Settings(BaseSettings):
             raise RuntimeError("VOICE_GATEWAY_DRIVER must be mock or pbx_http")
         if self.env.lower() in {"prod", "production"} and driver == "mock":
             raise RuntimeError("production voice gateway cannot use mock driver")
+        if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
+            raise RuntimeError("SERVICE_TOKEN is required in production")
         if driver == "pbx_http" and not self.pbx_base_url.strip():
             raise RuntimeError("PBX_BASE_URL is required for pbx_http driver")
         if not (1024 <= self.rtp_port_start <= self.rtp_port_end <= 65535):

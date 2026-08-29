@@ -56,7 +56,9 @@ cp .env.example .env
 - `REDIS_URL`：Redis 连接字符串
 - `TELEPHONY_PROVIDER`：`mock`（联调）或 `http`（接入真实 PBX）
 - `TELEPHONY_WEBHOOK_TOKEN`：建议给网关回调加签
+- `TELEPHONY_SERVICE_TOKEN`：控制服务调用语音网关的内部 Bearer Token
 - `AI_AGENT_URL`：AI 服务地址（compose 下默认 `http://ai-agent:8001`）
+- `AI_AGENT_SERVICE_TOKEN`：控制服务调用 AI Agent 的内部 Bearer Token
 - `SMS_PROVIDER`：`mock` 或对接真实短信供应商
 - 生产化增强参数（建议按环境调参）：
   - `REQUEST_TIMEOUT_MS=15000`（单请求超时）
@@ -543,6 +545,10 @@ bash scripts/test-campaign-start.sh
   - `backend/migrations/postgresql/20260828_contact_integrity.sql`
   - `backend/migrations/postgresql/20260828_call_retry_schedule.sql`
   - `backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql`
+  - `backend/migrations/postgresql/20260829_agent_presence_sms_receipts.sql`
+  - `backend/migrations/postgresql/20260829_realtime_voice_p0_p1.sql`
+  - `backend/migrations/postgresql/20260829_script_flow.sql`
+  - `backend/migrations/postgresql/20260829_durable_tasks.sql`
 
 发布顺序：
 
@@ -550,27 +556,10 @@ bash scripts/test-campaign-start.sh
 # 1. 备份（替换连接信息与文件名）
 pg_dump --format=custom --file=ai_outbound_before_20260828.dump "$DATABASE_URL"
 
-# 2. 暂停写入流量/活动派发后执行结构升级
-psql "$DATABASE_URL" \
-  -v ON_ERROR_STOP=1 \
-  -f backend/migrations/postgresql/20260828_event_audit_indexes.sql
-
-psql "$DATABASE_URL" \
-  -v ON_ERROR_STOP=1 \
-  -f backend/migrations/postgresql/20260828_admin_management.sql
-
-# 执行前必须先处理同租户重复号码；发现重复时脚本会主动终止，不会静默删数据
-psql "$DATABASE_URL" \
-  -v ON_ERROR_STOP=1 \
-  -f backend/migrations/postgresql/20260828_contact_integrity.sql
-
-psql "$DATABASE_URL" \
-  -v ON_ERROR_STOP=1 \
-  -f backend/migrations/postgresql/20260828_call_retry_schedule.sql
-
-psql "$DATABASE_URL" \
-  -v ON_ERROR_STOP=1 \
-  -f backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql
+# 2. 暂停写入流量/活动派发后，按文件名顺序执行未应用过的脚本
+# 该命令使用 PostgreSQL 顾问锁、版本表和 SHA-256 校验，已执行脚本不会重复运行
+cd backend
+python -m app.migration_runner
 
 # 3. 发布固定版本镜像，启动后检查
 curl -fS http://localhost:8000/health
@@ -584,6 +573,7 @@ curl -fS http://localhost:8000/readyz
 - 不要把 `.env` 明文放在仓库
 - 代理层只放行必需端口
 - `TELEPHONY_WEBHOOK_TOKEN` 必须有值
+- `TELEPHONY_SERVICE_TOKEN` 与 `AI_AGENT_SERVICE_TOKEN` 必须使用不同的强随机值
 - 使用 HTTP 短信供应商时必须配置 `SMS_CALLBACK_URL` 与 `SMS_WEBHOOK_TOKEN`，供应商回执请求携带 `x-webhook-token`
 - 日志中打码手机号（如有敏感合规要求）
 - 对接短信/电话接口增加重试和幂等保护

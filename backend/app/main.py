@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -121,6 +122,12 @@ def _validate_production_runtime() -> None:
         issues.append("DEMO_USERS_ENABLED=true")
     if not settings.telephony_webhook_token.strip():
         issues.append("TELEPHONY_WEBHOOK_TOKEN")
+    if weak_secret(settings.telephony_service_token, 24):
+        issues.append("TELEPHONY_SERVICE_TOKEN")
+    if weak_secret(settings.ai_agent_service_token, 24):
+        issues.append("AI_AGENT_SERVICE_TOKEN")
+    if settings.ai_agent_service_token and settings.ai_agent_service_token == settings.telephony_service_token:
+        issues.append("internal service tokens must be different")
     if settings.sms_provider.strip().lower() == "http":
         if not settings.sms_callback_url.strip():
             issues.append("SMS_CALLBACK_URL")
@@ -128,8 +135,14 @@ def _validate_production_runtime() -> None:
             issues.append("SMS_WEBHOOK_TOKEN")
     if settings.database_url.startswith("sqlite"):
         issues.append("DATABASE_URL=sqlite")
+    if "replace-db-password" in settings.database_url.lower():
+        issues.append("DATABASE_URL placeholder password")
     if not settings.redis_url.strip():
         issues.append("REDIS_URL")
+    else:
+        redis_password = urlparse(settings.redis_url).password or ""
+        if weak_secret(redis_password, 16):
+            issues.append("REDIS_URL insecure password")
     if (settings.telephony_provider or "mock").strip().lower() == "mock":
         issues.append("TELEPHONY_PROVIDER=mock")
 

@@ -41,6 +41,8 @@ from app.models import (  # noqa: E402
     RealtimeSession,
     SmsLog,
     SpeechTurn,
+    TaskOutbox,
+    TaskState,
     TelephonyLine,
     User,
 )
@@ -49,6 +51,10 @@ from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
 from app.services import business_callbacks  # noqa: E402
 from app.services.knowledge import retrieve_knowledge  # noqa: E402
+from app.services.retention import purge_expired_voice_data  # noqa: E402
+from app.services.script_flow import FlowValidationError, validate_graph  # noqa: E402
+from app.services.task_queue import enqueue_task, process_task  # noqa: E402
+from app.schemas import ScriptFlowGraph  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
     dispatch_call_ids,
@@ -347,15 +353,122 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
         "app.api.routers.voice_operations.get_telephony_adapter",
         lambda **_: TransferAdapter(),
     )
+    queued = client.get("/api/v1/handoffs?state=waiting", headers=headers)
+    assert queued.status_code == 200
+    assert any(item["id"] == handoff_id for item in queued.json())
     accepted = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["state"] == "accepted"
     assert captured["call_id"] == str(call_id)
     assert client.get(f"/api/v1/calls/{call_id}", headers=headers).json()["status"] == "handoff_transferring"
+    second_accept = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
+    assert second_accept.status_code == 409
+
+
+def test_flow_validation_rejects_unreachable_and_dead_end_nodes():
+    unreachable = ScriptFlowGraph.model_validate({
+        "nodes": [
+            {"id": "start", "type": "start", "label": "start", "position": {"x": 0, "y": 0}},
+            {"id": "end", "type": "hangup", "label": "end", "position": {"x": 1, "y": 0}},
+            {"id": "orphan", "type": "hangup", "label": "orphan", "position": {"x": 2, "y": 0}},
+        ],
+        "edges": [{"id": "e1", "source": "start", "target": "end", "condition": "always", "keywords": []}],
+    })
+    with pytest.raises(FlowValidationError, match="unreachable"):
+        validate_graph(unreachable)
+
+    dead_end = ScriptFlowGraph.model_validate({
+        "nodes": [
+            {"id": "start", "type": "start", "label": "start", "position": {"x": 0, "y": 0}},
+            {"id": "listen", "type": "listen", "label": "listen", "position": {"x": 1, "y": 0}},
+        ],
+        "edges": [{"id": "e1", "source": "start", "target": "listen", "condition": "always", "keywords": []}],
+    })
+    with pytest.raises(FlowValidationError, match="outgoing edge"):
+        validate_graph(dead_end)
+
+
+@pytest.mark.asyncio
+async def test_durable_ai_task_is_idempotent_and_completes(monkeypatch):
+    called: list[str] = []
+
+    async def fake_run_ai_turn(*, call_id, transcript, durable=False):
+        assert durable is True
+        called.append(f"{call_id}:{transcript}")
+
+    monkeypatch.setattr("app.services.dispatcher.run_ai_turn", fake_run_ai_turn)
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138991", mode=CallMode.AI_ONLY, status=CallStatus.ANSWERED)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        first = enqueue_task(
+            session,
+            tenant_id=1,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"test-ai:{call.id}",
+            payload={"call_id": str(call.id), "transcript": "hello"},
+        )
+        duplicate = enqueue_task(
+            session,
+            tenant_id=1,
+            task_type="ai_turn",
+            aggregate_id=str(call.id),
+            idempotency_key=f"test-ai:{call.id}",
+            payload={"call_id": str(call.id), "transcript": "hello"},
+        )
+        assert first.id == duplicate.id
+        task_id = first.id
+    assert await process_task(task_id) is True
+    assert await process_task(task_id) is False
+    assert len(called) == 1
+    with session_scope() as session:
+        task = session.get(TaskOutbox, task_id)
+        assert task is not None and task.state == TaskState.COMPLETED
+
+
+def test_retention_purges_partial_text_and_tombstones_recording(monkeypatch):
+    monkeypatch.setattr("app.services.retention.settings.partial_transcript_retention_hours", 1)
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138992", mode=CallMode.HUMAN_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        partial = SpeechTurn(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_event_key=f"retention-{call.id}",
+            transcript="temporary partial",
+            normalized_transcript="temporary partial",
+            is_final=False,
+            created_at=utc_now() - timedelta(hours=2),
+        )
+        recording = RecordingAsset(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_url="https://example.invalid/recording.wav",
+            storage_uri="s3://bucket/recording.wav",
+            retention_until=utc_now() - timedelta(seconds=1),
+        )
+        session.add(partial)
+        session.add(recording)
+        session.commit()
+        session.refresh(recording)
+        recording_id = recording.id
+    result = purge_expired_voice_data()
+    assert result["partial_transcripts"] >= 1
+    assert result["recordings"] >= 1
+    with session_scope() as session:
+        recording = session.get(RecordingAsset, recording_id)
+        assert recording is not None
+        assert recording.state == "deleted"
+        assert recording.provider_url == ""
+        assert recording.storage_uri == ""
 
 
 def test_pages_login_and_server_key_not_exposed(client: TestClient):
-    for path in ("/admin", "/admin/contacts", "/agent", "/agent/calls"):
+    for path in ("/admin", "/admin/contacts", "/admin/knowledge", "/agent", "/agent/calls"):
         response = client.get(path)
         assert response.status_code == 200, response.text
         assert '<div id="root"></div>' in response.text

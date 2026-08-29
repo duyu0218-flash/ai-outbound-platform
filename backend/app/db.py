@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from typing import Generator
 
+from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
 from .config import get_settings
@@ -28,6 +29,18 @@ def create_db_and_tables() -> None:
     from . import models  # noqa: F401
     from .schema_migrations import apply_runtime_migrations
 
+    if settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+        # Every uvicorn worker runs lifespan. Serialize initial DDL so two fresh
+        # workers cannot race while creating PostgreSQL enum types or tables.
+        with engine.connect() as lock_connection:
+            lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-ddl'))"))
+            try:
+                SQLModel.metadata.create_all(engine)
+                apply_runtime_migrations(engine)
+            finally:
+                lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-ddl'))"))
+                lock_connection.commit()
+        return
     SQLModel.metadata.create_all(engine)
     apply_runtime_migrations(engine)
 

@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -8,7 +8,16 @@ from .config import settings
 from .llm import generate_reply
 from .policy import get_default_keywords, resolve_action, ai_reply
 
+settings.validate_runtime()
 app = FastAPI(title=settings.app_name)
+
+
+def require_service_token(authorization: str | None = Header(default=None)) -> None:
+    expected = settings.service_token.strip()
+    if not expected and settings.env.lower() not in {"prod", "production"}:
+        return
+    if not expected or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid service token")
 
 
 class TurnRequest(BaseModel):
@@ -34,7 +43,7 @@ def health():
     return {"status": "ok", "service": settings.app_name}
 
 
-@app.post("/agent/turn")
+@app.post("/agent/turn", dependencies=[Depends(require_service_token)])
 async def turn(payload: TurnRequest):
     language = str(payload.context.get("language") or "zh-CN")
     keywords = get_default_keywords(language)
@@ -55,6 +64,7 @@ async def turn(payload: TurnRequest):
             language=language,
             model=str(payload.context.get("llm_model") or settings.openai_model),
             knowledge=payload.context.get("knowledge") or [],
+            conversation=payload.context.get("conversation") or [],
         )
     elif provider != "rule":
         raise RuntimeError(f"unsupported LLM provider: {provider}")
@@ -68,7 +78,7 @@ async def turn(payload: TurnRequest):
     )
 
 
-@app.post("/agent/start")
+@app.post("/agent/start", dependencies=[Depends(require_service_token)])
 def start(payload: TurnRequest):
     language = str(payload.context.get("language") or "zh-CN")
     tts = ai_reply(payload.mode, payload.script, "", language)

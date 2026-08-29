@@ -4,6 +4,7 @@ import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from ...api.deps import (
@@ -181,6 +182,22 @@ def list_handoffs(
     ).all()
 
 
+@router.get("/handoffs", response_model=list[HandoffRequestOut])
+def list_handoff_queue(
+    handoff_state: HandoffState = Query(default=HandoffState.WAITING, alias="state"),
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
+):
+    query = select(HandoffRequest).where(
+        HandoffRequest.tenant_id == tenant_id,
+        HandoffRequest.state == handoff_state,
+    )
+    if current is not None and current.role == "agent" and not current.is_supervisor:
+        query = query.where(HandoffRequest.assigned_agent_id.in_([None, current.id]))
+    return session.exec(query.order_by(HandoffRequest.requested_at.asc())).all()
+
+
 @router.post("/calls/{call_id}/handoffs/{handoff_id}/accept", response_model=HandoffRequestOut)
 async def accept_handoff(
     call_id: UUID,
@@ -197,6 +214,24 @@ async def accept_handoff(
         raise HTTPException(status_code=409, detail="handoff is not waiting")
     if current is not None and handoff.assigned_agent_id not in {None, current.id} and current.role != "admin":
         raise HTTPException(status_code=403, detail="handoff is assigned to another agent")
+    original_assigned_agent_id = handoff.assigned_agent_id
+    claimed_agent_id = current.id if current is not None and current.role == "agent" else original_assigned_agent_id
+    claim_result = session.execute(
+        update(HandoffRequest)
+        .where(
+            HandoffRequest.id == handoff_id,
+            HandoffRequest.state == HandoffState.WAITING,
+        )
+        .values(
+            state=HandoffState.ACCEPTING,
+            assigned_agent_id=claimed_agent_id,
+            updated_at=utc_now(),
+        )
+    )
+    if claim_result.rowcount != 1:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="handoff has already been claimed")
+    session.commit()
     adapter = get_telephony_adapter(
         session=session,
         tenant_id=tenant_id,
@@ -213,9 +248,23 @@ async def accept_handoff(
             )
         )
     except Exception as exc:
+        session.execute(
+            update(HandoffRequest)
+            .where(
+                HandoffRequest.id == handoff_id,
+                HandoffRequest.state == HandoffState.ACCEPTING,
+            )
+            .values(
+                state=HandoffState.WAITING,
+                assigned_agent_id=original_assigned_agent_id,
+                updated_at=utc_now(),
+            )
+        )
+        session.commit()
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"telephony transfer failed: {exc}")
+    session.refresh(handoff)
     handoff.state = HandoffState.ACCEPTED
-    handoff.assigned_agent_id = current.id if current is not None and current.role == "agent" else handoff.assigned_agent_id
+    handoff.assigned_agent_id = claimed_agent_id
     handoff.responded_at = utc_now()
     handoff.updated_at = utc_now()
     call.human_agent_id = handoff.assigned_agent_id

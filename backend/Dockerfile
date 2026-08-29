@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir --upgrade pip
 
 COPY backend/pyproject.toml /app/pyproject.toml
 COPY backend/app /app/app
+COPY backend/migrations /app/migrations
 COPY --from=frontend-builder /workspace/backend/app/static /app/app/static
 RUN pip install --no-cache-dir .
 

@@ -1,4 +1,8 @@
 from app.policy import ai_reply, get_default_keywords, resolve_action
+from fastapi.testclient import TestClient
+
+from app.config import settings
+from app.main import app
 
 
 def test_english_reply_and_handoff_are_localized():
@@ -29,3 +33,16 @@ def test_ai_only_does_not_handoff_and_human_first_does():
     assert handoff is False
     handoff, _, _, _ = resolve_action("mixed_human_first", "", "", "zh-CN")
     assert handoff is True
+
+
+def test_agent_service_token_protects_turn_endpoint(monkeypatch):
+    monkeypatch.setattr(settings, "service_token", "test-agent-token")
+    payload = {"call_id": "00000000-0000-0000-0000-000000000001", "phone": "13800138000", "mode": "ai_only", "transcript": "hello"}
+    with TestClient(app) as client:
+        assert client.post("/agent/turn", json=payload).status_code == 401
+        response = client.post(
+            "/agent/turn",
+            json=payload,
+            headers={"Authorization": "Bearer test-agent-token"},
+        )
+    assert response.status_code == 200

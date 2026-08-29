@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next'
 const zh = {
   product: 'AI 外呼平台', adminPortal: '管理中心', agentPortal: '座席中心',
   dashboard: '仪表盘', contacts: '客户管理', scripts: '话术管理', campaigns: '外呼任务', calls: '通话记录',
-  users: '用户与座席', lines: '外呼线路', settings: '系统配置', system: '监控与审计',
+  users: '用户与座席', lines: '外呼线路', knowledge: '知识库', settings: '系统配置', system: '监控与审计',
   workspace: '座席工作台', apiDocs: 'API 文档', logout: '退出登录', language: '语言', online: '服务正常', offline: '服务异常',
   welcomeBack: '欢迎回来', loginHint: '登录后进入安全工作台', username: '用户名', password: '密码', signIn: '登录',
   adminDemo: '管理员演示账号：admin / 12345678', agentDemo: '座席演示账号：1001@test / 12345678',
@@ -14,6 +14,7 @@ const zh = {
   phone: '手机号', name: '名称', contactName: '姓名', tags: '标签', consent: '同意状态', dnc: '禁打', timezone: '时区', createdAt: '创建时间', yes: '是', no: '否',
   contactHint: '集中管理客户、同意状态与禁打名单', scriptHint: '配置可复用的 AI 外呼话术', campaignHint: '组合客户、话术和拨打策略', callHint: '查询通话状态、事件与人工接管',
   category: '分类', version: '版本', enabled: '启用', content: '话术内容', description: '说明',
+  knowledgeHint: '维护经审核的业务知识，供 AI 通话按需检索', handoffQueue: '待接管队列', accept: '接受', reject: '拒绝', callId: '通话 ID',
   mode: '模式', concurrency: '并发数', retryLimit: '重试次数', retryInterval: '重试间隔（秒）', contactsSelected: '选择客户', scriptTemplate: '话术模板', recording: '通话录音', hangupSms: '挂机短信', status: '状态', start: '启动', pause: '暂停', resume: '恢复', stop: '停止', stopped: '已停止', paused: '已暂停', editCampaign: '编辑任务', confirmStop: '确认停止该外呼任务？', invalidPhone: '请输入 6 至 15 位有效号码',
   attempts: '尝试次数', campaignId: '任务 ID', contactId: '客户 ID', handoff: '转人工', hangup: '挂断', retry: '重拨', events: '事件',
   callNow: '立即呼叫', workbenchHint: '发起单路外呼并处理需要人工介入的会话', activeQueue: '当前会话', agentStatus: '座席状态', ready: '空闲', agentReady: '空闲', agentBusy: '忙碌', agentOffline: '离线',
@@ -28,14 +29,16 @@ const zh = {
   tenantCallCapacity: '租户最大同时通话数', tenantCallCapacityHint: '保存后立即生效，无需重启服务；活动和线路仍可设置更低上限。', capacityChangeWarning: '提高并发前请先确认线路、PBX、ASR 和 TTS 额度', capacityChangeDescription: '系统会立即按新上限调度，但不会自动购买云厂商并发或扩容服务器。',
   effectiveCapacity: '实际生效并发', configuredCapacity: '已配置容量', lineCapacity: '线路容量', activeCalls: '当前活跃通话', availableSlots: '可用槽位', limitingSource: '限制来源', notLimited: '未参与限制', tenant_capacity: '租户容量', telephony_line: '外呼线路', tenant_and_line: '租户与线路', capacityOverview: '并发容量概览', campaignConcurrencyHint: '不能超过当前实际生效容量：{{count}} 路', capacityLoading: '正在读取系统容量，读取完成后可填写', attemptInterval: '无人接听/忙线重拨间隔',
   aiEnabled: '启用 AI 服务', agentUrl: 'AI 服务地址', llmProvider: '大模型服务商', llmModel: '模型名称', asrProvider: '语音识别服务', ttsProvider: '语音合成服务', voice: '音色', smsEnabled: '启用短信', senderId: '短信签名', endpoint: '服务地址', hangupTemplate: '挂机短信模板',
+  historyTurns: '多轮上下文条数', maxReplyChars: '单轮最大字数', forbiddenPhrases: '禁用表述（逗号分隔）', fallbackReply: '合规拦截后回复',
   dncEnforced: '强制禁呼检查', requireExplicitConsent: '活动必须明确授权', recordingNotice: '播放录音告知', maxAttemptsDay: '每日最大尝试次数', startHour: '允许开始小时', endHour: '允许结束小时', callbackEnabled: '启用业务回调', webhookBaseUrl: 'Webhook 地址', webhookTimeout: '回调超时', webhookSecretRef: '签名密钥引用', webhookSecretHint: '从 BUSINESS_WEBHOOK_SECRET_<引用> 环境变量读取，页面不保存密钥。', webhookRetryTimes: '回调重试次数', webhookRetryBackoff: '重试退避', seconds: '秒', lastUpdated: '最后更新',
   systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', smsLogs: '短信发送记录', sentAt: '发送时间', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID', providerMessageId: '供应商消息 ID', providerError: '供应商错误',
+  runtimeMetrics: '运行指标', averageAiLatency: 'AI 平均响应时延',
 }
 
 const en: typeof zh = {
   product: 'AI Outbound Platform', adminPortal: 'Admin Center', agentPortal: 'Agent Center',
   dashboard: 'Dashboard', contacts: 'Contacts', scripts: 'Scripts', campaigns: 'Campaigns', calls: 'Call History',
-  users: 'Users & Agents', lines: 'Telephony Lines', settings: 'System Settings', system: 'Monitoring & Audit',
+  users: 'Users & Agents', lines: 'Telephony Lines', knowledge: 'Knowledge Base', settings: 'System Settings', system: 'Monitoring & Audit',
   workspace: 'Agent Workspace', apiDocs: 'API Docs', logout: 'Sign out', language: 'Language', online: 'Service healthy', offline: 'Service unavailable',
   welcomeBack: 'Welcome back', loginHint: 'Sign in to your secure workspace', username: 'Username', password: 'Password', signIn: 'Sign in',
   adminDemo: 'Admin demo: admin / 12345678', agentDemo: 'Agent demo: 1001@test / 12345678',
@@ -45,6 +48,7 @@ const en: typeof zh = {
   phone: 'Phone', name: 'Name', contactName: 'Contact name', tags: 'Tags', consent: 'Consent', dnc: 'Do not call', timezone: 'Timezone', createdAt: 'Created at', yes: 'Yes', no: 'No',
   contactHint: 'Manage contacts, consent and do-not-call status', scriptHint: 'Configure reusable AI outbound scripts', campaignHint: 'Combine contacts, scripts and dialing policies', callHint: 'Review calls, events and human handoffs',
   category: 'Category', version: 'Version', enabled: 'Enabled', content: 'Script content', description: 'Description',
+  knowledgeHint: 'Maintain approved business knowledge for retrieval during AI calls', handoffQueue: 'Pending handoffs', accept: 'Accept', reject: 'Reject', callId: 'Call ID',
   mode: 'Mode', concurrency: 'Concurrency', retryLimit: 'Retry limit', retryInterval: 'Retry interval (sec)', contactsSelected: 'Contacts', scriptTemplate: 'Script template', recording: 'Recording', hangupSms: 'Hangup SMS', status: 'Status', start: 'Start', pause: 'Pause', resume: 'Resume', stop: 'Stop', stopped: 'Stopped', paused: 'Paused', editCampaign: 'Edit campaign', confirmStop: 'Stop this campaign?', invalidPhone: 'Enter a valid phone number with 6 to 15 digits',
   attempts: 'Attempts', campaignId: 'Campaign ID', contactId: 'Contact ID', handoff: 'Handoff', hangup: 'Hang up', retry: 'Retry', events: 'Events',
   callNow: 'Call now', workbenchHint: 'Start outbound calls and handle sessions that need an agent', activeQueue: 'Active sessions', agentStatus: 'Agent status', ready: 'Ready', agentReady: 'Ready', agentBusy: 'Busy', agentOffline: 'Offline',
@@ -59,8 +63,10 @@ const en: typeof zh = {
   tenantCallCapacity: 'Maximum concurrent calls for tenant', tenantCallCapacityHint: 'Takes effect immediately without a restart. Campaign and line limits can still impose a lower cap.', capacityChangeWarning: 'Confirm telephony, PBX, ASR and TTS quotas before raising capacity', capacityChangeDescription: 'The scheduler uses the new limit immediately, but this does not purchase provider quota or scale servers automatically.',
   effectiveCapacity: 'Effective capacity', configuredCapacity: 'Configured capacity', lineCapacity: 'Line capacity', activeCalls: 'Active calls', availableSlots: 'Available slots', limitingSource: 'Limiting source', notLimited: 'Not limiting', tenant_capacity: 'Tenant capacity', telephony_line: 'Telephony line', tenant_and_line: 'Tenant and line', capacityOverview: 'Concurrency overview', campaignConcurrencyHint: 'Cannot exceed the current effective capacity: {{count}} calls', capacityLoading: 'Loading system capacity before editing', attemptInterval: 'No-answer/busy retry interval',
   aiEnabled: 'Enable AI service', agentUrl: 'AI service URL', llmProvider: 'LLM provider', llmModel: 'Model', asrProvider: 'ASR provider', ttsProvider: 'TTS provider', voice: 'Voice', smsEnabled: 'Enable SMS', senderId: 'Sender ID', endpoint: 'Endpoint', hangupTemplate: 'Hangup SMS template',
+  historyTurns: 'Conversation history turns', maxReplyChars: 'Maximum reply characters', forbiddenPhrases: 'Forbidden phrases (comma separated)', fallbackReply: 'Guard fallback reply',
   dncEnforced: 'Enforce DNC checks', requireExplicitConsent: 'Require explicit campaign consent', recordingNotice: 'Play recording notice', maxAttemptsDay: 'Max attempts per day', startHour: 'Allowed start hour', endHour: 'Allowed end hour', callbackEnabled: 'Enable callback', webhookBaseUrl: 'Webhook URL', webhookTimeout: 'Webhook timeout', webhookSecretRef: 'Signing secret reference', webhookSecretHint: 'Reads BUSINESS_WEBHOOK_SECRET_<REFERENCE> from the environment. Secrets are never stored in the UI.', webhookRetryTimes: 'Callback retries', webhookRetryBackoff: 'Retry backoff', seconds: 'sec', lastUpdated: 'Last updated',
   systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', smsLogs: 'SMS delivery logs', sentAt: 'Sent at', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID', providerMessageId: 'Provider message ID', providerError: 'Provider error',
+  runtimeMetrics: 'Runtime metrics', averageAiLatency: 'Average AI turn latency',
 }
 
 const savedLanguage = localStorage.getItem('ai-platform-language') || 'zh-CN'

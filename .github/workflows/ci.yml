@@ -39,6 +39,8 @@ jobs:
         run: pnpm build
       - name: Install service
         run: pip install --no-cache-dir ".[dev]"
+      - name: Verify Python dependencies
+        run: pip check
       - name: Compile check
         run: |
           mkdir -p /tmp/pycache
@@ -56,3 +58,58 @@ jobs:
           TELEPHONY_PROVIDER: mock
           AI_AGENT_URL: http://127.0.0.1:8001
         run: pytest -q tests
+
+  postgres-redis-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ai_outbound
+          POSTGRES_USER: ai_user
+          POSTGRES_PASSWORD: integration-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ai_user -d ai_outbound"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install backend
+        run: pip install --no-cache-dir ".[dev]"
+      - name: Create schema and verify versioned migrations
+        env:
+          ENV: test
+          DATABASE_URL: postgresql+psycopg://ai_user:integration-password@127.0.0.1:5432/ai_outbound
+          REDIS_URL: redis://127.0.0.1:6379/0
+          RATE_LIMIT_ENABLED: "false"
+          DEMO_USERS_ENABLED: "false"
+          SCHEDULER_ENABLED: "false"
+        run: |
+          python -c "from app.db import create_db_and_tables; create_db_and_tables()"
+          python -m app.migration_runner
+          python -c "from app.services.health import db_health_check, redis_health_check; assert db_health_check() == 'ok'; assert redis_health_check() == 'ok'"
+
+  compose-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate Compose configuration
+        run: docker compose --env-file .env.example config --quiet
