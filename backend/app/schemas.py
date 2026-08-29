@@ -434,6 +434,13 @@ class HandoffRequestOut(BaseModel):
     updated_at: datetime
 
 
+class HandoffQueueItemOut(HandoffRequestOut):
+    phone: str
+    mode: CallMode
+    campaign_id: Optional[int] = None
+    wait_seconds: int = 0
+
+
 class AiTurnRequest(BaseModel):
     call_id: UUID
     phone: str

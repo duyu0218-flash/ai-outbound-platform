@@ -172,6 +172,10 @@ export interface HandoffRequest {
   target_group: string
   requested_at: string
   responded_at?: string
+  phone?: string
+  mode?: CallMode
+  campaign_id?: number
+  wait_seconds?: number
 }
 
 export interface CallAnalysis {
@@ -196,6 +200,36 @@ export interface AdminDashboard {
     campaigns: number
     calls: number
   }
+  period: {
+    days: number
+    since: string
+    calls: number
+    reached: number
+    completed: number
+    failed: number
+    analyzed: number
+    interested: number
+    pending_reviews: number
+    average_qa_score: number
+    reach_rate: number
+    interest_rate: number
+    completion_rate: number
+  }
+  campaign_performance: Array<{
+    campaign_id: number
+    name: string
+    calls: number
+    reached: number
+    interested: number
+    reach_rate: number
+    interest_rate: number
+  }>
+  metric_definitions: Record<string, string>
+}
+
+export interface RuntimeInfo {
+  app_name: string
+  demo_users_enabled: boolean
 }
 
 export interface AdminUser extends User {
