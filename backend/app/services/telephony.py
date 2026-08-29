@@ -131,6 +131,11 @@ class TelephonyAdapter(ABC):
     ) -> Dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def stop_speaking(self, *, call_id: str) -> Dict[str, Any]:
+        """Cancel current TTS playback for customer barge-in."""
+        raise NotImplementedError
+
 
 class MockAdapter(TelephonyAdapter):
     async def dial(self, *, call_id: str, phone: str, webhook_url: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -177,6 +182,9 @@ class MockAdapter(TelephonyAdapter):
             "voice": voice,
             "provider": provider,
         }
+
+    async def stop_speaking(self, *, call_id: str) -> Dict[str, Any]:
+        return {"result": "stopped_mock", "provider_call_id": f"mock-{call_id}"}
 
     async def _emit(self, webhook_url: str, call_id: str, status: str, metadata: Dict[str, Any] | None = None) -> None:
         data = {
@@ -246,6 +254,9 @@ class HttpAdapter(TelephonyAdapter):
             "provider": provider,
         }
         return await self._post("/v1/call/speak", payload)
+
+    async def stop_speaking(self, *, call_id: str) -> Dict[str, Any]:
+        return await self._post("/v1/call/stop-speaking", {"call_id": call_id})
 
 
 class SmsAdapter(ABC):

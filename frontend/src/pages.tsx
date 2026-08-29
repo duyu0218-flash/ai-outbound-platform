@@ -56,7 +56,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallEvent, CallMode, CallSession, Campaign, Contact, Role, ScriptTemplate, SettingSection, SmsLog, SystemOverview, TelephonyLine, User } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, RecordingAsset, Role, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -400,6 +400,10 @@ export function CallsPage({ role }: { role: Role }) {
   const [form] = Form.useForm<CallFormValues>()
   const query = useSecureQuery<CallSession[]>(['calls', role], '/api/v1/calls?page=1&size=100')
   const events = useSecureQuery<CallEvent[]>(['call-events', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/events?page=1&size=100` : '', Boolean(selectedCall))
+  const speechTurns = useSecureQuery<SpeechTurn[]>(['call-speech', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/speech-turns` : '', Boolean(selectedCall))
+  const metrics = useSecureQuery<CallMetric[]>(['call-metrics', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/metrics` : '', Boolean(selectedCall))
+  const recordings = useSecureQuery<RecordingAsset[]>(['call-recordings', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/recordings` : '', Boolean(selectedCall))
+  const analysis = useSecureQuery<CallAnalysis>(['call-analysis', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/analysis` : '', Boolean(selectedCall))
   const createMutation = useMutation({
     mutationFn: (values: CallFormValues) => apiRequest<CallSession>('/api/v1/calls', { method: 'POST', body: JSON.stringify(values) }, token),
     onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
@@ -422,9 +426,15 @@ export function CallsPage({ role }: { role: Role }) {
           <Row gutter={12}><Col span={8}><Form.Item label={t('campaignId')} name="campaign_id"><InputNumber className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('contactId')} name="contact_id"><InputNumber className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('attempts')} name="max_attempts"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col></Row>
         </Form>
       </Modal>
-      <Drawer width={620} title={`${t('events')} · ${selectedCall?.phone || ''}`} open={Boolean(selectedCall)} onClose={() => setSelectedCall(null)}>
+      <Drawer width={720} title={`${t('events')} · ${selectedCall?.phone || ''}`} open={Boolean(selectedCall)} onClose={() => setSelectedCall(null)}>
         <Descriptions size="small" column={1} bordered items={selectedCall ? [{ key: 'id', label: 'ID', children: selectedCall.id }, { key: 'status', label: t('status'), children: <StatusTag status={selectedCall.status} /> }, { key: 'mode', label: t('mode'), children: t(modeOptions.find((item) => item.value === selectedCall.mode)?.labelKey || selectedCall.mode) }] : []} />
-        <List className="event-list" loading={events.isLoading} dataSource={events.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.event_type}</Tag><Text type="secondary">{formatDate(item.created_at)}</Text></Space>} description={<pre>{item.payload}</pre>} /></List.Item>} />
+        <Tabs style={{ marginTop: 16 }} items={[
+          { key: 'speech', label: '结构化转写', children: <List loading={speechTurns.isLoading} dataSource={speechTurns.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag color={item.is_final ? 'blue' : 'default'}>{item.speaker_role} · {item.is_final ? '最终' : '临时'}</Tag><Text type="secondary">置信度 {item.confidence == null ? '-' : `${Math.round(item.confidence * 100)}%`}</Text></Space>} description={item.transcript || '（空转写）'} /></List.Item>} /> },
+          { key: 'analysis', label: '结果与质检', children: analysis.data ? <Descriptions bordered size="small" column={1} items={[{ key: 'result', label: '结果', children: analysis.data.result_code }, { key: 'intent', label: '意图', children: analysis.data.intent }, { key: 'sentiment', label: '情绪', children: analysis.data.sentiment }, { key: 'score', label: '质检分', children: analysis.data.qa_score }, { key: 'flags', label: '质检标记', children: analysis.data.qa_flags_json }, { key: 'summary', label: '摘要', children: analysis.data.summary }]} /> : <Empty description={analysis.isLoading ? '加载中' : t('empty')} /> },
+          { key: 'recordings', label: '录音资产', children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Text>{item.media_format || 'unknown'}</Text><Text type="secondary">{item.duration_sec == null ? '-' : `${item.duration_sec}s`}</Text></Space>} description={item.storage_uri || item.provider_url} /></List.Item>} /> },
+          { key: 'metrics', label: '阶段指标', children: <Table<CallMetric> size="small" rowKey="id" pagination={false} loading={metrics.isLoading} dataSource={metrics.data || []} columns={[{ title: '阶段', dataIndex: 'stage' }, { title: '耗时', dataIndex: 'duration_ms', render: (value) => value == null ? '-' : `${value} ms` }, { title: '结果', dataIndex: 'success', render: (value) => <Tag color={value ? 'success' : 'error'}>{value ? '成功' : '失败'}</Tag> }, { title: '错误码', dataIndex: 'error_code', render: (value) => value || '-' }]} /> },
+          { key: 'events', label: t('events'), children: <List className="event-list" loading={events.isLoading} dataSource={events.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.event_type}</Tag><Text type="secondary">{formatDate(item.created_at)}</Text></Space>} description={<pre>{item.payload}</pre>} /></List.Item>} /> },
+        ]} />
       </Drawer>
     </>
   )

@@ -27,11 +27,28 @@ from app.db import session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app import main as app_main  # noqa: E402
-from app.models import Campaign, CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
+from app.models import (  # noqa: E402
+    Campaign,
+    CallAnalysis,
+    CallEvent,
+    CallMode,
+    CallSession,
+    CallStatus,
+    HandoffRequest,
+    HandoffState,
+    KnowledgeItem,
+    RecordingAsset,
+    RealtimeSession,
+    SmsLog,
+    SpeechTurn,
+    TelephonyLine,
+    User,
+)
 from app.schemas import AiTurnResult  # noqa: E402
 from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
 from app.services import business_callbacks  # noqa: E402
+from app.services.knowledge import retrieve_knowledge  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
     dispatch_call_ids,
@@ -68,10 +85,184 @@ def test_utc_now_preserves_naive_database_contract():
     assert before <= value <= after
 
 
+def test_p0_realtime_speech_is_idempotent_and_final_only_is_structured(client: TestClient):
+    token = _login(client, "admin")
+    created = client.post(
+        "/api/v1/calls",
+        headers=_bearer(token),
+        json={"phone": "13800138101", "mode": "human_only", "max_attempts": 1},
+    )
+    assert created.status_code == 200, created.text
+    call_id = created.json()["id"]
+
+    partial = {
+        "call_id": call_id,
+        "event_id": "asr-event-partial-1",
+        "transcript": "我想了解",
+        "is_final": False,
+        "confidence": 0.76,
+        "asr_provider": "acceptance-asr",
+    }
+    assert client.post("/api/v1/webhooks/telephony/speech", json=partial).status_code == 200
+    duplicate = client.post("/api/v1/webhooks/telephony/speech", json=partial)
+    assert duplicate.status_code == 200
+    assert duplicate.json()["duplicate"] is True
+
+    final = {
+        **partial,
+        "event_id": "asr-event-final-1",
+        "transcript": "我想了解这个方案，可以继续介绍。",
+        "is_final": True,
+        "confidence": 0.94,
+        "start_ms": 120,
+        "end_ms": 2380,
+    }
+    assert client.post("/api/v1/webhooks/telephony/speech", json=final).status_code == 200
+    turns = client.get(f"/api/v1/calls/{call_id}/speech-turns", headers=_bearer(token))
+    assert turns.status_code == 200, turns.text
+    assert len(turns.json()) == 2
+    assert turns.json()[-1]["is_final"] is True
+    assert turns.json()[-1]["confidence"] == 0.94
+
+    media = client.post(
+        "/api/v1/webhooks/telephony/media",
+        json={
+            "call_id": call_id,
+            "event_id": "media-speaking-1",
+            "state": "speaking",
+            "playback_id": "pb-1",
+            "codec": "pcm_s16le",
+            "sample_rate": 16000,
+            "channel_count": 1,
+            "duration_ms": 87,
+            "provider": "acceptance-gateway",
+        },
+    )
+    assert media.status_code == 200, media.text
+    realtime = client.get(f"/api/v1/calls/{call_id}/realtime", headers=_bearer(token))
+    assert realtime.status_code == 200, realtime.text
+    assert realtime.json()["state"] == "speaking"
+    metrics = client.get(f"/api/v1/calls/{call_id}/metrics", headers=_bearer(token))
+    assert any(item["stage"] == "media.speaking" for item in metrics.json())
+
+
+def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    created = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138102", "mode": "human_only", "max_attempts": 1},
+    )
+    assert created.status_code == 200, created.text
+    call_id = created.json()["id"]
+
+    recording = client.post(
+        "/api/v1/webhooks/telephony/recording",
+        json={
+            "call_id": call_id,
+            "kind": "recording",
+            "payload": {
+                "event_id": "recording-1",
+                "recording_id": "rec-1",
+                "url": "https://recording.invalid/rec-1.wav",
+                "storage_uri": "s3://acceptance/rec-1.wav",
+                "duration_sec": 18,
+                "format": "wav",
+                "channel_count": 2,
+            },
+        },
+    )
+    assert recording.status_code == 200, recording.text
+    assets = client.get(f"/api/v1/calls/{call_id}/recordings", headers=headers)
+    assert assets.status_code == 200, assets.text
+    assert assets.json()[0]["storage_uri"] == "s3://acceptance/rec-1.wav"
+    assert assets.json()[0]["channel_count"] == 2
+
+    analysis = client.get(f"/api/v1/calls/{call_id}/analysis?refresh=true", headers=headers)
+    assert analysis.status_code == 200, analysis.text
+    assert 0 <= analysis.json()["qa_score"] <= 100
+    reviewed = client.put(
+        f"/api/v1/calls/{call_id}/analysis",
+        headers=headers,
+        json={"result_code": "qualified_lead", "qa_score": 95, "qa_flags": []},
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    assert reviewed.json()["review_state"] == "reviewed"
+    assert reviewed.json()["result_code"] == "qualified_lead"
+
+    knowledge = client.post(
+        "/api/v1/knowledge",
+        headers=headers,
+        json={
+            "title": "产品价格说明",
+            "content": "标准版按并发路数报价，正式价格以合同为准。",
+            "category": "pricing",
+            "keywords": "价格 报价 并发",
+        },
+    )
+    assert knowledge.status_code == 200, knowledge.text
+    item_id = knowledge.json()["id"]
+    updated = client.put(
+        f"/api/v1/knowledge/{item_id}",
+        headers=headers,
+        json={"content": "标准版按并发路数报价，折扣以审批结果为准。"},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["version"] == 2
+    assert any(item["id"] == item_id for item in client.get("/api/v1/knowledge", headers=headers).json())
+    with session_scope() as session:
+        matches = retrieve_knowledge(session, 1, "这个产品的价格和并发怎么计算？")
+        assert matches and matches[0]["id"] == str(item_id)
+
+
+def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    created = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138103", "mode": "human_only", "max_attempts": 1},
+    )
+    call_id = UUID(created.json()["id"])
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        call.status = CallStatus.WAITING_HUMAN
+        handoff = HandoffRequest(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            state=HandoffState.WAITING,
+            reason="acceptance",
+        )
+        session.add(call)
+        session.add(handoff)
+        session.commit()
+        session.refresh(handoff)
+        handoff_id = handoff.id
+
+    captured: dict[str, object] = {}
+
+    class TransferAdapter:
+        async def transfer_to_human(self, **kwargs):
+            captured.update(kwargs)
+            return {"result": "transferred"}
+
+    monkeypatch.setattr(
+        "app.api.routers.voice_operations.get_telephony_adapter",
+        lambda **_: TransferAdapter(),
+    )
+    accepted = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["state"] == "accepted"
+    assert captured["call_id"] == str(call_id)
+    assert client.get(f"/api/v1/calls/{call_id}", headers=headers).json()["status"] == "handoff_transferring"
+
+
 def test_pages_login_and_server_key_not_exposed(client: TestClient):
     for path in ("/admin", "/admin/contacts", "/agent", "/agent/calls"):
         response = client.get(path)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         assert '<div id="root"></div>' in response.text
         assert '/assets/' in response.text
         assert "dev-api-key" not in response.text
@@ -1083,13 +1274,18 @@ async def test_ai_handoff_assigns_recent_ready_agent(client: TestClient, monkeyp
     monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_: HandoffAdapter())
     await dispatcher.run_ai_turn(call_id=call_id, transcript="请转人工")
 
-    assert captured["target_group"] == f"agent:{agent_id}"
+    assert captured == {}
     with session_scope() as session:
         persisted_call = session.get(CallSession, call_id)
         persisted_agent = session.get(User, agent_id)
+        handoff = session.exec(
+            select(HandoffRequest).where(HandoffRequest.call_session_id == call_id)
+        ).first()
         assert persisted_call is not None and persisted_call.human_agent_id == agent_id
         assert persisted_call.status == CallStatus.WAITING_HUMAN
         assert persisted_agent is not None and persisted_agent.agent_status == "busy"
+        assert handoff is not None and handoff.state == HandoffState.WAITING
+        assert handoff.target_group == f"agent:{agent_id}"
 
 
 def test_sms_delivery_receipt_updates_log_and_blocks_terminal_regression(client: TestClient):

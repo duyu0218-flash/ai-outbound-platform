@@ -5,7 +5,14 @@ import httpx
 from .config import settings
 
 
-async def generate_reply(*, script: str, transcript: str, language: str, model: str = "") -> str:
+async def generate_reply(
+    *,
+    script: str,
+    transcript: str,
+    language: str,
+    model: str = "",
+    knowledge: list[dict[str, str]] | None = None,
+) -> str:
     if not settings.openai_base_url or not settings.openai_api_key:
         raise RuntimeError("OpenAI-compatible LLM requires OPENAI_BASE_URL and OPENAI_API_KEY")
 
@@ -18,8 +25,22 @@ async def generate_reply(*, script: str, transcript: str, language: str, model: 
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": f"Approved call script:\n{script}" if script else "No approved script was supplied."},
-        {"role": "user", "content": transcript or "Begin the call with a short greeting."},
     ]
+    if knowledge:
+        approved_knowledge = "\n\n".join(
+            f"[{item.get('title', 'Knowledge')}]\n{item.get('content', '')}"
+            for item in knowledge[:3]
+        )
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "Approved knowledge for this turn follows. Use only relevant facts and never invent missing prices, "
+                    f"commitments, or policies:\n{approved_knowledge}"
+                ),
+            }
+        )
+    messages.append({"role": "user", "content": transcript or "Begin the call with a short greeting."})
     headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
     payload = {
         "model": model or settings.openai_model,

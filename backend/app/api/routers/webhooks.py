@@ -9,11 +9,13 @@ from sqlmodel import Session, select
 from ...api.deps import check_sms_webhook_token, check_webhook_token, get_session
 from ...clock import utc_now
 from ...config import get_settings
-from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, SmsLog, User, WebhookEventIngest
-from ...schemas import SmsStatusWebhook, WebhookEvent
+from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
+from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent
 from ...services import dispatcher
 from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
+from ...services.call_analysis import analyze_call
+from ...services.realtime_voice import apply_media_event, ingest_speech_turn, interrupt_playback
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -219,6 +221,20 @@ def telephony_status(
                 assigned_agent.last_seen_at = utc_now()
                 assigned_agent.updated_at = utc_now()
                 session.add(assigned_agent)
+        for handoff in session.exec(
+            select(HandoffRequest).where(
+                HandoffRequest.call_session_id == call.id,
+                HandoffRequest.state.in_({HandoffState.WAITING, HandoffState.ACCEPTED}),
+            )
+        ).all():
+            handoff.state = (
+                HandoffState.COMPLETED
+                if handoff.state == HandoffState.ACCEPTED
+                else HandoffState.EXPIRED
+            )
+            handoff.completed_at = utc_now()
+            handoff.updated_at = utc_now()
+            session.add(handoff)
     if payload.payload.get("summary"):
         call.summary = (call.summary or "") + "\n" + str(payload.payload.get("summary"))
 
@@ -234,6 +250,7 @@ def telephony_status(
         CallStatus.NO_ANSWER,
     }:
         complete_campaign_if_terminal(session, call.campaign_id)
+        analyze_call(session, call)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
@@ -264,13 +281,35 @@ def telephony_transcript(
         return {"result": "ok"}
     if not _event_matches_current_attempt(call, payload.payload):
         return {"result": "ignored", "reason": "stale_attempt"}
+    speech_payload = SpeechWebhookEvent(
+        call_id=call.id,
+        event_id=str(payload.payload.get("event_id") or _make_provider_event_key(
+            call.id,
+            "transcript",
+            "telephony",
+            json.dumps(payload.payload, ensure_ascii=False, sort_keys=True),
+        )),
+        transcript=payload.transcript or "",
+        is_final=bool(payload.payload.get("is_final", True)),
+        speaker_role=str(payload.payload.get("speaker_role") or "customer"),
+        channel_id=str(payload.payload.get("channel_id") or "inbound"),
+        confidence=payload.payload.get("confidence"),
+        start_ms=payload.payload.get("start_ms"),
+        end_ms=payload.payload.get("end_ms"),
+        asr_provider=str(payload.payload.get("asr_provider") or "telephony"),
+        barge_in=bool(payload.payload.get("barge_in", False)),
+        attempt=payload.payload.get("attempt"),
+    )
+    ingest_speech_turn(session, call, speech_payload)
     call.last_transcript = payload.transcript
     if payload.transcript:
         call.summary = f"{(call.summary or '').rstrip()}\n{payload.transcript}".strip()
     session.add(call)
     session.commit()
 
-    if call.mode != CallMode.HUMAN_ONLY:
+    if speech_payload.barge_in:
+        background_tasks.add_task(interrupt_playback, call.id)
+    if speech_payload.is_final and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
     background_tasks.add_task(
         deliver_business_callback,
@@ -280,6 +319,53 @@ def telephony_transcript(
         data={"transcript": payload.transcript or ""},
     )
     return {"result": "ok"}
+
+
+@router.post("/telephony/speech")
+def telephony_speech(
+    payload: SpeechWebhookEvent,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(check_webhook_token),
+    session: Session = Depends(get_session),
+):
+    call = session.get(CallSession, payload.call_id)
+    if call is None:
+        return {"result": "ignore"}
+    if payload.attempt is not None and payload.attempt != call.attempts:
+        return {"result": "ignored", "reason": "stale_attempt"}
+    turn, duplicate = ingest_speech_turn(session, call, payload)
+    if duplicate:
+        return {"result": "ok", "duplicate": True, "turn_id": turn.id}
+    if payload.barge_in:
+        background_tasks.add_task(interrupt_playback, call.id)
+    if payload.is_final and call.mode != CallMode.HUMAN_ONLY:
+        background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript)
+    background_tasks.add_task(
+        deliver_business_callback,
+        tenant_id=call.tenant_id,
+        call_id=call.id,
+        event_type="call.speech_final" if payload.is_final else "call.speech_partial",
+        data={
+            "turn_id": turn.id,
+            "transcript": payload.transcript,
+            "is_final": payload.is_final,
+            "confidence": payload.confidence,
+        },
+    )
+    return {"result": "ok", "duplicate": False, "turn_id": turn.id}
+
+
+@router.post("/telephony/media")
+def telephony_media(
+    payload: MediaWebhookEvent,
+    _: None = Depends(check_webhook_token),
+    session: Session = Depends(get_session),
+):
+    call = session.get(CallSession, payload.call_id)
+    if call is None:
+        return {"result": "ignore"}
+    realtime = apply_media_event(session, call, payload)
+    return {"result": "ok", "realtime_session_id": realtime.id, "state": realtime.state.value}
 
 
 @router.post("/telephony/recording")
@@ -303,6 +389,27 @@ def telephony_recording(
     url = payload.payload.get("url")
     if url:
         call.recording_url = str(url)
+        existing_asset = session.exec(
+            select(RecordingAsset).where(
+                RecordingAsset.call_session_id == call.id,
+                RecordingAsset.provider_url == str(url),
+            )
+        ).first()
+        if existing_asset is None:
+            session.add(
+                RecordingAsset(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    provider_recording_id=str(payload.payload.get("recording_id") or "") or None,
+                    provider_url=str(url),
+                    storage_uri=str(payload.payload.get("storage_uri") or ""),
+                    state=str(payload.payload.get("state") or "available"),
+                    duration_sec=payload.payload.get("duration_sec"),
+                    media_format=str(payload.payload.get("format") or ""),
+                    channel_count=int(payload.payload.get("channel_count") or 1),
+                    checksum_sha256=payload.payload.get("checksum_sha256"),
+                )
+            )
     session.add(call)
     session.commit()
     if url:

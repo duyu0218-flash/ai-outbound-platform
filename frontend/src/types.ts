@@ -95,6 +95,55 @@ export interface CallEvent {
   created_at: string
 }
 
+export interface SpeechTurn {
+  id: number
+  call_session_id: string
+  turn_index: number
+  speaker_role: 'customer' | 'ai' | 'agent' | 'system'
+  transcript: string
+  is_final: boolean
+  confidence?: number
+  start_ms?: number
+  end_ms?: number
+  asr_provider: string
+  created_at: string
+}
+
+export interface CallMetric {
+  id: number
+  stage: string
+  provider: string
+  duration_ms?: number
+  success: boolean
+  error_code?: string
+  detail: string
+  created_at: string
+}
+
+export interface RecordingAsset {
+  id: number
+  provider_url: string
+  storage_uri: string
+  state: string
+  duration_sec?: number
+  media_format: string
+  channel_count: number
+  created_at: string
+}
+
+export interface CallAnalysis {
+  id: number
+  result_code: string
+  sentiment: string
+  intent: string
+  summary: string
+  qa_score: number
+  qa_flags_json: string
+  structured_json: string
+  review_state: string
+  updated_at: string
+}
+
 export interface AdminDashboard {
   scope: 'admin'
   message: string
