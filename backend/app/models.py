@@ -52,6 +52,7 @@ class RealtimeState(str, Enum):
 
 class HandoffState(str, Enum):
     WAITING = "waiting"
+    ACCEPTING = "accepting"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     COMPLETED = "completed"
@@ -63,6 +64,14 @@ class ConsentState(str, Enum):
     NOT_CONSENTED = "not_consented"
     REVOKED = "revoked"
     UNKNOWN = "unknown"
+
+
+class TaskState(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    DEAD = "dead"
 
 
 class Tenant(SQLModel, table=True):
@@ -262,6 +271,25 @@ class CallMetric(SQLModel, table=True):
     error_code: Optional[str] = Field(default=None, max_length=100)
     detail: str = Field(default="", max_length=2000)
     created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class TaskOutbox(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("idempotency_key", name="uq_taskoutbox_idempotency"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    task_type: str = Field(index=True, max_length=64)
+    aggregate_id: str = Field(index=True, max_length=128)
+    idempotency_key: str = Field(max_length=255)
+    payload_json: str = "{}"
+    state: TaskState = Field(default=TaskState.PENDING, index=True)
+    attempts: int = 0
+    max_attempts: int = 5
+    available_at: datetime = Field(default_factory=utc_now, index=True)
+    locked_at: Optional[datetime] = None
+    last_error: str = Field(default="", max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class RecordingAsset(SQLModel, table=True):

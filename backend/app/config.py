@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     telephony_webhook_base: str = "http://localhost:8000"
     sip_provider_endpoint: str = "http://localhost:8080"
     telephony_webhook_token: str = ""
+    telephony_service_token: str = ""
     ai_agent_url: str = "http://localhost:8001"
+    ai_agent_service_token: str = ""
     llm_provider: str = "rule"
     openai_model: str = "gpt-4o-mini"
     ai_callback_timeout_sec: int = 10
@@ -54,6 +56,11 @@ class Settings(BaseSettings):
     scheduler_batch_size: int = 200
     scheduler_lock_ttl_sec: int = 15
     agent_presence_timeout_sec: int = 90
+    ai_turn_lock_ttl_sec: int = 45
+    ai_turn_lock_wait_sec: float = 15.0
+    recording_retention_days: int = 90
+    partial_transcript_retention_hours: int = 24
+    retention_scan_interval_sec: int = 3600
 
     # Production hardening
     request_timeout_ms: int = 15000

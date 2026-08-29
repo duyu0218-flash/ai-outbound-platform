@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
+import logging
+import uuid
+import weakref
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from time import perf_counter
 from typing import Any, Dict
 
 import httpx
+from redis import asyncio as async_redis
 from sqlmodel import select
 
 from ..config import get_settings
@@ -22,6 +29,7 @@ from ..models import (
     RealtimeState,
     ScriptFlowVersion,
     SmsLog,
+    SpeechTurn,
     User,
 )
 from ..schemas import AiTurnRequest, AiTurnResult
@@ -33,6 +41,116 @@ from .knowledge import retrieve_knowledge
 from .script_flow import load_graph, simulate
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+_local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+
+
+def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
+    turns = session.exec(
+        select(SpeechTurn)
+        .where(
+            SpeechTurn.call_session_id == call.id,
+            SpeechTurn.is_final.is_(True),
+        )
+        .order_by(SpeechTurn.created_at.desc(), SpeechTurn.id.desc())
+        .limit(max(1, min(limit, 50)))
+    ).all()
+    return [
+        {
+            "role": "assistant" if turn.speaker_role in {"ai", "agent", "assistant"} else "user",
+            "content": turn.normalized_transcript or turn.transcript,
+        }
+        for turn in reversed(turns)
+        if (turn.normalized_transcript or turn.transcript).strip()
+    ]
+
+
+def _apply_output_guard(session, call: CallSession, result: AiTurnResult, ai_config: dict[str, Any]) -> AiTurnResult:
+    text = (result.tts_text or "").strip()
+    if not text:
+        return result
+    phrases = [
+        item.strip().lower()
+        for item in str(ai_config.get("forbidden_phrases") or "").replace("\n", ",").split(",")
+        if item.strip()
+    ]
+    max_chars = max(20, int(ai_config.get("max_reply_chars") or 240))
+    violation = "reply_too_long" if len(text) > max_chars else next(
+        (f"forbidden_phrase:{phrase}" for phrase in phrases if phrase in text.lower()),
+        "",
+    )
+    if not violation:
+        return result
+    fallback = str(ai_config.get("fallback_reply") or "抱歉，这个问题需要由人工客服为您确认。").strip()
+    should_handoff = call.mode.value in {"ai_handoff", "mixed_human_first"}
+    session.add(
+        CallMetric(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            stage="ai.output_guard",
+            provider="policy",
+            success=False,
+            error_code="AI_OUTPUT_BLOCKED",
+            detail=violation,
+        )
+    )
+    return result.model_copy(
+        update={
+            "action": "handoff" if should_handoff else "speak",
+            "tts_text": fallback,
+            "handoff_to_human": should_handoff,
+        }
+    )
+
+
+@asynccontextmanager
+async def _ai_turn_lock(call_id: str):
+    """Serialize turns locally and across workers when Redis is configured."""
+    local_lock = _local_turn_locks.setdefault(call_id, asyncio.Lock())
+    async with local_lock:
+        redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
+        redis_key = f"ai-outbound:ai-turn:{call_id}"
+        lock_token = uuid.uuid4().hex
+        acquired = redis_client is None
+        try:
+            if redis_client is not None:
+                loop = asyncio.get_running_loop()
+                deadline = loop.time() + max(0.1, settings.ai_turn_lock_wait_sec)
+                while loop.time() < deadline:
+                    try:
+                        acquired = bool(
+                            await redis_client.set(
+                                redis_key,
+                                lock_token,
+                                ex=max(5, settings.ai_turn_lock_ttl_sec),
+                                nx=True,
+                            )
+                        )
+                    except Exception:
+                        if settings.env.lower() in {"prod", "production"}:
+                            raise RuntimeError("Redis is unavailable for AI turn serialization")
+                        logger.warning("Redis unavailable; AI turn serialization is process-local", exc_info=True)
+                        acquired = True
+                        break
+                    if acquired:
+                        break
+                    await asyncio.sleep(0.05)
+            if not acquired:
+                raise TimeoutError("timed out waiting for the previous AI turn")
+            yield
+        finally:
+            if redis_client is not None:
+                if acquired:
+                    try:
+                        await redis_client.eval(
+                            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                            1,
+                            redis_key,
+                            lock_token,
+                        )
+                    except Exception:
+                        logger.warning("failed to release AI turn Redis lock", exc_info=True)
+                await redis_client.aclose()
 
 
 def _run_script_flow_turn(*, session, call: CallSession, transcript: str) -> AiTurnResult | None:
@@ -81,9 +199,15 @@ async def request_ai_turn(
         context=context or {},
     )
     async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec) as client:
+        headers = (
+            {"Authorization": f"Bearer {settings.ai_agent_service_token}"}
+            if settings.ai_agent_service_token
+            else {}
+        )
         response = await client.post(
             f"{(agent_url or settings.ai_agent_url).rstrip('/')}/agent/turn",
             json=payload.model_dump(mode="json"),
+            headers=headers,
         )
         if response.status_code != 200:
             raise RuntimeError(f"ai service error: {response.status_code} {response.text}")
@@ -113,7 +237,13 @@ async def run_ai_turn(
     *,
     call_id,
     transcript: str = "",
+    durable: bool = False,
 ) -> None:
+    async with _ai_turn_lock(str(call_id)):
+        await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable)
+
+
+async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False) -> None:
     # independent session for background execution
     with session_scope() as session:
         call = session.get(CallSession, call_id)
@@ -148,6 +278,11 @@ async def run_ai_turn(
                 )
                 knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
                 provider = str(ai_config.get("llm_provider") or "rule")
+                history = _conversation_history(
+                    session,
+                    call,
+                    int(ai_config.get("conversation_history_turns") or 12),
+                )
                 result = await request_ai_turn(
                     call_id=str(call.id),
                     phone=call.phone,
@@ -163,9 +298,11 @@ async def run_ai_turn(
                         "llm_provider": str(ai_config.get("llm_provider") or "rule"),
                         "llm_model": str(ai_config.get("llm_model") or ""),
                         "knowledge": knowledge,
+                        "conversation": history,
                     },
                     agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
                 )
+            result = _apply_output_guard(session, call, result, ai_config)
             session.add(
                 CallMetric(
                     tenant_id=call.tenant_id,
@@ -180,7 +317,8 @@ async def run_ai_turn(
             session.commit()
             await _apply_ai_action(session=session, call=call, result=result)
         except Exception as exc:
-            call.status = CallStatus.FAILED
+            if not durable:
+                call.status = CallStatus.FAILED
             call.last_error = f"AI调用失败: {exc}"
             session.add(call)
             session.add(
@@ -201,6 +339,8 @@ async def run_ai_turn(
                 source="dispatcher",
                 payload={"module": "dispatcher", "error": str(exc)},
             )
+            if durable:
+                raise
 
 
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
@@ -231,6 +371,29 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                 realtime.playback_id = str(response.get("playback_id") or "") or None
                 realtime.updated_at = utc_now()
                 session.add(realtime)
+            normalized_reply = " ".join((result.tts_text or "").split())
+            reply_event_key = hashlib.sha256(
+                f"{call.id}:ai:{realtime.turn_sequence if realtime else 0}:{normalized_reply}".encode()
+            ).hexdigest()
+            existing_reply = session.exec(
+                select(SpeechTurn).where(
+                    SpeechTurn.call_session_id == call.id,
+                    SpeechTurn.provider_event_key == reply_event_key,
+                )
+            ).first()
+            if existing_reply is None:
+                session.add(SpeechTurn(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    provider_event_key=reply_event_key,
+                    turn_index=realtime.turn_sequence if realtime else 0,
+                    speaker_role="ai",
+                    channel_id="outbound",
+                    transcript=result.tts_text or "",
+                    normalized_transcript=normalized_reply,
+                    is_final=True,
+                    asr_provider="",
+                ))
             session.add(
                 CallMetric(
                     tenant_id=call.tenant_id,

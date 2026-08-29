@@ -56,7 +56,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, RecordingAsset, Role, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, RecordingAsset, Role, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -691,7 +691,7 @@ function SettingSectionForm({ section }: { section: SettingSection }) {
   })
   const fields: Record<SettingSection, ReactNode> = {
     capacity: <><Alert type="warning" showIcon message={t('capacityChangeWarning')} description={t('capacityChangeDescription')} style={{ marginBottom: 16 }} /><Row gutter={16}><Col xs={24} lg={12}><Form.Item label={t('tenantCallCapacity')} name="max_concurrent_calls" rules={[{ required: true }]} extra={t('tenantCallCapacityHint')}><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col xs={24} lg={12}><Card size="small" loading={capacityOverview.isLoading}><Descriptions column={1} size="small" items={[{ key: 'effective', label: t('effectiveCapacity'), children: capacityOverview.data?.capacity.effective_max_concurrent_calls ?? '-' }, { key: 'line', label: t('lineCapacity'), children: capacityOverview.data?.capacity.line_max_concurrency ?? t('notLimited') }, { key: 'active', label: t('activeCalls'), children: capacityOverview.data?.capacity.active_calls ?? '-' }, { key: 'available', label: t('availableSlots'), children: capacityOverview.data?.capacity.available_slots ?? '-' }, { key: 'source', label: t('limitingSource'), children: capacityOverview.data?.capacity.limiting_source ? t(capacityOverview.data.capacity.limiting_source) : '-' }]} /></Card></Col></Row></>,
-    ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Select options={[{ value: 'rule', label: '规则模式（本地）' }, { value: 'openai-compatible', label: 'OpenAI-compatible' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></>,
+    ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Select options={[{ value: 'rule', label: '规则模式（本地）' }, { value: 'openai-compatible', label: 'OpenAI-compatible' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></Col><Col span={8}><Form.Item label={t('historyTurns')} name="conversation_history_turns"><InputNumber min={1} max={50} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('maxReplyChars')} name="max_reply_chars"><InputNumber min={20} max={2000} className="full-width" /></Form.Item></Col></Row><Form.Item label={t('forbiddenPhrases')} name="forbidden_phrases"><Input placeholder="保证收益,百分百" /></Form.Item><Form.Item label={t('fallbackReply')} name="fallback_reply" rules={[{ required: true }]}><Input.TextArea rows={2} /></Form.Item></>,
     sms: <><Form.Item label={t('smsEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item><Row gutter={16}><Col span={12}><Form.Item label={t('provider')} name="provider"><Select options={[{ value: 'mock', label: 'Mock（仅测试）' }, { value: 'http', label: 'HTTP Bridge' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('senderId')} name="sender_id"><Input /></Form.Item></Col></Row><Form.Item label={t('endpoint')} name="endpoint"><Input /></Form.Item><Form.Item label={t('hangupTemplate')} name="hangup_template"><Input.TextArea rows={4} /></Form.Item></>,
     compliance: <><Row gutter={16}><Col span={6}><Form.Item label={t('dncEnforced')} name="dnc_enforced" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('requireExplicitConsent')} name="require_explicit_consent" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('recordingNotice')} name="recording_notice" valuePropName="checked"><Switch /></Form.Item></Col><Col span={6}><Form.Item label={t('maxAttemptsDay')} name="max_attempts_per_day"><InputNumber min={1} max={20} className="full-width" /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('startHour')} name="allowed_start_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('endHour')} name="allowed_end_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('timezone')} name="timezone"><Input /></Form.Item></Col></Row></>,
     integration: <><Form.Item label={t('callbackEnabled')} name="callback_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('webhookBaseUrl')} name="webhook_base_url"><Input /></Form.Item><Form.Item label={t('webhookSecretRef')} name="webhook_secret_ref" extra={t('webhookSecretHint')}><Input placeholder="PRIMARY_CALLBACK" /></Form.Item><Row gutter={16}><Col span={8}><Form.Item label={t('webhookTimeout')} name="webhook_timeout_sec"><InputNumber min={1} max={120} addonAfter={t('seconds')} /></Form.Item></Col><Col span={8}><Form.Item label={t('webhookRetryTimes')} name="webhook_retry_times"><InputNumber min={0} max={10} /></Form.Item></Col><Col span={8}><Form.Item label={t('webhookRetryBackoff')} name="webhook_retry_backoff_sec"><InputNumber min={1} max={60} addonAfter={t('seconds')} /></Form.Item></Col></Row></>,
@@ -716,6 +716,51 @@ export function SettingsPage() {
   )
 }
 
+export function KnowledgePage() {
+  const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const query = useSecureQuery<KnowledgeItem[]>(['knowledge'], '/api/v1/knowledge')
+  const [editing, setEditing] = useState<KnowledgeItem | null>(null)
+  const [open, setOpen] = useState(false)
+  const [form] = Form.useForm<Partial<KnowledgeItem>>()
+  const saveMutation = useMutation({
+    mutationFn: (values: Partial<KnowledgeItem>) => apiRequest<KnowledgeItem>(editing ? `/api/v1/knowledge/${editing.id}` : '/api/v1/knowledge', { method: editing ? 'PUT' : 'POST', body: JSON.stringify(values) }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); setOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['knowledge'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const disableMutation = useMutation({
+    mutationFn: (item: KnowledgeItem) => apiRequest<KnowledgeItem>(`/api/v1/knowledge/${item.id}`, { method: 'DELETE' }, token),
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['knowledge'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const edit = (item?: KnowledgeItem) => {
+    setEditing(item || null)
+    form.setFieldsValue(item || { category: 'default', tags: '', is_active: true })
+    setOpen(true)
+  }
+  return <>
+    <PageTitle title={t('knowledge')} description={t('knowledgeHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => edit()}>{t('create')}</Button>} />
+    <Card><Table<KnowledgeItem> rowKey="id" loading={query.isLoading} dataSource={query.data || []} columns={[
+      { title: t('name'), dataIndex: 'title', width: 220 },
+      { title: t('category'), dataIndex: 'category', width: 140 },
+      { title: t('content'), dataIndex: 'content', ellipsis: true },
+      { title: t('version'), dataIndex: 'version', width: 90 },
+      { title: t('status'), dataIndex: 'is_active', width: 100, render: (value) => <Tag color={value ? 'success' : 'default'}>{value ? t('enabled') : t('deleted')}</Tag> },
+      { title: t('actions'), width: 170, render: (_, item) => <Space><Button size="small" icon={<EditOutlined />} onClick={() => edit(item)}>{t('edit')}</Button><Popconfirm title={t('confirmDelete')} onConfirm={() => disableMutation.mutate(item)}><Button size="small" danger icon={<DeleteOutlined />} disabled={!item.is_active}>{t('delete')}</Button></Popconfirm></Space> },
+    ]} /></Card>
+    <Modal title={editing ? t('edit') : t('create')} open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
+      <Form form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
+        <Form.Item name="title" label={t('name')} rules={[{ required: true }]}><Input /></Form.Item>
+        <Form.Item name="category" label={t('category')}><Input /></Form.Item>
+        <Form.Item name="tags" label={t('tags')}><Input /></Form.Item>
+        <Form.Item name="content" label={t('content')} rules={[{ required: true }]}><Input.TextArea rows={10} /></Form.Item>
+        <Form.Item name="is_active" label={t('enabled')} valuePropName="checked"><Switch /></Form.Item>
+      </Form>
+    </Modal>
+  </>
+}
+
 export function SystemPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
@@ -737,6 +782,7 @@ export function SystemPage() {
         <Col xs={24} lg={14}><Row gutter={[16, 16]}><Col span={12}><Card><Statistic title={t('enabledUsers')} value={overview.data?.resources.enabled_users || 0} suffix={`/ ${overview.data?.resources.users || 0}`} prefix={<TeamOutlined />} /></Card></Col><Col span={12}><Card><Statistic title={t('enabledLines')} value={overview.data?.resources.enabled_lines || 0} suffix={`/ ${overview.data?.resources.lines || 0}`} prefix={<PhoneOutlined />} /></Card></Col><Col span={24}><Card title={t('callStatusDistribution')}><Space wrap>{Object.entries(overview.data?.call_statuses || {}).map(([key, value]) => <Tag key={key} color="blue">{t(key, { defaultValue: key })}: {value}</Tag>)}{!Object.keys(overview.data?.call_statuses || {}).length && <Text type="secondary">{t('empty')}</Text>}</Space></Card></Col></Row></Col>
       </Row>
       <Card title={<Space><ControlOutlined />{t('capacityOverview')}</Space>} className="audit-card" loading={overview.isLoading}><Row gutter={[16, 16]}><Col xs={12} lg={6}><Statistic title={t('configuredCapacity')} value={overview.data?.capacity.configured_max_concurrent_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('effectiveCapacity')} value={overview.data?.capacity.effective_max_concurrent_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('activeCalls')} value={overview.data?.capacity.active_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('availableSlots')} value={overview.data?.capacity.available_slots || 0} /></Col></Row></Card>
+      <Card title={t('runtimeMetrics')} className="audit-card" loading={overview.isLoading}><Row gutter={[16, 16]}><Col xs={24} lg={8}><Statistic title={t('averageAiLatency')} value={overview.data?.operations?.average_ai_turn_ms ?? 0} suffix="ms" /></Col><Col xs={24} lg={16}><Space wrap>{Object.entries(overview.data?.operations?.durable_tasks || {}).map(([key, value]) => <Tag key={key} color={key === 'dead' ? 'error' : key === 'failed' ? 'warning' : 'blue'}>{key}: {value}</Tag>)}{!Object.keys(overview.data?.operations?.durable_tasks || {}).length && <Text type="secondary">{t('empty')}</Text>}</Space></Col></Row></Card>
       <Card title={<Space><AuditOutlined />{t('auditLogs')}</Space>} className="audit-card"><Table<AuditLog> rowKey="id" loading={audits.isLoading} dataSource={audits.data || []} pagination={{ pageSize: 12 }} scroll={{ x: 900 }} columns={[
         { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
         { title: t('operator'), dataIndex: 'actor_username', width: 150 },
@@ -764,6 +810,7 @@ export function AgentWorkspacePage() {
   const { token, user } = useAuth()
   const queryClient = useQueryClient()
   const query = useSecureQuery<CallSession[]>(['calls', 'agent-workspace'], '/api/v1/calls?page=1&size=20')
+  const handoffQueue = useSecureQuery<HandoffRequest[]>(['handoffs', 'waiting'], '/api/v1/handoffs?state=waiting')
   const [form] = Form.useForm<CallFormValues>()
   const [presenceStatus, setPresenceStatus] = useState<'ready' | 'busy' | 'offline'>(user?.agent_status || 'ready')
   useEffect(() => {
@@ -781,6 +828,11 @@ export function AgentWorkspacePage() {
   const handoffMutation = useMutation({
     mutationFn: (call: CallSession) => apiRequest<CallSession>(`/api/v1/calls/${call.id}/handover?reason=agent_workspace`, { method: 'POST' }, token),
     onSuccess: () => { message.success(t('operationSuccess')); setPresenceStatus('busy'); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onError: (error) => message.error(error.message),
+  })
+  const respondHandoff = useMutation({
+    mutationFn: ({ item, action }: { item: HandoffRequest; action: 'accept' | 'reject' }) => apiRequest<HandoffRequest>(`/api/v1/calls/${item.call_session_id}/handoffs/${item.id}/${action}`, { method: 'POST' }, token),
+    onSuccess: (_, variables) => { message.success(t('operationSuccess')); if (variables.action === 'accept') setPresenceStatus('busy'); void queryClient.invalidateQueries({ queryKey: ['handoffs'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])
@@ -803,6 +855,9 @@ export function AgentWorkspacePage() {
           </Card>
         </Col>
         <Col xs={24} xl={15}>
+          <Card title={t('handoffQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void handoffQueue.refetch()}>{t('refresh')}</Button>} style={{ marginBottom: 16 }}>
+            {(handoffQueue.data || []).length ? <List dataSource={handoffQueue.data} renderItem={(item) => <List.Item actions={[<Button key="accept" type="primary" loading={respondHandoff.isPending} disabled={presenceStatus !== 'ready'} onClick={() => respondHandoff.mutate({ item, action: 'accept' })}>{t('accept')}</Button>, <Button key="reject" danger disabled={respondHandoff.isPending} onClick={() => respondHandoff.mutate({ item, action: 'reject' })}>{t('reject')}</Button>]}><List.Item.Meta title={`${t('callId')}: ${item.call_session_id}`} description={`${item.reason || '-'} · ${formatDate(item.requested_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
+          </Card>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
             {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={presenceStatus !== 'ready' || !['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}
           </Card>

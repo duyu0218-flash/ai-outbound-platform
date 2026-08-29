@@ -12,6 +12,7 @@ async def generate_reply(
     language: str,
     model: str = "",
     knowledge: list[dict[str, str]] | None = None,
+    conversation: list[dict[str, str]] | None = None,
 ) -> str:
     if not settings.openai_base_url or not settings.openai_api_key:
         raise RuntimeError("OpenAI-compatible LLM requires OPENAI_BASE_URL and OPENAI_API_KEY")
@@ -40,6 +41,22 @@ async def generate_reply(
                 ),
             }
         )
+    history = conversation or []
+    history = history[-max(1, settings.conversation_history_turns) :]
+    remaining_chars = max(0, settings.conversation_history_max_chars)
+    history_messages: list[dict[str, str]] = []
+    for item in reversed(history):
+        content = str(item.get("content") or "").strip()
+        if not content or remaining_chars <= 0:
+            continue
+        content = content[-remaining_chars:]
+        remaining_chars -= len(content)
+        role = "assistant" if str(item.get("role")).lower() in {"assistant", "ai", "agent"} else "user"
+        history_messages.append({"role": role, "content": content})
+    history_messages.reverse()
+    if history_messages and history_messages[-1]["role"] == "user" and history_messages[-1]["content"] == transcript:
+        history_messages.pop()
+    messages.extend(history_messages)
     messages.append({"role": "user", "content": transcript or "Begin the call with a short greeting."})
     headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
     payload = {
@@ -48,7 +65,7 @@ async def generate_reply(
         "max_tokens": settings.max_output_tokens,
         "temperature": 0.3,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec) as client:
         response = await client.post(
             f"{settings.openai_base_url.rstrip('/')}/chat/completions",
             headers=headers,

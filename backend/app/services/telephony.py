@@ -209,9 +209,11 @@ class MockAdapter(TelephonyAdapter):
 
 
 class HttpAdapter(TelephonyAdapter):
-    def __init__(self, endpoint: str, credential_ref: str = ""):
+    def __init__(self, endpoint: str, credential_ref: str = "", bearer_token: str = ""):
         self.endpoint = endpoint.rstrip("/")
         self.headers = _credential_headers(credential_ref)
+        if bearer_token and "Authorization" not in self.headers:
+            self.headers["Authorization"] = f"Bearer {bearer_token}"
 
     async def _post(self, path: str, payload: dict[str, Any]) -> Dict[str, Any]:
         async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, headers=self.headers) as client:
@@ -325,7 +327,7 @@ def get_telephony_adapter(
     if provider == "http":
         if not endpoint:
             raise RuntimeError("telephony provider is HTTP but endpoint is not configured")
-        return HttpAdapter(endpoint)
+        return HttpAdapter(endpoint, bearer_token=settings.telephony_service_token)
     return MockAdapter()
 
 

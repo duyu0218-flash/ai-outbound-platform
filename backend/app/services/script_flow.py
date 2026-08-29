@@ -38,6 +38,22 @@ def validate_graph(graph: ScriptFlowGraph) -> None:
         for condition in ("always", "silence"):
             if sum(edge.condition == condition for edge in edges) > 1:
                 raise FlowValidationError(f"node can only have one {condition} edge: {source}")
+    for node in graph.nodes:
+        if node.type not in {"handoff", "hangup"} and not outgoing.get(node.id):
+            raise FlowValidationError(f"non-terminal node requires an outgoing edge: {node.id}")
+    reachable = {starts[0].id}
+    pending = [starts[0].id]
+    while pending:
+        source = pending.pop()
+        for edge in outgoing.get(source, []):
+            if edge.target not in reachable:
+                reachable.add(edge.target)
+                pending.append(edge.target)
+    unreachable = sorted(known - reachable)
+    if unreachable:
+        raise FlowValidationError(f"unreachable nodes: {', '.join(unreachable)}")
+    if not any(node.id in reachable and node.type in {"handoff", "hangup"} for node in graph.nodes):
+        raise FlowValidationError("flow requires a reachable terminal node")
 
 
 def dump_graph(graph: ScriptFlowGraph) -> str:

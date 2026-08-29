@@ -12,7 +12,7 @@ from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
 from ...config import get_settings
 from ...db import get_session
-from ...models import AdminSetting, AuditLog, CallSession, SmsLog, TelephonyLine, User
+from ...models import AdminSetting, AuditLog, CallMetric, CallSession, SmsLog, TaskOutbox, TelephonyLine, User
 from ...schemas import (
     AdminPasswordReset,
     AdminSettingOut,
@@ -380,6 +380,14 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported llm provider")
         if merged["enabled"] and not str(merged["agent_url"]).strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="enabled AI requires agent_url")
+        history_turns = merged["conversation_history_turns"]
+        max_reply_chars = merged["max_reply_chars"]
+        if not isinstance(history_turns, int) or not 1 <= history_turns <= 50:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid conversation history turns")
+        if not isinstance(max_reply_chars, int) or not 20 <= max_reply_chars <= 2000:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max reply chars")
+        if not str(merged["fallback_reply"]).strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="fallback reply is required")
     if section == "sms":
         if merged["provider"] not in {"mock", "http"}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported SMS provider")
@@ -489,6 +497,18 @@ def system_overview(
         .where(CallSession.tenant_id == tenant_id)
         .group_by(CallSession.status)
     ).all()
+    task_rows = session.exec(
+        select(TaskOutbox.state, func.count(TaskOutbox.id))
+        .where(TaskOutbox.tenant_id == tenant_id)
+        .group_by(TaskOutbox.state)
+    ).all()
+    ai_latency_ms = session.exec(
+        select(func.avg(CallMetric.duration_ms)).where(
+            CallMetric.tenant_id == tenant_id,
+            CallMetric.stage == "ai.turn",
+            CallMetric.success.is_(True),
+        )
+    ).one()
     return {
         "services": {
             "database": db_health_check(),
@@ -522,6 +542,13 @@ def system_overview(
             "limiting_source": limiting_source,
             "telephony_provider": (settings.telephony_provider or "mock").strip().lower(),
             "environment_default": max(1, int(settings.max_concurrent_calls)),
+        },
+        "operations": {
+            "durable_tasks": {
+                str(task_state.value if hasattr(task_state, "value") else task_state): count
+                for task_state, count in task_rows
+            },
+            "average_ai_turn_ms": round(float(ai_latency_ms), 1) if ai_latency_ms is not None else None,
         },
         "generated_at": utc_now(),
     }

@@ -12,6 +12,7 @@ import {
   DashboardPage,
   LinesPage,
   LoginPage,
+  KnowledgePage,
   ScriptsPage,
   SettingsPage,
   SystemPage,
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="calls" element={<CallsPage role="admin" />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="lines" element={<LinesPage />} />
+              <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="system" element={<SystemPage />} />
             </Route>

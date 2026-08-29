@@ -2,6 +2,7 @@ import {
   ApiOutlined,
   AuditOutlined,
   BarChartOutlined,
+  BookOutlined,
   CustomerServiceOutlined,
   FileTextOutlined,
   GlobalOutlined,
@@ -41,6 +42,7 @@ const adminNavigation = [
   { key: '/admin/calls', icon: <PhoneOutlined />, labelKey: 'calls' },
   { key: '/admin/users', icon: <TeamOutlined />, labelKey: 'users' },
   { key: '/admin/lines', icon: <CustomerServiceOutlined />, labelKey: 'lines' },
+  { key: '/admin/knowledge', icon: <BookOutlined />, labelKey: 'knowledge' },
   { key: '/admin/settings', icon: <SettingOutlined />, labelKey: 'settings' },
   { key: '/admin/system', icon: <AuditOutlined />, labelKey: 'system' },
 ]
