@@ -68,6 +68,9 @@ button, input, textarea, select { font: inherit; }
 .dialer-card { margin-bottom: 16px; }
 .dialer-card .ant-card-head { background: linear-gradient(135deg, #f3f7ff, #fff); }
 .agent-profile-card { margin-bottom: 16px; }
+.handoff-item .ant-list-item-meta-description .ant-space { width: 100%; }
+.handoff-item .ant-list-item-action { align-self: center; }
+.quality-queue-card { margin-top: 16px; }
 .call-avatar { width: 42px; height: 42px; border-radius: 50%; background: #edf3ff; color: #2f6bff; display: grid; place-items: center; font-size: 17px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #21b26f; box-shadow: 0 0 0 4px rgba(33,178,111,.12); display: inline-block; }
 .settings-card { max-width: 920px; }

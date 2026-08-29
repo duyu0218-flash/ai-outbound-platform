@@ -13,6 +13,7 @@ import {
   LinesPage,
   LoginPage,
   KnowledgePage,
+  QualityReviewPage,
   ScriptsPage,
   SettingsPage,
   SystemPage,
@@ -41,6 +42,7 @@ export default function App() {
           <Route element={<ProtectedRoute role="admin" />}>
             <Route path="/admin" element={<AppShell role="admin" />}>
               <Route index element={<DashboardPage />} />
+              <Route path="quality" element={<QualityReviewPage />} />
               <Route path="contacts" element={<ContactsPage />} />
               <Route path="scripts" element={<ScriptsPage />} />
               <Route path="campaigns" element={<CampaignsPage />} />
@@ -56,6 +58,7 @@ export default function App() {
           <Route element={<ProtectedRoute role="agent" />}>
             <Route path="/agent" element={<AppShell role="agent" />}>
               <Route index element={<AgentWorkspacePage />} />
+              <Route path="quality" element={<QualityReviewPage />} />
               <Route path="calls" element={<CallsPage role="agent" />} />
             </Route>
           </Route>

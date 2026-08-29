@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next'
 
 const zh = {
   product: 'AI 外呼平台', adminPortal: '管理中心', agentPortal: '座席中心',
-  dashboard: '仪表盘', contacts: '客户管理', scripts: '话术管理', campaigns: '外呼任务', calls: '通话记录',
+  dashboard: '仪表盘', qualityReview: '质检复核', contacts: '客户管理', scripts: '话术管理', campaigns: '外呼任务', calls: '通话记录',
   users: '用户与座席', lines: '外呼线路', knowledge: '知识库', settings: '系统配置', system: '监控与审计',
   workspace: '座席工作台', apiDocs: 'API 文档', logout: '退出登录', language: '语言', online: '服务正常', offline: '服务异常',
   welcomeBack: '欢迎回来', loginHint: '登录后进入安全工作台', username: '用户名', password: '密码', signIn: '登录',
@@ -18,6 +18,7 @@ const zh = {
   mode: '模式', concurrency: '并发数', retryLimit: '重试次数', retryInterval: '重试间隔（秒）', contactsSelected: '选择客户', scriptTemplate: '话术模板', recording: '通话录音', hangupSms: '挂机短信', status: '状态', start: '启动', pause: '暂停', resume: '恢复', stop: '停止', stopped: '已停止', paused: '已暂停', editCampaign: '编辑任务', confirmStop: '确认停止该外呼任务？', invalidPhone: '请输入 6 至 15 位有效号码',
   attempts: '尝试次数', campaignId: '任务 ID', contactId: '客户 ID', handoff: '转人工', hangup: '挂断', retry: '重拨', events: '事件',
   callNow: '立即呼叫', workbenchHint: '发起单路外呼并处理需要人工介入的会话', activeQueue: '当前会话', agentStatus: '座席状态', ready: '空闲', agentReady: '空闲', agentBusy: '忙碌', agentOffline: '离线',
+  presenceUpdateFailed: '座席状态同步失败', presenceUpdateFailedHint: '页面已恢复到上一状态，请检查网络后重试，避免错过转人工请求。', confirmAcceptHandoff: '确认接听该转人工通话？', confirmRejectHandoff: '确认拒绝该转人工请求？', unknownCustomer: '未知客户', noCampaign: '无所属任务', lastCustomerUtterance: '客户最后一句',
   operationSuccess: '操作成功', loadFailed: '加载失败', loginFailed: '登录失败', empty: '暂无数据', loading: '加载中', confirmDelete: '确认删除这条记录？', confirmStart: '确认启动该外呼任务？', confirmHandoff: '确认将该通话转接人工？', confirmHangup: '确认挂断该通话？', confirmRetry: '确认重新拨打该通话？',
   all: '全部', unknown: '未知', consented: '已同意', notConsented: '未同意', revoked: '已撤回', draft: '草稿', running: '运行中', completed: '已完成', failed: '失败', deleted: '已删除',
   created: '已创建', queued: '排队中', dialing: '拨号中', answered: '已接听', in_ai: 'AI 通话中', waiting_human: '等待人工', handoff_transferring: '转接中', no_answer: '无人接听', busy: '忙线', voicemail: '语音信箱',
@@ -34,11 +35,12 @@ const zh = {
   systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', smsLogs: '短信发送记录', sentAt: '发送时间', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID', providerMessageId: '供应商消息 ID', providerError: '供应商错误',
   runtimeMetrics: '运行指标', averageAiLatency: 'AI 平均响应时延', staleTasks: '超时执行任务', oldestTask: '最早未完成任务', recordingDeleteFailures: '录音删除失败',
   resultsAndQa: '结果与质检', callResult: '通话结果', intent: '客户意图', sentiment: '客户情绪', qaScore: '质检分', qaFlags: '质检标记', qaFlagsHint: '多个标记使用逗号分隔', reviewState: '复核状态', summary: '通话摘要', correctAnalysis: '人工校正', reviewSaved: '质检结果已保存',
+  qualityReviewHint: '按待复核和低分优先查看通话证据，完成人工校正闭环', pendingReview: '待复核', flaggedCalls: '有风险标记', reviewed: '已复核', auto: '自动质检', scoreThreshold: '质检分上限', scoreAtMost: '{{count}} 分及以下', evidence: '查看证据', review: '复核', reReview: '再次复核', qualityEvidence: '质检证据', transcriptEvidence: '转写证据', recordingEvidence: '录音证据', reviewCall: '复核通话',
 }
 
 const en: typeof zh = {
   product: 'AI Outbound Platform', adminPortal: 'Admin Center', agentPortal: 'Agent Center',
-  dashboard: 'Dashboard', contacts: 'Contacts', scripts: 'Scripts', campaigns: 'Campaigns', calls: 'Call History',
+  dashboard: 'Dashboard', qualityReview: 'Quality Review', contacts: 'Contacts', scripts: 'Scripts', campaigns: 'Campaigns', calls: 'Call History',
   users: 'Users & Agents', lines: 'Telephony Lines', knowledge: 'Knowledge Base', settings: 'System Settings', system: 'Monitoring & Audit',
   workspace: 'Agent Workspace', apiDocs: 'API Docs', logout: 'Sign out', language: 'Language', online: 'Service healthy', offline: 'Service unavailable',
   welcomeBack: 'Welcome back', loginHint: 'Sign in to your secure workspace', username: 'Username', password: 'Password', signIn: 'Sign in',
@@ -53,6 +55,7 @@ const en: typeof zh = {
   mode: 'Mode', concurrency: 'Concurrency', retryLimit: 'Retry limit', retryInterval: 'Retry interval (sec)', contactsSelected: 'Contacts', scriptTemplate: 'Script template', recording: 'Recording', hangupSms: 'Hangup SMS', status: 'Status', start: 'Start', pause: 'Pause', resume: 'Resume', stop: 'Stop', stopped: 'Stopped', paused: 'Paused', editCampaign: 'Edit campaign', confirmStop: 'Stop this campaign?', invalidPhone: 'Enter a valid phone number with 6 to 15 digits',
   attempts: 'Attempts', campaignId: 'Campaign ID', contactId: 'Contact ID', handoff: 'Handoff', hangup: 'Hang up', retry: 'Retry', events: 'Events',
   callNow: 'Call now', workbenchHint: 'Start outbound calls and handle sessions that need an agent', activeQueue: 'Active sessions', agentStatus: 'Agent status', ready: 'Ready', agentReady: 'Ready', agentBusy: 'Busy', agentOffline: 'Offline',
+  presenceUpdateFailed: 'Agent status sync failed', presenceUpdateFailedHint: 'The previous status was restored. Check the network and retry to avoid missing handoff requests.', confirmAcceptHandoff: 'Accept this handoff call?', confirmRejectHandoff: 'Reject this handoff request?', unknownCustomer: 'Unknown customer', noCampaign: 'No campaign', lastCustomerUtterance: 'Customer last said',
   operationSuccess: 'Operation completed', loadFailed: 'Failed to load', loginFailed: 'Sign-in failed', empty: 'No data', loading: 'Loading', confirmDelete: 'Delete this record?', confirmStart: 'Start this campaign?', confirmHandoff: 'Transfer this call to a human agent?', confirmHangup: 'Hang up this call?', confirmRetry: 'Retry this call?',
   all: 'All', unknown: 'Unknown', consented: 'Consented', notConsented: 'Not consented', revoked: 'Revoked', draft: 'Draft', running: 'Running', completed: 'Completed', failed: 'Failed', deleted: 'Deleted',
   created: 'Created', queued: 'Queued', dialing: 'Dialing', answered: 'Answered', in_ai: 'In AI call', waiting_human: 'Waiting for agent', handoff_transferring: 'Transferring', no_answer: 'No answer', busy: 'Busy', voicemail: 'Voicemail',
@@ -69,6 +72,7 @@ const en: typeof zh = {
   systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', smsLogs: 'SMS delivery logs', sentAt: 'Sent at', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID', providerMessageId: 'Provider message ID', providerError: 'Provider error',
   runtimeMetrics: 'Runtime metrics', averageAiLatency: 'Average AI turn latency', staleTasks: 'Stale processing tasks', oldestTask: 'Oldest open task', recordingDeleteFailures: 'Recording deletion failures',
   resultsAndQa: 'Results & QA', callResult: 'Call result', intent: 'Intent', sentiment: 'Sentiment', qaScore: 'QA score', qaFlags: 'QA flags', qaFlagsHint: 'Separate multiple flags with commas', reviewState: 'Review state', summary: 'Summary', correctAnalysis: 'Correct analysis', reviewSaved: 'QA review saved',
+  qualityReviewHint: 'Prioritize pending and low-score calls, inspect evidence, and complete manual review', pendingReview: 'Pending review', flaggedCalls: 'Flagged calls', reviewed: 'Reviewed', auto: 'Automated QA', scoreThreshold: 'Maximum QA score', scoreAtMost: '{{count}} or below', evidence: 'Evidence', review: 'Review', reReview: 'Review again', qualityEvidence: 'QA evidence', transcriptEvidence: 'Transcript evidence', recordingEvidence: 'Recording evidence', reviewCall: 'Review call',
 }
 
 const savedLanguage = localStorage.getItem('ai-platform-language') || 'zh-CN'

@@ -438,7 +438,30 @@ class HandoffQueueItemOut(HandoffRequestOut):
     phone: str
     mode: CallMode
     campaign_id: Optional[int] = None
+    contact_name: Optional[str] = None
+    campaign_name: Optional[str] = None
+    intent: Optional[str] = None
+    summary: str = ""
+    last_customer_utterance: str = ""
     wait_seconds: int = 0
+
+
+class QualityReviewQueueItemOut(BaseModel):
+    call_id: UUID
+    phone: str
+    call_status: CallStatus
+    campaign_id: Optional[int] = None
+    campaign_name: Optional[str] = None
+    result_code: str
+    sentiment: str
+    intent: str
+    summary: str
+    qa_score: int
+    qa_flags_json: str
+    review_state: str
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    updated_at: datetime
 
 
 class AiTurnRequest(BaseModel):

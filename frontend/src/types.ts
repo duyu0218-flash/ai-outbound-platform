@@ -175,7 +175,30 @@ export interface HandoffRequest {
   phone?: string
   mode?: CallMode
   campaign_id?: number
+  contact_name?: string
+  campaign_name?: string
+  intent?: string
+  summary: string
+  last_customer_utterance: string
   wait_seconds?: number
+}
+
+export interface QualityReviewItem {
+  call_id: string
+  phone: string
+  call_status: string
+  campaign_id?: number
+  campaign_name?: string
+  result_code: string
+  sentiment: string
+  intent: string
+  summary: string
+  qa_score: number
+  qa_flags_json: string
+  review_state: 'auto' | 'reviewed'
+  reviewed_by?: number
+  reviewed_at?: string
+  updated_at: string
 }
 
 export interface CallAnalysis {
