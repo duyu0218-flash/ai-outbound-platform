@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Any, Dict
 
 import httpx
+from sqlmodel import select
 
 from ..config import get_settings
 from ..clock import utc_now
 from ..db import session_scope
-from ..models import CallEvent, CallSession, CallStatus, Campaign, SmsLog
+from ..models import CallEvent, CallSession, CallStatus, Campaign, SmsLog, User
 from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
@@ -152,9 +154,35 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         call.status = CallStatus.COMPLETED
         call.finished_at = utc_now()
     elif result.action == "handoff" or result.handoff_to_human:
-        await with_retry(lambda: adapter.transfer_to_human(call_id=str(call.id), reason="ai_decision"))
+        presence_cutoff = utc_now() - timedelta(seconds=max(30, settings.agent_presence_timeout_sec))
+        assigned_agent = session.exec(
+            select(User)
+            .where(
+                User.tenant_id == call.tenant_id,
+                User.role == "agent",
+                User.enabled.is_(True),
+                User.agent_status == "ready",
+                User.last_seen_at.is_not(None),
+                User.last_seen_at >= presence_cutoff,
+            )
+            .order_by(User.last_seen_at.asc(), User.id.asc())
+        ).first()
+        target_group = f"agent:{assigned_agent.id}" if assigned_agent is not None else None
+        await with_retry(
+            lambda: adapter.transfer_to_human(
+                call_id=str(call.id),
+                reason="ai_decision",
+                target_group=target_group,
+            )
+        )
         call.status = CallStatus.WAITING_HUMAN
         call.handoff_reason = "ai_decision"
+        if assigned_agent is not None:
+            call.human_agent_id = assigned_agent.id
+            assigned_agent.agent_status = "busy"
+            assigned_agent.last_seen_at = utc_now()
+            assigned_agent.updated_at = utc_now()
+            session.add(assigned_agent)
     else:
         call.status = CallStatus.IN_AI
 
@@ -226,8 +254,10 @@ async def send_sms_text(session, call: CallSession, text: str) -> None:
     try:
         sms_result = await with_retry(lambda: adapter.send_sms(call.phone, text))
         state = str(sms_result.get("state", "sent"))
+        provider_message_id = str(sms_result.get("message_id") or sms_result.get("provider_message_id") or "") or None
     except Exception as exc:
         state = "failed"
+        provider_message_id = None
         call.last_error = f"短信发送失败: {exc}"
 
     sms_log = SmsLog(
@@ -237,6 +267,8 @@ async def send_sms_text(session, call: CallSession, text: str) -> None:
         template_code="hangup_sms",
         content=text,
         state=state,
+        provider_message_id=provider_message_id,
+        provider_error=call.last_error if state == "failed" else None,
         sent_at=utc_now() if state != "failed" else None,
     )
     session.add(sms_log)

@@ -9,7 +9,7 @@ interface AuthContextValue {
   token: string | null
   loading: boolean
   login: (username: string, password: string, expectedRole: Role) => Promise<User>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -51,10 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(profile)
       return profile
     },
-    logout: () => {
-      sessionStorage.removeItem(TOKEN_KEY)
-      setToken(null)
-      setUser(null)
+    logout: async () => {
+      try {
+        if (token) await apiRequest('/api/v1/auth/logout', { method: 'POST' }, token)
+      } finally {
+        sessionStorage.removeItem(TOKEN_KEY)
+        setToken(null)
+        setUser(null)
+      }
     },
   }), [loading, token, user])
 

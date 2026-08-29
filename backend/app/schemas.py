@@ -248,7 +248,20 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_supervisor: bool
+    agent_status: str
+    last_seen_at: Optional[datetime] = None
     enabled: bool
+
+
+class AgentPresenceUpdate(BaseModel):
+    status: str = Field(pattern=r"^(ready|busy|offline)$")
+
+
+class SmsStatusWebhook(BaseModel):
+    sms_log_id: Optional[int] = Field(default=None, ge=1)
+    provider_message_id: Optional[str] = Field(default=None, max_length=255)
+    state: str = Field(min_length=1, max_length=64)
+    error: Optional[str] = Field(default=None, max_length=2000)
 
 
 class WebhookStatusPayload(BaseModel):
@@ -375,6 +388,8 @@ class SmsLogOut(BaseModel):
     template_code: Optional[str] = None
     content: str
     state: str
+    provider_message_id: Optional[str] = None
+    provider_error: Optional[str] = None
     sent_at: Optional[datetime] = None
     created_at: datetime
 

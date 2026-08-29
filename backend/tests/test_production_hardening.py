@@ -1006,11 +1006,123 @@ def test_runtime_migration_upgrades_existing_tables(tmp_path):
     with migration_engine.begin() as connection:
         connection.execute(text("CREATE TABLE callsession (id VARCHAR PRIMARY KEY, status VARCHAR)"))
         connection.execute(text("CREATE TABLE telephonyline (id INTEGER PRIMARY KEY, name VARCHAR)"))
+        connection.execute(text('CREATE TABLE "user" (id INTEGER PRIMARY KEY, username VARCHAR)'))
+        connection.execute(text("CREATE TABLE smslog (id INTEGER PRIMARY KEY, created_at TIMESTAMP)"))
     apply_runtime_migrations(migration_engine)
     call_columns = {item["name"] for item in inspect(migration_engine).get_columns("callsession")}
     line_columns = {item["name"] for item in inspect(migration_engine).get_columns("telephonyline")}
+    user_columns = {item["name"] for item in inspect(migration_engine).get_columns("user")}
+    sms_columns = {item["name"] for item in inspect(migration_engine).get_columns("smslog")}
     assert {"human_agent_id", "telephony_line_id"}.issubset(call_columns)
     assert {"priority", "weight", "credential_ref"}.issubset(line_columns)
+    assert {"agent_status", "last_seen_at"}.issubset(user_columns)
+    assert {"provider_message_id", "provider_error", "updated_at"}.issubset(sms_columns)
+
+
+def test_agent_presence_heartbeat_and_logout(client: TestClient):
+    token = _login(client, "1001@test")
+    headers = _bearer(token)
+    profile = client.get("/api/v1/auth/me", headers=headers)
+    assert profile.status_code == 200, profile.text
+    assert profile.json()["agent_status"] == "ready"
+    assert profile.json()["last_seen_at"] is not None
+
+    busy = client.put("/api/v1/auth/presence", headers=headers, json={"status": "busy"})
+    assert busy.status_code == 200, busy.text
+    assert busy.json()["agent_status"] == "busy"
+    assert client.put("/api/v1/auth/presence", headers=headers, json={"status": "invalid"}).status_code == 400
+
+    logged_out = client.post("/api/v1/auth/logout", headers=headers)
+    assert logged_out.status_code == 200, logged_out.text
+    with session_scope() as session:
+        agent = session.exec(select(User).where(User.username == "1001@test")).first()
+        assert agent is not None
+        assert agent.agent_status == "offline"
+
+
+@pytest.mark.asyncio
+async def test_ai_handoff_assigns_recent_ready_agent(client: TestClient, monkeypatch):
+    with session_scope() as session:
+        for candidate in session.exec(select(User).where(User.role == "agent")).all():
+            candidate.agent_status = "offline"
+            session.add(candidate)
+        agent = session.exec(select(User).where(User.username == "1001@test")).first()
+        assert agent is not None
+        agent.agent_status = "ready"
+        agent.last_seen_at = utc_now()
+        session.add(agent)
+        call = create_call(
+            session,
+            tenant_id=agent.tenant_id,
+            phone="13800138884",
+            mode=CallMode.AI_HANDOFF,
+            campaign_id=None,
+            contact_id=None,
+            max_attempts=1,
+        )
+        call.status = CallStatus.ANSWERED
+        session.add(call)
+        session.commit()
+        call_id = call.id
+        agent_id = agent.id
+
+    captured: dict[str, object] = {}
+
+    async def fake_ai_turn(**_):
+        return AiTurnResult(action="handoff", tts_text="转接人工", handoff_to_human=True)
+
+    class HandoffAdapter:
+        async def speak(self, **_):
+            return {"result": "spoken"}
+
+        async def transfer_to_human(self, **kwargs):
+            captured.update(kwargs)
+            return {"result": "transferred"}
+
+    monkeypatch.setattr(dispatcher, "request_ai_turn", fake_ai_turn)
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_: HandoffAdapter())
+    await dispatcher.run_ai_turn(call_id=call_id, transcript="请转人工")
+
+    assert captured["target_group"] == f"agent:{agent_id}"
+    with session_scope() as session:
+        persisted_call = session.get(CallSession, call_id)
+        persisted_agent = session.get(User, agent_id)
+        assert persisted_call is not None and persisted_call.human_agent_id == agent_id
+        assert persisted_call.status == CallStatus.WAITING_HUMAN
+        assert persisted_agent is not None and persisted_agent.agent_status == "busy"
+
+
+def test_sms_delivery_receipt_updates_log_and_blocks_terminal_regression(client: TestClient):
+    with session_scope() as session:
+        sms_log = SmsLog(
+            tenant_id=1,
+            to_phone="13800138883",
+            content="receipt test",
+            state="sent",
+            provider_message_id="provider-message-1",
+            sent_at=utc_now(),
+        )
+        session.add(sms_log)
+        session.commit()
+        session.refresh(sms_log)
+        sms_log_id = sms_log.id
+
+    delivered = client.post(
+        "/api/v1/webhooks/sms/status",
+        json={"provider_message_id": "provider-message-1", "state": "delivered"},
+    )
+    assert delivered.status_code == 200, delivered.text
+    assert delivered.json()["result"] == "ok"
+    regression = client.post(
+        "/api/v1/webhooks/sms/status",
+        json={"sms_log_id": sms_log_id, "state": "failed", "error": "late failure"},
+    )
+    assert regression.json() == {"result": "ignored", "reason": "terminal_state"}
+    with session_scope() as session:
+        persisted = session.get(SmsLog, sms_log_id)
+        assert persisted is not None
+        assert persisted.state == "delivered"
+        assert persisted.provider_error is None
 
 
 def test_stale_provider_call_releases_capacity(client: TestClient):

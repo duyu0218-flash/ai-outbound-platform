@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     scheduler_poll_interval_sec: float = 1.0
     scheduler_batch_size: int = 200
     scheduler_lock_ttl_sec: int = 15
+    agent_presence_timeout_sec: int = 90
 
     # Production hardening
     request_timeout_ms: int = 15000
@@ -68,6 +69,7 @@ class Settings(BaseSettings):
     sms_api_key: str = ""
     sms_sender_id: str = ""
     sms_callback_url: str = ""
+    sms_webhook_token: str = ""
 
     call_recording_event_url: str = "/api/v1/webhooks/telephony/recording"
     transcript_event_url: str = "/api/v1/webhooks/telephony/transcript"

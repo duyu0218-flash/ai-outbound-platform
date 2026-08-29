@@ -40,6 +40,22 @@ def apply_runtime_migrations(engine: Engine) -> None:
         if "credential_ref" not in line_columns:
             statements.append("ALTER TABLE telephonyline ADD COLUMN credential_ref VARCHAR(128) NOT NULL DEFAULT ''")
 
+    if "user" in tables:
+        user_columns = _columns(engine, "user")
+        if "agent_status" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN agent_status VARCHAR(32) NOT NULL DEFAULT 'offline'")
+        if "last_seen_at" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN last_seen_at TIMESTAMP")
+
+    if "smslog" in tables:
+        sms_columns = _columns(engine, "smslog")
+        if "provider_message_id" not in sms_columns:
+            statements.append("ALTER TABLE smslog ADD COLUMN provider_message_id VARCHAR(255)")
+        if "provider_error" not in sms_columns:
+            statements.append("ALTER TABLE smslog ADD COLUMN provider_error VARCHAR(2000)")
+        if "updated_at" not in sms_columns:
+            statements.append("ALTER TABLE smslog ADD COLUMN updated_at TIMESTAMP")
+
     with engine.begin() as connection:
         for statement in statements:
             logger.info("applying database migration: %s", statement)
@@ -47,4 +63,8 @@ def apply_runtime_migrations(engine: Engine) -> None:
         if "callsession" in tables:
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_callsession_telephony_line_id ON callsession (telephony_line_id)")
+            )
+        if "smslog" in tables:
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_smslog_provider_message_id ON smslog (provider_message_id)")
             )

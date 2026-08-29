@@ -6,16 +6,18 @@ from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from ...api.deps import check_webhook_token, get_session
+from ...api.deps import check_sms_webhook_token, check_webhook_token, get_session
 from ...clock import utc_now
 from ...config import get_settings
-from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, WebhookEventIngest
-from ...schemas import WebhookEvent
+from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, SmsLog, User, WebhookEventIngest
+from ...schemas import SmsStatusWebhook, WebhookEvent
 from ...services import dispatcher
 from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
+
+SMS_TERMINAL_STATES = {"delivered", "failed", "undelivered", "rejected", "expired"}
 settings = get_settings()
 
 STATUS_ORDER = {
@@ -210,6 +212,13 @@ def telephony_status(
         CallStatus.NO_ANSWER,
     }:
         call.finished_at = utc_now()
+        if call.human_agent_id is not None:
+            assigned_agent = session.get(User, call.human_agent_id)
+            if assigned_agent is not None and assigned_agent.agent_status == "busy":
+                assigned_agent.agent_status = "ready"
+                assigned_agent.last_seen_at = utc_now()
+                assigned_agent.updated_at = utc_now()
+                session.add(assigned_agent)
     if payload.payload.get("summary"):
         call.summary = (call.summary or "") + "\n" + str(payload.payload.get("summary"))
 
@@ -304,4 +313,39 @@ def telephony_recording(
             event_type="call.recording",
             data={"url": str(url)},
         )
+    return {"result": "ok"}
+
+
+@router.post("/sms/status")
+def sms_status(
+    payload: SmsStatusWebhook,
+    _: None = Depends(check_sms_webhook_token),
+    session: Session = Depends(get_session),
+):
+    if payload.sms_log_id is None and not payload.provider_message_id:
+        return {"result": "ignored", "reason": "missing_message_identifier"}
+    sms_log = None
+    if payload.sms_log_id is not None:
+        sms_log = session.get(SmsLog, payload.sms_log_id)
+    if sms_log is None and payload.provider_message_id:
+        sms_log = session.exec(
+            select(SmsLog)
+            .where(SmsLog.provider_message_id == payload.provider_message_id)
+            .order_by(SmsLog.created_at.desc())
+        ).first()
+    if sms_log is None:
+        return {"result": "ignore"}
+
+    normalized_state = payload.state.strip().lower()
+    if sms_log.state in SMS_TERMINAL_STATES and sms_log.state != normalized_state:
+        return {"result": "ignored", "reason": "terminal_state"}
+    sms_log.state = normalized_state
+    sms_log.provider_error = payload.error
+    if payload.provider_message_id and not sms_log.provider_message_id:
+        sms_log.provider_message_id = payload.provider_message_id
+    if normalized_state in {"sent", "delivered"} and sms_log.sent_at is None:
+        sms_log.sent_at = utc_now()
+    sms_log.updated_at = utc_now()
+    session.add(sms_log)
+    session.commit()
     return {"result": "ok"}

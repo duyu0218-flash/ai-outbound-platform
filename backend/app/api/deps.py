@@ -117,6 +117,20 @@ def check_webhook_token(x_webhook_token: str | None = Header(default=None, alias
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid webhook token")
 
 
+def check_sms_webhook_token(x_webhook_token: str | None = Header(default=None, alias="x-webhook-token")) -> None:
+    token = settings.sms_webhook_token.strip()
+    is_prod = settings.env.lower() in {"prod", "production"}
+    if is_prod and not token:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SMS webhook token missing in production",
+        )
+    if not token:
+        return
+    if not _secure_equals(x_webhook_token, token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid SMS webhook token")
+
+
 def current_user(
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session),

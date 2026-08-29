@@ -584,10 +584,11 @@ curl -fS http://localhost:8000/readyz
 - 不要把 `.env` 明文放在仓库
 - 代理层只放行必需端口
 - `TELEPHONY_WEBHOOK_TOKEN` 必须有值
+- 使用 HTTP 短信供应商时必须配置 `SMS_CALLBACK_URL` 与 `SMS_WEBHOOK_TOKEN`，供应商回执请求携带 `x-webhook-token`
 - 日志中打码手机号（如有敏感合规要求）
 - 对接短信/电话接口增加重试和幂等保护
 - 强制设置 `TRUSTED_HOSTS`，避免 Host 头注入
-- `ENV=production` 时服务会拒绝默认密钥、SQLite、空 Redis、`mock` 电话适配器、通配 CORS、演示账号或空 webhook token
+- `ENV=production` 时服务会拒绝默认密钥、SQLite、空 Redis、`mock` 电话适配器、通配 CORS、演示账号或空电话 webhook token；启用 HTTP 短信时也会拒绝空短信回调地址或回调 token
 - 设置 `CORS_ALLOW_ORIGINS=https://你的管理域名`，不要使用 `*`
 - 设置 `DEMO_USERS_ENABLED=false`，并使用至少 32 字符的非占位符 `SECRET_KEY` / `JWT_SECRET`；多租户服务调用配置 `TENANT_API_KEYS_JSON`
 
