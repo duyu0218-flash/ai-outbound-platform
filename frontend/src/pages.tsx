@@ -51,13 +51,13 @@ import {
   Typography,
   message,
 } from 'antd'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, RecordingAsset, Role, RuntimeInfo, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, QualityReviewItem, RecordingAsset, Role, RuntimeInfo, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -596,6 +596,108 @@ export function CallsPage({ role }: { role: Role }) {
   )
 }
 
+export function QualityReviewPage() {
+  const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const [reviewState, setReviewState] = useState<'all' | 'auto' | 'reviewed'>('auto')
+  const [maxScore, setMaxScore] = useState<number | undefined>()
+  const [selected, setSelected] = useState<QualityReviewItem | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewForm] = Form.useForm<CallAnalysisReviewValues>()
+  const params = new URLSearchParams({ page: '1', size: '200' })
+  if (reviewState !== 'all') params.set('review_state', reviewState)
+  if (maxScore != null) params.set('max_score', String(maxScore))
+  const queue = useSecureQuery<QualityReviewItem[]>(['quality-reviews', reviewState, String(maxScore ?? '')], `/api/v1/quality/reviews?${params}`)
+  const speechTurns = useSecureQuery<SpeechTurn[]>(['quality-speech', selected?.call_id || ''], selected ? `/api/v1/calls/${selected.call_id}/speech-turns?final_only=true` : '', Boolean(selected))
+  const recordings = useSecureQuery<RecordingAsset[]>(['quality-recordings', selected?.call_id || ''], selected ? `/api/v1/calls/${selected.call_id}/recordings` : '', Boolean(selected))
+  const rows = queue.data || []
+  const pendingCount = rows.filter((item) => item.review_state === 'auto').length
+  const flaggedCount = rows.filter((item) => {
+    try { return (JSON.parse(item.qa_flags_json) as string[]).length > 0 } catch { return Boolean(item.qa_flags_json) }
+  }).length
+  const averageScore = rows.length ? Math.round(rows.reduce((total, item) => total + item.qa_score, 0) / rows.length) : 0
+
+  const reviewMutation = useMutation({
+    mutationFn: (values: CallAnalysisReviewValues) => apiRequest<CallAnalysis>(`/api/v1/calls/${selected!.call_id}/analysis`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...values, qa_flags: values.qa_flags.split(/[,，]/).map((item) => item.trim()).filter(Boolean) }),
+    }, token),
+    onSuccess: () => {
+      message.success(t('reviewSaved'))
+      setReviewOpen(false)
+      setSelected(null)
+      void queryClient.invalidateQueries({ queryKey: ['quality-reviews'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] })
+    },
+    onError: (error) => message.error(error.message),
+  })
+  const openReview = (item: QualityReviewItem) => {
+    let flags = item.qa_flags_json
+    try { flags = (JSON.parse(flags) as string[]).join(', ') } catch { /* preserve raw provider output */ }
+    reviewForm.setFieldsValue({
+      result_code: item.result_code,
+      intent: item.intent,
+      sentiment: item.sentiment,
+      qa_score: item.qa_score,
+      qa_flags: flags,
+      summary: item.summary,
+    })
+    setSelected(item)
+    setReviewOpen(true)
+  }
+
+  return (
+    <>
+      <PageTitle title={t('qualityReview')} description={t('qualityReviewHint')} action={<Button icon={<ReloadOutlined />} onClick={() => void queue.refetch()}>{t('refresh')}</Button>} />
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={8}><Card><Statistic title={t('pendingReview')} value={pendingCount} /></Card></Col>
+        <Col xs={24} md={8}><Card><Statistic title={t('flaggedCalls')} value={flaggedCount} /></Card></Col>
+        <Col xs={24} md={8}><Card><Statistic title={t('averageQaScore')} value={averageScore} suffix="/ 100" /></Card></Col>
+      </Row>
+      <Card className="quality-queue-card">
+        <div className="table-toolbar">
+          <Select value={reviewState} style={{ width: 160 }} onChange={setReviewState} options={[{ value: 'auto', label: t('pendingReview') }, { value: 'reviewed', label: t('reviewed') }, { value: 'all', label: t('all') }]} />
+          <Select allowClear value={maxScore} placeholder={t('scoreThreshold')} style={{ width: 190 }} onChange={setMaxScore} options={[60, 70, 80, 90].map((value) => ({ value, label: t('scoreAtMost', { count: value }) }))} />
+        </div>
+        <Table<QualityReviewItem> rowKey="call_id" loading={queue.isLoading} dataSource={rows} pagination={{ pageSize: 20 }} scroll={{ x: 1100 }} locale={{ emptyText: t('empty') }} columns={[
+          { title: t('phone'), dataIndex: 'phone', width: 150 },
+          { title: t('campaigns'), dataIndex: 'campaign_name', width: 170, render: (value, record) => value || (record.campaign_id ? `#${record.campaign_id}` : '-') },
+          { title: t('status'), dataIndex: 'call_status', width: 130, render: (value) => <StatusTag status={value} /> },
+          { title: t('callResult'), dataIndex: 'result_code', width: 140 },
+          { title: t('intent'), dataIndex: 'intent', width: 150, ellipsis: true },
+          { title: t('qaScore'), dataIndex: 'qa_score', width: 100, sorter: (a, b) => a.qa_score - b.qa_score, render: (value) => <Tag color={value < 60 ? 'error' : value < 80 ? 'warning' : 'success'}>{value}</Tag> },
+          { title: t('reviewState'), dataIndex: 'review_state', width: 120, render: (value) => <StatusTag status={value} /> },
+          { title: t('lastUpdated'), dataIndex: 'updated_at', width: 170, render: formatDate },
+          { title: t('actions'), fixed: 'right', width: 160, render: (_, record) => <Space><Button size="small" onClick={() => setSelected(record)}>{t('evidence')}</Button><Button size="small" type="primary" onClick={() => openReview(record)}>{record.review_state === 'reviewed' ? t('reReview') : t('review')}</Button></Space> },
+        ]} />
+      </Card>
+      <Drawer width={720} title={`${t('qualityEvidence')} · ${selected?.phone || ''}`} open={Boolean(selected) && !reviewOpen} onClose={() => setSelected(null)} extra={selected && <Button type="primary" onClick={() => openReview(selected)}>{t('review')}</Button>}>
+        {selected && <Descriptions bordered size="small" column={1} items={[
+          { key: 'result', label: t('callResult'), children: selected.result_code },
+          { key: 'intent', label: t('intent'), children: selected.intent },
+          { key: 'sentiment', label: t('sentiment'), children: selected.sentiment },
+          { key: 'score', label: t('qaScore'), children: selected.qa_score },
+          { key: 'flags', label: t('qaFlags'), children: selected.qa_flags_json },
+          { key: 'summary', label: t('summary'), children: selected.summary || '-' },
+        ]} />}
+        <Tabs style={{ marginTop: 16 }} items={[
+          { key: 'speech', label: t('transcriptEvidence'), children: <List loading={speechTurns.isLoading} dataSource={speechTurns.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Tag color={item.speaker_role === 'customer' ? 'blue' : 'default'}>{t(item.speaker_role, { defaultValue: item.speaker_role })}</Tag>} description={item.transcript || '-'} /></List.Item>} /> },
+          { key: 'recordings', label: t('recordingEvidence'), children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Text>{item.media_format || 'unknown'}</Text></Space>} description={item.storage_uri || item.provider_url || '-'} /></List.Item>} /> },
+        ]} />
+      </Drawer>
+      <Modal title={t('reviewCall')} open={reviewOpen} onCancel={() => setReviewOpen(false)} onOk={() => reviewForm.submit()} confirmLoading={reviewMutation.isPending} destroyOnHidden>
+        <Form<CallAnalysisReviewValues> form={reviewForm} layout="vertical" onFinish={(values) => reviewMutation.mutate(values)}>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('callResult')} name="result_code" rules={[{ required: true }]}><Select options={['interested', 'qualified_lead', 'rejected', 'completed', 'no_answer', 'busy', 'failed'].map((value) => ({ value, label: value }))} /></Form.Item></Col><Col span={12}><Form.Item label={t('intent')} name="intent" rules={[{ required: true }]}><Input /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('sentiment')} name="sentiment" rules={[{ required: true }]}><Select options={['positive', 'neutral', 'negative'].map((value) => ({ value, label: value }))} /></Form.Item></Col><Col span={12}><Form.Item label={t('qaScore')} name="qa_score" rules={[{ required: true }]}><InputNumber min={0} max={100} className="full-width" /></Form.Item></Col></Row>
+          <Form.Item label={t('qaFlags')} name="qa_flags" extra={t('qaFlagsHint')}><Input /></Form.Item>
+          <Form.Item label={t('summary')} name="summary" rules={[{ required: true }]}><Input.TextArea rows={5} /></Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
 interface AdminUserFormValues {
   username: string
   password?: string
@@ -869,13 +971,37 @@ export function AgentWorkspacePage() {
   const handoffQueue = useSecureQuery<HandoffRequest[]>(['handoffs', 'waiting'], '/api/v1/handoffs?state=waiting')
   const [form] = Form.useForm<CallFormValues>()
   const [presenceStatus, setPresenceStatus] = useState<'ready' | 'busy' | 'offline'>(user?.agent_status || 'ready')
+  const presenceRef = useRef(presenceStatus)
+  const [presenceSaving, setPresenceSaving] = useState(false)
+  const [presenceError, setPresenceError] = useState(false)
+  useEffect(() => { presenceRef.current = presenceStatus }, [presenceStatus])
+  const savePresence = async (status: 'ready' | 'busy' | 'offline', notifyFailure = true) => {
+    if (!token) return false
+    const previous = presenceRef.current
+    setPresenceStatus(status)
+    presenceRef.current = status
+    setPresenceSaving(true)
+    try {
+      const saved = await apiRequest<User>('/api/v1/auth/presence', { method: 'PUT', body: JSON.stringify({ status }) }, token)
+      setPresenceStatus(saved.agent_status)
+      presenceRef.current = saved.agent_status
+      setPresenceError(false)
+      return true
+    } catch (error) {
+      setPresenceStatus(previous)
+      presenceRef.current = previous
+      setPresenceError(true)
+      if (notifyFailure) message.error(error instanceof Error ? error.message : t('presenceUpdateFailed'))
+      return false
+    } finally {
+      setPresenceSaving(false)
+    }
+  }
   useEffect(() => {
     if (!token || !user || user.role !== 'agent') return
-    const updatePresence = () => apiRequest<User>('/api/v1/auth/presence', { method: 'PUT', body: JSON.stringify({ status: presenceStatus }) }, token).catch(() => undefined)
-    void updatePresence()
-    const heartbeat = window.setInterval(() => void updatePresence(), 30_000)
+    const heartbeat = window.setInterval(() => void savePresence(presenceRef.current, false), 30_000)
     return () => window.clearInterval(heartbeat)
-  }, [presenceStatus, token, user])
+  }, [token, user?.id])
   const mutation = useMutation({
     mutationFn: (values: CallFormValues) => apiRequest<CallSession>('/api/v1/calls', { method: 'POST', body: JSON.stringify(values) }, token),
     onSuccess: () => { message.success(t('operationSuccess')); form.resetFields(); form.setFieldsValue({ mode: 'ai_handoff', max_attempts: 1 }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
@@ -883,12 +1009,12 @@ export function AgentWorkspacePage() {
   })
   const handoffMutation = useMutation({
     mutationFn: (call: CallSession) => apiRequest<CallSession>(`/api/v1/calls/${call.id}/handover?reason=agent_workspace`, { method: 'POST' }, token),
-    onSuccess: () => { message.success(t('operationSuccess')); setPresenceStatus('busy'); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onSuccess: () => { message.success(t('operationSuccess')); void savePresence('busy'); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const respondHandoff = useMutation({
     mutationFn: ({ item, action }: { item: HandoffRequest; action: 'accept' | 'reject' }) => apiRequest<HandoffRequest>(`/api/v1/calls/${item.call_session_id}/handoffs/${item.id}/${action}`, { method: 'POST' }, token),
-    onSuccess: (_, variables) => { message.success(t('operationSuccess')); if (variables.action === 'accept') setPresenceStatus('busy'); void queryClient.invalidateQueries({ queryKey: ['handoffs'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onSuccess: (_, variables) => { message.success(t('operationSuccess')); if (variables.action === 'accept') void savePresence('busy'); void queryClient.invalidateQueries({ queryKey: ['handoffs'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])
@@ -896,6 +1022,7 @@ export function AgentWorkspacePage() {
   return (
     <>
       <PageTitle title={t('workspace')} description={t('workbenchHint')} />
+      {presenceError && <Alert type="error" showIcon closable message={t('presenceUpdateFailed')} description={t('presenceUpdateFailedHint')} action={<Button size="small" onClick={() => void savePresence(presenceStatus)}>{t('retry')}</Button>} style={{ marginBottom: 16 }} />}
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={9}>
           <Card className="dialer-card" title={<Space><PhoneOutlined />{t('callNow')}</Space>}>
@@ -907,12 +1034,12 @@ export function AgentWorkspacePage() {
             </Form>
           </Card>
           <Card className="agent-profile-card" title={t('profile')}>
-            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }, { key: 'status', label: t('agentStatus'), children: <Select value={presenceStatus} style={{ width: 140 }} onChange={setPresenceStatus} options={[{ value: 'ready', label: t('agentReady') }, { value: 'busy', label: t('agentBusy') }, { value: 'offline', label: t('agentOffline') }]} /> }]} />
+            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }, { key: 'status', label: t('agentStatus'), children: <Select value={presenceStatus} loading={presenceSaving} disabled={presenceSaving} style={{ width: 140 }} onChange={(value) => void savePresence(value)} options={[{ value: 'ready', label: t('agentReady') }, { value: 'busy', label: t('agentBusy') }, { value: 'offline', label: t('agentOffline') }]} /> }]} />
           </Card>
         </Col>
         <Col xs={24} xl={15}>
           <Card title={t('handoffQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void handoffQueue.refetch()}>{t('refresh')}</Button>} style={{ marginBottom: 16 }}>
-            {(handoffQueue.data || []).length ? <List dataSource={handoffQueue.data} renderItem={(item) => <List.Item actions={[<Button key="accept" type="primary" loading={respondHandoff.isPending} disabled={presenceStatus !== 'ready'} onClick={() => respondHandoff.mutate({ item, action: 'accept' })}>{t('accept')}</Button>, <Button key="reject" danger disabled={respondHandoff.isPending} onClick={() => respondHandoff.mutate({ item, action: 'reject' })}>{t('reject')}</Button>]}><List.Item.Meta title={<Space>{item.phone || item.call_session_id}<StatusTag status="waiting_human" /></Space>} description={`${t('mode')}: ${t(modeOptions.find((option) => option.value === item.mode)?.labelKey || item.mode || 'unknown')} · ${t('waitedSeconds', { count: item.wait_seconds || 0 })} · ${item.reason || '-'}`} /></List.Item>} /> : <Empty description={handoffQueue.isLoading ? t('loading') : t('empty')} />}
+            {(handoffQueue.data || []).length ? <List dataSource={handoffQueue.data} renderItem={(item) => <List.Item className="handoff-item" actions={[<Popconfirm key="accept" title={t('confirmAcceptHandoff')} description={item.summary || item.last_customer_utterance || undefined} onConfirm={() => respondHandoff.mutate({ item, action: 'accept' })} disabled={presenceStatus !== 'ready'}><Button type="primary" loading={respondHandoff.isPending} disabled={presenceStatus !== 'ready'}>{t('accept')}</Button></Popconfirm>, <Popconfirm key="reject" title={t('confirmRejectHandoff')} onConfirm={() => respondHandoff.mutate({ item, action: 'reject' })}><Button danger disabled={respondHandoff.isPending}>{t('reject')}</Button></Popconfirm>]}><List.Item.Meta title={<Space wrap><Text strong>{item.contact_name || t('unknownCustomer')}</Text><Text>{item.phone || item.call_session_id}</Text><StatusTag status="waiting_human" /></Space>} description={<Space direction="vertical" size={3}><Text type="secondary">{item.campaign_name || t('noCampaign')} · {t(modeOptions.find((option) => option.value === item.mode)?.labelKey || item.mode || 'unknown')} · {t('waitedSeconds', { count: item.wait_seconds || 0 })}</Text>{item.intent && <Text><strong>{t('intent')}：</strong>{item.intent}</Text>}{item.last_customer_utterance && <Text><strong>{t('lastCustomerUtterance')}：</strong>{item.last_customer_utterance}</Text>}{item.summary && <Text type="secondary"><strong>{t('summary')}：</strong>{item.summary}</Text>}</Space>} /></List.Item>} /> : <Empty description={handoffQueue.isLoading ? t('loading') : t('empty')} />}
           </Card>
           <Card title={t('activeQueue')} extra={<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>}>
             {activeCalls.length ? <List dataSource={activeCalls} renderItem={(call) => <List.Item actions={[<Button key="handoff" type="primary" ghost loading={handoffMutation.isPending} onClick={() => handoffMutation.mutate(call)} disabled={presenceStatus !== 'ready' || !['dialing', 'answered', 'in_ai', 'waiting_human'].includes(call.status)}>{t('handoff')}</Button>]}><List.Item.Meta avatar={<div className="call-avatar"><PhoneOutlined /></div>} title={<Space>{call.phone}<StatusTag status={call.status} /></Space>} description={`${t('mode')}: ${t(modeOptions.find((item) => item.value === call.mode)?.labelKey || call.mode)} · ${formatDate(call.updated_at)}`} /></List.Item>} /> : <Empty description={t('empty')} />}

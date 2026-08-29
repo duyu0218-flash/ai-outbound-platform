@@ -36,6 +36,7 @@ export function ProtectedRoute({ role }: { role: Role }) {
 
 const adminNavigation = [
   { key: '/admin', icon: <BarChartOutlined />, labelKey: 'dashboard' },
+  { key: '/admin/quality', icon: <AuditOutlined />, labelKey: 'qualityReview' },
   { key: '/admin/contacts', icon: <TeamOutlined />, labelKey: 'contacts' },
   { key: '/admin/scripts', icon: <FileTextOutlined />, labelKey: 'scripts' },
   { key: '/admin/campaigns', icon: <SoundOutlined />, labelKey: 'campaigns' },
@@ -44,12 +45,18 @@ const adminNavigation = [
   { key: '/admin/lines', icon: <CustomerServiceOutlined />, labelKey: 'lines' },
   { key: '/admin/knowledge', icon: <BookOutlined />, labelKey: 'knowledge' },
   { key: '/admin/settings', icon: <SettingOutlined />, labelKey: 'settings' },
-  { key: '/admin/system', icon: <AuditOutlined />, labelKey: 'system' },
+  { key: '/admin/system', icon: <SettingOutlined />, labelKey: 'system' },
 ]
 
 const agentNavigation = [
   { key: '/agent', icon: <CustomerServiceOutlined />, labelKey: 'workspace' },
   { key: '/agent/calls', icon: <PhoneOutlined />, labelKey: 'calls' },
+]
+
+const supervisorAgentNavigation = [
+  agentNavigation[0],
+  { key: '/agent/quality', icon: <AuditOutlined />, labelKey: 'qualityReview' },
+  agentNavigation[1],
 ]
 
 export function AppShell({ role }: { role: Role }) {
@@ -59,7 +66,7 @@ export function AppShell({ role }: { role: Role }) {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const navigation = role === 'admin' ? adminNavigation : agentNavigation
+  const navigation = role === 'admin' ? adminNavigation : user?.is_supervisor ? supervisorAgentNavigation : agentNavigation
 
   useEffect(() => {
     apiRequest<{ status: string }>('/healthz')

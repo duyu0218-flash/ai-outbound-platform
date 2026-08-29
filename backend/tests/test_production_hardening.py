@@ -52,6 +52,7 @@ from app.schemas import AiTurnResult  # noqa: E402
 from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
 from app.services import business_callbacks  # noqa: E402
+from app.services.admin_settings import SETTING_DEFAULTS  # noqa: E402
 from app.services.knowledge import retrieve_knowledge  # noqa: E402
 from app.services.retention import purge_expired_voice_data  # noqa: E402
 from app.services.script_flow import FlowValidationError, validate_graph  # noqa: E402
@@ -80,8 +81,12 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def reset_runtime_settings_after_test():
-    """Keep runtime settings from coupling otherwise independent tests."""
+def reset_runtime_settings_after_test(monkeypatch):
+    """Keep tests independent from saved settings and wall-clock call hours."""
+
+    compliance_defaults = dict(SETTING_DEFAULTS["compliance"])
+    compliance_defaults.update(allowed_start_hour=0, allowed_end_hour=0)
+    monkeypatch.setitem(SETTING_DEFAULTS, "compliance", compliance_defaults)
 
     yield
     with session_scope() as session:
@@ -402,6 +407,24 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
         call = session.get(CallSession, call_id)
         assert call is not None
         call.status = CallStatus.WAITING_HUMAN
+        call.summary = "客户询问了产品价格并希望人工说明"
+        session.add(CallAnalysis(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            intent="pricing",
+            summary=call.summary,
+            qa_score=82,
+        ))
+        session.add(SpeechTurn(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            provider_event_key="handoff-context-1",
+            turn_index=1,
+            speaker_role="customer",
+            transcript="请转人工给我说一下价格",
+            normalized_transcript="请转人工给我说一下价格",
+            is_final=True,
+        ))
         handoff = HandoffRequest(
             tenant_id=call.tenant_id,
             call_session_id=call.id,
@@ -430,7 +453,14 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
     queued_item = next(item for item in queued.json() if item["id"] == handoff_id)
     assert queued_item["phone"] == "13800138103"
     assert queued_item["mode"] == "human_only"
+    assert queued_item["intent"] == "pricing"
+    assert queued_item["summary"] == "客户询问了产品价格并希望人工说明"
+    assert queued_item["last_customer_utterance"] == "请转人工给我说一下价格"
     assert queued_item["wait_seconds"] >= 0
+    agent_token = _login(client, "1001@test")
+    agent_queue = client.get("/api/v1/handoffs?state=waiting", headers=_bearer(agent_token))
+    assert agent_queue.status_code == 200, agent_queue.text
+    assert any(item["id"] == handoff_id for item in agent_queue.json())
     accepted = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["state"] == "accepted"
@@ -438,6 +468,50 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
     assert client.get(f"/api/v1/calls/{call_id}", headers=headers).json()["status"] == "handoff_transferring"
     second_accept = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
     assert second_accept.status_code == 409
+
+
+def test_quality_review_queue_prioritizes_pending_and_requires_supervisor(client: TestClient):
+    admin_token = _login(client, "admin")
+    headers = _bearer(admin_token)
+    created = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138133", "mode": "human_only", "max_attempts": 1},
+    )
+    assert created.status_code == 200, created.text
+    call_id = UUID(created.json()["id"])
+    with session_scope() as session:
+        session.add(CallAnalysis(
+            tenant_id=1,
+            call_session_id=call_id,
+            result_code="interested",
+            sentiment="neutral",
+            intent="callback",
+            summary="客户要求稍后回拨",
+            qa_score=42,
+            qa_flags_json='["未确认回拨时间"]',
+            review_state="auto",
+        ))
+        session.commit()
+
+    queue = client.get("/api/v1/quality/reviews?review_state=auto&max_score=50", headers=headers)
+    assert queue.status_code == 200, queue.text
+    item = next(row for row in queue.json() if row["call_id"] == str(call_id))
+    assert item["qa_score"] == 42
+    assert item["summary"] == "客户要求稍后回拨"
+
+    agent_token = _login(client, "1001@test")
+    forbidden = client.get("/api/v1/quality/reviews", headers=_bearer(agent_token))
+    assert forbidden.status_code == 403
+
+    reviewed = client.put(
+        f"/api/v1/calls/{call_id}/analysis",
+        headers=headers,
+        json={"qa_score": 88, "summary": "已确认回拨要求", "qa_flags": []},
+    )
+    assert reviewed.status_code == 200, reviewed.text
+    reviewed_queue = client.get("/api/v1/quality/reviews?review_state=reviewed", headers=headers)
+    assert any(row["call_id"] == str(call_id) and row["qa_score"] == 88 for row in reviewed_queue.json())
 
 
 def test_flow_validation_rejects_unreachable_and_dead_end_nodes():

@@ -4,7 +4,7 @@ import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import update
+from sqlalchemy import or_, update
 from sqlmodel import Session, select
 
 from ...api.deps import (
@@ -16,10 +16,12 @@ from ...api.deps import (
 )
 from ...clock import utc_now
 from ...models import (
+    Campaign,
     CallAnalysis,
     CallMetric,
     CallSession,
     CallStatus,
+    Contact,
     HandoffRequest,
     HandoffState,
     KnowledgeItem,
@@ -37,6 +39,7 @@ from ...schemas import (
     KnowledgeItemCreate,
     KnowledgeItemOut,
     KnowledgeItemUpdate,
+    QualityReviewQueueItemOut,
     RealtimeSessionOut,
     RecordingAssetOut,
     SpeechTurnOut,
@@ -195,7 +198,12 @@ def list_handoff_queue(
         HandoffRequest.state == handoff_state,
     )
     if current is not None and current.role == "agent" and not current.is_supervisor:
-        query = query.where(HandoffRequest.assigned_agent_id.in_([None, current.id]))
+        query = query.where(
+            or_(
+                HandoffRequest.assigned_agent_id.is_(None),
+                HandoffRequest.assigned_agent_id == current.id,
+            )
+        )
     handoffs = session.exec(query.order_by(HandoffRequest.requested_at.asc())).all()
     now = utc_now()
     result: list[HandoffQueueItemOut] = []
@@ -203,16 +211,85 @@ def list_handoff_queue(
         call = session.get(CallSession, handoff.call_session_id)
         if call is None or call.tenant_id != tenant_id:
             continue
+        contact = session.get(Contact, call.contact_id) if call.contact_id else None
+        campaign = session.get(Campaign, call.campaign_id) if call.campaign_id else None
+        analysis = session.exec(
+            select(CallAnalysis).where(CallAnalysis.call_session_id == call.id)
+        ).first()
+        last_customer_turn = session.exec(
+            select(SpeechTurn)
+            .where(
+                SpeechTurn.call_session_id == call.id,
+                SpeechTurn.speaker_role == "customer",
+                SpeechTurn.is_final.is_(True),
+            )
+            .order_by(SpeechTurn.turn_index.desc(), SpeechTurn.id.desc())
+        ).first()
         result.append(
             HandoffQueueItemOut(
                 **handoff.model_dump(),
                 phone=call.phone,
                 mode=call.mode,
                 campaign_id=call.campaign_id,
+                contact_name=contact.name if contact else None,
+                campaign_name=campaign.name if campaign else None,
+                intent=analysis.intent if analysis else None,
+                summary=(analysis.summary if analysis else call.summary) or "",
+                last_customer_utterance=(last_customer_turn.transcript if last_customer_turn else call.last_transcript) or "",
                 wait_seconds=max(0, int((now - handoff.requested_at).total_seconds())),
             )
         )
     return result
+
+
+@router.get("/quality/reviews", response_model=list[QualityReviewQueueItemOut])
+def list_quality_reviews(
+    review_state: str | None = Query(default=None, pattern=r"^(auto|reviewed)$"),
+    max_score: int | None = Query(default=None, ge=0, le=100),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+    current: User | None = Depends(current_user_optional),
+):
+    if current is not None and current.role != "admin" and not current.is_supervisor:
+        raise HTTPException(status_code=403, detail="supervisor permission required")
+    query = (
+        select(CallAnalysis, CallSession, Campaign)
+        .join(CallSession, CallSession.id == CallAnalysis.call_session_id)
+        .join(Campaign, Campaign.id == CallSession.campaign_id, isouter=True)
+        .where(CallAnalysis.tenant_id == tenant_id, CallSession.tenant_id == tenant_id)
+    )
+    if review_state:
+        query = query.where(CallAnalysis.review_state == review_state)
+    if max_score is not None:
+        query = query.where(CallAnalysis.qa_score <= max_score)
+    rows = session.exec(
+        query
+        .order_by(CallAnalysis.review_state.asc(), CallAnalysis.qa_score.asc(), CallAnalysis.updated_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    ).all()
+    return [
+        QualityReviewQueueItemOut(
+            call_id=call.id,
+            phone=call.phone,
+            call_status=call.status,
+            campaign_id=call.campaign_id,
+            campaign_name=campaign.name if campaign else None,
+            result_code=analysis.result_code,
+            sentiment=analysis.sentiment,
+            intent=analysis.intent,
+            summary=analysis.summary,
+            qa_score=analysis.qa_score,
+            qa_flags_json=analysis.qa_flags_json,
+            review_state=analysis.review_state,
+            reviewed_by=analysis.reviewed_by,
+            reviewed_at=analysis.reviewed_at,
+            updated_at=analysis.updated_at,
+        )
+        for analysis, call, campaign in rows
+    ]
 
 
 @router.post("/calls/{call_id}/handoffs/{handoff_id}/accept", response_model=HandoffRequestOut)
