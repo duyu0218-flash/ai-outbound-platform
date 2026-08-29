@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [backend, agent]
+        service: [backend, agent, voice_gateway]
     defaults:
       run:
         working-directory: ${{ matrix.service }}

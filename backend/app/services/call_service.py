@@ -14,7 +14,8 @@ from redis import asyncio as async_redis
 
 from ..config import get_settings
 from ..clock import utc_now
-from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptTemplate, User
+from ..models import CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptFlowVersion, ScriptTemplate, User
+from .script_flow import load_graph
 from .telephony import (
     get_telephony_adapter,
     get_telephony_concurrency_limit,
@@ -412,10 +413,22 @@ def create_call(
         raise CallPermissionError(reason)
 
     call_mode = CallMode(mode)
+    flow_version_id = None
+    flow_node_key = None
+    if campaign_id is not None:
+        campaign = session.get(Campaign, campaign_id)
+        if campaign and campaign.script_flow_version_id is not None:
+            flow = session.get(ScriptFlowVersion, campaign.script_flow_version_id)
+            if flow and flow.status == "published":
+                graph = load_graph(flow.graph_json)
+                flow_version_id = flow.id
+                flow_node_key = next(node.id for node in graph.nodes if node.type == "start")
     call = CallSession(
         tenant_id=tenant_id,
         campaign_id=campaign_id,
         contact_id=contact_id,
+        script_flow_version_id=flow_version_id,
+        flow_node_key=flow_node_key,
         phone=normalized,
         mode=call_mode,
         status=CallStatus.QUEUED,

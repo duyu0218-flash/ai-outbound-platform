@@ -47,6 +47,23 @@ export interface ScriptTemplate {
   updated_at: string
 }
 
+export type FlowNodeType = 'start' | 'message' | 'listen' | 'handoff' | 'hangup'
+export interface FlowNode { id: string; type: FlowNodeType; label: string; prompt: string; position: { x: number; y: number } }
+export interface FlowEdge { id: string; source: string; target: string; condition: 'always' | 'keyword' | 'silence'; keywords: string[] }
+export interface ScriptFlowVersion {
+  id: number
+  tenant_id: number
+  script_template_id: number
+  version: number
+  name: string
+  description: string
+  status: 'draft' | 'published' | 'archived'
+  graph: { nodes: FlowNode[]; edges: FlowEdge[] }
+  published_at?: string
+  created_at: string
+  updated_at: string
+}
+
 export type CallMode = 'human_only' | 'ai_only' | 'ai_handoff' | 'ai_with_sms' | 'mixed_human_first'
 
 export interface Campaign {
@@ -55,6 +72,7 @@ export interface Campaign {
   name: string
   script: string
   script_template_id?: number
+  script_flow_version_id?: number
   mode: CallMode
   concurrency: number
   retry_limit: number
@@ -76,6 +94,8 @@ export interface CallSession {
   attempts: number
   max_attempts: number
   campaign_id?: number
+  script_flow_version_id?: number
+  flow_node_key?: string
   contact_id?: number
   handoff_reason?: string
   human_agent_id?: number

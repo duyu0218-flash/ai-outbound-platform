@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7-alpine
@@ -20,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: ai_outbound
       POSTGRES_USER: ai_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-replace-db-password}
     ports:
       - "5432:5432"
     healthcheck:
@@ -37,12 +35,17 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ai-outbound-control
     restart: unless-stopped
-    env_file: .env
+    env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      voice-gateway:
+        condition: service_healthy
+    environment:
+      TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
+      TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3); print('ok')"]
       interval: 10s
@@ -57,7 +60,7 @@ services:
       context: ./agent
     container_name: ai-outbound-agent
     restart: unless-stopped
-    env_file: .env
+    env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       AI_CONTROL_URL: http://control-api:8000
     ports:
@@ -69,7 +72,25 @@ services:
       timeout: 5s
       retries: 20
 
-  # Optional telephony adapter placeholder (keep commented if you already have FreeSWITCH)
+  voice-gateway:
+    build:
+      context: .
+      dockerfile: voice_gateway/Dockerfile
+    container_name: ai-outbound-voice-gateway
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env.example}
+    environment:
+      VOICE_GATEWAY_DRIVER: ${VOICE_GATEWAY_DRIVER:-mock}
+      WEBHOOK_TOKEN: ${TELEPHONY_WEBHOOK_TOKEN:-}
+    ports:
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=3); print('ok')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Optional PBX/media server. Point PBX_BASE_URL at its HTTP control adapter.
   # freeswitch:
   #   image: signalwire/freeswitch:latest
   #   container_name: ai-outbound-freeswitch

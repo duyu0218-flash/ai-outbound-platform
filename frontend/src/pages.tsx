@@ -56,7 +56,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, RecordingAsset, Role, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
+import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, RecordingAsset, Role, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -257,6 +257,96 @@ export function ContactsPage() {
 
 interface ScriptFormValues { name: string; content: string; category: string; description?: string; tags?: string; is_active: boolean }
 
+function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTemplate | null; open: boolean; onClose: () => void }) {
+  const { token } = useAuth()
+  const [selectedId, setSelectedId] = useState<number>()
+  const [graph, setGraph] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] }>({ nodes: [], edges: [] })
+  const [selectedNodeId, setSelectedNodeId] = useState<string>()
+  const [edgeForm] = Form.useForm<{ source: string; target: string; condition: FlowEdge['condition']; keywords: string }>()
+  const versions = useQuery({
+    queryKey: ['script-flow', template?.id],
+    queryFn: () => apiRequest<ScriptFlowVersion[]>(`/api/v1/script-templates/${template!.id}/flows`, {}, token),
+    enabled: open && Boolean(template && token),
+  })
+  const selected = versions.data?.find((item) => item.id === selectedId)
+  useEffect(() => {
+    const item = versions.data?.find((version) => version.id === selectedId) || versions.data?.[0]
+    if (item) {
+      setSelectedId(item.id)
+      setGraph(structuredClone(item.graph))
+      setSelectedNodeId(undefined)
+    }
+  }, [versions.data, selectedId])
+  const createVersion = useMutation({
+    mutationFn: () => apiRequest<ScriptFlowVersion>(`/api/v1/script-templates/${template!.id}/flows`, { method: 'POST', body: JSON.stringify({ clone_version_id: selected?.id }) }, token),
+    onSuccess: async (item) => { message.success('已创建画布草稿'); await versions.refetch(); setSelectedId(item.id) },
+    onError: (error) => message.error(error.message),
+  })
+  const saveVersion = useMutation({
+    mutationFn: () => apiRequest<ScriptFlowVersion>(`/api/v1/script-templates/${template!.id}/flows/${selected!.id}`, { method: 'PUT', body: JSON.stringify({ name: selected!.name, description: selected!.description, graph }) }, token),
+    onSuccess: async () => { message.success('画布已保存'); await versions.refetch() },
+    onError: (error) => message.error(error.message),
+  })
+  const publishVersion = useMutation({
+    mutationFn: () => apiRequest<ScriptFlowVersion>(`/api/v1/script-templates/${template!.id}/flows/${selected!.id}/publish`, { method: 'POST' }, token),
+    onSuccess: async () => { message.success('画布版本已发布'); await versions.refetch() },
+    onError: (error) => message.error(error.message),
+  })
+  const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId)
+  const addNode = (type: FlowNodeType) => {
+    const id = `${type}-${Date.now()}`
+    setGraph((current) => ({ ...current, nodes: [...current.nodes, { id, type, label: { message: '播报话术', listen: '等待回答', handoff: '转人工', hangup: '结束通话', start: '开始' }[type], prompt: '', position: { x: 260 + current.nodes.length * 34, y: 90 + (current.nodes.length % 4) * 110 } }] }))
+    setSelectedNodeId(id)
+  }
+  const patchNode = (patch: Partial<FlowNode>) => setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === selectedNodeId ? { ...node, ...patch } : node) }))
+  const deleteNode = () => setGraph((current) => ({ nodes: current.nodes.filter((node) => node.id !== selectedNodeId), edges: current.edges.filter((edge) => edge.source !== selectedNodeId && edge.target !== selectedNodeId) }))
+  const startDrag = (event: React.MouseEvent, node: FlowNode) => {
+    if (selected?.status !== 'draft') return
+    event.preventDefault()
+    const origin = { x: event.clientX, y: event.clientY, nodeX: node.position.x, nodeY: node.position.y }
+    const move = (moveEvent: MouseEvent) => setGraph((current) => ({
+      ...current,
+      nodes: current.nodes.map((item) => item.id === node.id ? {
+        ...item,
+        position: {
+          x: Math.max(0, origin.nodeX + moveEvent.clientX - origin.x),
+          y: Math.max(0, origin.nodeY + moveEvent.clientY - origin.y),
+        },
+      } : item),
+    }))
+    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up) }
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up)
+  }
+  const addEdge = (values: { source: string; target: string; condition: FlowEdge['condition']; keywords: string }) => {
+    if (values.source === values.target) return message.error('起点和终点不能相同')
+    setGraph((current) => ({ ...current, edges: [...current.edges, { id: `edge-${Date.now()}`, source: values.source, target: values.target, condition: values.condition, keywords: values.keywords?.split(/[,，]/).map((word) => word.trim()).filter(Boolean) || [] }] }))
+    edgeForm.resetFields()
+  }
+  return <Modal width="96vw" styles={{ body: { height: '76vh', padding: 0 } }} title={`${template?.name || ''} · 话术画布`} open={open} onCancel={onClose} footer={null} destroyOnHidden>
+    <div className="flow-designer">
+      <div className="flow-toolbar">
+        <Select style={{ width: 220 }} value={selectedId} placeholder="选择版本" options={(versions.data || []).map((item) => ({ value: item.id, label: `v${item.version} · ${item.status === 'draft' ? '草稿' : '已发布'}` }))} onChange={(id) => { setSelectedId(id); const item = versions.data?.find((value) => value.id === id); if (item) setGraph(structuredClone(item.graph)) }} />
+        <Button onClick={() => createVersion.mutate()} loading={createVersion.isPending}>{selected ? '复制为新草稿' : '创建画布'}</Button>
+        <Button type="primary" disabled={selected?.status !== 'draft'} loading={saveVersion.isPending} onClick={() => saveVersion.mutate()}>保存</Button>
+        <Popconfirm title="发布后不可直接修改，确认发布？" onConfirm={() => publishVersion.mutate()}><Button disabled={selected?.status !== 'draft'}>发布版本</Button></Popconfirm>
+        {selected && <Tag color={selected.status === 'published' ? 'green' : 'blue'}>v{selected.version} {selected.status}</Tag>}
+      </div>
+      {!selected ? <Empty description="先创建一个画布版本" /> : <div className="flow-workspace">
+        <div className="flow-palette"><Text strong>节点</Text>{(['message', 'listen', 'handoff', 'hangup'] as FlowNodeType[]).map((type) => <Button key={type} disabled={selected.status !== 'draft'} onClick={() => addNode(type)}>{({ message: '播报', listen: '等待', handoff: '转人工', hangup: '挂机', start: '开始' } as Record<FlowNodeType, string>)[type]}</Button>)}</div>
+        <div className="flow-canvas">
+          <svg className="flow-lines">{graph.edges.map((edge) => { const source = graph.nodes.find((node) => node.id === edge.source); const target = graph.nodes.find((node) => node.id === edge.target); return source && target ? <g key={edge.id}><line x1={source.position.x + 76} y1={source.position.y + 30} x2={target.position.x + 76} y2={target.position.y + 30} /><text x={(source.position.x + target.position.x) / 2 + 76} y={(source.position.y + target.position.y) / 2 + 22}>{edge.condition === 'keyword' ? edge.keywords.join('/') : edge.condition}</text></g> : null })}</svg>
+          {graph.nodes.map((node) => <button type="button" key={node.id} className={`flow-node flow-node-${node.type} ${selectedNodeId === node.id ? 'selected' : ''}`} style={{ left: node.position.x, top: node.position.y }} onMouseDown={(event) => { setSelectedNodeId(node.id); startDrag(event, node) }}><strong>{node.label}</strong><span>{node.type}</span></button>)}
+        </div>
+        <div className="flow-inspector">
+          {selectedNode ? <><Text strong>节点配置</Text><Input value={selectedNode.label} disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ label: event.target.value })} /><Input.TextArea rows={5} value={selectedNode.prompt} placeholder="播报内容" disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ prompt: event.target.value })} />{selectedNode.type !== 'start' && <Button danger disabled={selected.status !== 'draft'} onClick={deleteNode}>删除节点</Button>}</> : <Text type="secondary">点击节点进行配置</Text>}
+          <div className="flow-edge-form"><Text strong>添加连线</Text><Form form={edgeForm} layout="vertical" onFinish={addEdge} initialValues={{ condition: 'always' }}><Form.Item name="source" label="起点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="target" label="终点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="condition" label="条件"><Select options={[{ value: 'always', label: '默认' }, { value: 'keyword', label: '关键词' }, { value: 'silence', label: '静默' }]} /></Form.Item><Form.Item name="keywords" label="关键词（逗号分隔）"><Input /></Form.Item><Button htmlType="submit" disabled={selected.status !== 'draft'} block>添加连线</Button></Form></div>
+          <List size="small" header={<Text strong>现有连线</Text>} dataSource={graph.edges} renderItem={(edge) => <List.Item actions={[<Button key="remove" type="text" danger disabled={selected.status !== 'draft'} onClick={() => setGraph((current) => ({ ...current, edges: current.edges.filter((item) => item.id !== edge.id) }))}>删除</Button>]}><Text ellipsis>{edge.source} → {edge.target}<br /><Text type="secondary">{edge.condition}{edge.keywords.length ? ` · ${edge.keywords.join('/')}` : ''}</Text></Text></List.Item>} />
+        </div>
+      </div>}
+    </div>
+  </Modal>
+}
+
 export function ScriptsPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
@@ -264,6 +354,7 @@ export function ScriptsPage() {
   const query = useSecureQuery<ScriptTemplate[]>(['scripts'], '/api/v1/script-templates?page=1&size=100')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ScriptTemplate | null>(null)
+  const [flowTemplate, setFlowTemplate] = useState<ScriptTemplate | null>(null)
   const [form] = Form.useForm<ScriptFormValues>()
   const mutation = useMutation({
     mutationFn: (values: ScriptFormValues) => apiRequest<ScriptTemplate>(editing ? `/api/v1/script-templates/${editing.id}` : '/api/v1/script-templates', { method: editing ? 'PUT' : 'POST', body: JSON.stringify(values) }, token),
@@ -284,7 +375,7 @@ export function ScriptsPage() {
   return (
     <>
       <PageTitle title={t('scripts')} description={t('scriptHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('createScript')}</Button>} />
-      <Row gutter={[16, 16]}>{(query.data || []).map((item) => <Col xs={24} lg={12} xl={8} key={item.id}><Card loading={query.isLoading} className="script-card" title={<Space><FileTextOutlined /><span>{item.name}</span></Space>} extra={<Switch size="small" checked={item.is_active} onChange={() => toggle.mutate(item)} />} actions={[<Button type="text" icon={<EditOutlined />} onClick={() => openEdit(item)}>{t('edit')}</Button>, <Popconfirm title={t('confirmDelete')} onConfirm={() => remove.mutate(item)}><Button type="text" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>]}><Space wrap><Tag>{item.category}</Tag><Tag>v{item.version}</Tag>{item.tags && <Tag color="blue">{item.tags}</Tag>}</Space><Paragraph ellipsis={{ rows: 4, expandable: true }} className="script-preview">{item.content}</Paragraph><Text type="secondary">{formatDate(item.updated_at)}</Text></Card></Col>)}</Row>
+      <Row gutter={[16, 16]}>{(query.data || []).map((item) => <Col xs={24} lg={12} xl={8} key={item.id}><Card loading={query.isLoading} className="script-card" title={<Space><FileTextOutlined /><span>{item.name}</span></Space>} extra={<Switch size="small" checked={item.is_active} onChange={() => toggle.mutate(item)} />} actions={[<Button type="text" icon={<ControlOutlined />} onClick={() => setFlowTemplate(item)}>话术画布</Button>, <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(item)}>{t('edit')}</Button>, <Popconfirm title={t('confirmDelete')} onConfirm={() => remove.mutate(item)}><Button type="text" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>]}><Space wrap><Tag>{item.category}</Tag><Tag>v{item.version}</Tag>{item.tags && <Tag color="blue">{item.tags}</Tag>}</Space><Paragraph ellipsis={{ rows: 4, expandable: true }} className="script-preview">{item.content}</Paragraph><Text type="secondary">{formatDate(item.updated_at)}</Text></Card></Col>)}</Row>
       {!query.isLoading && !query.data?.length && <Card><Empty description={t('empty')} /></Card>}
       <Modal width={680} title={editing ? t('edit') : t('createScript')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={mutation.isPending} destroyOnHidden>
         <Form<ScriptFormValues> form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>
@@ -294,11 +385,12 @@ export function ScriptsPage() {
           <Row gutter={12}><Col span={18}><Form.Item label={t('tags')} name="tags"><Input /></Form.Item></Col><Col span={6}><Form.Item label={t('enabled')} name="is_active" valuePropName="checked"><Switch /></Form.Item></Col></Row>
         </Form>
       </Modal>
+      <ScriptFlowDesigner template={flowTemplate} open={Boolean(flowTemplate)} onClose={() => setFlowTemplate(null)} />
     </>
   )
 }
 
-interface CampaignFormValues { name: string; script_template_id?: number; script?: string; mode: CallMode; concurrency: number; retry_limit: number; retry_interval_sec: number; attempt_interval_sec: number; contact_ids: number[]; recording_enabled: boolean; hangup_sms_enabled: boolean }
+interface CampaignFormValues { name: string; script_template_id?: number; script_flow_version_id?: number; script?: string; mode: CallMode; concurrency: number; retry_limit: number; retry_interval_sec: number; attempt_interval_sec: number; contact_ids: number[]; recording_enabled: boolean; hangup_sms_enabled: boolean }
 
 export function CampaignsPage() {
   const { t } = useTranslation()
@@ -312,6 +404,13 @@ export function CampaignsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [form] = Form.useForm<CampaignFormValues>()
+  const selectedTemplateId = Form.useWatch('script_template_id', form)
+  const publishedFlows = useQuery({
+    queryKey: ['campaign-flow-options', selectedTemplateId],
+    queryFn: () => apiRequest<ScriptFlowVersion[]>(`/api/v1/script-templates/${selectedTemplateId}/flows`, {}, token),
+    enabled: modalOpen && Boolean(selectedTemplateId && token),
+    select: (items) => items.filter((item) => item.status === 'published'),
+  })
   const saveMutation = useMutation({
     mutationFn: (values: CampaignFormValues) => apiRequest<Campaign>(editing ? `/api/v1/campaigns/${editing.id}` : '/api/v1/campaigns', { method: editing ? 'PUT' : 'POST', body: JSON.stringify(values) }, token),
     onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['campaigns'] }) },
@@ -363,7 +462,8 @@ export function CampaignsPage() {
         <Form<CampaignFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
           <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('mode')} name="mode" rules={[{ required: true }]}><Select options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item></Col></Row>
           <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><Select mode="multiple" optionFilterProp="label" options={(contacts.data || []).map((item) => ({ value: item.id, label: `${item.name || '-'} · ${item.phone}` }))} /></Form.Item>
-          <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
+          <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear onChange={() => form.setFieldValue('script_flow_version_id', undefined)} options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
+          <Form.Item label="已发布话术画布" name="script_flow_version_id" extra="任务锁定具体发布版本；后续草稿修改不会影响运行中的外呼。"><Select allowClear disabled={!selectedTemplateId} placeholder="可选：使用平面话术" options={(publishedFlows.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label={t('content')} name="script"><Input.TextArea rows={5} /></Form.Item>
           <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={effectiveCapacity ? t('campaignConcurrencyHint', { count: effectiveCapacity }) : t('capacityLoading')}><InputNumber min={1} max={effectiveCapacity} disabled={!effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
           <Form.Item label={t('attemptInterval')} name="attempt_interval_sec"><InputNumber min={1} className="full-width" addonAfter={t('seconds')} /></Form.Item>

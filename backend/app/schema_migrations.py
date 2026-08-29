@@ -30,6 +30,15 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE callsession ADD COLUMN human_agent_id INTEGER")
         if "telephony_line_id" not in call_columns:
             statements.append("ALTER TABLE callsession ADD COLUMN telephony_line_id INTEGER")
+        if "script_flow_version_id" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN script_flow_version_id INTEGER")
+        if "flow_node_key" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN flow_node_key VARCHAR(128)")
+
+    if "campaign" in tables:
+        campaign_columns = _columns(engine, "campaign")
+        if "script_flow_version_id" not in campaign_columns:
+            statements.append("ALTER TABLE campaign ADD COLUMN script_flow_version_id INTEGER")
 
     if "telephonyline" in tables:
         line_columns = _columns(engine, "telephonyline")

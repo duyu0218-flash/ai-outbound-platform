@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...clock import utc_now
-from ...models import CallSession, CallStatus, Campaign, CampaignContact, Contact, ScriptTemplate
+from ...models import CallSession, CallStatus, Campaign, CampaignContact, Contact, ScriptFlowVersion, ScriptTemplate
 from ...services.call_service import (
     NotFoundError,
     resolve_campaign_script,
@@ -48,6 +48,27 @@ def _validate_script_template(session: Session, tenant_id: int, template_id: int
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="script template not found or inactive")
 
 
+def _validate_flow_version(
+    session: Session,
+    tenant_id: int,
+    template_id: int | None,
+    flow_version_id: int | None,
+) -> None:
+    if flow_version_id is None:
+        return
+    flow = session.get(ScriptFlowVersion, flow_version_id)
+    if (
+        not flow
+        or flow.tenant_id != tenant_id
+        or flow.script_template_id != template_id
+        or flow.status != "published"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="published flow version not found or does not belong to template",
+        )
+
+
 def _campaign_out(session: Session, campaign: Campaign) -> CampaignOut:
     rels = session.exec(
         select(CampaignContact)
@@ -68,11 +89,13 @@ def create_campaign(
 ):
     contacts = _validate_contacts(session, tenant_id, payload.contact_ids)
     _validate_script_template(session, tenant_id, payload.script_template_id)
+    _validate_flow_version(session, tenant_id, payload.script_template_id, payload.script_flow_version_id)
     campaign = Campaign(
         tenant_id=tenant_id,
         name=payload.name,
         script=payload.script or "",
         script_template_id=payload.script_template_id,
+        script_flow_version_id=payload.script_flow_version_id,
         mode=payload.mode,
         concurrency=payload.concurrency,
         retry_limit=payload.retry_limit,
@@ -135,10 +158,12 @@ def update_campaign(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="pause or stop campaign before editing")
     contacts = _validate_contacts(session, tenant_id, payload.contact_ids)
     _validate_script_template(session, tenant_id, payload.script_template_id)
+    _validate_flow_version(session, tenant_id, payload.script_template_id, payload.script_flow_version_id)
     if payload.name:
         campaign.name = payload.name
     campaign.script = payload.script or ""
     campaign.script_template_id = payload.script_template_id
+    campaign.script_flow_version_id = payload.script_flow_version_id
     campaign.mode = payload.mode
     campaign.concurrency = payload.concurrency
     campaign.retry_limit = payload.retry_limit
