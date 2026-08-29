@@ -37,6 +37,10 @@ jobs:
         if: matrix.service == 'backend'
         working-directory: frontend
         run: pnpm build
+      - name: Test frontend with coverage
+        if: matrix.service == 'backend'
+        working-directory: frontend
+        run: pnpm test:coverage
       - name: Install service
         run: pip install --no-cache-dir ".[dev]"
       - name: Verify Python dependencies
@@ -94,22 +98,52 @@ jobs:
           python-version: "3.11"
       - name: Install backend
         run: pip install --no-cache-dir ".[dev]"
-      - name: Create schema and verify versioned migrations
+      - name: Test backend against PostgreSQL and Redis
         env:
           ENV: test
           DATABASE_URL: postgresql+psycopg://ai_user:integration-password@127.0.0.1:5432/ai_outbound
           REDIS_URL: redis://127.0.0.1:6379/0
           RATE_LIMIT_ENABLED: "false"
-          DEMO_USERS_ENABLED: "false"
+          DEMO_USERS_ENABLED: "true"
           SCHEDULER_ENABLED: "false"
         run: |
-          python -c "from app.db import create_db_and_tables; create_db_and_tables()"
+          pytest -q tests
           python -m app.migration_runner
+          python -m app.migration_runner | grep "none"
           python -c "from app.services.health import db_health_check, redis_health_check; assert db_health_check() == 'ok'; assert redis_health_check() == 'ok'"
 
-  compose-contract:
+  compose-e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Validate Compose configuration
-        run: docker compose --env-file .env.example config --quiet
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install frontend and browser
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Build and start Compose stack
+        run: |
+          docker compose --env-file .env.example config --quiet
+          docker compose --env-file .env.example up -d --build
+      - name: Wait for readiness
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8000/readyz >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+      - name: Browser acceptance
+        working-directory: frontend
+        run: pnpm test:e2e
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose down --volumes

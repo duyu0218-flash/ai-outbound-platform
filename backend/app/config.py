@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     recording_retention_days: int = 90
     partial_transcript_retention_hours: int = 24
     retention_scan_interval_sec: int = 3600
+    recording_delete_endpoint: str = ""
+    recording_delete_service_token: str = ""
+    recording_delete_timeout_sec: int = 15
 
     # Production hardening
     request_timeout_ms: int = 15000

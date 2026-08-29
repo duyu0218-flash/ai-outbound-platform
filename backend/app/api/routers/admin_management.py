@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -12,7 +13,7 @@ from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
 from ...config import get_settings
 from ...db import get_session
-from ...models import AdminSetting, AuditLog, CallMetric, CallSession, SmsLog, TaskOutbox, TelephonyLine, User
+from ...models import AdminSetting, AuditLog, CallMetric, CallSession, RecordingAsset, SmsLog, TaskOutbox, TaskState, TelephonyLine, User
 from ...schemas import (
     AdminPasswordReset,
     AdminSettingOut,
@@ -502,6 +503,26 @@ def system_overview(
         .where(TaskOutbox.tenant_id == tenant_id)
         .group_by(TaskOutbox.state)
     ).all()
+    stale_task_cutoff = utc_now() - timedelta(minutes=5)
+    stale_processing_tasks = session.exec(
+        select(func.count(TaskOutbox.id)).where(
+            TaskOutbox.tenant_id == tenant_id,
+            TaskOutbox.state == TaskState.PROCESSING,
+            TaskOutbox.locked_at <= stale_task_cutoff,
+        )
+    ).one()
+    oldest_open_task = session.exec(
+        select(func.min(TaskOutbox.created_at)).where(
+            TaskOutbox.tenant_id == tenant_id,
+            TaskOutbox.state.in_([TaskState.PENDING, TaskState.FAILED, TaskState.PROCESSING]),
+        )
+    ).one()
+    recording_deletion_failures = session.exec(
+        select(func.count(RecordingAsset.id)).where(
+            RecordingAsset.tenant_id == tenant_id,
+            RecordingAsset.state == "deletion_failed",
+        )
+    ).one()
     ai_latency_ms = session.exec(
         select(func.avg(CallMetric.duration_ms)).where(
             CallMetric.tenant_id == tenant_id,
@@ -549,6 +570,9 @@ def system_overview(
                 for task_state, count in task_rows
             },
             "average_ai_turn_ms": round(float(ai_latency_ms), 1) if ai_latency_ms is not None else None,
+            "stale_processing_tasks": stale_processing_tasks,
+            "oldest_open_task_age_sec": max(0, int((utc_now() - oldest_open_task).total_seconds())) if oldest_open_task else 0,
+            "recording_deletion_failures": recording_deletion_failures,
         },
         "generated_at": utc_now(),
     }

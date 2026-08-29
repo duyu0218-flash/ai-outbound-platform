@@ -62,6 +62,7 @@ pnpm build
 - `backend/`: 控制面服务（联系人、活动、外呼、webhook）
 - `agent/`: AI 话术策略服务（可替换成真实 LLM）
 - `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
+- `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
 - `docker-compose.yml`: 本地联调与演示启动清单
 - `.env.example`: 环境变量样例
 

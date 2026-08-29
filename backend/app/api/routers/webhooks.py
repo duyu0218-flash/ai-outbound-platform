@@ -12,11 +12,10 @@ from ...clock import utc_now
 from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
 from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent
-from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 from ...services.call_analysis import analyze_call
 from ...services.realtime_voice import apply_media_event, ingest_speech_turn, interrupt_playback
-from ...services.task_queue import enqueue_task, process_task
+from ...services.task_queue import enqueue_business_callback, enqueue_task, process_task
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -264,13 +263,15 @@ def telephony_status(
         )
         background_tasks.add_task(process_task, task.id)
     if status_applied and mapped is not None:
-        background_tasks.add_task(
-            deliver_business_callback,
+        callback_task = enqueue_business_callback(
+            session,
             tenant_id=call.tenant_id,
             call_id=call.id,
             event_type="call.status",
             data={"status": mapped.value, "hangup_reason": payload.payload.get("hangup_reason")},
+            idempotency_key=f"callback:status:{call.id}:{call.attempts}:{mapped.value}",
         )
+        background_tasks.add_task(process_task, callback_task.id)
 
     return {"result": "ok"}
 
@@ -328,13 +329,15 @@ def telephony_transcript(
             payload={"call_id": str(call.id), "transcript": payload.transcript or ""},
         )
         background_tasks.add_task(process_task, task.id)
-    background_tasks.add_task(
-        deliver_business_callback,
+    callback_task = enqueue_business_callback(
+        session,
         tenant_id=call.tenant_id,
         call_id=call.id,
         event_type="call.transcript",
-        data={"transcript": payload.transcript or ""},
+        data={"turn_id": turn.id, "transcript": payload.transcript or ""},
+        idempotency_key=f"callback:transcript:{turn.id}",
     )
+    background_tasks.add_task(process_task, callback_task.id)
     return {"result": "ok"}
 
 
@@ -365,8 +368,8 @@ def telephony_speech(
             payload={"call_id": str(call.id), "transcript": payload.transcript},
         )
         background_tasks.add_task(process_task, task.id)
-    background_tasks.add_task(
-        deliver_business_callback,
+    callback_task = enqueue_business_callback(
+        session,
         tenant_id=call.tenant_id,
         call_id=call.id,
         event_type="call.speech_final" if payload.is_final else "call.speech_partial",
@@ -376,7 +379,9 @@ def telephony_speech(
             "is_final": payload.is_final,
             "confidence": payload.confidence,
         },
+        idempotency_key=f"callback:speech:{turn.id}",
     )
+    background_tasks.add_task(process_task, callback_task.id)
     return {"result": "ok", "duplicate": False, "turn_id": turn.id}
 
 
@@ -439,13 +444,14 @@ def telephony_recording(
     session.add(call)
     session.commit()
     if url:
-        background_tasks.add_task(
-            deliver_business_callback,
+        callback_task = enqueue_business_callback(
+            session,
             tenant_id=call.tenant_id,
             call_id=call.id,
             event_type="call.recording",
             data={"url": str(url)},
         )
+        background_tasks.add_task(process_task, callback_task.id)
     return {"result": "ok"}
 
 

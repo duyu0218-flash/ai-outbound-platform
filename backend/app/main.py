@@ -145,6 +145,11 @@ def _validate_production_runtime() -> None:
             issues.append("REDIS_URL insecure password")
     if (settings.telephony_provider or "mock").strip().lower() == "mock":
         issues.append("TELEPHONY_PROVIDER=mock")
+    if settings.recording_retention_days > 0:
+        if not settings.recording_delete_endpoint.strip():
+            issues.append("RECORDING_DELETE_ENDPOINT")
+        if weak_secret(settings.recording_delete_service_token, 24):
+            issues.append("RECORDING_DELETE_SERVICE_TOKEN")
 
     if issues:
         raise RuntimeError(

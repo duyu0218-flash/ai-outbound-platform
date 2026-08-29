@@ -32,7 +32,7 @@ const zh = {
   historyTurns: '多轮上下文条数', maxReplyChars: '单轮最大字数', forbiddenPhrases: '禁用表述（逗号分隔）', fallbackReply: '合规拦截后回复',
   dncEnforced: '强制禁呼检查', requireExplicitConsent: '活动必须明确授权', recordingNotice: '播放录音告知', maxAttemptsDay: '每日最大尝试次数', startHour: '允许开始小时', endHour: '允许结束小时', callbackEnabled: '启用业务回调', webhookBaseUrl: 'Webhook 地址', webhookTimeout: '回调超时', webhookSecretRef: '签名密钥引用', webhookSecretHint: '从 BUSINESS_WEBHOOK_SECRET_<引用> 环境变量读取，页面不保存密钥。', webhookRetryTimes: '回调重试次数', webhookRetryBackoff: '重试退避', seconds: '秒', lastUpdated: '最后更新',
   systemHint: '查看依赖服务、资源状态、通话分布和管理员操作记录', serviceHealth: '服务健康状态', database: '数据库', aiService: 'AI 服务', telephony: '外呼线路', enabledUsers: '启用用户', enabledLines: '启用线路', callStatusDistribution: '通话状态分布', auditLogs: '审计日志', smsLogs: '短信发送记录', sentAt: '发送时间', operator: '操作人', action: '动作', resource: '资源类型', resourceId: '资源 ID', providerMessageId: '供应商消息 ID', providerError: '供应商错误',
-  runtimeMetrics: '运行指标', averageAiLatency: 'AI 平均响应时延',
+  runtimeMetrics: '运行指标', averageAiLatency: 'AI 平均响应时延', staleTasks: '超时执行任务', oldestTask: '最早未完成任务', recordingDeleteFailures: '录音删除失败',
 }
 
 const en: typeof zh = {
@@ -66,7 +66,7 @@ const en: typeof zh = {
   historyTurns: 'Conversation history turns', maxReplyChars: 'Maximum reply characters', forbiddenPhrases: 'Forbidden phrases (comma separated)', fallbackReply: 'Guard fallback reply',
   dncEnforced: 'Enforce DNC checks', requireExplicitConsent: 'Require explicit campaign consent', recordingNotice: 'Play recording notice', maxAttemptsDay: 'Max attempts per day', startHour: 'Allowed start hour', endHour: 'Allowed end hour', callbackEnabled: 'Enable callback', webhookBaseUrl: 'Webhook URL', webhookTimeout: 'Webhook timeout', webhookSecretRef: 'Signing secret reference', webhookSecretHint: 'Reads BUSINESS_WEBHOOK_SECRET_<REFERENCE> from the environment. Secrets are never stored in the UI.', webhookRetryTimes: 'Callback retries', webhookRetryBackoff: 'Retry backoff', seconds: 'sec', lastUpdated: 'Last updated',
   systemHint: 'Review service dependencies, resources, call distribution and administrator activity', serviceHealth: 'Service health', database: 'Database', aiService: 'AI service', telephony: 'Telephony', enabledUsers: 'Enabled users', enabledLines: 'Enabled lines', callStatusDistribution: 'Call status distribution', auditLogs: 'Audit logs', smsLogs: 'SMS delivery logs', sentAt: 'Sent at', operator: 'Operator', action: 'Action', resource: 'Resource', resourceId: 'Resource ID', providerMessageId: 'Provider message ID', providerError: 'Provider error',
-  runtimeMetrics: 'Runtime metrics', averageAiLatency: 'Average AI turn latency',
+  runtimeMetrics: 'Runtime metrics', averageAiLatency: 'Average AI turn latency', staleTasks: 'Stale processing tasks', oldestTask: 'Oldest open task', recordingDeleteFailures: 'Recording deletion failures',
 }
 
 const savedLanguage = localStorage.getItem('ai-platform-language') || 'zh-CN'
