@@ -111,6 +111,15 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 
 管理页面不会保存短信、线路或大模型密钥。生产密钥必须通过环境变量或独立密钥管理服务注入，避免在浏览器和审计日志中泄露。
 
+### 3.5 从管理端调整并发容量
+
+1. 使用管理员账号进入 `/admin/settings`，选择“并发容量”。
+2. 设置“租户最大同时通话数”并保存。该值保存到数据库，新的拨号抢占和调度批次会立即读取，无需重启。
+3. 进入 `/admin/lines` 确认启用线路的并发值；进入 `/admin/campaigns` 配置活动并发。
+4. 进入 `/admin/system` 查看“已配置容量、实际生效并发、当前活跃通话、可用槽位”。
+
+实际生效值为租户容量、活动并发和启用线路并发中的最小值。`.env` 中的 `MAX_CONCURRENT_CALLS` 只是该租户尚未保存容量配置时的默认值。提高页面配置不会自动购买运营商、PBX、ASR 或 TTS 并发额度，正式提高前必须确认外部容量。
+
 ## 4. Docker 方式启动（推荐）
 
 ### 4.1 一键启动
@@ -513,10 +522,11 @@ bash scripts/test-campaign-start.sh
 如果你将 `TELEPHONY_PROVIDER=http`，网关必须支持：
 
 - `POST /v1/call/dial`
+- `POST /v1/call/speak`
 - `POST /v1/call/transfer`
 - `POST /v1/call/hangup`
 
-请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。
+请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。`dial` 会携带 `caller_id` 和媒体参数；`speak` 接收 `text`、`language`、`voice`、`provider`，网关负责完成实际 TTS 或播放。
 
 多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会按当前租户选择最近更新且启用的线路配置：`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
 

@@ -76,6 +76,7 @@ export interface CallSession {
   campaign_id?: number
   contact_id?: number
   handoff_reason?: string
+  human_agent_id?: number
   recording_url?: string
   last_error?: string
   created_at: string
@@ -133,7 +134,7 @@ export interface SmsLog {
   created_at: string
 }
 
-export type SettingSection = 'ai' | 'sms' | 'compliance' | 'integration'
+export type SettingSection = 'capacity' | 'ai' | 'sms' | 'compliance' | 'integration'
 
 export interface AdminSetting {
   section: SettingSection
@@ -162,5 +163,15 @@ export interface SystemOverview {
     enabled_lines: number
   }
   call_statuses: Record<string, number>
+  capacity: {
+    configured_max_concurrent_calls: number
+    line_max_concurrency?: number
+    effective_max_concurrent_calls: number
+    active_calls: number
+    available_slots: number
+    limiting_source: 'tenant_capacity' | 'telephony_line' | 'tenant_and_line'
+    telephony_provider: string
+    environment_default: number
+  }
   generated_at: string
 }

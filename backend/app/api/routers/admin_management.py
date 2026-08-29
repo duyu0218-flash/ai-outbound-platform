@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
+from ...config import get_settings
 from ...db import get_session
 from ...models import AdminSetting, AuditLog, CallSession, SmsLog, TelephonyLine, User
 from ...schemas import (
@@ -25,9 +26,10 @@ from ...schemas import (
     SmsLogOut,
 )
 from ...services.auth import hash_password
-from ...services.admin_settings import SETTING_DEFAULTS, get_admin_setting
-from ...services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check
-from ...services.telephony import get_sms_adapter, with_retry
+from ...services.admin_settings import SETTING_DEFAULTS, get_admin_setting, get_tenant_max_concurrent_calls
+from ...services.call_service import CAPACITY_STATUSES
+from ...services.health import ai_agent_health_check, db_health_check, redis_health_check, tenant_telephony_health_check
+from ...services.telephony import get_sms_adapter, get_tenant_telephony_line, with_retry
 
 
 router = APIRouter(
@@ -36,6 +38,7 @@ router = APIRouter(
     dependencies=[Depends(require_role("admin"))],
 )
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 def _audit(
     session: Session,
@@ -76,8 +79,20 @@ def _get_tenant_user(session: Session, tenant_id: int, user_id: int) -> User:
 
 
 def _validate_gateway_url(value: str) -> None:
-    if value and not value.startswith(("http://", "https://", "sip:", "sips:", "ws://", "wss://")):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="gateway_url uses an unsupported protocol")
+    if value and not value.startswith(("http://", "https://")):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="gateway_url must point to an HTTP bridge")
+
+
+def _validate_line_provider(provider: str) -> None:
+    if provider.strip().lower() not in {"http", "mock"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provider must be http or mock")
+
+
+def _validate_line_configuration(provider: str, gateway_url: str) -> None:
+    _validate_line_provider(provider)
+    _validate_gateway_url(gateway_url)
+    if provider.strip().lower() == "http" and not gateway_url.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HTTP bridge requires gateway_url")
 
 
 @router.get("/users", response_model=list[AdminUserOut])
@@ -202,7 +217,7 @@ def create_line(
     current: User = Depends(require_role("admin")),
     session: Session = Depends(get_session),
 ):
-    _validate_gateway_url(payload.gateway_url)
+    _validate_line_configuration(payload.provider, payload.gateway_url)
     line = TelephonyLine(tenant_id=current.tenant_id, **payload.model_dump())
     session.add(line)
     try:
@@ -227,8 +242,11 @@ def update_line(
     if not line or line.tenant_id != current.tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="line not found")
     changes = payload.model_dump(exclude_unset=True)
-    if "gateway_url" in changes:
-        _validate_gateway_url(changes["gateway_url"] or "")
+    if "provider" in changes or "gateway_url" in changes:
+        _validate_line_configuration(
+            str(changes.get("provider", line.provider) or ""),
+            str(changes.get("gateway_url", line.gateway_url) or ""),
+        )
     for key, value in changes.items():
         setattr(line, key, value)
     line.updated_at = utc_now()
@@ -336,6 +354,10 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
         timeout = merged["webhook_timeout_sec"]
         if not isinstance(timeout, int) or not 1 <= timeout <= 120:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid webhook timeout")
+    if section == "capacity":
+        max_calls = merged["max_concurrent_calls"]
+        if not isinstance(max_calls, int) or not 1 <= max_calls <= 10_000:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max concurrent calls")
     for key in ("agent_url", "endpoint", "webhook_base_url"):
         value = merged.get(key)
         if value and not str(value).startswith(("http://", "https://")):
@@ -409,6 +431,28 @@ def system_overview(
 ):
     tenant_id = current.tenant_id
     ai_config = get_admin_setting(session, tenant_id, "ai")
+    configured_capacity = get_tenant_max_concurrent_calls(session, tenant_id)
+    active_calls = session.exec(
+        select(func.count(CallSession.id)).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.status.in_(CAPACITY_STATUSES),
+        )
+    ).one()
+    line = (
+        get_tenant_telephony_line(session, tenant_id)
+        if (settings.telephony_provider or "mock").strip().lower() == "tenant"
+        else None
+    )
+    line_capacity = max(1, int(line.max_concurrency)) if line is not None else None
+    effective_capacity = min(configured_capacity, line_capacity) if line_capacity is not None else configured_capacity
+    if line_capacity is None:
+        limiting_source = "tenant_capacity"
+    elif line_capacity < configured_capacity:
+        limiting_source = "telephony_line"
+    elif line_capacity == configured_capacity:
+        limiting_source = "tenant_and_line"
+    else:
+        limiting_source = "tenant_capacity"
     status_rows = session.exec(
         select(CallSession.status, func.count(CallSession.id))
         .where(CallSession.tenant_id == tenant_id)
@@ -419,7 +463,7 @@ def system_overview(
             "database": db_health_check(),
             "redis": redis_health_check(),
             "ai_agent": ai_agent_health_check(base_url=str(ai_config.get("agent_url") or "")),
-            "telephony": telephony_http_health_check(),
+            "telephony": tenant_telephony_health_check(session, tenant_id),
         },
         "resources": {
             "users": session.exec(select(func.count(User.id)).where(User.tenant_id == tenant_id)).one(),
@@ -437,6 +481,16 @@ def system_overview(
         "call_statuses": {
             str(call_status.value if hasattr(call_status, "value") else call_status): count
             for call_status, count in status_rows
+        },
+        "capacity": {
+            "configured_max_concurrent_calls": configured_capacity,
+            "line_max_concurrency": line_capacity,
+            "effective_max_concurrent_calls": effective_capacity,
+            "active_calls": active_calls,
+            "available_slots": max(0, effective_capacity - active_calls),
+            "limiting_source": limiting_source,
+            "telephony_provider": (settings.telephony_provider or "mock").strip().lower(),
+            "environment_default": max(1, int(settings.max_concurrent_calls)),
         },
         "generated_at": utc_now(),
     }

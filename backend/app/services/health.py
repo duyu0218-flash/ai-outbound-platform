@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from ..config import get_settings
 from ..db import engine
+from ..models import TelephonyLine
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,26 @@ def telephony_http_health_check() -> str:
     endpoint = (settings.telephony_provider_endpoint or settings.sip_provider_endpoint).strip()
     if not endpoint:
         return "unconfigured"
+    return _probe_http(endpoint, "/health")
+
+
+def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
+    settings = get_settings()
+    provider = (settings.telephony_provider or "mock").strip().lower()
+    if provider != "tenant":
+        return telephony_http_health_check() if provider == "http" else "mock"
+    line = session.exec(
+        select(TelephonyLine)
+        .where(TelephonyLine.tenant_id == tenant_id, TelephonyLine.enabled.is_(True))
+        .order_by(TelephonyLine.created_at.desc())
+    ).first()
+    if line is None:
+        return "unconfigured"
+    if line.provider.strip().lower() == "mock":
+        return "mock"
+    endpoint = line.gateway_url.strip()
+    if not endpoint.startswith(("http://", "https://")):
+        return "unsupported"
     return _probe_http(endpoint, "/health")
 
 

@@ -22,3 +22,10 @@ def test_chinese_policy_remains_supported():
     assert sms is None
     assert "转接人工" in tts
     assert priority == 1
+
+
+def test_ai_only_does_not_handoff_and_human_first_does():
+    handoff, _, _, _ = resolve_action("ai_only", "", "请转人工", "zh-CN")
+    assert handoff is False
+    handoff, _, _, _ = resolve_action("mixed_human_first", "", "", "zh-CN")
+    assert handoff is True

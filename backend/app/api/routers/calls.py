@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
 from sqlmodel import select
 
-from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
+from ...api.deps import check_api_key, current_user_optional, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...clock import utc_now
-from ...models import CallEvent, CallStatus, WebhookEventIngest
+from ...models import CallEvent, CallStatus, User, WebhookEventIngest
 from ...schemas import (
     CallEventOut,
     CallSessionOut,
@@ -104,6 +104,7 @@ async def handover_api(
     tenant_id: int = Depends(get_tenant_id_for_request),
     reason: str = Query(default="operator_request"),
     target_group: str | None = Query(default=None),
+    current: User | None = Depends(current_user_optional),
     session: Session = Depends(get_session),
 ):
     try:
@@ -112,7 +113,8 @@ async def handover_api(
             tenant_id=tenant_id,
             call_id=call_id,
             reason=reason,
-            target_group=target_group,
+            target_group=target_group or (f"agent:{current.id}" if current and current.role == "agent" else None),
+            human_agent_id=current.id if current and current.role == "agent" else None,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

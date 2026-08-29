@@ -11,6 +11,7 @@ from ...clock import utc_now
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, WebhookEventIngest
 from ...schemas import WebhookEvent
 from ...services import dispatcher
+from ...services.business_callbacks import deliver_business_callback
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
@@ -217,6 +218,14 @@ def telephony_status(
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
+    if status_applied and mapped is not None:
+        background_tasks.add_task(
+            deliver_business_callback,
+            tenant_id=call.tenant_id,
+            call_id=call.id,
+            event_type="call.status",
+            data={"status": mapped.value, "hangup_reason": payload.payload.get("hangup_reason")},
+        )
 
     return {"result": "ok"}
 
@@ -244,12 +253,20 @@ def telephony_transcript(
 
     if call.mode != CallMode.HUMAN_ONLY:
         background_tasks.add_task(dispatcher.run_ai_turn, call_id=call.id, transcript=payload.transcript or "")
+    background_tasks.add_task(
+        deliver_business_callback,
+        tenant_id=call.tenant_id,
+        call_id=call.id,
+        event_type="call.transcript",
+        data={"transcript": payload.transcript or ""},
+    )
     return {"result": "ok"}
 
 
 @router.post("/telephony/recording")
 def telephony_recording(
     payload: WebhookEvent,
+    background_tasks: BackgroundTasks,
     _: None = Depends(check_webhook_token),
     session: Session = Depends(get_session),
 ):
@@ -269,4 +286,12 @@ def telephony_recording(
         call.recording_url = str(url)
     session.add(call)
     session.commit()
+    if url:
+        background_tasks.add_task(
+            deliver_business_callback,
+            tenant_id=call.tenant_id,
+            call_id=call.id,
+            event_type="call.recording",
+            data={"url": str(url)},
+        )
     return {"result": "ok"}
