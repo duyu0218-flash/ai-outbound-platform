@@ -41,6 +41,23 @@ class EventType(str, Enum):
     ERROR = "error"
 
 
+class RealtimeState(str, Enum):
+    CREATED = "created"
+    LISTENING = "listening"
+    THINKING = "thinking"
+    SPEAKING = "speaking"
+    INTERRUPTED = "interrupted"
+    CLOSED = "closed"
+
+
+class HandoffState(str, Enum):
+    WAITING = "waiting"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
 class ConsentState(str, Enum):
     CONSENTED = "consented"
     NOT_CONSENTED = "not_consented"
@@ -169,6 +186,126 @@ class CallEvent(SQLModel, table=True):
     source: str = "platform"
     payload: str = "{}"
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class RealtimeSession(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_session_id", name="uq_realtime_call"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    provider_session_id: Optional[str] = Field(default=None, index=True, max_length=255)
+    state: RealtimeState = Field(default=RealtimeState.CREATED, index=True)
+    codec: str = Field(default="pcm_s16le", max_length=32)
+    sample_rate: int = 16000
+    channel_count: int = 1
+    turn_sequence: int = 0
+    playback_id: Optional[str] = Field(default=None, max_length=255)
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class SpeechTurn(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("call_session_id", "provider_event_key", name="uq_speechturn_call_event"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    provider_event_key: str = Field(max_length=128)
+    turn_index: int = Field(default=0, index=True)
+    speaker_role: str = Field(default="customer", max_length=32)
+    channel_id: str = Field(default="inbound", max_length=64)
+    transcript: str = Field(default="", max_length=100_000)
+    normalized_transcript: str = Field(default="", max_length=100_000)
+    is_final: bool = False
+    confidence: Optional[float] = None
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    asr_provider: str = Field(default="", max_length=100)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class CallMetric(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    stage: str = Field(index=True, max_length=64)
+    provider: str = Field(default="", max_length=100)
+    duration_ms: Optional[int] = None
+    success: bool = True
+    error_code: Optional[str] = Field(default=None, max_length=100)
+    detail: str = Field(default="", max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class RecordingAsset(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    provider_recording_id: Optional[str] = Field(default=None, index=True, max_length=255)
+    provider_url: str = Field(default="", max_length=2000)
+    storage_uri: str = Field(default="", max_length=2000)
+    state: str = Field(default="available", index=True, max_length=32)
+    duration_sec: Optional[int] = None
+    media_format: str = Field(default="", max_length=32)
+    channel_count: int = 1
+    checksum_sha256: Optional[str] = Field(default=None, max_length=64)
+    retention_until: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class CallAnalysis(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_session_id", name="uq_callanalysis_call"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    result_code: str = Field(default="unknown", index=True, max_length=64)
+    sentiment: str = Field(default="neutral", max_length=32)
+    intent: str = Field(default="unknown", max_length=100)
+    summary: str = Field(default="", max_length=10_000)
+    qa_score: int = 0
+    qa_flags_json: str = "[]"
+    structured_json: str = "{}"
+    review_state: str = Field(default="auto", max_length=32)
+    reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class KnowledgeItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    title: str = Field(max_length=300)
+    content: str = Field(max_length=50_000)
+    category: str = Field(default="default", index=True, max_length=100)
+    keywords: str = Field(default="", max_length=2000)
+    is_active: bool = True
+    version: int = 1
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class HandoffRequest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    assigned_agent_id: Optional[int] = Field(default=None, index=True, foreign_key="user.id")
+    state: HandoffState = Field(default=HandoffState.WAITING, index=True)
+    reason: str = Field(default="", max_length=500)
+    target_group: str = Field(default="", max_length=200)
+    requested_at: datetime = Field(default_factory=utc_now)
+    responded_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class WebhookEventIngest(SQLModel, table=True):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
+from time import perf_counter
 from typing import Any, Dict
 
 import httpx
@@ -10,12 +11,24 @@ from sqlmodel import select
 from ..config import get_settings
 from ..clock import utc_now
 from ..db import session_scope
-from ..models import CallEvent, CallSession, CallStatus, Campaign, SmsLog, User
+from ..models import (
+    CallEvent,
+    CallMetric,
+    CallSession,
+    CallStatus,
+    Campaign,
+    HandoffRequest,
+    RealtimeSession,
+    RealtimeState,
+    SmsLog,
+    User,
+)
 from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
 from .admin_settings import get_admin_setting
 from .business_callbacks import deliver_business_callback
+from .knowledge import retrieve_knowledge
 
 settings = get_settings()
 
@@ -89,6 +102,7 @@ async def run_ai_turn(
         )
 
         try:
+            ai_started = perf_counter()
             ai_config = get_admin_setting(session, call.tenant_id, "ai")
             if not ai_config.get("enabled", True):
                 raise RuntimeError("AI service is disabled for tenant")
@@ -99,6 +113,7 @@ async def run_ai_turn(
             )
             campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
             language = str(ai_config.get("language") or "zh-CN")
+            knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
             result = await request_ai_turn(
                 call_id=str(call.id),
                 phone=call.phone,
@@ -113,14 +128,37 @@ async def run_ai_turn(
                     "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
                     "llm_provider": str(ai_config.get("llm_provider") or "rule"),
                     "llm_model": str(ai_config.get("llm_model") or ""),
+                    "knowledge": knowledge,
                 },
                 agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
             )
+            session.add(
+                CallMetric(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    stage="ai.turn",
+                    provider=str(ai_config.get("llm_provider") or "rule"),
+                    duration_ms=int((perf_counter() - ai_started) * 1000),
+                    success=True,
+                    detail=f"knowledge_hits={len(knowledge)}",
+                )
+            )
+            session.commit()
             await _apply_ai_action(session=session, call=call, result=result)
         except Exception as exc:
             call.status = CallStatus.FAILED
             call.last_error = f"AI调用失败: {exc}"
             session.add(call)
+            session.add(
+                CallMetric(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    stage="ai.turn",
+                    success=False,
+                    error_code="AI_TURN_FAILED",
+                    detail=str(exc)[:2000],
+                )
+            )
             session.commit()
             await append_event(
                 session=session,
@@ -140,15 +178,50 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         line_id=call.telephony_line_id,
     )
     if result.tts_text:
-        await with_retry(
-            lambda: adapter.speak(
-                call_id=str(call.id),
-                text=result.tts_text or "",
-                language=str(ai_config.get("language") or "zh-CN"),
-                voice=str(ai_config.get("voice") or ""),
-                provider=str(ai_config.get("tts_provider") or ""),
+        tts_started = perf_counter()
+        try:
+            response = await with_retry(
+                lambda: adapter.speak(
+                    call_id=str(call.id),
+                    text=result.tts_text or "",
+                    language=str(ai_config.get("language") or "zh-CN"),
+                    voice=str(ai_config.get("voice") or ""),
+                    provider=str(ai_config.get("tts_provider") or ""),
+                )
             )
-        )
+            realtime = session.exec(
+                select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)
+            ).first()
+            if realtime is not None:
+                realtime.state = RealtimeState.SPEAKING
+                realtime.playback_id = str(response.get("playback_id") or "") or None
+                realtime.updated_at = utc_now()
+                session.add(realtime)
+            session.add(
+                CallMetric(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    stage="tts.dispatch",
+                    provider=str(ai_config.get("tts_provider") or "gateway"),
+                    duration_ms=int((perf_counter() - tts_started) * 1000),
+                    success=True,
+                )
+            )
+        except Exception as exc:
+            session.add(
+                CallMetric(
+                    tenant_id=call.tenant_id,
+                    call_session_id=call.id,
+                    stage="tts.dispatch",
+                    provider=str(ai_config.get("tts_provider") or "gateway"),
+                    duration_ms=int((perf_counter() - tts_started) * 1000),
+                    success=False,
+                    error_code="TTS_DISPATCH_FAILED",
+                    detail=str(exc)[:2000],
+                )
+            )
+            session.commit()
+            raise
     if result.action == "hangup":
         await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
         call.status = CallStatus.COMPLETED
@@ -168,13 +241,6 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             .order_by(User.last_seen_at.asc(), User.id.asc())
         ).first()
         target_group = f"agent:{assigned_agent.id}" if assigned_agent is not None else None
-        await with_retry(
-            lambda: adapter.transfer_to_human(
-                call_id=str(call.id),
-                reason="ai_decision",
-                target_group=target_group,
-            )
-        )
         call.status = CallStatus.WAITING_HUMAN
         call.handoff_reason = "ai_decision"
         if assigned_agent is not None:
@@ -183,6 +249,15 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             assigned_agent.last_seen_at = utc_now()
             assigned_agent.updated_at = utc_now()
             session.add(assigned_agent)
+        session.add(
+            HandoffRequest(
+                tenant_id=call.tenant_id,
+                call_session_id=call.id,
+                assigned_agent_id=assigned_agent.id if assigned_agent is not None else None,
+                reason="ai_decision",
+                target_group=target_group or "default",
+            )
+        )
     else:
         call.status = CallStatus.IN_AI
 

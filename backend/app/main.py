@@ -22,6 +22,7 @@ from .api.routers import (
     script_templates_router,
     pages_router,
     webhooks_router,
+    voice_operations_router,
 )
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, session_scope
@@ -276,4 +277,5 @@ app.include_router(webhooks_router)
 app.include_router(auth_router)
 app.include_router(script_templates_router)
 app.include_router(admin_management_router)
+app.include_router(voice_operations_router)
 app.include_router(pages_router)

@@ -12,6 +12,9 @@
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 - 话术模板（`/api/v1/script-templates`）与活动绑定
 - Webhook 原子幂等、并发拨号抢占与 AI 决策审计事件
+- 实时语音状态机、ASR 临时/最终分段、TTS 插话打断和阶段耗时指标
+- 转人工请求的等待、接听、拒绝状态，以及结构化转写、录音资产和通话质检结果
+- 租户知识库 CRUD 与按通话内容召回，召回结果注入 AI 决策上下文
 - 管理员/座席角色隔离、租户绑定、PBKDF2 密码哈希与生产配置启动校验
 - 管理端与座席端支持中文/English 实时切换，并在本机浏览器保存语言偏好
 - React + TypeScript + Ant Design 多页面前端：管理端包含运营、用户与座席、线路、系统配置、监控与审计；座席端包含工作台和通话记录
@@ -58,6 +61,7 @@ pnpm build
 
 - `backend/`: 控制面服务（联系人、活动、外呼、webhook）
 - `agent/`: AI 话术策略服务（可替换成真实 LLM）
+- `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
 - `docker-compose.yml`: 本地联调与演示启动清单
 - `.env.example`: 环境变量样例
 
@@ -266,7 +270,7 @@ bash scripts/test-campaign-start.sh
 
 - `backend/app/services/telephony.py`:
   - `mock`：联调演练；
-  - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/speak`、`/v1/call/transfer`、`/v1/call/hangup`；拨号负载会携带主叫号及 ASR/TTS、音色、语言、录音告知参数。
+  - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/speak`、`/v1/call/stop-speaking`、`/v1/call/transfer`、`/v1/call/hangup`；拨号负载会携带主叫号及 ASR/TTS、音色、语言、录音告知参数。
   - `tenant`：从当前租户的启用线路读取网关配置；当前只支持 HTTP 语音桥接地址，SIP 注册、媒体协商与坐席软电话仍需对接 FreeSWITCH/Asterisk 或运营商平台。
 - 回调地址固定为：
   - `POST /api/v1/webhooks/telephony/status`
@@ -282,8 +286,8 @@ bash scripts/test-campaign-start.sh
 - GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
 - 当需要跨机房、大规模调度或死信队列时，再将当前“数据库持久队列 + Redis 主锁”升级为 Celery/Temporal。
 - 对接并验收真实运营商/PBX、SIP 中继、坐席 WebRTC 软电话、排队分配和人工接听状态；当前页面不是媒体终端。
-- 将规则型 AI 服务替换为真实 ASR、LLM、TTS 流式链路，并做中文/英文口音、打断、延迟、降级和敏感词验收。
-- 将录音 URL 回调扩展为受控下载、MinIO 对象存储、签名访问、生命周期和删除审计；当前不代存录音文件。
+- 按 [实时语音网关契约](docs/realtime-voice-contract.md) 接入真实 ASR、LLM、TTS 媒体链路，并做中文/英文口音、打断、延迟、降级和敏感词验收；平台侧状态机、分段转写和打断控制已实现。
+- 录音资产元数据、存储 URI、校验值和保留期限已建模；仍需接入 MinIO/对象存储上传、签名访问、生命周期执行和删除审计，当前不代存录音文件。
 - 对接真实短信供应商并验证签名、模板、退订、频控、失败重试和回执。当前管理员可以查看与重试失败记录，但供应商能力取决于外部配置。
 - 操作日志与审计、工单系统/CRM 双向同步
 - 海外扩展：时区、隐私条款、国际电销规则与时段管控

@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 from uuid import UUID
 from pydantic import Field
 from pydantic import BaseModel
-from .models import CallMode, CallStatus, ConsentState
+from .models import CallMode, CallStatus, ConsentState, HandoffState, RealtimeState
 
 
 class ContactCreate(BaseModel):
@@ -274,6 +274,161 @@ class WebhookRecordingPayload(BaseModel):
     url: str
     duration_sec: Optional[int] = None
     format: Optional[str] = None
+
+
+class SpeechWebhookEvent(BaseModel):
+    call_id: UUID
+    event_id: str = Field(min_length=1, max_length=255)
+    transcript: str = Field(default="", max_length=100_000)
+    is_final: bool = False
+    speaker_role: str = Field(default="customer", pattern=r"^(customer|ai|agent|system)$")
+    channel_id: str = Field(default="inbound", max_length=64)
+    confidence: Optional[float] = Field(default=None, ge=0, le=1)
+    start_ms: Optional[int] = Field(default=None, ge=0)
+    end_ms: Optional[int] = Field(default=None, ge=0)
+    asr_provider: str = Field(default="", max_length=100)
+    barge_in: bool = False
+    attempt: Optional[int] = Field(default=None, ge=0)
+
+
+class MediaWebhookEvent(BaseModel):
+    call_id: UUID
+    event_id: str = Field(min_length=1, max_length=255)
+    state: RealtimeState
+    provider_session_id: Optional[str] = Field(default=None, max_length=255)
+    playback_id: Optional[str] = Field(default=None, max_length=255)
+    codec: str = Field(default="pcm_s16le", max_length=32)
+    sample_rate: int = Field(default=16000, ge=8000, le=192000)
+    channel_count: int = Field(default=1, ge=1, le=8)
+    duration_ms: Optional[int] = Field(default=None, ge=0)
+    provider: str = Field(default="", max_length=100)
+    error_code: Optional[str] = Field(default=None, max_length=100)
+
+
+class RealtimeSessionOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    provider_session_id: Optional[str] = None
+    state: RealtimeState
+    codec: str
+    sample_rate: int
+    channel_count: int
+    turn_sequence: int
+    playback_id: Optional[str] = None
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SpeechTurnOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    provider_event_key: str
+    turn_index: int
+    speaker_role: str
+    channel_id: str
+    transcript: str
+    normalized_transcript: str
+    is_final: bool
+    confidence: Optional[float] = None
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    asr_provider: str
+    created_at: datetime
+
+
+class CallMetricOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    stage: str
+    provider: str
+    duration_ms: Optional[int] = None
+    success: bool
+    error_code: Optional[str] = None
+    detail: str
+    created_at: datetime
+
+
+class RecordingAssetOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    provider_recording_id: Optional[str] = None
+    provider_url: str
+    storage_uri: str
+    state: str
+    duration_sec: Optional[int] = None
+    media_format: str
+    channel_count: int
+    checksum_sha256: Optional[str] = None
+    retention_until: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CallAnalysisOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    result_code: str
+    sentiment: str
+    intent: str
+    summary: str
+    qa_score: int
+    qa_flags_json: str
+    structured_json: str
+    review_state: str
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CallAnalysisReview(BaseModel):
+    result_code: Optional[str] = Field(default=None, max_length=64)
+    sentiment: Optional[str] = Field(default=None, max_length=32)
+    intent: Optional[str] = Field(default=None, max_length=100)
+    summary: Optional[str] = Field(default=None, max_length=10_000)
+    qa_score: Optional[int] = Field(default=None, ge=0, le=100)
+    qa_flags: Optional[list[str]] = None
+
+
+class KnowledgeItemCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    content: str = Field(min_length=1, max_length=50_000)
+    category: str = Field(default="default", max_length=100)
+    keywords: str = Field(default="", max_length=2000)
+    is_active: bool = True
+
+
+class KnowledgeItemUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=300)
+    content: Optional[str] = Field(default=None, min_length=1, max_length=50_000)
+    category: Optional[str] = Field(default=None, max_length=100)
+    keywords: Optional[str] = Field(default=None, max_length=2000)
+    is_active: Optional[bool] = None
+
+
+class KnowledgeItemOut(KnowledgeItemCreate):
+    id: int
+    tenant_id: int
+    version: int
+    created_by: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class HandoffRequestOut(BaseModel):
+    id: int
+    call_session_id: UUID
+    assigned_agent_id: Optional[int] = None
+    state: HandoffState
+    reason: str
+    target_group: str
+    requested_at: datetime
+    responded_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    updated_at: datetime
 
 
 class AiTurnRequest(BaseModel):

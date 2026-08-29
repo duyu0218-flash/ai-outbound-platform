@@ -54,6 +54,7 @@ async def turn(payload: TurnRequest):
             transcript=payload.transcript,
             language=language,
             model=str(payload.context.get("llm_model") or settings.openai_model),
+            knowledge=payload.context.get("knowledge") or [],
         )
     elif provider != "rule":
         raise RuntimeError(f"unsupported LLM provider: {provider}")
