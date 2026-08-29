@@ -3,15 +3,22 @@ from typing import Any
 
 from sqlmodel import Session, select
 
+from ..config import get_settings
 from ..models import AdminSetting
 
 
+settings = get_settings()
+
+
 SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
+    "capacity": {
+        "max_concurrent_calls": max(1, int(settings.max_concurrent_calls)),
+    },
     "ai": {
         "enabled": True,
         "agent_url": "http://localhost:8001",
-        "llm_provider": "openai-compatible",
-        "llm_model": "default",
+        "llm_provider": "rule",
+        "llm_model": "gpt-4o-mini",
         "asr_provider": "provider-default",
         "tts_provider": "provider-default",
         "voice": "female-1",
@@ -59,3 +66,21 @@ def get_admin_setting(session: Session, tenant_id: int, section: str) -> dict[st
     if not isinstance(saved, dict):
         return dict(defaults)
     return {**defaults, **{key: value for key, value in saved.items() if key in defaults}}
+
+
+def get_tenant_max_concurrent_calls(session: Session, tenant_id: int) -> int:
+    """Return the runtime tenant capacity saved by an administrator.
+
+    The environment setting remains the default for tenants that have not saved
+    a capacity policy. Once saved, the database value takes effect immediately
+    across API workers because dispatch reads it for every capacity claim.
+    """
+
+    configured = get_admin_setting(session, tenant_id, "capacity").get(
+        "max_concurrent_calls",
+        settings.max_concurrent_calls,
+    )
+    try:
+        return min(10_000, max(1, int(configured)))
+    except (TypeError, ValueError):
+        return max(1, int(settings.max_concurrent_calls))

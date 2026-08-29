@@ -39,7 +39,12 @@ def get_default_keywords(language: str = "zh-CN") -> List[str]:
 
 def resolve_action(mode: str, script: str, transcript: str, language: str = "zh-CN") -> tuple[bool, str | None, str, int]:
     keywords = get_default_keywords(language)
-    should_handoff = is_handoff(transcript, keywords)
+    if mode == "mixed_human_first":
+        should_handoff = True
+    elif mode == "ai_only":
+        should_handoff = False
+    else:
+        should_handoff = is_handoff(transcript, keywords)
     escalate_priority = 0
     normalized_transcript = (transcript or "").lower()
     if "紧急" in transcript or "urgent" in normalized_transcript or "emergency" in normalized_transcript:

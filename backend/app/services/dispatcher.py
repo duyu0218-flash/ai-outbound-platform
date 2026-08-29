@@ -13,6 +13,7 @@ from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
 from .admin_settings import get_admin_setting
+from .business_callbacks import deliver_business_callback
 
 settings = get_settings()
 
@@ -108,6 +109,8 @@ async def run_ai_turn(
                     "language": language,
                     "recording_enabled": campaign.recording_enabled if campaign else True,
                     "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
+                    "llm_provider": str(ai_config.get("llm_provider") or "rule"),
+                    "llm_model": str(ai_config.get("llm_model") or ""),
                 },
                 agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
             )
@@ -128,11 +131,23 @@ async def run_ai_turn(
 
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+    ai_config = get_admin_setting(session, call.tenant_id, "ai")
+    adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id)
+    if result.tts_text:
+        await with_retry(
+            lambda: adapter.speak(
+                call_id=str(call.id),
+                text=result.tts_text or "",
+                language=str(ai_config.get("language") or "zh-CN"),
+                voice=str(ai_config.get("voice") or ""),
+                provider=str(ai_config.get("tts_provider") or ""),
+            )
+        )
     if result.action == "hangup":
+        await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
         call.status = CallStatus.COMPLETED
         call.finished_at = utc_now()
     elif result.action == "handoff" or result.handoff_to_human:
-        adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id)
         await with_retry(lambda: adapter.transfer_to_human(call_id=str(call.id), reason="ai_decision"))
         call.status = CallStatus.WAITING_HUMAN
         call.handoff_reason = "ai_decision"
@@ -141,7 +156,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
 
     hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
     if result.hangup_sms and hangup_sms_allowed:
-        await send_sms_text(session, call, result.hangup_sms)
+        sms_config = get_admin_setting(session, call.tenant_id, "sms")
+        sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
+        await send_sms_text(session, call, sms_text)
         if call.status != CallStatus.WAITING_HUMAN:
             call.status = CallStatus.COMPLETED
             call.finished_at = utc_now()
@@ -165,10 +182,22 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         source="dispatcher",
         payload={
             "action": result.action,
+            "tts_dispatched": bool(result.tts_text),
             "handoff_to_human": result.handoff_to_human,
             "hangup_sms": bool(result.hangup_sms and hangup_sms_allowed),
             "next_keywords": result.next_keywords,
             "escalate_priority": result.escalate_priority,
+            "resulting_status": call.status.value,
+        },
+    )
+    await deliver_business_callback(
+        tenant_id=call.tenant_id,
+        call_id=call.id,
+        event_type="call.ai_decision",
+        data={
+            "action": result.action,
+            "handoff_to_human": result.handoff_to_human,
+            "tts_dispatched": bool(result.tts_text),
             "resulting_status": call.status.value,
         },
     )

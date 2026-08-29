@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from .config import settings
+from .llm import generate_reply
 from .policy import get_default_keywords, resolve_action, ai_reply
 
 app = FastAPI(title=settings.app_name)
@@ -34,7 +35,7 @@ def health():
 
 
 @app.post("/agent/turn")
-def turn(payload: TurnRequest):
+async def turn(payload: TurnRequest):
     language = str(payload.context.get("language") or "zh-CN")
     keywords = get_default_keywords(language)
     handoff, hangup_sms, tts, escalate_priority = resolve_action(
@@ -46,6 +47,16 @@ def turn(payload: TurnRequest):
     if not bool(payload.context.get("hangup_sms_enabled", True)):
         hangup_sms = None
     action = "handoff" if handoff else "speak"
+    provider = str(payload.context.get("llm_provider") or settings.llm_provider).strip().lower()
+    if action == "speak" and provider == "openai-compatible":
+        tts = await generate_reply(
+            script=payload.script,
+            transcript=payload.transcript,
+            language=language,
+            model=str(payload.context.get("llm_model") or settings.openai_model),
+        )
+    elif provider != "rule":
+        raise RuntimeError(f"unsupported LLM provider: {provider}")
     return TurnResult(
         action=action,
         tts_text=tts,

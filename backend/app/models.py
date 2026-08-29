@@ -196,7 +196,7 @@ class TelephonyLine(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     name: str = Field(index=True, max_length=200)
-    provider: str = Field(default="sip", max_length=100)
+    provider: str = Field(default="http", max_length=100)
     gateway_url: str = Field(default="", max_length=1000)
     caller_id: str = Field(default="", max_length=64)
     max_concurrency: int = 10

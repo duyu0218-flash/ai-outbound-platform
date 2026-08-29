@@ -52,6 +52,18 @@ class TelephonyAdapter(ABC):
     async def hangup(self, *, call_id: str, reason: str = "hangup") -> Dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def speak(
+        self,
+        *,
+        call_id: str,
+        text: str,
+        language: str = "zh-CN",
+        voice: str = "",
+        provider: str = "",
+    ) -> Dict[str, Any]:
+        raise NotImplementedError
+
 
 class MockAdapter(TelephonyAdapter):
     async def dial(self, *, call_id: str, phone: str, webhook_url: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -80,6 +92,24 @@ class MockAdapter(TelephonyAdapter):
 
     async def hangup(self, *, call_id: str, reason: str = "hangup") -> Dict[str, Any]:
         return {"result": "hungup", "provider_call_id": f"mock-{call_id}", "reason": reason}
+
+    async def speak(
+        self,
+        *,
+        call_id: str,
+        text: str,
+        language: str = "zh-CN",
+        voice: str = "",
+        provider: str = "",
+    ) -> Dict[str, Any]:
+        return {
+            "result": "spoken_mock",
+            "provider_call_id": f"mock-{call_id}",
+            "text": text,
+            "language": language,
+            "voice": voice,
+            "provider": provider,
+        }
 
     async def _emit(self, webhook_url: str, call_id: str, status: str, metadata: Dict[str, Any] | None = None) -> None:
         data = {
@@ -112,6 +142,7 @@ class HttpAdapter(TelephonyAdapter):
         payload = {
             "call_id": call_id,
             "phone": phone,
+            "caller_id": metadata.get("caller_id", ""),
             "webhook_url": webhook_url,
             "metadata": metadata,
         }
@@ -128,6 +159,26 @@ class HttpAdapter(TelephonyAdapter):
     async def hangup(self, *, call_id: str, reason: str = "hangup") -> Dict[str, Any]:
         payload = {"call_id": call_id, "reason": reason}
         response = await self.client.post(f"{self.endpoint}/v1/call/hangup", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    async def speak(
+        self,
+        *,
+        call_id: str,
+        text: str,
+        language: str = "zh-CN",
+        voice: str = "",
+        provider: str = "",
+    ) -> Dict[str, Any]:
+        payload = {
+            "call_id": call_id,
+            "text": text,
+            "language": language,
+            "voice": voice,
+            "provider": provider,
+        }
+        response = await self.client.post(f"{self.endpoint}/v1/call/speak", json=payload)
         response.raise_for_status()
         return response.json()
 
@@ -206,7 +257,9 @@ def get_sms_adapter(tenant_config: Dict[str, Any] | None = None) -> SmsAdapter:
             raise RuntimeError("SMS provider is HTTP but sms_provider_endpoint is not configured")
         sender_id = str(config.get("sender_id") or settings.sms_sender_id)
         return HttpSmsAdapter(sms_endpoint, settings.sms_api_key, sender_id)
-    return MockSmsAdapter()
+    if provider == "mock":
+        return MockSmsAdapter()
+    raise RuntimeError(f"unsupported SMS provider: {provider}")
 
 
 async def with_retry(

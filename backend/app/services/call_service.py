@@ -19,7 +19,7 @@ from .telephony import (
     get_tenant_telephony_line,
     with_retry,
 )
-from .admin_settings import get_admin_setting
+from .admin_settings import get_admin_setting, get_tenant_max_concurrent_calls
 from ..db import session_scope
 
 settings = get_settings()
@@ -160,7 +160,7 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if tenant is None or not tenant.enabled:
         session.rollback()
         return False
-    effective_tenant_limit = max(1, int(settings.max_concurrent_calls))
+    effective_tenant_limit = get_tenant_max_concurrent_calls(session, call.tenant_id)
     if (settings.telephony_provider or "mock").strip().lower() == "tenant":
         line = get_tenant_telephony_line(session, call.tenant_id)
         if line is None:
@@ -450,6 +450,21 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,
     }
+    ai_config = get_admin_setting(session, call.tenant_id, "ai")
+    compliance_config = get_admin_setting(session, call.tenant_id, "compliance")
+    payload.update(
+        {
+            "asr_provider": str(ai_config.get("asr_provider") or ""),
+            "tts_provider": str(ai_config.get("tts_provider") or ""),
+            "voice": str(ai_config.get("voice") or ""),
+            "language": str(ai_config.get("language") or "zh-CN"),
+            "recording_notice": bool(compliance_config.get("recording_notice", True)),
+        }
+    )
+    if (settings.telephony_provider or "mock").strip().lower() == "tenant":
+        line = get_tenant_telephony_line(session, call.tenant_id)
+        if line is not None:
+            payload["caller_id"] = line.caller_id
     if call.campaign_id is not None:
         campaign = session.get(Campaign, call.campaign_id)
         if campaign and campaign.tenant_id == call.tenant_id:
@@ -519,6 +534,7 @@ async def handover_to_human(
     call_id: UUID,
     reason: str,
     target_group: str | None = None,
+    human_agent_id: int | None = None,
 ) -> CallSession:
     call = get_call(session, tenant_id, call_id)
     if not _set_call_if_status_in_uuid(
@@ -527,6 +543,7 @@ async def handover_to_human(
         allowed_statuses=HANDOVERABLE_STATUSES,
         status=CallStatus.HANDOFF_TRANSFERRING,
         handoff_reason=reason,
+        human_agent_id=human_agent_id,
         updated_at=_now(),
     ):
         raise CallPermissionError("call status not handover-able")
@@ -543,6 +560,7 @@ async def handover_to_human(
             allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
             status=CallStatus.FAILED,
             last_error=f"handover failed: {exc}",
+            human_agent_id=None,
             updated_at=_now(),
         )
         raise
@@ -553,6 +571,7 @@ async def handover_to_human(
         allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
         status=CallStatus.WAITING_HUMAN,
         handoff_reason=reason,
+        human_agent_id=human_agent_id,
         updated_at=_now(),
     )
     session.refresh(call)
@@ -646,8 +665,6 @@ async def dispatch_call_ids(
         }
 
     skipped_count = len(input_errors)
-    requested_concurrency = max(1, int(max_concurrency or settings.max_concurrent_calls))
-    concurrency = min(requested_concurrency, max(1, int(settings.max_concurrent_calls)))
     call_uuids = [UUID(call_id) for call_id in deduped]
     with session_scope() as limit_session:
         tenant_ids = set(
@@ -655,11 +672,18 @@ async def dispatch_call_ids(
                 select(CallSession.tenant_id).where(CallSession.id.in_(call_uuids))
             ).all()
         )
+        tenant_limits = [
+            get_tenant_max_concurrent_calls(limit_session, tenant_id)
+            for tenant_id in tenant_ids
+        ]
         line_limits = [
             limit
             for tenant_id in tenant_ids
             if (limit := get_telephony_concurrency_limit(session=limit_session, tenant_id=tenant_id)) is not None
         ]
+    default_concurrency = max(tenant_limits, default=max(1, int(settings.max_concurrent_calls)))
+    requested_concurrency = max(1, int(max_concurrency or default_concurrency))
+    concurrency = min(requested_concurrency, *tenant_limits) if tenant_limits else requested_concurrency
     if line_limits:
         concurrency = min(concurrency, *line_limits)
 

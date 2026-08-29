@@ -49,8 +49,8 @@ pnpm build
 
 - `/admin/users`：管理员与座席账号、角色、班组长、启停和密码重置
 - `/admin/lines`：外呼服务商、网关、主叫号码和线路并发
-- `/admin/settings`：AI/ASR/TTS、短信、合规、Webhook 配置
-- `/admin/system`：数据库、Redis、AI、线路健康状态，资源统计和审计日志
+- `/admin/settings`：租户并发容量、AI/ASR/TTS、短信、合规、Webhook 配置
+- `/admin/system`：数据库、Redis、AI、线路健康状态，并发容量、资源统计和审计日志
 
 敏感密钥不会从管理页面保存或回显；生产凭证继续通过环境变量或密钥管理服务注入。
 
@@ -100,6 +100,7 @@ docker compose up -d --build
 | `RATE_LIMIT_DEFAULT_RPM` | 默认每分钟请求数 |
 | `RATE_LIMIT_AUTH_RPM` | `/api/v1/auth/login` 每分钟请求数（更严格） |
 | `RATE_LIMIT_WINDOW_SEC` | 限流滑动窗口秒数 |
+| `MAX_CONCURRENT_CALLS` | 租户未在管理端保存容量策略时的默认并发值；管理端保存后即时生效 |
 | `DEMO_USERS_ENABLED` | 是否自动创建演示账号；生产必须为 `false` |
 
 ## 4. 示例 API
@@ -261,13 +262,14 @@ bash scripts/test-campaign-start.sh
 
 - `backend/app/services/telephony.py`:
   - `mock`：联调演练；
-  - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/transfer`、`/v1/call/hangup`。
+  - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/speak`、`/v1/call/transfer`、`/v1/call/hangup`；拨号负载会携带主叫号及 ASR/TTS、音色、语言、录音告知参数。
   - `tenant`：从当前租户的启用线路读取网关配置；当前只支持 HTTP 语音桥接地址，SIP 注册、媒体协商与坐席软电话仍需对接 FreeSWITCH/Asterisk 或运营商平台。
 - 回调地址固定为：
   - `POST /api/v1/webhooks/telephony/status`
   - `POST /api/v1/webhooks/telephony/transcript`
   - `POST /api/v1/webhooks/telephony/recording`
-- `agent/app/policy.py` 先作为规则引擎占位，建议替换为真实 LLM policy。
+- AI 设置选择 `rule` 时使用本地规则模式；选择 `openai-compatible` 时，Agent 会使用环境变量中的 `OPENAI_BASE_URL`、`OPENAI_API_KEY` 调用兼容的 `/chat/completions`。
+- 启用业务回调后，状态、转写、录音 URL 和 AI 决策会 POST 到配置的 Webhook，并在通话事件中记录成功或失败。
 
 ## 7. 上线仍需完成的外部集成
 

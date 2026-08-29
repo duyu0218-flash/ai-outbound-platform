@@ -307,6 +307,8 @@ export function CampaignsPage() {
   const query = useSecureQuery<Campaign[]>(['campaigns'], '/api/v1/campaigns?page=1&size=100')
   const contacts = useSecureQuery<Contact[]>(['contacts', 'campaign-options'], '/api/v1/contacts?page=1&size=200')
   const scripts = useSecureQuery<ScriptTemplate[]>(['scripts', 'campaign-options'], '/api/v1/script-templates?active_only=true&page=1&size=200')
+  const systemOverview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
+  const effectiveCapacity = systemOverview.data?.capacity.effective_max_concurrent_calls || 1000
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [form] = Form.useForm<CampaignFormValues>()
@@ -363,7 +365,7 @@ export function CampaignsPage() {
           <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><Select mode="multiple" optionFilterProp="label" options={(contacts.data || []).map((item) => ({ value: item.id, label: `${item.name || '-'} · ${item.phone}` }))} /></Form.Item>
           <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label={t('content')} name="script"><Input.TextArea rows={5} /></Form.Item>
-          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency"><InputNumber min={1} max={1000} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={t('campaignConcurrencyHint', { count: effectiveCapacity })}><InputNumber min={1} max={effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
           <Form.Item name="attempt_interval_sec" hidden><InputNumber /></Form.Item>
           <Space size="large"><Form.Item label={t('recording')} name="recording_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('hangupSms')} name="hangup_sms_enabled" valuePropName="checked"><Switch /></Form.Item></Space>
         </Form>
@@ -532,7 +534,7 @@ export function LinesPage() {
     onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-lines'] }) },
     onError: (error) => message.error(error.message),
   })
-  const openEdit = (item?: TelephonyLine) => { setEditing(item || null); form.setFieldsValue(item || { provider: 'sip', gateway_url: '', caller_id: '', max_concurrency: 10, enabled: true }); setModalOpen(true) }
+  const openEdit = (item?: TelephonyLine) => { setEditing(item || null); form.setFieldsValue(item || { provider: 'http', gateway_url: '', caller_id: '', max_concurrency: 10, enabled: true }); setModalOpen(true) }
   return (
     <>
       <PageTitle title={t('lines')} description={t('linesHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('addLine')}</Button>} />
@@ -549,7 +551,7 @@ export function LinesPage() {
       </Card>
       <Modal title={editing ? t('editLine') : t('addLine')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
         <Form<LineFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
-          <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('provider')} name="provider" rules={[{ required: true }]}><Select options={[{ value: 'sip', label: 'SIP' }, { value: 'http', label: 'HTTP API' }, { value: 'twilio', label: 'Twilio' }, { value: 'aliyun', label: t('aliyun') }]} /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('provider')} name="provider" rules={[{ required: true }]}><Select options={[{ value: 'http', label: 'HTTP Bridge' }, { value: 'mock', label: 'Mock（仅测试）' }]} /></Form.Item></Col></Row>
           <Form.Item label={t('gatewayUrl')} name="gateway_url"><Input placeholder="https://voice-provider.example.com" /></Form.Item>
           <Row gutter={12}><Col span={12}><Form.Item label={t('callerId')} name="caller_id"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('concurrency')} name="max_concurrency"><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col span={4}><Form.Item label={t('enabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col></Row>
         </Form>
@@ -564,15 +566,17 @@ function SettingSectionForm({ section }: { section: SettingSection }) {
   const queryClient = useQueryClient()
   const [form] = Form.useForm<Record<string, string | number | boolean>>()
   const query = useSecureQuery<AdminSetting>(['admin-setting', section], `/api/v1/admin/settings/${section}`)
+  const capacityOverview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview', section === 'capacity')
   useEffect(() => { if (query.data) form.setFieldsValue(query.data.data) }, [form, query.data])
   const mutation = useMutation({
     mutationFn: (values: Record<string, string | number | boolean>) => apiRequest<AdminSetting>(`/api/v1/admin/settings/${section}`, { method: 'PUT', body: JSON.stringify({ data: values }) }, token),
-    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-setting', section] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
+    onSuccess: () => { message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['admin-setting', section] }); void queryClient.invalidateQueries({ queryKey: ['system-overview'] }); void queryClient.invalidateQueries({ queryKey: ['audit-logs'] }) },
     onError: (error) => message.error(error.message),
   })
   const fields: Record<SettingSection, ReactNode> = {
-    ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></>,
-    sms: <><Form.Item label={t('smsEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item><Row gutter={16}><Col span={12}><Form.Item label={t('provider')} name="provider"><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('senderId')} name="sender_id"><Input /></Form.Item></Col></Row><Form.Item label={t('endpoint')} name="endpoint"><Input /></Form.Item><Form.Item label={t('hangupTemplate')} name="hangup_template"><Input.TextArea rows={4} /></Form.Item></>,
+    capacity: <><Alert type="warning" showIcon message={t('capacityChangeWarning')} description={t('capacityChangeDescription')} style={{ marginBottom: 16 }} /><Row gutter={16}><Col xs={24} lg={12}><Form.Item label={t('tenantCallCapacity')} name="max_concurrent_calls" rules={[{ required: true }]} extra={t('tenantCallCapacityHint')}><InputNumber min={1} max={10000} className="full-width" /></Form.Item></Col><Col xs={24} lg={12}><Card size="small" loading={capacityOverview.isLoading}><Descriptions column={1} size="small" items={[{ key: 'effective', label: t('effectiveCapacity'), children: capacityOverview.data?.capacity.effective_max_concurrent_calls ?? '-' }, { key: 'line', label: t('lineCapacity'), children: capacityOverview.data?.capacity.line_max_concurrency ?? t('notLimited') }, { key: 'active', label: t('activeCalls'), children: capacityOverview.data?.capacity.active_calls ?? '-' }, { key: 'available', label: t('availableSlots'), children: capacityOverview.data?.capacity.available_slots ?? '-' }, { key: 'source', label: t('limitingSource'), children: capacityOverview.data?.capacity.limiting_source ? t(capacityOverview.data.capacity.limiting_source) : '-' }]} /></Card></Col></Row></>,
+    ai: <><Row gutter={16}><Col span={8}><Form.Item label={t('aiEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item></Col><Col span={16}><Form.Item label={t('agentUrl')} name="agent_url" rules={[{ required: true }]}><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={12}><Form.Item label={t('llmProvider')} name="llm_provider"><Select options={[{ value: 'rule', label: '规则模式（本地）' }, { value: 'openai-compatible', label: 'OpenAI-compatible' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('llmModel')} name="llm_model"><Input /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('asrProvider')} name="asr_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('ttsProvider')} name="tts_provider"><Input /></Form.Item></Col><Col span={8}><Form.Item label={t('voice')} name="voice"><Input /></Form.Item></Col></Row><Form.Item label={t('language')} name="language"><Select options={[{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]} /></Form.Item></>,
+    sms: <><Form.Item label={t('smsEnabled')} name="enabled" valuePropName="checked"><Switch /></Form.Item><Row gutter={16}><Col span={12}><Form.Item label={t('provider')} name="provider"><Select options={[{ value: 'mock', label: 'Mock（仅测试）' }, { value: 'http', label: 'HTTP Bridge' }]} /></Form.Item></Col><Col span={12}><Form.Item label={t('senderId')} name="sender_id"><Input /></Form.Item></Col></Row><Form.Item label={t('endpoint')} name="endpoint"><Input /></Form.Item><Form.Item label={t('hangupTemplate')} name="hangup_template"><Input.TextArea rows={4} /></Form.Item></>,
     compliance: <><Row gutter={16}><Col span={8}><Form.Item label={t('dncEnforced')} name="dnc_enforced" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('recordingNotice')} name="recording_notice" valuePropName="checked"><Switch /></Form.Item></Col><Col span={8}><Form.Item label={t('maxAttemptsDay')} name="max_attempts_per_day"><InputNumber min={1} max={20} className="full-width" /></Form.Item></Col></Row><Row gutter={16}><Col span={8}><Form.Item label={t('startHour')} name="allowed_start_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('endHour')} name="allowed_end_hour"><InputNumber min={0} max={23} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('timezone')} name="timezone"><Input /></Form.Item></Col></Row></>,
     integration: <><Form.Item label={t('callbackEnabled')} name="callback_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('webhookBaseUrl')} name="webhook_base_url"><Input /></Form.Item><Form.Item label={t('webhookTimeout')} name="webhook_timeout_sec"><InputNumber min={1} max={120} addonAfter={t('seconds')} /></Form.Item></>,
   }
@@ -586,6 +590,7 @@ export function SettingsPage() {
       <PageTitle title={t('settings')} description={t('settingsHint')} />
       <Alert type="info" showIcon message={t('settingsSecurityHint')} style={{ marginBottom: 16 }} />
       <Tabs items={[
+        { key: 'capacity', label: <Space><CloudServerOutlined />{t('capacitySettings')}</Space>, children: <SettingSectionForm section="capacity" /> },
         { key: 'ai', label: <Space><ControlOutlined />{t('aiVoice')}</Space>, children: <SettingSectionForm section="ai" /> },
         { key: 'sms', label: <Space><SoundOutlined />{t('smsSettings')}</Space>, children: <SettingSectionForm section="sms" /> },
         { key: 'compliance', label: <Space><SafetyCertificateOutlined />{t('compliance')}</Space>, children: <SettingSectionForm section="compliance" /> },
@@ -612,9 +617,10 @@ export function SystemPage() {
     <>
       <PageTitle title={t('system')} description={t('systemHint')} action={<Button icon={<ReloadOutlined />} onClick={() => { void overview.refetch(); void audits.refetch() }}>{t('refresh')}</Button>} />
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={10}><Card title={<Space><CloudServerOutlined />{t('serviceHealth')}</Space>} loading={overview.isLoading}><Descriptions column={1} bordered size="small" items={Object.entries(overview.data?.services || {}).map(([key, value]) => ({ key, label: serviceLabels[key] || key, children: <Tag color={value === 'ok' ? 'success' : value === 'unconfigured' ? 'warning' : 'error'}>{value}</Tag> }))} /></Card></Col>
+        <Col xs={24} lg={10}><Card title={<Space><CloudServerOutlined />{t('serviceHealth')}</Space>} loading={overview.isLoading}><Descriptions column={1} bordered size="small" items={Object.entries(overview.data?.services || {}).map(([key, value]) => ({ key, label: serviceLabels[key] || key, children: <Tag color={value === 'ok' ? 'success' : ['unconfigured', 'mock'].includes(value) ? 'warning' : 'error'}>{value}</Tag> }))} /></Card></Col>
         <Col xs={24} lg={14}><Row gutter={[16, 16]}><Col span={12}><Card><Statistic title={t('enabledUsers')} value={overview.data?.resources.enabled_users || 0} suffix={`/ ${overview.data?.resources.users || 0}`} prefix={<TeamOutlined />} /></Card></Col><Col span={12}><Card><Statistic title={t('enabledLines')} value={overview.data?.resources.enabled_lines || 0} suffix={`/ ${overview.data?.resources.lines || 0}`} prefix={<PhoneOutlined />} /></Card></Col><Col span={24}><Card title={t('callStatusDistribution')}><Space wrap>{Object.entries(overview.data?.call_statuses || {}).map(([key, value]) => <Tag key={key} color="blue">{t(key, { defaultValue: key })}: {value}</Tag>)}{!Object.keys(overview.data?.call_statuses || {}).length && <Text type="secondary">{t('empty')}</Text>}</Space></Card></Col></Row></Col>
       </Row>
+      <Card title={<Space><ControlOutlined />{t('capacityOverview')}</Space>} className="audit-card" loading={overview.isLoading}><Row gutter={[16, 16]}><Col xs={12} lg={6}><Statistic title={t('configuredCapacity')} value={overview.data?.capacity.configured_max_concurrent_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('effectiveCapacity')} value={overview.data?.capacity.effective_max_concurrent_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('activeCalls')} value={overview.data?.capacity.active_calls || 0} /></Col><Col xs={12} lg={6}><Statistic title={t('availableSlots')} value={overview.data?.capacity.available_slots || 0} /></Col></Row></Card>
       <Card title={<Space><AuditOutlined />{t('auditLogs')}</Space>} className="audit-card"><Table<AuditLog> rowKey="id" loading={audits.isLoading} dataSource={audits.data || []} pagination={{ pageSize: 12 }} scroll={{ x: 900 }} columns={[
         { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
         { title: t('operator'), dataIndex: 'actor_username', width: 150 },
@@ -667,7 +673,7 @@ export function AgentWorkspacePage() {
             </Form>
           </Card>
           <Card className="agent-profile-card" title={t('profile')}>
-            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }, { key: 'status', label: t('agentStatus'), children: <BadgeStatus text={t('ready')} /> }]} />
+            <Descriptions column={1} size="small" items={[{ key: 'name', label: t('contactName'), children: user?.full_name }, { key: 'id', label: t('username'), children: user?.username }]} />
           </Card>
         </Col>
         <Col xs={24} xl={15}>
@@ -678,8 +684,4 @@ export function AgentWorkspacePage() {
       </Row>
     </>
   )
-}
-
-function BadgeStatus({ text }: { text: string }) {
-  return <Space><span className="status-dot" />{text}</Space>
 }

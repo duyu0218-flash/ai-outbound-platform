@@ -27,6 +27,7 @@ from app.main import app  # noqa: E402
 from app.models import Campaign, CallEvent, CallMode, CallSession, CallStatus, SmsLog, TelephonyLine, User  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
+from app.services import business_callbacks  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
     dispatch_call_ids,
@@ -466,6 +467,75 @@ async def test_tenant_line_capacity_is_enforced_across_dispatch_batches(client: 
 
 
 @pytest.mark.asyncio
+async def test_admin_capacity_setting_takes_effect_without_restart(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    saved = client.put(
+        "/api/v1/admin/settings/capacity",
+        headers=headers,
+        json={"data": {"max_concurrent_calls": 1}},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["data"]["max_concurrent_calls"] == 1
+
+    overview = client.get("/api/v1/admin/system-overview", headers=headers)
+    assert overview.status_code == 200, overview.text
+    assert overview.json()["capacity"]["configured_max_concurrent_calls"] == 1
+    assert overview.json()["capacity"]["effective_max_concurrent_calls"] == 1
+
+    class CapturingAdapter:
+        async def dial(self, *, call_id, phone, webhook_url, metadata):
+            return {"provider_call_id": f"runtime-capacity-{call_id}"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: CapturingAdapter())
+    call_ids: list[str] = []
+    with session_scope() as session:
+        for existing_call in session.exec(
+            select(CallSession).where(
+                CallSession.tenant_id == 1,
+                CallSession.status.in_(
+                    {
+                        CallStatus.DIALING,
+                        CallStatus.ANSWERED,
+                        CallStatus.IN_AI,
+                        CallStatus.WAITING_HUMAN,
+                        CallStatus.HANDOFF_TRANSFERRING,
+                    }
+                ),
+            )
+        ).all():
+            existing_call.status = CallStatus.COMPLETED
+            session.add(existing_call)
+        session.commit()
+        for suffix in range(2):
+            call = create_call(
+                session,
+                tenant_id=1,
+                phone=f"138001383{suffix:02d}",
+                mode=CallMode.HUMAN_ONLY,
+                campaign_id=None,
+                contact_id=None,
+            )
+            call_ids.append(str(call.id))
+
+    try:
+        result = await dispatch_call_ids(call_ids, max_concurrency=10)
+        assert result["succeeded"] == 1
+        assert result["failed"] == 1
+        with session_scope() as session:
+            states = [session.get(CallSession, UUID(call_id)).status for call_id in call_ids]
+            assert states.count(CallStatus.DIALING) == 1
+            assert states.count(CallStatus.QUEUED) == 1
+    finally:
+        reset = client.put(
+            "/api/v1/admin/settings/capacity",
+            headers=headers,
+            json={"data": {"max_concurrent_calls": 20}},
+        )
+        assert reset.status_code == 200, reset.text
+
+
+@pytest.mark.asyncio
 async def test_due_campaign_retry_is_persisted_and_dispatched(client: TestClient, monkeypatch):
     token = _login(client, "admin")
     headers = _bearer(token)
@@ -545,7 +615,13 @@ async def test_ai_events_are_extensible_and_mode_uses_wire_value(client: TestCli
         captured["mode"] = kwargs["mode"]
         return AiTurnResult(action="speak", tts_text="ok")
 
+    class SpeakingAdapter:
+        async def speak(self, **kwargs):
+            captured["spoken"] = kwargs["text"]
+            return {"result": "spoken"}
+
     monkeypatch.setattr(dispatcher, "request_ai_turn", _fake_ai_turn)
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_: SpeakingAdapter())
     await dispatcher.run_ai_turn(call_id=call_id, transcript="hello")
 
     with session_scope() as session:
@@ -557,6 +633,114 @@ async def test_ai_events_are_extensible_and_mode_uses_wire_value(client: TestCli
         ).all()
         assert "ai_start" in event_types
     assert captured["mode"] == "ai_only"
+    assert captured["spoken"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_business_callback_posts_and_records_delivery(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    updated = client.put(
+        "/api/v1/admin/settings/integration",
+        headers=headers,
+        json={
+            "data": {
+                "callback_enabled": True,
+                "webhook_base_url": "https://customer.example.com/callback",
+                "webhook_timeout_sec": 5,
+            }
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    with session_scope() as session:
+        call = create_call(
+            session,
+            tenant_id=1,
+            phone="13800138014",
+            mode=CallMode.HUMAN_ONLY,
+            campaign_id=None,
+            contact_id=None,
+            max_attempts=1,
+        )
+        call_id = call.id
+
+    delivered: dict[str, object] = {}
+
+    class FakeResponse:
+        status_code = 204
+
+        def raise_for_status(self):
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            delivered["timeout"] = kwargs["timeout"]
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return None
+
+        async def post(self, url, json):
+            delivered["url"] = url
+            delivered["payload"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(business_callbacks.httpx, "AsyncClient", FakeClient)
+    await business_callbacks.deliver_business_callback(
+        tenant_id=1,
+        call_id=call_id,
+        event_type="call.status",
+        data={"status": "completed"},
+    )
+    assert delivered["url"] == "https://customer.example.com/callback"
+    assert delivered["timeout"] == 5
+    assert delivered["payload"]["call_id"] == str(call_id)
+    with session_scope() as session:
+        events = session.exec(select(CallEvent).where(CallEvent.call_session_id == call_id)).all()
+        assert any(event.event_type == "business_callback_delivered" for event in events)
+    disabled = client.put(
+        "/api/v1/admin/settings/integration",
+        headers=headers,
+        json={
+            "data": {
+                "callback_enabled": False,
+                "webhook_base_url": "",
+                "webhook_timeout_sec": 10,
+            }
+        },
+    )
+    assert disabled.status_code == 200, disabled.text
+
+
+def test_agent_handover_assigns_authenticated_agent(client: TestClient):
+    agent_token = _login(client, "1001@test")
+    with session_scope() as session:
+        agent = session.exec(select(User).where(User.username == "1001@test")).first()
+        assert agent is not None
+        call = create_call(
+            session,
+            tenant_id=agent.tenant_id,
+            phone="13800138015",
+            mode=CallMode.AI_HANDOFF,
+            campaign_id=None,
+            contact_id=None,
+            max_attempts=1,
+        )
+        call.status = CallStatus.IN_AI
+        session.add(call)
+        session.commit()
+        call_id = call.id
+        agent_id = agent.id
+
+    response = client.post(
+        f"/api/v1/calls/{call_id}/handover?reason=agent_accept",
+        headers=_bearer(agent_token),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["human_agent_id"] == agent_id
+    assert response.json()["status"] == "waiting_human"
 
 
 @pytest.mark.asyncio
@@ -680,8 +864,8 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
         "/api/v1/admin/lines",
         headers=headers,
         json={
-            "name": "acceptance-sip",
-            "provider": "sip",
+            "name": "acceptance-http-bridge",
+            "provider": "http",
             "gateway_url": "https://voice.example.com",
             "caller_id": "4008000000",
             "max_concurrency": 20,

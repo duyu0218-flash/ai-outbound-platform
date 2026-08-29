@@ -175,6 +175,7 @@ class CallSessionOut(BaseModel):
     campaign_id: Optional[int] = None
     contact_id: Optional[int] = None
     handoff_reason: Optional[str] = None
+    human_agent_id: Optional[int] = None
     recording_url: Optional[str] = None
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
@@ -335,7 +336,7 @@ class AdminUserOut(UserOut):
 
 class TelephonyLineCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    provider: str = Field(default="sip", min_length=1, max_length=100)
+    provider: str = Field(default="http", min_length=1, max_length=100)
     gateway_url: str = Field(default="", max_length=1000)
     caller_id: str = Field(default="", max_length=64)
     max_concurrency: int = Field(default=10, ge=1, le=10_000)
