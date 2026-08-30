@@ -137,6 +137,13 @@ function StatusTag({ status }: { status: string }) {
   return <Tag color={colors[status] || 'default'}>{t(status, { defaultValue: status })}</Tag>
 }
 
+function formatRateLabel(numerator: number, denominator: number, emptyText: string): string {
+  if (denominator <= 0) {
+    return emptyText
+  }
+  return `${Math.round((numerator / denominator) * 100)}%`
+}
+
 export function LoginPage({ role }: { role: Role }) {
   const { t, i18n } = useTranslation()
   const { login, user } = useAuth()
@@ -207,10 +214,13 @@ export function DashboardPage() {
   const dashboard = useSecureQuery<AdminDashboard>(['admin-dashboard', String(days)], `/api/v1/admin/dashboard?days=${days}`)
   const calls = useSecureQuery<CallSession[]>(['calls', 'dashboard'], '/api/v1/calls?page=1&size=200')
   const loading = dashboard.isLoading || calls.isLoading
+  const periodSummary = dashboard.data?.period
+  const reachedRate = periodSummary ? formatRateLabel(periodSummary.reached, periodSummary.calls, t('empty')) : t('empty')
+  const interestedRate = periodSummary ? formatRateLabel(periodSummary.interested, periodSummary.reached, t('empty')) : t('empty')
   const stats = [
     { title: t('periodCalls'), value: dashboard.data?.period.calls || 0, icon: <PhoneOutlined />, color: 'blue' },
-    { title: t('reachedCalls'), value: dashboard.data?.period.reached || 0, suffix: `${dashboard.data?.period.reach_rate || 0}%`, icon: <CustomerServiceOutlined />, color: 'green' },
-    { title: t('interestedLeads'), value: dashboard.data?.period.interested || 0, suffix: `${dashboard.data?.period.interest_rate || 0}%`, icon: <RocketOutlined />, color: 'orange' },
+    { title: t('reachedCalls'), value: dashboard.data?.period.reached || 0, suffix: reachedRate, icon: <CustomerServiceOutlined />, color: 'green' },
+    { title: t('interestedLeads'), value: dashboard.data?.period.interested || 0, suffix: interestedRate, icon: <RocketOutlined />, color: 'orange' },
     { title: t('averageQaScore'), value: dashboard.data?.period.average_qa_score || 0, suffix: '/ 100', icon: <AuditOutlined />, color: 'purple' },
   ]
   return (
@@ -529,7 +539,7 @@ export function ReportPage() {
       {report.isError && <Alert style={{ marginBottom: 16 }} showIcon type="error" message={t('loadFailed')} description={report.error.message} />}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('total')} value={report.data?.summary?.calls || 0} /></Card></Col>
-        <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('reachedCalls')} value={report.data?.summary?.reached || 0} suffix={`(${report.data?.summary ? Math.round((report.data.summary.reached / Math.max(report.data.summary.calls, 1)) * 100) : 0}%)`} /></Card></Col>
+        <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('reachedCalls')} value={report.data?.summary?.reached || 0} suffix={`(${report.data?.summary ? formatRateLabel(report.data.summary.reached, report.data.summary.calls, t('empty')) : t('empty')})`} /></Card></Col>
         <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('handoff')} value={report.data?.summary?.handoff || 0} /></Card></Col>
       </Row>
       <Card style={{ marginTop: 16 }} title={t('callReportRows')} loading={report.isLoading}>
