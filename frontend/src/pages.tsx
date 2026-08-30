@@ -1423,7 +1423,7 @@ export function AgentWorkspacePage() {
   })
   const respondHandoff = useMutation({
     mutationFn: ({ item, action }: { item: HandoffRequest; action: 'accept' | 'reject' }) => apiRequest<HandoffRequest>(`/api/v1/calls/${item.call_session_id}/handoffs/${item.id}/${action}`, { method: 'POST' }, token),
-    onSuccess: (_, variables) => { message.success(t('operationSuccess')); if (variables.action === 'accept') void savePresence('busy'); void queryClient.invalidateQueries({ queryKey: ['handoffs'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onSuccess: (_, variables) => { if (variables.action === 'accept') { setPresenceStatus('busy'); presenceRef.current = 'busy'; setPresenceError(false) } message.success(t('operationSuccess')); void queryClient.invalidateQueries({ queryKey: ['handoffs'] }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])

@@ -57,7 +57,7 @@ from app.models import (  # noqa: E402
 from app.schemas import AiTurnResult  # noqa: E402
 from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
-from app.services import business_callbacks  # noqa: E402
+from app.services import business_callbacks, health  # noqa: E402
 from app.services.admin_settings import SETTING_DEFAULTS  # noqa: E402
 from app.services.knowledge import retrieve_knowledge  # noqa: E402
 from app.services.retention import purge_expired_voice_data  # noqa: E402
@@ -585,13 +585,113 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
     agent_queue = client.get("/api/v1/handoffs?state=waiting", headers=_bearer(agent_token))
     assert agent_queue.status_code == 200, agent_queue.text
     assert any(item["id"] == handoff_id for item in agent_queue.json())
-    accepted = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
+    with session_scope() as session:
+        agent = session.exec(select(User).where(User.username == "1001@test")).first()
+        assert agent is not None
+        agent_id = agent.id
+    accepted = client.post(
+        f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+        headers=_bearer(agent_token),
+    )
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["state"] == "accepted"
     assert captured["call_id"] == str(call_id)
+    assert captured["target_group"] == f"agent:{agent_id}"
     assert client.get(f"/api/v1/calls/{call_id}", headers=headers).json()["status"] == "handoff_transferring"
-    second_accept = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
+    with session_scope() as session:
+        persisted_call = session.get(CallSession, call_id)
+        persisted_agent = session.get(User, agent_id)
+        assert persisted_call is not None and persisted_call.human_agent_id == agent_id
+        assert persisted_agent is not None and persisted_agent.agent_status == "busy"
+    second_accept = client.post(
+        f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+        headers=_bearer(agent_token),
+    )
     assert second_accept.status_code == 409
+
+
+def test_telephony_readiness_cascades_to_gateway_readyz(monkeypatch):
+    settings = health.get_settings()
+    monkeypatch.setattr(settings, "telephony_provider", "http")
+    monkeypatch.setattr(settings, "telephony_provider_endpoint", "http://voice-gateway:8002")
+    probes: list[tuple[str, str]] = []
+
+    def fake_probe(base_url: str, path: str, timeout: float = 2.0) -> str:
+        probes.append((base_url, path))
+        return "ok"
+
+    monkeypatch.setattr(health, "_probe_http", fake_probe)
+    assert health.telephony_http_health_check() == "ok"
+    assert probes == [("http://voice-gateway:8002", "/readyz")]
+
+    class Result:
+        def all(self):
+            return [
+                TelephonyLine(
+                    tenant_id=1,
+                    name="primary",
+                    provider="http",
+                    gateway_url="https://tenant-gateway.example.com",
+                )
+            ]
+
+    class FakeSession:
+        def exec(self, _query):
+            return Result()
+
+    probes.clear()
+    monkeypatch.setattr(settings, "telephony_provider", "tenant")
+    assert health.tenant_telephony_health_check(FakeSession(), 1) == "ok"
+    assert probes == [("https://tenant-gateway.example.com", "/readyz")]
+
+
+def test_public_handoff_transfer_failure_releases_agent(client: TestClient, monkeypatch):
+    admin_token = _login(client, "admin")
+    created = client.post(
+        "/api/v1/calls",
+        headers=_bearer(admin_token),
+        json={"phone": "13800138104", "mode": "human_only", "max_attempts": 1},
+    )
+    assert created.status_code == 200, created.text
+    call_id = UUID(created.json()["id"])
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        call.status = CallStatus.WAITING_HUMAN
+        handoff = HandoffRequest(
+            tenant_id=call.tenant_id,
+            call_session_id=call.id,
+            state=HandoffState.WAITING,
+            reason="transfer-failure",
+        )
+        session.add(call)
+        session.add(handoff)
+        session.commit()
+        session.refresh(handoff)
+        handoff_id = handoff.id
+
+    class FailingTransferAdapter:
+        async def transfer_to_human(self, **_kwargs):
+            raise RuntimeError("PBX transfer unavailable")
+
+    monkeypatch.setattr(
+        "app.api.routers.voice_operations.get_telephony_adapter",
+        lambda **_: FailingTransferAdapter(),
+    )
+    agent_token = _login(client, "1001@test")
+    failed = client.post(
+        f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+        headers=_bearer(agent_token),
+    )
+    assert failed.status_code == 502, failed.text
+    with session_scope() as session:
+        persisted = session.get(HandoffRequest, handoff_id)
+        agent = session.exec(select(User).where(User.username == "1001@test")).first()
+        call = session.get(CallSession, call_id)
+        assert persisted is not None and persisted.state == HandoffState.WAITING
+        assert persisted.assigned_agent_id is None
+        assert agent is not None and agent.agent_status == "ready"
+        assert call is not None and call.status == CallStatus.WAITING_HUMAN
 
 
 def test_quality_review_queue_prioritizes_pending_and_requires_supervisor(client: TestClient):
