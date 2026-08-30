@@ -36,6 +36,7 @@ from app.models import (  # noqa: E402
     CallMode,
     CallSession,
     CallStatus,
+    Contact,
     HandoffRequest,
     HandoffState,
     KnowledgeItem,
@@ -392,6 +393,92 @@ def test_public_runtime_and_admin_business_dashboard(client: TestClient):
     assert row["interested"] == 1
     assert row["reach_rate"] == 50.0
     assert row["interest_rate"] == 100.0
+
+
+def test_contact_operations_reports_groups_and_billing(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    created = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={
+            "phone": "13800138129",
+            "name": "report-contact",
+            "tags": "ci-report-group,priority",
+            "consent_state": "consented",
+        },
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["dnc_reason"] is None
+    contact_id = created.json()["id"]
+
+    with session_scope() as session:
+        contact = session.get(Contact, contact_id)
+        assert contact is not None
+        campaign = Campaign(
+            tenant_id=1,
+            name="report-regression",
+            mode=CallMode.HUMAN_ONLY,
+            status="completed",
+        )
+        session.add(campaign)
+        session.flush()
+        session.add(
+            CallSession(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                contact_id=contact_id,
+                phone=contact.phone,
+                mode=CallMode.HUMAN_ONLY,
+                status=CallStatus.COMPLETED,
+            )
+        )
+        session.add(
+            CallSession(
+                tenant_id=1,
+                campaign_id=campaign.id,
+                contact_id=contact_id,
+                phone=contact.phone,
+                mode=CallMode.HUMAN_ONLY,
+                status=CallStatus.NO_ANSWER,
+            )
+        )
+        session.commit()
+        campaign_id = campaign.id
+
+    report = client.get(
+        "/api/v1/admin/call-reports?dimension=campaign&granularity=day&days=30",
+        headers=headers,
+    )
+    assert report.status_code == 200, report.text
+    report_row = next(row for row in report.json()["rows"] if row["key"] == str(campaign_id))
+    assert report_row["calls"] == 2
+    assert report_row["reached"] == 1
+    assert report_row["completed"] == 1
+    assert report_row["no_answer"] == 1
+    assert report_row["loss"] == 1
+
+    groups = client.get("/api/v1/admin/contact-groups?days=30", headers=headers)
+    assert groups.status_code == 200, groups.text
+    group_row = next(row for row in groups.json()["rows"] if row["key"] == "ci-report-group")
+    assert group_row["contacts"] == 1
+    assert group_row["calls"] == 2
+    assert group_row["reached"] == 1
+    assert group_row["completed"] == 1
+    assert group_row["no_answer"] == 1
+
+    billing = client.get(
+        "/api/v1/admin/billing?dimension=campaign&days=30&telephony_unit_price_per_minute=0.1&ai_unit_price_per_minute=0&sms_unit_price=0",
+        headers=headers,
+    )
+    assert billing.status_code == 200, billing.text
+    billing_row = next(row for row in billing.json()["rows"] if row["key"] == str(campaign_id))
+    assert billing_row["calls"] == 2
+    assert billing_row["billable_calls"] == 1
+    assert billing_row["reached"] == 1
+    assert billing_row["completed"] == 1
+    assert billing_row["no_answer"] == 1
+    assert billing_row["estimated_cost"] == 0.1
 
 
 def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypatch):

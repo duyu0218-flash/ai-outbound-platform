@@ -17,6 +17,9 @@ class ContactCreate(BaseModel):
 
 
 class ContactOut(ContactCreate):
+    # Empty input is stored as SQL NULL, so response validation must accept
+    # existing and newly-created contacts without a DNC reason.
+    dnc_reason: Optional[str] = None
     id: int
     tenant_id: int
     created_at: datetime
