@@ -28,9 +28,130 @@ export interface Contact {
   tags: string
   consent_state: 'consented' | 'not_consented' | 'revoked' | 'unknown'
   dnc: boolean
+  dnc_reason?: string
   timezone?: string
   created_at: string
   updated_at: string
+}
+
+export interface ContactImportItem {
+  phone: string
+  name?: string
+  tags?: string
+  consent_state: Contact['consent_state']
+  dnc: boolean
+  dnc_reason?: string
+  timezone?: string
+}
+
+export interface ContactImportResult {
+  total: number
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  errors: string[]
+}
+
+export interface ContactBatchDncResult {
+  total: number
+  updated: number
+  skipped: number
+  missing_contact_ids: number[]
+}
+
+export interface AdminCallReportItem {
+  key: string
+  label: string
+  calls: number
+  reached: number
+  handoff: number
+  completed: number
+  failed: number
+  no_answer: number
+  loss: number
+}
+
+export interface AdminCallReportTrendPoint {
+  bucket: string
+  calls: number
+  reached: number
+  completed: number
+  failed: number
+  handoff: number
+}
+
+export interface AdminCallReportPayload {
+  dimension: 'campaign' | 'agent' | 'line'
+  window: { days: number; granularity: 'day' | 'hour'; start: string; end: string }
+  summary: AdminCallReportItem
+  rows: AdminCallReportItem[]
+  trend: AdminCallReportTrendPoint[]
+}
+
+export interface AdminContactGroupItem {
+  key: string
+  label: string
+  contacts: number
+  dnc_contacts: number
+  calls: number
+  reached: number
+  handoff: number
+  completed: number
+  failed: number
+  no_answer: number
+  loss: number
+}
+
+export interface AdminContactGroupPayload {
+  window: { days: number; start: string; end: string }
+  summary: AdminContactGroupItem
+  rows: AdminContactGroupItem[]
+}
+
+export interface AdminBillingRow {
+  key: string
+  label: string
+  calls: number
+  billable_calls: number
+  reached: number
+  handoff: number
+  completed: number
+  failed: number
+  no_answer: number
+  loss: number
+  ai_minutes: number
+  sms_count: number
+  estimated_cost: number
+}
+
+export interface AdminBillingSummary {
+  calls: number
+  billable_calls: number
+  reached: number
+  handoff: number
+  completed: number
+  failed: number
+  no_answer: number
+  loss: number
+  ai_minutes: number
+  sms_count: number
+  ai_unit_price_per_minute: number
+  telephony_unit_price_per_minute: number
+  sms_unit_price: number
+  estimated_cost: number
+}
+
+export interface AdminBillingPayload {
+  dimension: 'campaign' | 'agent' | 'line'
+  window: { days: number; start: string; end: string }
+  rates: {
+    telephony_unit_price_per_minute: number
+    ai_unit_price_per_minute: number
+    sms_unit_price: number
+  }
+  summary: AdminBillingSummary
+  rows: AdminBillingRow[]
 }
 
 export interface ScriptTemplate {

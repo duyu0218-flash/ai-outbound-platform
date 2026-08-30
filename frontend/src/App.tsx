@@ -9,9 +9,13 @@ import {
   CallsPage,
   CampaignsPage,
   ContactsPage,
+  ContactOperationsPage,
   DashboardPage,
   LinesPage,
   LoginPage,
+  ReportPage,
+  BillingPanelPage,
+  GroupMonitorPage,
   KnowledgePage,
   QualityReviewPage,
   ScriptsPage,
@@ -47,6 +51,10 @@ export default function App() {
               <Route path="scripts" element={<ScriptsPage />} />
               <Route path="campaigns" element={<CampaignsPage />} />
               <Route path="calls" element={<CallsPage role="admin" />} />
+              <Route path="contacts-operations" element={<ContactOperationsPage />} />
+              <Route path="reports" element={<ReportPage />} />
+              <Route path="group-monitor" element={<GroupMonitorPage />} />
+              <Route path="billing" element={<BillingPanelPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="lines" element={<LinesPage />} />
               <Route path="knowledge" element={<KnowledgePage />} />

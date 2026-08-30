@@ -12,6 +12,7 @@ class ContactCreate(BaseModel):
     tags: str = Field(default="", max_length=2000)
     consent_state: ConsentState = ConsentState.UNKNOWN
     dnc: bool = False
+    dnc_reason: str = Field(default="", max_length=500)
     timezone: Optional[str] = Field(default="Asia/Shanghai", max_length=64)
 
 
@@ -27,9 +28,130 @@ class ContactPatch(BaseModel):
     tags: Optional[str] = None
     consent_state: Optional[ConsentState] = None
     dnc: Optional[bool] = None
+    dnc_reason: Optional[str] = None
     timezone: Optional[str] = Field(default=None, max_length=64)
 
 
+class ContactImportItem(BaseModel):
+    phone: str = Field(min_length=1, max_length=32)
+    name: str = ""
+    tags: str = ""
+    consent_state: ConsentState = ConsentState.UNKNOWN
+    dnc: bool = False
+    dnc_reason: str = ""
+    timezone: str = Field(default="Asia/Shanghai", max_length=64)
+
+
+class ContactImportResult(BaseModel):
+    total: int
+    created: int
+    updated: int
+    skipped: int
+    failed: int
+    errors: list[str]
+
+
+class ContactBatchDncPatch(BaseModel):
+    contact_ids: list[int] = Field(min_length=1)
+    dnc: bool
+    dnc_reason: str = ""
+
+
+class AdminCallReportItem(BaseModel):
+    key: str
+    label: str
+    calls: int = 0
+    reached: int = 0
+    handoff: int = 0
+    completed: int = 0
+    failed: int = 0
+    no_answer: int = 0
+    loss: int = 0
+
+
+class AdminReportTrendPoint(BaseModel):
+    bucket: str
+    calls: int = 0
+    reached: int = 0
+    completed: int = 0
+    failed: int = 0
+    handoff: int = 0
+
+
+class AdminCallReportPayload(BaseModel):
+    dimension: str
+    window: dict[str, str | int]
+    summary: AdminCallReportItem
+    rows: list[AdminCallReportItem]
+    trend: list[AdminReportTrendPoint]
+
+
+class AdminContactGroupItem(BaseModel):
+    key: str
+    label: str
+    contacts: int = 0
+    dnc_contacts: int = 0
+    calls: int = 0
+    reached: int = 0
+    handoff: int = 0
+    completed: int = 0
+    failed: int = 0
+    no_answer: int = 0
+    loss: int = 0
+
+
+class AdminContactGroupPayload(BaseModel):
+    window: dict[str, str | int]
+    summary: AdminContactGroupItem
+    rows: list[AdminContactGroupItem]
+
+
+class AdminBillingRow(BaseModel):
+    key: str
+    label: str
+    calls: int = 0
+    billable_calls: int = 0
+    reached: int = 0
+    handoff: int = 0
+    completed: int = 0
+    failed: int = 0
+    no_answer: int = 0
+    loss: int = 0
+    ai_minutes: float = 0
+    sms_count: int = 0
+    estimated_cost: float = 0
+
+
+class AdminBillingSummary(BaseModel):
+    calls: int = 0
+    billable_calls: int = 0
+    reached: int = 0
+    handoff: int = 0
+    completed: int = 0
+    failed: int = 0
+    no_answer: int = 0
+    loss: int = 0
+    ai_minutes: float = 0
+    sms_count: int = 0
+    ai_unit_price_per_minute: float = 0
+    telephony_unit_price_per_minute: float = 0
+    sms_unit_price: float = 0
+    estimated_cost: float = 0
+
+
+class AdminBillingPayload(BaseModel):
+    dimension: str
+    window: dict[str, str | int]
+    rates: dict[str, float]
+    summary: AdminBillingSummary
+    rows: list[AdminBillingRow]
+
+
+class ContactBatchDncResult(BaseModel):
+    total: int
+    updated: int
+    skipped: int
+    missing_contact_ids: list[int]
 class CampaignCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     script: str = Field(default="", max_length=50_000)

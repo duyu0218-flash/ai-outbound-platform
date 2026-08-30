@@ -1,6 +1,8 @@
 import json
 import logging
+import re
 from datetime import timedelta
+from collections import defaultdict
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -13,8 +15,17 @@ from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
 from ...config import get_settings
 from ...db import get_session
-from ...models import AdminSetting, AuditLog, CallMetric, CallSession, RecordingAsset, SmsLog, TaskOutbox, TaskState, TelephonyLine, User
+from ...models import AdminSetting, AuditLog, Campaign, CallMetric, CallSession, RecordingAsset, SmsLog, TaskOutbox, TaskState, TelephonyLine, User
+from ...models import Contact
 from ...schemas import (
+    AdminBillingPayload,
+    AdminBillingRow,
+    AdminBillingSummary,
+    AdminCallReportItem,
+    AdminCallReportPayload,
+    AdminContactGroupItem,
+    AdminContactGroupPayload,
+    AdminReportTrendPoint,
     AdminPasswordReset,
     AdminSettingOut,
     AdminSettingUpdate,
@@ -41,6 +52,101 @@ router = APIRouter(
 )
 logger = logging.getLogger(__name__)
 settings = get_settings()
+REACHED_STATUSES = {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}
+LOSS_STATUSES = {"failed", "no_answer", "busy", "voicemail"}
+REPORT_DIMENSIONS = {"campaign", "agent", "line"}
+REPORT_GRANULARITIES = {"day", "hour"}
+CONTACT_GROUP_ORPHAN_KEY = "0"
+CONTACT_GROUP_DEFAULT_LABEL = "未分组"
+BILLING_RATES = {
+    "telephony_unit_price_per_minute": 0.0,
+    "ai_unit_price_per_minute": 0.0,
+    "sms_unit_price": 0.0,
+}
+
+
+def _count_row_stats(calls: list[CallSession]) -> tuple[int, int, int, int, int, int]:
+    calls_count = 0
+    reached = 0
+    handoff = 0
+    completed = 0
+    failed = 0
+    no_answer = 0
+    loss = 0
+    for call in calls:
+        calls_count += 1
+        status = str(call.status)
+        if status in REACHED_STATUSES:
+            reached += 1
+        if call.handoff_reason:
+            handoff += 1
+        if status == "completed":
+            completed += 1
+        if status == "failed":
+            failed += 1
+        if status == "no_answer":
+            no_answer += 1
+        if status in LOSS_STATUSES:
+            loss += 1
+    return calls_count, reached, handoff, completed, failed, no_answer, loss
+
+
+def _bucket(created_at, granularity: str) -> str:
+    return created_at.strftime("%Y-%m-%d %H:00") if granularity == "hour" else created_at.strftime("%Y-%m-%d")
+
+
+def _primary_group_from_tags(tags: str | None) -> str:
+    if not tags:
+        return CONTACT_GROUP_DEFAULT_LABEL
+    parts = [part.strip() for part in re.split(r"[;,，]", tags) if part.strip()]
+    return parts[0] if parts else CONTACT_GROUP_DEFAULT_LABEL
+
+
+def _duration_ms_sum(session: Session, tenant_id: int, since: Any, stage: str) -> dict[str, int]:
+    rows = session.exec(
+        select(CallMetric.call_session_id, func.sum(func.coalesce(CallMetric.duration_ms, 0)))
+        .where(
+            CallMetric.tenant_id == tenant_id,
+            CallMetric.created_at >= since,
+            CallMetric.stage == stage,
+        )
+        .group_by(CallMetric.call_session_id)
+    ).all()
+    return {str(call_id): int(total_ms or 0) for call_id, total_ms in rows}
+
+
+def _sms_counts(session: Session, tenant_id: int, since: Any) -> dict[str, int]:
+    rows = session.exec(
+        select(SmsLog.call_session_id, func.count(SmsLog.id))
+        .where(SmsLog.tenant_id == tenant_id, SmsLog.created_at >= since)
+        .group_by(SmsLog.call_session_id)
+    ).all()
+    return {str(call_session_id): int(count) for call_session_id, count in rows if call_session_id is not None}
+
+
+def _dimension_key(call: CallSession, dimension: str) -> str:
+    if dimension == "campaign":
+        return str(call.campaign_id or 0)
+    if dimension == "agent":
+        return str(call.human_agent_id or 0)
+    return str(call.telephony_line_id or 0)
+
+
+def _to_dimension_id(key: str, dimension: str) -> int:
+    try:
+        return int(key)
+    except ValueError:
+        return 0
+
+
+def _dimension_label(key: str, dimension: str, campaign_map: dict[int, str], user_map: dict[int, str], line_map: dict[int, str]) -> str:
+    if key == CONTACT_GROUP_ORPHAN_KEY:
+        return {"campaign": "未绑定任务", "agent": "未分配座席", "line": "未绑定线路"}[dimension]
+    if dimension == "campaign":
+        return campaign_map.get(_to_dimension_id(key), f"Campaign {key}")
+    if dimension == "agent":
+        return user_map.get(_to_dimension_id(key), f"Agent {key}")
+    return line_map.get(_to_dimension_id(key), f"Line {key}")
 
 def _audit(
     session: Session,
@@ -462,6 +568,384 @@ def list_audit_logs(
     if action:
         query = query.where(AuditLog.action == action)
     return session.exec(query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)).all()
+
+
+@router.get("/call-reports", response_model=AdminCallReportPayload)
+def call_reports(
+    dimension: str = Query(default="campaign"),
+    granularity: str = Query(default="day"),
+    days: int = Query(default=30, ge=1, le=3650),
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    if dimension not in REPORT_DIMENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported dimension")
+    if granularity not in REPORT_GRANULARITIES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported granularity")
+
+    tenant_id = current.tenant_id
+    since = utc_now() - timedelta(days=days)
+    calls = session.exec(
+        select(CallSession)
+        .where(CallSession.tenant_id == tenant_id, CallSession.created_at >= since)
+        .order_by(CallSession.created_at.asc())
+    ).all()
+
+    if not calls:
+        return AdminCallReportPayload(
+            dimension=dimension,
+            window={"days": days, "granularity": granularity, "start": since.isoformat(), "end": utc_now().isoformat()},
+            summary=AdminCallReportItem(key="summary", label="全部", calls=0, reached=0, handoff=0, completed=0, failed=0, no_answer=0, loss=0),
+            rows=[],
+            trend=[],
+        )
+
+    campaign_ids = sorted(set(call.campaign_id for call in calls if call.campaign_id))
+    agent_ids = sorted(set(call.human_agent_id for call in calls if call.human_agent_id))
+    line_ids = sorted(set(call.telephony_line_id for call in calls if call.telephony_line_id))
+
+    campaign_map = {
+        campaign_id: campaign_name
+        for campaign_id, campaign_name in session.exec(select(Campaign.id, Campaign.name).where(Campaign.id.in_(campaign_ids))).all()
+    }
+    user_map = {
+        user_id: full_name
+        for user_id, full_name in session.exec(select(User.id, User.full_name).where(User.id.in_(agent_ids))).all()
+    }
+    line_map = {
+        line_id: line_name
+        for line_id, line_name in session.exec(select(TelephonyLine.id, TelephonyLine.name).where(TelephonyLine.id.in_(line_ids))).all()
+    }
+
+    rows_by_key: dict[str, list[CallSession]] = {}
+    trend_by_bucket: dict[str, list[CallSession]] = {}
+
+    for item in calls:
+        key = _dimension_key(item, dimension)
+        rows_by_key.setdefault(key, []).append(item)
+        trend_by_bucket.setdefault(_bucket(item.created_at, granularity), []).append(item)
+
+    rows: list[AdminCallReportItem] = []
+    for key, items in rows_by_key.items():
+        label = _dimension_label(key, dimension, campaign_map, user_map, line_map)
+        calls_count, reached, handoff, completed, failed, no_answer, loss = _count_row_stats(items)
+        rows.append(
+            AdminCallReportItem(
+                key=key,
+                label=label,
+                calls=calls_count,
+                reached=reached,
+                handoff=handoff,
+                completed=completed,
+                failed=failed,
+                no_answer=no_answer,
+                loss=loss,
+            )
+        )
+
+    rows.sort(key=lambda row: row.calls, reverse=True)
+
+    trend = []
+    for bucket, items in sorted(trend_by_bucket.items()):
+        calls_count, reached, handoff, completed, failed, no_answer, loss = _count_row_stats(items)
+        trend.append(
+            AdminReportTrendPoint(
+                bucket=bucket,
+                calls=calls_count,
+                reached=reached,
+                completed=completed,
+                failed=failed,
+                handoff=handoff,
+            )
+        )
+
+    summary_calls, summary_reached, summary_handoff, summary_completed, summary_failed, summary_no_answer, summary_loss = _count_row_stats(calls)
+
+    return AdminCallReportPayload(
+        dimension=dimension,
+        window={"days": days, "granularity": granularity, "start": since.isoformat(), "end": utc_now().isoformat()},
+        summary=AdminCallReportItem(
+            key="summary",
+            label="全部",
+            calls=summary_calls,
+            reached=summary_reached,
+            handoff=summary_handoff,
+            completed=summary_completed,
+            failed=summary_failed,
+            no_answer=summary_no_answer,
+            loss=summary_loss,
+        ),
+        rows=rows,
+        trend=trend,
+    )
+
+
+@router.get("/contact-groups", response_model=AdminContactGroupPayload)
+def contact_groups(
+    days: int = Query(default=30, ge=1, le=3650),
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    tenant_id = current.tenant_id
+    since = utc_now() - timedelta(days=days)
+
+    contact_rows = session.exec(
+        select(Contact.id, Contact.tags, Contact.dnc).where(Contact.tenant_id == tenant_id)
+    ).all()
+    contact_group_by_contact: dict[int, str] = {
+        contact_id: _primary_group_from_tags(tags)
+        for contact_id, tags, _ in contact_rows
+    }
+    dnc_by_contact: dict[int, bool] = {contact_id: dnc for contact_id, _, dnc in contact_rows}
+
+    rows_by_key: dict[str, AdminContactGroupItem] = {}
+    for contact_id, group_key in contact_group_by_contact.items():
+        item = rows_by_key.setdefault(
+            group_key,
+            AdminContactGroupItem(
+                key=group_key,
+                label=group_key,
+                contacts=0,
+                dnc_contacts=0,
+                calls=0,
+                reached=0,
+                handoff=0,
+                completed=0,
+                failed=0,
+                no_answer=0,
+                loss=0,
+            ),
+        )
+        item.contacts += 1
+        if dnc_by_contact.get(contact_id):
+            item.dnc_contacts += 1
+
+    if CONTACT_GROUP_DEFAULT_LABEL not in rows_by_key:
+        rows_by_key[CONTACT_GROUP_DEFAULT_LABEL] = AdminContactGroupItem(
+            key=CONTACT_GROUP_DEFAULT_LABEL,
+            label=CONTACT_GROUP_DEFAULT_LABEL,
+            contacts=0,
+            dnc_contacts=0,
+            calls=0,
+            reached=0,
+            handoff=0,
+            completed=0,
+            failed=0,
+            no_answer=0,
+            loss=0,
+        )
+
+    calls = session.exec(
+        select(CallSession)
+        .where(CallSession.tenant_id == tenant_id, CallSession.created_at >= since)
+        .order_by(CallSession.created_at.asc())
+    ).all()
+
+    summary = AdminContactGroupItem(
+        key="summary",
+        label="全部",
+        contacts=0,
+        dnc_contacts=0,
+        calls=0,
+        reached=0,
+        handoff=0,
+        completed=0,
+        failed=0,
+        no_answer=0,
+        loss=0,
+    )
+
+    for call in calls:
+        group_key = CONTACT_GROUP_DEFAULT_LABEL
+        if call.contact_id is not None and call.contact_id in contact_group_by_contact:
+            group_key = contact_group_by_contact.get(call.contact_id, CONTACT_GROUP_DEFAULT_LABEL)
+        item = rows_by_key.setdefault(
+            group_key,
+            AdminContactGroupItem(key=group_key, label=group_key, contacts=0, dnc_contacts=0, calls=0, reached=0, handoff=0, completed=0, failed=0, no_answer=0, loss=0),
+        )
+
+        item.calls += 1
+        summary.calls += 1
+        status = str(call.status)
+        if status in REACHED_STATUSES:
+            item.reached += 1
+            summary.reached += 1
+        if call.handoff_reason:
+            item.handoff += 1
+            summary.handoff += 1
+        if status == "completed":
+            item.completed += 1
+            summary.completed += 1
+        if status == "failed":
+            item.failed += 1
+            summary.failed += 1
+        if status == "no_answer":
+            item.no_answer += 1
+            summary.no_answer += 1
+        if status in LOSS_STATUSES:
+            item.loss += 1
+            summary.loss += 1
+
+    for contact_id, is_dnc in dnc_by_contact.items():
+        summary.contacts += 1
+        summary.dnc_contacts += 1 if is_dnc else 0
+
+    return AdminContactGroupPayload(
+        window={"days": days, "start": since.isoformat(), "end": utc_now().isoformat()},
+        summary=summary,
+        rows=sorted(rows_by_key.values(), key=lambda item: item.calls, reverse=True),
+    )
+
+
+@router.get("/billing", response_model=AdminBillingPayload)
+def billing(
+    dimension: str = Query(default="campaign"),
+    days: int = Query(default=30, ge=1, le=3650),
+    ai_unit_price_per_minute: float = Query(default=BILLING_RATES["ai_unit_price_per_minute"], ge=0),
+    telephony_unit_price_per_minute: float = Query(default=BILLING_RATES["telephony_unit_price_per_minute"], ge=0),
+    sms_unit_price: float = Query(default=BILLING_RATES["sms_unit_price"], ge=0),
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    if dimension not in REPORT_DIMENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported dimension")
+
+    tenant_id = current.tenant_id
+    since = utc_now() - timedelta(days=days)
+
+    calls = session.exec(
+        select(CallSession)
+        .where(CallSession.tenant_id == tenant_id, CallSession.created_at >= since)
+        .order_by(CallSession.created_at.asc())
+    ).all()
+
+    campaign_ids = sorted(set(call.campaign_id for call in calls if call.campaign_id))
+    user_ids = sorted(set(call.human_agent_id for call in calls if call.human_agent_id))
+    line_ids = sorted(set(call.telephony_line_id for call in calls if call.telephony_line_id))
+
+    campaign_map = {
+        campaign_id: campaign_name
+        for campaign_id, campaign_name in session.exec(select(Campaign.id, Campaign.name).where(Campaign.id.in_(campaign_ids))).all()
+    }
+    user_map = {
+        user_id: full_name
+        for user_id, full_name in session.exec(select(User.id, User.full_name).where(User.id.in_(user_ids))).all()
+    }
+    line_map = {
+        line_id: line_name
+        for line_id, line_name in session.exec(select(TelephonyLine.id, TelephonyLine.name).where(TelephonyLine.id.in_(line_ids))).all()
+    }
+
+    ai_stage_ms_by_call = _duration_ms_sum(session, tenant_id, since, "ai.turn")
+    sms_counts_by_call = _sms_counts(session, tenant_id, since)
+
+    rows_by_key: dict[str, dict[str, float | int]] = defaultdict(lambda: {
+        "calls": 0,
+        "billable_calls": 0,
+        "reached": 0,
+        "handoff": 0,
+        "completed": 0,
+        "failed": 0,
+        "no_answer": 0,
+        "loss": 0,
+        "ai_minutes": 0.0,
+        "sms_count": 0,
+        "estimated_cost": 0.0,
+    })
+    summary = AdminBillingSummary(
+        calls=0,
+        billable_calls=0,
+        reached=0,
+        handoff=0,
+        completed=0,
+        failed=0,
+        no_answer=0,
+        loss=0,
+        ai_minutes=0.0,
+        sms_count=0,
+        ai_unit_price_per_minute=ai_unit_price_per_minute,
+        telephony_unit_price_per_minute=telephony_unit_price_per_minute,
+        sms_unit_price=sms_unit_price,
+        estimated_cost=0.0,
+    )
+
+    for call in calls:
+        key = _dimension_key(call, dimension)
+        row = rows_by_key[key]
+        row["calls"] = int(row["calls"]) + 1
+        status = str(call.status)
+        if status in REACHED_STATUSES:
+            row["reached"] = int(row["reached"]) + 1
+            summary.reached += 1
+        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}:
+            row["billable_calls"] = int(row["billable_calls"]) + 1
+            summary.billable_calls += 1
+        if status == "completed":
+            row["completed"] = int(row["completed"]) + 1
+            summary.completed += 1
+        if status == "failed":
+            row["failed"] = int(row["failed"]) + 1
+            summary.failed += 1
+        if status == "no_answer":
+            row["no_answer"] = int(row["no_answer"]) + 1
+            summary.no_answer += 1
+        if status in LOSS_STATUSES:
+            row["loss"] = int(row["loss"]) + 1
+            summary.loss += 1
+        if call.handoff_reason:
+            row["handoff"] = int(row["handoff"]) + 1
+            summary.handoff += 1
+
+        ai_ms = ai_stage_ms_by_call.get(str(call.id), 0)
+        ai_minutes = ai_ms / 1000 / 60
+        row["ai_minutes"] = float(row["ai_minutes"]) + ai_minutes
+        summary.ai_minutes = round(summary.ai_minutes + ai_minutes, 4)
+
+        sms_count = sms_counts_by_call.get(str(call.id), 0)
+        row["sms_count"] = int(row["sms_count"]) + sms_count
+        summary.sms_count = int(summary.sms_count + sms_count)
+
+        call_cost = ai_minutes * ai_unit_price_per_minute + sms_count * sms_unit_price
+        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}:
+            call_cost += telephony_unit_price_per_minute
+        row["estimated_cost"] = float(row["estimated_cost"]) + call_cost
+        summary.estimated_cost = round(summary.estimated_cost + call_cost, 4)
+
+        summary.calls += 1
+
+    rows = []
+    for key, metrics in rows_by_key.items():
+        rows.append(
+            AdminBillingRow(
+                key=key,
+                label=_dimension_label(key, dimension, campaign_map, user_map, line_map),
+                calls=int(metrics["calls"]),
+                billable_calls=int(metrics["billable_calls"]),
+                reached=int(metrics["reached"]),
+                handoff=int(metrics["handoff"]),
+                completed=int(metrics["completed"]),
+                failed=int(metrics["failed"]),
+                no_answer=int(metrics["no_answer"]),
+                loss=int(metrics["loss"]),
+                ai_minutes=round(float(metrics["ai_minutes"]), 4),
+                sms_count=int(metrics["sms_count"]),
+                estimated_cost=round(float(metrics["estimated_cost"]), 4),
+            )
+        )
+
+    rows.sort(key=lambda row: row.calls, reverse=True)
+
+    return AdminBillingPayload(
+        dimension=dimension,
+        window={"days": days, "start": since.isoformat(), "end": utc_now().isoformat()},
+        rates={
+            "telephony_unit_price_per_minute": telephony_unit_price_per_minute,
+            "ai_unit_price_per_minute": ai_unit_price_per_minute,
+            "sms_unit_price": sms_unit_price,
+        },
+        summary=summary,
+        rows=rows,
+    )
 
 
 @router.get("/system-overview")

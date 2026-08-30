@@ -8,8 +8,11 @@ import {
   DatabaseOutlined,
   DeleteOutlined,
   EditOutlined,
+  DollarOutlined,
   FileTextOutlined,
-  KeyOutlined,
+  LineChartOutlined,
+  DownloadOutlined,
+  UploadOutlined,
   PhoneOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
@@ -54,10 +57,44 @@ import {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { apiRequest, formatDate } from './api'
+import { ApiError, apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
-import type { AdminDashboard, AdminSetting, AdminUser, AuditLog, CallAnalysis, CallEvent, CallMetric, CallMode, CallSession, Campaign, Contact, FlowEdge, FlowNode, FlowNodeType, HandoffRequest, KnowledgeItem, QualityReviewItem, RecordingAsset, Role, RuntimeInfo, ScriptFlowVersion, ScriptTemplate, SettingSection, SmsLog, SpeechTurn, SystemOverview, TelephonyLine, User } from './types'
+import type {
+  AdminBillingPayload,
+  AdminCallReportPayload,
+  AdminContactGroupPayload,
+  ContactBatchDncResult,
+  ContactImportResult,
+  AdminDashboard,
+  AdminSetting,
+  AdminUser,
+  AuditLog,
+  CallAnalysis,
+  CallEvent,
+  CallMetric,
+  CallMode,
+  CallSession,
+  Campaign,
+  Contact,
+  FlowEdge,
+  FlowNode,
+  FlowNodeType,
+  HandoffRequest,
+  KnowledgeItem,
+  QualityReviewItem,
+  RecordingAsset,
+  Role,
+  RuntimeInfo,
+  ScriptFlowVersion,
+  ScriptTemplate,
+  SettingSection,
+  SmsLog,
+  SpeechTurn,
+  SystemOverview,
+  TelephonyLine,
+  User,
+} from './types'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -81,6 +118,17 @@ const modeOptions = [
   { value: 'human_only', labelKey: 'humanOnly' },
   { value: 'ai_with_sms', labelKey: 'aiWithSms' },
   { value: 'mixed_human_first', labelKey: 'mixedHumanFirst' },
+] as const
+
+const reportDimensionOptions = [
+  { value: 'campaign', labelKey: 'campaign' },
+  { value: 'agent', labelKey: 'agent' },
+  { value: 'line', labelKey: 'line' },
+] as const
+
+const reportGranularityOptions = [
+  { value: 'day', labelKey: 'day' },
+  { value: 'hour', labelKey: 'hour' },
 ] as const
 
 function StatusTag({ status }: { status: string }) {
@@ -273,7 +321,335 @@ export function ContactsPage() {
   )
 }
 
+interface ContactBatchForm {
+  dnc: boolean
+  dnc_reason: string
+}
+
+function parseNumberList(raw: string): number[] {
+  return raw
+    .split(/[,\s\r\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item > 0)
+}
+
+export function ContactOperationsPage() {
+  const { t } = useTranslation()
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [dncOpen, setDncOpen] = useState(false)
+  const [batchForm] = Form.useForm<ContactBatchForm>()
+  const [importUpsert, setImportUpsert] = useState(true)
+  const [importResult, setImportResult] = useState<ContactImportResult | null>(null)
+  const [selectedIdsText, setSelectedIdsText] = useState('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const query = useSecureQuery<Contact[]>(['admin-contacts-ops', searchKeyword], `/api/v1/contacts?page=1&size=200${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
+
+  const importMutation = useMutation({
+    mutationFn: ({ file, upsert }: { file: File; upsert: boolean }) => {
+      const form = new FormData()
+      form.append('file', file)
+      return apiRequest<ContactImportResult>(`/api/v1/contacts/import?upsert=${upsert}`, { method: 'POST', body: form }, token)
+    },
+    onSuccess: (result) => {
+      setImportResult(result)
+      void queryClient.invalidateQueries({ queryKey: ['admin-contacts-ops'] })
+      message.success(t('operationSuccess'))
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const batchMutation = useMutation({
+    mutationFn: (payload: { contact_ids: number[]; dnc: boolean; dnc_reason: string }) => {
+      const ids = payload.contact_ids
+      if (!ids.length) {
+        throw new ApiError(t('noSelectedContacts'), 400)
+      }
+      return apiRequest<ContactBatchDncResult>('/api/v1/contacts/batch-dnc', {
+        method: 'PATCH',
+        body: JSON.stringify({ ...payload, contact_ids: ids }),
+      }, token)
+    },
+    onSuccess: (result) => {
+      message.success(`${t('operationSuccess')}: ${result.updated}`)
+      setDncOpen(false)
+      setSelectedRowKeys([])
+      batchForm.resetFields()
+      setSelectedIdsText('')
+      void queryClient.invalidateQueries({ queryKey: ['admin-contacts-ops'] })
+    },
+    onError: (error) => message.error(error.message),
+  })
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    importMutation.mutate({ file, upsert: importUpsert })
+    event.target.value = ''
+  }
+
+  const triggerExport = async () => {
+    if (!token) return
+    try {
+      const response = await fetch('/api/v1/contacts/export', { headers: { Authorization: `Bearer ${token}` } })
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({} as { message?: string }))
+        throw new Error((body as any).message || `HTTP ${response.status}`)
+      }
+      const blob = await response.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `contacts-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(link.href)
+      message.success(t('operationSuccess'))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : t('loadFailed'))
+    }
+  }
+
+  const openBatch = () => {
+    const selectedIds = selectedRowKeys.map((value) => Number(value))
+    if (!selectedIds.length) return
+    setSelectedIdsText(selectedIds.join(','))
+    setDncOpen(true)
+    batchForm.setFieldsValue({ dnc: true, dnc_reason: '' })
+  }
+
+  const submitBatch = () => {
+    const ids = parseNumberList(selectedIdsText)
+    const values = batchForm.getFieldsValue()
+    batchMutation.mutate({
+      contact_ids: ids,
+      dnc: Boolean(values.dnc),
+      dnc_reason: values.dnc_reason?.trim() || '',
+    })
+  }
+
+  const selection = useMemo(
+    () => ({
+      selectedRowKeys,
+      onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+    }),
+    [selectedRowKeys],
+  )
+
+  return (
+    <>
+      <PageTitle
+        title={t('contactsOperations')}
+        description={t('contactsOperationsHint')}
+        action={
+          <Space>
+            <Button icon={<UploadOutlined />} onClick={() => fileInputRef.current?.click()} loading={importMutation.isPending}>{t('import')}</Button>
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleImportFile} />
+            <Button icon={<DownloadOutlined />} onClick={triggerExport}>{t('export')}</Button>
+            <Button onClick={() => setImportResult(null)}>{t('clearResult')}</Button>
+          </Space>
+        }
+      />
+      <Card>
+        <div className="table-toolbar">
+          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('phone')} / ${t('name')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => setSearchKeyword(keyword)} />
+          <Button type="primary" onClick={() => setSearchKeyword(keyword)}>{t('search')}</Button>
+          <Button onClick={() => { setKeyword(''); setSearchKeyword('') }}>{t('reset')}</Button>
+          <span>{t('upsert')}</span>
+          <Switch checked={importUpsert} onChange={setImportUpsert} />
+          <Button danger disabled={!selectedRowKeys.length} onClick={openBatch}>{t('batchDnc')}</Button>
+        </div>
+        <Table<Contact>
+          rowKey="id"
+          loading={query.isLoading}
+          dataSource={query.data || []}
+          locale={{ emptyText: t('empty') }}
+          rowSelection={selection}
+          scroll={{ x: 900 }}
+          columns={[
+            { title: 'ID', dataIndex: 'id', width: 70 },
+            { title: t('phone'), dataIndex: 'phone', width: 160 },
+            { title: t('contactName'), dataIndex: 'name', width: 150, render: (value) => value || '-' },
+            { title: t('tags'), dataIndex: 'tags', render: (value) => value ? <Tag>{value}</Tag> : '-' },
+            { title: t('dncReason'), dataIndex: 'dnc_reason', render: (value) => value || '-' },
+            { title: t('dnc'), dataIndex: 'dnc', width: 90, render: (value) => value ? <Tag color="red">{t('yes')}</Tag> : <Tag color="green">{t('no')}</Tag> },
+            { title: t('consent'), dataIndex: 'consent_state', render: (value) => <StatusTag status={value} /> },
+            { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
+          ]}
+        />
+      </Card>
+      {importResult && <Card style={{ marginTop: 16 }}>
+        <Descriptions title={t('importResult')} column={3} bordered size="small" items={[
+          { key: 'total', label: t('total'), children: importResult.total },
+          { key: 'created', label: t('created'), children: importResult.created },
+          { key: 'updated', label: t('updated'), children: importResult.updated },
+          { key: 'skipped', label: t('skipped'), children: importResult.skipped },
+          { key: 'failed', label: t('failed'), children: importResult.failed },
+          { key: 'errors', label: t('errors'), children: `${importResult.errors.length} ${t('items')}` },
+        ]} />
+        {importResult.errors.length > 0 && <Card><List size="small" header={<Text type="secondary">{t('errors')}</Text>} dataSource={importResult.errors} renderItem={(item) => <List.Item>{item}</List.Item>} /></Card>}
+      </Card>}
+      <Modal open={dncOpen} title={t('batchDnc')} onCancel={() => setDncOpen(false)} onOk={submitBatch} confirmLoading={batchMutation.isPending}>
+        <Form form={batchForm} layout="vertical" initialValues={{ dnc: true, dnc_reason: '' }}>
+          <Form.Item label={t('selectedContactIds')}><Input.TextArea value={selectedIdsText} readOnly rows={2} /></Form.Item>
+          <Form.Item name="dnc" label={t('dnc')} valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item name="dnc_reason" label={t('dncReason')}><Input.TextArea rows={2} placeholder={t('optional')} /></Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
 interface ScriptFormValues { name: string; content: string; category: string; description?: string; tags?: string; is_active: boolean }
+
+export function ReportPage() {
+  const { t } = useTranslation()
+  const [dimension, setDimension] = useState<'campaign' | 'agent' | 'line'>('campaign')
+  const [granularity, setGranularity] = useState<'day' | 'hour'>('day')
+  const [days, setDays] = useState(30)
+  const report = useSecureQuery<AdminCallReportPayload>(['admin-call-reports', dimension, granularity, String(days)], `/api/v1/admin/call-reports?dimension=${dimension}&granularity=${granularity}&days=${days}`)
+
+  return (
+    <>
+      <PageTitle
+        title={t('callReports')}
+        description={t('callReportsHint')}
+        action={
+          <Space>
+            <Select value={dimension} options={reportDimensionOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} onChange={setDimension} />
+            <Select value={granularity} options={reportGranularityOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} onChange={setGranularity} />
+            <Select value={days} onChange={setDays} options={[{ value: 7, label: t('last7Days') }, { value: 30, label: t('last30Days') }, { value: 90, label: t('last90Days') }]} />
+            <Button onClick={() => void report.refetch()} icon={<ReloadOutlined />}>{t('refresh')}</Button>
+          </Space>
+        }
+      />
+      {report.isError && <Alert style={{ marginBottom: 16 }} showIcon type="error" message={t('loadFailed')} description={report.error.message} />}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('total')} value={report.data?.summary?.calls || 0} /></Card></Col>
+        <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('reachedCalls')} value={report.data?.summary?.reached || 0} suffix={`(${report.data?.summary ? Math.round((report.data.summary.reached / Math.max(report.data.summary.calls, 1)) * 100) : 0}%)`} /></Card></Col>
+        <Col xs={24} sm={8}><Card loading={report.isLoading}><Statistic title={t('handoff')} value={report.data?.summary?.handoff || 0} /></Card></Col>
+      </Row>
+      <Card style={{ marginTop: 16 }} title={t('callReportRows')} loading={report.isLoading}>
+        <Table rowKey="key" pagination={{ pageSize: 10 }} dataSource={report.data?.rows || []} locale={{ emptyText: t('empty') }} columns={[
+          { title: t('dimension'), dataIndex: 'label', width: 220 },
+          { title: t('periodCalls'), dataIndex: 'calls' },
+          { title: t('reachedCalls'), dataIndex: 'reached' },
+          { title: t('handoff'), dataIndex: 'handoff' },
+          { title: t('completed'), dataIndex: 'completed' },
+          { title: t('failed'), dataIndex: 'failed' },
+          { title: t('noAnswer'), dataIndex: 'no_answer' },
+          { title: t('loss'), dataIndex: 'loss' },
+        ]} />
+      </Card>
+      <Card style={{ marginTop: 16 }} title={t('trend')} loading={report.isLoading}>
+        <Table rowKey="bucket" pagination={false} dataSource={report.data?.trend || []} locale={{ emptyText: t('empty') }} columns={[
+          { title: t('bucket'), dataIndex: 'bucket', width: 170 },
+          { title: t('periodCalls'), dataIndex: 'calls' },
+          { title: t('reachedCalls'), dataIndex: 'reached' },
+          { title: t('handoff'), dataIndex: 'handoff' },
+          { title: t('completed'), dataIndex: 'completed' },
+          { title: t('failed'), dataIndex: 'failed' },
+        ]} />
+      </Card>
+    </>
+  )
+}
+
+export function GroupMonitorPage() {
+  const { t } = useTranslation()
+  const [days, setDays] = useState(30)
+  const groups = useSecureQuery<AdminContactGroupPayload>(['admin-contact-groups', String(days)], `/api/v1/admin/contact-groups?days=${days}`)
+
+  return (
+    <>
+      <PageTitle
+        title={t('groupMonitor')}
+        description={t('groupMonitorHint')}
+        action={<Space><Select value={days} onChange={setDays} options={[{ value: 7, label: t('last7Days') }, { value: 30, label: t('last30Days') }, { value: 90, label: t('last90Days') }]} /><Button onClick={() => void groups.refetch()} icon={<ReloadOutlined />}>{t('refresh')}</Button></Space>}
+      />
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={8}><Card loading={groups.isLoading}><Statistic title={t('contacts')} value={groups.data?.summary.contacts || 0} /></Card></Col>
+        <Col xs={24} sm={8}><Card loading={groups.isLoading}><Statistic title={t('dnc') + t('Count')} value={groups.data?.summary.dnc_contacts || 0} /></Card></Col>
+        <Col xs={24} sm={8}><Card loading={groups.isLoading}><Statistic title={t('totalCalls')} value={groups.data?.summary.calls || 0} /></Card></Col>
+      </Row>
+      <Card style={{ marginTop: 16 }} title={t('groupMonitorRows')} loading={groups.isLoading}>
+        <Table rowKey="key" dataSource={groups.data?.rows || []} locale={{ emptyText: t('empty') }} columns={[
+          { title: t('group'), dataIndex: 'label' },
+          { title: t('contacts'), dataIndex: 'contacts' },
+          { title: t('dncContacts'), dataIndex: 'dnc_contacts' },
+          { title: t('calls'), dataIndex: 'calls' },
+          { title: t('reachedCalls'), dataIndex: 'reached' },
+          { title: t('handoff'), dataIndex: 'handoff' },
+          { title: t('completed'), dataIndex: 'completed' },
+          { title: t('failed'), dataIndex: 'failed' },
+          { title: t('noAnswer'), dataIndex: 'no_answer' },
+          { title: t('loss'), dataIndex: 'loss' },
+        ]} />
+      </Card>
+    </>
+  )
+}
+
+export function BillingPanelPage() {
+  const { t } = useTranslation()
+  const [dimension, setDimension] = useState<'campaign' | 'agent' | 'line'>('campaign')
+  const [days, setDays] = useState(30)
+  const [telephonyPrice, setTelephonyPrice] = useState(0)
+  const [aiPrice, setAiPrice] = useState(0)
+  const [smsPrice, setSmsPrice] = useState(0)
+  const billing = useSecureQuery<AdminBillingPayload>(
+    ['admin-billing', dimension, String(days), String(telephonyPrice), String(aiPrice), String(smsPrice)],
+    `/api/v1/admin/billing?dimension=${dimension}&days=${days}&telephony_unit_price_per_minute=${telephonyPrice}&ai_unit_price_per_minute=${aiPrice}&sms_unit_price=${smsPrice}`,
+  )
+
+  return (
+    <>
+      <PageTitle
+        title={t('billing')}
+        description={t('billingHint')}
+        action={
+          <Space>
+            <Select value={dimension} options={reportDimensionOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} onChange={setDimension} />
+            <Select value={days} onChange={setDays} options={[{ value: 7, label: t('last7Days') }, { value: 30, label: t('last30Days') }, { value: 90, label: t('last90Days') }]} />
+            <Button onClick={() => void billing.refetch()} icon={<ReloadOutlined />}>{t('refresh')}</Button>
+          </Space>
+        }
+      />
+      <Card>
+        <Space wrap>
+          <InputNumber addonBefore={t('billingTelephonyPrice')} min={0} precision={6} value={telephonyPrice} onChange={(value) => setTelephonyPrice(Number(value || 0))} />
+          <InputNumber addonBefore={t('billingAiPrice')} min={0} precision={6} value={aiPrice} onChange={(value) => setAiPrice(Number(value || 0))} />
+          <InputNumber addonBefore={t('billingSmsPrice')} min={0} precision={6} value={smsPrice} onChange={(value) => setSmsPrice(Number(value || 0))} />
+        </Space>
+      </Card>
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('total')} value={billing.data?.summary.calls || 0} /></Card></Col>
+        <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('billableCalls')} value={billing.data?.summary.billable_calls || 0} /></Card></Col>
+        <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('estimatedCost')} value={billing.data?.summary.estimated_cost || 0} precision={4} prefix={<DollarOutlined />} /></Card></Col>
+        <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('aiMinutes')} value={billing.data?.summary.ai_minutes || 0} precision={2} suffix="min" /></Card></Col>
+      </Row>
+      <Card style={{ marginTop: 16 }} title={t('billingRows')} loading={billing.isLoading}>
+        <Table rowKey="key" dataSource={billing.data?.rows || []} locale={{ emptyText: t('empty') }} scroll={{ x: 960 }} columns={[
+          { title: t('dimension'), dataIndex: 'label', width: 170 },
+          { title: t('calls'), dataIndex: 'calls' },
+          { title: t('billableCalls'), dataIndex: 'billable_calls' },
+          { title: t('reachedCalls'), dataIndex: 'reached' },
+          { title: t('handoff'), dataIndex: 'handoff' },
+          { title: t('completed'), dataIndex: 'completed' },
+          { title: t('failed'), dataIndex: 'failed' },
+          { title: t('noAnswer'), dataIndex: 'no_answer' },
+          { title: t('loss'), dataIndex: 'loss' },
+          { title: t('aiMinutes'), dataIndex: 'ai_minutes', render: (value) => Number(value || 0).toFixed(2) },
+          { title: t('smsCount'), dataIndex: 'sms_count' },
+          { title: t('estimatedCost'), dataIndex: 'estimated_cost', render: (value) => Number(value || 0).toFixed(4) },
+        ]} />
+      </Card>
+    </>
+  )
+}
 
 function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTemplate | null; open: boolean; onClose: () => void }) {
   const { token } = useAuth()
