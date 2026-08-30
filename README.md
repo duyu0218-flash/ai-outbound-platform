@@ -29,6 +29,9 @@
 - 联系人号码按租户唯一，已有活动或通话历史的联系人禁止物理删除（可改为 DNC）
 
 前端采用 React、TypeScript、Ant Design 与 TanStack Query，生产构建由控制服务同源托管。
+
+系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
+
 ## 2bis. 测试账号体系（新）
 
 - 以下演示账号仅在非生产环境且 `DEMO_USERS_ENABLED=true` 时创建并显示；生产环境登录页不会预填或公开演示凭据。
@@ -71,6 +74,7 @@ pnpm build
 - `agent/`: AI 话术策略服务（可替换成真实 LLM）
 - `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
 - `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
+- `docs/operator-manual.md`: 管理员、运营、质检和座席操作手册（含页面截图）
 - `docker-compose.yml`: 本地联调与演示启动清单
 - `.env.example`: 环境变量样例
 
