@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     freeswitch_tts_http_endpoint: str = ""
     freeswitch_tts_http_token: str = ""
     freeswitch_media_start_command_template: str = ""
+    freeswitch_media_stop_command_template: str = ""
     freeswitch_recording_dir: str = "/recordings"
     freeswitch_recording_public_base_url: str = ""
     freeswitch_recording_stereo: bool = True
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
                     "freeswitch_esl driver requires FREESWITCH_TTS_HTTP_ENDPOINT or native TTS engine and voice"
                 )
             try:
-                self.freeswitch_agent_extension_template.format(agent_id="1")
+                self.freeswitch_agent_extension_template.format(agent_id="1", tenant_id=1)
                 self.freeswitch_tts_uri_template.format(
                     engine="engine", voice="voice", text="text", language="zh-CN"
                 )
@@ -73,6 +74,11 @@ class Settings(BaseSettings):
                         media_webhook_url="http://control/media",
                         asr_provider="asr",
                         language="zh-CN",
+                    )
+                if self.freeswitch_media_stop_command_template.strip():
+                    self.freeswitch_media_stop_command_template.format(
+                        uuid="uuid",
+                        call_id="call-id",
                     )
             except (KeyError, ValueError) as exc:
                 raise RuntimeError(f"invalid FreeSWITCH command template: {exc}") from exc

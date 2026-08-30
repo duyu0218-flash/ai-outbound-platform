@@ -25,6 +25,7 @@ class CallStatus(str, Enum):
     IN_AI = "in_ai"
     WAITING_HUMAN = "waiting_human"
     HANDOFF_TRANSFERRING = "handoff_transferring"
+    IN_HUMAN = "in_human"
     COMPLETED = "completed"
     FAILED = "failed"
     NO_ANSWER = "no_answer"

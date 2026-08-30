@@ -8,6 +8,7 @@ from .pages import router as pages_router
 from .admin_management import router as admin_management_router
 from .voice_operations import router as voice_operations_router
 from .script_flows import router as script_flows_router
+from .webrtc import router as webrtc_router
 
 __all__ = [
     "calls_router",
@@ -20,4 +21,5 @@ __all__ = [
     "admin_management_router",
     "voice_operations_router",
     "script_flows_router",
+    "webrtc_router",
 ]

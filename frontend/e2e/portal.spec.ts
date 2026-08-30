@@ -36,6 +36,10 @@ test('administrator can enter every management route and log out', async ({ page
 
 test('agent is redirected away from the administrator portal', async ({ page }) => {
   await login(page, 'agent', '1001@test')
+  await expect(page.getByText('浏览器软电话', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /启用软电话/ })).toBeDisabled()
+  await expect(page.getByText('服务器尚未启用WebRTC', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('手机号', { exact: true })).toBeEditable()
   await page.goto('/admin')
   await expect(page).toHaveURL(/\/agent$/)
   await page.goto('/agent/calls')

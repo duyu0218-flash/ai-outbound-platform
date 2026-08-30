@@ -22,6 +22,7 @@ LINE_CAPACITY_STATUSES = {
     CallStatus.IN_AI,
     CallStatus.WAITING_HUMAN,
     CallStatus.HANDOFF_TRANSFERRING,
+    CallStatus.IN_HUMAN,
 }
 
 

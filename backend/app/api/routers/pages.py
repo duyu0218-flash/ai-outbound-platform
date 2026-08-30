@@ -23,6 +23,7 @@ REACHED_STATUSES = {
     CallStatus.IN_AI,
     CallStatus.WAITING_HUMAN,
     CallStatus.HANDOFF_TRANSFERRING,
+    CallStatus.IN_HUMAN,
     CallStatus.COMPLETED,
 }
 INTERESTED_RESULTS = {"interested", "qualified_lead", "positive_lead", "appointment", "converted"}

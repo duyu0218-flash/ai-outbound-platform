@@ -158,6 +158,7 @@ CAPACITY_STATUSES = {
     CallStatus.IN_AI,
     CallStatus.WAITING_HUMAN,
     CallStatus.HANDOFF_TRANSFERRING,
+    CallStatus.IN_HUMAN,
 }
 
 
@@ -532,6 +533,7 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         "campaign_id": call.campaign_id,
         "contact_id": call.contact_id,
         "mode": call.mode.value,
+        "human_agent_id": call.human_agent_id,
         # Providers that do not send their own event id still need callbacks
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,

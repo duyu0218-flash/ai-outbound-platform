@@ -26,6 +26,9 @@ EVENT_NAMES = (
     "CHANNEL_PROGRESS",
     "CHANNEL_PROGRESS_MEDIA",
     "CHANNEL_ANSWER",
+    "CHANNEL_BRIDGE",
+    "CHANNEL_UNBRIDGE",
+    "CHANNEL_EXECUTE_COMPLETE",
     "CHANNEL_HANGUP_COMPLETE",
     "BACKGROUND_JOB",
 )
@@ -94,6 +97,7 @@ class CallBinding:
     metadata: dict[str, Any] = field(default_factory=dict)
     answered_at: datetime | None = None
     recording_path: str = ""
+    human_connected: bool = False
 
 
 class FreeswitchEslDriver:
@@ -176,7 +180,16 @@ class FreeswitchEslDriver:
                 variables[variable_key] = _b64_encode(str(request.metadata[metadata_key]))
         variable_block = "{" + ",".join(f"{key}={value}" for key, value in variables.items()) + "}"
         destination = f"sofia/gateway/{gateway}/{phone}"
-        command = f"originate {variable_block}{destination} &park()"
+        human_agent_id = request.metadata.get("human_agent_id")
+        if request.metadata.get("mode") == "human_only" and human_agent_id:
+            agent_extension = self.settings.freeswitch_agent_extension_template.format(
+                agent_id=int(human_agent_id),
+                tenant_id=int(request.metadata.get("tenant_id") or 0),
+            )
+            agent_destination = f"user/{_safe_name(agent_extension, name='agent_extension')}"
+            command = f"originate {variable_block}{agent_destination} &bridge({_fs_argument(destination)})"
+        else:
+            command = f"originate {variable_block}{destination} &park()"
         binding = CallBinding(
             call_id=request.call_id,
             fs_uuid=fs_uuid,
@@ -259,13 +272,23 @@ class FreeswitchEslDriver:
         target_group = _one_line(payload.get("target_group"), name="target_group")
         match = re.fullmatch(r"agent:([0-9]+)", target_group)
         if match:
-            destination = self.settings.freeswitch_agent_extension_template.format(agent_id=match.group(1))
+            destination = self.settings.freeswitch_agent_extension_template.format(
+                agent_id=match.group(1),
+                tenant_id=int(binding.metadata.get("tenant_id") or 0),
+            )
         elif target_group in {"", "default"}:
             destination = self.settings.freeswitch_default_handoff_extension
         else:
             destination = target_group
         destination = _safe_name(destination, name="transfer_destination")
         context = _safe_name(self.settings.freeswitch_dialplan_context, name="dialplan_context")
+        await self.client.api(f"uuid_break {binding.fs_uuid} all")
+        stop_template = self.settings.freeswitch_media_stop_command_template.strip()
+        if stop_template:
+            stop_command = stop_template.format(uuid=binding.fs_uuid, call_id=binding.call_id)
+            await self.client.api(_one_line(stop_command, name="media_stop_command"))
+        binding.metadata["human_target"] = target_group
+        binding.human_connected = False
         await self.client.api(f"uuid_transfer {binding.fs_uuid} {destination} XML {context}")
         return {
             "result": "transferred",
@@ -310,8 +333,29 @@ class FreeswitchEslDriver:
             await self._post_status(binding, "dialing", event)
         elif name == "CHANNEL_ANSWER":
             binding.answered_at = datetime.now(timezone.utc)
-            await self._post_status(binding, "answered", event)
-            await self._start_recording_and_media(binding)
+            if binding.metadata.get("mode") == "human_only" and binding.metadata.get("human_agent_id"):
+                await self._post_status(binding, "agent_answered", event)
+            else:
+                await self._post_status(binding, "answered", event)
+                await self._start_recording_and_media(binding)
+        elif name == "CHANNEL_BRIDGE":
+            if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
+                binding.human_connected = True
+                await self._post_status(binding, "human_connected", event)
+                await self._start_recording_and_media(binding, start_ai_media=False)
+        elif name == "CHANNEL_UNBRIDGE":
+            if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
+                await self._post_status(binding, "human_disconnected", event)
+        elif name == "CHANNEL_EXECUTE_COMPLETE":
+            application = _event_value(event, "Application", "variable_current_application").lower()
+            if application == "bridge" and binding.metadata.get("human_target") and not binding.human_connected:
+                response = _event_value(event, "Application-Response", "variable_originate_disposition")
+                await self._post_status(
+                    binding,
+                    "human_unavailable",
+                    event,
+                    hangup_reason=response or "agent did not answer",
+                )
         elif name == "CHANNEL_HANGUP_COMPLETE":
             cause = _event_value(event, "Hangup-Cause", "variable_hangup_cause") or "UNKNOWN"
             if cause in BUSY_CAUSES:
@@ -355,14 +399,14 @@ class FreeswitchEslDriver:
         self.calls_by_id[call_id] = binding
         return binding
 
-    async def _start_recording_and_media(self, binding: CallBinding) -> None:
-        if bool(binding.metadata.get("recording_enabled", True)):
+    async def _start_recording_and_media(self, binding: CallBinding, *, start_ai_media: bool = True) -> None:
+        if bool(binding.metadata.get("recording_enabled", True)) and not binding.recording_path:
             safe_call_id = re.sub(r"[^A-Za-z0-9_.-]", "_", binding.call_id)
             filename = f"{safe_call_id}-{binding.fs_uuid}.wav"
             recording_path = str(Path(self.settings.freeswitch_recording_dir) / filename)
             await self.client.api(f"uuid_record {binding.fs_uuid} start {recording_path}")
             binding.recording_path = recording_path
-        template = self.settings.freeswitch_media_start_command_template.strip()
+        template = self.settings.freeswitch_media_start_command_template.strip() if start_ai_media else ""
         if template:
             command = template.format(
                 uuid=binding.fs_uuid,

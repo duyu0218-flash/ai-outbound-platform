@@ -70,7 +70,7 @@ router = APIRouter(
 )
 logger = logging.getLogger(__name__)
 settings = get_settings()
-REACHED_STATUSES = {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}
+REACHED_STATUSES = {"answered", "in_ai", "waiting_human", "handoff_transferring", "in_human", "completed"}
 LOSS_STATUSES = {"failed", "no_answer", "busy", "voicemail"}
 REPORT_DIMENSIONS = {"campaign", "agent", "line"}
 REPORT_GRANULARITIES = {"day", "hour"}
@@ -1090,7 +1090,7 @@ def billing(
         if status in REACHED_STATUSES:
             row["reached"] = int(row["reached"]) + 1
             summary.reached += 1
-        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}:
+        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "in_human", "completed"}:
             row["billable_calls"] = int(row["billable_calls"]) + 1
             summary.billable_calls += 1
         if status == "completed":
@@ -1119,7 +1119,7 @@ def billing(
         summary.sms_count = int(summary.sms_count + sms_count)
 
         call_cost = ai_minutes * ai_unit_price_per_minute + sms_count * sms_unit_price
-        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "completed"}:
+        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "in_human", "completed"}:
             call_cost += telephony_unit_price_per_minute
         row["estimated_cost"] = float(row["estimated_cost"]) + call_cost
         summary.estimated_cost = round(summary.estimated_cost + call_cost, 4)

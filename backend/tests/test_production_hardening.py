@@ -58,6 +58,8 @@ from app.schemas import AiTurnResult  # noqa: E402
 from app.schema_migrations import apply_runtime_migrations  # noqa: E402
 from app.services import dispatcher, telephony  # noqa: E402
 from app.services import business_callbacks, health  # noqa: E402
+from app.services import webrtc as webrtc_service  # noqa: E402
+from app.api.routers import webrtc as webrtc_router  # noqa: E402
 from app.services.admin_settings import SETTING_DEFAULTS  # noqa: E402
 from app.services.knowledge import retrieve_knowledge  # noqa: E402
 from app.services.retention import purge_expired_voice_data  # noqa: E402
@@ -608,6 +610,29 @@ def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypa
         headers=_bearer(agent_token),
     )
     assert second_accept.status_code == 409
+    unavailable = client.post(
+        "/api/v1/webhooks/telephony/status",
+        json={
+            "call_id": str(call_id),
+            "kind": "status",
+            "payload": {
+                "status": "human_unavailable",
+                "hangup_reason": "NO_ANSWER",
+                "event_id": "browser-agent-no-answer-1",
+            },
+        },
+    )
+    assert unavailable.status_code == 200, unavailable.text
+    assert unavailable.json() == {"result": "ok", "requeued": True}
+    with session_scope() as session:
+        requeued_call = session.get(CallSession, call_id)
+        requeued_handoff = session.get(HandoffRequest, handoff_id)
+        released_agent = session.get(User, agent_id)
+        assert requeued_call is not None and requeued_call.status == CallStatus.WAITING_HUMAN
+        assert requeued_call.human_agent_id is None
+        assert requeued_handoff is not None and requeued_handoff.state == HandoffState.WAITING
+        assert requeued_handoff.assigned_agent_id is None
+        assert released_agent is not None and released_agent.agent_status == "ready"
 
 
 def test_telephony_readiness_cascades_to_gateway_readyz(monkeypatch):
@@ -1537,6 +1562,7 @@ async def test_tenant_line_capacity_is_enforced_across_dispatch_batches(client: 
                         CallStatus.IN_AI,
                         CallStatus.WAITING_HUMAN,
                         CallStatus.HANDOFF_TRANSFERRING,
+                        CallStatus.IN_HUMAN,
                     }
                 ),
             )
@@ -1615,6 +1641,7 @@ async def test_admin_capacity_setting_takes_effect_without_restart(client: TestC
                         CallStatus.IN_AI,
                         CallStatus.WAITING_HUMAN,
                         CallStatus.HANDOFF_TRANSFERRING,
+                        CallStatus.IN_HUMAN,
                     }
                 ),
             )
@@ -1706,6 +1733,7 @@ async def test_due_campaign_retry_is_persisted_and_dispatched(client: TestClient
                         CallStatus.IN_AI,
                         CallStatus.WAITING_HUMAN,
                         CallStatus.HANDOFF_TRANSFERRING,
+                        CallStatus.IN_HUMAN,
                     }
                 ),
             )
@@ -2290,7 +2318,7 @@ def test_sms_delivery_receipt_updates_log_and_blocks_terminal_regression(client:
 
 def test_stale_provider_call_releases_capacity(client: TestClient):
     with session_scope() as session:
-        for existing in session.exec(select(CallSession).where(CallSession.status.in_({CallStatus.DIALING, CallStatus.ANSWERED, CallStatus.IN_AI, CallStatus.WAITING_HUMAN, CallStatus.HANDOFF_TRANSFERRING}))).all():
+        for existing in session.exec(select(CallSession).where(CallSession.status.in_({CallStatus.DIALING, CallStatus.ANSWERED, CallStatus.IN_AI, CallStatus.WAITING_HUMAN, CallStatus.HANDOFF_TRANSFERRING, CallStatus.IN_HUMAN}))).all():
             existing.status = CallStatus.COMPLETED
             session.add(existing)
         call = create_call(
@@ -2334,3 +2362,77 @@ def test_production_validation_rejects_placeholder_secrets(monkeypatch):
         monkeypatch.setattr(app_main.settings, key, value)
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
         app_main._validate_production_runtime()
+
+
+def test_agent_webrtc_session_media_readiness_and_freeswitch_directory(client: TestClient, monkeypatch):
+    for target in (app_main.settings, webrtc_router.settings, webrtc_service.settings):
+        monkeypatch.setattr(target, "webrtc_enabled", True)
+        monkeypatch.setattr(target, "webrtc_wss_url", "wss://voice.example.test:7443")
+        monkeypatch.setattr(target, "webrtc_sip_domain", "voice.example.test")
+        monkeypatch.setattr(target, "turn_urls", "stun:voice.example.test:3478,turn:voice.example.test:3478?transport=udp")
+        monkeypatch.setattr(target, "turn_shared_secret", "turn-shared-secret-for-tests")
+        monkeypatch.setattr(target, "freeswitch_directory_token", "directory-token-for-tests")
+        monkeypatch.setattr(target, "redis_url", "")
+    webrtc_service._memory_values.clear()
+
+    token = _login(client, "1001@test")
+    headers = _bearer(token)
+    profile = client.get("/api/v1/auth/me", headers=headers)
+    assert profile.status_code == 200
+    assert profile.json()["agent_status"] == "offline"
+    blocked_call = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138999", "mode": "human_only", "max_attempts": 1},
+    )
+    assert blocked_call.status_code == 409
+    assert "not registered" in blocked_call.text
+
+    issued = client.post("/api/v1/agent/webrtc/session", headers=headers)
+    assert issued.status_code == 200, issued.text
+    config = issued.json()
+    assert config["enabled"] is True
+    assert config["wss_url"].startswith("wss://")
+    assert config["sip_uri"].startswith("sip:agent_")
+    assert config["authorization_password"]
+    assert len(config["ice_servers"]) == 2
+
+    rejected_presence = client.put("/api/v1/auth/presence", headers=headers, json={"status": "ready"})
+    assert rejected_presence.status_code == 409
+
+    media = client.put(
+        "/api/v1/agent/media/status",
+        headers=headers,
+        json={
+            "registration_state": "registered",
+            "media_state": "idle",
+            "microphone_permission": "granted",
+            "input_device_id": "mic-1",
+            "output_device_id": "speaker-1",
+            "muted": False,
+            "held": False,
+            "network_quality": "good",
+            "round_trip_time_ms": 30,
+            "jitter_ms": 4,
+            "packets_lost": 0,
+            "last_error": "",
+        },
+    )
+    assert media.status_code == 200, media.text
+    assert media.json()["registration_state"] == "registered"
+    ready = client.put("/api/v1/auth/presence", headers=headers, json={"status": "ready"})
+    assert ready.status_code == 200
+
+    directory = client.post(
+        "/internal/freeswitch/directory?token=directory-token-for-tests",
+        data={"user": config["authorization_username"], "domain": "voice.example.test"},
+    )
+    assert directory.status_code == 200
+    assert config["authorization_password"] in directory.text
+    assert "<section name=\"directory\">" in directory.text
+
+
+def test_microphone_is_allowed_for_same_origin_browser(client: TestClient):
+    response = client.get("/agent/login")
+    assert response.status_code == 200
+    assert response.headers["permissions-policy"] == "geolocation=(), camera=(), microphone=(self)"
