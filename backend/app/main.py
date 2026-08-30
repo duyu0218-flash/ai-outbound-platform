@@ -13,6 +13,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from sqlalchemy import text
+from sqlmodel import Session
 
 from .api.routers import (
     admin_management_router,
@@ -27,7 +29,7 @@ from .api.routers import (
     voice_operations_router,
 )
 from .config import get_settings, setup_logging
-from .db import create_db_and_tables, session_scope
+from .db import create_db_and_tables, engine, session_scope
 from .middleware import (
     LoggingMiddleware,
     RateLimitMiddleware,
@@ -159,7 +161,23 @@ def _validate_production_runtime() -> None:
         )
 
 
-def _bootstrap_default_tenant():
+def _bootstrap_default_tenant_data(session: Session) -> None:
+    existing = session.get(Tenant, settings.default_tenant_id)
+    if not existing:
+        session.add(
+            Tenant(
+                id=settings.default_tenant_id,
+                name="Default Tenant",
+                code="default",
+                enabled=True,
+            )
+        )
+        session.commit()
+    if settings.demo_users_enabled:
+        ensure_demo_users(session)
+
+
+def _bootstrap_default_tenant() -> None:
     if settings.secret_key in {"", "change-me", "secret"}:
         logger.warning("secret_key is using default value in settings, update in production")
     if settings.jwt_secret in {"", "change-me", "jwt-change-me"}:
@@ -168,20 +186,22 @@ def _bootstrap_default_tenant():
         logger.warning("api_key looks like demo value, update in production")
     _validate_production_runtime()
 
-    with session_scope() as session:
-        existing = session.get(Tenant, settings.default_tenant_id)
-        if not existing:
-            session.add(
-                Tenant(
-                    id=settings.default_tenant_id,
-                    name="Default Tenant",
-                    code="default",
-                    enabled=True,
-                )
-            )
-            session.commit()
-        if settings.demo_users_enabled:
-            ensure_demo_users(session)
+    if engine.dialect.name != "postgresql":
+        with session_scope() as session:
+            _bootstrap_default_tenant_data(session)
+        return
+
+    # Every uvicorn worker runs the lifespan hook. Serialize default tenant and
+    # demo-user seeding so two fresh workers cannot insert the same unique
+    # username concurrently and terminate the whole parent process.
+    with engine.connect() as lock_connection:
+        lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-data'))"))
+        try:
+            with Session(lock_connection) as session:
+                _bootstrap_default_tenant_data(session)
+        finally:
+            lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-data'))"))
+            lock_connection.commit()
 
 
 app.add_middleware(

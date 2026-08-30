@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -24,7 +25,7 @@ os.environ.setdefault("TELEPHONY_TIMEOUT_SEC", "1")
 os.environ.setdefault("TELEPHONY_RETRY_TIMES", "0")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
 
-from app.db import session_scope  # noqa: E402
+from app.db import engine, session_scope  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app import main as app_main  # noqa: E402
@@ -479,6 +480,29 @@ def test_contact_operations_reports_groups_and_billing(client: TestClient):
     assert billing_row["completed"] == 1
     assert billing_row["no_answer"] == 1
     assert billing_row["estimated_cost"] == 0.1
+
+
+def test_postgres_demo_user_bootstrap_is_concurrency_safe(monkeypatch):
+    if engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL advisory locks are covered by the integration job")
+
+    admin_username = f"bootstrap-admin-{uuid4().hex}"
+    agent_username = f"bootstrap-agent-{uuid4().hex}"
+    monkeypatch.setattr(app_main.settings, "demo_admin_username", admin_username)
+    monkeypatch.setattr(app_main.settings, "demo_agent_username", agent_username)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(app_main._bootstrap_default_tenant) for _ in range(2)]
+        for future in futures:
+            future.result(timeout=20)
+
+    with session_scope() as session:
+        users = session.exec(
+            select(User).where(User.username.in_([admin_username, agent_username]))
+        ).all()
+        assert sorted(user.username for user in users) == sorted([admin_username, agent_username])
+        session.exec(delete(User).where(User.username.in_([admin_username, agent_username])))
+        session.commit()
 
 
 def test_p0_handoff_accept_and_reject_state_machine(client: TestClient, monkeypatch):
