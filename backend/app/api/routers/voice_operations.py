@@ -310,11 +310,27 @@ async def accept_handoff(
         raise HTTPException(status_code=403, detail="handoff is assigned to another agent")
     original_assigned_agent_id = handoff.assigned_agent_id
     claimed_agent_id = current.id if current is not None and current.role == "agent" else original_assigned_agent_id
+    claimed_agent_status: str | None = None
+    transfer_target = handoff.target_group or (
+        f"agent:{claimed_agent_id}" if claimed_agent_id is not None else None
+    )
+    if current is not None and current.role == "agent":
+        managed_agent = session.get(User, current.id)
+        if managed_agent is None or not managed_agent.enabled or managed_agent.tenant_id != tenant_id:
+            raise HTTPException(status_code=409, detail="agent is not available")
+        claimed_agent_status = managed_agent.agent_status
+        allowed_statuses = {"ready", "busy"} if original_assigned_agent_id == current.id else {"ready"}
+        if managed_agent.agent_status not in allowed_statuses:
+            raise HTTPException(status_code=409, detail="agent is not ready")
+        # A public queue item may carry the generic "default" target. Once a
+        # concrete agent accepts it, always bridge to that exact media endpoint.
+        transfer_target = f"agent:{current.id}"
     claim_result = session.execute(
         update(HandoffRequest)
         .where(
             HandoffRequest.id == handoff_id,
             HandoffRequest.state == HandoffState.WAITING,
+            HandoffRequest.assigned_agent_id == original_assigned_agent_id,
         )
         .values(
             state=HandoffState.ACCEPTING,
@@ -325,6 +341,28 @@ async def accept_handoff(
     if claim_result.rowcount != 1:
         session.rollback()
         raise HTTPException(status_code=409, detail="handoff has already been claimed")
+    if claimed_agent_id is not None and current is not None and current.role == "agent":
+        allowed_statuses = (
+            ["ready", "busy"] if original_assigned_agent_id == claimed_agent_id else ["ready"]
+        )
+        presence_result = session.execute(
+            update(User)
+            .where(
+                User.id == claimed_agent_id,
+                User.tenant_id == tenant_id,
+                User.role == "agent",
+                User.enabled.is_(True),
+                User.agent_status.in_(allowed_statuses),
+            )
+            .values(
+                agent_status="busy",
+                last_seen_at=utc_now(),
+                updated_at=utc_now(),
+            )
+        )
+        if presence_result.rowcount != 1:
+            session.rollback()
+            raise HTTPException(status_code=409, detail="agent is no longer ready")
     session.commit()
     adapter = get_telephony_adapter(
         session=session,
@@ -336,9 +374,7 @@ async def accept_handoff(
             lambda: adapter.transfer_to_human(
                 call_id=str(call.id),
                 reason=handoff.reason or "agent_accept",
-                target_group=handoff.target_group or (
-                    f"agent:{handoff.assigned_agent_id}" if handoff.assigned_agent_id else None
-                ),
+                target_group=transfer_target,
             )
         )
     except Exception as exc:
@@ -354,11 +390,26 @@ async def accept_handoff(
                 updated_at=utc_now(),
             )
         )
+        if claimed_agent_id is not None and claimed_agent_status is not None:
+            session.execute(
+                update(User)
+                .where(
+                    User.id == claimed_agent_id,
+                    User.agent_status == "busy",
+                )
+                .values(
+                    agent_status=claimed_agent_status,
+                    last_seen_at=utc_now(),
+                    updated_at=utc_now(),
+                )
+            )
         session.commit()
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"telephony transfer failed: {exc}")
     session.refresh(handoff)
     handoff.state = HandoffState.ACCEPTED
     handoff.assigned_agent_id = claimed_agent_id
+    if transfer_target:
+        handoff.target_group = transfer_target
     handoff.responded_at = utc_now()
     handoff.updated_at = utc_now()
     call.human_agent_id = handoff.assigned_agent_id

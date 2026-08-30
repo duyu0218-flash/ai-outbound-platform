@@ -51,7 +51,9 @@ def telephony_http_health_check() -> str:
     endpoint = (settings.telephony_provider_endpoint or settings.sip_provider_endpoint).strip()
     if not endpoint:
         return "unconfigured"
-    return _probe_http(endpoint, "/health")
+    # The process health endpoint stays green even when its downstream PBX is
+    # disconnected. Readiness must cascade through the voice gateway.
+    return _probe_http(endpoint, "/readyz")
 
 
 def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
@@ -75,7 +77,7 @@ def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
         if not endpoint.startswith(("http://", "https://")):
             states.append("unsupported")
             continue
-        states.append(_probe_http(endpoint, "/health"))
+        states.append(_probe_http(endpoint, "/readyz"))
     if "ok" in states:
         return "ok"
     if all(state == "mock" for state in states):

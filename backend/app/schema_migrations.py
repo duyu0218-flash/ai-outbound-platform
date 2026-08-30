@@ -66,6 +66,13 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE smslog ADD COLUMN updated_at TIMESTAMP")
 
     with engine.begin() as connection:
+        if engine.dialect.name == "postgresql" and "handoffrequest" in tables:
+            # SQLModel creates Python enums as native PostgreSQL enums. Older
+            # installations therefore need the transient claim state added
+            # before the handoff acceptance endpoint can use it.
+            connection.execute(
+                text("ALTER TYPE handoffstate ADD VALUE IF NOT EXISTS 'ACCEPTING'")
+            )
         for statement in statements:
             logger.info("applying database migration: %s", statement)
             connection.execute(text(statement))
