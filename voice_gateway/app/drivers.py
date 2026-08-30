@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from .config import Settings
+from .freeswitch import FreeswitchEslDriver
 from .models import CallRequest, DialRequest, SpeakRequest
 
 
@@ -16,6 +17,12 @@ class VoiceDriver(ABC):
 
     @abstractmethod
     async def ready(self) -> bool: ...
+
+    async def start(self) -> None:
+        return None
+
+    async def stop(self) -> None:
+        return None
 
 
 class MockDriver(VoiceDriver):
@@ -66,4 +73,9 @@ class PbxHttpDriver(VoiceDriver):
 
 
 def make_driver(settings: Settings) -> VoiceDriver:
-    return PbxHttpDriver(settings) if settings.voice_gateway_driver.strip().lower() == "pbx_http" else MockDriver(settings)
+    driver = settings.voice_gateway_driver.strip().lower()
+    if driver == "pbx_http":
+        return PbxHttpDriver(settings)
+    if driver == "freeswitch_esl":
+        return FreeswitchEslDriver(settings)  # type: ignore[return-value]
+    return MockDriver(settings)

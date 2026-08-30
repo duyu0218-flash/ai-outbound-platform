@@ -97,15 +97,9 @@ services:
       timeout: 5s
       retries: 20
 
-  # Optional PBX/media server. Point PBX_BASE_URL at its HTTP control adapter.
-  # freeswitch:
-  #   image: signalwire/freeswitch:latest
-  #   container_name: ai-outbound-freeswitch
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5060:5060/tcp"
-  #     - "5060:5060/udp"
-  #     - "8021:8021/tcp"
+  # FreeSWITCH should be deployed from a pinned, audited release and exposed to
+  # this private network through ESL. Do not use an unpinned `latest` image.
+  # Set VOICE_GATEWAY_DRIVER=freeswitch_esl and FREESWITCH_ESL_* in the env file.
 
 volumes:
   postgres_data:

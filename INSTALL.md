@@ -54,7 +54,8 @@ cp .env.example .env
 - `API_KEY`：默认租户的服务端 API Key；多租户集成请改用 `TENANT_API_KEYS_JSON={"1":"...","2":"..."}`
 - `DATABASE_URL`：数据库连接字符串
 - `REDIS_URL`：Redis 连接字符串
-- `TELEPHONY_PROVIDER`：`mock`（联调）或 `http`（接入真实 PBX）
+- `TELEPHONY_PROVIDER`：`mock`（联调）或 `http`（调用内置语音网关）
+- `VOICE_GATEWAY_DRIVER`：`mock`、`pbx_http` 或 `freeswitch_esl`；FreeSWITCH 直连使用 `freeswitch_esl`
 - `TELEPHONY_WEBHOOK_TOKEN`：建议给网关回调加签
 - `TELEPHONY_SERVICE_TOKEN`：控制服务调用语音网关的内部 Bearer Token
 - `AI_AGENT_URL`：AI 服务地址（compose 下默认 `http://ai-agent:8001`）
@@ -531,6 +532,8 @@ bash scripts/test-campaign-start.sh
 - `POST /v1/call/hangup`
 
 请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。`dial` 会携带 `caller_id` 和媒体参数；`speak` 接收 `text`、`language`、`voice`、`provider`，网关负责完成实际 TTS 或播放。
+
+仓库内置的 `voice-gateway` 可以设置 `VOICE_GATEWAY_DRIVER=freeswitch_esl`，直接连接 FreeSWITCH Event Socket，不再要求另写 HTTP 适配器。还需在 FreeSWITCH 中配置真实 SIP Trunk，并按 [FreeSWITCH 接入说明](docs/freeswitch-integration.md) 设置 ESL、TTS、媒体流和录音参数。
 
 多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会对所有启用线路汇总并发容量，再按优先级、权重和当前占用率选路；选中后把 `telephony_line_id` 绑定到通话，后续播放、转接和挂断使用同一条线路。`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
 

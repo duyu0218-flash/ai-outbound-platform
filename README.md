@@ -109,6 +109,9 @@ docker compose up -d --build
 | `TELEPHONY_WEBHOOK_BASE` | 回调基础地址（控制面地址） |
 | `TELEPHONY_WEBHOOK_TOKEN` | 回调鉴权 Token（可选，设置后会校验 `x-webhook-token`） |
 | `TELEPHONY_SERVICE_TOKEN` | 控制服务调用语音网关的内部 Bearer Token |
+| `VOICE_GATEWAY_DRIVER` | `mock`、`pbx_http` 或 `freeswitch_esl`；后者由语音网关直接连接 FreeSWITCH Event Socket |
+| `FREESWITCH_ESL_*` | FreeSWITCH ESL 地址、端口和密码；生产禁止使用默认密码 `ClueCon` |
+| `FREESWITCH_GATEWAY` | FreeSWITCH 中已配置的 SIP Trunk gateway 名称 |
 | `AI_AGENT_URL` | AI 服务地址 |
 | `AI_AGENT_SERVICE_TOKEN` | 控制服务调用 AI Agent 的内部 Bearer Token |
 | `SMS_PROVIDER_ENDPOINT` | 短信服务 API 地址 |
@@ -289,6 +292,7 @@ bash scripts/test-campaign-start.sh
   - `mock`：联调演练；
   - `http`：按你的网关实现 `/v1/call/dial`、`/v1/call/speak`、`/v1/call/stop-speaking`、`/v1/call/transfer`、`/v1/call/hangup`；拨号负载会携带主叫号及 ASR/TTS、音色、语言、录音告知参数。
   - `tenant`：从当前租户的启用线路读取网关配置；当前只支持 HTTP 语音桥接地址，SIP 注册、媒体协商与坐席软电话仍需对接 FreeSWITCH/Asterisk 或运营商平台。
+- 内置 `voice-gateway` 现支持 `VOICE_GATEWAY_DRIVER=freeswitch_esl`，可直接通过 ESL 完成 FreeSWITCH 拨号、放音/停止、转接、挂断、状态事件和录音回调；部署步骤见 [FreeSWITCH 接入说明](docs/freeswitch-integration.md)。
 - 回调地址固定为：
   - `POST /api/v1/webhooks/telephony/status`
   - `POST /api/v1/webhooks/telephony/transcript`

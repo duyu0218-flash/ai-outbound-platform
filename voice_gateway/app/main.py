@@ -12,7 +12,11 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings.validate_runtime()
-    yield
+    await driver.start()
+    try:
+        yield
+    finally:
+        await driver.stop()
 
 
 app = FastAPI(title="AI Outbound Voice Gateway", version="0.1.0", lifespan=lifespan)
