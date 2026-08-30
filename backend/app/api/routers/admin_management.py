@@ -65,6 +65,10 @@ BILLING_RATES = {
 }
 
 
+def _call_status_value(call: CallSession) -> str:
+    return call.status.value if hasattr(call.status, "value") else str(call.status)
+
+
 def _count_row_stats(calls: list[CallSession]) -> tuple[int, int, int, int, int, int]:
     calls_count = 0
     reached = 0
@@ -75,7 +79,7 @@ def _count_row_stats(calls: list[CallSession]) -> tuple[int, int, int, int, int,
     loss = 0
     for call in calls:
         calls_count += 1
-        status = str(call.status)
+        status = _call_status_value(call)
         if status in REACHED_STATUSES:
             reached += 1
         if call.handoff_reason:
@@ -132,7 +136,7 @@ def _dimension_key(call: CallSession, dimension: str) -> str:
     return str(call.telephony_line_id or 0)
 
 
-def _to_dimension_id(key: str, dimension: str) -> int:
+def _to_dimension_id(key: str) -> int:
     try:
         return int(key)
     except ValueError:
@@ -766,7 +770,7 @@ def contact_groups(
 
         item.calls += 1
         summary.calls += 1
-        status = str(call.status)
+        status = _call_status_value(call)
         if status in REACHED_STATUSES:
             item.reached += 1
             summary.reached += 1
@@ -873,7 +877,7 @@ def billing(
         key = _dimension_key(call, dimension)
         row = rows_by_key[key]
         row["calls"] = int(row["calls"]) + 1
-        status = str(call.status)
+        status = _call_status_value(call)
         if status in REACHED_STATUSES:
             row["reached"] = int(row["reached"]) + 1
             summary.reached += 1

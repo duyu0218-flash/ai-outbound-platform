@@ -10,7 +10,21 @@ async function login(page: Page, portal: 'admin' | 'agent', username: string) {
 
 test('administrator can enter every management route and log out', async ({ page }) => {
   await login(page, 'admin', 'admin')
-  for (const route of ['contacts', 'scripts', 'campaigns', 'calls', 'users', 'lines', 'knowledge', 'settings', 'system']) {
+  for (const route of [
+    'contacts',
+    'contacts-operations',
+    'reports',
+    'group-monitor',
+    'billing',
+    'scripts',
+    'campaigns',
+    'calls',
+    'users',
+    'lines',
+    'knowledge',
+    'settings',
+    'system',
+  ]) {
     await page.goto(`/admin/${route}`)
     await expect(page.locator('.app-content')).toBeVisible()
     await expect(page.locator('.ant-result-404')).toHaveCount(0)
