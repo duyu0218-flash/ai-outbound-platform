@@ -8,6 +8,7 @@ from ..clock import utc_now
 from ..config import get_settings
 from ..db import session_scope
 from ..models import RecordingAsset, SpeechTurn, TaskState
+from .admin_settings import get_admin_int_setting
 from .task_queue import enqueue_task
 
 settings = get_settings()
@@ -16,19 +17,42 @@ settings = get_settings()
 def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
     """Purge transient ASR text and queue durable recording deletion."""
     now = utc_now()
-    partial_cutoff = now - timedelta(hours=max(1, settings.partial_transcript_retention_hours))
     deleted_partials = 0
     queued_recordings = 0
     with session_scope() as session:
-        partials = session.exec(
-            select(SpeechTurn)
-            .where(SpeechTurn.is_final.is_(False), SpeechTurn.created_at <= partial_cutoff)
-            .order_by(SpeechTurn.created_at.asc())
-            .limit(max(1, batch_size))
-        ).all()
-        for turn in partials:
-            session.delete(turn)
-            deleted_partials += 1
+        tenant_ids = set(
+            session.exec(
+                select(SpeechTurn.tenant_id).where(SpeechTurn.is_final.is_(False)).distinct()
+            ).all()
+        )
+        remaining = max(1, batch_size)
+        for tenant_id in tenant_ids:
+            if remaining <= 0:
+                break
+            retention_hours = get_admin_int_setting(
+                session,
+                tenant_id,
+                "compliance",
+                "partial_transcript_retention_hours",
+                settings.partial_transcript_retention_hours,
+                minimum=1,
+                maximum=720,
+            )
+            partial_cutoff = now - timedelta(hours=max(1, retention_hours))
+            partials = session.exec(
+                select(SpeechTurn)
+                .where(
+                    SpeechTurn.tenant_id == tenant_id,
+                    SpeechTurn.is_final.is_(False),
+                    SpeechTurn.created_at <= partial_cutoff,
+                )
+                .order_by(SpeechTurn.created_at.asc())
+                .limit(remaining)
+            ).all()
+            for turn in partials:
+                session.delete(turn)
+                deleted_partials += 1
+                remaining -= 1
         recordings = session.exec(
             select(RecordingAsset)
             .where(

@@ -3,10 +3,13 @@ import logging
 import re
 from datetime import timedelta
 from collections import defaultdict
+import csv
+import io
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
@@ -15,8 +18,23 @@ from ...api.deps import get_pagination, require_role
 from ...clock import utc_now
 from ...config import get_settings
 from ...db import get_session
-from ...models import AdminSetting, AuditLog, Campaign, CallMetric, CallSession, RecordingAsset, SmsLog, TaskOutbox, TaskState, TelephonyLine, User
-from ...models import Contact
+from ...models import (
+    AdminSetting,
+    AuditLog,
+    Campaign,
+    CallAnalysis,
+    CallMetric,
+    CallSession,
+    CallStatus,
+    Contact,
+    RecordingAsset,
+    SmsLog,
+    SpeechTurn,
+    TaskOutbox,
+    TaskState,
+    TelephonyLine,
+    User,
+)
 from ...schemas import (
     AdminBillingPayload,
     AdminBillingRow,
@@ -67,6 +85,15 @@ BILLING_RATES = {
 
 def _call_status_value(call: CallSession) -> str:
     return call.status.value if hasattr(call.status, "value") else str(call.status)
+
+
+def _csv_safe(value: Any) -> Any:
+    """Prevent spreadsheet formula execution when exported data is opened."""
+
+    if value is None or isinstance(value, (int, float)):
+        return value
+    text = str(value)
+    return f"'{text}" if text.startswith(("=", "+", "-", "@", "\t", "\r")) else text
 
 
 def _count_row_stats(calls: list[CallSession]) -> tuple[int, int, int, int, int, int]:
@@ -461,10 +488,19 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
         start = merged["allowed_start_hour"]
         end = merged["allowed_end_hour"]
         attempts = merged["max_attempts_per_day"]
+        min_interval = merged["min_attempt_interval_sec"]
+        recording_retention_days = merged["recording_retention_days"]
+        partial_retention_hours = merged["partial_transcript_retention_hours"]
         if not isinstance(start, int) or not isinstance(end, int) or not (0 <= start <= 23 and 0 <= end <= 23):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid allowed calling hours")
         if not isinstance(attempts, int) or not 1 <= attempts <= 20:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max attempts per day")
+        if not isinstance(min_interval, int) or not 0 <= min_interval <= 604_800:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid minimum attempt interval")
+        if not isinstance(recording_retention_days, int) or not 1 <= recording_retention_days <= 3_650:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid recording retention days")
+        if not isinstance(partial_retention_hours, int) or not 1 <= partial_retention_hours <= 720:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid partial transcript retention")
         try:
             ZoneInfo(str(merged["timezone"]))
         except ZoneInfoNotFoundError:
@@ -557,6 +593,179 @@ def update_setting(
     session.commit()
     session.refresh(record)
     return AdminSettingOut(section=section, data=data, updated_at=record.updated_at)
+
+
+@router.get("/calls/export")
+def export_calls_csv(
+    days: int = Query(default=30, ge=1, le=3650),
+    call_status: str | None = Query(default=None, alias="status", max_length=32),
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    if call_status is not None and call_status not in {state.value for state in CallStatus}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid call status")
+    since = utc_now() - timedelta(days=days)
+    calls_query = select(CallSession).where(CallSession.tenant_id == current.tenant_id, CallSession.created_at >= since)
+    if call_status is not None:
+        calls_query = calls_query.where(CallSession.status == call_status)
+    calls = session.exec(calls_query.order_by(CallSession.created_at.desc())).all()
+    call_ids = [call.id for call in calls]
+
+    analysis_by_call: dict[str, CallAnalysis] = {}
+    metric_duration: dict[str, int] = defaultdict(int)
+    metric_count: dict[str, int] = defaultdict(int)
+    speech_counts: dict[str, int] = defaultdict(int)
+    final_speech_counts: dict[str, int] = defaultdict(int)
+    recordings_by_call: dict[str, list[RecordingAsset]] = defaultdict(list)
+    contact_ids = [call.contact_id for call in calls if call.contact_id is not None]
+    contacts = {
+        item.id: item.phone
+        for item in session.exec(
+            select(Contact).where(Contact.tenant_id == current.tenant_id, Contact.id.in_(contact_ids))
+        ).all()
+    } if contact_ids else {}
+
+    if call_ids:
+        for analysis in session.exec(
+            select(CallAnalysis).where(
+                CallAnalysis.tenant_id == current.tenant_id,
+                CallAnalysis.call_session_id.in_(call_ids),
+            )
+        ).all():
+            analysis_by_call[str(analysis.call_session_id)] = analysis
+
+        for call_session_id, total, total_duration in session.exec(
+            select(
+                CallMetric.call_session_id,
+                func.count(CallMetric.id),
+                func.coalesce(func.sum(func.coalesce(CallMetric.duration_ms, 0)), 0),
+            ).where(
+                CallMetric.tenant_id == current.tenant_id,
+                CallMetric.call_session_id.in_(call_ids)
+            ).group_by(CallMetric.call_session_id)
+        ).all():
+            metric_count[str(call_session_id)] = int(total)
+            metric_duration[str(call_session_id)] = int(total_duration or 0)
+
+        for call_session_id, total in session.exec(
+            select(SpeechTurn.call_session_id, func.count(SpeechTurn.id)).where(
+                SpeechTurn.tenant_id == current.tenant_id,
+                SpeechTurn.call_session_id.in_(call_ids)
+            ).group_by(SpeechTurn.call_session_id)
+        ).all():
+            speech_counts[str(call_session_id)] = int(total)
+
+        for call_session_id, total in session.exec(
+            select(SpeechTurn.call_session_id, func.count(SpeechTurn.id)).where(
+                SpeechTurn.tenant_id == current.tenant_id,
+                SpeechTurn.call_session_id.in_(call_ids),
+                SpeechTurn.is_final.is_(True),
+            ).group_by(SpeechTurn.call_session_id)
+        ).all():
+            final_speech_counts[str(call_session_id)] = int(total)
+
+        for asset in session.exec(
+            select(RecordingAsset).where(
+                RecordingAsset.tenant_id == current.tenant_id,
+                RecordingAsset.call_session_id.in_(call_ids),
+            ).order_by(RecordingAsset.created_at.asc())
+        ).all():
+            recordings_by_call[str(asset.call_session_id)].append(asset)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    headers = [
+        "call_id",
+        "phone",
+        "status",
+        "mode",
+        "campaign_id",
+        "contact_phone",
+        "attempts",
+        "max_attempts",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at",
+        "duration_ms",
+        "metric_count",
+        "metric_total_duration_ms",
+        "speech_turn_count",
+        "final_speech_turn_count",
+        "result_code",
+        "intent",
+        "sentiment",
+        "qa_score",
+        "qa_flags",
+        "analysis_summary",
+        "human_agent_id",
+        "handoff_reason",
+        "last_error",
+        "recording_urls",
+        "recording_storage_uris",
+        "recording_states",
+        "recording_retention_untils",
+    ]
+    writer.writerow(headers)
+
+    for call in calls:
+        analysis = analysis_by_call.get(str(call.id))
+        duration_ms = None
+        if call.started_at and call.finished_at:
+            duration_ms = int((call.finished_at - call.started_at).total_seconds() * 1000)
+        assets = recordings_by_call.get(str(call.id), [])
+        writer.writerow(
+            [_csv_safe(value) for value in [
+                str(call.id),
+                call.phone,
+                _call_status_value(call),
+                call.mode.value if hasattr(call.mode, "value") else str(call.mode),
+                call.campaign_id or "",
+                contacts.get(call.contact_id or 0, ""),
+                call.attempts,
+                call.max_attempts,
+                call.started_at.isoformat() if call.started_at else "",
+                call.finished_at.isoformat() if call.finished_at else "",
+                call.created_at.isoformat() if call.created_at else "",
+                call.updated_at.isoformat() if call.updated_at else "",
+                duration_ms if duration_ms is not None else "",
+                metric_count.get(str(call.id), 0),
+                metric_duration.get(str(call.id), 0),
+                speech_counts.get(str(call.id), 0),
+                final_speech_counts.get(str(call.id), 0),
+                analysis.result_code if analysis else "",
+                analysis.intent if analysis else "",
+                analysis.sentiment if analysis else "",
+                analysis.qa_score if analysis else "",
+                analysis.qa_flags_json if analysis else "",
+                analysis.summary if analysis else "",
+                call.human_agent_id or "",
+                call.handoff_reason or "",
+                call.last_error or "",
+                " | ".join(asset.provider_url for asset in assets),
+                " | ".join(asset.storage_uri for asset in assets),
+                " | ".join(asset.state for asset in assets),
+                " | ".join(
+                    str(asset.retention_until) for asset in assets if asset.retention_until is not None
+                ),
+            ]]
+        )
+
+    output.seek(0)
+    _audit(
+        session,
+        current,
+        "export",
+        "call_evidence",
+        detail=f"days={days}, status={call_status or 'all'}, rows={len(calls)}",
+    )
+    session.commit()
+    filename = f"call-evidence-{current.tenant_id}-{utc_now().strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/audit-logs", response_model=list[AuditLogOut])

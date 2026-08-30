@@ -14,6 +14,7 @@ from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, Ha
 from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 from ...services.call_analysis import analyze_call
+from ...services.admin_settings import get_admin_int_setting
 from ...services.realtime_voice import apply_media_event, ingest_speech_turn, interrupt_playback
 from ...services.task_queue import enqueue_business_callback, enqueue_task, process_task
 
@@ -418,6 +419,15 @@ def telephony_recording(
         return {"result": "ignored", "reason": "recording_disabled"}
     url = payload.payload.get("url")
     if url:
+        retention_days = get_admin_int_setting(
+            session,
+            call.tenant_id,
+            "compliance",
+            "recording_retention_days",
+            settings.recording_retention_days,
+            minimum=1,
+            maximum=3_650,
+        )
         call.recording_url = str(url)
         existing_asset = session.exec(
             select(RecordingAsset).where(
@@ -438,7 +448,7 @@ def telephony_recording(
                     media_format=str(payload.payload.get("format") or ""),
                     channel_count=int(payload.payload.get("channel_count") or 1),
                     checksum_sha256=payload.payload.get("checksum_sha256"),
-                    retention_until=utc_now() + timedelta(days=max(1, settings.recording_retention_days)),
+                    retention_until=utc_now() + timedelta(days=retention_days),
                 )
             )
     session.add(call)
