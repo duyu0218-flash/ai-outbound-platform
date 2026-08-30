@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -13,7 +14,7 @@ from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...clock import utc_now
-from ...models import CallSession, Campaign, CampaignContact, Contact, ConsentState
+from ...models import AuditLog, CallSession, Campaign, CampaignContact, Contact, ConsentState, User
 from ...schemas import (
     ContactBatchDncPatch,
     ContactBatchDncResult,
@@ -87,6 +88,28 @@ def _parse_contact_row(row: dict[str, str], row_index: int) -> tuple[ContactImpo
     ), None
 
 
+def _audit(
+    session: Session,
+    tenant_id: int,
+    actor: User | None,
+    action: str,
+    resource_type: str,
+    resource_id: str | int | None = None,
+    detail: str = "",
+) -> None:
+    session.add(
+        AuditLog(
+            tenant_id=tenant_id,
+            actor_user_id=actor.id if actor else None,
+            actor_username=actor.username if actor else "system",
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(resource_id) if resource_id is not None else None,
+            detail=detail[:4000],
+        )
+    )
+
+
 def _iter_csv_rows(file: UploadFile) -> list[tuple[int, dict[str, str]]]:
     try:
         text = file.file.read().decode("utf-8-sig")
@@ -147,6 +170,7 @@ def _iter_csv_rows(file: UploadFile) -> list[tuple[int, dict[str, str]]]:
 def import_contacts(
     file: UploadFile = File(..., media_type="text/csv", description="CSV file with fields phone,name,tags,consent_state,dnc,dnc_reason,timezone"),
     upsert: bool = Query(default=True),
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
@@ -214,6 +238,17 @@ def import_contacts(
         session.add(existing_contact)
         updated += 1
 
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="import",
+        resource_type="contact",
+        detail=(
+            f"imported_file_rows={total_rows}, created={created}, updated={updated}, "
+            f"skipped={skipped}, failed={failed}, upsert={upsert}"
+        ),
+    )
     try:
         session.commit()
     except IntegrityError:
@@ -226,6 +261,7 @@ def import_contacts(
 @router.get("/export")
 def export_contacts(
     tenant_id: int = Depends(get_tenant_id_for_request),
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
     dnc: bool | None = Query(default=None),
     consent: str | None = Query(default=None),
     keyword: str | None = Query(default=None),
@@ -260,6 +296,16 @@ def export_contacts(
             ]
         )
 
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="export",
+        resource_type="contact",
+        detail=f"exported_filters={json.dumps({'dnc': dnc, 'consent': consent, 'keyword': keyword}, ensure_ascii=False)}",
+    )
+    session.commit()
+
     output.seek(0)
     filename = f"contacts-{tenant_id}-{utc_now().strftime('%Y%m%d-%H%M%S')}.csv"
     return Response(
@@ -272,6 +318,7 @@ def export_contacts(
 @router.patch("/batch-dnc", response_model=ContactBatchDncResult)
 def batch_dnc(
     payload: ContactBatchDncPatch,
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
@@ -290,7 +337,18 @@ def batch_dnc(
 
     if contacts:
         session.add_all(contacts)
-        session.commit()
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="batch_update",
+        resource_type="contact",
+        detail=(
+            f"request_total={len(contact_ids)}, updated={len(contacts)}, "
+            f"dnc={payload.dnc}, dnc_reason={payload.dnc_reason}"
+        ),
+    )
+    session.commit()
 
     return ContactBatchDncResult(
         total=len(contact_ids),
@@ -301,7 +359,12 @@ def batch_dnc(
 
 
 @router.post("", response_model=ContactOut)
-def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_id_for_request), session: Session = Depends(get_session)):
+def create_contact(
+    payload: ContactCreate,
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
     normalized_phone = normalize_phone(payload.phone)
     _validate_timezone(payload.timezone)
     if not normalized_phone or not 6 <= len(normalized_phone) <= 15:
@@ -321,6 +384,17 @@ def create_contact(payload: ContactCreate, tenant_id: int = Depends(get_tenant_i
         dnc_reason=payload.dnc_reason or None,
         timezone=payload.timezone,
         consented_at=utc_now() if payload.consent_state == ConsentState.CONSENTED else None,
+    )
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="create",
+        resource_type="contact",
+        detail=(
+            f"phone={contact.phone}, name={contact.name or ''}, consent_state={contact.consent_state}, "
+            f"dnc={contact.dnc}, dnc_reason={contact.dnc_reason or ''}, timezone={contact.timezone}"
+        ),
     )
     session.add(contact)
     try:
@@ -366,6 +440,7 @@ def get_contact(contact_id: int, tenant_id: int = Depends(get_tenant_id_for_requ
 def patch_contact(
     contact_id: int,
     payload: ContactPatch,
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
@@ -382,6 +457,15 @@ def patch_contact(
             contact.consented_at = utc_now()
         else:
             contact.consented_at = None
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="update",
+        resource_type="contact",
+        resource_id=contact_id,
+        detail=f"contact_id={contact_id}, fields={','.join(sorted(payload.dict(exclude_unset=True).keys()))}",
+    )
     session.add(contact)
     session.commit()
     session.refresh(contact)
@@ -389,7 +473,12 @@ def patch_contact(
 
 
 @router.delete("/{contact_id}")
-def delete_contact(contact_id: int, tenant_id: int = Depends(get_tenant_id_for_request), session: Session = Depends(get_session)):
+def delete_contact(
+    contact_id: int,
+    current: User | None = Depends(require_roles_if_authenticated("admin")),
+    tenant_id: int = Depends(get_tenant_id_for_request),
+    session: Session = Depends(get_session),
+):
     contact = session.get(Contact, contact_id)
     if not contact or contact.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
@@ -413,6 +502,15 @@ def delete_contact(contact_id: int, tenant_id: int = Depends(get_tenant_id_for_r
             status_code=status.HTTP_409_CONFLICT,
             detail="contact is referenced by campaign or call history; mark it DNC instead",
         )
+    _audit(
+        session,
+        tenant_id=tenant_id,
+        actor=current,
+        action="delete",
+        resource_type="contact",
+        resource_id=contact_id,
+        detail=f"phone={contact.phone}",
+    )
     session.delete(contact)
     session.commit()
     return {"result": "deleted"}
