@@ -27,6 +27,7 @@ from .api.routers import (
     pages_router,
     webhooks_router,
     voice_operations_router,
+    webrtc_router,
 )
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, engine, session_scope
@@ -152,6 +153,17 @@ def _validate_production_runtime() -> None:
             issues.append("RECORDING_DELETE_ENDPOINT")
         if weak_secret(settings.recording_delete_service_token, 24):
             issues.append("RECORDING_DELETE_SERVICE_TOKEN")
+    if settings.webrtc_enabled:
+        if not settings.webrtc_wss_url.startswith("wss://"):
+            issues.append("WEBRTC_WSS_URL")
+        if not settings.webrtc_sip_domain.strip():
+            issues.append("WEBRTC_SIP_DOMAIN")
+        if not settings.turn_urls.strip():
+            issues.append("TURN_URLS")
+        if not settings.turn_shared_secret.strip() or len(settings.turn_shared_secret) < 24:
+            issues.append("TURN_SHARED_SECRET")
+        if not settings.freeswitch_directory_token.strip() or len(settings.freeswitch_directory_token) < 24:
+            issues.append("FREESWITCH_DIRECTORY_TOKEN")
 
     if issues:
         raise RuntimeError(
@@ -318,4 +330,5 @@ app.include_router(script_templates_router)
 app.include_router(script_flows_router)
 app.include_router(admin_management_router)
 app.include_router(voice_operations_router)
+app.include_router(webrtc_router)
 app.include_router(pages_router)

@@ -31,11 +31,12 @@ STATUS_ORDER = {
     CallStatus.IN_AI: 4,
     CallStatus.WAITING_HUMAN: 5,
     CallStatus.HANDOFF_TRANSFERRING: 4,
-    CallStatus.COMPLETED: 6,
-    CallStatus.FAILED: 6,
-    CallStatus.NO_ANSWER: 6,
-    CallStatus.BUSY: 6,
-    CallStatus.VOICEMAIL: 6,
+    CallStatus.IN_HUMAN: 6,
+    CallStatus.COMPLETED: 7,
+    CallStatus.FAILED: 7,
+    CallStatus.NO_ANSWER: 7,
+    CallStatus.BUSY: 7,
+    CallStatus.VOICEMAIL: 7,
 }
 
 
@@ -87,6 +88,8 @@ def _status_to_call_status(raw_status: str) -> CallStatus | None:
         "answering": CallStatus.ANSWERED,
         "answered": CallStatus.ANSWERED,
         "in_ai": CallStatus.IN_AI,
+        "human_connected": CallStatus.IN_HUMAN,
+        "in_human": CallStatus.IN_HUMAN,
         "completed": CallStatus.COMPLETED,
         "ended": CallStatus.COMPLETED,
         "failed": CallStatus.FAILED,
@@ -196,6 +199,37 @@ def telephony_status(
     if not _event_matches_current_attempt(call, payload.payload):
         return {"result": "ignored", "reason": "stale_attempt"}
 
+    if str(raw_status).strip().lower() == "human_unavailable":
+        active_handoff = session.exec(
+            select(HandoffRequest)
+            .where(
+                HandoffRequest.call_session_id == call.id,
+                HandoffRequest.state.in_({HandoffState.ACCEPTING, HandoffState.ACCEPTED}),
+            )
+            .order_by(HandoffRequest.updated_at.desc())
+        ).first()
+        assigned_agent_id = call.human_agent_id or (active_handoff.assigned_agent_id if active_handoff else None)
+        if active_handoff is not None:
+            active_handoff.state = HandoffState.WAITING
+            active_handoff.assigned_agent_id = None
+            active_handoff.responded_at = None
+            active_handoff.updated_at = utc_now()
+            session.add(active_handoff)
+        if assigned_agent_id is not None:
+            assigned_agent = session.get(User, assigned_agent_id)
+            if assigned_agent is not None and assigned_agent.agent_status == "busy":
+                assigned_agent.agent_status = "ready"
+                assigned_agent.last_seen_at = utc_now()
+                assigned_agent.updated_at = utc_now()
+                session.add(assigned_agent)
+        call.status = CallStatus.WAITING_HUMAN
+        call.human_agent_id = None
+        call.last_error = str(payload.payload.get("hangup_reason") or "agent did not answer")
+        call.updated_at = utc_now()
+        session.add(call)
+        session.commit()
+        return {"result": "ok", "requeued": True}
+
     status_applied = bool(mapped and _apply_status_transition(session, call.id, mapped))
     if status_applied:
         session.refresh(call)
@@ -225,7 +259,7 @@ def telephony_status(
         for handoff in session.exec(
             select(HandoffRequest).where(
                 HandoffRequest.call_session_id == call.id,
-                HandoffRequest.state.in_({HandoffState.WAITING, HandoffState.ACCEPTED}),
+                HandoffRequest.state.in_({HandoffState.WAITING, HandoffState.ACCEPTING, HandoffState.ACCEPTED}),
             )
         ).all():
             handoff.state = (

@@ -304,6 +304,43 @@ export interface HandoffRequest {
   wait_seconds?: number
 }
 
+export interface IceServerConfig {
+  urls: string[]
+  username?: string
+  credential?: string
+}
+
+export interface WebRtcSessionConfig {
+  enabled: boolean
+  wss_url: string
+  sip_uri: string
+  authorization_username: string
+  authorization_password: string
+  extension: string
+  expires_at?: string
+  ice_servers: IceServerConfig[]
+}
+
+export interface AgentMediaStatus {
+  user_id?: number
+  tenant_id?: number
+  extension?: string
+  registration_state: 'disabled' | 'connecting' | 'registered' | 'disconnected' | 'error'
+  media_state: 'idle' | 'ringing' | 'connecting' | 'active' | 'held' | 'ended' | 'error'
+  microphone_permission: 'unknown' | 'prompt' | 'granted' | 'denied' | 'unavailable'
+  input_device_id: string
+  output_device_id: string
+  active_call_id?: string
+  muted: boolean
+  held: boolean
+  network_quality: 'unknown' | 'good' | 'fair' | 'poor'
+  round_trip_time_ms?: number
+  jitter_ms?: number
+  packets_lost?: number
+  last_error: string
+  last_seen_at?: string
+}
+
 export interface QualityReviewItem {
   call_id: string
   phone: string

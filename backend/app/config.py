@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     scheduler_batch_size: int = 200
     scheduler_lock_ttl_sec: int = 15
     agent_presence_timeout_sec: int = 90
+    webrtc_enabled: bool = False
+    webrtc_wss_url: str = ""
+    webrtc_sip_domain: str = ""
+    webrtc_extension_template: str = "agent_{agent_id}"
+    webrtc_sip_credential_ttl_sec: int = 900
+    webrtc_media_status_ttl_sec: int = 90
+    webrtc_event_stream_interval_sec: float = 1.5
+    turn_urls: str = ""
+    turn_shared_secret: str = ""
+    turn_credential_ttl_sec: int = 3600
+    freeswitch_directory_token: str = ""
     ai_turn_lock_ttl_sec: int = 45
     ai_turn_lock_wait_sec: float = 15.0
     recording_retention_days: int = 90

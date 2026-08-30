@@ -385,6 +385,46 @@ class AgentPresenceUpdate(BaseModel):
     status: str = Field(pattern=r"^(ready|busy|offline)$")
 
 
+class IceServerOut(BaseModel):
+    urls: list[str]
+    username: Optional[str] = None
+    credential: Optional[str] = None
+
+
+class WebRtcSessionOut(BaseModel):
+    enabled: bool
+    wss_url: str = ""
+    sip_uri: str = ""
+    authorization_username: str = ""
+    authorization_password: str = ""
+    extension: str = ""
+    expires_at: Optional[datetime] = None
+    ice_servers: list[IceServerOut] = Field(default_factory=list)
+
+
+class AgentMediaStatusUpdate(BaseModel):
+    registration_state: str = Field(pattern=r"^(disabled|connecting|registered|disconnected|error)$")
+    media_state: str = Field(pattern=r"^(idle|ringing|connecting|active|held|ended|error)$")
+    microphone_permission: str = Field(pattern=r"^(unknown|prompt|granted|denied|unavailable)$")
+    input_device_id: str = Field(default="", max_length=512)
+    output_device_id: str = Field(default="", max_length=512)
+    active_call_id: Optional[UUID] = None
+    muted: bool = False
+    held: bool = False
+    network_quality: str = Field(default="unknown", pattern=r"^(unknown|good|fair|poor)$")
+    round_trip_time_ms: Optional[float] = Field(default=None, ge=0, le=120_000)
+    jitter_ms: Optional[float] = Field(default=None, ge=0, le=120_000)
+    packets_lost: Optional[int] = Field(default=None, ge=0)
+    last_error: str = Field(default="", max_length=2000)
+
+
+class AgentMediaStatusOut(AgentMediaStatusUpdate):
+    user_id: int
+    tenant_id: int
+    extension: str
+    last_seen_at: datetime
+
+
 class SmsStatusWebhook(BaseModel):
     sms_log_id: Optional[int] = Field(default=None, ge=1)
     provider_message_id: Optional[str] = Field(default=None, max_length=255)

@@ -188,6 +188,73 @@ def test_freeswitch_events_emit_status_media_and_recording_callbacks():
     asyncio.run(scenario())
 
 
+def test_human_only_call_rings_browser_then_confirms_media_bridge():
+    async def scenario():
+        fake = FakeEslClient()
+        driver = FreeswitchEslDriver(freeswitch_settings(), client=fake)
+        captured: list[tuple[str, dict]] = []
+
+        async def capture(url: str, payload: dict):
+            captured.append((url, payload))
+
+        driver._post_json = capture  # type: ignore[method-assign]
+        dial = await driver.post("dial", {
+            "call_id": "human-call-1",
+            "phone": "13800138008",
+            "webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/status",
+            "metadata": {
+                "tenant_id": 1,
+                "mode": "human_only",
+                "human_agent_id": 23,
+                "recording_enabled": True,
+                "recording_webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/recording",
+                "media_webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/media",
+            },
+        })
+        originate = fake.bgapi_commands[-1]
+        assert "user/agent_23" in originate
+        assert "&bridge(sofia/gateway/carrier/13800138008)" in originate
+        fs_uuid = dial["provider_call_id"]
+        await driver._handle_event({"Event-Name": "CHANNEL_ANSWER", "Unique-ID": fs_uuid, "Event-Date-Timestamp": "400"})
+        await driver._handle_event({"Event-Name": "CHANNEL_BRIDGE", "Unique-ID": fs_uuid, "Event-Date-Timestamp": "500"})
+        statuses = [payload["payload"]["status"] for url, payload in captured if url.endswith("/status")]
+        assert statuses == ["agent_answered", "human_connected"]
+        assert any(command.startswith(f"uuid_record {fs_uuid} start ") for command in fake.api_commands)
+
+    asyncio.run(scenario())
+
+
+def test_failed_browser_handoff_notifies_control_plane_for_requeue():
+    async def scenario():
+        fake = FakeEslClient()
+        driver = FreeswitchEslDriver(freeswitch_settings(), client=fake)
+        captured: list[tuple[str, dict]] = []
+
+        async def capture(url: str, payload: dict):
+            captured.append((url, payload))
+
+        driver._post_json = capture  # type: ignore[method-assign]
+        dial = await driver.post("dial", {
+            "call_id": "handoff-call-1",
+            "phone": "13800138009",
+            "webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/status",
+            "metadata": {"tenant_id": 1},
+        })
+        await driver.post("transfer", {"call_id": "handoff-call-1", "target_group": "agent:23"})
+        await driver._handle_event({
+            "Event-Name": "CHANNEL_EXECUTE_COMPLETE",
+            "Unique-ID": dial["provider_call_id"],
+            "Application": "bridge",
+            "Application-Response": "NO_ANSWER",
+            "Event-Date-Timestamp": "600",
+        })
+        statuses = [payload["payload"] for url, payload in captured if url.endswith("/status")]
+        assert statuses[-1]["status"] == "human_unavailable"
+        assert statuses[-1]["hangup_reason"] == "NO_ANSWER"
+
+    asyncio.run(scenario())
+
+
 def test_freeswitch_hangup_causes_are_mapped():
     async def scenario():
         fake = FakeEslClient()

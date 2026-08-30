@@ -306,7 +306,7 @@ bash scripts/test-campaign-start.sh
 
 - GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
 - 当需要跨机房、大规模调度或死信队列时，再将当前“数据库持久队列 + Redis 主锁”升级为 Celery/Temporal。
-- 对接并验收真实运营商/PBX、SIP 中继、坐席 WebRTC 软电话、排队分配和人工接听状态；当前页面不是媒体终端。
+- 浏览器坐席媒体终端、SIP.js、短期 SIP/TURN 凭证、媒体状态和 FreeSWITCH 桥接事件已实现；仍须按 [WebRTC 部署与验收](docs/browser-webrtc.md) 对接真实运营商/PBX、SIP 中继、WSS、coturn、耳机和公网网络。
 - 按 [实时语音网关契约](docs/realtime-voice-contract.md) 接入真实 ASR、LLM、TTS 媒体链路，并做中文/英文口音、打断、延迟、降级和敏感词验收；平台侧状态机、分段转写和打断控制已实现。
 - 录音资产元数据、存储 URI、校验值和保留期限已建模；仍需接入 MinIO/对象存储上传、签名访问、生命周期执行和删除审计，当前不代存录音文件。
 - 对接真实短信供应商并验证签名、模板、退订、频控、失败重试和回执。当前管理员可以查看与重试失败记录，但供应商能力取决于外部配置。

@@ -73,6 +73,10 @@ def apply_runtime_migrations(engine: Engine) -> None:
             connection.execute(
                 text("ALTER TYPE handoffstate ADD VALUE IF NOT EXISTS 'ACCEPTING'")
             )
+        if engine.dialect.name == "postgresql" and "callsession" in tables:
+            connection.execute(
+                text("ALTER TYPE callstatus ADD VALUE IF NOT EXISTS 'IN_HUMAN'")
+            )
         for statement in statements:
             logger.info("applying database migration: %s", statement)
             connection.execute(text(statement))

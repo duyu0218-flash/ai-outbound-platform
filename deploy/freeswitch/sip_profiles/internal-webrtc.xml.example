@@ -1,0 +1,27 @@
+<profile name="internal-webrtc">
+  <gateways/>
+  <aliases/>
+  <domains><domain name="all" alias="true" parse="false"/></domains>
+  <settings>
+    <param name="context" value="default"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <param name="ext-sip-ip" value="$${external_sip_ip}"/>
+    <param name="ext-rtp-ip" value="$${external_rtp_ip}"/>
+    <param name="sip-port" value="5062"/>
+    <param name="ws-binding" value=":5066"/>
+    <param name="wss-binding" value=":7443"/>
+    <param name="tls" value="true"/>
+    <param name="tls-only" value="false"/>
+    <param name="tls-cert-dir" value="$${certs_dir}"/>
+    <param name="auth-calls" value="true"/>
+    <param name="multiple-registrations" value="false"/>
+    <param name="apply-nat-acl" value="nat.auto"/>
+    <param name="local-network-acl" value="localnet.auto"/>
+    <param name="inbound-codec-prefs" value="OPUS,PCMU,PCMA"/>
+    <param name="outbound-codec-prefs" value="OPUS,PCMU,PCMA"/>
+    <param name="inbound-late-negotiation" value="true"/>
+    <param name="rtp-timeout-sec" value="300"/>
+    <param name="rtp-hold-timeout-sec" value="1800"/>
+  </settings>
+</profile>

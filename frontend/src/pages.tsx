@@ -54,12 +54,13 @@ import {
   Typography,
   message,
 } from 'antd'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError, apiRequest, formatDate } from './api'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
+import { WebRtcSoftphone } from './webrtc'
 import type {
   AdminBillingPayload,
   AdminCallReportPayload,
@@ -1384,7 +1385,7 @@ export function AgentWorkspacePage() {
   const [presenceSaving, setPresenceSaving] = useState(false)
   const [presenceError, setPresenceError] = useState(false)
   useEffect(() => { presenceRef.current = presenceStatus }, [presenceStatus])
-  const savePresence = async (status: 'ready' | 'busy' | 'offline', notifyFailure = true) => {
+  const savePresence = useCallback(async (status: 'ready' | 'busy' | 'offline', notifyFailure = true) => {
     if (!token) return false
     const previous = presenceRef.current
     setPresenceStatus(status)
@@ -1405,7 +1406,7 @@ export function AgentWorkspacePage() {
     } finally {
       setPresenceSaving(false)
     }
-  }
+  }, [token, t])
   useEffect(() => {
     if (!token || !user || user.role !== 'agent') return
     const heartbeat = window.setInterval(() => void savePresence(presenceRef.current, false), 30_000)
@@ -1413,7 +1414,7 @@ export function AgentWorkspacePage() {
   }, [token, user?.id])
   const mutation = useMutation({
     mutationFn: (values: CallFormValues) => apiRequest<CallSession>('/api/v1/calls', { method: 'POST', body: JSON.stringify(values) }, token),
-    onSuccess: () => { message.success(t('operationSuccess')); form.resetFields(); form.setFieldsValue({ mode: 'ai_handoff', max_attempts: 1 }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
+    onSuccess: () => { message.success(t('operationSuccess')); form.resetFields(); form.setFieldsValue({ mode: 'human_only', max_attempts: 1 }); void queryClient.invalidateQueries({ queryKey: ['calls'] }) },
     onError: (error) => message.error(error.message),
   })
   const handoffMutation = useMutation({
@@ -1427,6 +1428,16 @@ export function AgentWorkspacePage() {
     onError: (error) => message.error(error.message),
   })
   const activeCalls = useMemo(() => (query.data || []).filter((item) => !['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(item.status)), [query.data])
+  const activePhoneCall = useMemo(() => activeCalls.find((item) => ['in_human', 'handoff_transferring', 'answered'].includes(item.status)) || activeCalls[0], [activeCalls])
+  const refreshWorkspace = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['handoffs'] })
+    void queryClient.invalidateQueries({ queryKey: ['calls'] })
+    if (activePhoneCall?.id) {
+      void queryClient.invalidateQueries({ queryKey: ['softphone-speech', activePhoneCall.id] })
+      void queryClient.invalidateQueries({ queryKey: ['softphone-analysis', activePhoneCall.id] })
+    }
+  }, [activePhoneCall?.id, queryClient])
+  const mediaRegistered = useCallback(() => { void savePresence('ready', false) }, [savePresence])
 
   return (
     <>
@@ -1434,12 +1445,13 @@ export function AgentWorkspacePage() {
       {presenceError && <Alert type="error" showIcon closable message={t('presenceUpdateFailed')} description={t('presenceUpdateFailedHint')} action={<Button size="small" onClick={() => void savePresence(presenceStatus)}>{t('retry')}</Button>} style={{ marginBottom: 16 }} />}
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={9}>
+          {token && <WebRtcSoftphone token={token} activeCall={activePhoneCall} onRegistered={mediaRegistered} onPlatformUpdate={refreshWorkspace} />}
           <Card className="dialer-card" title={<Space><PhoneOutlined />{t('callNow')}</Space>}>
-            <Form<CallFormValues> form={form} layout="vertical" initialValues={{ mode: 'ai_handoff', max_attempts: 1 }} onFinish={(values) => mutation.mutate(values)}>
+            <Form<CallFormValues> form={form} layout="vertical" initialValues={{ mode: 'human_only', max_attempts: 1 }} onFinish={(values) => mutation.mutate(values)}>
               <Form.Item label={t('phone')} name="phone" rules={[{ required: true }, { pattern: /^\+?[0-9 ()-]{6,32}$/, message: t('invalidPhone') }]}><Input size="large" placeholder="13800000000" /></Form.Item>
               <Form.Item label={t('mode')} name="mode"><Select size="large" options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item>
               <Form.Item label={t('attempts')} name="max_attempts"><InputNumber min={1} max={10} size="large" className="full-width" /></Form.Item>
-              <Button type="primary" size="large" block icon={<PhoneOutlined />} htmlType="submit" loading={mutation.isPending}>{t('callNow')}</Button>
+              <Button type="primary" size="large" block icon={<PhoneOutlined />} htmlType="submit" loading={mutation.isPending} disabled={presenceStatus !== 'ready'}>{t('callNow')}</Button>
             </Form>
           </Card>
           <Card className="agent-profile-card" title={t('profile')}>

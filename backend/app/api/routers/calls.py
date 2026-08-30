@@ -8,7 +8,9 @@ from sqlmodel import select
 from ...api.deps import check_api_key, current_user_optional, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...db import get_session
 from ...clock import utc_now
-from ...models import CallEvent, CallStatus, User, WebhookEventIngest
+from ...models import CallEvent, CallMode, CallStatus, User, WebhookEventIngest
+from ...config import get_settings
+from ...services.webrtc import media_is_registered
 from ...schemas import (
     CallEventOut,
     CallSessionOut,
@@ -34,6 +36,7 @@ router = APIRouter(
     tags=["calls"],
     dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin", "agent"))],
 )
+settings = get_settings()
 
 
 def _ensure_agent_call_access(call, current: User | None) -> None:
@@ -51,6 +54,17 @@ async def create_call_api(
     current: User | None = Depends(current_user_optional),
 ):
     try:
+        if (
+            current is not None
+            and current.role == "agent"
+            and payload.mode == CallMode.HUMAN_ONLY
+            and settings.webrtc_enabled
+            and not media_is_registered(tenant_id=tenant_id, agent_id=int(current.id))
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="agent browser SIP endpoint is not registered",
+            )
         call = create_call(
             session=session,
             tenant_id=tenant_id,

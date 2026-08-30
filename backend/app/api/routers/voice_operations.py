@@ -48,6 +48,8 @@ from ...services.call_analysis import analyze_call
 from ...services.call_service import get_call
 from ...services.realtime_voice import interrupt_playback
 from ...services.telephony import get_telephony_adapter, with_retry
+from ...services.webrtc import media_is_registered
+from ...config import get_settings
 
 
 router = APIRouter(
@@ -55,6 +57,7 @@ router = APIRouter(
     tags=["voice-operations"],
     dependencies=[Depends(check_api_key), Depends(require_roles_if_authenticated("admin", "agent"))],
 )
+settings = get_settings()
 
 
 def _visible_call(session: Session, tenant_id: int, call_id: UUID, user: User | None) -> CallSession:
@@ -322,6 +325,11 @@ async def accept_handoff(
         allowed_statuses = {"ready", "busy"} if original_assigned_agent_id == current.id else {"ready"}
         if managed_agent.agent_status not in allowed_statuses:
             raise HTTPException(status_code=409, detail="agent is not ready")
+        if settings.webrtc_enabled and not media_is_registered(
+            tenant_id=tenant_id,
+            agent_id=int(current.id),
+        ):
+            raise HTTPException(status_code=409, detail="agent browser SIP endpoint is not registered")
         # A public queue item may carry the generic "default" target. Once a
         # concrete agent accepts it, always bridge to that exact media endpoint.
         transfer_target = f"agent:{current.id}"
