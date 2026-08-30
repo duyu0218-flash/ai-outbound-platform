@@ -43,6 +43,9 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "allowed_end_hour": 20,
         "timezone": "Asia/Shanghai",
         "max_attempts_per_day": 3,
+        "min_attempt_interval_sec": 0,
+        "recording_retention_days": int(settings.recording_retention_days),
+        "partial_transcript_retention_hours": int(settings.partial_transcript_retention_hours),
     },
     "integration": {
         "callback_enabled": False,
@@ -74,6 +77,30 @@ def get_admin_setting(session: Session, tenant_id: int, section: str) -> dict[st
     if not isinstance(saved, dict):
         return dict(defaults)
     return {**defaults, **{key: value for key, value in saved.items() if key in defaults}}
+
+
+def get_admin_int_setting(
+    session: Session,
+    tenant_id: int,
+    section: str,
+    key: str,
+    fallback: int,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """Read a tenant integer setting defensively, including legacy/corrupt rows."""
+
+    raw_value = get_admin_setting(session, tenant_id, section).get(key, fallback)
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        value = int(fallback)
+    if minimum is not None:
+        value = max(minimum, value)
+    if maximum is not None:
+        value = min(maximum, value)
+    return value
 
 
 def get_tenant_max_concurrent_calls(session: Session, tenant_id: int) -> int:

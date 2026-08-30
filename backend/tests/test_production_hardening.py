@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import csv
+import io
+import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -34,6 +37,7 @@ from app.models import (  # noqa: E402
     Campaign,
     CallAnalysis,
     CallEvent,
+    CallMetric,
     CallMode,
     CallSession,
     CallStatus,
@@ -282,6 +286,13 @@ def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):
     assert created.status_code == 200, created.text
     call_id = created.json()["id"]
 
+    retention_setting = client.put(
+        "/api/v1/admin/settings/compliance",
+        headers=headers,
+        json={"data": {"recording_retention_days": 7}},
+    )
+    assert retention_setting.status_code == 200, retention_setting.text
+
     recording = client.post(
         "/api/v1/webhooks/telephony/recording",
         json={
@@ -303,6 +314,8 @@ def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):
     assert assets.status_code == 200, assets.text
     assert assets.json()[0]["storage_uri"] == "s3://acceptance/rec-1.wav"
     assert assets.json()[0]["channel_count"] == 2
+    retention_until = datetime.fromisoformat(assets.json()[0]["retention_until"])
+    assert timedelta(days=6, hours=23) <= retention_until - utc_now() <= timedelta(days=7, minutes=1)
 
     analysis = client.get(f"/api/v1/calls/{call_id}/analysis?refresh=true", headers=headers)
     assert analysis.status_code == 200, analysis.text
@@ -797,13 +810,17 @@ async def test_business_callback_task_is_durable_and_idempotent(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_retention_purges_partial_text_and_tombstones_recording(monkeypatch):
-    monkeypatch.setattr("app.services.retention.settings.partial_transcript_retention_hours", 1)
     deleted_assets: list[int] = []
     monkeypatch.setattr(
         "app.services.recording_storage.delete_recording_asset",
         lambda asset: deleted_assets.append(asset.id),
     )
     with session_scope() as session:
+        session.add(AdminSetting(
+            tenant_id=1,
+            section="compliance",
+            data_json=json.dumps({"partial_transcript_retention_hours": 1}),
+        ))
         call = CallSession(tenant_id=1, phone="13800138992", mode=CallMode.HUMAN_ONLY)
         session.add(call)
         session.commit()
@@ -847,6 +864,47 @@ async def test_retention_purges_partial_text_and_tombstones_recording(monkeypatc
         assert recording.storage_uri == ""
         assert recording.deleted_at is not None
     assert recording_id in deleted_assets
+
+
+def test_partial_transcript_retention_uses_tenant_policy():
+    with session_scope() as session:
+        session.add(AdminSetting(
+            tenant_id=1,
+            section="compliance",
+            data_json=json.dumps({"partial_transcript_retention_hours": 3}),
+        ))
+        call = CallSession(tenant_id=1, phone="13800138873", mode=CallMode.HUMAN_ONLY)
+        session.add(call)
+        session.flush()
+        kept = SpeechTurn(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_event_key=f"retention-kept-{call.id}",
+            transcript="recent partial",
+            normalized_transcript="recent partial",
+            is_final=False,
+            created_at=utc_now() - timedelta(hours=2),
+        )
+        expired = SpeechTurn(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_event_key=f"retention-expired-{call.id}",
+            transcript="expired partial",
+            normalized_transcript="expired partial",
+            is_final=False,
+            created_at=utc_now() - timedelta(hours=4),
+        )
+        session.add(kept)
+        session.add(expired)
+        session.commit()
+        kept_id = kept.id
+        expired_id = expired.id
+
+    result = purge_expired_voice_data(batch_size=500)
+    assert result["partial_transcripts"] >= 1
+    with session_scope() as session:
+        assert session.get(SpeechTurn, kept_id) is not None
+        assert session.get(SpeechTurn, expired_id) is None
 
 
 @pytest.mark.asyncio
@@ -1866,12 +1924,25 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
                 "allowed_end_hour": 19,
                 "timezone": "Asia/Shanghai",
                 "max_attempts_per_day": 2,
+                "min_attempt_interval_sec": 900,
+                "recording_retention_days": 60,
+                "partial_transcript_retention_hours": 12,
             }
         },
     )
     assert setting.status_code == 200, setting.text
     assert setting.json()["data"]["allowed_end_hour"] == 19
+    assert setting.json()["data"]["min_attempt_interval_sec"] == 900
+    assert setting.json()["data"]["recording_retention_days"] == 60
+    assert setting.json()["data"]["partial_transcript_retention_hours"] == 12
     assert client.get("/api/v1/admin/settings/compliance", headers=headers).json()["data"]["max_attempts_per_day"] == 2
+
+    invalid_retention = client.put(
+        "/api/v1/admin/settings/compliance",
+        headers=headers,
+        json={"data": {"recording_retention_days": 0}},
+    )
+    assert invalid_retention.status_code == 400
 
     invalid_setting = client.put(
         "/api/v1/admin/settings/ai",
@@ -1889,6 +1960,98 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
     assert audits.status_code == 200, audits.text
     actions = {item["action"] for item in audits.json()}
     assert {"create", "update", "reset_password"}.issubset(actions)
+
+
+def test_compliance_interval_blocks_repeat_but_not_current_dispatch(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    setting = client.put(
+        "/api/v1/admin/settings/compliance",
+        headers=headers,
+        json={"data": {"min_attempt_interval_sec": 3600}},
+    )
+    assert setting.status_code == 200, setting.text
+
+    first = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138871", "mode": "human_only", "max_attempts": 1},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["attempts"] == 1
+
+    repeated = client.post(
+        "/api/v1/calls",
+        headers=headers,
+        json={"phone": "13800138871", "mode": "human_only", "max_attempts": 1},
+    )
+    assert repeated.status_code == 403, repeated.text
+    assert repeated.json()["message"] == "retry_interval_not_elapsed"
+
+
+def test_admin_call_evidence_export_contains_voice_qa_and_audit(client: TestClient):
+    token = _login(client, "admin")
+    agent_token = _login(client, "1001@test")
+    with session_scope() as session:
+        call = CallSession(
+            tenant_id=1,
+            phone="13800138872",
+            mode=CallMode.AI_HANDOFF,
+            status=CallStatus.COMPLETED,
+            attempts=1,
+            max_attempts=2,
+            started_at=utc_now() - timedelta(seconds=20),
+            finished_at=utc_now(),
+        )
+        session.add(call)
+        session.flush()
+        session.add(CallMetric(tenant_id=1, call_session_id=call.id, stage="asr.final", duration_ms=135))
+        session.add(SpeechTurn(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_event_key=f"export-{call.id}",
+            transcript="有兴趣，请联系我",
+            normalized_transcript="有兴趣，请联系我",
+            is_final=True,
+        ))
+        session.add(CallAnalysis(
+            tenant_id=1,
+            call_session_id=call.id,
+            result_code="qualified_lead",
+            intent="interested",
+            sentiment="positive",
+            qa_score=96,
+            summary='=HYPERLINK("https://unsafe.invalid","customer")',
+        ))
+        session.add(RecordingAsset(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_url="https://recording.invalid/evidence.wav",
+            storage_uri="s3://evidence/evidence.wav",
+            state="available",
+            retention_until=utc_now() + timedelta(days=30),
+        ))
+        session.commit()
+        call_id = str(call.id)
+
+    assert client.get("/api/v1/admin/calls/export", headers=_bearer(agent_token)).status_code == 403
+    invalid = client.get("/api/v1/admin/calls/export?status=not-a-status", headers=_bearer(token))
+    assert invalid.status_code == 400, invalid.text
+    exported = client.get("/api/v1/admin/calls/export?days=30&status=completed", headers=_bearer(token))
+    assert exported.status_code == 200, exported.text
+    assert "text/csv" in exported.headers["content-type"]
+    rows = list(csv.DictReader(io.StringIO(exported.text)))
+    row = next(item for item in rows if item["call_id"] == call_id)
+    assert row["status"] == "completed"
+    assert row["mode"] == "ai_handoff"
+    assert row["result_code"] == "qualified_lead"
+    assert row["metric_total_duration_ms"] == "135"
+    assert row["final_speech_turn_count"] == "1"
+    assert row["recording_storage_uris"] == "s3://evidence/evidence.wav"
+    assert row["analysis_summary"].startswith("'=HYPERLINK")
+
+    audits = client.get("/api/v1/admin/audit-logs", headers=_bearer(token)).json()
+    assert any(item["action"] == "export" and item["resource_type"] == "call_evidence" for item in audits)
 
 
 def test_runtime_migration_upgrades_existing_tables(tmp_path):

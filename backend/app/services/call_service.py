@@ -25,7 +25,7 @@ from .telephony import (
     select_tenant_telephony_line,
     with_retry,
 )
-from .admin_settings import get_admin_setting, get_tenant_max_concurrent_calls
+from .admin_settings import get_admin_int_setting, get_admin_setting, get_tenant_max_concurrent_calls
 from ..db import session_scope
 
 settings = get_settings()
@@ -68,6 +68,7 @@ def can_call_contact_sync(
     phone: str,
     *,
     require_contact_consent: bool = False,
+    exclude_call_id: UUID | None = None,
 ) -> tuple[bool, str]:
     normalized = normalize_phone(phone)
     compliance = get_admin_setting(session, tenant_id, "compliance")
@@ -99,7 +100,13 @@ def can_call_contact_sync(
     # Equal start/end explicitly means a 24-hour window.
     if start_hour != end_hour and not start_hour <= local_now.hour < end_hour:
         return False, "outside_calling_hours"
-    max_attempts = int(compliance.get("max_attempts_per_day", 3))
+    max_attempts = get_admin_int_setting(
+        session, tenant_id, "compliance", "max_attempts_per_day", 3, minimum=1, maximum=20
+    )
+    min_attempt_interval_sec = get_admin_int_setting(
+        session, tenant_id, "compliance", "min_attempt_interval_sec", 0, minimum=0, maximum=604_800
+    )
+
     local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     utc_day_start = local_day_start.astimezone(timezone.utc).replace(tzinfo=None)
     attempts_today = session.exec(
@@ -111,6 +118,24 @@ def can_call_contact_sync(
     ).one()
     if int(attempts_today or 0) >= max_attempts:
         return False, "daily_attempt_limit"
+    if min_attempt_interval_sec > 0:
+        latest_query = select(CallSession).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.phone == normalized,
+        )
+        if exclude_call_id is not None:
+            latest_query = latest_query.where(CallSession.id != exclude_call_id)
+        latest_call = session.exec(
+            latest_query
+            .order_by(CallSession.created_at.desc())
+            .limit(1)
+        ).first()
+        if latest_call is not None:
+            latest_anchor = latest_call.finished_at or latest_call.started_at or latest_call.updated_at or latest_call.created_at
+            if latest_anchor is not None:
+                now = _now()
+                if (now - latest_anchor).total_seconds() < min_attempt_interval_sec:
+                    return False, "retry_interval_not_elapsed"
     return True, ""
 
 
@@ -142,7 +167,9 @@ CALL_PRECHECK_ERROR_MAP = {
     "consent_revoked": "CONTACT_CONSENT_REVOKED",
     "outside_calling_hours": "OUTSIDE_CALLING_HOURS",
     "daily_attempt_limit": "DAILY_ATTEMPT_LIMIT",
+    "retry_interval_not_elapsed": "CALL_RETRY_INTERVAL_NOT_ELAPSED",
     "invalid_compliance_timezone": "INVALID_COMPLIANCE_TIMEZONE",
+    "invalid_compliance_interval": "INVALID_COMPLIANCE_INTERVAL",
     "explicit_consent_required": "EXPLICIT_CONSENT_REQUIRED",
 }
 
@@ -174,6 +201,7 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
         call.tenant_id,
         call.phone,
         require_contact_consent=call.campaign_id is not None,
+        exclude_call_id=call.id,
     )
     if not can_call:
         call.status = CallStatus.FAILED

@@ -4,11 +4,13 @@
 
 - 通话会话与状态管理（录音转人工、纯人工、纯 AI、AI+短信）
 - 联系人合规模块（DNC、用户同意/拒绝）
+- 租户级同号码外呼间隔、每日次数、录音与临时转写保留策略
 - 租户隔离与 API Key 鉴权
 - Webhook 回调链路（状态 / 识别 / 录音）
 - 挂断短信记录（`SmsLog`）
 - 失败短信查询与管理员重试（`/api/v1/admin/sms-logs`）
 - 通话事件追溯（`CallEvent`）
+- 管理员通话证据 CSV 导出（状态、转写、阶段指标、质检、录音生命周期）
 - 失败/无应答重试（`/api/v1/calls/{call_id}/retry`）
 - 话术模板（`/api/v1/script-templates`）与活动绑定
 - Webhook 原子幂等、并发拨号抢占与 AI 决策审计事件
@@ -57,7 +59,8 @@ pnpm build
 
 - `/admin/users`：管理员与座席账号、角色、班组长、启停和密码重置
 - `/admin/lines`：外呼服务商、网关、主叫号码和线路并发
-- `/admin/settings`：租户并发容量、AI/ASR/TTS、短信、合规、Webhook 配置
+- `/admin/settings`：租户并发容量、AI/ASR/TTS、短信、合规频控/保留策略、Webhook 配置
+- `/admin/calls`：通话证据查看与近 30 天 CSV 导出（管理员）
 - `/admin/system`：数据库、Redis、AI、线路健康状态，并发容量、资源统计和审计日志
 
 敏感密钥不会从管理页面保存或回显；生产凭证继续通过环境变量或密钥管理服务注入。
@@ -263,6 +266,8 @@ bash scripts/test-campaign-start.sh
   - 建议监控 `answered / failed / no_answer / voicemail / waiting_human / completed`。
 - 合规：
   - 活动联系人默认必须是“已明确同意”；重试每次重新执行授权、DNC、时区时段和每日次数检查。
+  - 同一号码最小外呼间隔会在创建和每次派发时重新检查，不会将当前待拨任务误判为历史拨打。
+  - 录音保留天数与 ASR 临时转写保留小时按租户生效；完整转写不按临时数据策略清理。
   - 同一租户不允许重复号码；已有活动或通话引用的联系人不允许删除，以防历史记录断链。
 - 登录态增强：
   - `current_user_optional` 与 `require_roles_if_authenticated` 上线：携带 Bearer Token 的请求会做角色检查；纯 API Key 调用保持兼容。
