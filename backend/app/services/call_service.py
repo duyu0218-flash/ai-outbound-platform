@@ -536,6 +536,8 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,
         "transcript_webhook_url": f"{settings.telephony_webhook_base}{settings.transcript_event_url}",
+        "speech_webhook_url": f"{settings.telephony_webhook_base}{settings.speech_event_url}",
+        "media_webhook_url": f"{settings.telephony_webhook_base}{settings.media_event_url}",
         "recording_webhook_url": f"{settings.telephony_webhook_base}{settings.call_recording_event_url}",
     }
     ai_config = get_admin_setting(session, call.tenant_id, "ai")

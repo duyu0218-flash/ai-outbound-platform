@@ -1,0 +1,16 @@
+<include>
+  <gateway name="carrier">
+    <param name="proxy" value="REPLACE_SIP_SERVER"/>
+    <param name="register" value="true"/>
+    <param name="username" value="REPLACE_SIP_USERNAME"/>
+    <param name="password" value="REPLACE_SIP_PASSWORD"/>
+    <param name="from-user" value="REPLACE_CALLER_ID"/>
+    <param name="from-domain" value="REPLACE_SIP_DOMAIN"/>
+    <param name="realm" value="REPLACE_SIP_REALM"/>
+    <param name="expire-seconds" value="300"/>
+    <param name="retry-seconds" value="30"/>
+    <param name="register-transport" value="udp"/>
+    <param name="caller-id-in-from" value="true"/>
+    <param name="extension" value="REPLACE_CALLER_ID"/>
+  </gateway>
+</include>

@@ -1336,10 +1336,12 @@ def test_concurrent_dispatch_claims_once(client: TestClient):
 @pytest.mark.asyncio
 async def test_retry_attempt_is_included_in_provider_metadata(client: TestClient, monkeypatch):
     captured_attempts: list[int] = []
+    captured_metadata: list[dict] = []
 
     class CapturingAdapter:
         async def dial(self, *, call_id, phone, webhook_url, metadata):
             captured_attempts.append(metadata["attempt"])
+            captured_metadata.append(metadata)
             return {"provider_call_id": f"capture-{call_id}-{metadata['attempt']}"}
 
     monkeypatch.setattr(
@@ -1363,6 +1365,8 @@ async def test_retry_attempt_is_included_in_provider_metadata(client: TestClient
         await retry_call(session, tenant_id=1, call_id=call.id)
 
     assert captured_attempts == [1, 2]
+    assert all(item["speech_webhook_url"].endswith("/api/v1/webhooks/telephony/speech") for item in captured_metadata)
+    assert all(item["media_webhook_url"].endswith("/api/v1/webhooks/telephony/media") for item in captured_metadata)
 
 
 def test_tenant_telephony_mode_selects_line_and_rejects_direct_sip(monkeypatch):

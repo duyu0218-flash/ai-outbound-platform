@@ -83,6 +83,8 @@ class Settings(BaseSettings):
 
     call_recording_event_url: str = "/api/v1/webhooks/telephony/recording"
     transcript_event_url: str = "/api/v1/webhooks/telephony/transcript"
+    speech_event_url: str = "/api/v1/webhooks/telephony/speech"
+    media_event_url: str = "/api/v1/webhooks/telephony/media"
     max_concurrent_calls: int = 20
     default_call_timeout_sec: int = 120
     no_answer_codes: List[str] = ["NOANSWER", "NO_ANSWER"]

@@ -1,0 +1,17 @@
+<include>
+  <!-- target_group=agent:23 is translated by the gateway to agent_23. -->
+  <extension name="ai-outbound-agent-transfer">
+    <condition field="destination_number" expression="^agent_([0-9]+)$">
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="bridge" data="user/$1@$${domain}"/>
+    </condition>
+  </extension>
+
+  <!-- Replace 1000 with a real queue/ring-group extension before production. -->
+  <extension name="ai-outbound-default-handoff">
+    <condition field="destination_number" expression="^handoff_default$">
+      <action application="set" data="hangup_after_bridge=true"/>
+      <action application="bridge" data="user/1000@$${domain}"/>
+    </condition>
+  </extension>
+</include>

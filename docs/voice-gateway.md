@@ -1,8 +1,9 @@
 # Voice gateway boundary
 
 The control API does not open SIP sockets or mix RTP media. It calls the internal
-`voice-gateway` contract, which can use a mock driver in development or proxy to
-a FreeSWITCH/PBX HTTP control adapter in production.
+`voice-gateway` contract, which can use a mock driver in development, proxy to
+a PBX HTTP control adapter, or connect directly to FreeSWITCH Event Socket in
+production.
 
 ## Contract
 
@@ -32,6 +33,19 @@ Production startup rejects `VOICE_GATEWAY_DRIVER=mock`. The PBX/SIP carrier must
 provide account registration, codec negotiation, NAT traversal, RTP port
 exposure, recording, DTMF and transfer behavior. Capacity must be load-tested
 end-to-end; adding this service alone does not establish 500-call concurrency.
+
+For the direct FreeSWITCH path, replace the PBX settings above with:
+
+```env
+VOICE_GATEWAY_DRIVER=freeswitch_esl
+FREESWITCH_ESL_HOST=freeswitch.internal
+FREESWITCH_ESL_PORT=8021
+FREESWITCH_ESL_PASSWORD=replace-with-a-strong-secret
+FREESWITCH_GATEWAY=carrier
+```
+
+See [FreeSWITCH integration](freeswitch-integration.md) for the SIP gateway,
+TTS, media streaming, recording, firewall and acceptance requirements.
 
 ## Flow version behavior
 
