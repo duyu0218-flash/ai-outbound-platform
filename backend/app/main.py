@@ -215,10 +215,16 @@ def _bootstrap_default_tenant() -> None:
     # username concurrently and terminate the whole parent process.
     with engine.connect() as lock_connection:
         lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-data'))"))
+        # Session-level advisory locks survive a transaction commit. End the
+        # lock-acquisition transaction before binding a Session so its commit
+        # makes seeded rows visible before another process can acquire the lock.
+        lock_connection.commit()
         try:
             with Session(lock_connection) as session:
                 _bootstrap_default_tenant_data(session)
         finally:
+            if lock_connection.in_transaction():
+                lock_connection.rollback()
             lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-data'))"))
             lock_connection.commit()
 
