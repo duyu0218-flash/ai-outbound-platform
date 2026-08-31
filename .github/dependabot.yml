@@ -6,6 +6,7 @@ updates:
       - "/backend"
       - "/agent"
       - "/voice_gateway"
+      - "/recording_adapter"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -28,6 +29,8 @@ updates:
       - "/backend"
       - "/agent"
       - "/voice_gateway"
+      - "/recording_adapter"
+      - "/deploy/sipp"
     schedule:
       interval: "weekly"
       day: "monday"

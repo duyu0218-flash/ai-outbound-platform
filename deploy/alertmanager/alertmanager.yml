@@ -1,0 +1,15 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: local-dashboard
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+# The default receiver keeps alerts visible in Alertmanager without sending
+# them externally. Production must mount an approved config through
+# ALERTMANAGER_CONFIG_FILE with the real webhook/email receiver and secrets.
+receivers:
+  - name: local-dashboard

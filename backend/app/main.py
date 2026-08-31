@@ -169,7 +169,11 @@ def _validate_production_runtime() -> None:
             issues.append("TURN_SHARED_SECRET")
         if not settings.freeswitch_directory_token.strip() or len(settings.freeswitch_directory_token) < 24:
             issues.append("FREESWITCH_DIRECTORY_TOKEN")
-    if weak_secret(settings.metrics_token, 24):
+    try:
+        metrics_token = settings.resolved_metrics_token()
+    except RuntimeError:
+        metrics_token = ""
+    if weak_secret(metrics_token, 24):
         issues.append("METRICS_TOKEN")
 
     if issues:
@@ -336,7 +340,10 @@ def readyz() -> dict[str, Any]:
 
 @app.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
 def metrics(authorization: str | None = Header(default=None)) -> PlainTextResponse:
-    expected = settings.metrics_token.strip()
+    try:
+        expected = settings.resolved_metrics_token()
+    except RuntimeError:
+        expected = ""
     if not expected or authorization != f"Bearer {expected}":
         raise HTTPException(status_code=401, detail="invalid metrics token")
     with session_scope() as session:

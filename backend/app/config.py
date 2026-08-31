@@ -1,5 +1,6 @@
 from functools import lru_cache
 import logging
+from pathlib import Path
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -90,6 +91,7 @@ class Settings(BaseSettings):
     rate_limit_auth_rpm: int = 60
     rate_limit_window_sec: int = 60
     metrics_token: str = ""
+    metrics_token_file: str = ""
 
     sms_provider: str = "mock"
     sms_provider_endpoint: str = ""
@@ -112,6 +114,16 @@ class Settings(BaseSettings):
     # {"1":"tenant-1-key","2":"tenant-2-key"}. The legacy API_KEY is
     # always restricted to DEFAULT_TENANT_ID.
     tenant_api_keys_json: str = ""
+
+    def resolved_metrics_token(self) -> str:
+        """Return the metrics token from a mounted secret file or the legacy env value."""
+
+        if self.metrics_token_file.strip():
+            try:
+                return Path(self.metrics_token_file.strip()).read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise RuntimeError(f"unable to read METRICS_TOKEN_FILE: {exc}") from exc
+        return self.metrics_token.strip()
 
 
 def setup_logging(level: str) -> None:

@@ -55,6 +55,11 @@ def validate_matrix(matrix: dict, errors: list[str]) -> None:
         "coturn",
         "nginx",
         "pipecat",
+        "seaweedfs",
+        "prometheus",
+        "alertmanager",
+        "grafana",
+        "sipp",
         "github_actions",
     }
     components = matrix.get("components", {})
@@ -98,7 +103,12 @@ def validate_python_projects(matrix: dict, errors: list[str]) -> None:
     expected_python = matrix["components"]["python"]["constraint"].removeprefix("==").removesuffix(".*")
     expected_setuptools = matrix["components"]["setuptools"]["constraint"].removeprefix("==")
     expected_pipecat = matrix["components"]["pipecat"]["constraint"].removeprefix("==")
-    for relative in ("backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml"):
+    for relative in (
+        "backend/pyproject.toml",
+        "agent/pyproject.toml",
+        "voice_gateway/pyproject.toml",
+        "recording_adapter/pyproject.toml",
+    ):
         path = ROOT / relative
         document = load_toml(path)
         project = document.get("project", {})
@@ -158,8 +168,16 @@ def validate_repository_baseline(matrix: dict, errors: list[str]) -> None:
         for ecosystem in ("pip", "npm", "docker", "github-actions"):
             if f'package-ecosystem: "{ecosystem}"' not in dependabot:
                 fail(errors, f"Dependabot must track the {ecosystem} ecosystem")
+        for directory in ("/recording_adapter", "/deploy/sipp"):
+            if f'"{directory}"' not in dependabot:
+                fail(errors, f"Dependabot must track {directory}")
 
-    for relative in ("backend/Dockerfile", "agent/Dockerfile", "voice_gateway/Dockerfile"):
+    for relative in (
+        "backend/Dockerfile",
+        "agent/Dockerfile",
+        "voice_gateway/Dockerfile",
+        "recording_adapter/Dockerfile",
+    ):
         dockerfile = (ROOT / relative).read_text(encoding="utf-8")
         if f"python:{python_minor}" not in dockerfile:
             fail(errors, f"{relative} must use the matrix Python {python_minor} baseline")
@@ -172,10 +190,23 @@ def validate_repository_baseline(matrix: dict, errors: list[str]) -> None:
             fail(errors, f"backend/Dockerfile must expose {variable} as a build argument")
 
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    for component in ("postgresql", "redis"):
+    for component in ("postgresql", "redis", "seaweedfs"):
         image = matrix["components"][component]["development_image"]
         if image not in compose:
             fail(errors, f"docker-compose.yml does not contain matrix image {image}")
+
+    observability_compose = (ROOT / "docker-compose.observability.yml").read_text(encoding="utf-8")
+    for component in ("prometheus", "alertmanager", "grafana"):
+        image = matrix["components"][component]["development_image"]
+        if image not in observability_compose:
+            fail(errors, f"docker-compose.observability.yml does not contain matrix image {image}")
+
+    sipp_compose = (ROOT / "docker-compose.sipp.yml").read_text(encoding="utf-8")
+    sipp = matrix["components"]["sipp"]
+    if f'SIPP_VERSION: "{sipp["constraint"].removeprefix("==")}"' not in sipp_compose:
+        fail(errors, "docker-compose.sipp.yml must use the matrix SIPp version")
+    if f'SIPP_SOURCE_SHA256: {sipp["source_sha256"]}' not in sipp_compose:
+        fail(errors, "docker-compose.sipp.yml must use the matrix SIPp source checksum")
 
     webrtc_compose = (ROOT / "docker-compose.webrtc.yml").read_text(encoding="utf-8")
     for component in ("coturn", "nginx"):
@@ -196,7 +227,19 @@ def validate_repository_baseline(matrix: dict, errors: list[str]) -> None:
 
 def validate_production_env(matrix: dict, env_path: Path, errors: list[str]) -> None:
     env = parse_env(env_path)
-    image_components = ("python", "node", "postgresql", "redis", "freeswitch", "coturn", "nginx")
+    image_components = (
+        "python",
+        "node",
+        "postgresql",
+        "redis",
+        "freeswitch",
+        "coturn",
+        "nginx",
+        "seaweedfs",
+        "prometheus",
+        "alertmanager",
+        "grafana",
+    )
     for component_name in image_components:
         component = matrix["components"][component_name]
         variable = component["production_image_env"]
