@@ -2541,7 +2541,7 @@ def test_microphone_is_allowed_for_same_origin_browser(client: TestClient):
 
 
 def test_voice_pipeline_selection_is_stable_and_campaign_override_wins():
-    suffix = uuid4().hex[:8]
+    suffix = f"{uuid4().int % 100_000_000:08d}"
     with session_scope() as session:
         legacy_call = create_call(
             session,
@@ -2635,8 +2635,20 @@ def test_login_lockout_unlock_and_logout_revoke_token(client: TestClient, monkey
 
 def test_prometheus_metrics_require_token(client: TestClient, monkeypatch):
     monkeypatch.setattr(app_main.settings, "metrics_token", "metrics-token-for-tests")
+    monkeypatch.setattr(app_main.settings, "metrics_token_file", "")
     assert client.get("/metrics").status_code == 401
     response = client.get("/metrics", headers={"Authorization": "Bearer metrics-token-for-tests"})
     assert response.status_code == 200
     assert "ai_outbound_calls_by_pipeline" in response.text
     assert "ai_outbound_tasks" in response.text
+
+
+def test_prometheus_metrics_accept_mounted_token_file(client: TestClient, monkeypatch, tmp_path):
+    token_file = tmp_path / "metrics-token"
+    token_file.write_text("mounted-metrics-token\n", encoding="utf-8")
+    monkeypatch.setattr(app_main.settings, "metrics_token", "")
+    monkeypatch.setattr(app_main.settings, "metrics_token_file", str(token_file))
+
+    response = client.get("/metrics", headers={"Authorization": "Bearer mounted-metrics-token"})
+
+    assert response.status_code == 200

@@ -41,15 +41,20 @@ Control API和Voice Gateway均提供需要Bearer `METRICS_TOKEN`的 `/metrics`�
 - 持久任务状态、锁定账号、录音入库与删除失败；
 - Voice Gateway readiness、活动绑定及Pipecat会话数。
 
-Prometheus告警基准位于 `deploy/prometheus/alerts.yml`。生产环境必须限制指标端点网络访问，
-并使用至少24位随机令牌。
+Prometheus告警基准位于 `deploy/prometheus/alerts.yml`。`docker-compose.observability.yml` 可直接启动
+Prometheus、Alertmanager和预置Grafana大盘，三项业务服务通过同一个只读Docker secret读取指标令牌。
+生产环境必须限制指标端点网络访问、使用至少24位随机令牌，并为Alertmanager挂载已经批准的真实通知接收器。
 
 ## 录音托管存储
 
 设置 `RECORDING_INGEST_ENDPOINT` 后，录音回调不会只保留运营商临时URL，而会创建可重试的
 `recording_ingest` 任务，请求内部存储适配器复制文件。适配器必须返回平台长期保存的
 `storage_uri`，可同时返回SHA-256；重试耗尽时资产状态为 `ingestion_failed` 并进入监控。
+仓库内 `recording_adapter` 已实现来源域名白名单、流式大小限制、SHA-256、租户隔离对象键和幂等删除，
+默认Compose使用精确版本SeaweedFS作为S3兼容存储。
 生产启用录音保留策略时，启动检查要求同时配置入库端点和服务令牌。
+
+完整部署步骤和未验证边界见 `docs/direct-deploy-foundations.md`。
 
 ## 滚动发布排空
 
