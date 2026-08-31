@@ -17,6 +17,7 @@ import httpx
 from .config import Settings
 from .esl import EslClient, EslError
 from .models import DialRequest, SpeakRequest
+from .pipecat_pipeline import PipecatPipelineManager
 
 
 logger = logging.getLogger(__name__)
@@ -98,10 +99,17 @@ class CallBinding:
     answered_at: datetime | None = None
     recording_path: str = ""
     human_connected: bool = False
+    voice_ai_pipeline: str = "legacy"
+    pipeline_session_id: str = ""
 
 
 class FreeswitchEslDriver:
-    def __init__(self, settings: Settings, client: EslClient | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        client: EslClient | None = None,
+        pipecat_manager: PipecatPipelineManager | None = None,
+    ):
         self.settings = settings
         self.client = client or EslClient(
             settings.freeswitch_esl_host,
@@ -113,12 +121,20 @@ class FreeswitchEslDriver:
         self.calls_by_id: dict[str, CallBinding] = {}
         self.jobs: dict[str, CallBinding] = {}
         self.listener_task: asyncio.Task[None] | None = None
+        self.pipecat_manager = pipecat_manager or (
+            PipecatPipelineManager(settings)
+            if settings.voice_ai_pipeline.strip().lower() == "pipecat"
+            else None
+        )
 
     async def start(self) -> None:
         if self.listener_task is None or self.listener_task.done():
             self.listener_task = asyncio.create_task(self._listen_forever(), name="freeswitch-esl-events")
 
     async def stop(self) -> None:
+        if self.pipecat_manager is not None:
+            for call_id in list(self.pipecat_manager.sessions_by_call):
+                await self.pipecat_manager.close(call_id)
         if self.listener_task is None:
             return
         self.listener_task.cancel()
@@ -131,7 +147,9 @@ class FreeswitchEslDriver:
     async def ready(self) -> bool:
         try:
             response = await self.client.api("status")
-            return bool(response) and "-ERR" not in response
+            esl_ready = bool(response) and "-ERR" not in response
+            pipeline_ready = self.pipecat_manager is None or self.pipecat_manager.ready()
+            return esl_ready and pipeline_ready
         except (EslError, OSError, asyncio.TimeoutError):
             return False
 
@@ -198,6 +216,7 @@ class FreeswitchEslDriver:
             speech_webhook_url=str(request.metadata.get("speech_webhook_url") or ""),
             media_webhook_url=str(request.metadata.get("media_webhook_url") or ""),
             metadata=dict(request.metadata),
+            voice_ai_pipeline=self.settings.voice_ai_pipeline.strip().lower(),
         )
         self.calls_by_uuid[fs_uuid] = binding
         self.calls_by_id[binding.call_id] = binding
@@ -225,6 +244,16 @@ class FreeswitchEslDriver:
     async def _speak(self, payload: dict[str, Any]) -> dict[str, Any]:
         request = SpeakRequest.model_validate(payload)
         binding = self._binding(request.call_id)
+        if binding.voice_ai_pipeline == "pipecat":
+            if self.pipecat_manager is None:
+                raise RuntimeError("Pipecat pipeline manager is unavailable")
+            playback_id = await self.pipecat_manager.speak(binding.call_id, request.text)
+            return {
+                "result": "queued",
+                "provider_call_id": binding.fs_uuid,
+                "playback_id": playback_id,
+                "pipeline": "pipecat",
+            }
         media_uri = await self._tts_media_uri(request)
         await self.client.api(f"uuid_broadcast {binding.fs_uuid} {_fs_argument(media_uri)} aleg")
         playback_id = str(uuid4())
@@ -263,6 +292,15 @@ class FreeswitchEslDriver:
 
     async def _stop_speaking(self, payload: dict[str, Any]) -> dict[str, Any]:
         binding = self._binding(payload.get("call_id"))
+        if binding.voice_ai_pipeline == "pipecat":
+            if self.pipecat_manager is None:
+                raise RuntimeError("Pipecat pipeline manager is unavailable")
+            await self.pipecat_manager.interrupt(binding.call_id)
+            return {
+                "result": "stopped",
+                "provider_call_id": binding.fs_uuid,
+                "pipeline": "pipecat",
+            }
         await self.client.api(f"uuid_break {binding.fs_uuid} all")
         await self._post_media(binding, "interrupted")
         return {"result": "stopped", "provider_call_id": binding.fs_uuid}
@@ -283,10 +321,7 @@ class FreeswitchEslDriver:
         destination = _safe_name(destination, name="transfer_destination")
         context = _safe_name(self.settings.freeswitch_dialplan_context, name="dialplan_context")
         await self.client.api(f"uuid_break {binding.fs_uuid} all")
-        stop_template = self.settings.freeswitch_media_stop_command_template.strip()
-        if stop_template:
-            stop_command = stop_template.format(uuid=binding.fs_uuid, call_id=binding.call_id)
-            await self.client.api(_one_line(stop_command, name="media_stop_command"))
+        await self._stop_ai_media(binding)
         binding.metadata["human_target"] = target_group
         binding.human_connected = False
         await self.client.api(f"uuid_transfer {binding.fs_uuid} {destination} XML {context}")
@@ -299,6 +334,7 @@ class FreeswitchEslDriver:
 
     async def _hangup(self, payload: dict[str, Any]) -> dict[str, Any]:
         binding = self._binding(payload.get("call_id"))
+        await self._stop_ai_media(binding)
         await self.client.api(f"uuid_kill {binding.fs_uuid} NORMAL_CLEARING")
         return {
             "result": "hungup",
@@ -367,7 +403,10 @@ class FreeswitchEslDriver:
             else:
                 status = "failed"
             await self._post_status(binding, status, event, hangup_reason=cause)
-            await self._post_media(binding, "closed", event=event)
+            if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
+                await self.pipecat_manager.close(binding.call_id)
+            else:
+                await self._post_media(binding, "closed", event=event)
             await self._post_recording(binding)
             self.calls_by_uuid.pop(binding.fs_uuid, None)
             self.calls_by_id.pop(binding.call_id, None)
@@ -392,6 +431,7 @@ class FreeswitchEslDriver:
                 speech_webhook_url=_b64_decode(_event_value(event, "variable_platform_speech_webhook_b64")),
                 media_webhook_url=_b64_decode(_event_value(event, "variable_platform_media_webhook_b64")),
                 metadata=metadata if isinstance(metadata, dict) else {},
+                voice_ai_pipeline=self.settings.voice_ai_pipeline.strip().lower(),
             )
         except (ValueError, TypeError, json.JSONDecodeError):
             return None
@@ -406,7 +446,16 @@ class FreeswitchEslDriver:
             recording_path = str(Path(self.settings.freeswitch_recording_dir) / filename)
             await self.client.api(f"uuid_record {binding.fs_uuid} start {recording_path}")
             binding.recording_path = recording_path
-        template = self.settings.freeswitch_media_start_command_template.strip() if start_ai_media else ""
+        if not start_ai_media:
+            await self._post_media(binding, "listening")
+            return
+        if binding.voice_ai_pipeline == "pipecat":
+            await self._start_pipecat_media(binding)
+            return
+        await self._start_legacy_media(binding)
+
+    async def _start_legacy_media(self, binding: CallBinding) -> None:
+        template = self.settings.freeswitch_media_start_command_template.strip()
         if template:
             command = template.format(
                 uuid=binding.fs_uuid,
@@ -418,6 +467,44 @@ class FreeswitchEslDriver:
             )
             await self.client.api(_one_line(command, name="media_start_command"))
         await self._post_media(binding, "listening")
+
+    async def _start_pipecat_media(self, binding: CallBinding) -> None:
+        if self.pipecat_manager is None:
+            raise RuntimeError("Pipecat pipeline manager is unavailable")
+        session = await self.pipecat_manager.create_session(
+            call_id=binding.call_id,
+            speech_webhook_url=binding.speech_webhook_url,
+            media_webhook_url=binding.media_webhook_url,
+            metadata=binding.metadata,
+        )
+        binding.pipeline_session_id = session.session_id
+        command = self.settings.freeswitch_pipecat_start_command_template.format(
+            uuid=binding.fs_uuid,
+            call_id=binding.call_id,
+            session_id=session.session_id,
+            media_ws_url=self.pipecat_manager.media_ws_url(session),
+            sample_rate=self.settings.pipecat_sample_rate,
+            channels=self.settings.pipecat_channels,
+            codec="pcm_s16le",
+        )
+        try:
+            await self.client.api(_one_line(command, name="pipecat_media_start_command"))
+        except Exception:
+            await self.pipecat_manager.close(binding.call_id, notify=False)
+            if not self.settings.pipecat_fallback_to_legacy:
+                raise
+            logger.exception("Pipecat media start failed; explicitly falling back to legacy")
+            binding.voice_ai_pipeline = "legacy"
+            binding.pipeline_session_id = ""
+            await self._start_legacy_media(binding)
+
+    async def _stop_ai_media(self, binding: CallBinding) -> None:
+        if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
+            await self.pipecat_manager.close(binding.call_id)
+        stop_template = self.settings.freeswitch_media_stop_command_template.strip()
+        if stop_template:
+            stop_command = stop_template.format(uuid=binding.fs_uuid, call_id=binding.call_id)
+            await self.client.api(_one_line(stop_command, name="media_stop_command"))
 
     async def _post_status(
         self,
@@ -434,6 +521,7 @@ class FreeswitchEslDriver:
             "status": status,
             "telephony_call_id": binding.fs_uuid,
             "event_id": provider_event_id,
+            "voice_ai_pipeline": binding.voice_ai_pipeline,
         })
         if hangup_reason:
             data["hangup_reason"] = hangup_reason

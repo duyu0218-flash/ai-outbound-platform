@@ -24,6 +24,11 @@ The ESL driver implements:
 - recording: `uuid_record` and recording metadata callback;
 - optional media-bug command template for a selected streaming ASR module.
 
+It also supports an explicitly selected Pipecat 1.8.1 candidate pipeline for
+bidirectional media, STT and TTS. Production remains on `legacy` until the real
+media module and controlled-call gates pass. See
+[`pipecat-integration.md`](pipecat-integration.md) for its contract and rollback.
+
 ## FreeSWITCH prerequisites
 
 1. Install a pinned FreeSWITCH release from the official source/packages. The
@@ -47,6 +52,7 @@ The gateway name in FreeSWITCH must match `FREESWITCH_GATEWAY` (the examples use
 TELEPHONY_PROVIDER=http
 TELEPHONY_PROVIDER_ENDPOINT=http://voice-gateway:8002
 VOICE_GATEWAY_DRIVER=freeswitch_esl
+VOICE_AI_PIPELINE=legacy
 
 TELEPHONY_SERVICE_TOKEN=replace-with-strong-internal-token
 TELEPHONY_WEBHOOK_TOKEN=replace-with-strong-webhook-token

@@ -97,10 +97,10 @@ status = "production-digest-pending"
 evidence = ["docker-compose.webrtc.yml"]
 
 [components.pipecat]
-constraint = ""
+constraint = "==1.8.1"
 runtime_version_env = "PIPECAT_VERSION"
-status = "not-adopted"
-evidence = ["docs/version-compatibility.md"]
+status = "candidate-integrated-real-media-unverified"
+evidence = ["voice_gateway/pyproject.toml", "voice_gateway/app/pipecat_pipeline.py", "voice_gateway/tests/test_freeswitch.py", "docs/pipecat-integration.md"]
 
 [components.github_actions]
 constraint = "checkout==v7; setup-python==v7; setup-node==v7"

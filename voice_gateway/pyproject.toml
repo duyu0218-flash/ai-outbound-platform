@@ -6,7 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "ai-outbound-voice-gateway"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["fastapi==0.141.1", "uvicorn[standard]==0.52.4", "httpx==0.28.1", "pydantic-settings==2.15.0"]
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn[standard]==0.52.4",
+  "httpx==0.28.1",
+  "pydantic-settings==2.15.0",
+  "pipecat-ai[openai,websocket]==1.8.1",
+]
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1", "httpx==0.28.1", "httpx2==2.12.0"]
@@ -15,4 +21,8 @@ dev = ["pytest==9.1.1", "httpx==0.28.1", "httpx2==2.12.0"]
 include = ["app*"]
 
 [tool.pytest.ini_options]
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  "ignore:'audioop' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
+  "ignore:`AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0.*:DeprecationWarning",
+]

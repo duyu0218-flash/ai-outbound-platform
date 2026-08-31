@@ -97,6 +97,7 @@ def validate_python_projects(matrix: dict, errors: list[str]) -> None:
     expected_app_version = matrix["components"]["application"]["constraint"].removeprefix("==")
     expected_python = matrix["components"]["python"]["constraint"].removeprefix("==").removesuffix(".*")
     expected_setuptools = matrix["components"]["setuptools"]["constraint"].removeprefix("==")
+    expected_pipecat = matrix["components"]["pipecat"]["constraint"].removeprefix("==")
     for relative in ("backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml"):
         path = ROOT / relative
         document = load_toml(path)
@@ -112,6 +113,13 @@ def validate_python_projects(matrix: dict, errors: list[str]) -> None:
         for dependency in project.get("dependencies", []):
             if not EXACT_PYTHON_DEPENDENCY.match(dependency):
                 fail(errors, f"{relative} dependency is not exactly pinned: {dependency}")
+        if relative == "voice_gateway/pyproject.toml":
+            pipecat_dependencies = [
+                item for item in project.get("dependencies", []) if item.startswith("pipecat-ai[")
+            ]
+            expected_dependency = f"pipecat-ai[openai,websocket]=={expected_pipecat}"
+            if pipecat_dependencies != [expected_dependency]:
+                fail(errors, f"{relative} must pin {expected_dependency}")
 
 
 def validate_frontend(matrix: dict, errors: list[str]) -> None:
@@ -177,6 +185,14 @@ def validate_repository_baseline(matrix: dict, errors: list[str]) -> None:
     if "FREESWITCH_IMAGE" not in webrtc_compose:
         fail(errors, "docker-compose.webrtc.yml must require FREESWITCH_IMAGE")
 
+    expected_pipecat = matrix["components"]["pipecat"]["constraint"].removeprefix("==")
+    for relative in (".env.example", "deploy/compatibility/production-versions.env.example"):
+        env = parse_env(ROOT / relative)
+        if env.get("PIPECAT_VERSION") != expected_pipecat:
+            fail(errors, f"{relative} PIPECAT_VERSION must be {expected_pipecat}")
+        if env.get("VOICE_AI_PIPELINE") != "legacy":
+            fail(errors, f"{relative} must keep VOICE_AI_PIPELINE=legacy by default")
+
 
 def validate_production_env(matrix: dict, env_path: Path, errors: list[str]) -> None:
     env = parse_env(env_path)
@@ -198,9 +214,16 @@ def validate_production_env(matrix: dict, env_path: Path, errors: list[str]) -> 
         if not EXACT_VERSION.fullmatch(env.get(media_version_var, "")):
             fail(errors, f"{media_version_var} is required when a FreeSWITCH media module is enabled")
 
-    pipecat_version = env.get(matrix["components"]["pipecat"]["runtime_version_env"], "")
-    if pipecat_version and not EXACT_VERSION.fullmatch(pipecat_version):
-        fail(errors, "PIPECAT_VERSION must be an exact version when Pipecat is enabled")
+    pipecat_version_var = matrix["components"]["pipecat"]["runtime_version_env"]
+    pipecat_version = env.get(pipecat_version_var, "")
+    expected_pipecat = matrix["components"]["pipecat"]["constraint"].removeprefix("==")
+    if pipecat_version != expected_pipecat:
+        fail(errors, f"{pipecat_version_var} must match the approved candidate {expected_pipecat}")
+    pipeline = env.get("VOICE_AI_PIPELINE", "legacy").strip().lower()
+    if pipeline not in {"legacy", "pipecat"}:
+        fail(errors, "VOICE_AI_PIPELINE must be legacy or pipecat")
+    if pipeline == "pipecat" and not env.get("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE", ""):
+        fail(errors, "FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required for the Pipecat pipeline")
 
 
 def main() -> int:

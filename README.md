@@ -73,6 +73,7 @@ pnpm build
 - `backend/`: 控制面服务（联系人、活动、外呼、webhook）
 - `agent/`: AI 话术策略服务（可替换成真实 LLM）
 - `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
+- `docs/pipecat-integration.md`: `legacy` / Pipecat 混合语音流水线、切换门禁和 FreeSWITCH 媒体合约
 - `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
 - `compatibility-matrix.toml`: Python、Node、数据库、FreeSWITCH、媒体模块和可选Pipecat的机器可读兼容基准
 - `docs/version-compatibility.md`: 版本锁定、升级、现场取证和生产发布规则
@@ -112,6 +113,8 @@ docker compose up -d --build
 | `TELEPHONY_WEBHOOK_TOKEN` | 回调鉴权 Token（可选，设置后会校验 `x-webhook-token`） |
 | `TELEPHONY_SERVICE_TOKEN` | 控制服务调用语音网关的内部 Bearer Token |
 | `VOICE_GATEWAY_DRIVER` | `mock`、`pbx_http` 或 `freeswitch_esl`；后者由语音网关直接连接 FreeSWITCH Event Socket |
+| `VOICE_AI_PIPELINE` | `legacy` 或 `pipecat`；生产默认和未完成真实媒体验收时必须保持 `legacy` |
+| `PIPECAT_*` | 候选 Pipecat 1.8.1 的精确版本、WebSocket、OpenAI STT/TTS 和回退策略；详见 `docs/pipecat-integration.md` |
 | `FREESWITCH_ESL_*` | FreeSWITCH ESL 地址、端口和密码；生产禁止使用默认密码 `ClueCon` |
 | `FREESWITCH_GATEWAY` | FreeSWITCH 中已配置的 SIP Trunk gateway 名称 |
 | `AI_AGENT_URL` | AI 服务地址 |
