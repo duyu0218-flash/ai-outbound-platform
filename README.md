@@ -74,6 +74,8 @@ pnpm build
 - `agent/`: AI 话术策略服务（可替换成真实 LLM）
 - `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
 - `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
+- `compatibility-matrix.toml`: Python、Node、数据库、FreeSWITCH、媒体模块和可选Pipecat的机器可读兼容基准
+- `docs/version-compatibility.md`: 版本锁定、升级、现场取证和生产发布规则
 - `docs/operator-manual.md`: 管理员、运营、质检和座席操作手册（含页面截图）
 - `docker-compose.yml`: 本地联调与演示启动清单
 - `.env.example`: 环境变量样例

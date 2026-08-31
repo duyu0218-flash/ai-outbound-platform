@@ -1,4 +1,7 @@
-FROM node:22-alpine AS frontend-builder
+ARG NODE_BASE_IMAGE=node:22-alpine
+ARG PYTHON_BASE_IMAGE=python:3.11-slim
+
+FROM ${NODE_BASE_IMAGE} AS frontend-builder
 
 WORKDIR /workspace
 
@@ -10,11 +13,9 @@ COPY backend /workspace/backend
 RUN cd /workspace/frontend && pnpm build
 
 
-FROM python:3.11-slim
+FROM ${PYTHON_BASE_IMAGE}
 
 WORKDIR /app
-
-RUN pip install --no-cache-dir --upgrade pip
 
 COPY backend/pyproject.toml /app/pyproject.toml
 COPY backend/app /app/app

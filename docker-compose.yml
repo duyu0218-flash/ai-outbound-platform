@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     container_name: ai-outbound-redis
     restart: unless-stopped
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-replace-redis-password}"]
@@ -13,7 +13,7 @@ services:
       retries: 20
 
   db:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     container_name: ai-outbound-db
     restart: unless-stopped
     environment:
@@ -34,6 +34,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ai-outbound-control
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}
@@ -63,6 +66,8 @@ services:
   ai-agent:
     build:
       context: ./agent
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ai-outbound-agent
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}
@@ -82,6 +87,8 @@ services:
     build:
       context: .
       dockerfile: voice_gateway/Dockerfile
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ai-outbound-voice-gateway
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}

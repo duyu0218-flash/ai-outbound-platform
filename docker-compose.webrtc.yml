@@ -19,7 +19,7 @@ services:
       FREESWITCH_ESL_PORT: 8021
 
   coturn:
-    image: coturn/coturn:4.17.2-r0
+    image: ${COTURN_IMAGE:-coturn/coturn:4.17.2-r0}
     container_name: ai-outbound-coturn
     restart: unless-stopped
     network_mode: host
@@ -52,6 +52,9 @@ services:
     container_name: ai-outbound-freeswitch
     restart: unless-stopped
     network_mode: host
+    labels:
+      com.ai-outbound.compat.freeswitch-version: ${FREESWITCH_VERSION:?Set FREESWITCH_VERSION to the exact runtime version}
+      com.ai-outbound.compat.media-module-version: ${FREESWITCH_MEDIA_MODULE_VERSION:-not-enabled}
     volumes:
       - ${FREESWITCH_CONFIG_DIR:?Set FREESWITCH_CONFIG_DIR}:/etc/freeswitch:ro
       - ${FREESWITCH_RECORDING_DIR:-./data/recordings}:/var/lib/freeswitch/recordings
@@ -63,7 +66,7 @@ services:
       retries: 20
 
   nginx:
-    image: nginx:1.28.0-alpine
+    image: ${NGINX_IMAGE:-nginx:1.28.0-alpine}
     container_name: ai-outbound-nginx
     restart: unless-stopped
     network_mode: host

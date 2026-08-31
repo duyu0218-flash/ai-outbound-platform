@@ -542,6 +542,9 @@ bash scripts/test-campaign-start.sh
 ### 10.1 镜像与版本策略
 
 - `control-api`、`ai-agent` 建议使用固定镜像 tag（例如 `v1.x.x`）
+- 全量版本基准记录在 `compatibility-matrix.toml`，维护和升级规则见 [版本约束与兼容矩阵](docs/version-compatibility.md)。
+- 开发环境可以使用矩阵内的可读Tag；生产环境的 Python、Node、PostgreSQL、Redis、FreeSWITCH、coturn、Nginx 镜像必须使用 `repository@sha256:<digest>`。
+- 发布前执行 `python scripts/check-version-constraints.py --production-env /secure/path/production.env`；真实环境版本或摘要缺失时不得发布。
 - 生产升级禁止只依赖 `create_all`。本版本 PostgreSQL 升级脚本位于：
   - `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
   - `backend/migrations/postgresql/20260828_admin_management.sql`
