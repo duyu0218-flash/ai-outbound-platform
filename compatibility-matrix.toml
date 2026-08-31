@@ -1,0 +1,129 @@
+schema_version = 1
+profile = "production-baseline"
+last_reviewed = "2026-08-31"
+owner = "platform"
+
+[policy]
+production_requires_immutable_images = true
+production_requires_exact_runtime_versions = true
+candidate_versions_must_pass_ci = true
+candidate_versions_must_pass_controlled_real_call = true
+automatic_production_upgrade = false
+security_update_sla = "triage-within-24h"
+normal_review_cadence = "monthly"
+
+[components.application]
+constraint = "==0.1.0"
+status = "source-verified"
+evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml", "frontend/package.json"]
+
+[components.python]
+constraint = "==3.11.*"
+development_image = "python:3.11-slim"
+production_image_env = "PYTHON_BASE_IMAGE"
+production_digest = ""
+status = "ci-baseline-production-digest-pending"
+evidence = [".github/workflows/ci.yml", "backend/Dockerfile", "agent/Dockerfile", "voice_gateway/Dockerfile"]
+
+[components.node]
+constraint = "==22.*"
+development_image = "node:22-alpine"
+production_image_env = "NODE_BASE_IMAGE"
+production_digest = ""
+status = "ci-baseline-production-digest-pending"
+evidence = [".github/workflows/ci.yml", "backend/Dockerfile"]
+
+[components.pnpm]
+constraint = "==11.19.0"
+status = "manifest-verified"
+evidence = ["frontend/package.json", "frontend/pnpm-lock.yaml"]
+
+[components.setuptools]
+constraint = "==84.0.0"
+status = "build-system-pinned"
+evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml"]
+
+[components.postgresql]
+constraint = "==16.*"
+development_image = "postgres:16-alpine"
+production_image_env = "POSTGRES_IMAGE"
+production_digest = ""
+status = "production-digest-pending"
+evidence = ["docker-compose.yml", ".github/workflows/ci.yml"]
+
+[components.redis]
+constraint = "==7.*"
+development_image = "redis:7-alpine"
+production_image_env = "REDIS_IMAGE"
+production_digest = ""
+status = "production-digest-pending"
+evidence = ["docker-compose.yml", ".github/workflows/ci.yml"]
+
+[components.freeswitch]
+constraint = ""
+production_image_env = "FREESWITCH_IMAGE"
+runtime_version_env = "FREESWITCH_VERSION"
+production_digest = ""
+status = "version-and-digest-pending-real-environment"
+required_modules = ["mod_sofia", "mod_event_socket"]
+evidence = ["docker-compose.webrtc.yml", "docs/freeswitch-integration.md"]
+
+[components.freeswitch_media_module]
+constraint = ""
+runtime_version_env = "FREESWITCH_MEDIA_MODULE_VERSION"
+status = "not-selected"
+evidence = ["docs/freeswitch-integration.md", ".env.example"]
+
+[components.coturn]
+constraint = "==4.17.2-r0"
+development_image = "coturn/coturn:4.17.2-r0"
+production_image_env = "COTURN_IMAGE"
+production_digest = ""
+status = "production-digest-pending"
+evidence = ["docker-compose.webrtc.yml"]
+
+[components.nginx]
+constraint = "==1.28.0-alpine"
+development_image = "nginx:1.28.0-alpine"
+production_image_env = "NGINX_IMAGE"
+production_digest = ""
+status = "production-digest-pending"
+evidence = ["docker-compose.webrtc.yml"]
+
+[components.pipecat]
+constraint = ""
+runtime_version_env = "PIPECAT_VERSION"
+status = "not-adopted"
+evidence = ["docs/version-compatibility.md"]
+
+[components.github_actions]
+constraint = "checkout==v7; setup-python==v7; setup-node==v7"
+status = "major-tag-pinned-commit-sha-pending"
+evidence = [".github/workflows/ci.yml"]
+
+[interfaces.telephony_control]
+version = "v1"
+status = "source-verified"
+endpoints = ["/v1/call/dial", "/v1/call/speak", "/v1/call/stop-speaking", "/v1/call/transfer", "/v1/call/hangup"]
+
+[interfaces.realtime_voice_webhook]
+version = "p0-p1-v1"
+status = "source-verified-real-media-unverified"
+evidence = ["docs/realtime-voice-contract.md"]
+
+[audio.telephony]
+codec = "PCMA"
+sample_rate_hz = 8000
+channels = 1
+status = "contract-baseline-real-line-unverified"
+
+[release_gates]
+required = [
+  "version-constraint-check",
+  "python-tests",
+  "frontend-build-and-tests",
+  "postgres-redis-integration",
+  "compose-browser-acceptance",
+  "controlled-real-call-acceptance",
+  "runtime-version-capture",
+]

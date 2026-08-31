@@ -1,7 +1,7 @@
-FROM python:3.11-slim
+ARG PYTHON_BASE_IMAGE=python:3.11-slim
+FROM ${PYTHON_BASE_IMAGE}
 
 WORKDIR /app
-RUN pip install --no-cache-dir --upgrade pip
 
 COPY pyproject.toml /app/pyproject.toml
 COPY app /app/app
