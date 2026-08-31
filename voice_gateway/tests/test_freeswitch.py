@@ -319,6 +319,7 @@ def test_freeswitch_runtime_validation_rejects_unsafe_production_defaults():
         Settings(
             env="production",
             service_token="service-token",
+            metrics_token="metrics-token-for-production-tests",
             webhook_token="webhook-token",
             voice_gateway_driver="freeswitch_esl",
             freeswitch_esl_password="ClueCon",
@@ -472,5 +473,47 @@ def test_pipecat_falls_back_only_when_explicitly_configured():
         assert binding.voice_ai_pipeline == "legacy"
         assert fake_pipecat.closed == ["pipecat-fallback-1"]
         assert any(command.startswith("legacy_start") for command in fake_esl.api_commands)
+
+    asyncio.run(scenario())
+
+
+def test_hybrid_gateway_routes_each_call_and_rejects_mismatched_fixed_mode():
+    async def scenario():
+        fake_esl = FakeEslClient()
+        fake_pipecat = FakePipecatManager()
+        settings = freeswitch_settings(
+            voice_ai_pipeline="hybrid",
+            pipecat_version="1.8.1",
+            pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+            pipecat_openai_api_key="test-key",
+            freeswitch_pipecat_start_command_template="pipecat_start {uuid} {media_ws_url}",
+        )
+        settings.validate_runtime()
+        driver = FreeswitchEslDriver(settings, client=fake_esl, pipecat_manager=fake_pipecat)
+        pipecat = await driver.post("dial", {
+            "call_id": "hybrid-pipecat",
+            "phone": "13800138008",
+            "webhook_url": "http://control/status",
+            "metadata": {"voice_ai_pipeline": "pipecat"},
+        })
+        legacy = await driver.post("dial", {
+            "call_id": "hybrid-legacy",
+            "phone": "13800138009",
+            "webhook_url": "http://control/status",
+            "metadata": {"voice_ai_pipeline": "legacy"},
+        })
+        assert pipecat["voice_ai_pipeline"] == "pipecat"
+        assert legacy["voice_ai_pipeline"] == "legacy"
+        assert driver.calls_by_id["hybrid-pipecat"].voice_ai_pipeline == "pipecat"
+        assert driver.calls_by_id["hybrid-legacy"].voice_ai_pipeline == "legacy"
+
+        fixed = FreeswitchEslDriver(freeswitch_settings(voice_ai_pipeline="legacy"), client=FakeEslClient())
+        with pytest.raises(RuntimeError, match="use VOICE_AI_PIPELINE=hybrid"):
+            await fixed.post("dial", {
+                "call_id": "mismatch",
+                "phone": "13800138010",
+                "webhook_url": "http://control/status",
+                "metadata": {"voice_ai_pipeline": "pipecat"},
+            })
 
     asyncio.run(scenario())

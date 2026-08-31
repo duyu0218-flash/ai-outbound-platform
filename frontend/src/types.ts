@@ -201,6 +201,7 @@ export interface Campaign {
   attempt_interval_sec: number
   recording_enabled: boolean
   hangup_sms_enabled: boolean
+  voice_ai_pipeline: 'inherit' | 'legacy' | 'pipecat'
   contact_ids: number[]
   status: string
   created_at: string
@@ -221,6 +222,7 @@ export interface CallSession {
   handoff_reason?: string
   human_agent_id?: number
   telephony_line_id?: number
+  voice_ai_pipeline: 'pending' | 'legacy' | 'pipecat'
   recording_url?: string
   last_error?: string
   created_at: string
@@ -415,6 +417,9 @@ export interface RuntimeInfo {
 
 export interface AdminUser extends User {
   phone?: string
+  failed_login_attempts: number
+  locked_until?: string
+  last_login_at?: string
   created_at: string
   updated_at: string
 }

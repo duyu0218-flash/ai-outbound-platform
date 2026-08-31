@@ -123,9 +123,23 @@ class FreeswitchEslDriver:
         self.listener_task: asyncio.Task[None] | None = None
         self.pipecat_manager = pipecat_manager or (
             PipecatPipelineManager(settings)
-            if settings.voice_ai_pipeline.strip().lower() == "pipecat"
+            if settings.voice_ai_pipeline.strip().lower() in {"pipecat", "hybrid"}
             else None
         )
+
+    def _select_pipeline(self, metadata: dict[str, Any]) -> str:
+        configured = self.settings.voice_ai_pipeline.strip().lower()
+        requested = str(metadata.get("voice_ai_pipeline") or "").strip().lower()
+        if requested and requested not in {"legacy", "pipecat"}:
+            raise ValueError("voice_ai_pipeline metadata must be legacy or pipecat")
+        if configured == "hybrid":
+            return requested or "legacy"
+        if requested and requested != configured:
+            raise RuntimeError(
+                f"requested voice_ai_pipeline={requested} does not match gateway mode {configured}; "
+                "use VOICE_AI_PIPELINE=hybrid for per-call routing"
+            )
+        return configured
 
     async def start(self) -> None:
         if self.listener_task is None or self.listener_task.done():
@@ -168,6 +182,7 @@ class FreeswitchEslDriver:
 
     async def _dial(self, payload: dict[str, Any]) -> dict[str, Any]:
         request = DialRequest.model_validate(payload)
+        selected_pipeline = self._select_pipeline(request.metadata)
         gateway = _safe_name(
             request.metadata.get("freeswitch_gateway") or self.settings.freeswitch_gateway,
             name="freeswitch_gateway",
@@ -216,7 +231,7 @@ class FreeswitchEslDriver:
             speech_webhook_url=str(request.metadata.get("speech_webhook_url") or ""),
             media_webhook_url=str(request.metadata.get("media_webhook_url") or ""),
             metadata=dict(request.metadata),
-            voice_ai_pipeline=self.settings.voice_ai_pipeline.strip().lower(),
+            voice_ai_pipeline=selected_pipeline,
         )
         self.calls_by_uuid[fs_uuid] = binding
         self.calls_by_id[binding.call_id] = binding
@@ -232,6 +247,7 @@ class FreeswitchEslDriver:
             "result": "accepted",
             "provider_call_id": fs_uuid,
             "job_uuid": job_uuid,
+            "voice_ai_pipeline": selected_pipeline,
         }
 
     def _binding(self, call_id: object) -> CallBinding:
@@ -431,9 +447,9 @@ class FreeswitchEslDriver:
                 speech_webhook_url=_b64_decode(_event_value(event, "variable_platform_speech_webhook_b64")),
                 media_webhook_url=_b64_decode(_event_value(event, "variable_platform_media_webhook_b64")),
                 metadata=metadata if isinstance(metadata, dict) else {},
-                voice_ai_pipeline=self.settings.voice_ai_pipeline.strip().lower(),
+                voice_ai_pipeline=self._select_pipeline(metadata if isinstance(metadata, dict) else {}),
             )
-        except (ValueError, TypeError, json.JSONDecodeError):
+        except (ValueError, TypeError, RuntimeError, json.JSONDecodeError):
             return None
         self.calls_by_uuid[fs_uuid] = binding
         self.calls_by_id[call_id] = binding

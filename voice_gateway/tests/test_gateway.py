@@ -3,6 +3,7 @@ import struct
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app import main as gateway_main
 from app.main import settings
 from app.pipecat_pipeline import RawPcmSerializer
 from app.rtp import RtpPacket, pcma_to_pcm16, pcm16_to_pcma, pcm16_to_pcmu, pcmu_to_pcm16
@@ -65,3 +66,40 @@ def test_voice_gateway_service_token_protects_operations(monkeypatch):
             headers={"Authorization": "Bearer test-voice-token"},
         )
     assert accepted.status_code == 200
+
+
+def test_voice_gateway_metrics_require_token(monkeypatch):
+    monkeypatch.setattr(settings, "metrics_token", "voice-metrics-token-for-tests")
+    with TestClient(app) as client:
+        assert client.get("/metrics").status_code == 401
+        response = client.get(
+            "/metrics",
+            headers={"Authorization": "Bearer voice-metrics-token-for-tests"},
+        )
+    assert response.status_code == 200
+    assert "ai_outbound_voice_gateway_ready 1" in response.text
+
+
+def test_voice_gateway_drain_rejects_new_calls_but_can_be_disabled(monkeypatch):
+    monkeypatch.setattr(settings, "service_token", "test-voice-token")
+    gateway_main.draining = False
+    headers = {"Authorization": "Bearer test-voice-token"}
+    with TestClient(app) as client:
+        enabled = client.post("/v1/admin/drain?enabled=true", headers=headers)
+        assert enabled.status_code == 200
+        assert enabled.json()["draining"] is True
+        assert client.get("/health").json()["draining"] is True
+        assert client.get("/readyz").status_code == 503
+        assert client.post(
+            "/v1/call/dial",
+            json={
+                "call_id": "drain-1",
+                "phone": "+10000000000",
+                "webhook_url": "https://control.example/webhook",
+            },
+            headers=headers,
+        ).status_code == 503
+        disabled = client.post("/v1/admin/drain?enabled=false", headers=headers)
+        assert disabled.status_code == 200
+        assert client.get("/readyz").status_code == 200
+    gateway_main.draining = False

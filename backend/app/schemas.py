@@ -167,6 +167,7 @@ class CampaignCreate(BaseModel):
     attempt_interval_sec: int = Field(default=1800, ge=1, le=604_800)
     recording_enabled: bool = True
     hangup_sms_enabled: bool = True
+    voice_ai_pipeline: str = Field(default="inherit", pattern=r"^(inherit|legacy|pipecat)$")
     contact_ids: List[int] = Field(default_factory=list)
 
 
@@ -309,6 +310,7 @@ class CallSessionOut(BaseModel):
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
     telephony_line_id: Optional[int] = None
+    voice_ai_pipeline: str = "legacy"
     last_error: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
@@ -764,6 +766,9 @@ class AdminPasswordReset(BaseModel):
 
 class AdminUserOut(UserOut):
     phone: Optional[str] = None
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

@@ -114,6 +114,8 @@ def ensure_demo_users(session: Session) -> None:
             user.full_name = info["full_name"]
             user.enabled = True
             user.is_supervisor = info["is_supervisor"]
+            user.failed_login_attempts = 0
+            user.locked_until = None
             user.updated_at = utc_now()
             session.add(user)
 
@@ -121,27 +123,43 @@ def ensure_demo_users(session: Session) -> None:
 
 
 def authenticate_user(session: Session, username: str, raw_password: str) -> Optional[User]:
-    user = session.exec(select(User).where(User.username == username)).first()
+    user = session.exec(select(User).where(User.username == username).with_for_update()).first()
     if not user or not user.enabled:
         return None
-    if not _verify_password(user.password_hash, raw_password):
+    now = utc_now()
+    if user.locked_until is not None and user.locked_until > now:
         return None
-    if not user.password_hash.startswith(f"{PASSWORD_SCHEME}$"):
-        user.password_hash = _hash_password(raw_password)
-        user.updated_at = utc_now()
+    if user.locked_until is not None:
+        user.locked_until = None
+        user.failed_login_attempts = 0
+    if not _verify_password(user.password_hash, raw_password):
+        user.failed_login_attempts = int(user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= max(1, settings.auth_max_failed_attempts):
+            user.locked_until = now + timedelta(seconds=max(30, settings.auth_lockout_seconds))
+        user.updated_at = now
         session.add(user)
         session.commit()
-        session.refresh(user)
+        return None
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login_at = now
+    user.updated_at = now
+    if not user.password_hash.startswith(f"{PASSWORD_SCHEME}$"):
+        user.password_hash = _hash_password(raw_password)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
     return user
 
 
-def create_access_token(subject: str, tenant_id: int, role: str, user_id: int) -> str:
+def create_access_token(subject: str, tenant_id: int, role: str, user_id: int, token_version: int = 0) -> str:
     expire = datetime.now(timezone.utc) + timedelta(seconds=settings.jwt_ttl_seconds)
     payload = {
         "sub": subject,
         "tenant_id": tenant_id,
         "role": role,
         "uid": user_id,
+        "tv": int(token_version),
         "exp": expire,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
@@ -180,4 +198,10 @@ def find_user_by_token(session: Session, token: str) -> Optional[User]:
     # Prevent token/user mismatch (e.g., old token with replaced id/username data drift)
     if str(user.username) != str(username) or (user_id is not None and user.id != user_id):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    try:
+        token_version = int(payload.get("tv", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    if token_version != int(user.token_version or 0):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
     return user

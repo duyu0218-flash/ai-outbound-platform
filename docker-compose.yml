@@ -54,6 +54,7 @@ services:
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
       TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
       AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+      SCHEDULER_ENABLED: "false"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3); print('ok')"]
       interval: 10s
@@ -62,6 +63,38 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${CONTROL_API_WORKERS:-2}", "--timeout-keep-alive", "15", "--log-level", "info"]
+
+  task-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+    container_name: ai-outbound-worker
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env.example}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      voice-gateway:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
+      REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
+      TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
+      TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
+      TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
+      AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+      SCHEDULER_ENABLED: "true"
+    command: ["python", "-m", "app.worker"]
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.worker_health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   ai-agent:
     build:
@@ -91,6 +124,7 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ai-outbound-voice-gateway
     restart: unless-stopped
+    stop_grace_period: 5m
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       VOICE_GATEWAY_DRIVER: ${VOICE_GATEWAY_DRIVER:-mock}
