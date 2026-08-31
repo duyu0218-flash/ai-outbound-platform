@@ -2541,7 +2541,7 @@ def test_microphone_is_allowed_for_same_origin_browser(client: TestClient):
 
 
 def test_voice_pipeline_selection_is_stable_and_campaign_override_wins():
-    suffix = uuid4().hex[:8]
+    suffix = f"{uuid4().int % 100_000_000:08d}"
     with session_scope() as session:
         legacy_call = create_call(
             session,
