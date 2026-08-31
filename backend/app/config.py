@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     jwt_secret: str = "jwt-change-me"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 12 * 60 * 60
+    auth_max_failed_attempts: int = 5
+    auth_lockout_seconds: int = 15 * 60
     demo_users_enabled: bool = True
     demo_admin_username: str = "admin"
     demo_admin_password: str = "12345678"
@@ -75,6 +77,9 @@ class Settings(BaseSettings):
     recording_delete_endpoint: str = ""
     recording_delete_service_token: str = ""
     recording_delete_timeout_sec: int = 15
+    recording_ingest_endpoint: str = ""
+    recording_ingest_service_token: str = ""
+    recording_ingest_timeout_sec: int = 60
 
     # Production hardening
     request_timeout_ms: int = 15000
@@ -84,6 +89,7 @@ class Settings(BaseSettings):
     rate_limit_default_rpm: int = 600
     rate_limit_auth_rpm: int = 60
     rate_limit_window_sec: int = 60
+    metrics_token: str = ""
 
     sms_provider: str = "mock"
     sms_provider_endpoint: str = ""

@@ -1,0 +1,38 @@
+groups:
+  - name: ai-outbound-commercial-readiness
+    rules:
+      - alert: AiOutboundVoiceGatewayUnavailable
+        expr: ai_outbound_voice_gateway_ready == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Voice gateway is not ready
+      - alert: AiOutboundDeadTasks
+        expr: ai_outbound_tasks{state="dead"} > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Durable tasks exhausted all retries
+      - alert: AiOutboundRecordingDeletionFailures
+        expr: ai_outbound_recording_deletion_failures > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Expired recordings could not be deleted
+      - alert: AiOutboundRecordingIngestionFailures
+        expr: ai_outbound_recording_ingestion_failures > 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Provider recordings could not be copied to managed storage
+      - alert: AiOutboundLockedAccounts
+        expr: ai_outbound_locked_users > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: One or more accounts remain locked

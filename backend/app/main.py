@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy import text
@@ -42,6 +42,7 @@ from .models import Tenant
 from .services.auth import ensure_demo_users
 from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check, tenant_telephony_health_check
 from .services.call_service import run_retry_scheduler
+from .services.metrics import render_prometheus_metrics
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -149,6 +150,10 @@ def _validate_production_runtime() -> None:
     if (settings.telephony_provider or "mock").strip().lower() == "mock":
         issues.append("TELEPHONY_PROVIDER=mock")
     if settings.recording_retention_days > 0:
+        if not settings.recording_ingest_endpoint.strip():
+            issues.append("RECORDING_INGEST_ENDPOINT")
+        if weak_secret(settings.recording_ingest_service_token, 24):
+            issues.append("RECORDING_INGEST_SERVICE_TOKEN")
         if not settings.recording_delete_endpoint.strip():
             issues.append("RECORDING_DELETE_ENDPOINT")
         if weak_secret(settings.recording_delete_service_token, 24):
@@ -164,6 +169,8 @@ def _validate_production_runtime() -> None:
             issues.append("TURN_SHARED_SECRET")
         if not settings.freeswitch_directory_token.strip() or len(settings.freeswitch_directory_token) < 24:
             issues.append("FREESWITCH_DIRECTORY_TOKEN")
+    if weak_secret(settings.metrics_token, 24):
+        issues.append("METRICS_TOKEN")
 
     if issues:
         raise RuntimeError(
@@ -208,10 +215,16 @@ def _bootstrap_default_tenant() -> None:
     # username concurrently and terminate the whole parent process.
     with engine.connect() as lock_connection:
         lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-data'))"))
+        # Session-level advisory locks survive a transaction commit. End the
+        # lock-acquisition transaction before binding a Session so its commit
+        # makes seeded rows visible before another process can acquire the lock.
+        lock_connection.commit()
         try:
             with Session(lock_connection) as session:
                 _bootstrap_default_tenant_data(session)
         finally:
+            if lock_connection.in_transaction():
+                lock_connection.rollback()
             lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-data'))"))
             lock_connection.commit()
 
@@ -319,6 +332,16 @@ def readyz() -> dict[str, Any]:
     if not all(value == "ok" for value in payload["checks"].values()):
         return JSONResponse(status_code=503, content=payload)
     return payload
+
+
+@app.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
+def metrics(authorization: str | None = Header(default=None)) -> PlainTextResponse:
+    expected = settings.metrics_token.strip()
+    if not expected or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="invalid metrics token")
+    with session_scope() as session:
+        body = render_prometheus_metrics(session)
+    return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 app.include_router(calls_router)
