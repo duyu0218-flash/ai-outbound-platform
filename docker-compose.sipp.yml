@@ -1,0 +1,13 @@
+services:
+  sipp:
+    build:
+      context: .
+      dockerfile: deploy/sipp/Dockerfile
+      args:
+        SIPP_VERSION: "3.7.7"
+        SIPP_SOURCE_SHA256: e55b15f567760e9febeef366a1ab51a5239d197a132ce931b78c826d22d31e69
+    image: ai-outbound-sipp:3.7.7
+    network_mode: host
+    volumes:
+      - ./deploy/sipp/scenarios:/scenarios:ro
+      - ./artifacts/sipp:/artifacts

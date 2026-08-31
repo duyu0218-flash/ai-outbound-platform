@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +18,7 @@ class Settings(BaseSettings):
     webhook_token: str = ""
     service_token: str = ""
     metrics_token: str = ""
+    metrics_token_file: str = ""
     freeswitch_esl_host: str = "freeswitch"
     freeswitch_esl_port: int = 8021
     freeswitch_esl_password: str = "ClueCon"
@@ -53,6 +55,14 @@ class Settings(BaseSettings):
     pipecat_tts_voice: str = "alloy"
     pipecat_fallback_to_legacy: bool = False
 
+    def resolved_metrics_token(self) -> str:
+        if self.metrics_token_file.strip():
+            try:
+                return Path(self.metrics_token_file.strip()).read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise RuntimeError(f"unable to read METRICS_TOKEN_FILE: {exc}") from exc
+        return self.metrics_token.strip()
+
     def validate_runtime(self) -> None:
         driver = self.voice_gateway_driver.strip().lower()
         pipeline = self.voice_ai_pipeline.strip().lower()
@@ -67,7 +77,11 @@ class Settings(BaseSettings):
             raise RuntimeError("production voice gateway cannot use mock driver")
         if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
             raise RuntimeError("SERVICE_TOKEN is required in production")
-        if self.env.lower() in {"prod", "production"} and len(self.metrics_token.strip()) < 24:
+        try:
+            metrics_token = self.resolved_metrics_token()
+        except RuntimeError:
+            metrics_token = ""
+        if self.env.lower() in {"prod", "production"} and len(metrics_token) < 24:
             raise RuntimeError("METRICS_TOKEN with at least 24 characters is required in production")
         if driver == "pbx_http" and not self.pbx_base_url.strip():
             raise RuntimeError("PBX_BASE_URL is required for pbx_http driver")

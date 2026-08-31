@@ -21,7 +21,7 @@ normal_review_cadence = "monthly"
 [components.application]
 constraint = "==0.1.0"
 status = "source-verified"
-evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml", "frontend/package.json"]
+evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml", "recording_adapter/pyproject.toml", "frontend/package.json"]
 
 [components.python]
 constraint = "==3.11.*"
@@ -29,7 +29,7 @@ development_image = "python:3.11-slim"
 production_image_env = "PYTHON_BASE_IMAGE"
 production_digest = ""
 status = "ci-baseline-production-digest-pending"
-evidence = [".github/workflows/ci.yml", "backend/Dockerfile", "agent/Dockerfile", "voice_gateway/Dockerfile"]
+evidence = [".github/workflows/ci.yml", "backend/Dockerfile", "agent/Dockerfile", "voice_gateway/Dockerfile", "recording_adapter/Dockerfile"]
 
 [components.node]
 constraint = "==22.*"
@@ -47,7 +47,7 @@ evidence = ["frontend/package.json", "frontend/pnpm-lock.yaml"]
 [components.setuptools]
 constraint = "==84.0.0"
 status = "build-system-pinned"
-evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml"]
+evidence = ["backend/pyproject.toml", "agent/pyproject.toml", "voice_gateway/pyproject.toml", "recording_adapter/pyproject.toml"]
 
 [components.postgresql]
 constraint = "==16.*"
@@ -102,6 +102,49 @@ runtime_version_env = "PIPECAT_VERSION"
 status = "candidate-integrated-controlled-routing-real-media-unverified"
 evidence = ["voice_gateway/pyproject.toml", "voice_gateway/app/pipecat_pipeline.py", "voice_gateway/tests/test_freeswitch.py", "docs/pipecat-integration.md"]
 
+[components.seaweedfs]
+constraint = "==4.44"
+license = "Apache-2.0"
+development_image = "chrislusf/seaweedfs:4.44"
+production_image_env = "SEAWEEDFS_IMAGE"
+production_digest = ""
+status = "deployable-production-digest-and-backup-restore-validation-pending"
+evidence = ["docker-compose.yml", "recording_adapter/app/storage.py"]
+
+[components.prometheus]
+constraint = "==3.14.0"
+license = "Apache-2.0"
+development_image = "prom/prometheus:v3.14.0"
+production_image_env = "PROMETHEUS_IMAGE"
+production_digest = ""
+status = "deployable-production-digest-pending"
+evidence = ["docker-compose.observability.yml", "deploy/prometheus/prometheus.yml"]
+
+[components.alertmanager]
+constraint = "==0.34.0"
+license = "Apache-2.0"
+development_image = "prom/alertmanager:v0.34.0"
+production_image_env = "ALERTMANAGER_IMAGE"
+production_digest = ""
+status = "deployable-receiver-configuration-pending"
+evidence = ["docker-compose.observability.yml", "deploy/alertmanager/alertmanager.yml"]
+
+[components.grafana]
+constraint = "==13.2.0"
+license = "AGPL-3.0-only"
+development_image = "grafana/grafana:13.2.0"
+production_image_env = "GRAFANA_IMAGE"
+production_digest = ""
+status = "deployable-production-digest-pending"
+evidence = ["docker-compose.observability.yml", "deploy/grafana/provisioning"]
+
+[components.sipp]
+constraint = "==3.7.7"
+license = "GPL-2.0-or-later"
+source_sha256 = "e55b15f567760e9febeef366a1ab51a5239d197a132ce931b78c826d22d31e69"
+status = "controlled-test-tool-real-sip-target-pending"
+evidence = ["deploy/sipp/Dockerfile", "docker-compose.sipp.yml", "scripts/run-sipp-acceptance.sh"]
+
 [components.github_actions]
 constraint = "checkout==v7; setup-python==v7; setup-node==v7"
 status = "major-tag-pinned-commit-sha-pending"
@@ -130,6 +173,8 @@ required = [
   "frontend-build-and-tests",
   "postgres-redis-integration",
   "compose-browser-acceptance",
+  "observability-and-recording-storage-acceptance",
+  "controlled-sipp-acceptance",
   "controlled-real-call-acceptance",
   "runtime-version-capture",
 ]

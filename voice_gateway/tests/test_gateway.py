@@ -70,6 +70,7 @@ def test_voice_gateway_service_token_protects_operations(monkeypatch):
 
 def test_voice_gateway_metrics_require_token(monkeypatch):
     monkeypatch.setattr(settings, "metrics_token", "voice-metrics-token-for-tests")
+    monkeypatch.setattr(settings, "metrics_token_file", "")
     with TestClient(app) as client:
         assert client.get("/metrics").status_code == 401
         response = client.get(
@@ -78,6 +79,21 @@ def test_voice_gateway_metrics_require_token(monkeypatch):
         )
     assert response.status_code == 200
     assert "ai_outbound_voice_gateway_ready 1" in response.text
+
+
+def test_voice_gateway_metrics_accept_mounted_token_file(monkeypatch, tmp_path):
+    token_file = tmp_path / "metrics-token"
+    token_file.write_text("mounted-voice-metrics-token\n", encoding="utf-8")
+    monkeypatch.setattr(settings, "metrics_token", "")
+    monkeypatch.setattr(settings, "metrics_token_file", str(token_file))
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/metrics",
+            headers={"Authorization": "Bearer mounted-voice-metrics-token"},
+        )
+
+    assert response.status_code == 200
 
 
 def test_voice_gateway_drain_rejects_new_calls_but_can_be_disabled(monkeypatch):

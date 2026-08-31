@@ -15,6 +15,7 @@ dist/
 build/
 backend/app/static/
 artifacts/
+.secrets/
 frontend/vite.config.js
 frontend/vite.config.d.ts
 frontend/coverage/
