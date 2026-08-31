@@ -1,7 +1,7 @@
 services:
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
-    container_name: ai-outbound-redis
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-redis
     restart: unless-stopped
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-replace-redis-password}"]
     expose:
@@ -14,7 +14,7 @@ services:
 
   db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
-    container_name: ai-outbound-db
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ai_outbound
@@ -30,6 +30,62 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  seaweedfs:
+    image: ${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:4.44}
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-seaweedfs
+    restart: unless-stopped
+    command: ["mini", "-dir=/data", "-ip=seaweedfs", "-ip.bind=0.0.0.0"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${RECORDING_S3_ACCESS_KEY_ID:-dev-recordings}
+      AWS_SECRET_ACCESS_KEY: ${RECORDING_S3_SECRET_ACCESS_KEY:-dev-recordings-secret-change-in-production}
+      S3_BUCKET: ${RECORDING_S3_BUCKET:-ai-outbound-recordings}
+    expose:
+      - "8333"
+      - "9333"
+    ports:
+      - "127.0.0.1:${SEAWEEDFS_S3_HOST_PORT:-8333}:8333"
+    volumes:
+      - recording_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  recording-adapter:
+    build:
+      context: .
+      dockerfile: recording_adapter/Dockerfile
+      args:
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-recording-adapter
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env.example}
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
+      S3_ENDPOINT_URL: http://seaweedfs:8333
+      S3_ACCESS_KEY_ID: ${RECORDING_S3_ACCESS_KEY_ID:-dev-recordings}
+      S3_SECRET_ACCESS_KEY: ${RECORDING_S3_SECRET_ACCESS_KEY:-dev-recordings-secret-change-in-production}
+      S3_BUCKET: ${RECORDING_S3_BUCKET:-ai-outbound-recordings}
+      S3_KEY_PREFIX: ${RECORDING_S3_KEY_PREFIX:-recordings}
+      RECORDING_SOURCE_ALLOWED_HOSTS: ${RECORDING_SOURCE_ALLOWED_HOSTS:-voice-gateway,freeswitch,host.docker.internal,localhost,127.0.0.1}
+      RECORDING_SOURCE_REQUIRE_HTTPS: ${RECORDING_SOURCE_REQUIRE_HTTPS:-false}
+      RECORDING_MAX_BYTES: ${RECORDING_MAX_BYTES:-536870912}
+    expose:
+      - "8003"
+    ports:
+      - "127.0.0.1:${RECORDING_ADAPTER_HOST_PORT:-8003}:8003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/readyz', timeout=3); print('ok')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
   control-api:
     build:
       context: .
@@ -37,7 +93,7 @@ services:
       args:
         NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
-    container_name: ai-outbound-control
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-control
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
@@ -47,6 +103,8 @@ services:
         condition: service_healthy
       voice-gateway:
         condition: service_healthy
+      recording-adapter:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
       REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
@@ -54,6 +112,10 @@ services:
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
       TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
       AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+      RECORDING_INGEST_ENDPOINT: ${RECORDING_INGEST_ENDPOINT:-http://recording-adapter:8003/v1/recordings/ingest}
+      RECORDING_INGEST_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
+      RECORDING_DELETE_ENDPOINT: ${RECORDING_DELETE_ENDPOINT:-http://recording-adapter:8003/v1/recordings/delete}
+      RECORDING_DELETE_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
       SCHEDULER_ENABLED: "false"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3); print('ok')"]
@@ -61,7 +123,7 @@ services:
       timeout: 5s
       retries: 20
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${CONTROL_API_HOST_PORT:-8000}:8000"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${CONTROL_API_WORKERS:-2}", "--timeout-keep-alive", "15", "--log-level", "info"]
 
   task-worker:
@@ -71,7 +133,7 @@ services:
       args:
         NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
-    container_name: ai-outbound-worker
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-worker
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
@@ -81,6 +143,8 @@ services:
         condition: service_healthy
       voice-gateway:
         condition: service_healthy
+      recording-adapter:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
       REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
@@ -88,6 +152,10 @@ services:
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
       TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
       AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+      RECORDING_INGEST_ENDPOINT: ${RECORDING_INGEST_ENDPOINT:-http://recording-adapter:8003/v1/recordings/ingest}
+      RECORDING_INGEST_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
+      RECORDING_DELETE_ENDPOINT: ${RECORDING_DELETE_ENDPOINT:-http://recording-adapter:8003/v1/recordings/delete}
+      RECORDING_DELETE_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
       SCHEDULER_ENABLED: "true"
     command: ["python", "-m", "app.worker"]
     healthcheck:
@@ -101,7 +169,7 @@ services:
       context: ./agent
       args:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
-    container_name: ai-outbound-agent
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-agent
     restart: unless-stopped
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
@@ -122,7 +190,7 @@ services:
       dockerfile: voice_gateway/Dockerfile
       args:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
-    container_name: ai-outbound-voice-gateway
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-voice-gateway
     restart: unless-stopped
     stop_grace_period: 5m
     env_file: ${APP_ENV_FILE:-.env.example}
@@ -145,3 +213,4 @@ services:
 
 volumes:
   postgres_data:
+  recording_data:

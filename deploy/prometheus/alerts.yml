@@ -8,6 +8,13 @@ groups:
           severity: critical
         annotations:
           summary: Voice gateway is not ready
+      - alert: AiOutboundMetricsTargetUnavailable
+        expr: up{job=~"control-api|voice-gateway|recording-adapter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: A required AI outbound metrics target is unavailable
       - alert: AiOutboundDeadTasks
         expr: ai_outbound_tasks{state="dead"} > 0
         for: 5m
@@ -29,6 +36,13 @@ groups:
           severity: critical
         annotations:
           summary: Provider recordings could not be copied to managed storage
+      - alert: AiOutboundRecordingAdapterFailures
+        expr: increase(ai_outbound_recording_adapter_ingest_total{result!="success"}[15m]) > 0 or increase(ai_outbound_recording_adapter_delete_total{result!="success"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Managed recording adapter reported ingestion or deletion failures
       - alert: AiOutboundLockedAccounts
         expr: ai_outbound_locked_users > 0
         for: 15m

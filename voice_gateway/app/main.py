@@ -34,7 +34,10 @@ def require_service_token(authorization: str | None = Header(default=None)) -> N
 
 
 def require_metrics_token(authorization: str | None = Header(default=None)) -> None:
-    expected = settings.metrics_token.strip()
+    try:
+        expected = settings.resolved_metrics_token()
+    except RuntimeError:
+        expected = ""
     if not expected or authorization != f"Bearer {expected}":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid metrics token")
 

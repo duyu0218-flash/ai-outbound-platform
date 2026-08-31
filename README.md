@@ -75,6 +75,7 @@ pnpm build
 - `docs/realtime-voice-contract.md`: PBX/媒体网关、ASR、TTS 与平台之间的 P0/P1 接口契约
 - `docs/pipecat-integration.md`: `legacy` / Pipecat 混合语音流水线、切换门禁和 FreeSWITCH 媒体合约
 - `docs/commercial-readiness.md`: 活动级灰度、独立Worker、账号锁定/令牌撤销、监控与备份恢复演练
+- `docs/direct-deploy-foundations.md`: 可直接部署的监控、录音托管与受控SIP验收工具
 - `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
 - `compatibility-matrix.toml`: Python、Node、数据库、FreeSWITCH、媒体模块和可选Pipecat的机器可读兼容基准
 - `docs/version-compatibility.md`: 版本锁定、升级、现场取证和生产发布规则
@@ -93,6 +94,20 @@ docker compose up -d --build
 
 - 控制面：http://localhost:8000/health
 - AI 服务：http://localhost:8001/health
+
+需要同时启动第一批商用基础设施（SeaweedFS、录音适配器、Prometheus、Alertmanager、Grafana）：
+
+```bash
+./scripts/bootstrap-deployment-secrets.sh
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d --build
+```
+
+- 录音适配器：http://localhost:8003/readyz
+- Prometheus：http://localhost:9090
+- Alertmanager：http://localhost:9093
+- Grafana：http://localhost:3000（密码在本机 `.secrets/grafana_admin_password`）
+
+生产参数、SIPp安全开关和验收边界见 [docs/direct-deploy-foundations.md](docs/direct-deploy-foundations.md)。
 
 ## 3. 环境变量
 

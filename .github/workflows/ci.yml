@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [backend, agent, voice_gateway]
+        service: [backend, agent, voice_gateway, recording_adapter]
     defaults:
       run:
         working-directory: ${{ matrix.service }}
@@ -152,22 +152,73 @@ jobs:
           pnpm exec playwright install --with-deps chromium
       - name: Build and start Compose stack
         run: |
-          docker compose --env-file .env.example config --quiet
-          docker compose --env-file .env.example up -d --build
+          ./scripts/bootstrap-deployment-secrets.sh
+          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml config --quiet
+          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml up -d --build
       - name: Wait for readiness
         run: |
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:8000/readyz >/dev/null; then exit 0; fi
+            if curl --fail --silent http://127.0.0.1:8000/readyz >/dev/null \
+              && curl --fail --silent http://127.0.0.1:8003/readyz >/dev/null \
+              && curl --fail --silent http://127.0.0.1:9090/-/ready >/dev/null \
+              && curl --fail --silent http://127.0.0.1:9093/-/ready >/dev/null \
+              && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
             sleep 2
           done
-          docker compose logs
+          docker compose -f docker-compose.yml -f docker-compose.observability.yml logs
           exit 1
+      - name: Verify protected metrics targets
+        run: |
+          metrics_token=$(cat .secrets/metrics_token)
+          curl --fail --silent --header "Authorization: Bearer $metrics_token" http://127.0.0.1:8000/metrics | grep ai_outbound_calls_by_pipeline
+          curl --fail --silent --header "Authorization: Bearer $metrics_token" http://127.0.0.1:8003/metrics | grep ai_outbound_recording_adapter_ingest_total
+          for attempt in $(seq 1 30); do
+            up_targets=$(curl --fail --silent http://127.0.0.1:9090/api/v1/targets | jq '[.data.activeTargets[] | select(.labels.job == "control-api" or .labels.job == "voice-gateway" or .labels.job == "recording-adapter") | select(.health == "up")] | length')
+            if [ "$up_targets" = "3" ]; then break; fi
+            if [ "$attempt" = "30" ]; then
+              curl --fail --silent http://127.0.0.1:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health, lastError}'
+              exit 1
+            fi
+            sleep 2
+          done
+          grafana_password=$(cat .secrets/grafana_admin_password)
+          curl --fail --silent --user "admin:$grafana_password" http://127.0.0.1:3000/api/dashboards/uid/ai-outbound-commercial \
+            | jq --exit-status '.dashboard.title == "AI Outbound Commercial Readiness"'
+          curl --fail --silent http://127.0.0.1:9093/api/v2/status | jq --exit-status '.config.original | contains("local-dashboard")'
       - name: Browser acceptance
         working-directory: frontend
         run: pnpm test:e2e
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose -f docker-compose.yml -f docker-compose.observability.yml logs
       - name: Stop Compose stack
         if: always()
-        run: docker compose down --volumes
+        run: docker compose -f docker-compose.yml -f docker-compose.observability.yml down --volumes
+
+  deployable-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Validate configuration assets
+        run: |
+          sh -n scripts/bootstrap-deployment-secrets.sh
+          sh -n scripts/run-sipp-acceptance.sh
+          python -c "import json; json.load(open('deploy/grafana/provisioning/dashboards/json/ai-outbound-commercial.json'))"
+          python -c "import xml.etree.ElementTree as ET; ET.parse('deploy/sipp/scenarios/options.xml'); ET.parse('deploy/sipp/scenarios/uac-basic.xml')"
+          ./scripts/bootstrap-deployment-secrets.sh
+          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml config --quiet
+          docker compose -f docker-compose.sipp.yml config --quiet
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/deploy/prometheus:/etc/prometheus:ro" \
+            -v "$PWD/.secrets/metrics_token:/run/secrets/metrics_token:ro" \
+            prom/prometheus:v3.14.0 check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/amtool \
+            -v "$PWD/deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
+            prom/alertmanager:v0.34.0 check-config /etc/alertmanager/alertmanager.yml
+      - name: Build the pinned SIPp test image
+        run: |
+          docker compose -f docker-compose.sipp.yml build sipp
+          docker run --rm ai-outbound-sipp:3.7.7 -v | grep "SIPp v3.7.7"

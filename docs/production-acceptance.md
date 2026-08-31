@@ -4,10 +4,11 @@
 
 ## 自动化门禁
 
-- Python 静态编译和 backend/agent/voice-gateway 全部测试通过。
+- Python 静态编译和 backend/agent/voice-gateway/recording_adapter 全部测试通过。
 - 后端测试在 SQLite 以及真实 PostgreSQL/Redis 两种组合下通过。
 - 前端 TypeScript、生产构建、Vitest 覆盖率门禁和 Playwright admin/agent 验收通过。
-- Compose 镜像从空缓存可构建，所有服务进入 healthy，版本化迁移重复执行为 `none`。
+- Compose 镜像从空缓存可构建，所有服务进入 healthy；Prometheus三个业务采集目标均为up，Grafana和Alertmanager进入ready，版本化迁移重复执行为 `none`。
+- SIPp镜像按精确源码版本和SHA-256构建，测试场景XML通过解析；真实发包只能在已批准的测试线路执行。
 - 无 `dead` 任务、无超时 `processing` 任务、无录音删除失败。
 
 ## 经营指标口径
@@ -44,3 +45,5 @@ python3 scripts/real_voice_acceptance.py \
 - 确认任务能重试或进入死信，重复 webhook 不会重复修改通话，客户业务回调可重放。
 - 按候选上线并发的 10%、25%、50%、100% 逐级压测，再进行不少于一个完整业务高峰的长稳测试。
 - 延迟、成功率、资源上限和报警阈值由线路、业务和合规负责人在测试前签字确认，不在代码中伪造统一指标。
+- 可先用 `scripts/run-sipp-acceptance.sh` 执行OPTIONS可达性，再执行基础UAC场景；脚本要求显式设置
+  `SIPP_CONFIRM_RUN=RUN_CONTROLLED_SIPP_TEST`，所有结果写入 `artifacts/sipp/`。
