@@ -21,4 +21,4 @@
 
 ## 明确边界
 
-仓库已实现控制面、状态机、数据落库、FreeSWITCH ESL 驱动、浏览器 SIP/WebRTC 终端、coturn/FreeSWITCH 部署扩展和验收接口。仓库不提供运营商账号、SIP 中继、公网域名证书、已审计的 FreeSWITCH 完整镜像/基础配置或云 ASR/TTS 凭证。上线前必须用选定线路完成浏览器真机注册、双向音频、TURN 中继、打断延迟、录音及高并发压测。
+仓库已实现控制面、状态机、数据落库、FreeSWITCH ESL 驱动、可选 Pipecat 1.8.1 候选流水线、浏览器 SIP/WebRTC 终端、coturn/FreeSWITCH 部署扩展和验收接口。仓库不提供运营商账号、SIP 中继、公网域名证书、已审计的 FreeSWITCH 完整镜像/基础配置、非核心双向 WebSocket 媒体模块或云 ASR/TTS 凭证。上线前必须用选定线路完成浏览器真机注册、双向音频、TURN 中继、打断延迟、录音及高并发压测。

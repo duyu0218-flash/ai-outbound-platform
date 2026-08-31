@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     env: str = "development"
     voice_gateway_driver: str = "mock"
+    voice_ai_pipeline: str = "legacy"
     pbx_base_url: str = ""
     pbx_bearer_token: str = ""
     request_timeout_sec: float = 10.0
@@ -32,14 +34,33 @@ class Settings(BaseSettings):
     freeswitch_tts_http_token: str = ""
     freeswitch_media_start_command_template: str = ""
     freeswitch_media_stop_command_template: str = ""
+    freeswitch_pipecat_start_command_template: str = ""
     freeswitch_recording_dir: str = "/recordings"
     freeswitch_recording_public_base_url: str = ""
     freeswitch_recording_stereo: bool = True
+    pipecat_version: str = ""
+    pipecat_media_ws_base: str = ""
+    pipecat_sample_rate: int = 8000
+    pipecat_channels: int = 1
+    pipecat_session_timeout_sec: int = 300
+    pipecat_stt_provider: str = "openai-realtime"
+    pipecat_tts_provider: str = "openai"
+    pipecat_openai_api_key: str = ""
+    pipecat_openai_realtime_base_url: str = "wss://api.openai.com/v1/realtime"
+    pipecat_openai_base_url: str = ""
+    pipecat_tts_model: str = "gpt-4o-mini-tts"
+    pipecat_tts_voice: str = "alloy"
+    pipecat_fallback_to_legacy: bool = False
 
     def validate_runtime(self) -> None:
         driver = self.voice_gateway_driver.strip().lower()
+        pipeline = self.voice_ai_pipeline.strip().lower()
         if driver not in {"mock", "pbx_http", "freeswitch_esl"}:
             raise RuntimeError("VOICE_GATEWAY_DRIVER must be mock, pbx_http or freeswitch_esl")
+        if pipeline not in {"legacy", "pipecat"}:
+            raise RuntimeError("VOICE_AI_PIPELINE must be legacy or pipecat")
+        if pipeline == "pipecat" and driver != "freeswitch_esl":
+            raise RuntimeError("VOICE_AI_PIPELINE=pipecat requires VOICE_GATEWAY_DRIVER=freeswitch_esl")
         if self.env.lower() in {"prod", "production"} and driver == "mock":
             raise RuntimeError("production voice gateway cannot use mock driver")
         if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
@@ -55,7 +76,8 @@ class Settings(BaseSettings):
                 raise RuntimeError("FREESWITCH_ESL_PASSWORD is required for freeswitch_esl driver")
             if not self.freeswitch_gateway.strip():
                 raise RuntimeError("FREESWITCH_GATEWAY is required for freeswitch_esl driver")
-            if not self.freeswitch_tts_http_endpoint.strip() and not (
+            needs_legacy_tts = pipeline == "legacy" or self.pipecat_fallback_to_legacy
+            if needs_legacy_tts and not self.freeswitch_tts_http_endpoint.strip() and not (
                 self.freeswitch_tts_engine.strip() and self.freeswitch_tts_voice.strip()
             ):
                 raise RuntimeError(
@@ -80,8 +102,43 @@ class Settings(BaseSettings):
                         uuid="uuid",
                         call_id="call-id",
                     )
+                if self.freeswitch_pipecat_start_command_template.strip():
+                    self.freeswitch_pipecat_start_command_template.format(
+                        uuid="uuid",
+                        call_id="call-id",
+                        session_id="session-id",
+                        media_ws_url="ws://voice-gateway/pipecat/session",
+                        sample_rate=8000,
+                        channels=1,
+                        codec="pcm_s16le",
+                    )
             except (KeyError, ValueError) as exc:
                 raise RuntimeError(f"invalid FreeSWITCH command template: {exc}") from exc
+        if pipeline == "pipecat":
+            if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", self.pipecat_version):
+                raise RuntimeError("PIPECAT_VERSION must be an exact version for the Pipecat pipeline")
+            if not self.pipecat_media_ws_base.startswith(("ws://", "wss://")):
+                raise RuntimeError("PIPECAT_MEDIA_WS_BASE must use ws:// or wss://")
+            if not self.freeswitch_pipecat_start_command_template.strip():
+                raise RuntimeError("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required")
+            if self.pipecat_stt_provider != "openai-realtime":
+                raise RuntimeError("the current Pipecat integration supports PIPECAT_STT_PROVIDER=openai-realtime")
+            if self.pipecat_tts_provider != "openai":
+                raise RuntimeError("the current Pipecat integration supports PIPECAT_TTS_PROVIDER=openai")
+            if not self.pipecat_openai_api_key.strip():
+                raise RuntimeError("PIPECAT_OPENAI_API_KEY is required for the Pipecat pipeline")
+            if not self.pipecat_openai_realtime_base_url.startswith(("ws://", "wss://")):
+                raise RuntimeError("PIPECAT_OPENAI_REALTIME_BASE_URL must use ws:// or wss://")
+            if self.pipecat_sample_rate not in {8000, 16000, 24000, 48000}:
+                raise RuntimeError("PIPECAT_SAMPLE_RATE must be 8000, 16000, 24000 or 48000")
+            if self.pipecat_channels != 1:
+                raise RuntimeError("the telephony Pipecat pipeline currently requires mono audio")
+            if self.pipecat_session_timeout_sec < 30:
+                raise RuntimeError("PIPECAT_SESSION_TIMEOUT_SEC must be at least 30")
+            if self.pipecat_fallback_to_legacy and not self.freeswitch_media_start_command_template.strip():
+                raise RuntimeError(
+                    "PIPECAT_FALLBACK_TO_LEGACY=true requires FREESWITCH_MEDIA_START_COMMAND_TEMPLATE"
+                )
         if self.env.lower() in {"prod", "production"} and driver == "freeswitch_esl":
             if self.freeswitch_esl_password == "ClueCon":
                 raise RuntimeError("production FreeSWITCH cannot use the default ESL password")

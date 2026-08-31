@@ -17,7 +17,7 @@
 | FreeSWITCH媒体模块 | 尚未选型 | 精确版本并与FreeSWITCH联合验收 | 未选型 |
 | coturn | 4.17.2-r0 | 生产镜像必须使用摘要 | 生产摘要未提供 |
 | Nginx | 1.28.0-alpine | 生产镜像必须使用摘要 | 生产摘要未提供 |
-| Pipecat | 当前未采用 | 未来启用时必须精确锁定 | 不适用 |
+| Pipecat | 1.8.1 候选集成 | 固定精确版本；真实媒体回归与灰度前保持 `legacy` | 代码/容器依赖已验证；真实线路未验证 |
 | GitHub Actions | checkout/setup-python/setup-node v7 | 发布前改为审计过的完整commit SHA | 当前仅固定major tag |
 
 空白或 `pending` 字段代表尚缺真实环境证据，不得用猜测值补齐，也不得据此宣称生产已固定版本。
@@ -59,7 +59,7 @@ docker image inspect "$(docker inspect ai-outbound-freeswitch --format '{{.Image
 4. 依赖变更必须同时更新lockfile、兼容矩阵和变更说明；矩阵不一致时CI必须失败。
 5. 基础镜像Tag可以作为开发默认值；生产的Python、Node、PostgreSQL、Redis、FreeSWITCH、coturn、Nginx都必须解析并固定为 `repository@sha256:<digest>`。
 6. FreeSWITCH升级必须连同Sofia、Event Socket、编解码、TTS、媒体模块和配置文件一起回归。
-7. Pipecat若启用，必须同时验证自定义Serializer、音频编码、ASR、TTS、打断和上下文一致性。
+7. Pipecat 1.8.1 作为候选链路已精确锁定；启用生产前必须同时验证自定义Serializer、音频编码、ASR、TTS、打断和上下文一致性。
 8. 严重安全问题在24小时内完成影响评估并进入加急升级；仍须经过最小回归、真实链路验证和受控灰度，不得直接推送生产。
 9. Python直接依赖和前端直接依赖必须精确约束；前端传递依赖由lockfile冻结。Python传递依赖以验收后的应用镜像摘要为最终发布边界。
 
@@ -69,7 +69,7 @@ docker image inspect "$(docker inspect ai-outbound-freeswitch --format '{{.Image
 - 回归负责人确认兼容矩阵、变更影响和测试结果后，才能批准候选版本。
 - 灰度必须使用生产同构配置，在限定租户、线路或实例上验证监控指标和回滚路径。
 - 灰度通过后，才允许把候选版本写入生产发布清单；生产部署仍由发布审批触发。
-- FreeSWITCH、媒体模块和未来启用的Pipecat涉及真实音频链，仓库CI不能替代真实线路、双向音频、打断、录音和转人工验收。
+- FreeSWITCH、媒体模块和Pipecat候选链路涉及真实音频链，仓库CI不能替代真实线路、双向音频、打断、录音和转人工验收。
 
 ## 发布门禁
 

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.main import settings
+from app.pipecat_pipeline import RawPcmSerializer
 from app.rtp import RtpPacket, pcma_to_pcm16, pcm16_to_pcma, pcm16_to_pcmu, pcmu_to_pcm16
 
 
@@ -37,6 +38,20 @@ def test_pcma_codec_shape_and_sign():
     decoded = struct.unpack("<hhh", pcma_to_pcm16(encoded))
     assert len(encoded) == 3
     assert decoded[0] < 0 < decoded[2]
+
+
+def test_pipecat_raw_pcm_serializer_round_trip():
+    async def scenario():
+        serializer = RawPcmSerializer(sample_rate=8000)
+        decoded = await serializer.deserialize(b"\x01\x02\x03\x04")
+        assert decoded.audio == b"\x01\x02\x03\x04"
+        assert decoded.sample_rate == 8000
+        assert decoded.num_channels == 1
+        assert await serializer.serialize(decoded) is None
+
+    import asyncio
+
+    asyncio.run(scenario())
 
 
 def test_voice_gateway_service_token_protects_operations(monkeypatch):

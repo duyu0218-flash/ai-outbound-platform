@@ -1,10 +1,11 @@
 import asyncio
+from types import SimpleNamespace
 from typing import AsyncIterator
 
 import pytest
 
 from app.config import Settings
-from app.esl import EslClient, read_frame
+from app.esl import EslClient, EslError, read_frame
 from app.freeswitch import FreeswitchEslDriver, _fs_argument
 
 
@@ -24,6 +25,38 @@ class FakeEslClient:
     async def events(self, _names: tuple[str, ...]) -> AsyncIterator[dict[str, object]]:
         if False:
             yield {}
+
+
+class FakePipecatManager:
+    def __init__(self):
+        self.created: list[dict] = []
+        self.spoken: list[tuple[str, str]] = []
+        self.interrupted: list[str] = []
+        self.closed: list[str] = []
+        self.media: list[tuple[str, str]] = []
+
+    def ready(self) -> bool:
+        return True
+
+    async def create_session(self, **kwargs):
+        self.created.append(kwargs)
+        return SimpleNamespace(token="pipecat-token-1", session_id="pipecat-session-1")
+
+    def media_ws_url(self, session) -> str:
+        return f"ws://voice-gateway:8002/v1/pipecat/media/{session.token}"
+
+    async def speak(self, call_id: str, text: str) -> str:
+        self.spoken.append((call_id, text))
+        return "pipecat-playback-1"
+
+    async def interrupt(self, call_id: str) -> None:
+        self.interrupted.append(call_id)
+
+    async def close(self, call_id: str, **_kwargs) -> None:
+        self.closed.append(call_id)
+
+    async def post_media(self, session, state: str, **_kwargs) -> None:
+        self.media.append((session.token, state))
 
 
 def freeswitch_settings(**overrides) -> Settings:
@@ -299,3 +332,145 @@ def test_freeswitch_runtime_validation_rejects_invalid_command_template():
     settings = freeswitch_settings(freeswitch_media_start_command_template="uuid_audio {unknown}")
     with pytest.raises(RuntimeError, match="invalid FreeSWITCH command template"):
         settings.validate_runtime()
+
+
+def test_pipecat_runtime_validation_requires_explicit_media_configuration():
+    with pytest.raises(RuntimeError, match="PIPECAT_VERSION"):
+        freeswitch_settings(voice_ai_pipeline="pipecat").validate_runtime()
+
+    settings = freeswitch_settings(
+        voice_ai_pipeline="pipecat",
+        pipecat_version="1.8.1",
+        pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+        pipecat_openai_api_key="test-key",
+        freeswitch_pipecat_start_command_template="uuid_audio_stream {uuid} start {media_ws_url} mono 8k",
+    )
+    settings.validate_runtime()
+
+    Settings(
+        voice_gateway_driver="freeswitch_esl",
+        voice_ai_pipeline="pipecat",
+        freeswitch_esl_password="test-password",
+        freeswitch_gateway="carrier",
+        pipecat_version="1.8.1",
+        pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+        pipecat_openai_api_key="test-key",
+        freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
+    ).validate_runtime()
+
+
+def test_pipecat_runtime_validation_rejects_unconfigured_legacy_fallback():
+    settings = freeswitch_settings(
+        voice_ai_pipeline="pipecat",
+        pipecat_version="1.8.1",
+        pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+        pipecat_openai_api_key="test-key",
+        pipecat_fallback_to_legacy=True,
+        freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
+    )
+    with pytest.raises(RuntimeError, match="FREESWITCH_MEDIA_START_COMMAND_TEMPLATE"):
+        settings.validate_runtime()
+
+
+def test_freeswitch_driver_routes_media_and_tts_through_pipecat():
+    async def scenario():
+        fake_esl = FakeEslClient()
+        fake_pipecat = FakePipecatManager()
+        settings = freeswitch_settings(
+            voice_ai_pipeline="pipecat",
+            pipecat_version="1.8.1",
+            pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+            pipecat_openai_api_key="test-key",
+            freeswitch_pipecat_start_command_template=(
+                "uuid_audio_stream {uuid} start {media_ws_url} mono 8k"
+            ),
+        )
+        driver = FreeswitchEslDriver(settings, client=fake_esl, pipecat_manager=fake_pipecat)
+        driver._post_json = lambda *_args, **_kwargs: asyncio.sleep(0)  # type: ignore[method-assign]
+        dial = await driver.post(
+            "dial",
+            {
+                "call_id": "pipecat-call-1",
+                "phone": "13800138006",
+                "webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/status",
+                "metadata": {
+                    "attempt": 1,
+                    "speech_webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/speech",
+                    "media_webhook_url": "http://control-api:8000/api/v1/webhooks/telephony/media",
+                },
+            },
+        )
+        await driver._handle_event(
+            {
+                "Event-Name": "CHANNEL_ANSWER",
+                "Unique-ID": dial["provider_call_id"],
+                "Event-Date-Timestamp": "700",
+            }
+        )
+        assert fake_pipecat.created[0]["call_id"] == "pipecat-call-1"
+        assert any(
+            command.startswith(f"uuid_audio_stream {dial['provider_call_id']} start ws://voice-gateway:8002/")
+            for command in fake_esl.api_commands
+        )
+
+        spoken = await driver.post("speak", {"call_id": "pipecat-call-1", "text": "您好"})
+        assert spoken == {
+            "result": "queued",
+            "provider_call_id": dial["provider_call_id"],
+            "playback_id": "pipecat-playback-1",
+            "pipeline": "pipecat",
+        }
+        assert fake_pipecat.spoken == [("pipecat-call-1", "您好")]
+        assert not any(command.startswith("uuid_broadcast") for command in fake_esl.api_commands)
+
+        await driver.post("stop-speaking", {"call_id": "pipecat-call-1"})
+        assert fake_pipecat.interrupted == ["pipecat-call-1"]
+        await driver.post("hangup", {"call_id": "pipecat-call-1", "reason": "done"})
+        assert fake_pipecat.closed == ["pipecat-call-1"]
+
+    asyncio.run(scenario())
+
+
+def test_pipecat_falls_back_only_when_explicitly_configured():
+    class FailingPipecatEslClient(FakeEslClient):
+        async def api(self, command: str) -> str:
+            self.api_commands.append(command)
+            if command.startswith("pipecat_start"):
+                raise EslError("media module rejected command")
+            return "+OK"
+
+    async def scenario():
+        fake_esl = FailingPipecatEslClient()
+        fake_pipecat = FakePipecatManager()
+        settings = freeswitch_settings(
+            voice_ai_pipeline="pipecat",
+            pipecat_version="1.8.1",
+            pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
+            pipecat_openai_api_key="test-key",
+            pipecat_fallback_to_legacy=True,
+            freeswitch_pipecat_start_command_template="pipecat_start {uuid} {media_ws_url}",
+            freeswitch_media_start_command_template="legacy_start {uuid} {speech_webhook_url}",
+        )
+        driver = FreeswitchEslDriver(settings, client=fake_esl, pipecat_manager=fake_pipecat)
+        driver._post_json = lambda *_args, **_kwargs: asyncio.sleep(0)  # type: ignore[method-assign]
+        dial = await driver.post(
+            "dial",
+            {
+                "call_id": "pipecat-fallback-1",
+                "phone": "13800138007",
+                "webhook_url": "http://control/status",
+                "metadata": {
+                    "speech_webhook_url": "http://control/speech",
+                    "media_webhook_url": "http://control/media",
+                },
+            },
+        )
+        await driver._handle_event(
+            {"Event-Name": "CHANNEL_ANSWER", "Unique-ID": dial["provider_call_id"]}
+        )
+        binding = driver.calls_by_id["pipecat-fallback-1"]
+        assert binding.voice_ai_pipeline == "legacy"
+        assert fake_pipecat.closed == ["pipecat-fallback-1"]
+        assert any(command.startswith("legacy_start") for command in fake_esl.api_commands)
+
+    asyncio.run(scenario())

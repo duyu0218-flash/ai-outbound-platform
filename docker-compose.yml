@@ -94,6 +94,7 @@ services:
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       VOICE_GATEWAY_DRIVER: ${VOICE_GATEWAY_DRIVER:-mock}
+      VOICE_AI_PIPELINE: ${VOICE_AI_PIPELINE:-legacy}
       WEBHOOK_TOKEN: ${TELEPHONY_WEBHOOK_TOKEN:-}
       SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
     expose:
