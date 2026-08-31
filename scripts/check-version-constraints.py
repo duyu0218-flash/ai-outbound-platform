@@ -220,9 +220,9 @@ def validate_production_env(matrix: dict, env_path: Path, errors: list[str]) -> 
     if pipecat_version != expected_pipecat:
         fail(errors, f"{pipecat_version_var} must match the approved candidate {expected_pipecat}")
     pipeline = env.get("VOICE_AI_PIPELINE", "legacy").strip().lower()
-    if pipeline not in {"legacy", "pipecat"}:
-        fail(errors, "VOICE_AI_PIPELINE must be legacy or pipecat")
-    if pipeline == "pipecat" and not env.get("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE", ""):
+    if pipeline not in {"legacy", "pipecat", "hybrid"}:
+        fail(errors, "VOICE_AI_PIPELINE must be legacy, pipecat or hybrid")
+    if pipeline in {"pipecat", "hybrid"} and not env.get("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE", ""):
         fail(errors, "FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required for the Pipecat pipeline")
 
 

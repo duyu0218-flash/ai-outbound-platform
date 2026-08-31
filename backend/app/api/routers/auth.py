@@ -47,6 +47,7 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)):
         tenant_id=user.tenant_id,
         role=user.role,
         user_id=user.id,
+        token_version=user.token_version,
     )
     return LoginResponse(
         access_token=token,
@@ -92,14 +93,17 @@ def update_presence(
 
 @router.post("/logout")
 def logout(current=Depends(current_user), session: Session = Depends(get_session)):
+    managed = session.get(type(current), current.id)
+    if managed is not None:
+        managed.token_version = int(managed.token_version or 0) + 1
+        managed.updated_at = utc_now()
     if current.role == "agent":
         if current.id is not None:
             clear_media_status(tenant_id=current.tenant_id, agent_id=int(current.id))
-        managed = session.get(type(current), current.id)
         if managed is not None:
             managed.agent_status = "offline"
             managed.last_seen_at = utc_now()
-            managed.updated_at = utc_now()
-            session.add(managed)
-            session.commit()
+    if managed is not None:
+        session.add(managed)
+        session.commit()
     return {"result": "ok"}

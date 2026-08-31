@@ -27,6 +27,8 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "max_reply_chars": 240,
         "forbidden_phrases": "保证收益,百分百,绝对有效",
         "fallback_reply": "抱歉，这个问题需要由人工客服为您确认。",
+        "voice_ai_pipeline": "legacy",
+        "pipecat_canary_percent": 0,
     },
     "sms": {
         "enabled": True,

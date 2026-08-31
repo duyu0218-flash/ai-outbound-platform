@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     rtp_port_end: int = 30000
     webhook_token: str = ""
     service_token: str = ""
+    metrics_token: str = ""
     freeswitch_esl_host: str = "freeswitch"
     freeswitch_esl_port: int = 8021
     freeswitch_esl_password: str = "ClueCon"
@@ -57,14 +58,17 @@ class Settings(BaseSettings):
         pipeline = self.voice_ai_pipeline.strip().lower()
         if driver not in {"mock", "pbx_http", "freeswitch_esl"}:
             raise RuntimeError("VOICE_GATEWAY_DRIVER must be mock, pbx_http or freeswitch_esl")
-        if pipeline not in {"legacy", "pipecat"}:
-            raise RuntimeError("VOICE_AI_PIPELINE must be legacy or pipecat")
-        if pipeline == "pipecat" and driver != "freeswitch_esl":
-            raise RuntimeError("VOICE_AI_PIPELINE=pipecat requires VOICE_GATEWAY_DRIVER=freeswitch_esl")
+        if pipeline not in {"legacy", "pipecat", "hybrid"}:
+            raise RuntimeError("VOICE_AI_PIPELINE must be legacy, pipecat or hybrid")
+        pipecat_enabled = pipeline in {"pipecat", "hybrid"}
+        if pipecat_enabled and driver != "freeswitch_esl":
+            raise RuntimeError("VOICE_AI_PIPELINE=pipecat or hybrid requires VOICE_GATEWAY_DRIVER=freeswitch_esl")
         if self.env.lower() in {"prod", "production"} and driver == "mock":
             raise RuntimeError("production voice gateway cannot use mock driver")
         if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
             raise RuntimeError("SERVICE_TOKEN is required in production")
+        if self.env.lower() in {"prod", "production"} and len(self.metrics_token.strip()) < 24:
+            raise RuntimeError("METRICS_TOKEN with at least 24 characters is required in production")
         if driver == "pbx_http" and not self.pbx_base_url.strip():
             raise RuntimeError("PBX_BASE_URL is required for pbx_http driver")
         if driver == "freeswitch_esl":
@@ -76,7 +80,7 @@ class Settings(BaseSettings):
                 raise RuntimeError("FREESWITCH_ESL_PASSWORD is required for freeswitch_esl driver")
             if not self.freeswitch_gateway.strip():
                 raise RuntimeError("FREESWITCH_GATEWAY is required for freeswitch_esl driver")
-            needs_legacy_tts = pipeline == "legacy" or self.pipecat_fallback_to_legacy
+            needs_legacy_tts = pipeline in {"legacy", "hybrid"} or self.pipecat_fallback_to_legacy
             if needs_legacy_tts and not self.freeswitch_tts_http_endpoint.strip() and not (
                 self.freeswitch_tts_engine.strip() and self.freeswitch_tts_voice.strip()
             ):
@@ -114,7 +118,7 @@ class Settings(BaseSettings):
                     )
             except (KeyError, ValueError) as exc:
                 raise RuntimeError(f"invalid FreeSWITCH command template: {exc}") from exc
-        if pipeline == "pipecat":
+        if pipecat_enabled:
             if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", self.pipecat_version):
                 raise RuntimeError("PIPECAT_VERSION must be an exact version for the Pipecat pipeline")
             if not self.pipecat_media_ws_base.startswith(("ws://", "wss://")):

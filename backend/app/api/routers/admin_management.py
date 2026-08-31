@@ -293,6 +293,8 @@ def update_user(
     )
     if removes_admin and _admin_count(session, current.tenant_id) <= 1:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="at least one enabled administrator is required")
+    if any(key in changes for key in ("enabled", "role")):
+        user.token_version = int(user.token_version or 0) + 1
     for key, value in changes.items():
         setattr(user, key, value)
     user.updated_at = utc_now()
@@ -312,11 +314,31 @@ def reset_user_password(
 ):
     user = _get_tenant_user(session, current.tenant_id, user_id)
     user.password_hash = hash_password(payload.password)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.token_version = int(user.token_version or 0) + 1
     user.updated_at = utc_now()
     session.add(user)
     _audit(session, current, "reset_password", "user", user.id, f"username={user.username}")
     session.commit()
     return {"result": "updated"}
+
+
+@router.post("/users/{user_id}/unlock")
+def unlock_user(
+    user_id: int,
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    user = _get_tenant_user(session, current.tenant_id, user_id)
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.token_version = int(user.token_version or 0) + 1
+    user.updated_at = utc_now()
+    session.add(user)
+    _audit(session, current, "unlock", "user", user.id, f"username={user.username}")
+    session.commit()
+    return {"result": "unlocked"}
 
 
 @router.delete("/users/{user_id}")
@@ -331,6 +353,7 @@ def disable_user(
     if user.role == "admin" and user.enabled and _admin_count(session, current.tenant_id) <= 1:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="at least one enabled administrator is required")
     user.enabled = False
+    user.token_version = int(user.token_version or 0) + 1
     user.updated_at = utc_now()
     session.add(user)
     _audit(session, current, "disable", "user", user.id, f"username={user.username}")
@@ -535,6 +558,11 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max reply chars")
         if not str(merged["fallback_reply"]).strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="fallback reply is required")
+        if merged["voice_ai_pipeline"] not in {"legacy", "pipecat"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported voice AI pipeline")
+        canary_percent = merged["pipecat_canary_percent"]
+        if not isinstance(canary_percent, int) or not 0 <= canary_percent <= 100:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid Pipecat canary percent")
     if section == "sms":
         if merged["provider"] not in {"mock", "http"}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported SMS provider")
