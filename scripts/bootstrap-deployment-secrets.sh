@@ -4,18 +4,21 @@ set -eu
 secret_dir="${1:-.secrets}"
 umask 077
 mkdir -p "$secret_dir"
+chmod 700 "$secret_dir"
 
 create_secret() {
   target_path="$1"
-  if [ -s "$target_path" ]; then
-    return
+  if [ ! -s "$target_path" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+      openssl rand -hex 32 >"$target_path"
+    else
+      od -An -N32 -tx1 /dev/urandom | tr -d ' \n' >"$target_path"
+    fi
   fi
-  if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex 32 >"$target_path"
-  else
-    od -An -N32 -tx1 /dev/urandom | tr -d ' \n' >"$target_path"
-  fi
-  chmod 600 "$target_path"
+  # Docker Compose mounts file-backed secrets with their host permissions.
+  # The private 0700 parent directory protects them on the host, while 0644
+  # lets non-root container users (Prometheus and Grafana) read the mount.
+  chmod 644 "$target_path"
 }
 
 create_secret "$secret_dir/metrics_token"
