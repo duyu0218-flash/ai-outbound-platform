@@ -1,6 +1,6 @@
 # 版本约束与兼容矩阵
 
-`compatibility-matrix.toml` 是项目版本基准的唯一机器可读来源。生产发布必须锁定已验收版本；候选版本可以自动进入测试，但不得自动进入生产。
+`compatibility-matrix.toml` 是项目版本基准的唯一机器可读来源。生产环境固定已经验收的精确版本和不可变镜像摘要；候选版本持续自动跟踪并通过升级PR进入测试，但未经回归验收和受控灰度不得进入生产。安全修复走加急升级流程，但不能绕过最小回归和灰度门禁。
 
 ## 当前基准
 
@@ -53,13 +53,23 @@ docker image inspect "$(docker inspect ai-outbound-freeswitch --format '{{.Image
 
 ## 升级规则
 
-1. 自动化工具只能创建升级PR，不得自动合并或部署生产。
-2. 依赖变更必须同时更新lockfile、兼容矩阵和变更说明。
-3. 基础镜像Tag可以作为开发默认值；生产的Python、Node、PostgreSQL、Redis、FreeSWITCH、coturn、Nginx都必须解析并固定为 `repository@sha256:<digest>`。
-4. FreeSWITCH升级必须连同Sofia、Event Socket、编解码、TTS、媒体模块和配置文件一起回归。
-5. Pipecat若启用，必须同时验证自定义Serializer、音频编码、ASR、TTS、打断和上下文一致性。
-6. 严重安全问题在24小时内完成影响评估；升级仍须经过最小回归和受控灰度。
-7. Python直接依赖和前端直接依赖必须精确约束；前端传递依赖由lockfile冻结。Python传递依赖以验收后的应用镜像摘要为最终发布边界。
+1. `.github/dependabot.yml` 每周跟踪Python、前端、Docker基础镜像和GitHub Actions的新版本，并创建候选升级PR。
+2. 所有候选升级PR自动触发与普通PR相同的版本约束、服务测试、PostgreSQL/Redis集成和Compose浏览器验收；自动进入测试不等于自动批准。
+3. 自动化工具只能创建升级PR，不得自动批准、自动合并或部署生产。
+4. 依赖变更必须同时更新lockfile、兼容矩阵和变更说明；矩阵不一致时CI必须失败。
+5. 基础镜像Tag可以作为开发默认值；生产的Python、Node、PostgreSQL、Redis、FreeSWITCH、coturn、Nginx都必须解析并固定为 `repository@sha256:<digest>`。
+6. FreeSWITCH升级必须连同Sofia、Event Socket、编解码、TTS、媒体模块和配置文件一起回归。
+7. Pipecat若启用，必须同时验证自定义Serializer、音频编码、ASR、TTS、打断和上下文一致性。
+8. 严重安全问题在24小时内完成影响评估并进入加急升级；仍须经过最小回归、真实链路验证和受控灰度，不得直接推送生产。
+9. Python直接依赖和前端直接依赖必须精确约束；前端传递依赖由lockfile冻结。Python传递依赖以验收后的应用镜像摘要为最终发布边界。
+
+### 自动测试与生产发布的边界
+
+- 自动流程负责发现新版本、创建候选PR并执行仓库可自动化的全部测试。
+- 回归负责人确认兼容矩阵、变更影响和测试结果后，才能批准候选版本。
+- 灰度必须使用生产同构配置，在限定租户、线路或实例上验证监控指标和回滚路径。
+- 灰度通过后，才允许把候选版本写入生产发布清单；生产部署仍由发布审批触发。
+- FreeSWITCH、媒体模块和未来启用的Pipecat涉及真实音频链，仓库CI不能替代真实线路、双向音频、打断、录音和转人工验收。
 
 ## 发布门禁
 

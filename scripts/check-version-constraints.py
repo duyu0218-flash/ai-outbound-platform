@@ -67,13 +67,30 @@ def validate_matrix(matrix: dict, errors: list[str]) -> None:
         "production_requires_immutable_images",
         "production_requires_exact_runtime_versions",
         "candidate_versions_must_pass_ci",
+        "candidate_tracking_is_automated",
+        "candidate_versions_enter_ci_automatically",
         "automatic_production_upgrade",
+        "production_requires_regression_approval",
+        "production_requires_controlled_canary",
+        "security_updates_use_expedited_path",
+        "security_updates_may_bypass_release_gates",
     ):
         if key not in policy:
             fail(errors, f"compatibility matrix policy is missing {key}")
 
     if policy.get("automatic_production_upgrade") is not False:
         fail(errors, "automatic_production_upgrade must remain false")
+    for key in (
+        "candidate_tracking_is_automated",
+        "candidate_versions_enter_ci_automatically",
+        "production_requires_regression_approval",
+        "production_requires_controlled_canary",
+        "security_updates_use_expedited_path",
+    ):
+        if policy.get(key) is not True:
+            fail(errors, f"{key} must remain true")
+    if policy.get("security_updates_may_bypass_release_gates") is not False:
+        fail(errors, "security_updates_may_bypass_release_gates must remain false")
 
 
 def validate_python_projects(matrix: dict, errors: list[str]) -> None:
@@ -122,6 +139,17 @@ def validate_repository_baseline(matrix: dict, errors: list[str]) -> None:
         fail(errors, f"CI must test Node {node_major}")
     if "python scripts/check-version-constraints.py" not in ci:
         fail(errors, "CI must run scripts/check-version-constraints.py")
+    if "pull_request:" not in ci:
+        fail(errors, "CI must run for candidate pull requests")
+
+    dependabot_path = ROOT / ".github/dependabot.yml"
+    if not dependabot_path.is_file():
+        fail(errors, ".github/dependabot.yml is required for automated candidate tracking")
+    else:
+        dependabot = dependabot_path.read_text(encoding="utf-8")
+        for ecosystem in ("pip", "npm", "docker", "github-actions"):
+            if f'package-ecosystem: "{ecosystem}"' not in dependabot:
+                fail(errors, f"Dependabot must track the {ecosystem} ecosystem")
 
     for relative in ("backend/Dockerfile", "agent/Dockerfile", "voice_gateway/Dockerfile"):
         dockerfile = (ROOT / relative).read_text(encoding="utf-8")

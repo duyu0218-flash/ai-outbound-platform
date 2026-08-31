@@ -8,7 +8,13 @@ production_requires_immutable_images = true
 production_requires_exact_runtime_versions = true
 candidate_versions_must_pass_ci = true
 candidate_versions_must_pass_controlled_real_call = true
+candidate_tracking_is_automated = true
+candidate_versions_enter_ci_automatically = true
 automatic_production_upgrade = false
+production_requires_regression_approval = true
+production_requires_controlled_canary = true
+security_updates_use_expedited_path = true
+security_updates_may_bypass_release_gates = false
 security_update_sla = "triage-within-24h"
 normal_review_cadence = "monthly"
 
