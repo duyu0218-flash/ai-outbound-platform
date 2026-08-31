@@ -470,24 +470,33 @@ def telephony_recording(
             )
         ).first()
         if existing_asset is None:
-            session.add(
-                RecordingAsset(
-                    tenant_id=call.tenant_id,
-                    call_session_id=call.id,
-                    provider_recording_id=str(payload.payload.get("recording_id") or "") or None,
-                    provider_url=str(url),
-                    storage_uri=str(payload.payload.get("storage_uri") or ""),
-                    state=str(payload.payload.get("state") or "available"),
-                    duration_sec=payload.payload.get("duration_sec"),
-                    media_format=str(payload.payload.get("format") or ""),
-                    channel_count=int(payload.payload.get("channel_count") or 1),
-                    checksum_sha256=payload.payload.get("checksum_sha256"),
-                    retention_until=utc_now() + timedelta(days=retention_days),
-                )
+            existing_asset = RecordingAsset(
+                tenant_id=call.tenant_id,
+                call_session_id=call.id,
+                provider_recording_id=str(payload.payload.get("recording_id") or "") or None,
+                provider_url=str(url),
+                storage_uri=str(payload.payload.get("storage_uri") or ""),
+                state=str(payload.payload.get("state") or "available"),
+                duration_sec=payload.payload.get("duration_sec"),
+                media_format=str(payload.payload.get("format") or ""),
+                channel_count=int(payload.payload.get("channel_count") or 1),
+                checksum_sha256=payload.payload.get("checksum_sha256"),
+                retention_until=utc_now() + timedelta(days=retention_days),
             )
+            session.add(existing_asset)
     session.add(call)
     session.commit()
     if url:
+        if existing_asset is not None and not existing_asset.storage_uri and settings.recording_ingest_endpoint.strip():
+            ingest_task = enqueue_task(
+                session,
+                tenant_id=call.tenant_id,
+                task_type="recording_ingest",
+                aggregate_id=str(existing_asset.id),
+                idempotency_key=f"recording-ingest:{existing_asset.id}",
+                payload={"recording_asset_id": existing_asset.id},
+            )
+            background_tasks.add_task(process_task, ingest_task.id)
         callback_task = enqueue_business_callback(
             session,
             tenant_id=call.tenant_id,

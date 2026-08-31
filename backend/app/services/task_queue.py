@@ -146,6 +146,24 @@ async def process_task(task_id: UUID) -> bool:
                         persisted.updated_at = utc_now()
                         session.add(persisted)
                         session.commit()
+        elif task_type == "recording_ingest":
+            from .recording_storage import ingest_recording_asset
+
+            with session_scope() as session:
+                asset = session.get(RecordingAsset, int(payload["recording_asset_id"]))
+                if asset is None or asset.deleted_at is not None or asset.storage_uri:
+                    asset = None
+            if asset is not None:
+                result = ingest_recording_asset(asset)
+                with session_scope() as session:
+                    persisted = session.get(RecordingAsset, asset.id)
+                    if persisted is not None and persisted.deleted_at is None:
+                        persisted.storage_uri = result["storage_uri"]
+                        persisted.checksum_sha256 = result.get("checksum_sha256") or persisted.checksum_sha256
+                        persisted.state = "stored"
+                        persisted.updated_at = utc_now()
+                        session.add(persisted)
+                        session.commit()
         else:
             raise RuntimeError(f"unsupported durable task type: {task_type}")
     except Exception as exc:
@@ -170,6 +188,12 @@ async def process_task(task_id: UUID) -> bool:
                     asset = session.get(RecordingAsset, int(task.aggregate_id))
                     if asset is not None and asset.deleted_at is None:
                         asset.state = "deletion_failed"
+                        asset.updated_at = utc_now()
+                        session.add(asset)
+                if task.state == TaskState.DEAD and task.task_type == "recording_ingest":
+                    asset = session.get(RecordingAsset, int(task.aggregate_id))
+                    if asset is not None and asset.deleted_at is None and not asset.storage_uri:
+                        asset.state = "ingestion_failed"
                         asset.updated_at = utc_now()
                         session.add(asset)
                 session.commit()
@@ -214,6 +238,12 @@ async def process_pending_tasks(*, batch_size: int = 100) -> int:
                 asset = session.get(RecordingAsset, int(task.aggregate_id))
                 if asset is not None and asset.deleted_at is None:
                     asset.state = "deletion_failed"
+                    asset.updated_at = now
+                    session.add(asset)
+            if task.task_type == "recording_ingest":
+                asset = session.get(RecordingAsset, int(task.aggregate_id))
+                if asset is not None and asset.deleted_at is None and not asset.storage_uri:
+                    asset.state = "ingestion_failed"
                     asset.updated_at = now
                     session.add(asset)
         if exhausted:

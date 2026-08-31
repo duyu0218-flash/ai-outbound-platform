@@ -28,7 +28,9 @@ Pipecat只接管实时音频、STT、TTS和打断帧。话术、知识库、合�
 
 - 依赖锁定为 `pipecat-ai[openai,websocket]==1.8.1`，并与 `compatibility-matrix.toml` 和 `PIPECAT_VERSION` 一致。
 - 生产配置默认必须保持 `VOICE_AI_PIPELINE=legacy`。新版本只能自动进入候选测试，不能自动切换生产。
+- 真实灰度使用 `VOICE_AI_PIPELINE=hybrid`：租户设置默认值与稳定百分比，活动可强制选择，最终选择持久化到通话记录。
 - 只有在 FreeSWITCH、媒体模块、真实线路、双向音频、打断、录音、转人工和并发容量完成回归，且受控灰度通过后，才能在生产将值改为 `pipecat`。
+- `hybrid` 网关会拒绝控制面与网关模式不一致的请求，避免实际链路与审计记录发生漂移。
 - 安全修复可走加急升级，但不跳过最小回归和受控灰度。
 
 ## 必需配置

@@ -34,11 +34,15 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE callsession ADD COLUMN script_flow_version_id INTEGER")
         if "flow_node_key" not in call_columns:
             statements.append("ALTER TABLE callsession ADD COLUMN flow_node_key VARCHAR(128)")
+        if "voice_ai_pipeline" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN voice_ai_pipeline VARCHAR(16) NOT NULL DEFAULT 'legacy'")
 
     if "campaign" in tables:
         campaign_columns = _columns(engine, "campaign")
         if "script_flow_version_id" not in campaign_columns:
             statements.append("ALTER TABLE campaign ADD COLUMN script_flow_version_id INTEGER")
+        if "voice_ai_pipeline" not in campaign_columns:
+            statements.append("ALTER TABLE campaign ADD COLUMN voice_ai_pipeline VARCHAR(16) NOT NULL DEFAULT 'inherit'")
 
     if "telephonyline" in tables:
         line_columns = _columns(engine, "telephonyline")
@@ -55,6 +59,14 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE \"user\" ADD COLUMN agent_status VARCHAR(32) NOT NULL DEFAULT 'offline'")
         if "last_seen_at" not in user_columns:
             statements.append("ALTER TABLE \"user\" ADD COLUMN last_seen_at TIMESTAMP")
+        if "failed_login_attempts" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0")
+        if "locked_until" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN locked_until TIMESTAMP")
+        if "token_version" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0")
+        if "last_login_at" not in user_columns:
+            statements.append("ALTER TABLE \"user\" ADD COLUMN last_login_at TIMESTAMP")
 
     if "smslog" in tables:
         sms_columns = _columns(engine, "smslog")

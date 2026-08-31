@@ -103,6 +103,7 @@ def create_campaign(
         attempt_interval_sec=payload.attempt_interval_sec,
         recording_enabled=payload.recording_enabled,
         hangup_sms_enabled=payload.hangup_sms_enabled,
+        voice_ai_pipeline=payload.voice_ai_pipeline,
         status="draft",
     )
     session.add(campaign)
@@ -171,6 +172,7 @@ def update_campaign(
     campaign.attempt_interval_sec = payload.attempt_interval_sec
     campaign.recording_enabled = payload.recording_enabled
     campaign.hangup_sms_enabled = payload.hangup_sms_enabled
+    campaign.voice_ai_pipeline = payload.voice_ai_pipeline
 
     if campaign.script_template_id is not None:
         if not payload.script:

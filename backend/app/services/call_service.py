@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from secrets import token_urlsafe
@@ -49,6 +50,41 @@ def normalize_phone(phone: str) -> str:
 
 def _now() -> datetime:
     return utc_now()
+
+
+def select_voice_ai_pipeline(
+    session: Session,
+    call: CallSession,
+    *,
+    ai_config: dict | None = None,
+) -> str:
+    """Choose one stable media pipeline for the entire lifetime of a call.
+
+    Existing calls retain their persisted choice across retries. New calls can
+    be forced by a campaign or selected by a deterministic tenant canary. A
+    deterministic hash avoids changing the cohort when workers restart.
+    """
+
+    persisted = str(call.voice_ai_pipeline or "").strip().lower()
+    if persisted in {"legacy", "pipecat"}:
+        return persisted
+
+    if call.campaign_id is not None:
+        campaign = session.get(Campaign, call.campaign_id)
+        override = str(campaign.voice_ai_pipeline if campaign else "inherit").strip().lower()
+        if override in {"legacy", "pipecat"}:
+            return override
+
+    config = ai_config or get_admin_setting(session, call.tenant_id, "ai")
+    default_pipeline = str(config.get("voice_ai_pipeline") or "legacy").strip().lower()
+    if default_pipeline == "pipecat":
+        return "pipecat"
+    try:
+        canary_percent = max(0, min(100, int(config.get("pipecat_canary_percent") or 0)))
+    except (TypeError, ValueError):
+        canary_percent = 0
+    bucket = int.from_bytes(hashlib.sha256(str(call.id).encode("utf-8")).digest()[:4], "big") % 100
+    return "pipecat" if bucket < canary_percent else "legacy"
 
 
 def _get_tenant(session: Session, tenant_id: int) -> Tenant:
@@ -466,6 +502,7 @@ def create_call(
         max_attempts=max_attempts,
         attempts=0,
         last_error=None,
+        voice_ai_pipeline="pending",
     )
     session.add(call)
     session.commit()
@@ -543,6 +580,13 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         "recording_webhook_url": f"{settings.telephony_webhook_base}{settings.call_recording_event_url}",
     }
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
+    selected_pipeline = select_voice_ai_pipeline(session, call, ai_config=ai_config)
+    if call.voice_ai_pipeline != selected_pipeline:
+        call.voice_ai_pipeline = selected_pipeline
+        call.updated_at = _now()
+        session.add(call)
+        session.commit()
+        session.refresh(call)
     compliance_config = get_admin_setting(session, call.tenant_id, "compliance")
     payload.update(
         {
@@ -551,6 +595,7 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             "voice": str(ai_config.get("voice") or ""),
             "language": str(ai_config.get("language") or "zh-CN"),
             "recording_notice": bool(compliance_config.get("recording_notice", True)),
+            "voice_ai_pipeline": selected_pipeline,
         }
     )
     if call.telephony_line_id is not None:
@@ -989,6 +1034,12 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
                         lock_acquired = settings.env.lower() not in {"prod", "production"}
                         logger.exception("scheduler Redis lock unavailable")
                 if lock_acquired:
+                    if redis_client is not None:
+                        await redis_client.set(
+                            "ai-outbound:scheduler:heartbeat",
+                            _now().isoformat(),
+                            ex=max(5, int(settings.scheduler_lock_ttl_sec) * 2),
+                        )
                     expire_stale_calls(batch_size=batch_size)
                     await dispatch_due_retries(batch_size=batch_size)
                     await dispatch_pending_calls(batch_size=batch_size)

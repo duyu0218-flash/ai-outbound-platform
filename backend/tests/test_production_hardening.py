@@ -79,6 +79,7 @@ from app.services.call_service import (  # noqa: E402
     place_call,
     retry_call,
     schedule_campaign_retry,
+    select_voice_ai_pipeline,
 )
 
 
@@ -1139,6 +1140,98 @@ def test_recording_storage_adapter_requires_remote_confirmation(monkeypatch):
         recording_storage.delete_recording_asset(asset)
 
 
+def test_recording_storage_adapter_ingests_to_managed_storage(monkeypatch):
+    from app.services import recording_storage
+    from app.services.recording_storage import RecordingIngestError
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"storage_uri": "s3://managed/recording.wav", "checksum_sha256": "a" * 64}
+
+    class FakeClient:
+        def __init__(self, *, timeout):
+            captured["timeout"] = timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def post(self, endpoint, *, headers, json):
+            captured.update({"endpoint": endpoint, "headers": headers, "payload": json})
+            return FakeResponse()
+
+    monkeypatch.setattr(recording_storage.settings, "recording_ingest_endpoint", "https://storage.example/ingest")
+    monkeypatch.setattr(recording_storage.settings, "recording_ingest_service_token", "recording-ingest-token")
+    monkeypatch.setattr(recording_storage.httpx, "Client", FakeClient)
+    asset = RecordingAsset(
+        tenant_id=1,
+        call_session_id=uuid4(),
+        provider_recording_id="provider-recording-2",
+        provider_url="https://provider.example/audio.wav",
+    )
+    result = recording_storage.ingest_recording_asset(asset)
+    assert result == {"storage_uri": "s3://managed/recording.wav", "checksum_sha256": "a" * 64}
+    assert captured["endpoint"] == "https://storage.example/ingest"
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer recording-ingest-token",
+    }
+    assert captured["payload"]["provider_recording_id"] == "provider-recording-2"
+
+    monkeypatch.setattr(recording_storage.settings, "recording_ingest_endpoint", "")
+    with pytest.raises(RecordingIngestError, match="not configured"):
+        recording_storage.ingest_recording_asset(asset)
+
+
+@pytest.mark.asyncio
+async def test_recording_ingest_task_persists_managed_location(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.recording_storage.ingest_recording_asset",
+        lambda _asset: {"storage_uri": "s3://managed/task.wav", "checksum_sha256": "b" * 64},
+    )
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800138997", mode=CallMode.AI_ONLY)
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        asset = RecordingAsset(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_url="https://provider.example/task.wav",
+            state="available",
+        )
+        session.add(asset)
+        session.commit()
+        session.refresh(asset)
+        asset_id = asset.id
+        task = enqueue_task(
+            session,
+            tenant_id=1,
+            task_type="recording_ingest",
+            aggregate_id=str(asset_id),
+            idempotency_key=f"recording-ingest-test:{asset_id}",
+            payload={"recording_asset_id": asset_id},
+        )
+        task_id = task.id
+
+    assert await process_task(task_id) is True
+    with session_scope() as session:
+        stored = session.get(RecordingAsset, asset_id)
+        task = session.get(TaskOutbox, task_id)
+        assert stored is not None
+        assert stored.state == "stored"
+        assert stored.storage_uri == "s3://managed/task.wav"
+        assert stored.checksum_sha256 == "b" * 64
+        assert task is not None and task.state == TaskState.COMPLETED
+
+
 def test_pages_login_and_server_key_not_exposed(client: TestClient):
     for path in ("/admin", "/admin/contacts", "/admin/knowledge", "/agent", "/agent/calls"):
         response = client.get(path)
@@ -2083,6 +2176,15 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
     )
     assert invalid_setting.status_code == 400
 
+    pipeline_setting = client.put(
+        "/api/v1/admin/settings/ai",
+        headers=headers,
+        json={"data": {"voice_ai_pipeline": "legacy", "pipecat_canary_percent": 0}},
+    )
+    assert pipeline_setting.status_code == 200, pipeline_setting.text
+    assert pipeline_setting.json()["data"]["voice_ai_pipeline"] == "legacy"
+    assert pipeline_setting.json()["data"]["pipecat_canary_percent"] == 0
+
     overview = client.get("/api/v1/admin/system-overview", headers=headers)
     assert overview.status_code == 200, overview.text
     assert overview.json()["resources"]["users"] >= 3
@@ -2436,3 +2538,105 @@ def test_microphone_is_allowed_for_same_origin_browser(client: TestClient):
     response = client.get("/agent/login")
     assert response.status_code == 200
     assert response.headers["permissions-policy"] == "geolocation=(), camera=(), microphone=(self)"
+
+
+def test_voice_pipeline_selection_is_stable_and_campaign_override_wins():
+    suffix = uuid4().hex[:8]
+    with session_scope() as session:
+        legacy_call = create_call(
+            session,
+            tenant_id=1,
+            phone=f"139{suffix[:8]}",
+            mode=CallMode.AI_ONLY,
+            campaign_id=None,
+            contact_id=None,
+        )
+        assert select_voice_ai_pipeline(
+            session,
+            legacy_call,
+            ai_config={"voice_ai_pipeline": "legacy", "pipecat_canary_percent": 0},
+        ) == "legacy"
+        legacy_call.voice_ai_pipeline = "pipecat"
+        session.add(legacy_call)
+        session.commit()
+        assert select_voice_ai_pipeline(
+            session,
+            legacy_call,
+            ai_config={"voice_ai_pipeline": "legacy", "pipecat_canary_percent": 0},
+        ) == "pipecat"
+
+        campaign = Campaign(
+            tenant_id=1,
+            name=f"pipeline-{suffix}",
+            mode=CallMode.AI_ONLY,
+            voice_ai_pipeline="pipecat",
+        )
+        session.add(campaign)
+        session.commit()
+        session.refresh(campaign)
+        overridden = CallSession(
+            tenant_id=1,
+            campaign_id=campaign.id,
+            phone="13900138000",
+            mode=CallMode.AI_ONLY,
+            voice_ai_pipeline="pending",
+        )
+        session.add(overridden)
+        session.commit()
+        assert select_voice_ai_pipeline(
+            session,
+            overridden,
+            ai_config={"voice_ai_pipeline": "legacy", "pipecat_canary_percent": 0},
+        ) == "pipecat"
+
+
+def test_login_lockout_unlock_and_logout_revoke_token(client: TestClient, monkeypatch):
+    monkeypatch.setattr(app_main.settings, "auth_max_failed_attempts", 2)
+    monkeypatch.setattr(app_main.settings, "auth_lockout_seconds", 60)
+    from app.services import auth as auth_service
+
+    monkeypatch.setattr(auth_service.settings, "auth_max_failed_attempts", 2)
+    monkeypatch.setattr(auth_service.settings, "auth_lockout_seconds", 60)
+    admin_token = _login(client, "admin")
+    username = f"lock-{uuid4().hex[:10]}"
+    created = client.post(
+        "/api/v1/admin/users",
+        headers=_bearer(admin_token),
+        json={
+            "username": username,
+            "password": "lock-test-password-123",
+            "full_name": "Lock Test",
+            "role": "agent",
+            "is_supervisor": False,
+            "enabled": True,
+        },
+    )
+    assert created.status_code == 200, created.text
+    user_id = created.json()["id"]
+    for _ in range(2):
+        failed = client.post("/api/v1/auth/login", json={"username": username, "password": "wrong-password"})
+        assert failed.status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"username": username, "password": "lock-test-password-123"},
+    ).status_code == 401
+    users = client.get("/api/v1/admin/users?page=1&size=200", headers=_bearer(admin_token)).json()
+    locked = next(item for item in users if item["id"] == user_id)
+    assert locked["failed_login_attempts"] == 2
+    assert locked["locked_until"] is not None
+
+    unlocked = client.post(f"/api/v1/admin/users/{user_id}/unlock", headers=_bearer(admin_token))
+    assert unlocked.status_code == 200
+    token = _login(client, username, "lock-test-password-123")
+    assert client.get("/api/v1/auth/me", headers=_bearer(token)).status_code == 200
+    assert client.post("/api/v1/auth/logout", headers=_bearer(token)).status_code == 200
+    assert client.get("/api/v1/auth/me", headers=_bearer(token)).status_code == 401
+
+
+def test_prometheus_metrics_require_token(client: TestClient, monkeypatch):
+    monkeypatch.setattr(app_main.settings, "metrics_token", "metrics-token-for-tests")
+    assert client.get("/metrics").status_code == 401
+    response = client.get("/metrics", headers={"Authorization": "Bearer metrics-token-for-tests"})
+    assert response.status_code == 200
+    assert "ai_outbound_calls_by_pipeline" in response.text
+    assert "ai_outbound_tasks" in response.text

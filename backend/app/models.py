@@ -95,6 +95,10 @@ class User(SQLModel, table=True):
     is_supervisor: bool = False
     agent_status: str = Field(default="offline", max_length=32)
     last_seen_at: Optional[datetime] = None
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    token_version: int = 0
+    last_login_at: Optional[datetime] = None
     enabled: bool = True
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -132,6 +136,7 @@ class Campaign(SQLModel, table=True):
     attempt_interval_sec: int = 1800
     recording_enabled: bool = True
     hangup_sms_enabled: bool = True
+    voice_ai_pipeline: str = Field(default="inherit", max_length=16)
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     status: str = "draft"
     created_at: datetime = Field(default_factory=utc_now)
@@ -200,6 +205,7 @@ class CallSession(SQLModel, table=True):
     telephony_call_id: Optional[str] = None
     telephony_line_id: Optional[int] = Field(default=None, foreign_key="telephonyline.id", index=True)
     conversation_id: Optional[str] = None
+    voice_ai_pipeline: str = Field(default="pending", max_length=16)
     last_transcript: Optional[str] = None
     summary: Optional[str] = None
     started_at: Optional[datetime] = None
