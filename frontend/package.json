@@ -20,7 +20,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-i18next": "15.7.4",
-    "react-router-dom": "7.18.2",
+    "react-router-dom": "7.18.3",
     "sip.js": "0.21.2"
   },
   "devDependencies": {
