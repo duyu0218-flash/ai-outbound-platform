@@ -50,6 +50,9 @@ cat .secrets/grafana_admin_password
 指标令牌只保存在 `.secrets/metrics_token`，Compose将其只读挂载到Control API、Voice Gateway、
 Recording Adapter和Prometheus。`.secrets/` 已被Git忽略。
 
+初始化脚本将 `.secrets/` 目录权限固定为 `0700`，并将目录内密钥文件设为 `0644`。文件权限用于让
+Prometheus、Grafana等非root容器用户读取单文件只读挂载；宿主机其他用户无法穿过私有目录访问密钥。
+
 停止并保留数据：
 
 ```bash
