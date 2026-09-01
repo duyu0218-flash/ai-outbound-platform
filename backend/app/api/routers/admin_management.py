@@ -531,18 +531,39 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
         end = merged["allowed_end_hour"]
         attempts = merged["max_attempts_per_day"]
         min_interval = merged["min_attempt_interval_sec"]
+        max_calls_per_day = merged["max_calls_per_day"]
+        allowed_phone_prefixes = merged["allowed_phone_prefixes"]
         recording_retention_days = merged["recording_retention_days"]
         partial_retention_hours = merged["partial_transcript_retention_hours"]
+        final_retention_days = merged["final_transcript_retention_days"]
+        call_data_retention_days = merged["call_sensitive_data_retention_days"]
+        if settings.env.lower() in {"prod", "production"} and (
+            not merged["require_explicit_consent"]
+            or not merged["require_explicit_consent_for_direct_calls"]
+            or not merged["dnc_enforced"]
+        ):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="production requires consent and DNC enforcement")
         if not isinstance(start, int) or not isinstance(end, int) or not (0 <= start <= 23 and 0 <= end <= 23):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid allowed calling hours")
         if not isinstance(attempts, int) or not 1 <= attempts <= 20:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max attempts per day")
         if not isinstance(min_interval, int) or not 0 <= min_interval <= 604_800:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid minimum attempt interval")
+        if not isinstance(max_calls_per_day, int) or not 1 <= max_calls_per_day <= 10_000_000:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid daily call limit")
+        prefixes = [item.strip() for item in str(allowed_phone_prefixes).split(",") if item.strip()]
+        if any(not item.isdigit() or len(item) > 15 for item in prefixes):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid allowed phone prefixes")
+        if settings.env.lower() in {"prod", "production"} and not prefixes:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="production requires allowed phone prefixes")
         if not isinstance(recording_retention_days, int) or not 1 <= recording_retention_days <= 3_650:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid recording retention days")
         if not isinstance(partial_retention_hours, int) or not 1 <= partial_retention_hours <= 720:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid partial transcript retention")
+        if not isinstance(final_retention_days, int) or not 1 <= final_retention_days <= 3_650:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid final transcript retention")
+        if not isinstance(call_data_retention_days, int) or not 1 <= call_data_retention_days <= 3_650:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid call data retention")
         try:
             ZoneInfo(str(merged["timezone"]))
         except ZoneInfoNotFoundError:
@@ -567,6 +588,8 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
     if section == "ai":
         if merged["llm_provider"] not in {"rule", "openai-compatible"}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported llm provider")
+        if merged["llm_provider"] == "openai-compatible" and not merged["external_llm_enabled"]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="external LLM requires explicit tenant approval")
         if merged["enabled"] and not str(merged["agent_url"]).strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="enabled AI requires agent_url")
         history_turns = merged["conversation_history_turns"]

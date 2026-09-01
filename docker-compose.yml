@@ -60,6 +60,11 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-recording-adapter
     restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       seaweedfs:
@@ -95,6 +100,11 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-control
     restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       db:
@@ -135,6 +145,11 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-worker
     restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       db:
@@ -171,6 +186,11 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-agent
     restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       AI_CONTROL_URL: http://control-api:8000
@@ -192,6 +212,11 @@ services:
         PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-voice-gateway
     restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
     stop_grace_period: 5m
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:

@@ -325,7 +325,7 @@ bash scripts/test-campaign-start.sh
 
 ## 7. 上线仍需完成的外部集成
 
-- GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
+- GitHub Actions 已执行 Python 编译、生产加固回归、依赖漏洞扫描和CycloneDX SBOM；正式发布仍需增加镜像签名和制品来源证明。
 - 当需要跨机房、大规模调度或死信队列时，再将当前“数据库持久队列 + Redis 主锁”升级为 Celery/Temporal。
 - 浏览器坐席媒体终端、SIP.js、短期 SIP/TURN 凭证、媒体状态和 FreeSWITCH 桥接事件已实现；仍须按 [WebRTC 部署与验收](docs/browser-webrtc.md) 对接真实运营商/PBX、SIP 中继、WSS、coturn、耳机和公网网络。
 - 按 [实时语音网关契约](docs/realtime-voice-contract.md) 接入真实 ASR、LLM、TTS 媒体链路，并做中文/英文口音、打断、延迟、降级和敏感词验收；平台侧状态机、分段转写和打断控制已实现。

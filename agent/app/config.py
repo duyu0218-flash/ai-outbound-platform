@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = ""
     openai_model: str = "gpt-4o-mini"
+    llm_allowed_hosts: str = ""
+    llm_send_pii: bool = False
+    llm_require_https: bool = True
     default_handoff_keywords: str = "人工,转人工,坐席,客服"
     default_handoff_keywords_en: str = "human,agent,representative,operator,customer service"
     default_hangup_sms: str = "感谢来电，如有需要请回复我们"
@@ -23,6 +26,9 @@ class Settings(BaseSettings):
     def validate_runtime(self) -> None:
         if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
             raise RuntimeError("SERVICE_TOKEN is required in production")
+        if self.env.lower() in {"prod", "production"} and self.llm_provider == "openai-compatible":
+            if not self.llm_allowed_hosts.strip():
+                raise RuntimeError("LLM_ALLOWED_HOSTS is required for an external LLM in production")
 
 
 settings = Settings()

@@ -17,7 +17,7 @@ dependencies = [
   "python-multipart==0.0.32",
   "redis==8.1.0",
   "apscheduler==3.11.3",
-  "python-jose[cryptography]==3.5.0"
+  "PyJWT[crypto]==2.13.0"
 ]
 
 [project.optional-dependencies]

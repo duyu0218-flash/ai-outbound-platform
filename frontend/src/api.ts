@@ -8,14 +8,17 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
+type ApiRequestOptions = RequestInit & { timeoutMs?: number }
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}, token?: string | null): Promise<T> {
   const headers = new Headers(options.headers)
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   if (options.body && !headers.has('Content-Type') && !isFormData) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   const timeoutController = new AbortController()
-  const timeoutId = window.setTimeout(() => timeoutController.abort(), 20_000)
+  const timeoutMs = options.timeoutMs ?? 20_000
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), timeoutMs)
   const externalSignal = options.signal
   const abortFromExternal = () => timeoutController.abort()
   externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
@@ -24,7 +27,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
     response = await fetch(path, { ...options, headers, signal: timeoutController.signal })
   } catch (error) {
     if (timeoutController.signal.aborted && !externalSignal?.aborted) {
-      throw new ApiError('Request timed out after 20 seconds', 504)
+      throw new ApiError(`Request timed out after ${Math.ceil(timeoutMs / 1000)} seconds`, 504)
     }
     throw error
   } finally {

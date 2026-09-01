@@ -58,6 +58,11 @@ async def turn(payload: TurnRequest):
     action = "handoff" if handoff else "speak"
     provider = str(payload.context.get("llm_provider") or settings.llm_provider).strip().lower()
     if action == "speak" and provider == "openai-compatible":
+        if not bool(payload.context.get("external_llm_enabled", False)):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="external LLM use is not approved for this tenant",
+            )
         tts = await generate_reply(
             script=payload.script,
             transcript=payload.transcript,

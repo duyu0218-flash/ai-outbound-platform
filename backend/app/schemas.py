@@ -22,6 +22,8 @@ class ContactOut(ContactCreate):
     dnc_reason: Optional[str] = None
     id: int
     tenant_id: int
+    consented_at: Optional[datetime] = None
+    consented_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

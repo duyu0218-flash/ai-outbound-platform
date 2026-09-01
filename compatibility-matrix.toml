@@ -147,7 +147,7 @@ evidence = ["deploy/sipp/Dockerfile", "docker-compose.sipp.yml", "scripts/run-si
 
 [components.github_actions]
 constraint = "checkout==v7; setup-python==v7; setup-node==v7"
-status = "major-tag-pinned-commit-sha-pending"
+status = "full-commit-sha-pinned"
 evidence = [".github/workflows/ci.yml"]
 
 [interfaces.telephony_control]

@@ -18,7 +18,7 @@
 | coturn | 4.17.2-r0 | 生产镜像必须使用摘要 | 生产摘要未提供 |
 | Nginx | 1.28.0-alpine | 生产镜像必须使用摘要 | 生产摘要未提供 |
 | Pipecat | 1.8.1 候选集成 | 固定精确版本；真实媒体回归与灰度前保持 `legacy` | 代码/容器依赖已验证；真实线路未验证 |
-| GitHub Actions | checkout/setup-python/setup-node v7 | 发布前改为审计过的完整commit SHA | 当前仅固定major tag |
+| GitHub Actions | checkout/setup-python/setup-node v7 | 固定审计过的完整commit SHA | 已固定完整SHA；升级仍需Dependabot PR和回归 |
 
 空白或 `pending` 字段代表尚缺真实环境证据，不得用猜测值补齐，也不得据此宣称生产已固定版本。
 

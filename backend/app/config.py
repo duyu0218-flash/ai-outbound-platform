@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
-    secret_key: str = "change-me"
+    secret_key: str = "dev-only-secret-change-me-before-production"
     api_key: str = "dev-api-key"
     ui_api_key: str | None = None
-    jwt_secret: str = "jwt-change-me"
+    jwt_secret: str = "dev-only-jwt-secret-change-me-before-production"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 12 * 60 * 60
     auth_max_failed_attempts: int = 5
@@ -86,11 +86,24 @@ class Settings(BaseSettings):
     contact_import_max_rows: int = 200_000
     contact_import_max_errors: int = 1_000
     contact_export_batch_size: int = 1_000
+    contact_import_batch_size: int = 1_000
+
+    # Outbound abuse controls. Production must explicitly constrain the
+    # destinations that a compromised tenant credential is allowed to dial.
+    outbound_allowed_phone_prefixes: str = ""
+    outbound_daily_call_limit: int = 10_000
+
+    # Derived text and call PII have their own retention clocks in addition to
+    # the media-object retention policy.
+    final_transcript_retention_days: int = 90
+    call_sensitive_data_retention_days: int = 180
 
     # Production hardening
     request_timeout_ms: int = 15000
+    request_timeout_exempt_paths: str = "/api/v1/contacts/import,/api/v1/contacts/export"
     request_id_header: str = "X-Request-ID"
     trusted_hosts: str = ""
+    trusted_proxy_ips: str = "127.0.0.1,::1"
     rate_limit_enabled: bool = True
     rate_limit_default_rpm: int = 600
     rate_limit_auth_rpm: int = 60
@@ -104,6 +117,12 @@ class Settings(BaseSettings):
     sms_sender_id: str = ""
     sms_callback_url: str = ""
     sms_webhook_token: str = ""
+    telephony_webhook_secret: str = ""
+    sms_webhook_secret: str = ""
+    webhook_signature_max_age_sec: int = 300
+
+    # Schema mutation is a separate release step in production.
+    auto_migrate: bool = True
 
     call_recording_event_url: str = "/api/v1/webhooks/telephony/recording"
     transcript_event_url: str = "/api/v1/webhooks/telephony/transcript"

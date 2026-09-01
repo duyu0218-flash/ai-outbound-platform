@@ -10,6 +10,27 @@
 - Compose 镜像从空缓存可构建，所有服务进入 healthy；Prometheus三个业务采集目标均为up，Grafana和Alertmanager进入ready，版本化迁移重复执行为 `none`。
 - SIPp镜像按精确源码版本和SHA-256构建，测试场景XML通过解析；真实发包只能在已批准的测试线路执行。
 - 无 `dead` 任务、无超时 `processing` 任务、无录音删除失败。
+- `scripts/check-version-constraints.py --production-env <受保护env>` 通过：生产镜像digest、真实Provider、允许号段、租户日限额、Webhook签名、外部告警、录音HTTPS和外部LLM数据策略全部满足。
+- CI安全任务无高危依赖漏洞，并保存四个Python服务的CycloneDX SBOM。
+
+## 数据库发布步骤
+
+生产应用必须设置 `AUTO_MIGRATE=false`，应用和Worker启动时只校验表结构，不执行DDL。首次部署在维护窗口显式执行：
+
+```bash
+python -m app.schema_bootstrap
+python -m app.migration_runner
+python -m app.migration_runner  # 第二次必须输出 none
+```
+
+升级只执行 `migration_runner`。执行前必须完成数据库备份、恢复点确认和锁表影响评估；应用启动不能代替发布迁移。
+
+## 回调与批量导入安全
+
+- 运营商和短信回调必须同时携带共享令牌、`X-Webhook-Timestamp` 和 `X-Webhook-Signature`。签名为 `HMAC-SHA256(secret, "<timestamp>.<raw_body>")`，默认只接受前后五分钟。
+- 联系人导入在生产必须携带 `Idempotency-Key`；同一个文件重试必须复用同一个Key。平台保存处理状态和原始结果，避免客户端超时后重复导入。
+- 外部LLM必须在租户配置中显式启用，目标域名进入 `LLM_ALLOWED_HOSTS`，生产发布保持 `LLM_SEND_PII=false`。
+- 到期清理必须同时验证临时转写、最终转写、通话号码/摘要/事件/分析脱敏和录音删除；运营商原始录音仍需供应商侧删除策略。
 
 ## 经营指标口径
 
