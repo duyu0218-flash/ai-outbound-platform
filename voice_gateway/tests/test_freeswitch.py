@@ -221,6 +221,62 @@ def test_freeswitch_events_emit_status_media_and_recording_callbacks():
     asyncio.run(scenario())
 
 
+def test_recording_notice_finishes_before_recording_starts():
+    async def scenario():
+        fake = FakeEslClient()
+        driver = FreeswitchEslDriver(
+            freeswitch_settings(freeswitch_playback_timeout_sec=2),
+            client=fake,
+        )
+        captured: list[tuple[str, dict]] = []
+
+        async def capture(url: str, payload: dict):
+            captured.append((url, payload))
+
+        driver._post_json = capture  # type: ignore[method-assign]
+        dial = await driver.post("dial", {
+            "call_id": "notice-call-1",
+            "phone": "13800138011",
+            "webhook_url": "http://control/status",
+            "metadata": {
+                "attempt": 3,
+                "recording_enabled": True,
+                "recording_notice": True,
+                "recording_notice_text": "本次通话将被录音。",
+                "recording_webhook_url": "http://control/recording",
+                "media_webhook_url": "http://control/media",
+            },
+        })
+        fs_uuid = dial["provider_call_id"]
+        await driver._handle_event({
+            "Event-Name": "CHANNEL_ANSWER",
+            "Unique-ID": fs_uuid,
+            "Event-Date-Timestamp": "notice-answer",
+        })
+        await asyncio.sleep(0)
+        assert any(command.startswith(f"uuid_broadcast {fs_uuid} ") for command in fake.api_commands)
+        assert not any(command.startswith(f"uuid_record {fs_uuid} start ") for command in fake.api_commands)
+
+        await driver._handle_event({
+            "Event-Name": "CHANNEL_EXECUTE_COMPLETE",
+            "Unique-ID": fs_uuid,
+            "Application": "playback",
+            "Event-Date-Timestamp": "notice-complete",
+        })
+        for _ in range(10):
+            if any(command.startswith(f"uuid_record {fs_uuid} start ") for command in fake.api_commands):
+                break
+            await asyncio.sleep(0)
+        broadcast_index = next(i for i, command in enumerate(fake.api_commands) if command.startswith("uuid_broadcast"))
+        record_index = next(i for i, command in enumerate(fake.api_commands) if command.startswith("uuid_record"))
+        assert broadcast_index < record_index
+        media_payloads = [payload for url, payload in captured if url.endswith("/media")]
+        assert media_payloads
+        assert all(payload["attempt"] == 3 for payload in media_payloads)
+
+    asyncio.run(scenario())
+
+
 def test_human_only_call_rings_browser_then_confirms_media_bridge():
     async def scenario():
         fake = FakeEslClient()
@@ -348,7 +404,7 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
     )
     settings.validate_runtime()
 
-    Settings(
+    notice_tts_settings = Settings(
         voice_gateway_driver="freeswitch_esl",
         voice_ai_pipeline="pipecat",
         freeswitch_esl_password="test-password",
@@ -357,7 +413,11 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
         freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
-    ).validate_runtime()
+    )
+    with pytest.raises(RuntimeError, match="recording notice"):
+        notice_tts_settings.validate_runtime()
+    notice_tts_settings.freeswitch_tts_http_endpoint = "http://tts.internal/synthesize"
+    notice_tts_settings.validate_runtime()
 
 
 def test_pipecat_runtime_validation_rejects_unconfigured_legacy_fallback():

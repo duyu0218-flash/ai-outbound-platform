@@ -36,6 +36,8 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE callsession ADD COLUMN flow_node_key VARCHAR(128)")
         if "voice_ai_pipeline" not in call_columns:
             statements.append("ALTER TABLE callsession ADD COLUMN voice_ai_pipeline VARCHAR(16) NOT NULL DEFAULT 'legacy'")
+        if "campaign_contact_key" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN campaign_contact_key VARCHAR(128)")
 
     if "campaign" in tables:
         campaign_columns = _columns(engine, "campaign")
@@ -43,6 +45,13 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE campaign ADD COLUMN script_flow_version_id INTEGER")
         if "voice_ai_pipeline" not in campaign_columns:
             statements.append("ALTER TABLE campaign ADD COLUMN voice_ai_pipeline VARCHAR(16) NOT NULL DEFAULT 'inherit'")
+        if "dispatch_enabled" not in campaign_columns:
+            statements.append("ALTER TABLE campaign ADD COLUMN dispatch_enabled BOOLEAN NOT NULL DEFAULT FALSE")
+
+    if "realtimesession" in tables:
+        realtime_columns = _columns(engine, "realtimesession")
+        if "attempt" not in realtime_columns:
+            statements.append("ALTER TABLE realtimesession ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
     if "telephonyline" in tables:
         line_columns = _columns(engine, "telephonyline")
@@ -95,6 +104,24 @@ def apply_runtime_migrations(engine: Engine) -> None:
         if "callsession" in tables:
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_callsession_telephony_line_id ON callsession (telephony_line_id)")
+            )
+            connection.execute(text("DROP INDEX IF EXISTS uq_callsession_campaign_contact"))
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_callsession_campaign_contact_key "
+                    "ON callsession (campaign_contact_key) WHERE campaign_contact_key IS NOT NULL"
+                )
+            )
+        if "campaign" in tables:
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_campaign_dispatch_enabled ON campaign (dispatch_enabled)")
+            )
+            connection.execute(
+                text("UPDATE campaign SET dispatch_enabled = TRUE WHERE status = 'running'")
+            )
+        if "realtimesession" in tables:
+            connection.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_realtimesession_attempt ON realtimesession (attempt)")
             )
         if "smslog" in tables:
             connection.execute(

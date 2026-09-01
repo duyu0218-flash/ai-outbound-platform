@@ -74,6 +74,7 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                 aggregate_id=str(asset.id),
                 idempotency_key=f"recording-delete:{asset.id}",
                 payload={"recording_asset_id": asset.id},
+                revive_dead=True,
             )
             if task.state == TaskState.DEAD:
                 asset.state = "deletion_failed"

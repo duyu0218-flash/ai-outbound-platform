@@ -175,6 +175,7 @@ class CampaignOut(CampaignCreate):
     id: int
     tenant_id: int
     status: str
+    dispatch_enabled: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -466,6 +467,7 @@ class MediaWebhookEvent(BaseModel):
     event_id: str = Field(min_length=1, max_length=255)
     state: RealtimeState
     provider_session_id: Optional[str] = Field(default=None, max_length=255)
+    attempt: Optional[int] = Field(default=None, ge=0)
     playback_id: Optional[str] = Field(default=None, max_length=255)
     codec: str = Field(default="pcm_s16le", max_length=32)
     sample_rate: int = Field(default=16000, ge=8000, le=192000)
@@ -479,6 +481,7 @@ class RealtimeSessionOut(BaseModel):
     id: int
     call_session_id: UUID
     provider_session_id: Optional[str] = None
+    attempt: int = 0
     state: RealtimeState
     codec: str
     sample_rate: int

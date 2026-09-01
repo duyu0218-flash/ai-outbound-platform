@@ -424,13 +424,20 @@ def complete_campaign_if_terminal(session: Session, campaign_id: int | None) -> 
         select(CallSession.id).where(
             CallSession.campaign_id == campaign_id,
             or_(
-                CallSession.status.notin_(TERMINAL_STATUSES),
+                CallSession.status.in_(CAPACITY_STATUSES | {CallStatus.QUEUED}),
                 CallSession.next_attempt_at.is_not(None),
             ),
         )
     ).first()
     if active_call is None:
-        campaign.status = "completed"
+        prepared_call = session.exec(
+            select(CallSession.id).where(
+                CallSession.campaign_id == campaign_id,
+                CallSession.status == CallStatus.CREATED,
+            )
+        ).first()
+        campaign.status = "prepared" if prepared_call is not None else "completed"
+        campaign.dispatch_enabled = False
         campaign.updated_at = _now()
         session.add(campaign)
         session.commit()
@@ -453,6 +460,9 @@ def create_call(
     campaign_id: Optional[int],
     contact_id: Optional[int],
     max_attempts: int = 1,
+    initial_status: CallStatus = CallStatus.QUEUED,
+    commit: bool = True,
+    campaign_contact_key: str | None = None,
 ) -> CallSession:
     _get_tenant(session, tenant_id)
     _require_campaign(session, tenant_id, campaign_id)
@@ -494,19 +504,23 @@ def create_call(
         tenant_id=tenant_id,
         campaign_id=campaign_id,
         contact_id=contact_id,
+        campaign_contact_key=campaign_contact_key,
         script_flow_version_id=flow_version_id,
         flow_node_key=flow_node_key,
         phone=normalized,
         mode=call_mode,
-        status=CallStatus.QUEUED,
+        status=initial_status,
         max_attempts=max_attempts,
         attempts=0,
         last_error=None,
         voice_ai_pipeline="pending",
     )
     session.add(call)
-    session.commit()
-    session.refresh(call)
+    if commit:
+        session.commit()
+        session.refresh(call)
+    else:
+        session.flush()
     return call
 
 
@@ -595,6 +609,10 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             "voice": str(ai_config.get("voice") or ""),
             "language": str(ai_config.get("language") or "zh-CN"),
             "recording_notice": bool(compliance_config.get("recording_notice", True)),
+            "recording_notice_text": str(
+                compliance_config.get("recording_notice_text")
+                or "本次通话可能会被录音，用于服务和质量管理。"
+            ),
             "voice_ai_pipeline": selected_pipeline,
         }
     )
@@ -912,6 +930,7 @@ async def dispatch_due_retries(*, batch_size: int = 200) -> int:
             .join(Campaign, Campaign.id == CallSession.campaign_id)
             .where(
                 Campaign.status == "running",
+                Campaign.dispatch_enabled.is_(True),
                 CallSession.status.in_(TERMINAL_STATUSES),
                 CallSession.next_attempt_at.is_not(None),
                 CallSession.next_attempt_at <= now,
@@ -957,7 +976,10 @@ async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
                 CallSession.status == CallStatus.QUEUED,
                 CallSession.next_attempt_at.is_(None),
                 CallSession.attempts < CallSession.max_attempts,
-                or_(CallSession.campaign_id.is_(None), Campaign.status == "running"),
+                or_(
+                    CallSession.campaign_id.is_(None),
+                    (Campaign.status == "running") & Campaign.dispatch_enabled.is_(True),
+                ),
             )
             .order_by(CallSession.updated_at.asc())
             .limit(batch_size)
@@ -1082,7 +1104,6 @@ def start_campaign(
     tenant_id: int,
     campaign_id: int,
     only_active_contacts: bool = True,
-    max_calls: int | None = None,
 ) -> dict[str, object]:
     campaign = session.get(Campaign, campaign_id)
     if not campaign or campaign.tenant_id != tenant_id:
@@ -1100,6 +1121,17 @@ def start_campaign(
     skip_reasons: list[dict[str, object]] = []
     skipped_reason_counter: dict[str, int] = {}
     call_ids: list[str] = []
+    existing = session.exec(
+        select(CallSession).where(CallSession.campaign_id == campaign_id)
+    ).all()
+    existing_by_contact: dict[int, CallSession] = {}
+    for existing_call in sorted(existing, key=lambda item: item.created_at, reverse=True):
+        if existing_call.contact_id is None:
+            continue
+        expected_key = f"campaign:{campaign_id}:contact:{existing_call.contact_id}"
+        current = existing_by_contact.get(existing_call.contact_id)
+        if current is None or existing_call.campaign_contact_key == expected_key:
+            existing_by_contact[existing_call.contact_id] = existing_call
 
     for rel in rels:
         contact = session.get(Contact, rel.contact_id)
@@ -1120,7 +1152,18 @@ def start_campaign(
             skipped_reason_counter["CONTACT_INACTIVE"] = skipped_reason_counter.get("CONTACT_INACTIVE", 0) + 1
             continue
 
-        if max_calls is not None and created >= max(0, int(max_calls)):
+        existing_call = existing_by_contact.get(contact.id)
+        if existing_call is not None:
+            if existing_call.status == CallStatus.CREATED or (
+                existing_call.status == CallStatus.FAILED
+                and existing_call.attempts < existing_call.max_attempts
+            ):
+                if existing_call.status == CallStatus.FAILED:
+                    existing_call.status = CallStatus.CREATED
+                    existing_call.next_attempt_at = None
+                    existing_call.updated_at = _now()
+                    session.add(existing_call)
+                call_ids.append(str(existing_call.id))
             continue
 
         try:
@@ -1131,9 +1174,13 @@ def start_campaign(
                 mode=campaign.mode,
                 campaign_id=campaign.id,
                 contact_id=contact.id,
-                max_attempts=campaign.retry_limit,
+                # The product field is a retry count. One initial attempt is
+                # always available in addition to the configured retries.
+                max_attempts=campaign.retry_limit + 1,
+                initial_status=CallStatus.CREATED,
+                commit=False,
+                campaign_contact_key=f"campaign:{campaign.id}:contact:{contact.id}",
             )
-            session.refresh(call)
             call_ids.append(str(call.id))
             created += 1
         except CallPermissionError as error:
@@ -1159,11 +1206,13 @@ def start_campaign(
             skipped_reason_counter["INVALID_PHONE"] = skipped_reason_counter.get("INVALID_PHONE", 0) + 1
             continue
 
+    session.commit()
     return {
         "total_contacts": total,
         "created": created,
         "skipped": skipped,
         "call_ids": call_ids,
+        "prepared": len(call_ids),
         "skip_reasons": skip_reasons,
         "skipped_reason_codes": sorted(skipped_reason_counter.keys()),
     }

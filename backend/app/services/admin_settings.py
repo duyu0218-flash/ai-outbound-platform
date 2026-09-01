@@ -41,6 +41,7 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "dnc_enforced": True,
         "require_explicit_consent": True,
         "recording_notice": True,
+        "recording_notice_text": "本次通话可能会被录音，用于服务和质量管理。",
         "allowed_start_hour": 9,
         "allowed_end_hour": 20,
         "timezone": "Asia/Shanghai",
