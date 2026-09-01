@@ -1,6 +1,8 @@
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
@@ -231,7 +233,7 @@ async def start_campaign(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
     if campaign.status == "deleted":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="deleted campaign cannot be started")
-    if campaign.status not in {"draft", "failed", "stopped"}:
+    if campaign.status not in {"draft", "failed", "stopped", "prepared"}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"campaign cannot be started from status {campaign.status}",
@@ -243,15 +245,23 @@ async def start_campaign(
             tenant_id=tenant_id,
             campaign_id=campaign_id,
             only_active_contacts=True,
-            max_calls=max_dials,
         )
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found")
+    except IntegrityError:
+        # A concurrent start may win the campaign-contact idempotency key.
+        # Reload the durable prepared set instead of returning a 500 or
+        # creating a second call for the same campaign contact.
+        session.rollback()
+        result = start_campaign_service(
+            session,
+            tenant_id=tenant_id,
+            campaign_id=campaign_id,
+            only_active_contacts=True,
+        )
 
-    if max_dials is not None:
-        result_call_ids = result["call_ids"][:max_dials]
-    else:
-        result_call_ids = result["call_ids"]
+    result_call_ids = result["call_ids"]
+    target_call_ids = result_call_ids[:max_dials] if max_dials is not None else result_call_ids
 
     skip_reasons = [CampaignDispatchError(**item) for item in result.get("skip_reasons", [])]
     precheck_error_codes = sorted(
@@ -261,7 +271,7 @@ async def start_campaign(
     dialed = 0
     dispatch_result = CampaignDispatchResult(
         total=result.get("total_contacts", 0),
-        target=min(len(result_call_ids), max_dials or len(result_call_ids)),
+        target=len(target_call_ids) if auto_dial else 0,
         succeeded=0,
         failed=0,
         skipped=result.get("skipped", 0),
@@ -269,18 +279,25 @@ async def start_campaign(
         errors=[],
         error_codes=precheck_error_codes,
     )
-    if result.get("created", 0) > 0:
-        # Persist the running state before synchronous workers inspect it.
-        # Background tasks are started after the response, but sync dispatch
-        # happens inside this request.
-        campaign.status = "running"
+    if auto_dial:
+        selected_calls = session.exec(
+            select(CallSession).where(
+                CallSession.tenant_id == tenant_id,
+                CallSession.campaign_id == campaign_id,
+                CallSession.id.in_([UUID(str(call_id)) for call_id in target_call_ids]),
+            )
+        ).all() if target_call_ids else []
+        for call in selected_calls:
+            call.status = CallStatus.QUEUED
+            call.next_attempt_at = None
+            call.last_error = None
+            call.updated_at = utc_now()
+            session.add(call)
+        campaign.dispatch_enabled = bool(selected_calls)
+        campaign.status = "running" if selected_calls else "failed"
         campaign.updated_at = utc_now()
         session.add(campaign)
         session.commit()
-    if auto_dial:
-        target_call_ids = result_call_ids
-        if max_dials is not None:
-            target_call_ids = target_call_ids[:max_dials]
 
         if async_dial:
             # Calls remain in the database queue and are consumed by the
@@ -311,7 +328,11 @@ async def start_campaign(
             )
             dialed = dispatch_result.succeeded
     if not auto_dial:
-        dispatch_result.target = 0
+        campaign.dispatch_enabled = False
+        campaign.status = "prepared" if result_call_ids else "failed"
+        campaign.updated_at = utc_now()
+        session.add(campaign)
+        session.commit()
 
     all_sync_dispatches_failed = (
         auto_dial
@@ -325,11 +346,9 @@ async def start_campaign(
             CallSession.next_attempt_at.is_not(None),
         )
     ).first() is not None
-    campaign.status = (
-        "failed"
-        if result.get("created", 0) == 0 or (all_sync_dispatches_failed and not has_scheduled_retries)
-        else "running"
-    )
+    if all_sync_dispatches_failed and not has_scheduled_retries:
+        campaign.status = "failed"
+        campaign.dispatch_enabled = False
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
@@ -337,7 +356,7 @@ async def start_campaign(
     result["campaign_status"] = campaign.status
     result["auto_dial_requested"] = auto_dial
     result["auto_dial_count"] = dialed
-    result["dispatch_mode"] = "async" if auto_dial and async_dial else "sync"
+    result["dispatch_mode"] = "async" if auto_dial and async_dial else ("sync" if auto_dial else "prepared")
     result["dispatch_result"] = dispatch_result
 
     result_code = "SUCCESS"
@@ -398,6 +417,7 @@ def pause_campaign(
     if campaign.status != "running":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a running campaign can be paused")
     campaign.status = "paused"
+    campaign.dispatch_enabled = False
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
@@ -412,9 +432,21 @@ def resume_campaign(
     session: Session = Depends(get_session),
 ):
     campaign = _get_mutable_campaign(session, tenant_id, campaign_id)
-    if campaign.status != "paused":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a paused campaign can be resumed")
+    if campaign.status not in {"paused", "prepared"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a paused or prepared campaign can be resumed")
+    prepared_calls = session.exec(
+        select(CallSession).where(
+            CallSession.tenant_id == tenant_id,
+            CallSession.campaign_id == campaign_id,
+            CallSession.status == CallStatus.CREATED,
+        )
+    ).all()
+    for call in prepared_calls:
+        call.status = CallStatus.QUEUED
+        call.updated_at = utc_now()
+        session.add(call)
     campaign.status = "running"
+    campaign.dispatch_enabled = True
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
@@ -430,8 +462,8 @@ def stop_campaign(
     session: Session = Depends(get_session),
 ):
     campaign = _get_mutable_campaign(session, tenant_id, campaign_id)
-    if campaign.status not in {"running", "paused"}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a running or paused campaign can be stopped")
+    if campaign.status not in {"running", "paused", "prepared"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="only a running, paused or prepared campaign can be stopped")
     queued_calls = session.exec(
         select(CallSession).where(
             CallSession.tenant_id == tenant_id,
@@ -455,6 +487,7 @@ def stop_campaign(
         call.next_attempt_at = None
         session.add(call)
     campaign.status = "stopped"
+    campaign.dispatch_enabled = False
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()

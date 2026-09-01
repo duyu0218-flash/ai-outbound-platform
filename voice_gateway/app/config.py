@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     freeswitch_gateway: str = ""
     freeswitch_caller_id: str = ""
     freeswitch_originate_timeout_sec: int = 45
+    freeswitch_playback_timeout_sec: float = 30.0
     freeswitch_dialplan_context: str = "default"
     freeswitch_agent_extension_template: str = "agent_{agent_id}"
     freeswitch_default_handoff_extension: str = "handoff_default"
@@ -94,12 +95,14 @@ class Settings(BaseSettings):
                 raise RuntimeError("FREESWITCH_ESL_PASSWORD is required for freeswitch_esl driver")
             if not self.freeswitch_gateway.strip():
                 raise RuntimeError("FREESWITCH_GATEWAY is required for freeswitch_esl driver")
-            needs_legacy_tts = pipeline in {"legacy", "hybrid"} or self.pipecat_fallback_to_legacy
-            if needs_legacy_tts and not self.freeswitch_tts_http_endpoint.strip() and not (
+            # The compliance notice is played by FreeSWITCH before recording
+            # and before either media pipeline starts, including pure Pipecat.
+            if not self.freeswitch_tts_http_endpoint.strip() and not (
                 self.freeswitch_tts_engine.strip() and self.freeswitch_tts_voice.strip()
             ):
                 raise RuntimeError(
-                    "freeswitch_esl driver requires FREESWITCH_TTS_HTTP_ENDPOINT or native TTS engine and voice"
+                    "freeswitch_esl driver requires FREESWITCH_TTS_HTTP_ENDPOINT or native TTS engine and voice "
+                    "for the recording notice and legacy speech"
                 )
             try:
                 self.freeswitch_agent_extension_template.format(agent_id="1", tenant_id=1)

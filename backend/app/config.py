@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     llm_provider: str = "rule"
     openai_model: str = "gpt-4o-mini"
     ai_callback_timeout_sec: int = 10
+    tts_playback_timeout_sec: int = 30
     telephony_timeout_sec: int = 8
     telephony_retry_times: int = 2
     telephony_retry_backoff_sec: float = 1.0
@@ -81,6 +82,10 @@ class Settings(BaseSettings):
     recording_ingest_endpoint: str = ""
     recording_ingest_service_token: str = ""
     recording_ingest_timeout_sec: int = 60
+    contact_import_max_bytes: int = 20 * 1024 * 1024
+    contact_import_max_rows: int = 200_000
+    contact_import_max_errors: int = 1_000
+    contact_export_batch_size: int = 1_000
 
     # Production hardening
     request_timeout_ms: int = 15000

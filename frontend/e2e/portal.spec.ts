@@ -45,3 +45,22 @@ test('agent is redirected away from the administrator portal', async ({ page }) 
   await page.goto('/agent/calls')
   await expect(page.locator('.app-content')).toBeVisible()
 })
+
+test('recording notice text can be saved and is restored after reload', async ({ page }) => {
+  await login(page, 'admin', 'admin')
+  await page.goto('/admin/settings')
+  await page.getByRole('tab', { name: /合规策略/ }).click()
+  const notice = page.getByLabel('录音告知内容', { exact: true })
+  await expect(notice).toBeEditable()
+  const expected = `本次通话将被录音，用于服务质量管理-${Date.now()}`
+  await notice.fill(expected)
+  const [response] = await Promise.all([
+    page.waitForResponse((candidate) => candidate.url().endsWith('/api/v1/admin/settings/compliance') && candidate.request().method() === 'PUT'),
+    page.locator('.ant-tabs-tabpane-active .settings-card button[type="submit"]').click(),
+  ])
+  expect(response.ok()).toBeTruthy()
+
+  await page.reload()
+  await page.getByRole('tab', { name: /合规策略/ }).click()
+  await expect(page.getByLabel('录音告知内容', { exact: true })).toHaveValue(expected)
+})

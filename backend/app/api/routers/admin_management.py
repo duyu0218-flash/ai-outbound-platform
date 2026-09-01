@@ -5,6 +5,7 @@ from datetime import timedelta
 from collections import defaultdict
 import csv
 import io
+from uuid import UUID
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -61,6 +62,7 @@ from ...services.admin_settings import SETTING_DEFAULTS, get_admin_setting, get_
 from ...services.call_service import CAPACITY_STATUSES
 from ...services.health import ai_agent_health_check, db_health_check, redis_health_check, tenant_telephony_health_check
 from ...services.telephony import get_sms_adapter, list_tenant_telephony_lines, with_retry
+from ...services.task_queue import retry_dead_task
 
 
 router = APIRouter(
@@ -73,6 +75,23 @@ settings = get_settings()
 REACHED_STATUSES = {"answered", "in_ai", "waiting_human", "handoff_transferring", "in_human", "completed"}
 LOSS_STATUSES = {"failed", "no_answer", "busy", "voicemail"}
 REPORT_DIMENSIONS = {"campaign", "agent", "line"}
+
+
+@router.post("/tasks/{task_id}/retry")
+def retry_task(
+    task_id: UUID,
+    current: User = Depends(require_role("admin")),
+    session: Session = Depends(get_session),
+):
+    task = retry_dead_task(session, tenant_id=current.tenant_id, task_id=task_id)
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="dead task not found or task is not retryable",
+        )
+    _audit(session, current, "retry", "task_outbox", str(task.id), f"task_type={task.task_type}")
+    session.commit()
+    return {"result": "queued", "task_id": str(task.id), "state": task.state.value}
 REPORT_GRANULARITIES = {"day", "hour"}
 CONTACT_GROUP_ORPHAN_KEY = "0"
 CONTACT_GROUP_DEFAULT_LABEL = "未分组"

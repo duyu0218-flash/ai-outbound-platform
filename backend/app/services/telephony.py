@@ -177,6 +177,7 @@ class MockAdapter(TelephonyAdapter):
     ) -> Dict[str, Any]:
         return {
             "result": "spoken_mock",
+            "playback_complete": True,
             "provider_call_id": f"mock-{call_id}",
             "text": text,
             "language": language,
