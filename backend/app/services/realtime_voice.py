@@ -126,6 +126,8 @@ def ingest_speech_turn(
 def apply_media_event(session: Session, call: CallSession, payload: MediaWebhookEvent) -> RealtimeSession:
     realtime = get_or_create_realtime_session(session, call)
     realtime.state = payload.state
+    if payload.attempt is not None:
+        realtime.attempt = payload.attempt
     realtime.provider_session_id = payload.provider_session_id or realtime.provider_session_id
     realtime.playback_id = payload.playback_id
     realtime.codec = payload.codec

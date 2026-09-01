@@ -139,6 +139,7 @@ class Campaign(SQLModel, table=True):
     voice_ai_pipeline: str = Field(default="inherit", max_length=16)
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     status: str = "draft"
+    dispatch_enabled: bool = Field(default=False, index=True)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
@@ -192,6 +193,7 @@ class CallSession(SQLModel, table=True):
     script_flow_version_id: Optional[int] = Field(default=None, foreign_key="scriptflowversion.id")
     flow_node_key: Optional[str] = Field(default=None, max_length=128)
     contact_id: Optional[int] = Field(default=None, foreign_key="contact.id")
+    campaign_contact_key: Optional[str] = Field(default=None, unique=True, max_length=128)
     phone: str
     mode: CallMode
     status: CallStatus = Field(default=CallStatus.CREATED, index=True)
@@ -233,6 +235,7 @@ class RealtimeSession(SQLModel, table=True):
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
     provider_session_id: Optional[str] = Field(default=None, index=True, max_length=255)
+    attempt: int = Field(default=0, index=True)
     state: RealtimeState = Field(default=RealtimeState.CREATED, index=True)
     codec: str = Field(default="pcm_s16le", max_length=32)
     sample_rate: int = 16000

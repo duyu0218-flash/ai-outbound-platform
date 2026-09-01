@@ -429,6 +429,8 @@ def telephony_media(
     call = session.get(CallSession, payload.call_id)
     if call is None:
         return {"result": "ignore"}
+    if payload.attempt is not None and payload.attempt != call.attempts:
+        return {"result": "ignored", "reason": "stale_attempt"}
     realtime = apply_media_event(session, call, payload)
     return {"result": "ok", "realtime_session_id": realtime.id, "state": realtime.state.value}
 
@@ -495,6 +497,7 @@ def telephony_recording(
                 aggregate_id=str(existing_asset.id),
                 idempotency_key=f"recording-ingest:{existing_asset.id}",
                 payload={"recording_asset_id": existing_asset.id},
+                revive_dead=True,
             )
             background_tasks.add_task(process_task, ingest_task.id)
         callback_task = enqueue_business_callback(
