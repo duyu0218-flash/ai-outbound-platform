@@ -299,6 +299,7 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                         "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
                         "llm_provider": str(ai_config.get("llm_provider") or "rule"),
                         "llm_model": str(ai_config.get("llm_model") or ""),
+                        "external_llm_enabled": bool(ai_config.get("external_llm_enabled", False)),
                         "knowledge": knowledge,
                         "conversation": history,
                     },

@@ -126,6 +126,8 @@ def _validate_production_runtime() -> None:
         issues.append("DEMO_USERS_ENABLED=true")
     if not settings.telephony_webhook_token.strip():
         issues.append("TELEPHONY_WEBHOOK_TOKEN")
+    if weak_secret(settings.telephony_webhook_secret, 32):
+        issues.append("TELEPHONY_WEBHOOK_SECRET")
     if weak_secret(settings.telephony_service_token, 24):
         issues.append("TELEPHONY_SERVICE_TOKEN")
     if weak_secret(settings.ai_agent_service_token, 24):
@@ -137,6 +139,8 @@ def _validate_production_runtime() -> None:
             issues.append("SMS_CALLBACK_URL")
         if not settings.sms_webhook_token.strip():
             issues.append("SMS_WEBHOOK_TOKEN")
+        if weak_secret(settings.sms_webhook_secret, 32):
+            issues.append("SMS_WEBHOOK_SECRET")
     if settings.database_url.startswith("sqlite"):
         issues.append("DATABASE_URL=sqlite")
     if "replace-db-password" in settings.database_url.lower():
@@ -149,6 +153,17 @@ def _validate_production_runtime() -> None:
             issues.append("REDIS_URL insecure password")
     if (settings.telephony_provider or "mock").strip().lower() == "mock":
         issues.append("TELEPHONY_PROVIDER=mock")
+    allowed_prefixes = [
+        item.strip()
+        for item in settings.outbound_allowed_phone_prefixes.split(",")
+        if item.strip()
+    ]
+    if not allowed_prefixes or any(not item.isdigit() or len(item) > 15 for item in allowed_prefixes):
+        issues.append("OUTBOUND_ALLOWED_PHONE_PREFIXES")
+    if not 1 <= int(settings.outbound_daily_call_limit) <= 10_000_000:
+        issues.append("OUTBOUND_DAILY_CALL_LIMIT")
+    if settings.auto_migrate:
+        issues.append("AUTO_MIGRATE=true")
     if settings.recording_retention_days > 0:
         if not settings.recording_ingest_endpoint.strip():
             issues.append("RECORDING_INGEST_ENDPOINT")

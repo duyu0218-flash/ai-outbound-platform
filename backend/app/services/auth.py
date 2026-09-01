@@ -8,8 +8,9 @@ from binascii import Error as BinasciiError
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import jwt
 from fastapi import HTTPException, status
-from jose import JWTError, jwt
+from jwt import PyJWTError
 from sqlmodel import Session, select
 
 from ..config import get_settings
@@ -168,7 +169,7 @@ def create_access_token(subject: str, tenant_id: int, role: str, user_id: int, t
 def parse_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 

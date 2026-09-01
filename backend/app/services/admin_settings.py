@@ -29,6 +29,7 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "fallback_reply": "抱歉，这个问题需要由人工客服为您确认。",
         "voice_ai_pipeline": "legacy",
         "pipecat_canary_percent": 0,
+        "external_llm_enabled": False,
     },
     "sms": {
         "enabled": True,
@@ -40,6 +41,7 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
     "compliance": {
         "dnc_enforced": True,
         "require_explicit_consent": True,
+        "require_explicit_consent_for_direct_calls": True,
         "recording_notice": True,
         "recording_notice_text": "本次通话可能会被录音，用于服务和质量管理。",
         "allowed_start_hour": 9,
@@ -47,8 +49,12 @@ SETTING_DEFAULTS: dict[str, dict[str, Any]] = {
         "timezone": "Asia/Shanghai",
         "max_attempts_per_day": 3,
         "min_attempt_interval_sec": 0,
+        "allowed_phone_prefixes": settings.outbound_allowed_phone_prefixes,
+        "max_calls_per_day": int(settings.outbound_daily_call_limit),
         "recording_retention_days": int(settings.recording_retention_days),
         "partial_transcript_retention_hours": int(settings.partial_transcript_retention_hours),
+        "final_transcript_retention_days": int(settings.final_transcript_retention_days),
+        "call_sensitive_data_retention_days": int(settings.call_sensitive_data_retention_days),
     },
     "integration": {
         "callback_enabled": False,
