@@ -69,17 +69,20 @@ from app.services.task_queue import (  # noqa: E402
     enqueue_task,
     process_pending_tasks,
     process_task,
+    retry_dead_task,
 )
 from app.schemas import ScriptFlowGraph  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
     dispatch_call_ids,
     dispatch_due_retries,
+    dispatch_pending_calls,
     expire_stale_calls,
     place_call,
     retry_call,
     schedule_campaign_retry,
     select_voice_ai_pipeline,
+    complete_campaign_if_terminal,
 )
 
 
@@ -1332,7 +1335,8 @@ def test_max_dials_limits_persisted_async_queue(client: TestClient):
     assert started.json()["dispatch_result"]["target"] == 1
     calls = client.get(f"/api/v1/calls?campaign_id={campaign.json()['id']}", headers=headers)
     assert calls.status_code == 200, calls.text
-    assert len(calls.json()) == 1
+    assert len(calls.json()) == 2
+    assert sorted(call["status"] for call in calls.json()) == ["created", "queued"]
 
 
 def test_contact_phone_is_unique_and_referenced_contact_cannot_be_deleted(client: TestClient):
@@ -1791,7 +1795,7 @@ async def test_due_campaign_retry_is_persisted_and_dispatched(client: TestClient
             "attempt_interval_sec": 3,
         },
     ).json()
-    started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
+    started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=true", headers=headers)
     assert started.status_code == 200, started.text
     call_id = UUID(client.get(f"/api/v1/calls?campaign_id={campaign['id']}", headers=headers).json()[0]["id"])
 
@@ -2064,14 +2068,19 @@ def test_campaign_pause_resume_stop_lifecycle(client: TestClient):
     ).json()
     started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
     assert started.status_code == 200, started.text
-    assert started.json()["campaign_status"] == "running"
-    assert client.post(f"/api/v1/campaigns/{campaign['id']}/start", headers=headers).status_code == 409
-    paused = client.post(f"/api/v1/campaigns/{campaign['id']}/pause", headers=headers)
-    assert paused.status_code == 200, paused.text
-    assert paused.json()["status"] == "paused"
+    assert started.json()["campaign_status"] == "prepared"
+    repeated = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["created"] == 0
     resumed = client.post(f"/api/v1/campaigns/{campaign['id']}/resume", headers=headers)
     assert resumed.status_code == 200, resumed.text
     assert resumed.json()["status"] == "running"
+    paused = client.post(f"/api/v1/campaigns/{campaign['id']}/pause", headers=headers)
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["status"] == "paused"
+    resumed_again = client.post(f"/api/v1/campaigns/{campaign['id']}/resume", headers=headers)
+    assert resumed_again.status_code == 200, resumed_again.text
+    assert resumed_again.json()["status"] == "running"
     stopped = client.post(f"/api/v1/campaigns/{campaign['id']}/stop", headers=headers)
     assert stopped.status_code == 200, stopped.text
     assert stopped.json()["status"] == "stopped"
@@ -2652,3 +2661,207 @@ def test_prometheus_metrics_accept_mounted_token_file(client: TestClient, monkey
     response = client.get("/metrics", headers={"Authorization": "Bearer mounted-metrics-token"})
 
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_prepared_campaign_is_not_picked_up_by_scheduler(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={"phone": "13900139001", "name": "prepared-only", "consent_state": "consented"},
+    ).json()
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={"name": "prepared-only", "mode": "human_only", "contact_ids": [contact["id"]]},
+    ).json()
+
+    started = client.post(f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=false", headers=headers)
+    assert started.status_code == 200, started.text
+    assert started.json()["campaign_status"] == "prepared"
+    assert started.json()["dispatch_mode"] == "prepared"
+    await dispatch_pending_calls(batch_size=10)
+
+    with session_scope() as session:
+        saved_campaign = session.get(Campaign, campaign["id"])
+        calls = session.exec(select(CallSession).where(CallSession.campaign_id == campaign["id"])).all()
+        assert saved_campaign is not None and saved_campaign.dispatch_enabled is False
+        assert [call.status for call in calls] == [CallStatus.CREATED]
+
+
+def test_campaign_batch_continues_without_duplicate_calls(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    contact_ids = []
+    for suffix in (2, 3):
+        contact = client.post(
+            "/api/v1/contacts",
+            headers=headers,
+            json={"phone": f"1390013900{suffix}", "name": f"batch-{suffix}", "consent_state": "consented"},
+        ).json()
+        contact_ids.append(contact["id"])
+    campaign = client.post(
+        "/api/v1/campaigns",
+        headers=headers,
+        json={"name": "batch-continuation", "mode": "human_only", "contact_ids": contact_ids},
+    ).json()
+    first = client.post(
+        f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=true&max_dials=1",
+        headers=headers,
+    )
+    assert first.status_code == 200, first.text
+
+    with session_scope() as session:
+        queued = session.exec(
+            select(CallSession).where(
+                CallSession.campaign_id == campaign["id"],
+                CallSession.status == CallStatus.QUEUED,
+            )
+        ).one()
+        queued.status = CallStatus.COMPLETED
+        queued.finished_at = utc_now()
+        session.add(queued)
+        session.commit()
+        complete_campaign_if_terminal(session, campaign["id"])
+        saved_campaign = session.get(Campaign, campaign["id"])
+        assert saved_campaign is not None and saved_campaign.status == "prepared"
+
+    second = client.post(
+        f"/api/v1/campaigns/{campaign['id']}/start?auto_dial=true&max_dials=1",
+        headers=headers,
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["created"] == 0
+    with session_scope() as session:
+        calls = session.exec(select(CallSession).where(CallSession.campaign_id == campaign["id"])).all()
+        assert len(calls) == 2
+        assert sorted(call.status.value for call in calls) == ["completed", "queued"]
+        assert len({call.campaign_contact_key for call in calls}) == 2
+
+
+def test_media_callback_rejects_stale_attempt(client: TestClient):
+    with session_scope() as session:
+        call = CallSession(
+            tenant_id=1,
+            phone="13900139004",
+            mode=CallMode.AI_ONLY,
+            status=CallStatus.IN_AI,
+            attempts=2,
+            max_attempts=3,
+        )
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        call_id = str(call.id)
+
+    payload = {
+        "call_id": call_id,
+        "event_id": "stale-media",
+        "state": "closed",
+        "attempt": 1,
+        "provider_session_id": "old-session",
+    }
+    stale = client.post("/api/v1/webhooks/telephony/media", json=payload)
+    assert stale.status_code == 200
+    assert stale.json() == {"result": "ignored", "reason": "stale_attempt"}
+
+    current = client.post(
+        "/api/v1/webhooks/telephony/media",
+        json={**payload, "event_id": "current-media", "state": "listening", "attempt": 2, "provider_session_id": "new-session"},
+    )
+    assert current.status_code == 200, current.text
+    with session_scope() as session:
+        realtime = session.exec(
+            select(RealtimeSession).where(RealtimeSession.call_session_id == UUID(call_id))
+        ).one()
+        assert realtime.attempt == 2
+        assert realtime.provider_session_id == "new-session"
+
+
+def test_dead_task_can_be_replayed_by_admin(client: TestClient):
+    token = _login(client, "admin")
+    with session_scope() as session:
+        task = TaskOutbox(
+            tenant_id=1,
+            task_type="business_callback",
+            aggregate_id="manual-retry",
+            idempotency_key=f"manual-retry:{uuid4()}",
+            payload_json="{}",
+            state=TaskState.DEAD,
+            attempts=5,
+            max_attempts=5,
+            last_error="temporary provider failure",
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        task_id = task.id
+
+    retried = client.post(f"/api/v1/admin/tasks/{task_id}/retry", headers=_bearer(token))
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["state"] == "pending"
+    with session_scope() as session:
+        task = session.get(TaskOutbox, task_id)
+        assert task is not None
+        assert task.attempts == 0
+        assert task.last_error == ""
+
+
+@pytest.mark.asyncio
+async def test_terminal_prompt_waits_for_playback_before_hangup(monkeypatch):
+    events: list[str] = []
+
+    class OrderedAdapter:
+        async def speak(self, **_kwargs):
+            events.append("speak")
+            return {"playback_id": "terminal-playback"}
+
+        async def hangup(self, **_kwargs):
+            events.append("hangup")
+            return {"result": "hungup"}
+
+    async def wait_for_playback(_call_id, playback_id):
+        assert playback_id == "terminal-playback"
+        events.append("playback-complete")
+        return True
+
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_kwargs: OrderedAdapter())
+    monkeypatch.setattr(dispatcher, "_wait_for_playback_completion", wait_for_playback)
+    with session_scope() as session:
+        call = CallSession(
+            tenant_id=1,
+            phone="13900139005",
+            mode=CallMode.AI_ONLY,
+            status=CallStatus.IN_AI,
+        )
+        session.add(call)
+        session.commit()
+        session.refresh(call)
+        await dispatcher._apply_ai_action(
+            session=session,
+            call=call,
+            result=AiTurnResult(action="hangup", tts_text="感谢接听，再见。"),
+        )
+    assert events == ["speak", "playback-complete", "hangup"]
+
+
+def test_contact_export_escapes_spreadsheet_formulas(client: TestClient):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    created = client.post(
+        "/api/v1/contacts",
+        headers=headers,
+        json={
+            "phone": "13900139006",
+            "name": "=HYPERLINK(\"https://example.invalid\")",
+            "tags": "+SUM(1,1)",
+            "consent_state": "consented",
+        },
+    )
+    assert created.status_code == 200, created.text
+    exported = client.get("/api/v1/contacts/export?keyword=13900139006", headers=headers)
+    assert exported.status_code == 200, exported.text
+    assert "'=HYPERLINK" in exported.text
+    assert "'+SUM(1,1)" in exported.text

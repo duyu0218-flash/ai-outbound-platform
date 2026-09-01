@@ -360,6 +360,7 @@ class PipecatPipelineManager:
                 "sample_rate": self.settings.pipecat_sample_rate,
                 "channel_count": self.settings.pipecat_channels,
                 "provider": f"pipecat:{self.settings.pipecat_version}",
+                "attempt": session.metadata.get("attempt"),
             },
         )
 

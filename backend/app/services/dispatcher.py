@@ -345,6 +345,22 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                 raise
 
 
+async def _wait_for_playback_completion(call_id, playback_id: str) -> bool:
+    deadline = asyncio.get_running_loop().time() + max(1, int(settings.tts_playback_timeout_sec))
+    while asyncio.get_running_loop().time() < deadline:
+        with session_scope() as playback_session:
+            realtime = playback_session.exec(
+                select(RealtimeSession).where(RealtimeSession.call_session_id == call_id)
+            ).first()
+            if realtime is not None and (
+                realtime.state in {RealtimeState.LISTENING, RealtimeState.INTERRUPTED, RealtimeState.CLOSED}
+                and realtime.playback_id != playback_id
+            ):
+                return True
+        await asyncio.sleep(0.1)
+    return False
+
+
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
@@ -353,6 +369,8 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         tenant_id=call.tenant_id,
         line_id=call.telephony_line_id,
     )
+    playback_id: str | None = None
+    playback_complete = False
     if result.tts_text:
         tts_started = perf_counter()
         try:
@@ -365,12 +383,14 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                     provider=str(ai_config.get("tts_provider") or ""),
                 )
             )
+            playback_id = str(response.get("playback_id") or "") or None
+            playback_complete = bool(response.get("playback_complete", False))
             realtime = session.exec(
                 select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)
             ).first()
             if realtime is not None:
                 realtime.state = RealtimeState.SPEAKING
-                realtime.playback_id = str(response.get("playback_id") or "") or None
+                realtime.playback_id = playback_id
                 realtime.updated_at = utc_now()
                 session.add(realtime)
             normalized_reply = " ".join((result.tts_text or "").split())
@@ -422,6 +442,23 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             session.commit()
             raise
     if result.action == "hangup":
+        if playback_id and not playback_complete:
+            # Make the playback id visible to the webhook session before
+            # waiting for the gateway's listening/interrupted/closed event.
+            session.commit()
+            playback_complete = await _wait_for_playback_completion(call.id, playback_id)
+            if not playback_complete:
+                session.add(
+                    CallMetric(
+                        tenant_id=call.tenant_id,
+                        call_session_id=call.id,
+                        stage="tts.playback",
+                        provider=str(ai_config.get("tts_provider") or "gateway"),
+                        success=False,
+                        error_code="TTS_PLAYBACK_TIMEOUT",
+                        detail=f"playback_id={playback_id}",
+                    )
+                )
         await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
         call.status = CallStatus.COMPLETED
         call.finished_at = utc_now()

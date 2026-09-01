@@ -26,9 +26,22 @@ def enqueue_task(
     idempotency_key: str,
     payload: dict,
     max_attempts: int = 5,
+    revive_dead: bool = False,
 ) -> TaskOutbox:
     existing = session.exec(select(TaskOutbox).where(TaskOutbox.idempotency_key == idempotency_key)).first()
     if existing is not None:
+        if revive_dead and existing.state == TaskState.DEAD:
+            existing.state = TaskState.PENDING
+            existing.attempts = 0
+            existing.max_attempts = max(1, max_attempts)
+            existing.available_at = utc_now()
+            existing.locked_at = None
+            existing.last_error = ""
+            existing.payload_json = json.dumps(payload, ensure_ascii=False)
+            existing.updated_at = utc_now()
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
         return existing
     task = TaskOutbox(
         tenant_id=tenant_id,
@@ -47,6 +60,34 @@ def enqueue_task(
         if existing is None:
             raise
         return existing
+    session.refresh(task)
+    return task
+
+
+def retry_dead_task(session: Session, *, tenant_id: int, task_id: UUID) -> TaskOutbox | None:
+    task = session.get(TaskOutbox, task_id)
+    if task is None or task.tenant_id != tenant_id or task.state != TaskState.DEAD:
+        return None
+    task.state = TaskState.PENDING
+    task.attempts = 0
+    task.available_at = utc_now()
+    task.locked_at = None
+    task.last_error = ""
+    task.updated_at = utc_now()
+    session.add(task)
+    if task.task_type == "recording_delete":
+        asset = session.get(RecordingAsset, int(task.aggregate_id))
+        if asset is not None and asset.deleted_at is None:
+            asset.state = "deletion_pending"
+            asset.updated_at = utc_now()
+            session.add(asset)
+    if task.task_type == "recording_ingest":
+        asset = session.get(RecordingAsset, int(task.aggregate_id))
+        if asset is not None and asset.deleted_at is None and not asset.storage_uri:
+            asset.state = "available"
+            asset.updated_at = utc_now()
+            session.add(asset)
+    session.commit()
     session.refresh(task)
     return task
 

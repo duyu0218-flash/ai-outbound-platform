@@ -120,6 +120,7 @@ class FreeswitchEslDriver:
         self.calls_by_uuid: dict[str, CallBinding] = {}
         self.calls_by_id: dict[str, CallBinding] = {}
         self.jobs: dict[str, CallBinding] = {}
+        self.playback_waiters: dict[str, asyncio.Future[None]] = {}
         self.listener_task: asyncio.Task[None] | None = None
         self.pipecat_manager = pipecat_manager or (
             PipecatPipelineManager(settings)
@@ -271,9 +272,9 @@ class FreeswitchEslDriver:
                 "pipeline": "pipecat",
             }
         media_uri = await self._tts_media_uri(request)
-        await self.client.api(f"uuid_broadcast {binding.fs_uuid} {_fs_argument(media_uri)} aleg")
         playback_id = str(uuid4())
         await self._post_media(binding, "speaking", playback_id=playback_id)
+        await self.client.api(f"uuid_broadcast {binding.fs_uuid} {_fs_argument(media_uri)} aleg")
         return {
             "result": "playing",
             "provider_call_id": binding.fs_uuid,
@@ -389,17 +390,34 @@ class FreeswitchEslDriver:
                 await self._post_status(binding, "agent_answered", event)
             else:
                 await self._post_status(binding, "answered", event)
-                await self._start_recording_and_media(binding)
+                if bool(binding.metadata.get("recording_notice", False)):
+                    asyncio.create_task(
+                        self._start_recording_and_media_safely(binding),
+                        name=f"start-media-{binding.call_id}",
+                    )
+                else:
+                    await self._start_recording_and_media(binding)
         elif name == "CHANNEL_BRIDGE":
             if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
                 binding.human_connected = True
                 await self._post_status(binding, "human_connected", event)
-                await self._start_recording_and_media(binding, start_ai_media=False)
+                if bool(binding.metadata.get("recording_notice", False)):
+                    asyncio.create_task(
+                        self._start_recording_and_media_safely(binding, start_ai_media=False),
+                        name=f"start-human-media-{binding.call_id}",
+                    )
+                else:
+                    await self._start_recording_and_media(binding, start_ai_media=False)
         elif name == "CHANNEL_UNBRIDGE":
             if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
                 await self._post_status(binding, "human_disconnected", event)
         elif name == "CHANNEL_EXECUTE_COMPLETE":
             application = _event_value(event, "Application", "variable_current_application").lower()
+            if application in {"playback", "speak"}:
+                waiter = self.playback_waiters.pop(binding.fs_uuid, None)
+                if waiter is not None and not waiter.done():
+                    waiter.set_result(None)
+                await self._post_media(binding, "listening", event=event)
             if application == "bridge" and binding.metadata.get("human_target") and not binding.human_connected:
                 response = _event_value(event, "Application-Response", "variable_originate_disposition")
                 await self._post_status(
@@ -409,6 +427,9 @@ class FreeswitchEslDriver:
                     hangup_reason=response or "agent did not answer",
                 )
         elif name == "CHANNEL_HANGUP_COMPLETE":
+            waiter = self.playback_waiters.pop(binding.fs_uuid, None)
+            if waiter is not None and not waiter.done():
+                waiter.set_exception(RuntimeError("call ended before playback completed"))
             cause = _event_value(event, "Hangup-Cause", "variable_hangup_cause") or "UNKNOWN"
             if cause in BUSY_CAUSES:
                 status = "busy"
@@ -455,7 +476,56 @@ class FreeswitchEslDriver:
         self.calls_by_id[call_id] = binding
         return binding
 
+    async def _start_recording_and_media_safely(
+        self,
+        binding: CallBinding,
+        *,
+        start_ai_media: bool = True,
+    ) -> None:
+        try:
+            await self._start_recording_and_media(binding, start_ai_media=start_ai_media)
+        except Exception as exc:
+            logger.exception("recording notice or media startup failed for call %s", binding.call_id)
+            await self._post_status(
+                binding,
+                "failed",
+                {"Event-Date-Timestamp": str(uuid4())},
+                hangup_reason=f"media startup failed: {exc}"[:500],
+            )
+            await self.client.api(f"uuid_kill {binding.fs_uuid} NORMAL_TEMPORARY_FAILURE")
+
     async def _start_recording_and_media(self, binding: CallBinding, *, start_ai_media: bool = True) -> None:
+        if (
+            bool(binding.metadata.get("recording_enabled", True))
+            and bool(binding.metadata.get("recording_notice", False))
+            and not binding.recording_path
+        ):
+            notice_text = _one_line(
+                binding.metadata.get("recording_notice_text")
+                or "本次通话可能会被录音，用于服务和质量管理。",
+                name="recording_notice_text",
+            )
+            notice_request = SpeakRequest(
+                call_id=binding.call_id,
+                text=notice_text,
+                language=str(binding.metadata.get("language") or "zh-CN"),
+                voice=str(binding.metadata.get("voice") or ""),
+                provider=str(binding.metadata.get("tts_provider") or ""),
+            )
+            notice_uri = await self._tts_media_uri(notice_request)
+            waiter = asyncio.get_running_loop().create_future()
+            self.playback_waiters[binding.fs_uuid] = waiter
+            await self._post_media(binding, "speaking", playback_id=f"notice:{binding.fs_uuid}")
+            await self.client.api(
+                f"uuid_broadcast {binding.fs_uuid} {_fs_argument(notice_uri)} both"
+            )
+            try:
+                await asyncio.wait_for(
+                    waiter,
+                    timeout=max(1.0, float(self.settings.freeswitch_playback_timeout_sec)),
+                )
+            finally:
+                self.playback_waiters.pop(binding.fs_uuid, None)
         if bool(binding.metadata.get("recording_enabled", True)) and not binding.recording_path:
             safe_call_id = re.sub(r"[^A-Za-z0-9_.-]", "_", binding.call_id)
             filename = f"{safe_call_id}-{binding.fs_uuid}.wav"
@@ -573,6 +643,7 @@ class FreeswitchEslDriver:
                 "channel_count": 1,
                 "duration_ms": duration_ms,
                 "provider": "freeswitch",
+                "attempt": binding.metadata.get("attempt"),
             },
         )
 
