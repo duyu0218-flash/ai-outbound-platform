@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import AsyncIterator
 
 import pytest
+from security_fixtures import SECURITY_SETTINGS
 
 from app.config import Settings
 from app.esl import EslClient, EslError, read_frame
@@ -71,13 +72,13 @@ def freeswitch_settings(**overrides) -> Settings:
     values = {
         "voice_gateway_driver": "freeswitch_esl",
         "freeswitch_esl_host": "fs.internal",
-        "freeswitch_esl_password": "test-password",
+        "freeswitch_esl_password": "synthetic-esl-" + "e" * 32,
         "freeswitch_gateway": "carrier",
         "freeswitch_caller_id": "02155550000",
         "freeswitch_tts_engine": "flite",
         "freeswitch_tts_voice": "slt",
         "freeswitch_recording_public_base_url": "https://recordings.example.test/calls",
-        "webhook_token": "callback-token",
+        **SECURITY_SETTINGS,
     }
     values.update(overrides)
     return Settings(**values)
@@ -176,7 +177,7 @@ def test_freeswitch_driver_dial_and_call_controls():
         await driver.post("hangup", {"call_id": "platform-call-1", "reason": "acceptance"})
         assert any(command.startswith(f"uuid_broadcast {binding.fs_uuid} speak:flite|slt|您好") for command in fake.api_commands)
         assert f"uuid_break {binding.fs_uuid} all" in fake.api_commands
-        assert f"uuid_transfer {binding.fs_uuid} agent_23 XML default" in fake.api_commands
+        assert f"uuid_transfer {binding.fs_uuid} agent_23 XML agent-restricted" in fake.api_commands
         assert f"uuid_kill {binding.fs_uuid} NORMAL_CLEARING" in fake.api_commands
         assert any(payload.get("state") == "speaking" for _, payload in callbacks)
 
@@ -415,9 +416,10 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
     settings.validate_runtime()
 
     notice_tts_settings = Settings(
+        **SECURITY_SETTINGS,
         voice_gateway_driver="freeswitch_esl",
         voice_ai_pipeline="pipecat",
-        freeswitch_esl_password="test-password",
+        freeswitch_esl_password="synthetic-esl-" + "e" * 32,
         freeswitch_gateway="carrier",
         pipecat_version="1.8.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",

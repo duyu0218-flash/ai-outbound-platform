@@ -92,6 +92,10 @@ class Settings(BaseSettings):
     # destinations that a compromised tenant credential is allowed to dial.
     outbound_allowed_phone_prefixes: str = ""
     outbound_daily_call_limit: int = 10_000
+    outbound_platform_max_concurrent: int = 20
+    voice_command_secret: str = ""
+    outbound_security_approval_token: str = ""
+    tenant_api_scopes_json: str = "{}"
 
     # Derived text and call PII have their own retention clocks in addition to
     # the media-object retention policy.

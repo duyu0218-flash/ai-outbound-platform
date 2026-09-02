@@ -223,7 +223,11 @@ services:
       VOICE_GATEWAY_DRIVER: ${VOICE_GATEWAY_DRIVER:-mock}
       VOICE_AI_PIPELINE: ${VOICE_AI_PIPELINE:-legacy}
       WEBHOOK_TOKEN: ${TELEPHONY_WEBHOOK_TOKEN:-}
+      WEBHOOK_SECRET: ${TELEPHONY_WEBHOOK_SECRET:-}
       SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
+      VOICE_SECURITY_DB_PATH: /var/lib/voice-security/ledger.sqlite3
+    volumes:
+      - voice_security_data:/var/lib/voice-security
     expose:
       - "8002"
     healthcheck:
@@ -239,3 +243,4 @@ services:
 volumes:
   postgres_data:
   recording_data:
+  voice_security_data:

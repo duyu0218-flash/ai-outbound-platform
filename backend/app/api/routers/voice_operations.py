@@ -333,6 +333,14 @@ async def accept_handoff(
         # A public queue item may carry the generic "default" target. Once a
         # concrete agent accepts it, always bridge to that exact media endpoint.
         transfer_target = f"agent:{current.id}"
+    from ...services.call_service import CallPermissionError, resolve_handoff_agent
+
+    try:
+        validated_agent_id = resolve_handoff_agent(session, tenant_id, transfer_target, claimed_agent_id)
+    except CallPermissionError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    transfer_target = f"agent:{validated_agent_id}"
+    claimed_agent_id = validated_agent_id
     claim_result = session.execute(
         update(HandoffRequest)
         .where(

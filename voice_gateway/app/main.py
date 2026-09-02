@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+import secrets
 
-from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, status
+from pydantic import BaseModel, Field
 from fastapi.responses import PlainTextResponse
 
 from .config import get_settings
@@ -26,12 +28,26 @@ driver = make_driver(settings)
 draining = False
 
 
-def require_service_token(authorization: str | None = Header(default=None)) -> None:
+async def require_service_token(request: Request, authorization: str | None = Header(default=None)) -> None:
     expected = settings.service_token.strip()
-    if not expected and settings.env.lower() not in {"prod", "production"}:
+    real = settings.voice_gateway_driver.strip().lower() != "mock"
+    if not expected and not real and settings.env.lower() not in {"prod", "production"}:
         return
-    if not expected or authorization != f"Bearer {expected}":
+    if not expected or not secrets.compare_digest(authorization or "", f"Bearer {expected}"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid service token")
+    if real and request.url.path.startswith("/v1/call/"):
+        ledger = getattr(driver, "ledger", None)
+        if ledger is None or not settings.voice_command_secret:
+            raise HTTPException(503, "signed voice command enforcement is not configured")
+        ledger.verify_command(settings.voice_command_secret, request.url.path, await request.body(), request.headers)
+
+
+async def require_security_admin(request: Request, authorization: str | None = Header(default=None)):
+    if settings.voice_gateway_driver == "mock":
+        return await require_service_token(request, authorization)
+    expected = settings.voice_security_admin_token
+    if not expected or not secrets.compare_digest(authorization or "", f"Bearer {expected}"):
+        raise HTTPException(403, "independent security administrator credential required")
 
 
 def require_metrics_token(authorization: str | None = Header(default=None)) -> None:
@@ -98,6 +114,12 @@ async def metrics() -> PlainTextResponse:
         f"ai_outbound_pipecat_session_capacity {settings.pipecat_max_active_sessions}",
         "",
     ])
+    ledger = getattr(driver, "ledger", None)
+    if ledger is not None:
+        summary = ledger.summary()
+        for name, value in summary.items():
+            metric_type = "counter" if name == "rejected_commands" else "gauge"
+            body += f"# TYPE ai_outbound_voice_security_{name} {metric_type}\nai_outbound_voice_security_{name} {int(value) if isinstance(value, bool) else value}\n"
     return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
@@ -117,7 +139,7 @@ async def dial(payload: DialRequest):
     return await driver.post("dial", payload.model_dump(mode="json"))
 
 
-@app.post("/v1/admin/drain", dependencies=[Depends(require_service_token)])
+@app.post("/v1/admin/drain", dependencies=[Depends(require_security_admin)])
 async def set_drain(enabled: bool = True):
     global draining
     draining = enabled
@@ -128,6 +150,28 @@ async def set_drain(enabled: bool = True):
         "active_calls": len(calls),
         "pipecat_active_sessions": len(pipecat_manager.sessions_by_call) if pipecat_manager else 0,
     }
+
+
+class SecurityStopRequest(BaseModel):
+    stopped: bool
+    reason: str = Field(min_length=1, max_length=300)
+
+
+@app.post("/v1/admin/security/stop", dependencies=[Depends(require_security_admin)])
+async def security_stop(payload: SecurityStopRequest):
+    ledger = getattr(driver, "ledger", None)
+    if ledger is None:
+        raise HTTPException(409, "security ledger requires real gateway driver")
+    ledger.set_stopped(payload.stopped, payload.reason)
+    return ledger.summary()
+
+
+@app.get("/v1/admin/security", dependencies=[Depends(require_security_admin)])
+async def security_status():
+    ledger = getattr(driver, "ledger", None)
+    if ledger is None:
+        raise HTTPException(409, "security ledger requires real gateway driver")
+    return ledger.summary()
 
 
 async def _media_action(action: str, payload: CallRequest | SpeakRequest):
@@ -159,3 +203,8 @@ async def transfer(payload: CallRequest):
 @app.post("/v1/call/hangup", dependencies=[Depends(require_service_token)])
 async def hangup(payload: CallRequest):
     return await _media_action("hangup", payload)
+
+
+@app.post("/v1/call/status", dependencies=[Depends(require_service_token)])
+async def call_status(payload: CallRequest):
+    return await _media_action("status", payload)

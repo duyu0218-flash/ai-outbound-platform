@@ -125,6 +125,6 @@ def get_tenant_max_concurrent_calls(session: Session, tenant_id: int) -> int:
         settings.max_concurrent_calls,
     )
     try:
-        return min(10_000, max(1, int(configured)))
+        return min(max(1, settings.outbound_platform_max_concurrent), max(1, int(configured)))
     except (TypeError, ValueError):
-        return max(1, int(settings.max_concurrent_calls))
+        return min(max(1, settings.outbound_platform_max_concurrent), max(1, int(settings.max_concurrent_calls)))

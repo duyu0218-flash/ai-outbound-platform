@@ -19,10 +19,12 @@ from app.config import Settings
 
 
 def aliyun_settings(**overrides) -> Settings:
+    from security_fixtures import SECURITY_SETTINGS
     values = {
+        **SECURITY_SETTINGS,
         "voice_gateway_driver": "freeswitch_esl",
         "voice_ai_pipeline": "pipecat",
-        "freeswitch_esl_password": "test-password",
+        "freeswitch_esl_password": "synthetic-esl-" + "e" * 32,
         "freeswitch_gateway": "carrier",
         "freeswitch_tts_engine": "flite",
         "freeswitch_tts_voice": "slt",

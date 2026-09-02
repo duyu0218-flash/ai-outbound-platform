@@ -1,5 +1,6 @@
 """Destructive-to-synthetic-calls-only fault checks, run inside media-probe."""
 import asyncio
+import hashlib
 import argparse
 import json
 import time
@@ -15,8 +16,9 @@ async def main(peer_repeats=1):
     report = {'synthetic_only': True, 'real_human_transfer': 'unverified',
               'peer_hangup_repetitions': peer_repeats, 'checks': []}
     counters = ('active_sessions', 'active_bindings', 'active_tokens', 'active_lifecycles', 'active_sockets', 'notice_waiters')
+    service_token = hashlib.sha256((secret + ':probe-service').encode()).hexdigest()
     async with httpx.AsyncClient(base_url='http://127.0.0.1:8002',
-                                headers={'Authorization': f'Bearer {secret}'}, timeout=10) as client:
+                                headers={'Authorization': f'Bearer {service_token}'}, timeout=10) as client:
         async def post(path, payload=None):
             response = await client.post(path, json=payload or {})
             response.raise_for_status()
@@ -60,7 +62,7 @@ async def main(peer_repeats=1):
                 elif mode == 'remote_hangup':
                     await esl.api(f'uuid_kill {fs_uuid} NORMAL_CLEARING')
                 elif mode in {'transfer', 'notice_transfer'}:
-                    await post('/v1/call/transfer', {'call_id': call_id, 'target_group': 'handoff-probe'})
+                    await post('/v1/call/transfer', {'call_id': call_id, 'target_group': 'agent:1'})
                     state = await wait(lambda s: s['active_sessions'] == 0 and s['active_lifecycles'] == 0 and s['notice_waiters'] == 0)
                     assert (await esl.api(f'uuid_exists {fs_uuid}')).strip() == 'true', 'handoff killed customer leg'
                     bugs = await esl.api(f'uuid_buglist {fs_uuid}')

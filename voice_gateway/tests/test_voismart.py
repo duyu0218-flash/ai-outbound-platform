@@ -10,13 +10,15 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection
 
 from app.config import Settings
+from security_fixtures import SECURITY_SETTINGS
 from app.esl import EslError
 from app.freeswitch import CallBinding, FreeswitchEslDriver, EVENT_NAMES
 from app.pipecat_pipeline import RawPcmSerializer, PipecatPipelineManager, MediaStateWebhookProcessor, TranscriptWebhookProcessor
 
 
 def settings(**overrides):
-    return Settings(_env_file=None, voice_gateway_driver='freeswitch_esl', voice_ai_pipeline='pipecat',
+    return Settings(_env_file=None, **SECURITY_SETTINGS, voice_gateway_driver='freeswitch_esl', voice_ai_pipeline='pipecat',
+                    freeswitch_esl_password='synthetic-esl-' + 'e' * 32,
                     freeswitch_gateway='carrier', freeswitch_tts_engine='flite', freeswitch_tts_voice='slt',
                     pipecat_version='1.8.1', pipecat_media_protocol='voismart',
                     pipecat_media_ws_base='ws://gateway/v1/pipecat/media', pipecat_openai_api_key='test', **overrides)

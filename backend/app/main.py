@@ -130,6 +130,14 @@ def _validate_production_runtime() -> None:
         issues.append("TELEPHONY_WEBHOOK_SECRET")
     if weak_secret(settings.telephony_service_token, 24):
         issues.append("TELEPHONY_SERVICE_TOKEN")
+    if weak_secret(settings.voice_command_secret, 32):
+        issues.append("VOICE_COMMAND_SECRET")
+    if weak_secret(settings.outbound_security_approval_token, 32):
+        issues.append("OUTBOUND_SECURITY_APPROVAL_TOKEN")
+    voice_secrets = [settings.telephony_service_token, settings.voice_command_secret,
+                     settings.telephony_webhook_secret, settings.outbound_security_approval_token]
+    if len(set(voice_secrets)) != len(voice_secrets):
+        issues.append("voice security secrets must be distinct")
     if weak_secret(settings.ai_agent_service_token, 24):
         issues.append("AI_AGENT_SERVICE_TOKEN")
     if settings.ai_agent_service_token and settings.ai_agent_service_token == settings.telephony_service_token:

@@ -63,13 +63,32 @@ def check_api_key(
     )
     if matched_tenant is not None:
         request.state.api_tenant_id = matched_tenant
+        _check_machine_scope(request, matched_tenant)
         return
     # Legacy keys remain supported, but are deliberately scoped to the default
     # tenant instead of trusting a caller-controlled x-tenant-id header.
     if _secure_equals(x_api_key, settings.api_key) or _secure_equals(x_api_key, settings.ui_api_key):
         request.state.api_tenant_id = settings.default_tenant_id
+        _check_machine_scope(request, settings.default_tenant_id)
         return
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key")
+
+
+def _check_machine_scope(request: Request, tenant_id: int) -> None:
+    """Production machine keys are read-only unless ops grants exact scopes."""
+    if settings.env.lower() not in {"prod", "production"} or request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    try:
+        config = json.loads(settings.tenant_api_scopes_json)
+        scopes = config.get(str(tenant_id), [])
+        if not isinstance(scopes, list) or not all(isinstance(s, str) for s in scopes):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(503, "machine API scope configuration invalid") from None
+    path = request.url.path.removeprefix("/api/v1/").strip("/")
+    scope = "calls:dial" if path == "calls" else "calls:control" if path.startswith("calls/") else f"{path.split('/')[0]}:write"
+    if scope not in scopes:
+        raise HTTPException(403, f"machine API key lacks scope: {scope}")
 
 
 def get_tenant_id(x_tenant_id: int | None = Header(default=None, alias="x-tenant-id")) -> int:
