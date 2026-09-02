@@ -85,12 +85,10 @@ def ingest_speech_turn(
             call_session_id=call.id,
             stage="asr.final" if payload.is_final else "asr.partial",
             provider=payload.asr_provider,
-            duration_ms=max(0, payload.end_ms - payload.start_ms)
-            if payload.start_ms is not None and payload.end_ms is not None
-            else None,
+            duration_ms=payload.latency_ms,
             success=bool(normalized) if payload.is_final else True,
             error_code="EMPTY_FINAL_TRANSCRIPT" if payload.is_final and not normalized else None,
-            detail=f"confidence={payload.confidence}" if payload.confidence is not None else "",
+            detail=_speech_metric_detail(payload),
         )
     )
     session.add(
@@ -121,6 +119,15 @@ def ingest_speech_turn(
         return existing, True
     session.refresh(turn)
     return turn, False
+
+
+def _speech_metric_detail(payload: SpeechWebhookEvent) -> str:
+    details: list[str] = []
+    if payload.confidence is not None:
+        details.append(f"confidence={payload.confidence}")
+    if payload.start_ms is not None and payload.end_ms is not None:
+        details.append(f"audio_span_ms={max(0, payload.end_ms - payload.start_ms)}")
+    return ";".join(details)
 
 
 def apply_media_event(session: Session, call: CallSession, payload: MediaWebhookEvent) -> RealtimeSession:

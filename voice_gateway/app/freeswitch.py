@@ -30,8 +30,15 @@ EVENT_NAMES = (
     "CHANNEL_BRIDGE",
     "CHANNEL_UNBRIDGE",
     "CHANNEL_EXECUTE_COMPLETE",
+    "CHANNEL_HANGUP",
     "CHANNEL_HANGUP_COMPLETE",
     "BACKGROUND_JOB",
+    "CUSTOM",
+    "mod_openai_audio_stream::connect",
+    "mod_openai_audio_stream::disconnect",
+    "mod_openai_audio_stream::error",
+    "mod_openai_audio_stream::openai_speech_start",
+    "mod_openai_audio_stream::openai_speech_stop",
 )
 
 BUSY_CAUSES = {"USER_BUSY", "CALL_REJECTED"}
@@ -101,6 +108,9 @@ class CallBinding:
     human_connected: bool = False
     voice_ai_pipeline: str = "legacy"
     pipeline_session_id: str = ""
+    media_started: bool = False
+    ai_stopped: bool = False
+    media_failure_reason: str = ""
 
 
 class FreeswitchEslDriver:
@@ -122,6 +132,7 @@ class FreeswitchEslDriver:
         self.jobs: dict[str, CallBinding] = {}
         self.playback_waiters: dict[str, asyncio.Future[None]] = {}
         self.listener_task: asyncio.Task[None] | None = None
+        self.media_tasks: dict[str, asyncio.Task[None]] = {}
         self.pipecat_manager = pipecat_manager or (
             PipecatPipelineManager(settings)
             if settings.voice_ai_pipeline.strip().lower() in {"pipecat", "hybrid"}
@@ -147,6 +158,8 @@ class FreeswitchEslDriver:
             self.listener_task = asyncio.create_task(self._listen_forever(), name="freeswitch-esl-events")
 
     async def stop(self) -> None:
+        for binding in list(self.calls_by_id.values()):
+            await self._stop_ai_media(binding)
         if self.pipecat_manager is not None:
             for call_id in list(self.pipecat_manager.sessions_by_call):
                 await self.pipecat_manager.close(call_id)
@@ -164,6 +177,10 @@ class FreeswitchEslDriver:
             response = await self.client.api("status")
             esl_ready = bool(response) and "-ERR" not in response
             pipeline_ready = self.pipecat_manager is None or self.pipecat_manager.ready()
+            if self.pipecat_manager is not None and self.settings.pipecat_media_protocol == "voismart":
+                pipeline_ready = pipeline_ready and (
+                    await self.client.api("module_exists mod_openai_audio_stream")
+                ).strip().lower() == "true"
             return esl_ready and pipeline_ready
         except (EslError, OSError, asyncio.TimeoutError):
             return False
@@ -337,8 +354,8 @@ class FreeswitchEslDriver:
             destination = target_group
         destination = _safe_name(destination, name="transfer_destination")
         context = _safe_name(self.settings.freeswitch_dialplan_context, name="dialplan_context")
-        await self.client.api(f"uuid_break {binding.fs_uuid} all")
         await self._stop_ai_media(binding)
+        await self.client.api(f"uuid_break {binding.fs_uuid} all")
         binding.metadata["human_target"] = target_group
         binding.human_connected = False
         await self.client.api(f"uuid_transfer {binding.fs_uuid} {destination} XML {context}")
@@ -390,34 +407,34 @@ class FreeswitchEslDriver:
                 await self._post_status(binding, "agent_answered", event)
             else:
                 await self._post_status(binding, "answered", event)
-                if bool(binding.metadata.get("recording_notice", False)):
-                    asyncio.create_task(
-                        self._start_recording_and_media_safely(binding),
-                        name=f"start-media-{binding.call_id}",
-                    )
-                else:
-                    await self._start_recording_and_media(binding)
+                self._schedule_media(binding)
         elif name == "CHANNEL_BRIDGE":
             if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
                 binding.human_connected = True
                 await self._post_status(binding, "human_connected", event)
-                if bool(binding.metadata.get("recording_notice", False)):
-                    asyncio.create_task(
-                        self._start_recording_and_media_safely(binding, start_ai_media=False),
-                        name=f"start-human-media-{binding.call_id}",
-                    )
-                else:
-                    await self._start_recording_and_media(binding, start_ai_media=False)
+                self._schedule_media(binding, start_ai_media=False)
         elif name == "CHANNEL_UNBRIDGE":
             if binding.metadata.get("human_target") or binding.metadata.get("human_agent_id"):
                 await self._post_status(binding, "human_disconnected", event)
+        elif name == "CUSTOM":
+            prefix = "mod_openai_audio_stream::"
+            subclass = _event_value(event, "Event-Subclass")
+            if (not binding.ai_stopped and binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None
+                    and subclass.startswith(prefix)):
+                stamp = _event_value(event, "Event-Date-Timestamp")
+                await self.pipecat_manager.handle_module_event(
+                    binding.call_id, subclass[len(prefix):], int(stamp) if stamp.isdigit() else 0,
+                )
         elif name == "CHANNEL_EXECUTE_COMPLETE":
             application = _event_value(event, "Application", "variable_current_application").lower()
             if application in {"playback", "speak"}:
                 waiter = self.playback_waiters.pop(binding.fs_uuid, None)
                 if waiter is not None and not waiter.done():
                     waiter.set_result(None)
-                await self._post_media(binding, "listening", event=event)
+                # The silence-stream clock is not a TTS completion. For VoiSmart,
+                # only its custom playout events can report speech drain.
+                if waiter is not None or binding.voice_ai_pipeline != "pipecat" or self.settings.pipecat_media_protocol != "voismart":
+                    await self._post_media(binding, "listening", event=event)
             if application == "bridge" and binding.metadata.get("human_target") and not binding.human_connected:
                 response = _event_value(event, "Application-Response", "variable_originate_disposition")
                 await self._post_status(
@@ -426,10 +443,19 @@ class FreeswitchEslDriver:
                     event,
                     hangup_reason=response or "agent did not answer",
                 )
+        elif name == "CHANNEL_HANGUP":
+            # The peer may hang up without using our HTTP API. FS emits this
+            # before module teardown; COMPLETE comes only after media closes.
+            if self.pipecat_manager is not None:
+                session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+                if session is not None:
+                    session.closing = True
+            await self._cancel_media_task(binding)
         elif name == "CHANNEL_HANGUP_COMPLETE":
+            await self._cancel_media_task(binding)
             waiter = self.playback_waiters.pop(binding.fs_uuid, None)
             if waiter is not None and not waiter.done():
-                waiter.set_exception(RuntimeError("call ended before playback completed"))
+                waiter.cancel()
             cause = _event_value(event, "Hangup-Cause", "variable_hangup_cause") or "UNKNOWN"
             if cause in BUSY_CAUSES:
                 status = "busy"
@@ -439,7 +465,8 @@ class FreeswitchEslDriver:
                 status = "ended"
             else:
                 status = "failed"
-            await self._post_status(binding, status, event, hangup_reason=cause)
+            if not binding.media_failure_reason:
+                await self._post_status(binding, status, event, hangup_reason=cause)
             if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
                 await self.pipecat_manager.close(binding.call_id)
             else:
@@ -447,6 +474,9 @@ class FreeswitchEslDriver:
             await self._post_recording(binding)
             self.calls_by_uuid.pop(binding.fs_uuid, None)
             self.calls_by_id.pop(binding.call_id, None)
+            for job_id, job_binding in list(self.jobs.items()):
+                if job_binding is binding:
+                    self.jobs.pop(job_id, None)
 
     def _binding_from_event(self, event: dict[str, object]) -> CallBinding | None:
         fs_uuid = _event_value(event, "Unique-ID", "Channel-Call-UUID", "variable_origination_uuid")
@@ -476,6 +506,36 @@ class FreeswitchEslDriver:
         self.calls_by_id[call_id] = binding
         return binding
 
+    def _schedule_media(self, binding: CallBinding, *, start_ai_media: bool = True) -> None:
+        if (start_ai_media and binding.ai_stopped) or binding.call_id in self.media_tasks:
+            return
+        task = asyncio.create_task(
+            self._start_recording_and_media_safely(binding, start_ai_media=start_ai_media),
+            name=f"media-lifecycle-{binding.call_id}",
+        )
+        self.media_tasks[binding.call_id] = task
+
+        def finished(done: asyncio.Task[None]) -> None:
+            if self.media_tasks.get(binding.call_id) is done:
+                self.media_tasks.pop(binding.call_id, None)
+            if not done.cancelled() and done.exception() is not None:
+                logger.error("media lifecycle cleanup failed for call %s", binding.call_id,
+                             exc_info=done.exception())
+
+        task.add_done_callback(finished)
+
+    async def _cancel_media_task(self, binding: CallBinding) -> None:
+        # Set before awaiting: late CUSTOM/ANSWER events must not restart AI or
+        # classify our own stop/transfer as an unexpected media disconnection.
+        binding.ai_stopped = True
+        task = self.media_tasks.pop(binding.call_id, None)
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
     async def _start_recording_and_media_safely(
         self,
         binding: CallBinding,
@@ -484,15 +544,43 @@ class FreeswitchEslDriver:
     ) -> None:
         try:
             await self._start_recording_and_media(binding, start_ai_media=start_ai_media)
+            if start_ai_media and binding.voice_ai_pipeline == "pipecat":
+                session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+                if session is None:
+                    raise RuntimeError("MEDIA_PIPELINE_CLOSED_DURING_STARTUP")
+                try:
+                    await asyncio.wait_for(session.startup_complete.wait(),
+                                           timeout=self.settings.pipecat_media_connect_timeout_sec)
+                except asyncio.TimeoutError:
+                    session.media_error_code = "MEDIA_CONNECT_TIMEOUT"
+                    raise RuntimeError("MEDIA_CONNECT_TIMEOUT") from None
+                await session.terminated.wait()
+                if not binding.ai_stopped:
+                    # WebSocket and ESL events arrive on different sockets.
+                    # Do not infer call failure from their relative arrival.
+                    exists = await self.client.api(f"uuid_exists {binding.fs_uuid}")
+                    if binding.ai_stopped or exists.strip().lower() == "false":
+                        return  # HANGUP_COMPLETE owns the terminal call status.
+                    raise RuntimeError(session.media_error_code or "MEDIA_DISCONNECTED")
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
-            logger.exception("recording notice or media startup failed for call %s", binding.call_id)
-            await self._post_status(
-                binding,
-                "failed",
-                {"Event-Date-Timestamp": str(uuid4())},
-                hangup_reason=f"media startup failed: {exc}"[:500],
-            )
-            await self.client.api(f"uuid_kill {binding.fs_uuid} NORMAL_TEMPORARY_FAILURE")
+            if not binding.ai_stopped:
+                # Never persist exception text: module commands can contain a
+                # bearer media token. Stop the channel before slow callbacks.
+                reason = str(exc) if str(exc) in {
+                    "MEDIA_CONNECT_TIMEOUT", "MEDIA_DISCONNECTED", "MEDIA_MODULE_ERROR",
+                    "MEDIA_PIPELINE_ERROR", "MEDIA_PIPELINE_CLOSED_DURING_STARTUP",
+                } else "MEDIA_STARTUP_FAILED"
+                binding.media_failure_reason = reason
+                logger.warning("media failed for call %s: %s", binding.call_id, reason)
+                try:
+                    await self._stop_ai_media(binding, notify=False)
+                finally:
+                    try:
+                        await self.client.api(f"uuid_kill {binding.fs_uuid} NORMAL_TEMPORARY_FAILURE")
+                    finally:
+                        await self._post_status(binding, "failed", {}, hangup_reason=reason)
 
     async def _start_recording_and_media(self, binding: CallBinding, *, start_ai_media: bool = True) -> None:
         if (
@@ -515,17 +603,19 @@ class FreeswitchEslDriver:
             notice_uri = await self._tts_media_uri(notice_request)
             waiter = asyncio.get_running_loop().create_future()
             self.playback_waiters[binding.fs_uuid] = waiter
-            await self._post_media(binding, "speaking", playback_id=f"notice:{binding.fs_uuid}")
-            await self.client.api(
-                f"uuid_broadcast {binding.fs_uuid} {_fs_argument(notice_uri)} both"
-            )
             try:
+                await self._post_media(binding, "speaking", playback_id=f"notice:{binding.fs_uuid}")
+                await self.client.api(
+                    f"uuid_broadcast {binding.fs_uuid} {_fs_argument(notice_uri)} both"
+                )
                 await asyncio.wait_for(
                     waiter,
                     timeout=max(1.0, float(self.settings.freeswitch_playback_timeout_sec)),
                 )
             finally:
                 self.playback_waiters.pop(binding.fs_uuid, None)
+                if not waiter.done():
+                    waiter.cancel()
         if bool(binding.metadata.get("recording_enabled", True)) and not binding.recording_path:
             safe_call_id = re.sub(r"[^A-Za-z0-9_.-]", "_", binding.call_id)
             filename = f"{safe_call_id}-{binding.fs_uuid}.wav"
@@ -555,6 +645,8 @@ class FreeswitchEslDriver:
         await self._post_media(binding, "listening")
 
     async def _start_pipecat_media(self, binding: CallBinding) -> None:
+        if binding.media_started or binding.ai_stopped:
+            return
         if self.pipecat_manager is None:
             raise RuntimeError("Pipecat pipeline manager is unavailable")
         session = await self.pipecat_manager.create_session(
@@ -564,7 +656,11 @@ class FreeswitchEslDriver:
             metadata=binding.metadata,
         )
         binding.pipeline_session_id = session.session_id
-        command = self.settings.freeswitch_pipecat_start_command_template.format(
+        voismart = self.settings.pipecat_media_protocol == "voismart"
+        template = self.settings.freeswitch_pipecat_start_command_template.strip()
+        if voismart and not template:
+            template = "uuid_raw_audio_stream {uuid} start {media_ws_url} mono {sample_rate} {sample_rate}"
+        command = template.format(
             uuid=binding.fs_uuid,
             call_id=binding.call_id,
             session_id=session.session_id,
@@ -574,23 +670,55 @@ class FreeswitchEslDriver:
             codec="pcm_s16le",
         )
         try:
+            if voismart:
+                for variable in ("STREAM_DISABLE_AUDIOFILES", "STREAM_NO_RECONNECT", "STREAM_SUPPRESS_LOG"):
+                    await self.client.api(f"uuid_setvar {binding.fs_uuid} {variable} true")
+            # A cancelled API response can still have started the FS module.
+            # Mark cleanup necessary BEFORE issuing the start command.
+            binding.media_started = True
             await self.client.api(_one_line(command, name="pipecat_media_start_command"))
+            if voismart:
+                # park() alone has no write clock. Keep the media bug fed after
+                # the compliance notice has completed, on the customer leg only.
+                await self.client.api(f"uuid_broadcast {binding.fs_uuid} silence_stream://-1 aleg")
         except Exception:
+            if binding.media_started and voismart:
+                try:
+                    await self.client.api(f"uuid_raw_audio_stream {binding.fs_uuid} stop")
+                except EslError:
+                    logger.warning("media cleanup failed for call %s", binding.call_id)
+            binding.media_started = False
             await self.pipecat_manager.close(binding.call_id, notify=False)
             if not self.settings.pipecat_fallback_to_legacy:
                 raise
-            logger.exception("Pipecat media start failed; explicitly falling back to legacy")
+            logger.warning("Pipecat media start failed; explicitly falling back to legacy")
             binding.voice_ai_pipeline = "legacy"
             binding.pipeline_session_id = ""
             await self._start_legacy_media(binding)
 
-    async def _stop_ai_media(self, binding: CallBinding) -> None:
-        if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
-            await self.pipecat_manager.close(binding.call_id)
+    async def _stop_ai_media(self, binding: CallBinding, *, notify: bool = True) -> None:
+        if self.pipecat_manager is not None:
+            session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+            if session is not None:
+                session.closing = True
+        await self._cancel_media_task(binding)
         stop_template = self.settings.freeswitch_media_stop_command_template.strip()
-        if stop_template:
-            stop_command = stop_template.format(uuid=binding.fs_uuid, call_id=binding.call_id)
-            await self.client.api(_one_line(stop_command, name="media_stop_command"))
+        voismart = binding.voice_ai_pipeline == "pipecat" and self.settings.pipecat_media_protocol == "voismart"
+        if voismart:
+            stop_template = "uuid_raw_audio_stream {uuid} stop" if binding.media_started else ""
+        try:
+            if stop_template:
+                stop_command = stop_template.format(uuid=binding.fs_uuid, call_id=binding.call_id)
+                try:
+                    await self.client.api(_one_line(stop_command, name="media_stop_command"))
+                except EslError:
+                    if not voismart:
+                        raise
+                    logger.warning("media module was already stopped for call %s", binding.call_id)
+        finally:
+            binding.media_started = False
+            if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
+                await self.pipecat_manager.close(binding.call_id, notify=notify)
 
     async def _post_status(
         self,

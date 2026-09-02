@@ -6,6 +6,7 @@ from fastapi.responses import PlainTextResponse
 from .config import get_settings
 from .drivers import make_driver
 from .models import CallRequest, DialRequest, SpeakRequest
+from .pipecat_pipeline import MediaPlaybackBusyError
 
 settings = get_settings()
 
@@ -50,8 +51,13 @@ def health():
         "draining": draining,
         "driver": settings.voice_gateway_driver,
         "voice_ai_pipeline": settings.voice_ai_pipeline,
+        "media_protocol": settings.pipecat_media_protocol,
         "pipecat_version": settings.pipecat_version if settings.voice_ai_pipeline in {"pipecat", "hybrid"} else "",
+        "pipecat_stt_provider": settings.pipecat_stt_provider
+        if settings.voice_ai_pipeline in {"pipecat", "hybrid"}
+        else "",
         "pipecat_active_sessions": len(pipecat_manager.sessions_by_call) if pipecat_manager else 0,
+        "pipecat_max_active_sessions": settings.pipecat_max_active_sessions,
         "rtp_port_range": [settings.rtp_port_start, settings.rtp_port_end],
     }
 
@@ -87,6 +93,9 @@ async def metrics() -> PlainTextResponse:
         "# HELP ai_outbound_pipecat_sessions Active Pipecat sessions in this process.",
         "# TYPE ai_outbound_pipecat_sessions gauge",
         f"ai_outbound_pipecat_sessions {len(pipecat_manager.sessions_by_call) if pipecat_manager else 0}",
+        "# HELP ai_outbound_pipecat_session_capacity Configured Pipecat session hard limit.",
+        "# TYPE ai_outbound_pipecat_session_capacity gauge",
+        f"ai_outbound_pipecat_session_capacity {settings.pipecat_max_active_sessions}",
         "",
     ])
     return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")
@@ -121,21 +130,32 @@ async def set_drain(enabled: bool = True):
     }
 
 
+async def _media_action(action: str, payload: CallRequest | SpeakRequest):
+    try:
+        return await driver.post(action, payload.model_dump())
+    except MediaPlaybackBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call or media session is no longer active") from exc
+    except TimeoutError as exc:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="media operation did not complete in time") from exc
+
+
 @app.post("/v1/call/speak", dependencies=[Depends(require_service_token)])
 async def speak(payload: SpeakRequest):
-    return await driver.post("speak", payload.model_dump())
+    return await _media_action("speak", payload)
 
 
 @app.post("/v1/call/stop-speaking", dependencies=[Depends(require_service_token)])
 async def stop_speaking(payload: CallRequest):
-    return await driver.post("stop-speaking", payload.model_dump())
+    return await _media_action("stop-speaking", payload)
 
 
 @app.post("/v1/call/transfer", dependencies=[Depends(require_service_token)])
 async def transfer(payload: CallRequest):
-    return await driver.post("transfer", payload.model_dump())
+    return await _media_action("transfer", payload)
 
 
 @app.post("/v1/call/hangup", dependencies=[Depends(require_service_token)])
 async def hangup(payload: CallRequest):
-    return await driver.post("hangup", payload.model_dump())
+    return await _media_action("hangup", payload)

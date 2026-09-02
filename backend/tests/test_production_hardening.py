@@ -262,6 +262,7 @@ def test_p0_realtime_speech_is_idempotent_and_final_only_is_structured(client: T
         "confidence": 0.94,
         "start_ms": 120,
         "end_ms": 2380,
+        "latency_ms": 180,
     }
     assert client.post("/api/v1/webhooks/telephony/speech", json=final).status_code == 200
     turns = client.get(f"/api/v1/calls/{call_id}/speech-turns", headers=_bearer(token))
@@ -290,6 +291,9 @@ def test_p0_realtime_speech_is_idempotent_and_final_only_is_structured(client: T
     assert realtime.json()["state"] == "speaking"
     metrics = client.get(f"/api/v1/calls/{call_id}/metrics", headers=_bearer(token))
     assert any(item["stage"] == "media.speaking" for item in metrics.json())
+    asr_final = next(item for item in metrics.json() if item["stage"] == "asr.final")
+    assert asr_final["duration_ms"] == 180
+    assert "audio_span_ms=2260" in asr_final["detail"]
 
 
 def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):

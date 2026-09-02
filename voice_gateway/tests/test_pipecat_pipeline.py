@@ -107,11 +107,52 @@ def test_pipecat_interim_transcript_does_not_trigger_final_turn():
             FrameDirection.DOWNSTREAM,
         )
         await processor.process_frame(
-            TranscriptionFrame(text="你好", user_id="caller", timestamp="2"),
+            TranscriptionFrame(
+                text="你好",
+                user_id="caller",
+                timestamp="2",
+                result={
+                    "provider_event_id": "aliyun-final-1",
+                    "confidence": 0.92,
+                    "start_ms": 100,
+                    "end_ms": 900,
+                    "latency_ms": 75,
+                },
+            ),
             FrameDirection.DOWNSTREAM,
         )
         assert [item["is_final"] for item in captured] == [False, True]
         assert [item["barge_in"] for item in captured] == [True, True]
+        assert captured[1]["event_id"] == "aliyun-final-1"
+        assert captured[1]["confidence"] == 0.92
+        assert (captured[1]["start_ms"], captured[1]["end_ms"]) == (100, 900)
+        assert captured[1]["latency_ms"] == 75
         assert processor.user_is_speaking is False
+
+    asyncio.run(scenario())
+
+
+def test_pipecat_session_capacity_is_enforced():
+    async def scenario():
+        settings = pipecat_settings()
+        settings.pipecat_max_active_sessions = 1
+        manager = PipecatPipelineManager(settings)
+        await manager.create_session(
+            call_id="call-capacity-1",
+            speech_webhook_url="",
+            media_webhook_url="",
+            metadata={},
+        )
+        try:
+            await manager.create_session(
+                call_id="call-capacity-2",
+                speech_webhook_url="",
+                media_webhook_url="",
+                metadata={},
+            )
+        except RuntimeError as exc:
+            assert "capacity" in str(exc)
+        else:
+            raise AssertionError("expected Pipecat capacity rejection")
 
     asyncio.run(scenario())

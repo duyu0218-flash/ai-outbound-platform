@@ -1,0 +1,66 @@
+# Add to the existing local Compose project. No database/data-volume changes.
+# Run build-voismart.sh and create .secrets/voismart-esl-password first.
+services:
+  freeswitch-media:
+    image: ai-freeswitch-voismart:2.5.1
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-freeswitch-media
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    tmpfs: ["/tmp:rw,nosuid,size=256m,uid=10001,gid=10001"]
+    entrypoint: ["python3", "/opt/media-config/entrypoint.py"]
+    environment:
+      MEDIA_ESL_ALLOWED_CIDR: ${MEDIA_ESL_ALLOWED_CIDR:?Set the private Docker project subnet}
+    volumes:
+      - ./deploy/freeswitch-voismart:/opt/media-config:ro
+      - media_test_recordings:/recordings
+    secrets: [voismart_esl_password]
+    expose: ["8021"]
+    healthcheck:
+      test: ["CMD", "python3", "/opt/media-config/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Same gateway code, real ESL/WebSocket/Pipecat; only ASR/TTS are replaced by
+  # explicit synthetic test processors. This does NOT replace business gateway.
+  media-probe:
+    image: ai-voice-gateway:latest
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-media-probe
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    tmpfs: ["/tmp:rw,nosuid,size=128m,uid=10001,gid=10001"]
+    environment:
+      ENV: dev
+      PYTHONPATH: /app
+      FREESWITCH_ESL_HOST: freeswitch-media
+    command: ["uvicorn", "media_probe_app:app", "--host", "0.0.0.0", "--port", "8002", "--app-dir", "/opt/media-test", "--no-access-log"]
+    volumes:
+      - ./voice_gateway/app:/app/app:ro
+      - ./scripts/media_probe_app.py:/opt/media-test/media_probe_app.py:ro
+      - ./scripts/verify_voismart_media.py:/opt/media-test/verify_voismart_media.py:ro
+      - ./scripts/verify_media_lifecycle.py:/opt/media-test/verify_media_lifecycle.py:ro
+      - media_test_recordings:/recordings:ro
+    secrets: [voismart_esl_password]
+    ports: ["127.0.0.1:18002:8002"]
+    depends_on:
+      freeswitch-media:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+secrets:
+  voismart_esl_password:
+    file: ./.secrets/voismart-esl-password
+volumes:
+  media_test_recordings:
