@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import time
 from secrets import token_urlsafe
 from datetime import datetime, timedelta, timezone
@@ -122,6 +123,9 @@ def can_call_contact_sync(
     ).first()
 
     allowed_prefixes = _allowed_phone_prefixes(compliance)
+    platform_prefixes = tuple(p.strip() for p in settings.outbound_allowed_phone_prefixes.split(",") if p.strip())
+    if platform_prefixes and not any(normalized.startswith(p) for p in platform_prefixes):
+        return False, "platform_destination_not_allowed"
     if allowed_prefixes and not any(normalized.startswith(prefix) for prefix in allowed_prefixes):
         return False, "destination_not_allowed"
 
@@ -284,7 +288,7 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     compliance = get_admin_setting(session, call.tenant_id, "compliance")
     daily_limit = max(
         1,
-        min(10_000_000, int(compliance.get("max_calls_per_day") or settings.outbound_daily_call_limit)),
+        min(settings.outbound_daily_call_limit, int(compliance.get("max_calls_per_day") or settings.outbound_daily_call_limit)),
     )
     try:
         tenant_zone = ZoneInfo(str(compliance.get("timezone") or "Asia/Shanghai"))
@@ -745,6 +749,21 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         if call is None:
             raise NotFoundError("call not found")
     except Exception as exc:
+        # An HTTP timeout/5xx can happen AFTER PBX admission. Keep the active
+        # reservation until reconciliation confirms that the channel ended.
+        from .telephony import HttpAdapter
+
+        import httpx
+
+        definitive_rejection = (isinstance(exc, httpx.HTTPStatusError)
+                                and exc.response.status_code in {400, 401, 403, 404, 422, 429}
+                                and not getattr(exc, "telephony_outcome_unknown", False))
+        if isinstance(adapter, HttpAdapter) and not definitive_rejection:
+            _set_call_if_status_in(session, call_id=str(call.id), expected_attempt=claimed_attempt,
+                                  allowed_statuses={CallStatus.DIALING},
+                                  last_error="dial outcome unknown; awaiting PBX reconciliation", updated_at=_now())
+            session.refresh(call)
+            return call, True
         _set_call_if_status_in(
             session,
             call_id=str(call.id),
@@ -768,6 +787,22 @@ async def place_call(session: Session, call: CallSession) -> CallSession:
     return call
 
 
+def resolve_handoff_agent(session: Session, tenant_id: int, target_group: str | None,
+                          human_agent_id: int | None = None) -> int:
+    if target_group and target_group != "default":
+        match = re.fullmatch(r"agent:([1-9][0-9]*)", target_group)
+        if not match:
+            raise CallPermissionError("transfer target must be an authorized agent ID")
+        target_id = int(match.group(1))
+        if human_agent_id is not None and human_agent_id != target_id:
+            raise CallPermissionError("transfer target does not match assigned agent")
+        human_agent_id = target_id
+    agent = session.get(User, human_agent_id) if human_agent_id is not None else None
+    if agent is None or agent.tenant_id != tenant_id or agent.role != "agent" or not agent.enabled:
+        raise CallPermissionError("assigned agent is not available in this tenant")
+    return int(agent.id)
+
+
 async def handover_to_human(
     session: Session,
     *,
@@ -778,10 +813,9 @@ async def handover_to_human(
     human_agent_id: int | None = None,
 ) -> CallSession:
     call = get_call(session, tenant_id, call_id)
-    assigned_agent = session.get(User, human_agent_id) if human_agent_id is not None else None
-    if assigned_agent is not None:
-        if assigned_agent.tenant_id != tenant_id or assigned_agent.role != "agent" or not assigned_agent.enabled:
-            raise CallPermissionError("assigned agent is not available")
+    human_agent_id = resolve_handoff_agent(session, tenant_id, target_group, human_agent_id)
+    assigned_agent = session.get(User, human_agent_id)
+    target_group = f"agent:{human_agent_id}"
     if not _set_call_if_status_in_uuid(
         session,
         call_id=call.id,
@@ -807,7 +841,7 @@ async def handover_to_human(
             session,
             call_id=call.id,
             allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
-            status=CallStatus.FAILED,
+            status=CallStatus.WAITING_HUMAN,
             last_error=f"handover failed: {exc}",
             human_agent_id=None,
             updated_at=_now(),
@@ -1069,8 +1103,8 @@ async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
     return len(pending_ids)
 
 
-def expire_stale_calls(*, batch_size: int = 200) -> int:
-    """Release capacity held by provider calls that never sent a terminal event."""
+async def expire_stale_calls(*, batch_size: int = 200) -> int:
+    """Only release capacity after PBX-confirmed termination, never DB timeout."""
     now = _now()
     cutoff = now - timedelta(seconds=max(10, int(settings.default_call_timeout_sec)))
     expired = 0
@@ -1086,10 +1120,23 @@ def expire_stale_calls(*, batch_size: int = 200) -> int:
             .limit(batch_size)
         ).all()
         for call in calls:
-            changed = _set_call_if_status_in_uuid(
+            attempt = call.attempts
+            try:
+                adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id)
+                result = await adapter.hangup(call_id=str(call.id), reason="provider_status_timeout")
+                confirmed = result.get("ended") is True
+            except Exception:
+                confirmed = False
+            if not confirmed:
+                _set_call_if_status_in(session, call_id=str(call.id), expected_attempt=attempt,
+                                      allowed_statuses=CAPACITY_STATUSES,
+                                      last_error="provider status unknown; capacity retained", updated_at=now)
+                continue
+            changed = _set_call_if_status_in(
                 session,
-                call_id=call.id,
+                call_id=str(call.id),
                 allowed_statuses=CAPACITY_STATUSES,
+                expected_attempt=attempt,
                 status=CallStatus.FAILED,
                 finished_at=now,
                 last_error="provider status timeout",
@@ -1142,7 +1189,7 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
                             _now().isoformat(),
                             ex=max(5, int(settings.scheduler_lock_ttl_sec) * 2),
                         )
-                    expire_stale_calls(batch_size=batch_size)
+                    await expire_stale_calls(batch_size=batch_size)
                     await dispatch_due_retries(batch_size=batch_size)
                     await dispatch_pending_calls(batch_size=batch_size)
                     from .task_queue import process_pending_tasks

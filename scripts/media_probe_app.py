@@ -4,13 +4,15 @@ Uses the actual project routes, ESL driver, Pipecat transport and serializer.
 Only the speech providers are synthetic. Never launch this as the business API.
 """
 import math
+import hashlib
 import os
 import struct
 import time
+import httpx
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pipecat.frames.frames import InputAudioRawFrame, TTSSpeakFrame, TTSStartedFrame, TTSStoppedFrame, TTSAudioRawFrame
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 
@@ -27,16 +29,23 @@ events = []
 inputs = {}
 sockets = {}
 settings = Settings(
-    _env_file=None, env='dev', service_token=secret, webhook_token=secret,
+    _env_file=None, env='dev', service_token=hashlib.sha256((secret + ':probe-service').encode()).hexdigest(),
     voice_gateway_driver='freeswitch_esl', voice_ai_pipeline='pipecat',
     freeswitch_esl_host=os.environ.get('FREESWITCH_ESL_HOST', 'freeswitch-media'),
     freeswitch_esl_password=secret, freeswitch_gateway='unconfigured-test-only',
     freeswitch_tts_engine='unconfigured-test-only', freeswitch_tts_voice='test-only',
     freeswitch_dialplan_context='media-test',
+    freeswitch_agent_extension_template='handoff-probe',
     pipecat_version='1.8.1', pipecat_media_protocol='voismart',
     pipecat_media_ws_base='ws://media-probe:8002/v1/pipecat/media',
     pipecat_openai_api_key='synthetic-test-not-a-cloud-key', pipecat_max_active_sessions=5,
+    voice_command_secret=hashlib.sha256((secret + ':probe-command').encode()).hexdigest(),
+    voice_security_admin_token=hashlib.sha256((secret + ':probe-admin').encode()).hexdigest(),
+    webhook_secret=hashlib.sha256((secret + ':probe-signing').encode()).hexdigest(),
+    voice_security_db_path='/tmp/non-billable-probe.sqlite3',
+    voice_callback_base_url='http://media-probe:8002', voice_callback_allow_private_http=True,
 )
+settings.webhook_token = hashlib.sha256((secret + ':probe-callback').encode()).hexdigest()
 
 
 class CaptureInput(FrameProcessor):
@@ -99,6 +108,12 @@ class ProbeManager(PipecatPipelineManager):
 
 
 class ProbeDriver(FreeswitchEslDriver):
+    def _binding_from_event(self, event):
+        # Never adopt calls created by a different isolated test/controller.
+        if event.get('Unique-ID') not in self.calls_by_uuid:
+            return None
+        return super()._binding_from_event(event)
+
     async def _tts_media_uri(self, request):
         # Five seconds of silence stand in for the compliance announcement;
         # no cloud request or customer speech is involved in cancellation tests.
@@ -109,10 +124,34 @@ class ProbeDriver(FreeswitchEslDriver):
 
 manager = ProbeManager(settings)
 driver = ProbeDriver(settings, pipecat_manager=manager)
+
+
+async def probe_callback(url, payload):
+    if url != 'http://media-probe:8002/probe/webhook':
+        raise RuntimeError('probe callback destination is fixed')
+    async with httpx.AsyncClient(timeout=5, trust_env=False, follow_redirects=False) as client:
+        response = await client.post(url, json=payload, headers={'x-webhook-token': settings.webhook_token})
+        response.raise_for_status()
+
+
+driver._post_json = probe_callback
+manager._post_json = probe_callback
 main.settings = settings
 main.driver = driver
 app = main.app
 app.title = 'SYNTHETIC MEDIA TEST ONLY - NOT REAL OUTBOUND'
+
+
+async def require_probe_token(authorization: str | None = Header(default=None)):
+    import secrets
+    if not secrets.compare_digest(authorization or '', f'Bearer {settings.service_token}'):
+        raise HTTPException(401)
+
+
+# This separate harness exposes only null/tone channels; it has no carrier
+# dial route. Production command permits are tested through the real app.
+app.dependency_overrides[main.require_service_token] = require_probe_token
+app.dependency_overrides[main.require_security_admin] = require_probe_token
 
 # Real-number dialing is deliberately unavailable even with the probe secret.
 app.router.routes[:] = [route for route in app.router.routes if getattr(route, 'path', '') != '/v1/call/dial']
@@ -120,7 +159,7 @@ app.router.routes[:] = [route for route in app.router.routes if getattr(route, '
 
 @app.post('/probe/webhook')
 async def webhook(payload: dict, x_webhook_token: str = Header(default='')):
-    if x_webhook_token != secret:
+    if x_webhook_token != settings.webhook_token:
         raise HTTPException(401)
     events.append({'kind': 'webhook', 'at': time.time(), **payload})
     del events[:-1000]
@@ -136,7 +175,7 @@ async def status():
 
 
 @app.post('/probe/call', dependencies=[Depends(main.require_service_token)])
-async def test_call(source: str = 'null', fault: str = ''):
+async def test_call(source: str = 'null', fault: str = '', max_duration_sec: int = Query(default=300, ge=1, le=300)):
     if source not in {'null', 'tone'}:
         raise HTTPException(422, 'only null or internal tone is permitted')
     if fault not in {'', 'no_connect', 'notice'}:
@@ -155,7 +194,8 @@ async def test_call(source: str = 'null', fault: str = ''):
     # Neither endpoint can reach a carrier or real telephone number.
     destination = 'null/probe' if source == 'null' else 'loopback/tone/media-test'
     try:
-        result = await driver.client.api(f'originate {{origination_uuid={fs_uuid},loopback_bowout=false}}{destination} &park()')
+        result = await driver.client.api(
+            f"originate {{origination_uuid={fs_uuid},loopback_bowout=false,execute_on_answer='sched_hangup +{max_duration_sec} ALLOTTED_TIMEOUT',hangup_after_bridge=true}}{destination} &park()")
         if not result.startswith('+OK'):
             raise EslError('synthetic channel rejected')
     except (EslError, OSError, TimeoutError):

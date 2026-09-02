@@ -460,9 +460,12 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                         detail=f"playback_id={playback_id}",
                     )
                 )
-        await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
-        call.status = CallStatus.COMPLETED
-        call.finished_at = utc_now()
+        hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
+        if hangup_result.get("ended") is True:
+            call.status = CallStatus.COMPLETED
+            call.finished_at = utc_now()
+        else:
+            call.last_error = "hangup requested; awaiting PBX termination"
     elif result.action == "handoff" or result.handoff_to_human:
         presence_cutoff = utc_now() - timedelta(seconds=max(30, settings.agent_presence_timeout_sec))
         assigned_agent = session.exec(

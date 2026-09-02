@@ -1,0 +1,23 @@
+<include>
+  <!-- Load as a TOP-LEVEL dialplan file, NOT inside default/*.xml.
+       Only trusted ESL transfers enter this context. Browser credentials use
+       browser-no-outbound below and cannot originate a second paid call. -->
+  <context name="agent-restricted">
+    <extension name="authorized-agent-transfer">
+      <condition field="destination_number" expression="^(agent_[0-9]+)$">
+        <action application="set" data="hangup_after_bridge=true"/>
+        <action application="set" data="call_timeout=25"/>
+        <action application="bridge" data="user/$1@$${domain}"/>
+        <action application="hangup"/>
+      </condition>
+    </extension>
+    <extension name="deny-unlisted-destination">
+      <condition><action application="hangup" data="CALL_REJECTED"/></condition>
+    </extension>
+  </context>
+  <context name="browser-no-outbound">
+    <extension name="deny-browser-originated-calls">
+      <condition><action application="hangup" data="CALL_REJECTED"/></condition>
+    </extension>
+  </context>
+</include>

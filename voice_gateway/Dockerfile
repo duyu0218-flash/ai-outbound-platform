@@ -9,6 +9,7 @@ COPY voice_gateway/app ./app
 RUN pip install --no-cache-dir .
 RUN python -c "import nltk; nltk.download('punkt_tab', download_dir='/opt/nltk_data', quiet=True, raise_on_error=True); nltk.data.find('tokenizers/punkt_tab')"
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+RUN mkdir -p /var/lib/voice-security && chown app:app /var/lib/voice-security && chmod 700 /var/lib/voice-security
 USER app
 EXPOSE 8002
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]

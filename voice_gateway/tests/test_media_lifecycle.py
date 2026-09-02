@@ -82,7 +82,7 @@ def test_transfer_cancels_supervision_and_ignores_late_media_and_answer_events()
         await driver.post('transfer', {'call_id': binding.call_id, 'target_group': 'agent:23'})
         commands = list(driver.client.commands)
         assert commands[-3:] == ['uuid_raw_audio_stream test-uuid stop', 'uuid_break test-uuid all',
-                                'uuid_transfer test-uuid agent_23 XML default']
+                                'uuid_transfer test-uuid agent_23 XML agent-restricted']
         assert current.closing and not driver.media_tasks
         assert not driver.pipecat_manager.sessions_by_call
         await driver._handle_event({'Event-Name': 'CUSTOM', 'Unique-ID': binding.fs_uuid,

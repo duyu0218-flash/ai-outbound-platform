@@ -527,20 +527,9 @@ class PipecatPipelineManager:
         )
 
     async def _post_json(self, url: str, payload: dict[str, Any]) -> None:
-        headers = {"x-webhook-token": self.settings.webhook_token} if self.settings.webhook_token else {}
-        for attempt in range(3):
-            try:
-                async with httpx.AsyncClient(
-                    timeout=self.settings.request_timeout_sec,
-                    headers=headers,
-                ) as client:
-                    response = await client.post(url, json=payload)
-                response.raise_for_status()
-                return
-            except httpx.HTTPError:
-                if attempt == 2:
-                    raise
-                await asyncio.sleep(0.2 * (2**attempt))
+        from .security import CallbackSender
+
+        await CallbackSender(self.settings).post(url, payload)
 
 
 def _language(value: object) -> Language:

@@ -17,7 +17,22 @@ class Settings(BaseSettings):
     rtp_port_start: int = 20000
     rtp_port_end: int = 30000
     webhook_token: str = ""
+    webhook_secret: str = ""
     service_token: str = ""
+    voice_command_secret: str = ""
+    voice_security_admin_token: str = ""
+    voice_security_db_path: str = ""
+    voice_security_routes_json: str = "{}"
+    voice_security_routes_file: str = ""
+    voice_callback_base_url: str = ""
+    voice_callback_allow_private_http: bool = False
+    voice_callback_failure_stop_sec: int = 30
+    voice_max_concurrent: int = 20
+    voice_cps: int = 2
+    voice_daily_call_limit: int = 1000
+    voice_hour_budget_minor: int = 10000
+    voice_day_budget_minor: int = 50000
+    voice_max_duration_sec: int = 300
     metrics_token: str = ""
     metrics_token_file: str = ""
     freeswitch_esl_host: str = "freeswitch"
@@ -29,7 +44,7 @@ class Settings(BaseSettings):
     freeswitch_caller_id: str = ""
     freeswitch_originate_timeout_sec: int = 45
     freeswitch_playback_timeout_sec: float = 30.0
-    freeswitch_dialplan_context: str = "default"
+    freeswitch_dialplan_context: str = "agent-restricted"
     freeswitch_agent_extension_template: str = "agent_{agent_id}"
     freeswitch_default_handoff_extension: str = "handoff_default"
     freeswitch_tts_engine: str = ""
@@ -227,6 +242,9 @@ class Settings(BaseSettings):
                 raise RuntimeError("WEBHOOK_TOKEN is required for production FreeSWITCH callbacks")
         if not (1024 <= self.rtp_port_start <= self.rtp_port_end <= 65535):
             raise RuntimeError("invalid RTP port range")
+        from .security import validate_security_settings
+
+        validate_security_settings(self)
 
 
 @lru_cache

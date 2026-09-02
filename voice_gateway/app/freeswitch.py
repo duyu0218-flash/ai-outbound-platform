@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 
@@ -121,6 +121,7 @@ class FreeswitchEslDriver:
         pipecat_manager: PipecatPipelineManager | None = None,
     ):
         self.settings = settings
+        self.security_ledger = None
         self.client = client or EslClient(
             settings.freeswitch_esl_host,
             settings.freeswitch_esl_port,
@@ -209,12 +210,18 @@ class FreeswitchEslDriver:
         caller_id = _phone(
             request.metadata.get("caller_id") or self.settings.freeswitch_caller_id
         ) if (request.metadata.get("caller_id") or self.settings.freeswitch_caller_id) else ""
-        fs_uuid = str(uuid4())
+        fs_uuid = str(UUID(payload["_provider_call_id"])) if payload.get("_provider_call_id") else str(uuid4())
+        max_duration = min(int(payload.get("_max_duration_sec") or self.settings.voice_max_duration_sec), self.settings.voice_max_duration_sec)
+        if max_duration < 1:
+            raise ValueError("maximum call duration must be positive")
         metadata_json = json.dumps(request.metadata, ensure_ascii=False, separators=(",", ":"))
         variables = {
             "origination_uuid": fs_uuid,
             "originate_timeout": str(max(5, self.settings.freeswitch_originate_timeout_sec)),
             "ignore_early_media": "true",
+            # This runs INSIDE FreeSWITCH, even if the gateway/backend dies.
+            "execute_on_answer": f"'sched_hangup +{max_duration} ALLOTTED_TIMEOUT'",
+            "hangup_after_bridge": "true",
             "platform_call_id_b64": _b64_encode(request.call_id),
             "platform_status_webhook_b64": _b64_encode(str(request.webhook_url)),
             "platform_metadata_b64": _b64_encode(metadata_json),
@@ -257,7 +264,8 @@ class FreeswitchEslDriver:
             job_uuid = await self.client.bgapi(command)
         except Exception:
             self.calls_by_uuid.pop(fs_uuid, None)
-            self.calls_by_id.pop(binding.call_id, None)
+            if self.calls_by_id.get(binding.call_id) is binding:
+                self.calls_by_id.pop(binding.call_id, None)
             raise
         if job_uuid:
             self.jobs[job_uuid] = binding
@@ -348,10 +356,8 @@ class FreeswitchEslDriver:
                 agent_id=match.group(1),
                 tenant_id=int(binding.metadata.get("tenant_id") or 0),
             )
-        elif target_group in {"", "default"}:
-            destination = self.settings.freeswitch_default_handoff_extension
         else:
-            destination = target_group
+            raise ValueError("transfer requires an authorized agent:<id> target")
         destination = _safe_name(destination, name="transfer_destination")
         context = _safe_name(self.settings.freeswitch_dialplan_context, name="dialplan_context")
         await self._stop_ai_media(binding)
@@ -394,11 +400,18 @@ class FreeswitchEslDriver:
             binding = self.jobs.pop(job_uuid, None)
             body = _event_value(event, "_body", "Body")
             if binding is not None and body.startswith("-ERR"):
+                if self.security_ledger is not None:
+                    self.security_ledger.finish(binding.fs_uuid, 0)
                 await self._post_status(binding, "failed", event, hangup_reason=body[:500])
+                self.calls_by_uuid.pop(binding.fs_uuid, None)
+                if self.calls_by_id.get(binding.call_id) is binding:
+                    self.calls_by_id.pop(binding.call_id, None)
             return
         binding = self._binding_from_event(event)
         if binding is None:
             return
+        if self.security_ledger is not None and name in {"CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA", "CHANNEL_ANSWER", "CHANNEL_HANGUP", "CHANNEL_HANGUP_COMPLETE"}:
+            self.security_ledger.mark_seen(binding.fs_uuid)
         if name in {"CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA"}:
             await self._post_status(binding, "dialing", event)
         elif name == "CHANNEL_ANSWER":
@@ -452,6 +465,9 @@ class FreeswitchEslDriver:
                     session.closing = True
             await self._cancel_media_task(binding)
         elif name == "CHANNEL_HANGUP_COMPLETE":
+            if self.security_ledger is not None:
+                billsec = _event_value(event, "variable_billsec")
+                self.security_ledger.finish(binding.fs_uuid, int(billsec) if billsec.isdigit() else None)
             await self._cancel_media_task(binding)
             waiter = self.playback_waiters.pop(binding.fs_uuid, None)
             if waiter is not None and not waiter.done():
@@ -465,21 +481,25 @@ class FreeswitchEslDriver:
                 status = "ended"
             else:
                 status = "failed"
-            if not binding.media_failure_reason:
-                await self._post_status(binding, status, event, hangup_reason=cause)
+            if not binding.media_failure_reason or self.security_ledger is not None:
+                await self._post_status(binding, "failed" if binding.media_failure_reason else status, event,
+                                        hangup_reason=binding.media_failure_reason or cause)
             if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
                 await self.pipecat_manager.close(binding.call_id)
             else:
                 await self._post_media(binding, "closed", event=event)
             await self._post_recording(binding)
             self.calls_by_uuid.pop(binding.fs_uuid, None)
-            self.calls_by_id.pop(binding.call_id, None)
+            if self.calls_by_id.get(binding.call_id) is binding:
+                self.calls_by_id.pop(binding.call_id, None)
             for job_id, job_binding in list(self.jobs.items()):
                 if job_binding is binding:
                     self.jobs.pop(job_id, None)
 
     def _binding_from_event(self, event: dict[str, object]) -> CallBinding | None:
         fs_uuid = _event_value(event, "Unique-ID", "Channel-Call-UUID", "variable_origination_uuid")
+        if self.security_ledger is not None and not self.security_ledger.known_uuid(fs_uuid):
+            return None
         binding = self.calls_by_uuid.get(fs_uuid)
         if binding is not None:
             return binding
@@ -580,7 +600,12 @@ class FreeswitchEslDriver:
                     try:
                         await self.client.api(f"uuid_kill {binding.fs_uuid} NORMAL_TEMPORARY_FAILURE")
                     finally:
-                        await self._post_status(binding, "failed", {}, hangup_reason=reason)
+                        if self.security_ledger is None:
+                            await self._post_status(binding, "failed", {}, hangup_reason=reason)
+                        else:
+                            # Terminal status must come from PBX termination,
+                            # not merely from our request to kill the channel.
+                            await self._post_media(binding, "closed", error_code=reason)
 
     async def _start_recording_and_media(self, binding: CallBinding, *, start_ai_media: bool = True) -> None:
         if (
@@ -751,6 +776,7 @@ class FreeswitchEslDriver:
         *,
         playback_id: str | None = None,
         event: dict[str, object] | None = None,
+        error_code: str | None = None,
     ) -> None:
         if not binding.media_webhook_url:
             return
@@ -766,6 +792,7 @@ class FreeswitchEslDriver:
                 "state": state,
                 "provider_session_id": binding.fs_uuid,
                 "playback_id": playback_id,
+                "error_code": error_code,
                 "codec": "PCMA",
                 "sample_rate": 8000,
                 "channel_count": 1,
@@ -804,15 +831,6 @@ class FreeswitchEslDriver:
         )
 
     async def _post_json(self, url: str, payload: dict[str, Any]) -> None:
-        headers = {"x-webhook-token": self.settings.webhook_token} if self.settings.webhook_token else {}
-        for attempt in range(3):
-            try:
-                async with httpx.AsyncClient(timeout=self.settings.request_timeout_sec, headers=headers) as client:
-                    response = await client.post(url, json=payload)
-                response.raise_for_status()
-                return
-            except httpx.HTTPError as exc:
-                if attempt == 2:
-                    logger.error("FreeSWITCH callback delivery failed after retries: %s", exc)
-                    return
-                await asyncio.sleep(0.2 * (2**attempt))
+        from .security import CallbackSender
+
+        await CallbackSender(self.settings).post(url, payload)

@@ -1,5 +1,6 @@
 """Run inside media-probe. Generates tones only; never dials a real number."""
 import asyncio
+import hashlib
 import json
 import math
 import struct
@@ -14,7 +15,8 @@ from app.esl import EslClient
 async def main():
     secret = Path('/run/secrets/voismart_esl_password').read_text().strip()
     esl = EslClient('freeswitch-media', 8021, secret)
-    async with httpx.AsyncClient(base_url='http://127.0.0.1:8002', headers={'Authorization': f'Bearer {secret}'}, timeout=10) as client:
+    service_token = hashlib.sha256((secret + ':probe-service').encode()).hexdigest()
+    async with httpx.AsyncClient(base_url='http://127.0.0.1:8002', headers={'Authorization': f'Bearer {service_token}'}, timeout=10) as client:
         async def post(path, payload=None):
             response = await client.post(path, json=payload or {})
             response.raise_for_status()

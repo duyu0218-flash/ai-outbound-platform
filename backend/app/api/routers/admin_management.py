@@ -1,4 +1,5 @@
 import json
+import hmac
 import logging
 import re
 from datetime import timedelta
@@ -9,7 +10,7 @@ from uuid import UUID
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -397,8 +398,10 @@ def create_line(
     payload: TelephonyLineCreate,
     current: User = Depends(require_role("admin")),
     session: Session = Depends(get_session),
+    x_security_approval: str | None = Header(default=None),
 ):
     _validate_line_configuration(payload.provider, payload.gateway_url)
+    _require_security_approval(x_security_approval, real=payload.provider != "mock")
     line = TelephonyLine(tenant_id=current.tenant_id, **payload.model_dump())
     session.add(line)
     try:
@@ -418,11 +421,13 @@ def update_line(
     payload: TelephonyLineUpdate,
     current: User = Depends(require_role("admin")),
     session: Session = Depends(get_session),
+    x_security_approval: str | None = Header(default=None),
 ):
     line = session.get(TelephonyLine, line_id)
     if not line or line.tenant_id != current.tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="line not found")
     changes = payload.model_dump(exclude_unset=True)
+    _require_security_approval(x_security_approval, real=line.provider != "mock" or changes.get("provider", line.provider) != "mock")
     if "provider" in changes or "gateway_url" in changes:
         _validate_line_configuration(
             str(changes.get("provider", line.provider) or ""),
@@ -639,14 +644,30 @@ def get_setting(
     return AdminSettingOut(section=section, data=data, updated_at=record.updated_at if record else None)
 
 
+def _require_security_approval(token: str | None, *, real: bool = False) -> None:
+    if not real and settings.env.lower() not in {"prod", "production"} and settings.telephony_provider == "mock":
+        return
+    expected = settings.outbound_security_approval_token
+    if len(expected) < 32 or not hmac.compare_digest(token or "", expected):
+        raise HTTPException(403, "独立安全审批凭据缺失：真实线路及安全策略变更须由安全管理员批准")
+
+
 @router.put("/settings/{section}", response_model=AdminSettingOut)
 def update_setting(
     section: str,
     payload: AdminSettingUpdate,
     current: User = Depends(require_role("admin")),
     session: Session = Depends(get_session),
+    x_security_approval: str | None = Header(default=None),
 ):
     data = _validated_setting(section, payload.data)
+    if section in {"capacity", "compliance"}:
+        real_line = session.exec(select(TelephonyLine).where(TelephonyLine.tenant_id == current.tenant_id, TelephonyLine.enabled.is_(True), TelephonyLine.provider != "mock")).first()
+        _require_security_approval(x_security_approval, real=real_line is not None)
+        if section == "capacity" and data["max_concurrent_calls"] > settings.outbound_platform_max_concurrent:
+            raise HTTPException(422, "租户并发不能超过平台安全上限")
+        if section == "compliance" and data["max_calls_per_day"] > settings.outbound_daily_call_limit:
+            raise HTTPException(422, "租户日拨号量不能超过平台安全上限")
     record = session.exec(
         select(AdminSetting).where(
             AdminSetting.tenant_id == current.tenant_id,
