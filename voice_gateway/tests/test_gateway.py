@@ -79,6 +79,7 @@ def test_voice_gateway_metrics_require_token(monkeypatch):
         )
     assert response.status_code == 200
     assert "ai_outbound_voice_gateway_ready 1" in response.text
+    assert "ai_outbound_pipecat_session_capacity" in response.text
 
 
 def test_voice_gateway_metrics_accept_mounted_token_file(monkeypatch, tmp_path):

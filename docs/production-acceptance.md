@@ -48,8 +48,11 @@ python3 scripts/real_voice_acceptance.py \
   --api-key "$TEST_TENANT_API_KEY" \
   --tenant-id 1 \
   --phone "$CONTROLLED_TEST_PHONE" \
+  --expected-asr-provider pipecat:aliyun-nls \
   --confirm-dial
 ```
+
+脚本对 AI 模式会另外读取结构化转写和阶段指标：`ai_only` 必须至少有 3 个非空 ASR final，其他 AI 模式至少 1 个；指定 `--expected-asr-provider` 后还会校验供应商名、置信度、句子时间戳以及 `asr.final` 失败指标。报告中的 `asr_final_latency_ms` 是语音网关观测到的“云端句末位置到 final 到达网关”延迟，不是句子音频时长，也不是客户端到端延迟。
 
 执行人需依次完成：
 
@@ -59,6 +62,14 @@ python3 scripts/real_voice_acceptance.py \
 4. `ai_handoff`：用明确转人工语句触发转接，座席接听后继续通话并挂机。
 
 每通需核对 provider call id、接听与终态回调、ASR final、AI 决策、TTS 播放、转人工、录音 URL、签名业务回调及相关阶段耗时。
+
+### 云 ASR 准确率、延迟、并发和费用
+
+- 准确率：对同一批真实线路录音做人工标注，固定文本归一化规则，同时计算整体 CER、关键词召回率，并按性别、口音、噪声、车载/室内、快慢语速分层；不得用云端转写自身作为标准答案。
+- 延迟：汇总 `asr.final` 指标的 `duration_ms`，计算 P50/P95/P99；同时用录音与事件时间线抽样核对端到端话轮延迟。
+- 并发：按候选上线并发的 10%/25%/50%/100% 递增，记录网关活跃会话、云 ASR 限流/断线、final 成功率、P95 延迟和 CPU/内存；`PIPECAT_MAX_ACTIVE_SESSIONS` 不得高于已购并发和实测安全容量。
+- 费用：以云厂商账单的实际计费时长/请求数为分子，以完成通话、有效接通和有效线索分别为分母，报告每分钟、每完成通话、每有效线索成本；免费额度和促销价需单列，不得当作长期单价。
+- 上述阈值必须在测试前由业务、线路和合规负责人签字，结果与原始通话 ID、脱敏录音、转写、指标和账单快照一起归档。
 
 ## 故障和容量
 

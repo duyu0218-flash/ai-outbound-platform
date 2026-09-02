@@ -1,5 +1,8 @@
 # FreeSWITCH integration
 
+VoiSmart raw PCM integration and local ARM64 acceptance: [local media guide](voismart-local-media.md).
+This is not production SIP/cloud-speech acceptance.
+
 The built-in `voice-gateway` can now control FreeSWITCH directly through the
 inbound Event Socket. It does not expose port 8021 to users and it does not keep
 SIP credentials in the application database.
