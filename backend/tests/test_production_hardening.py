@@ -142,6 +142,28 @@ def _voice_security_contract_module():
     return sys.modules[name]
 
 
+@pytest.mark.skipif(engine.dialect.name != "postgresql", reason="PostgreSQL serial sequence regression")
+def test_bootstrap_repairs_existing_tenant_sequence_without_rewinding(client):
+    sequence = "pg_get_serial_sequence('tenant', 'id')"
+    with session_scope() as session:
+        # Simulate an existing installation seeded with an explicit default ID.
+        session.exec(text(f"SELECT setval({sequence}, 1, false)"))
+        session.commit()
+        app_main._bootstrap_default_tenant_data(session)
+        tenant = Tenant(name="sequence-regression", code=f"sequence-regression-{uuid4().hex}")
+        session.add(tenant)
+        session.commit()
+        session.refresh(tenant)
+        assert tenant.id > app_main.settings.default_tenant_id
+
+        allocated = session.exec(text(f"SELECT nextval({sequence})")).scalar_one()
+        session.commit()
+        app_main._bootstrap_default_tenant_data(session)
+        next_id = session.exec(text(f"SELECT nextval({sequence})")).scalar_one()
+        assert next_id > allocated
+        session.commit()
+
+
 def test_gateway_callback_producer_passes_actual_production_hmac_verifier(client, monkeypatch):
     import httpx
     from types import SimpleNamespace
