@@ -24,7 +24,14 @@ jobs:
             python -m venv "/tmp/audit-$service"
             "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "pip==26.2.1" "setuptools==84.0.0"
             "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "./$service" "pip-audit==2.10.1" "cyclonedx-bom==7.3.1"
-            "/tmp/audit-$service/bin/pip-audit"
+            if [ "$service" = "voice_gateway" ]; then
+              "/tmp/audit-$service/bin/python" scripts/check-nltk-advisory-boundary.py
+              # PYSEC-2026-3740 has no patched NLTK release. The exception is
+              # limited to Pipecat's sentence tokenizer and guarded above.
+              "/tmp/audit-$service/bin/pip-audit" --ignore-vuln PYSEC-2026-3740
+            else
+              "/tmp/audit-$service/bin/pip-audit"
+            fi
             "/tmp/audit-$service/bin/cyclonedx-py" environment "/tmp/audit-$service/bin/python" --output-format JSON --output-file "artifacts/sbom/$service.cdx.json"
           done
       - name: Audit frontend dependencies
