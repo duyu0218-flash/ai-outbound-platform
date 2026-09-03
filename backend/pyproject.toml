@@ -13,6 +13,7 @@ dependencies = [
   "sqlmodel==0.0.42",
   "psycopg[binary]==3.3.4",
   "pydantic-settings==2.15.0",
+  "anyio==4.14.2",
   "httpx==0.28.1",
   "python-multipart==0.0.32",
   "redis==8.1.0",

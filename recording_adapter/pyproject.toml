@@ -11,6 +11,7 @@ dependencies = [
   "fastapi==0.141.1",
   "uvicorn[standard]==0.52.4",
   "pydantic-settings==2.15.0",
+  "anyio==4.14.2",
   "httpx==0.28.1",
   "boto3==1.40.21",
   "prometheus-client==0.22.1",
