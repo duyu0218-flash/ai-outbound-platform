@@ -1,0 +1,18 @@
+async def _check_sentence_with_lookahead(self, char: str) -> Aggregation | None:
+    """Wait for lexical lookahead, retaining punctuation runs and closing quotes.
+
+    This must be independent of input chunk boundaries. End-of-stream flush
+    still emits the remaining fragment, and interruption/reset discard it.
+    """
+    if self._needs_lookahead:
+        if not char.strip() or char in SENTENCE_ENDING_PUNCTUATION or char in CLOSERS:
+            return None
+        self._needs_lookahead = False
+        eos_marker = match_endofsentence(self._text)
+        if eos_marker:
+            result = self._text[:eos_marker]
+            self._text = self._text[eos_marker:]
+            return Aggregation(text=result.strip(" "), type=AggregationType.SENTENCE)
+    if char in SENTENCE_ENDING_PUNCTUATION:
+        self._needs_lookahead = True
+    return None

@@ -20,7 +20,7 @@ def settings(**overrides):
     return Settings(_env_file=None, **SECURITY_SETTINGS, voice_gateway_driver='freeswitch_esl', voice_ai_pipeline='pipecat',
                     freeswitch_esl_password='synthetic-esl-' + 'e' * 32,
                     freeswitch_gateway='carrier', freeswitch_tts_engine='flite', freeswitch_tts_voice='slt',
-                    pipecat_version='1.8.1', pipecat_media_protocol='voismart',
+                    pipecat_version='1.8.1+outbound.1', pipecat_media_protocol='voismart',
                     pipecat_media_ws_base='ws://gateway/v1/pipecat/media', pipecat_openai_api_key='test', **overrides)
 
 

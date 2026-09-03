@@ -103,6 +103,12 @@ def validate_python_projects(matrix: dict, errors: list[str]) -> None:
     expected_python = matrix["components"]["python"]["constraint"].removeprefix("==").removesuffix(".*")
     expected_setuptools = matrix["components"]["setuptools"]["constraint"].removeprefix("==")
     expected_pipecat = matrix["components"]["pipecat"]["constraint"].removeprefix("==")
+    manifest = json.loads((ROOT / "vendor/pipecat/manifest.json").read_text())
+    if manifest.get("version") != expected_pipecat:
+        fail(errors, "controlled Pipecat manifest must match the compatibility version")
+    for field in ("upstream_sha256", "patched_sha256"):
+        if not re.fullmatch(r"[a-f0-9]{64}", manifest.get(field, "")):
+            fail(errors, f"controlled Pipecat manifest requires a pinned {field}")
     for relative in (
         "backend/pyproject.toml",
         "agent/pyproject.toml",
