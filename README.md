@@ -136,7 +136,7 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d -
 | `TELEPHONY_SERVICE_TOKEN` | 控制服务调用语音网关的内部 Bearer Token |
 | `VOICE_GATEWAY_DRIVER` | `mock`、`pbx_http` 或 `freeswitch_esl`；后者由语音网关直接连接 FreeSWITCH Event Socket |
 | `VOICE_AI_PIPELINE` | `legacy`、`pipecat` 或 `hybrid`；生产默认保持 `legacy`，受控灰度使用 `hybrid` |
-| `PIPECAT_*` | 候选 Pipecat 1.8.1 的精确版本、WebSocket、并发门禁、可选 OpenAI/阿里云 STT、OpenAI TTS 和回退策略；详见 `docs/pipecat-integration.md` |
+| `PIPECAT_*` | 候选 Pipecat 1.8.1+outbound.1 的精确版本、WebSocket、并发门禁、可选 OpenAI/阿里云 STT、OpenAI TTS 和回退策略；详见 `docs/pipecat-integration.md` |
 | `ALIYUN_NLS_*` | 阿里云实时 ASR 的网关、AppKey、短时 Token/挂载 Token 文件、8k/16k 断句、热词和定制模型参数 |
 | `FREESWITCH_ESL_*` | FreeSWITCH ESL 地址、端口和密码；生产禁止使用默认密码 `ClueCon` |
 | `FREESWITCH_GATEWAY` | FreeSWITCH 中已配置的 SIP Trunk gateway 名称 |

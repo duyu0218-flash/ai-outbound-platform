@@ -36,7 +36,7 @@ settings = Settings(
     freeswitch_tts_engine='unconfigured-test-only', freeswitch_tts_voice='test-only',
     freeswitch_dialplan_context='media-test',
     freeswitch_agent_extension_template='handoff-probe',
-    pipecat_version='1.8.1', pipecat_media_protocol='voismart',
+    pipecat_version='1.8.1+outbound.1', pipecat_media_protocol='voismart',
     pipecat_media_ws_base='ws://media-probe:8002/v1/pipecat/media',
     pipecat_openai_api_key='synthetic-test-not-a-cloud-key', pipecat_max_active_sessions=5,
     voice_command_secret=hashlib.sha256((secret + ':probe-command').encode()).hexdigest(),

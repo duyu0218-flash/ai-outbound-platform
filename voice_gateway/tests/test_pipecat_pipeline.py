@@ -16,7 +16,7 @@ def pipecat_settings() -> Settings:
         freeswitch_tts_engine="flite",
         freeswitch_tts_voice="slt",
         freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
-        pipecat_version="1.8.1",
+        pipecat_version="1.8.1+outbound.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
     )
