@@ -36,6 +36,8 @@
 
 系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
 
+部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
+
 ## 2bis. 测试账号体系（新）
 
 - 以下演示账号仅在非生产环境且 `DEMO_USERS_ENABLED=true` 时创建并显示；生产环境登录页不会预填或公开演示凭据。
