@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from typing import Generator
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from .config import get_settings
@@ -25,9 +25,36 @@ else:
 engine = create_engine(settings.database_url, **engine_options)
 
 
-def create_db_and_tables() -> None:
+REQUIRED_PRODUCTION_TABLES = {
+    "tenant",
+    "user",
+    "contact",
+    "contactimportjob",
+    "campaign",
+    "callsession",
+    "taskoutbox",
+    "recordingasset",
+}
+
+
+def verify_database_schema() -> None:
+    tables = set(inspect(engine).get_table_names())
+    missing = sorted(REQUIRED_PRODUCTION_TABLES - tables)
+    if missing:
+        raise RuntimeError(
+            "database schema is not initialized; run the approved schema bootstrap/migrations first: "
+            + ", ".join(missing)
+        )
+
+
+def create_db_and_tables(*, force: bool = False) -> None:
     from . import models  # noqa: F401
     from .schema_migrations import apply_runtime_migrations
+
+    is_prod = settings.env.lower() in {"prod", "production"}
+    if is_prod and not settings.auto_migrate and not force:
+        verify_database_schema()
+        return
 
     if settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
         # Every uvicorn worker runs lifespan. Serialize initial DDL so two fresh

@@ -122,6 +122,21 @@ class Contact(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class ContactImportJob(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "request_key", name="uq_contact_import_tenant_key"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    request_key: str = Field(index=True, max_length=128)
+    state: str = Field(default="processing", index=True, max_length=32)
+    result_json: str = "{}"
+    last_error: str = Field(default="", max_length=2000)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class Campaign(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")

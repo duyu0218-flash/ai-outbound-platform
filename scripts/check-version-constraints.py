@@ -268,6 +268,36 @@ def validate_production_env(matrix: dict, env_path: Path, errors: list[str]) -> 
     if pipeline in {"pipecat", "hybrid"} and not env.get("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE", ""):
         fail(errors, "FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required for the Pipecat pipeline")
 
+    if env.get("ENV", "").strip().lower() not in {"prod", "production"}:
+        fail(errors, "ENV must be prod or production")
+    if env.get("AUTO_MIGRATE", "").strip().lower() != "false":
+        fail(errors, "AUTO_MIGRATE must be false; run schema migrations as an approved release step")
+    if env.get("TELEPHONY_PROVIDER", "mock").strip().lower() == "mock":
+        fail(errors, "TELEPHONY_PROVIDER must not be mock")
+    if env.get("VOICE_GATEWAY_DRIVER", "mock").strip().lower() == "mock":
+        fail(errors, "VOICE_GATEWAY_DRIVER must not be mock")
+    prefixes = [item.strip() for item in env.get("OUTBOUND_ALLOWED_PHONE_PREFIXES", "").split(",") if item.strip()]
+    if not prefixes or any(not item.isdigit() or len(item) > 15 for item in prefixes):
+        fail(errors, "OUTBOUND_ALLOWED_PHONE_PREFIXES must contain approved numeric prefixes")
+    try:
+        daily_limit = int(env.get("OUTBOUND_DAILY_CALL_LIMIT", "0"))
+    except ValueError:
+        daily_limit = 0
+    if not 1 <= daily_limit <= 10_000_000:
+        fail(errors, "OUTBOUND_DAILY_CALL_LIMIT must be between 1 and 10000000")
+    for secret_name in ("TELEPHONY_WEBHOOK_TOKEN", "TELEPHONY_WEBHOOK_SECRET"):
+        if len(env.get(secret_name, "").strip()) < 32:
+            fail(errors, f"{secret_name} must be at least 32 characters")
+    if env.get("RECORDING_SOURCE_REQUIRE_HTTPS", "").strip().lower() != "true":
+        fail(errors, "RECORDING_SOURCE_REQUIRE_HTTPS must be true")
+    if env.get("LLM_SEND_PII", "false").strip().lower() != "false":
+        fail(errors, "LLM_SEND_PII must remain false for the production release gate")
+    if env.get("LLM_PROVIDER", "rule").strip().lower() == "openai-compatible" and not env.get("LLM_ALLOWED_HOSTS", "").strip():
+        fail(errors, "LLM_ALLOWED_HOSTS is required for an external LLM")
+    alert_config = env.get("ALERTMANAGER_CONFIG_FILE", "").strip()
+    if not alert_config or alert_config.endswith("deploy/alertmanager/alertmanager.yml"):
+        fail(errors, "ALERTMANAGER_CONFIG_FILE must point to an approved external-notification config")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()

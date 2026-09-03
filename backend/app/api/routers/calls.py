@@ -182,7 +182,9 @@ async def hangup_api(
             tenant_id=tenant_id,
             line_id=call.telephony_line_id,
         )
-        await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
+        result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
+        if result.get("ended") is not True:
+            raise HTTPException(503, "hangup requested; PBX termination is not yet confirmed")
         if call.status in TERMINAL_STATUSES:
             return call
 

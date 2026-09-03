@@ -9,6 +9,7 @@ import httpx
 from .config import Settings
 from .freeswitch import FreeswitchEslDriver
 from .models import CallRequest, DialRequest, SpeakRequest
+from .security import CallbackSender, validate_callback_url
 
 
 class VoiceDriver(ABC):
@@ -28,9 +29,17 @@ class VoiceDriver(ABC):
 class MockDriver(VoiceDriver):
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.sender = CallbackSender(settings)
+
+    async def start(self) -> None:
+        await self.sender.start()
+
+    async def stop(self) -> None:
+        await self.sender.stop()
 
     async def post(self, action: str, payload: dict[str, Any]) -> dict[str, Any]:
         if action == "dial":
+            validate_callback_url(self.settings, str(payload["webhook_url"]))
             asyncio.create_task(self._callbacks(DialRequest.model_validate(payload)))
         return {"result": "accepted", "action": action, "provider_call_id": f"gateway-{payload['call_id']}"}
 
@@ -38,17 +47,14 @@ class MockDriver(VoiceDriver):
         return True
 
     async def _callbacks(self, request: DialRequest) -> None:
-        headers = {"x-webhook-token": self.settings.webhook_token} if self.settings.webhook_token else {}
-        async with httpx.AsyncClient(timeout=self.settings.request_timeout_sec) as client:
-            for state in ("dialing", "answered"):
-                try:
-                    await client.post(str(request.webhook_url), headers=headers, json={
-                        "call_id": request.call_id,
-                        "kind": "status",
-                        "payload": {"status": state, **request.metadata},
-                    })
-                except httpx.HTTPError:
-                    return
+        for state in ("dialing", "answered"):
+            try:
+                await self.sender.post(str(request.webhook_url), {
+                    "call_id": request.call_id, "kind": "status",
+                    "payload": {**request.metadata, "status": state},
+                })
+            except httpx.HTTPError:
+                return
 
 
 class PbxHttpDriver(VoiceDriver):
@@ -77,5 +83,7 @@ def make_driver(settings: Settings) -> VoiceDriver:
     if driver == "pbx_http":
         return PbxHttpDriver(settings)
     if driver == "freeswitch_esl":
-        return FreeswitchEslDriver(settings)  # type: ignore[return-value]
+        from .security import SecureDriver
+
+        return SecureDriver(settings, FreeswitchEslDriver(settings))  # type: ignore[return-value]
     return MockDriver(settings)

@@ -50,3 +50,24 @@ groups:
           severity: warning
         annotations:
           summary: One or more accounts remain locked
+      - alert: AiOutboundVoiceEmergencyStop
+        expr: ai_outbound_voice_security_stopped > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Voice gateway emergency stop is active
+      - alert: AiOutboundVoiceCallbackFailure
+        expr: ai_outbound_voice_security_oldest_callback_age_sec >= 30
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Voice callbacks are failing; new real calls must stop
+      - alert: AiOutboundVoicePolicyRejections
+        expr: increase(ai_outbound_voice_security_rejected_commands[5m]) >= 5
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated voice policy or budget rejections require investigation

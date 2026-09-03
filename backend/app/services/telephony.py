@@ -1,4 +1,9 @@
 import asyncio
+import hashlib
+import hmac
+import json
+import time
+from secrets import token_urlsafe
 from abc import ABC, abstractmethod
 import os
 import re
@@ -164,7 +169,7 @@ class MockAdapter(TelephonyAdapter):
         }
 
     async def hangup(self, *, call_id: str, reason: str = "hangup") -> Dict[str, Any]:
-        return {"result": "hungup", "provider_call_id": f"mock-{call_id}", "reason": reason}
+        return {"result": "hungup", "ended": True, "provider_call_id": f"mock-{call_id}", "reason": reason}
 
     async def speak(
         self,
@@ -197,11 +202,17 @@ class MockAdapter(TelephonyAdapter):
         headers = {}
         if settings.telephony_webhook_token:
             headers["x-webhook-token"] = settings.telephony_webhook_token
+        body = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        headers["Content-Type"] = "application/json"
+        if settings.telephony_webhook_secret:
+            stamp = str(int(time.time()))
+            headers["x-webhook-timestamp"] = stamp
+            headers["x-webhook-signature"] = hmac.new(settings.telephony_webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()
         try:
             async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec) as client:
                 await client.post(
                     webhook_url,
-                    json=data,
+                    content=body,
                     headers=headers,
                     timeout=settings.telephony_timeout_sec,
                 )
@@ -211,15 +222,23 @@ class MockAdapter(TelephonyAdapter):
 
 
 class HttpAdapter(TelephonyAdapter):
-    def __init__(self, endpoint: str, credential_ref: str = "", bearer_token: str = ""):
+    def __init__(self, endpoint: str, credential_ref: str = "", bearer_token: str = "", tenant_id: int | None = None):
         self.endpoint = endpoint.rstrip("/")
+        self.tenant_id = tenant_id
         self.headers = _credential_headers(credential_ref)
         if bearer_token and "Authorization" not in self.headers:
             self.headers["Authorization"] = f"Bearer {bearer_token}"
 
     async def _post(self, path: str, payload: dict[str, Any]) -> Dict[str, Any]:
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, headers=self.headers) as client:
-            response = await client.post(f"{self.endpoint}{path}", json=payload)
+        if not settings.voice_command_secret or self.tenant_id is None:
+            raise RuntimeError("real telephony requires a signing secret and tenant identity")
+        payload = {**payload, "tenant_id": self.tenant_id}
+        body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        stamp, nonce = str(int(time.time())), token_urlsafe(24)
+        headers = {**self.headers, "Content-Type": "application/json", "x-voice-timestamp": stamp, "x-voice-nonce": nonce,
+                   "x-voice-signature": hmac.new(settings.voice_command_secret.encode(), f"{stamp}.{nonce}.{path}.".encode() + body, hashlib.sha256).hexdigest()}
+        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
+            response = await client.post(f"{self.endpoint}{path}", content=body)
         response.raise_for_status()
         return response.json()
 
@@ -323,13 +342,13 @@ def get_telephony_adapter(
             raise RuntimeError(
                 "tenant telephony line must point to an HTTP bridge endpoint; direct SIP dialing is not supported by the control service"
             )
-        return HttpAdapter(endpoint, line.credential_ref)
+        return HttpAdapter(endpoint, line.credential_ref, tenant_id=tenant_id)
     if provider == "tenant":
         raise RuntimeError("no enabled telephony line configured for tenant")
     if provider == "http":
         if not endpoint:
             raise RuntimeError("telephony provider is HTTP but endpoint is not configured")
-        return HttpAdapter(endpoint, bearer_token=settings.telephony_service_token)
+        return HttpAdapter(endpoint, bearer_token=settings.telephony_service_token, tenant_id=tenant_id)
     return MockAdapter()
 
 
@@ -361,11 +380,21 @@ async def with_retry(
     max_retries = settings.telephony_retry_times if retries is None else retries
     delay = settings.telephony_retry_backoff_sec if base_delay is None else base_delay
     last_error: Exception | None = None
+    uncertain_prior_attempt = False
     for attempt in range(max_retries + 1):
         try:
             return await coroutine_factory()
         except Exception as exc:
             last_error = exc
+            # Authentication, policy, conflict and quota failures are not
+            # transient transport errors. Do not multiply rejected operations.
+            if isinstance(exc, httpx.HTTPStatusError) and 400 <= exc.response.status_code < 500:
+                # A later policy/auth rejection cannot prove that an earlier
+                # timed-out request did not already originate a channel.
+                if uncertain_prior_attempt:
+                    exc.telephony_outcome_unknown = True
+                raise
+            uncertain_prior_attempt = True
             if attempt >= max_retries:
                 raise
             await asyncio.sleep(max(0.0, delay) * (attempt + 1))

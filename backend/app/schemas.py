@@ -22,6 +22,8 @@ class ContactOut(ContactCreate):
     dnc_reason: Optional[str] = None
     id: int
     tenant_id: int
+    consented_at: Optional[datetime] = None
+    consented_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -457,6 +459,7 @@ class SpeechWebhookEvent(BaseModel):
     confidence: Optional[float] = Field(default=None, ge=0, le=1)
     start_ms: Optional[int] = Field(default=None, ge=0)
     end_ms: Optional[int] = Field(default=None, ge=0)
+    latency_ms: Optional[int] = Field(default=None, ge=0)
     asr_provider: str = Field(default="", max_length=100)
     barge_in: bool = False
     attempt: Optional[int] = Field(default=None, ge=0)

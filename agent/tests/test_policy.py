@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
+from app.llm import _validated_llm_endpoint, redact_sensitive_text
 
 
 def test_english_reply_and_handoff_are_localized():
@@ -46,3 +47,40 @@ def test_agent_service_token_protects_turn_endpoint(monkeypatch):
             headers={"Authorization": "Bearer test-agent-token"},
         )
     assert response.status_code == 200
+
+
+def test_external_llm_requires_tenant_approval(monkeypatch):
+    monkeypatch.setattr(settings, "service_token", "test-agent-token")
+    payload = {
+        "call_id": "00000000-0000-0000-0000-000000000002",
+        "phone": "13800138000",
+        "mode": "ai_only",
+        "transcript": "hello",
+        "context": {"llm_provider": "openai-compatible", "external_llm_enabled": False},
+    }
+    with TestClient(app) as client:
+        response = client.post(
+            "/agent/turn",
+            json=payload,
+            headers={"Authorization": "Bearer test-agent-token"},
+        )
+    assert response.status_code == 409
+
+
+def test_llm_redaction_and_host_allowlist(monkeypatch):
+    value = "mail me at customer@example.com or call +86 138-0013-8000 with ID 11010519491231002X"
+    redacted = redact_sensitive_text(value)
+    assert "customer@example.com" not in redacted
+    assert "138-0013-8000" not in redacted
+    assert "11010519491231002X" not in redacted
+
+    monkeypatch.setattr(settings, "openai_base_url", "https://approved.example.com/v1")
+    monkeypatch.setattr(settings, "llm_allowed_hosts", "approved.example.com")
+    assert _validated_llm_endpoint() == "https://approved.example.com/v1"
+    monkeypatch.setattr(settings, "openai_base_url", "https://unapproved.example.com/v1")
+    try:
+        _validated_llm_endpoint()
+    except RuntimeError as exc:
+        assert "not allowlisted" in str(exc)
+    else:
+        raise AssertionError("unapproved LLM host must be rejected")

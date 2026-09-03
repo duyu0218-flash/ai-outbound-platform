@@ -9,9 +9,11 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi==0.141.1",
   "uvicorn[standard]==0.52.4",
+  "anyio==4.14.2",
   "httpx==0.28.1",
   "pydantic-settings==2.15.0",
   "pipecat-ai[openai,websocket]==1.8.1",
+  "nltk==3.10.3",
 ]
 
 [project.optional-dependencies]

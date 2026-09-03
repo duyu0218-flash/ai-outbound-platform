@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import AsyncIterator
 
 import pytest
+from security_fixtures import SECURITY_SETTINGS
 
 from app.config import Settings
 from app.esl import EslClient, EslError, read_frame
@@ -34,13 +35,18 @@ class FakePipecatManager:
         self.interrupted: list[str] = []
         self.closed: list[str] = []
         self.media: list[tuple[str, str]] = []
+        self.sessions_by_call = {}
 
     def ready(self) -> bool:
         return True
 
     async def create_session(self, **kwargs):
         self.created.append(kwargs)
-        return SimpleNamespace(token="pipecat-token-1", session_id="pipecat-session-1")
+        current = SimpleNamespace(token="pipecat-token-1", session_id="pipecat-session-1",
+                                  startup_complete=asyncio.Event(), terminated=asyncio.Event(), closing=False)
+        current.startup_complete.set()
+        self.sessions_by_call[kwargs['call_id']] = current
+        return current
 
     def media_ws_url(self, session) -> str:
         return f"ws://voice-gateway:8002/v1/pipecat/media/{session.token}"
@@ -54,6 +60,9 @@ class FakePipecatManager:
 
     async def close(self, call_id: str, **_kwargs) -> None:
         self.closed.append(call_id)
+        current = self.sessions_by_call.pop(call_id, None)
+        if current is not None:
+            current.terminated.set()
 
     async def post_media(self, session, state: str, **_kwargs) -> None:
         self.media.append((session.token, state))
@@ -63,13 +72,13 @@ def freeswitch_settings(**overrides) -> Settings:
     values = {
         "voice_gateway_driver": "freeswitch_esl",
         "freeswitch_esl_host": "fs.internal",
-        "freeswitch_esl_password": "test-password",
+        "freeswitch_esl_password": "synthetic-esl-" + "e" * 32,
         "freeswitch_gateway": "carrier",
         "freeswitch_caller_id": "02155550000",
         "freeswitch_tts_engine": "flite",
         "freeswitch_tts_voice": "slt",
         "freeswitch_recording_public_base_url": "https://recordings.example.test/calls",
-        "webhook_token": "callback-token",
+        **SECURITY_SETTINGS,
     }
     values.update(overrides)
     return Settings(**values)
@@ -168,7 +177,7 @@ def test_freeswitch_driver_dial_and_call_controls():
         await driver.post("hangup", {"call_id": "platform-call-1", "reason": "acceptance"})
         assert any(command.startswith(f"uuid_broadcast {binding.fs_uuid} speak:flite|slt|您好") for command in fake.api_commands)
         assert f"uuid_break {binding.fs_uuid} all" in fake.api_commands
-        assert f"uuid_transfer {binding.fs_uuid} agent_23 XML default" in fake.api_commands
+        assert f"uuid_transfer {binding.fs_uuid} agent_23 XML agent-restricted" in fake.api_commands
         assert f"uuid_kill {binding.fs_uuid} NORMAL_CLEARING" in fake.api_commands
         assert any(payload.get("state") == "speaking" for _, payload in callbacks)
 
@@ -202,6 +211,7 @@ def test_freeswitch_events_emit_status_media_and_recording_callbacks():
             "Unique-ID": fs_uuid,
             "Event-Date-Timestamp": "100",
         })
+        await driver.media_tasks['platform-call-2']
         await driver._handle_event({
             "Event-Name": "CHANNEL_HANGUP_COMPLETE",
             "Unique-ID": fs_uuid,
@@ -306,6 +316,7 @@ def test_human_only_call_rings_browser_then_confirms_media_bridge():
         fs_uuid = dial["provider_call_id"]
         await driver._handle_event({"Event-Name": "CHANNEL_ANSWER", "Unique-ID": fs_uuid, "Event-Date-Timestamp": "400"})
         await driver._handle_event({"Event-Name": "CHANNEL_BRIDGE", "Unique-ID": fs_uuid, "Event-Date-Timestamp": "500"})
+        await driver.media_tasks['human-call-1']
         statuses = [payload["payload"]["status"] for url, payload in captured if url.endswith("/status")]
         assert statuses == ["agent_answered", "human_connected"]
         assert any(command.startswith(f"uuid_record {fs_uuid} start ") for command in fake.api_commands)
@@ -405,9 +416,10 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
     settings.validate_runtime()
 
     notice_tts_settings = Settings(
+        **SECURITY_SETTINGS,
         voice_gateway_driver="freeswitch_esl",
         voice_ai_pipeline="pipecat",
-        freeswitch_esl_password="test-password",
+        freeswitch_esl_password="synthetic-esl-" + "e" * 32,
         freeswitch_gateway="carrier",
         pipecat_version="1.8.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
@@ -468,6 +480,7 @@ def test_freeswitch_driver_routes_media_and_tts_through_pipecat():
                 "Event-Date-Timestamp": "700",
             }
         )
+        await asyncio.sleep(0)
         assert fake_pipecat.created[0]["call_id"] == "pipecat-call-1"
         assert any(
             command.startswith(f"uuid_audio_stream {dial['provider_call_id']} start ws://voice-gateway:8002/")
@@ -529,6 +542,7 @@ def test_pipecat_falls_back_only_when_explicitly_configured():
         await driver._handle_event(
             {"Event-Name": "CHANNEL_ANSWER", "Unique-ID": dial["provider_call_id"]}
         )
+        await driver.media_tasks['pipecat-fallback-1']
         binding = driver.calls_by_id["pipecat-fallback-1"]
         assert binding.voice_ai_pipeline == "legacy"
         assert fake_pipecat.closed == ["pipecat-fallback-1"]
