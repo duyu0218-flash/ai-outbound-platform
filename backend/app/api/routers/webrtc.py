@@ -207,7 +207,7 @@ def freeswitch_directory(
         <user id=\"{safe_user}\">
           <params><param name=\"password\" value=\"{safe_password}\"/></params>
           <variables>
-            <variable name=\"user_context\" value=\"default\"/>
+            <variable name=\"user_context\" value=\"browser-no-outbound\"/>
             <variable name=\"effective_caller_id_name\" value=\"{safe_user}\"/>
             <variable name=\"effective_caller_id_number\" value=\"{safe_user}\"/>
           </variables>

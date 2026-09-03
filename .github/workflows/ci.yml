@@ -7,11 +7,51 @@ on:
     branches: [ main ]
 
 jobs:
+  security-supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+      - name: Audit Python services and generate SBOMs
+        run: |
+          mkdir -p artifacts/sbom
+          for service in backend agent voice_gateway recording_adapter; do
+            python -m venv "/tmp/audit-$service"
+            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "pip==26.2.1" "setuptools==84.0.0"
+            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "./$service" "pip-audit==2.10.1" "cyclonedx-bom==7.3.1"
+            if [ "$service" = "voice_gateway" ]; then
+              "/tmp/audit-$service/bin/python" scripts/check-nltk-advisory-boundary.py
+              # PYSEC-2026-3740 has no patched NLTK release. The exception is
+              # limited to Pipecat's sentence tokenizer and guarded above.
+              "/tmp/audit-$service/bin/pip-audit" --ignore-vuln PYSEC-2026-3740
+            else
+              "/tmp/audit-$service/bin/pip-audit"
+            fi
+            "/tmp/audit-$service/bin/cyclonedx-py" environment "/tmp/audit-$service/bin/python" --output-format JSON --output-file "artifacts/sbom/$service.cdx.json"
+          done
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm audit --audit-level high
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: software-bill-of-materials
+          path: artifacts/sbom/*.cdx.json
+          if-no-files-found: error
+
   version-constraints:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
       - name: Validate version constraints and compatibility matrix
@@ -27,11 +67,11 @@ jobs:
       run:
         working-directory: ${{ matrix.service }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         if: matrix.service == 'backend'
         with:
           node-version: "22"
@@ -102,11 +142,11 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
       - name: Enable pnpm
@@ -139,8 +179,8 @@ jobs:
   compose-e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
       - name: Enable pnpm
@@ -198,8 +238,8 @@ jobs:
   deployable-assets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
       - name: Validate configuration assets

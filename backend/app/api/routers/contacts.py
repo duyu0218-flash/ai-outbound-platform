@@ -5,18 +5,19 @@ import io
 import json
 from collections.abc import Iterator
 from itertools import chain
+from uuid import uuid4
 
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ...api.deps import check_api_key, get_pagination, get_tenant_id_for_request, require_roles_if_authenticated
 from ...clock import utc_now
-from ...models import AuditLog, CallSession, Campaign, CampaignContact, Contact, ConsentState, User
+from ...models import AuditLog, CallSession, Campaign, CampaignContact, Contact, ContactImportJob, ConsentState, User
 from ...schemas import (
     ContactBatchDncPatch,
     ContactBatchDncResult,
@@ -179,10 +180,51 @@ def _iter_csv_rows(file: UploadFile) -> Iterator[tuple[int, dict[str, str]]]:
 def import_contacts(
     file: UploadFile = File(..., media_type="text/csv", description="CSV file with fields phone,name,tags,consent_state,dnc,dnc_reason,timezone"),
     upsert: bool = Query(default=True),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     current: User | None = Depends(require_roles_if_authenticated("admin")),
     tenant_id: int = Depends(get_tenant_id_for_request),
     session: Session = Depends(get_session),
 ):
+    request_key = (idempotency_key or uuid4().hex).strip()
+    if not request_key or len(request_key) > 128 or any(not (char.isalnum() or char in "._:-") for char in request_key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid Idempotency-Key")
+    if settings.env.lower() in {"prod", "production"} and not idempotency_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Idempotency-Key is required in production")
+
+    import_job = session.exec(
+        select(ContactImportJob).where(
+            ContactImportJob.tenant_id == tenant_id,
+            ContactImportJob.request_key == request_key,
+        )
+    ).first()
+    if import_job is not None and import_job.state == "completed":
+        return ContactImportResult(**json.loads(import_job.result_json))
+    if import_job is not None and import_job.state == "processing":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="contact import is already processing")
+    if import_job is None:
+        import_job = ContactImportJob(tenant_id=tenant_id, request_key=request_key)
+        session.add(import_job)
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            existing = session.exec(
+                select(ContactImportJob).where(
+                    ContactImportJob.tenant_id == tenant_id,
+                    ContactImportJob.request_key == request_key,
+                )
+            ).first()
+            if existing is not None and existing.state == "completed":
+                return ContactImportResult(**json.loads(existing.result_json))
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="contact import is already processing")
+        session.refresh(import_job)
+    else:
+        import_job.state = "processing"
+        import_job.last_error = ""
+        import_job.updated_at = utc_now()
+        session.add(import_job)
+        session.commit()
+
     items = _iter_csv_rows(file)
     total_rows = 0
     created = 0
@@ -192,62 +234,77 @@ def import_contacts(
     errors: list[str] = []
     seen_phones: set[str] = set()
 
-    for index, row in items:
-        total_rows += 1
-        if total_rows > max(1, int(settings.contact_import_max_rows)):
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="csv has too many rows")
-        parsed, parse_error = _parse_contact_row(row, index)
-        if parse_error:
-            failed += 1
-            if len(errors) < max(1, int(settings.contact_import_max_errors)):
-                errors.append(parse_error)
-            continue
+    try:
+        for index, row in items:
+            total_rows += 1
+            if total_rows > max(1, int(settings.contact_import_max_rows)):
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="csv has too many rows")
+            parsed, parse_error = _parse_contact_row(row, index)
+            if parse_error:
+                failed += 1
+                if len(errors) < max(1, int(settings.contact_import_max_errors)):
+                    errors.append(parse_error)
+                continue
+            if not parsed:
+                failed += 1
+                continue
 
-        if not parsed:
-            failed += 1
-            continue
-
-        phone = parsed.phone
-        if phone in seen_phones:
-            skipped += 1
-            if len(errors) < max(1, int(settings.contact_import_max_errors)):
-                errors.append(f"row {index}: duplicate phone in uploaded file")
-            continue
-        seen_phones.add(phone)
-
-        existing_contact = session.exec(
-            select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == phone)
-        ).first()
-
-        if existing_contact is None:
-            contact = Contact(
-                tenant_id=tenant_id,
-                phone=phone,
-                name=parsed.name or None,
-                tags=parsed.tags,
-                consent_state=parsed.consent_state,
-                dnc=parsed.dnc,
-                dnc_reason=parsed.dnc_reason or None,
-                timezone=parsed.timezone,
-                consented_at=utc_now() if parsed.consent_state == ConsentState.CONSENTED else None,
-            )
-            session.add(contact)
-            created += 1
-            continue
-
-        if not upsert:
-            skipped += 1
-            continue
-
-        existing_contact.name = parsed.name or existing_contact.name
-        existing_contact.tags = parsed.tags
-        existing_contact.consent_state = parsed.consent_state
-        existing_contact.dnc = parsed.dnc
-        existing_contact.dnc_reason = parsed.dnc_reason or None
-        existing_contact.timezone = parsed.timezone
-        existing_contact.consented_at = utc_now() if parsed.consent_state == ConsentState.CONSENTED else None
-        session.add(existing_contact)
-        updated += 1
+            phone = parsed.phone
+            if phone in seen_phones:
+                skipped += 1
+                if len(errors) < max(1, int(settings.contact_import_max_errors)):
+                    errors.append(f"row {index}: duplicate phone in uploaded file")
+                continue
+            seen_phones.add(phone)
+            existing_contact = session.exec(
+                select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == phone)
+            ).first()
+            if existing_contact is None:
+                session.add(
+                    Contact(
+                        tenant_id=tenant_id,
+                        phone=phone,
+                        name=parsed.name or None,
+                        tags=parsed.tags,
+                        consent_state=parsed.consent_state,
+                        dnc=parsed.dnc,
+                        dnc_reason=parsed.dnc_reason or None,
+                        timezone=parsed.timezone,
+                        consented_at=utc_now() if parsed.consent_state == ConsentState.CONSENTED else None,
+                        consented_by=(current.username if current else "tenant-api") if parsed.consent_state == ConsentState.CONSENTED else None,
+                    )
+                )
+                created += 1
+            elif not upsert:
+                skipped += 1
+            else:
+                existing_contact.name = parsed.name or existing_contact.name
+                existing_contact.tags = parsed.tags
+                existing_contact.consent_state = parsed.consent_state
+                existing_contact.dnc = parsed.dnc
+                existing_contact.dnc_reason = parsed.dnc_reason or None
+                existing_contact.timezone = parsed.timezone
+                existing_contact.consented_at = utc_now() if parsed.consent_state == ConsentState.CONSENTED else None
+                existing_contact.consented_by = (
+                    (current.username if current else "tenant-api")
+                    if parsed.consent_state == ConsentState.CONSENTED
+                    else None
+                )
+                session.add(existing_contact)
+                updated += 1
+            if total_rows % max(1, int(settings.contact_import_batch_size)) == 0:
+                session.flush()
+    except Exception as exc:
+        session.rollback()
+        with session_scope() as failed_session:
+            failed_job = failed_session.get(ContactImportJob, import_job.id)
+            if failed_job is not None:
+                failed_job.state = "failed"
+                failed_job.last_error = str(exc)[:2000]
+                failed_job.updated_at = utc_now()
+                failed_session.add(failed_job)
+                failed_session.commit()
+        raise
 
     _audit(
         session,
@@ -260,13 +317,18 @@ def import_contacts(
             f"skipped={skipped}, failed={failed}, upsert={upsert}"
         ),
     )
+    result = ContactImportResult(total=total_rows, created=created, updated=updated, skipped=skipped, failed=failed, errors=errors)
+    import_job.state = "completed"
+    import_job.result_json = result.model_dump_json()
+    import_job.updated_at = utc_now()
+    session.add(import_job)
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="duplicate phone detected in current tenant")
 
-    return ContactImportResult(total=total_rows, created=created, updated=updated, skipped=skipped, failed=failed, errors=errors)
+    return result
 
 
 def _spreadsheet_safe(value: object) -> str:
@@ -417,6 +479,7 @@ def create_contact(
         dnc_reason=payload.dnc_reason or None,
         timezone=payload.timezone,
         consented_at=utc_now() if payload.consent_state == ConsentState.CONSENTED else None,
+        consented_by=(current.username if current else "tenant-api") if payload.consent_state == ConsentState.CONSENTED else None,
     )
     _audit(
         session,
@@ -425,7 +488,7 @@ def create_contact(
         action="create",
         resource_type="contact",
         detail=(
-            f"phone={contact.phone}, name={contact.name or ''}, consent_state={contact.consent_state}, "
+            f"consent_state={contact.consent_state}, "
             f"dnc={contact.dnc}, dnc_reason={contact.dnc_reason or ''}, timezone={contact.timezone}"
         ),
     )
@@ -488,8 +551,10 @@ def patch_contact(
     if payload.consent_state is not None:
         if payload.consent_state == ConsentState.CONSENTED:
             contact.consented_at = utc_now()
+            contact.consented_by = current.username if current else "tenant-api"
         else:
             contact.consented_at = None
+            contact.consented_by = None
     _audit(
         session,
         tenant_id=tenant_id,

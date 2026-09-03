@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -29,6 +32,7 @@ os.environ.setdefault("TELEPHONY_RETRY_TIMES", "0")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
 
 from app.db import engine, session_scope  # noqa: E402
+from app import db as db_module  # noqa: E402
 from app.clock import utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app import main as app_main  # noqa: E402
@@ -42,6 +46,7 @@ from app.models import (  # noqa: E402
     CallSession,
     CallStatus,
     Contact,
+    ContactImportJob,
     HandoffRequest,
     HandoffState,
     KnowledgeItem,
@@ -52,6 +57,7 @@ from app.models import (  # noqa: E402
     TaskOutbox,
     TaskState,
     TelephonyLine,
+    Tenant,
     User,
 )
 from app.schemas import AiTurnResult  # noqa: E402
@@ -74,6 +80,7 @@ from app.services.task_queue import (  # noqa: E402
 from app.schemas import ScriptFlowGraph  # noqa: E402
 from app.services.call_service import (  # noqa: E402
     create_call,
+    can_call_contact_sync,
     dispatch_call_ids,
     dispatch_due_retries,
     dispatch_pending_calls,
@@ -97,7 +104,11 @@ def reset_runtime_settings_after_test(monkeypatch):
     """Keep tests independent from saved settings and wall-clock call hours."""
 
     compliance_defaults = dict(SETTING_DEFAULTS["compliance"])
-    compliance_defaults.update(allowed_start_hour=0, allowed_end_hour=0)
+    compliance_defaults.update(
+        allowed_start_hour=0,
+        allowed_end_hour=0,
+        require_explicit_consent_for_direct_calls=False,
+    )
     monkeypatch.setitem(SETTING_DEFAULTS, "compliance", compliance_defaults)
 
     yield
@@ -114,6 +125,187 @@ def _login(client: TestClient, username: str, password: str = "12345678") -> str
 
 def _bearer(token: str, **extra: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", **extra}
+
+
+def _voice_security_contract_module():
+    # Load only the independent security protocol module, not the gateway's
+    # app package/Pipecat runtime, so this test verifies both implementations.
+    import importlib.util
+    import sys
+    name = "voice_security_contract"
+    if name not in sys.modules:
+        path = Path(__file__).resolve().parents[2] / "voice_gateway/app/security.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+@pytest.mark.skipif(engine.dialect.name != "postgresql", reason="PostgreSQL serial sequence regression")
+def test_bootstrap_repairs_existing_tenant_sequence_without_rewinding(client):
+    sequence = "pg_get_serial_sequence('tenant', 'id')"
+    with session_scope() as session:
+        # Simulate an existing installation seeded with an explicit default ID.
+        session.exec(text(f"SELECT setval({sequence}, 1, false)"))
+        session.commit()
+        app_main._bootstrap_default_tenant_data(session)
+        tenant = Tenant(name="sequence-regression", code=f"sequence-regression-{uuid4().hex}")
+        session.add(tenant)
+        session.commit()
+        session.refresh(tenant)
+        assert tenant.id > app_main.settings.default_tenant_id
+
+        allocated = session.exec(text(f"SELECT nextval({sequence})")).scalar_one()
+        session.commit()
+        app_main._bootstrap_default_tenant_data(session)
+        next_id = session.exec(text(f"SELECT nextval({sequence})")).scalar_one()
+        assert next_id > allocated
+        session.commit()
+
+
+def test_gateway_callback_producer_passes_actual_production_hmac_verifier(client, monkeypatch):
+    import httpx
+    from types import SimpleNamespace
+    from starlette.requests import Request
+    from app.api.deps import _verify_webhook_request
+    security = _voice_security_contract_module()
+    token, secret = "synthetic-token-" + "t" * 32, "synthetic-signature-" + "s" * 32
+    config = SimpleNamespace(voice_security_db_path="", voice_callback_base_url="http://control-api:8000",
+                             webhook_token=token, webhook_secret=secret, request_timeout_sec=1)
+    captured = []
+    def transport(req):
+        captured.append(req)
+        return httpx.Response(200)
+    original = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(transport), **kw))
+    monkeypatch.setattr(app_main.settings, "env", "production")
+    async def run():
+        await security.CallbackSender(config).post(config.voice_callback_base_url + "/api/v1/webhooks/telephony/status",
+                                                   {"call_id": "synthetic", "kind": "status", "payload": {"status": "answered", "text": "中文"}})
+        produced = captured[0]
+        async def receive():
+            return {"type": "http.request", "body": produced.content, "more_body": False}
+        request = Request({"type": "http", "method": "POST", "path": "/", "headers": []}, receive)
+        await _verify_webhook_request(request, token=token, secret=secret, label="telephony",
+                                     x_webhook_token=produced.headers["x-webhook-token"],
+                                     x_webhook_timestamp=produced.headers["x-webhook-timestamp"],
+                                     x_webhook_signature=produced.headers["x-webhook-signature"])
+    asyncio.run(run())
+
+
+def test_backend_commands_pass_gateway_permit_verifier_and_bind_tenant(client, monkeypatch, tmp_path):
+    import httpx
+    security = _voice_security_contract_module()
+    secret = "synthetic-command-" + "s" * 32
+    monkeypatch.setattr(app_main.settings, "voice_command_secret", secret)
+    ledger = security.Ledger(str(tmp_path / "contract.sqlite3"))
+    captured = []
+    def transport(req):
+        ledger.verify_command(secret, req.url.path, req.content, req.headers)
+        captured.append(json.loads(req.content))
+        return httpx.Response(200, json={"result": "accepted"})
+    original = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(transport), **kw))
+    async def run():
+        adapter = telephony.HttpAdapter("http://synthetic-gateway", bearer_token="synthetic", tenant_id=7)
+        await adapter.dial(call_id="c-1", phone="8613800138000", webhook_url="http://control/status", metadata={"tenant_id": 7, "attempt": 1})
+        await adapter.hangup(call_id="c-1")
+    asyncio.run(run())
+    assert all(p["tenant_id"] == 7 for p in captured)
+
+
+def test_rejection_after_transport_timeout_remains_uncertain(client):
+    import httpx
+    attempts = 0
+    async def operation():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadTimeout("synthetic lost response")
+        request = httpx.Request("POST", "http://synthetic-gateway/v1/call/dial")
+        raise httpx.HTTPStatusError("synthetic key rotation", request=request, response=httpx.Response(401, request=request))
+    with pytest.raises(httpx.HTTPStatusError) as exc:
+        asyncio.run(telephony.with_retry(operation, retries=2, base_delay=0))
+    assert attempts == 2
+    assert exc.value.telephony_outcome_unknown is True
+
+
+def test_security_config_changes_need_independent_approval(client, monkeypatch):
+    token = _login(client, "admin")
+    headers = _bearer(token)
+    monkeypatch.setattr(app_main.settings, "telephony_provider", "http")
+    approval = "synthetic-independent-approval-" + "a" * 32
+    monkeypatch.setattr(app_main.settings, "outbound_security_approval_token", approval)
+    path = "/api/v1/admin/settings/capacity"
+    assert client.put(path, headers=headers, json={"data": {"max_concurrent_calls": 2}}).status_code == 403
+    approved = {**headers, "x-security-approval": approval}
+    assert client.put(path, headers=approved, json={"data": {"max_concurrent_calls": 2}}).status_code == 200
+    assert client.get(path, headers=headers).json()["data"]["max_concurrent_calls"] == 2
+    assert client.put(path, headers=approved, json={"data": {"max_concurrent_calls": 9999}}).status_code == 422
+
+
+def test_platform_policy_cannot_be_relaxed_by_saved_tenant_settings(client, monkeypatch):
+    from app.services.admin_settings import get_tenant_max_concurrent_calls
+    monkeypatch.setattr(app_main.settings, "outbound_platform_max_concurrent", 2)
+    monkeypatch.setattr(app_main.settings, "outbound_allowed_phone_prefixes", "86138")
+    with session_scope() as session:
+        session.add(AdminSetting(tenant_id=1, section="capacity", data_json='{"max_concurrent_calls":9999}'))
+        session.add(AdminSetting(tenant_id=1, section="compliance", data_json='{"allowed_phone_prefixes":"1","allowed_start_hour":0,"allowed_end_hour":0}'))
+        session.commit()
+        assert get_tenant_max_concurrent_calls(session, 1) == 2
+        assert can_call_contact_sync(session, 1, "12025550123") == (False, "platform_destination_not_allowed")
+
+
+def test_transfer_rejects_free_form_unknown_and_foreign_agent(client):
+    from app.services.call_service import resolve_handoff_agent, CallPermissionError
+    with session_scope() as session:
+        agent = session.exec(select(User).where(User.tenant_id == 1, User.role == "agent", User.enabled.is_(True))).first()
+        assert resolve_handoff_agent(session, 1, f"agent:{agent.id}") == agent.id
+        for target in ("12025550123", "sofia/gateway/carrier/12025550123", "agent:999999999", "default"):
+            with pytest.raises(CallPermissionError):
+                resolve_handoff_agent(session, 1, target)
+        with pytest.raises(CallPermissionError):
+            resolve_handoff_agent(session, 999999, f"agent:{agent.id}")
+
+
+def test_stale_unconfirmed_provider_preserves_capacity(client, monkeypatch):
+    from app.services import call_service
+    class Unconfirmed:
+        async def hangup(self, **kwargs):
+            return {"result": "pending", "ended": False}
+    monkeypatch.setattr(call_service, "get_telephony_adapter", lambda **kw: Unconfirmed())
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="8613800138999", mode=CallMode.HUMAN_ONLY,
+                           status=CallStatus.DIALING, attempts=1, updated_at=utc_now() - timedelta(seconds=600))
+        session.add(call)
+        session.commit()
+        call_id = call.id
+    asyncio.run(expire_stale_calls(batch_size=10000))
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call.status == CallStatus.DIALING
+        assert call.finished_at is None and call.next_attempt_at is None
+        assert "capacity retained" in call.last_error
+        call.status = CallStatus.FAILED  # isolate synthetic test data
+        session.add(call)
+        session.commit()
+
+
+def test_production_machine_key_write_scopes_are_explicit(client, monkeypatch):
+    from app.api.deps import _check_machine_scope
+    from fastapi import HTTPException
+    from starlette.requests import Request
+    monkeypatch.setattr(app_main.settings, "env", "production")
+    monkeypatch.setattr(app_main.settings, "tenant_api_scopes_json", '{}')
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1/calls", "headers": []})
+    with pytest.raises(HTTPException) as exc:
+        _check_machine_scope(request, 1)
+    assert exc.value.status_code == 403
+    monkeypatch.setattr(app_main.settings, "tenant_api_scopes_json", '{"1":["calls:dial"]}')
+    _check_machine_scope(request, 1)
+    with pytest.raises(HTTPException):
+        _check_machine_scope(request, 2)
 
 
 def test_script_flow_version_publish_bind_and_simulate(client: TestClient):
@@ -251,6 +443,7 @@ def test_p0_realtime_speech_is_idempotent_and_final_only_is_structured(client: T
         "confidence": 0.94,
         "start_ms": 120,
         "end_ms": 2380,
+        "latency_ms": 180,
     }
     assert client.post("/api/v1/webhooks/telephony/speech", json=final).status_code == 200
     turns = client.get(f"/api/v1/calls/{call_id}/speech-turns", headers=_bearer(token))
@@ -279,6 +472,9 @@ def test_p0_realtime_speech_is_idempotent_and_final_only_is_structured(client: T
     assert realtime.json()["state"] == "speaking"
     metrics = client.get(f"/api/v1/calls/{call_id}/metrics", headers=_bearer(token))
     assert any(item["stage"] == "media.speaking" for item in metrics.json())
+    asr_final = next(item for item in metrics.json() if item["stage"] == "asr.final")
+    assert asr_final["duration_ms"] == 180
+    assert "audio_span_ms=2260" in asr_final["detail"]
 
 
 def test_p1_recording_analysis_and_knowledge_crud(client: TestClient):
@@ -2086,10 +2282,14 @@ def test_campaign_pause_resume_stop_lifecycle(client: TestClient):
     assert stopped.json()["status"] == "stopped"
 
 
-def test_admin_management_crud_settings_and_audit(client: TestClient):
+def test_admin_management_crud_settings_and_audit(client: TestClient, monkeypatch):
+    approval = "synthetic-independent-security-approval-token"
+    monkeypatch.setattr(app_main.settings, "outbound_security_approval_token", approval)
     admin_token = _login(client, "admin")
     agent_token = _login(client, "1001@test")
     headers = _bearer(admin_token)
+
+    headers["x-security-approval"] = approval
 
     assert client.get("/api/v1/admin/users", headers=_bearer(agent_token)).status_code == 403
 
@@ -2203,9 +2403,19 @@ def test_admin_management_crud_settings_and_audit(client: TestClient):
     assert audits.status_code == 200, audits.text
     actions = {item["action"] for item in audits.json()}
     assert {"create", "update", "reset_password"}.issubset(actions)
+    # This test creates an HTTP line; do not route later mock tests to it.
+    assert client.delete(f"/api/v1/admin/lines/{line_id}", headers=headers).status_code == 200
 
 
 def test_compliance_interval_blocks_repeat_but_not_current_dispatch(client: TestClient):
+    # Other scenarios intentionally leave active mock calls. This test is
+    # about per-number intervals, not exhaustion of those scenarios' lines.
+    from app.services.call_service import CAPACITY_STATUSES
+    with session_scope() as session:
+        for prior in session.exec(select(CallSession).where(CallSession.status.in_(CAPACITY_STATUSES))).all():
+            prior.status = CallStatus.COMPLETED
+            session.add(prior)
+        session.commit()
     token = _login(client, "admin")
     headers = _bearer(token)
     setting = client.put(
@@ -2221,7 +2431,7 @@ def test_compliance_interval_blocks_repeat_but_not_current_dispatch(client: Test
         json={"phone": "13800138871", "mode": "human_only", "max_attempts": 1},
     )
     assert first.status_code == 200, first.text
-    assert first.json()["attempts"] == 1
+    assert first.json()["attempts"] == 1, first.json()
 
     repeated = client.post(
         "/api/v1/calls",
@@ -2446,7 +2656,7 @@ def test_stale_provider_call_releases_capacity(client: TestClient):
         session.add(call)
         session.commit()
         call_id = call.id
-    assert expire_stale_calls(batch_size=100) >= 1
+    assert asyncio.run(expire_stale_calls(batch_size=100)) >= 1
     with session_scope() as session:
         persisted = session.get(CallSession, call_id)
         assert persisted is not None
@@ -2865,3 +3075,294 @@ def test_contact_export_escapes_spreadsheet_formulas(client: TestClient):
     assert exported.status_code == 200, exported.text
     assert "'=HYPERLINK" in exported.text
     assert "'+SUM(1,1)" in exported.text
+
+
+def test_direct_calls_require_consent_and_respect_destination_allowlist():
+    suffix = f"{uuid4().int % 10_000_000:07d}"
+    allowed_phone = f"8613{suffix}"
+    with session_scope() as session:
+        session.add(
+            AdminSetting(
+                tenant_id=1,
+                section="compliance",
+                data_json=json.dumps(
+                    {
+                        "require_explicit_consent_for_direct_calls": True,
+                        "allowed_phone_prefixes": "86",
+                    }
+                ),
+            )
+        )
+        session.commit()
+        allowed, reason = can_call_contact_sync(session, 1, allowed_phone)
+        assert allowed is False
+        assert reason == "explicit_consent_required"
+        allowed, reason = can_call_contact_sync(session, 1, f"63{suffix}")
+        assert allowed is False
+        assert reason == "destination_not_allowed"
+        session.add(
+            Contact(
+                tenant_id=1,
+                phone=allowed_phone,
+                consent_state="consented",
+                consented_at=utc_now(),
+                consented_by="compliance-test",
+            )
+        )
+        session.commit()
+        allowed, reason = can_call_contact_sync(session, 1, allowed_phone)
+        assert allowed is True
+        assert reason == ""
+
+
+@pytest.mark.asyncio
+async def test_daily_tenant_dial_limit_blocks_before_provider_call(monkeypatch):
+    called = False
+
+    class UnexpectedAdapter:
+        async def dial(self, **_kwargs):
+            nonlocal called
+            called = True
+            return {"provider_call_id": "unexpected"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: UnexpectedAdapter())
+    with session_scope() as session:
+        session.add(
+            AdminSetting(
+                tenant_id=1,
+                section="compliance",
+                data_json=json.dumps(
+                    {
+                        "require_explicit_consent_for_direct_calls": False,
+                        "max_calls_per_day": 1,
+                    }
+                ),
+            )
+        )
+        session.add(
+            CallSession(
+                tenant_id=1,
+                phone="13900139990",
+                mode=CallMode.HUMAN_ONLY,
+                status=CallStatus.COMPLETED,
+                attempts=1,
+                started_at=utc_now(),
+                finished_at=utc_now(),
+            )
+        )
+        session.commit()
+        call = create_call(
+            session,
+            tenant_id=1,
+            phone="13900139991",
+            mode=CallMode.HUMAN_ONLY,
+            campaign_id=None,
+            contact_id=None,
+        )
+        call = await place_call(session, call)
+        assert call.status == CallStatus.FAILED
+        assert call.last_error == "precheck failed: tenant_daily_call_limit"
+    assert called is False
+
+
+@pytest.mark.asyncio
+async def test_daily_tenant_dial_limit_counts_retry_attempts(monkeypatch):
+    dial_count = 0
+
+    class CountingAdapter:
+        async def dial(self, **_kwargs):
+            nonlocal dial_count
+            dial_count += 1
+            return {"provider_call_id": f"provider-{dial_count}"}
+
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: CountingAdapter())
+    with session_scope() as session:
+        tenant = Tenant(name="daily-limit-retry", code=f"daily-limit-retry-{uuid4().hex}")
+        session.add(tenant)
+        session.commit()
+        session.refresh(tenant)
+        session.add(
+            AdminSetting(
+                tenant_id=tenant.id,
+                section="compliance",
+                data_json=json.dumps(
+                    {
+                        "require_explicit_consent_for_direct_calls": False,
+                        "max_calls_per_day": 1,
+                    }
+                ),
+            )
+        )
+        session.commit()
+        call = create_call(
+            session,
+            tenant_id=tenant.id,
+            phone="13900139989",
+            mode=CallMode.HUMAN_ONLY,
+            campaign_id=None,
+            contact_id=None,
+            max_attempts=2,
+        )
+        call = await place_call(session, call)
+        assert call.status == CallStatus.DIALING
+        assert dial_count == 1
+
+        call.status = CallStatus.QUEUED
+        call.telephony_call_id = None
+        session.add(call)
+        session.commit()
+        call = await place_call(session, call)
+        assert call.status == CallStatus.FAILED
+        assert call.last_error == "precheck failed: tenant_daily_call_limit"
+        assert dial_count == 1
+
+
+def test_retention_removes_final_text_and_redacts_expired_call_pii():
+    old = utc_now() - timedelta(days=2)
+    with session_scope() as session:
+        session.add(
+            AdminSetting(
+                tenant_id=1,
+                section="compliance",
+                data_json=json.dumps(
+                    {
+                        "final_transcript_retention_days": 1,
+                        "call_sensitive_data_retention_days": 1,
+                    }
+                ),
+            )
+        )
+        call = CallSession(
+            tenant_id=1,
+            phone="13900139992",
+            mode=CallMode.AI_ONLY,
+            status=CallStatus.COMPLETED,
+            last_transcript="customer secret",
+            summary="sensitive summary",
+            started_at=old,
+            finished_at=old,
+        )
+        session.add(call)
+        session.flush()
+        turn = SpeechTurn(
+            tenant_id=1,
+            call_session_id=call.id,
+            provider_event_key=f"final-retention-{call.id}",
+            transcript="customer secret",
+            normalized_transcript="customer secret",
+            is_final=True,
+            created_at=old,
+        )
+        session.add(turn)
+        session.add(CallEvent(call_session_id=call.id, event_type="status", payload='{"phone":"13900139992"}'))
+        session.add(CallMetric(tenant_id=1, call_session_id=call.id, stage="test", detail="secret detail"))
+        session.add(
+            CallAnalysis(
+                tenant_id=1,
+                call_session_id=call.id,
+                summary="sensitive summary",
+                qa_flags_json='["secret"]',
+                structured_json='{"secret":true}',
+            )
+        )
+        session.commit()
+        call_id = call.id
+        turn_id = turn.id
+
+    result = purge_expired_voice_data(batch_size=500)
+    assert result["final_transcripts"] >= 1
+    assert result["redacted_calls"] >= 1
+    with session_scope() as session:
+        assert session.get(SpeechTurn, turn_id) is None
+        call = session.get(CallSession, call_id)
+        assert call is not None
+        assert call.phone.startswith("redacted:")
+        assert call.last_transcript is None
+        assert call.summary is None
+        event = session.exec(select(CallEvent).where(CallEvent.call_session_id == call_id)).first()
+        assert event is not None and event.payload == "{}"
+        analysis = session.exec(select(CallAnalysis).where(CallAnalysis.call_session_id == call_id)).first()
+        assert analysis is not None
+        assert analysis.summary == ""
+        assert analysis.structured_json == "{}"
+
+
+def test_contact_import_idempotency_returns_original_result(client: TestClient):
+    token = _login(client, "admin")
+    request_key = f"contacts-{uuid4().hex}"
+    phone = f"139{uuid4().int % 100_000_000:08d}"
+    payload = f"phone,name,consent_state\n{phone},idempotent,consented\n"
+    headers = _bearer(token, **{"Idempotency-Key": request_key})
+    first = client.post(
+        "/api/v1/contacts/import",
+        headers=headers,
+        files={"file": ("contacts.csv", payload.encode(), "text/csv")},
+    )
+    second = client.post(
+        "/api/v1/contacts/import",
+        headers=headers,
+        files={"file": ("contacts.csv", payload.encode(), "text/csv")},
+    )
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == second.json()
+    assert first.json()["created"] == 1
+    with session_scope() as session:
+        jobs = session.exec(
+            select(ContactImportJob).where(ContactImportJob.request_key == request_key)
+        ).all()
+        assert len(jobs) == 1
+        assert jobs[0].state == "completed"
+
+
+def test_webhook_hmac_rejects_expired_signature_and_accepts_valid(client: TestClient, monkeypatch):
+    token = _login(client, "admin")
+    created = client.post(
+        "/api/v1/calls",
+        headers=_bearer(token),
+        json={"phone": "13900139993", "mode": "human_only", "max_attempts": 1},
+    )
+    assert created.status_code == 200, created.text
+    payload = {
+        "call_id": created.json()["id"],
+        "kind": "status",
+        "payload": {"status": "answered", "event_id": f"signed-{uuid4().hex}"},
+    }
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    secret = "signed-webhook-secret-that-is-long-enough"
+    webhook_token = "signed-webhook-token"
+    monkeypatch.setattr(app_main.settings, "telephony_webhook_secret", secret)
+    monkeypatch.setattr(app_main.settings, "telephony_webhook_token", webhook_token)
+    timestamp = str(int(time.time()))
+    signature = hmac.new(secret.encode(), timestamp.encode() + b"." + body, hashlib.sha256).hexdigest()
+    valid_headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Token": webhook_token,
+        "X-Webhook-Timestamp": timestamp,
+        "X-Webhook-Signature": f"sha256={signature}",
+    }
+    expired_timestamp = str(int(time.time()) - 10_000)
+    expired_signature = hmac.new(
+        secret.encode(), expired_timestamp.encode() + b"." + body, hashlib.sha256
+    ).hexdigest()
+    expired_headers = {
+        **valid_headers,
+        "X-Webhook-Timestamp": expired_timestamp,
+        "X-Webhook-Signature": f"sha256={expired_signature}",
+    }
+    assert client.post("/api/v1/webhooks/telephony/status", content=body, headers=expired_headers).status_code == 401
+    assert client.post("/api/v1/webhooks/telephony/status", content=body, headers=valid_headers).status_code == 200
+
+
+def test_production_startup_verifies_schema_without_running_ddl(monkeypatch):
+    verified: list[bool] = []
+    monkeypatch.setattr(db_module.settings, "env", "production")
+    monkeypatch.setattr(db_module.settings, "auto_migrate", False)
+    monkeypatch.setattr(db_module, "verify_database_schema", lambda: verified.append(True))
+    monkeypatch.setattr(
+        db_module.SQLModel.metadata,
+        "create_all",
+        lambda *_args, **_kwargs: pytest.fail("production startup must not mutate schema"),
+    )
+    db_module.create_db_and_tables()
+    assert verified == [True]

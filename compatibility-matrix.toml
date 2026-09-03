@@ -1,6 +1,6 @@
 schema_version = 1
 profile = "production-baseline"
-last_reviewed = "2026-08-31"
+last_reviewed = "2026-09-01"
 owner = "platform"
 
 [policy]
@@ -67,18 +67,23 @@ evidence = ["docker-compose.yml", ".github/workflows/ci.yml"]
 
 [components.freeswitch]
 constraint = ""
+local_validation_version = "1.10.13-dev+git-ac9b8c621b"
+local_validation_commit = "ac9b8c621b3ac362ea1e153a929aaee6902a1b2d"
 production_image_env = "FREESWITCH_IMAGE"
 runtime_version_env = "FREESWITCH_VERSION"
 production_digest = ""
-status = "version-and-digest-pending-real-environment"
+status = "local-arm64-media-validated-production-release-and-digest-pending"
 required_modules = ["mod_sofia", "mod_event_socket"]
-evidence = ["docker-compose.webrtc.yml", "docs/freeswitch-integration.md"]
+evidence = ["docker-compose.webrtc.yml", "docker-compose.media.yml", "docs/voismart-local-media.md", "docs/freeswitch-integration.md"]
 
 [components.freeswitch_media_module]
-constraint = ""
+constraint = "==2.5.1"
+name = "VoiSmart/mod_openai_realtime"
+license = "MIT"
+source_commit = "4c5f5b3000636edf6f5b08a482d62ec8d620bb06"
 runtime_version_env = "FREESWITCH_MEDIA_MODULE_VERSION"
-status = "not-selected"
-evidence = ["docs/freeswitch-integration.md", ".env.example"]
+status = "local-arm64-raw-pcm-drain-interruption-validated-real-sip-and-production-unverified"
+evidence = ["docs/voismart-local-media.md", "scripts/verify_voismart_media.py", "voice_gateway/tests/test_voismart.py", ".env.example"]
 
 [components.coturn]
 constraint = "==4.17.2-r0"
@@ -101,6 +106,12 @@ constraint = "==1.8.1"
 runtime_version_env = "PIPECAT_VERSION"
 status = "candidate-integrated-controlled-routing-real-media-unverified"
 evidence = ["voice_gateway/pyproject.toml", "voice_gateway/app/pipecat_pipeline.py", "voice_gateway/tests/test_freeswitch.py", "docs/pipecat-integration.md"]
+
+[components.aliyun_nls]
+constraint = "managed-websocket-api"
+runtime_version_env = "PIPECAT_STT_PROVIDER"
+status = "adapter-and-contract-tested-real-account-and-line-unverified"
+evidence = ["voice_gateway/app/aliyun_nls_stt.py", "voice_gateway/tests/test_aliyun_nls_stt.py", "docs/pipecat-integration.md"]
 
 [components.seaweedfs]
 constraint = "==4.44"
@@ -147,7 +158,7 @@ evidence = ["deploy/sipp/Dockerfile", "docker-compose.sipp.yml", "scripts/run-si
 
 [components.github_actions]
 constraint = "checkout==v7; setup-python==v7; setup-node==v7"
-status = "major-tag-pinned-commit-sha-pending"
+status = "full-commit-sha-pinned"
 evidence = [".github/workflows/ci.yml"]
 
 [interfaces.telephony_control]

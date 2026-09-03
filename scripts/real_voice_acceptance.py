@@ -69,7 +69,15 @@ def event_statuses(events: list[dict[str, Any]]) -> set[str]:
     return statuses
 
 
-def validate_scenario(mode: str, call: dict[str, Any], events: list[dict[str, Any]]) -> list[str]:
+def validate_scenario(
+    mode: str,
+    call: dict[str, Any],
+    events: list[dict[str, Any]],
+    speech_turns: list[dict[str, Any]],
+    metrics: list[dict[str, Any]],
+    *,
+    expected_asr_provider: str = "",
+) -> list[str]:
     failures: list[str] = []
     types = event_types(events)
     statuses = event_statuses(events)
@@ -83,6 +91,34 @@ def validate_scenario(mode: str, call: dict[str, Any], events: list[dict[str, An
         failures.append("human-only call unexpectedly executed an AI decision")
     if mode in {"mixed_human_first", "ai_only", "ai_handoff"} and "ai_decision" not in types:
         failures.append("AI decision event is missing")
+    if mode in {"mixed_human_first", "ai_only", "ai_handoff"}:
+        final_turns = [
+            turn for turn in speech_turns
+            if turn.get("is_final") and str(turn.get("normalized_transcript") or "").strip()
+        ]
+        required_finals = 3 if mode == "ai_only" else 1
+        if len(final_turns) < required_finals:
+            failures.append(
+                f"only {len(final_turns)} non-empty ASR final turn(s), expected at least {required_finals}"
+            )
+        final_metrics = [metric for metric in metrics if metric.get("stage") == "asr.final"]
+        if not final_metrics:
+            failures.append("asr.final metric is missing")
+        elif any(not metric.get("success") for metric in final_metrics):
+            failures.append("an asr.final metric reports failure")
+        if expected_asr_provider:
+            providers = {str(turn.get("asr_provider") or "") for turn in final_turns}
+            if providers != {expected_asr_provider}:
+                failures.append(
+                    f"ASR provider mismatch: observed {sorted(providers)}, expected {expected_asr_provider}"
+                )
+            if final_turns and not any(turn.get("confidence") is not None for turn in final_turns):
+                failures.append("ASR confidence was not persisted on any final turn")
+            if final_turns and not any(
+                turn.get("start_ms") is not None and turn.get("end_ms") is not None
+                for turn in final_turns
+            ):
+                failures.append("ASR timestamps were not persisted on any final turn")
     if mode in {"mixed_human_first", "ai_handoff"}:
         handoff_seen = "waiting_human" in statuses or bool(call.get("handoff_reason"))
         if not handoff_seen:
@@ -99,6 +135,11 @@ def main() -> int:
     parser.add_argument("--timeout-sec", type=int, default=180)
     parser.add_argument("--poll-sec", type=float, default=2.0)
     parser.add_argument("--report", default="reports/real-voice-acceptance.json")
+    parser.add_argument(
+        "--expected-asr-provider",
+        default="",
+        help="exact persisted provider, for example pipecat:aliyun-nls",
+    )
     parser.add_argument("--confirm-dial", action="store_true", help="required acknowledgement that real calls will be placed")
     args = parser.parse_args()
     if not args.confirm_dial:
@@ -135,12 +176,44 @@ def main() -> int:
             api_key=args.api_key,
             tenant_id=args.tenant_id,
         )
-        failures = validate_scenario(mode, call, events)
+        speech_turns = request_json(
+            args.base_url,
+            f"/api/v1/calls/{call_id}/speech-turns?final_only=true",
+            api_key=args.api_key,
+            tenant_id=args.tenant_id,
+        )
+        metrics = request_json(
+            args.base_url,
+            f"/api/v1/calls/{call_id}/metrics",
+            api_key=args.api_key,
+            tenant_id=args.tenant_id,
+        )
+        failures = validate_scenario(
+            mode,
+            call,
+            events,
+            speech_turns,
+            metrics,
+            expected_asr_provider=args.expected_asr_provider,
+        )
+        asr_final_metrics = [metric for metric in metrics if metric.get("stage") == "asr.final"]
         results.append({
             "mode": mode,
             "call_id": call_id,
             "status": call.get("status"),
             "event_types": sorted(event_types(events)),
+            "asr_final_count": len(speech_turns),
+            "asr_providers": sorted({str(turn.get("asr_provider") or "") for turn in speech_turns}),
+            "asr_final_latency_ms": [
+                metric["duration_ms"]
+                for metric in asr_final_metrics
+                if metric.get("duration_ms") is not None
+            ],
+            "asr_metric_failures": [
+                metric.get("error_code") or "UNKNOWN"
+                for metric in asr_final_metrics
+                if not metric.get("success")
+            ],
             "failures": failures,
         })
         print(f"[{'PASS' if not failures else 'FAIL'}] {mode}: {call_id}", flush=True)
@@ -150,6 +223,7 @@ def main() -> int:
         "base_url": args.base_url,
         "tenant_id": args.tenant_id,
         "phone_redacted": f"***{args.phone[-4:]}",
+        "expected_asr_provider": args.expected_asr_provider,
         "passed": all(not result["failures"] for result in results),
         "results": results,
     }

@@ -1,0 +1,16 @@
+{
+  "1:0": {
+    "gateway": "replace-with-approved-gateway",
+    "caller_id": "12025550100",
+    "allowed_prefixes": ["12025550123"],
+    "denied_prefixes": [],
+    "max_concurrent": 1,
+    "cps": 1,
+    "calls_per_day": 10,
+    "hour_budget_minor": 100,
+    "day_budget_minor": 500,
+    "rate_minor_per_minute": 10,
+    "billing_multiplier": 2,
+    "max_duration_sec": 120
+  }
+}

@@ -24,6 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
+    // A successful interactive login already resolved the profile before the
+    // token was committed. Avoid a duplicate request that can be aborted by an
+    // immediate full-page navigation and incorrectly clear a valid session.
+    if (user) {
+      setLoading(false)
+      return
+    }
     apiRequest<User>('/api/v1/auth/me', {}, token)
       .then(setUser)
       .catch(() => {
@@ -31,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null)
       })
       .finally(() => setLoading(false))
-  }, [token])
+  }, [token, user])
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
@@ -45,10 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.role !== expectedRole && !(expectedRole === 'agent' && response.role === 'admin')) {
         throw new Error(expectedRole === 'admin' ? 'This account is not an administrator' : 'This account cannot access the agent portal')
       }
-      sessionStorage.setItem(TOKEN_KEY, response.access_token)
-      setToken(response.access_token)
       const profile = await apiRequest<User>('/api/v1/auth/me', {}, response.access_token)
+      sessionStorage.setItem(TOKEN_KEY, response.access_token)
       setUser(profile)
+      setToken(response.access_token)
       return profile
     },
     logout: async () => {

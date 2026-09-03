@@ -1,5 +1,7 @@
+import hashlib
 import hmac
 import json
+import time
 from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException, Query, Request, status
@@ -61,13 +63,32 @@ def check_api_key(
     )
     if matched_tenant is not None:
         request.state.api_tenant_id = matched_tenant
+        _check_machine_scope(request, matched_tenant)
         return
     # Legacy keys remain supported, but are deliberately scoped to the default
     # tenant instead of trusting a caller-controlled x-tenant-id header.
     if _secure_equals(x_api_key, settings.api_key) or _secure_equals(x_api_key, settings.ui_api_key):
         request.state.api_tenant_id = settings.default_tenant_id
+        _check_machine_scope(request, settings.default_tenant_id)
         return
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key")
+
+
+def _check_machine_scope(request: Request, tenant_id: int) -> None:
+    """Production machine keys are read-only unless ops grants exact scopes."""
+    if settings.env.lower() not in {"prod", "production"} or request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    try:
+        config = json.loads(settings.tenant_api_scopes_json)
+        scopes = config.get(str(tenant_id), [])
+        if not isinstance(scopes, list) or not all(isinstance(s, str) for s in scopes):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(503, "machine API scope configuration invalid") from None
+    path = request.url.path.removeprefix("/api/v1/").strip("/")
+    scope = "calls:dial" if path == "calls" else "calls:control" if path.startswith("calls/") else f"{path.split('/')[0]}:write"
+    if scope not in scopes:
+        raise HTTPException(403, f"machine API key lacks scope: {scope}")
 
 
 def get_tenant_id(x_tenant_id: int | None = Header(default=None, alias="x-tenant-id")) -> int:
@@ -103,32 +124,83 @@ def get_tenant_id_for_request(
     return x_tenant_id
 
 
-def check_webhook_token(x_webhook_token: str | None = Header(default=None, alias="x-webhook-token")) -> None:
-    token = settings.telephony_webhook_token.strip()
+async def _verify_webhook_request(
+    request: Request,
+    *,
+    token: str,
+    secret: str,
+    label: str,
+    x_webhook_token: str | None,
+    x_webhook_timestamp: str | None,
+    x_webhook_signature: str | None,
+) -> None:
     is_prod = settings.env.lower() in {"prod", "production"}
     if is_prod and not token:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="telephony webhook token missing in production",
+            detail=f"{label} webhook token missing in production",
         )
-    if not token:
-        return
-    if not _secure_equals(x_webhook_token, token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid webhook token")
-
-
-def check_sms_webhook_token(x_webhook_token: str | None = Header(default=None, alias="x-webhook-token")) -> None:
-    token = settings.sms_webhook_token.strip()
-    is_prod = settings.env.lower() in {"prod", "production"}
-    if is_prod and not token:
+    if token and not _secure_equals(x_webhook_token, token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"invalid {label} webhook token")
+    if is_prod and not secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="SMS webhook token missing in production",
+            detail=f"{label} webhook signing secret missing in production",
         )
-    if not token:
+    if not secret:
         return
-    if not _secure_equals(x_webhook_token, token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid SMS webhook token")
+    if not x_webhook_timestamp or not x_webhook_signature:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"missing {label} webhook signature")
+    try:
+        timestamp = int(x_webhook_timestamp)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"invalid {label} webhook timestamp")
+    max_age = max(30, min(3600, int(settings.webhook_signature_max_age_sec)))
+    if abs(int(time.time()) - timestamp) > max_age:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"expired {label} webhook signature")
+    body = await request.body()
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        x_webhook_timestamp.encode("ascii") + b"." + body,
+        hashlib.sha256,
+    ).hexdigest()
+    supplied = x_webhook_signature.removeprefix("sha256=")
+    if not _secure_equals(supplied, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"invalid {label} webhook signature")
+
+
+async def check_webhook_token(
+    request: Request,
+    x_webhook_token: str | None = Header(default=None, alias="x-webhook-token"),
+    x_webhook_timestamp: str | None = Header(default=None, alias="x-webhook-timestamp"),
+    x_webhook_signature: str | None = Header(default=None, alias="x-webhook-signature"),
+) -> None:
+    await _verify_webhook_request(
+        request,
+        token=settings.telephony_webhook_token.strip(),
+        secret=settings.telephony_webhook_secret.strip(),
+        label="telephony",
+        x_webhook_token=x_webhook_token,
+        x_webhook_timestamp=x_webhook_timestamp,
+        x_webhook_signature=x_webhook_signature,
+    )
+
+
+async def check_sms_webhook_token(
+    request: Request,
+    x_webhook_token: str | None = Header(default=None, alias="x-webhook-token"),
+    x_webhook_timestamp: str | None = Header(default=None, alias="x-webhook-timestamp"),
+    x_webhook_signature: str | None = Header(default=None, alias="x-webhook-signature"),
+) -> None:
+    await _verify_webhook_request(
+        request,
+        token=settings.sms_webhook_token.strip(),
+        secret=settings.sms_webhook_secret.strip(),
+        label="SMS",
+        x_webhook_token=x_webhook_token,
+        x_webhook_timestamp=x_webhook_timestamp,
+        x_webhook_signature=x_webhook_signature,
+    )
 
 
 def current_user(

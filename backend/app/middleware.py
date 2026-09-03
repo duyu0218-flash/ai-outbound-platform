@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import time
 import uuid
@@ -40,6 +41,13 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         settings = get_settings()
         timeout_ms = int(settings.request_timeout_ms)
+        exempt_paths = {
+            path.strip()
+            for path in settings.request_timeout_exempt_paths.split(",")
+            if path.strip()
+        }
+        if request.url.path in exempt_paths:
+            return await call_next(request)
         if timeout_ms <= 0:
             return await call_next(request)
 
@@ -113,6 +121,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._lock = asyncio.Lock()
         self._key_prefix = "ai-outbound:rate-limit"
         self._redis = self._connect_redis_client(settings.redis_url)
+        self._trusted_proxy_ips = {
+            item.strip() for item in settings.trusted_proxy_ips.split(",") if item.strip()
+        }
         if self._redis is None:
             logger.warning("rate limit uses in-memory fallback (redis unavailable or not configured)")
         else:
@@ -215,6 +226,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             limit = max(limit, self.default_rpm)
 
         client_host = request.client.host if request.client else "unknown"
+        if client_host in self._trusted_proxy_ips:
+            forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+            if forwarded:
+                try:
+                    client_host = str(ipaddress.ip_address(forwarded))
+                except ValueError:
+                    logger.warning("ignored invalid X-Forwarded-For from trusted proxy")
         key = f"{client_host}:{bucket_path}"
         if not await self._is_limit_ok(key, limit):
             request_id = getattr(request.state, "request_id", None)

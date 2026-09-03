@@ -13,11 +13,12 @@ dependencies = [
   "sqlmodel==0.0.42",
   "psycopg[binary]==3.3.4",
   "pydantic-settings==2.15.0",
+  "anyio==4.14.2",
   "httpx==0.28.1",
   "python-multipart==0.0.32",
   "redis==8.1.0",
   "apscheduler==3.11.3",
-  "python-jose[cryptography]==3.5.0"
+  "PyJWT[crypto]==2.13.0"
 ]
 
 [project.optional-dependencies]

@@ -14,7 +14,7 @@
 
 - `POST /api/v1/webhooks/telephony/status`：拨号、接听、结束状态。
 - `POST /api/v1/webhooks/telephony/media`：媒体会话的 listening、thinking、speaking、interrupted、closed 状态与阶段耗时。
-- `POST /api/v1/webhooks/telephony/speech`：ASR 临时/最终转写。必须提供稳定的 `event_id`；最终转写才触发 AI 决策。
+- `POST /api/v1/webhooks/telephony/speech`：ASR 临时/最终转写。必须提供稳定的 `event_id`；最终转写才触发 AI 决策。可选字段 `confidence`、`start_ms`、`end_ms` 和 `latency_ms` 分别表示置信度、云端音频时间线与网关观测识别延迟。
 - `POST /api/v1/webhooks/telephony/recording`：录音 URL、对象存储 URI、格式、时长与校验值。
 
 所有 webhook 在生产环境必须携带 `x-webhook-token`。重试时保持同一 `event_id`，平台会按呼叫维度去重。`barge_in=true` 会触发 `/v1/call/stop-speaking`。

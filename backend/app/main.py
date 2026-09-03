@@ -126,8 +126,18 @@ def _validate_production_runtime() -> None:
         issues.append("DEMO_USERS_ENABLED=true")
     if not settings.telephony_webhook_token.strip():
         issues.append("TELEPHONY_WEBHOOK_TOKEN")
+    if weak_secret(settings.telephony_webhook_secret, 32):
+        issues.append("TELEPHONY_WEBHOOK_SECRET")
     if weak_secret(settings.telephony_service_token, 24):
         issues.append("TELEPHONY_SERVICE_TOKEN")
+    if weak_secret(settings.voice_command_secret, 32):
+        issues.append("VOICE_COMMAND_SECRET")
+    if weak_secret(settings.outbound_security_approval_token, 32):
+        issues.append("OUTBOUND_SECURITY_APPROVAL_TOKEN")
+    voice_secrets = [settings.telephony_service_token, settings.voice_command_secret,
+                     settings.telephony_webhook_secret, settings.outbound_security_approval_token]
+    if len(set(voice_secrets)) != len(voice_secrets):
+        issues.append("voice security secrets must be distinct")
     if weak_secret(settings.ai_agent_service_token, 24):
         issues.append("AI_AGENT_SERVICE_TOKEN")
     if settings.ai_agent_service_token and settings.ai_agent_service_token == settings.telephony_service_token:
@@ -137,6 +147,8 @@ def _validate_production_runtime() -> None:
             issues.append("SMS_CALLBACK_URL")
         if not settings.sms_webhook_token.strip():
             issues.append("SMS_WEBHOOK_TOKEN")
+        if weak_secret(settings.sms_webhook_secret, 32):
+            issues.append("SMS_WEBHOOK_SECRET")
     if settings.database_url.startswith("sqlite"):
         issues.append("DATABASE_URL=sqlite")
     if "replace-db-password" in settings.database_url.lower():
@@ -149,6 +161,17 @@ def _validate_production_runtime() -> None:
             issues.append("REDIS_URL insecure password")
     if (settings.telephony_provider or "mock").strip().lower() == "mock":
         issues.append("TELEPHONY_PROVIDER=mock")
+    allowed_prefixes = [
+        item.strip()
+        for item in settings.outbound_allowed_phone_prefixes.split(",")
+        if item.strip()
+    ]
+    if not allowed_prefixes or any(not item.isdigit() or len(item) > 15 for item in allowed_prefixes):
+        issues.append("OUTBOUND_ALLOWED_PHONE_PREFIXES")
+    if not 1 <= int(settings.outbound_daily_call_limit) <= 10_000_000:
+        issues.append("OUTBOUND_DAILY_CALL_LIMIT")
+    if settings.auto_migrate:
+        issues.append("AUTO_MIGRATE=true")
     if settings.recording_retention_days > 0:
         if not settings.recording_ingest_endpoint.strip():
             issues.append("RECORDING_INGEST_ENDPOINT")
@@ -185,6 +208,11 @@ def _validate_production_runtime() -> None:
 
 
 def _bootstrap_default_tenant_data(session: Session) -> None:
+    postgres = session.get_bind().dialect.name == "postgresql"
+    # Explicit default IDs do not advance PostgreSQL serial sequences. Hold a
+    # table lock while repairing both fresh and previously seeded databases.
+    if postgres:
+        session.exec(text("LOCK TABLE tenant IN SHARE ROW EXCLUSIVE MODE"))
     existing = session.get(Tenant, settings.default_tenant_id)
     if not existing:
         session.add(
@@ -195,6 +223,17 @@ def _bootstrap_default_tenant_data(session: Session) -> None:
                 enabled=True,
             )
         )
+        session.flush()
+    if postgres:
+        session.exec(
+            text(
+                "SELECT setval("
+                "pg_get_serial_sequence('tenant', 'id'), "
+                "GREATEST((SELECT MAX(id) FROM tenant), "
+                "nextval(pg_get_serial_sequence('tenant', 'id'))), true)"
+            )
+        )
+    if not existing or postgres:
         session.commit()
     if settings.demo_users_enabled:
         ensure_demo_users(session)

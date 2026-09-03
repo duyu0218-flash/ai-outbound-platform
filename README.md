@@ -1,5 +1,9 @@
 # AI 外呼平台
 
+本机 FreeSWITCH + VoiSmart 双向媒体部署、打断及播放完成验收，见[接入说明](docs/voismart-local-media.md)；真实线路和云语音仍需单独验收。
+
+真实拨号须先配置[防盗打保护与升级条件](docs/toll-fraud-protection.md)：签名命令、独立路由白名单、持久化预算/幂等账本和 PBX 硬挂断均为强制门禁，`ENV=dev` 不豁免。旧网关配置不能直接用于真实外呼。
+
 本项目面向“国内先行、后续海外扩展”场景，提供可二次开发的外呼平台骨架，已包含：
 
 - 通话会话与状态管理（录音转人工、纯人工、纯 AI、AI+短信）
@@ -31,6 +35,8 @@
 前端采用 React、TypeScript、Ant Design 与 TanStack Query，生产构建由控制服务同源托管。
 
 系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
+
+部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
 
 ## 2bis. 测试账号体系（新）
 
@@ -130,7 +136,8 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d -
 | `TELEPHONY_SERVICE_TOKEN` | 控制服务调用语音网关的内部 Bearer Token |
 | `VOICE_GATEWAY_DRIVER` | `mock`、`pbx_http` 或 `freeswitch_esl`；后者由语音网关直接连接 FreeSWITCH Event Socket |
 | `VOICE_AI_PIPELINE` | `legacy`、`pipecat` 或 `hybrid`；生产默认保持 `legacy`，受控灰度使用 `hybrid` |
-| `PIPECAT_*` | 候选 Pipecat 1.8.1 的精确版本、WebSocket、OpenAI STT/TTS 和回退策略；详见 `docs/pipecat-integration.md` |
+| `PIPECAT_*` | 候选 Pipecat 1.8.1 的精确版本、WebSocket、并发门禁、可选 OpenAI/阿里云 STT、OpenAI TTS 和回退策略；详见 `docs/pipecat-integration.md` |
+| `ALIYUN_NLS_*` | 阿里云实时 ASR 的网关、AppKey、短时 Token/挂载 Token 文件、8k/16k 断句、热词和定制模型参数 |
 | `FREESWITCH_ESL_*` | FreeSWITCH ESL 地址、端口和密码；生产禁止使用默认密码 `ClueCon` |
 | `FREESWITCH_GATEWAY` | FreeSWITCH 中已配置的 SIP Trunk gateway 名称 |
 | `AI_AGENT_URL` | AI 服务地址 |
@@ -325,7 +332,7 @@ bash scripts/test-campaign-start.sh
 
 ## 7. 上线仍需完成的外部集成
 
-- GitHub Actions 已执行 Python 编译检查和后端生产加固回归测试；仍建议增加镜像构建、依赖漏洞扫描和签名发布。
+- GitHub Actions 已执行 Python 编译、生产加固回归、依赖漏洞扫描和CycloneDX SBOM；正式发布仍需增加镜像签名和制品来源证明。
 - 当需要跨机房、大规模调度或死信队列时，再将当前“数据库持久队列 + Redis 主锁”升级为 Celery/Temporal。
 - 浏览器坐席媒体终端、SIP.js、短期 SIP/TURN 凭证、媒体状态和 FreeSWITCH 桥接事件已实现；仍须按 [WebRTC 部署与验收](docs/browser-webrtc.md) 对接真实运营商/PBX、SIP 中继、WSS、coturn、耳机和公网网络。
 - 按 [实时语音网关契约](docs/realtime-voice-contract.md) 接入真实 ASR、LLM、TTS 媒体链路，并做中文/英文口音、打断、延迟、降级和敏感词验收；平台侧状态机、分段转写和打断控制已实现。
