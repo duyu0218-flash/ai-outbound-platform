@@ -14,7 +14,7 @@ dependencies = [
   "anyio==4.14.2",
   "httpx==0.28.1",
   "boto3==1.40.21",
-  "prometheus-client==0.22.1",
+  "prometheus-client==0.26.0",
 ]
 
 [project.optional-dependencies]
