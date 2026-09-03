@@ -20,18 +20,15 @@ jobs:
       - name: Audit Python services and generate SBOMs
         run: |
           mkdir -p artifacts/sbom
+          python scripts/build-pipecat-wheel.py
           for service in backend agent voice_gateway recording_adapter; do
             python -m venv "/tmp/audit-$service"
             "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "pip==26.2.1" "setuptools==84.0.0"
-            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "./$service" "pip-audit==2.10.1" "cyclonedx-bom==7.3.1"
+            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir --find-links "$PWD/artifacts/wheels" "./$service" "pip-audit==2.10.1" "cyclonedx-bom==7.3.1"
             if [ "$service" = "voice_gateway" ]; then
-              "/tmp/audit-$service/bin/python" scripts/check-nltk-advisory-boundary.py
-              # PYSEC-2026-3740 has no patched NLTK release. The exception is
-              # limited to Pipecat's sentence tokenizer and guarded above.
-              "/tmp/audit-$service/bin/pip-audit" --ignore-vuln PYSEC-2026-3740
-            else
-              "/tmp/audit-$service/bin/pip-audit"
+              "/tmp/audit-$service/bin/python" scripts/check-pipecat-distribution.py
             fi
+            "/tmp/audit-$service/bin/python" scripts/audit-python-environment.py
             "/tmp/audit-$service/bin/cyclonedx-py" environment "/tmp/audit-$service/bin/python" --output-format JSON --output-file "artifacts/sbom/$service.cdx.json"
           done
       - name: Audit frontend dependencies
@@ -92,7 +89,14 @@ jobs:
         working-directory: frontend
         run: pnpm test:coverage
       - name: Install service
-        run: pip install --no-cache-dir ".[dev]"
+        run: |
+          if [ "${{ matrix.service }}" = "voice_gateway" ]; then
+            python ../scripts/build-pipecat-wheel.py
+          fi
+          pip install --no-cache-dir --find-links ../artifacts/wheels ".[dev]"
+      - name: Verify controlled Pipecat distribution
+        if: matrix.service == 'voice_gateway'
+        run: python ../scripts/check-pipecat-distribution.py
       - name: Verify Python dependencies
         run: pip check
       - name: Compile check

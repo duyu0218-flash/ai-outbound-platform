@@ -102,7 +102,7 @@ status = "production-digest-pending"
 evidence = ["docker-compose.webrtc.yml"]
 
 [components.pipecat]
-constraint = "==1.8.1"
+constraint = "==1.8.1+outbound.1"
 runtime_version_env = "PIPECAT_VERSION"
 status = "candidate-integrated-controlled-routing-real-media-unverified"
 evidence = ["voice_gateway/pyproject.toml", "voice_gateway/app/pipecat_pipeline.py", "voice_gateway/tests/test_freeswitch.py", "docs/pipecat-integration.md"]
