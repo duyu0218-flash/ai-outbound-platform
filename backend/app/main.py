@@ -208,13 +208,13 @@ def _validate_production_runtime() -> None:
 
 
 def _bootstrap_default_tenant_data(session: Session) -> None:
+    postgres = session.get_bind().dialect.name == "postgresql"
+    # Explicit default IDs do not advance PostgreSQL serial sequences. Hold a
+    # table lock while repairing both fresh and previously seeded databases.
+    if postgres:
+        session.exec(text("LOCK TABLE tenant IN SHARE ROW EXCLUSIVE MODE"))
     existing = session.get(Tenant, settings.default_tenant_id)
     if not existing:
-        # The default tenant uses an explicit primary key. PostgreSQL does not
-        # advance a serial sequence for explicit IDs, so protect the insert and
-        # align the sequence before other tenant creation can begin.
-        if session.get_bind().dialect.name == "postgresql":
-            session.exec(text("LOCK TABLE tenant IN SHARE ROW EXCLUSIVE MODE"))
         session.add(
             Tenant(
                 id=settings.default_tenant_id,
@@ -224,14 +224,16 @@ def _bootstrap_default_tenant_data(session: Session) -> None:
             )
         )
         session.flush()
-        if session.get_bind().dialect.name == "postgresql":
-            session.exec(
-                text(
-                    "SELECT setval("
-                    "pg_get_serial_sequence('tenant', 'id'), "
-                    "(SELECT MAX(id) FROM tenant), true)"
-                )
+    if postgres:
+        session.exec(
+            text(
+                "SELECT setval("
+                "pg_get_serial_sequence('tenant', 'id'), "
+                "GREATEST((SELECT MAX(id) FROM tenant), "
+                "nextval(pg_get_serial_sequence('tenant', 'id'))), true)"
             )
+        )
+    if not existing or postgres:
         session.commit()
     if settings.demo_users_enabled:
         ensure_demo_users(session)
