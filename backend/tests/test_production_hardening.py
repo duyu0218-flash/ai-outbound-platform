@@ -11,6 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -140,6 +141,163 @@ def _voice_security_contract_module():
         sys.modules[name] = module
         spec.loader.exec_module(module)
     return sys.modules[name]
+
+
+_review_call_ids = []
+
+
+@pytest.fixture(autouse=True)
+def cleanup_review_tasks():
+    yield
+    if _review_call_ids:
+        with session_scope() as session:
+            session.exec(delete(TaskOutbox).where(TaskOutbox.aggregate_id.in_([str(value) for value in _review_call_ids])))
+            for call_id in _review_call_ids:
+                call = session.get(CallSession, call_id)
+                if call is not None:
+                    call.status = CallStatus.COMPLETED
+                    call.finished_at = utc_now()
+                    session.add(call)
+            session.commit()
+        _review_call_ids.clear()
+
+
+def _review_call(status=CallStatus.IN_AI):
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800000000", mode=CallMode.AI_WITH_SMS,
+                           status=status, attempts=1)
+        session.add(call)
+        session.commit()
+        _review_call_ids.append(call.id)
+        return call.id
+
+
+@pytest.mark.parametrize("action,ended,expected", [
+    ("speak", False, CallStatus.IN_AI),
+    ("hangup", False, CallStatus.IN_AI),
+    ("hangup", True, CallStatus.COMPLETED),
+])
+@pytest.mark.asyncio
+async def test_review_sms_does_not_end_unconfirmed_call(client, monkeypatch, action, ended, expected):
+    call_id = _review_call()
+    adapter = AsyncMock()
+    adapter.hangup.return_value = {"ended": ended}
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **kwargs: adapter)
+    monkeypatch.setattr(dispatcher, "send_sms_text", AsyncMock())
+    monkeypatch.setattr(dispatcher, "process_task", AsyncMock())
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        await dispatcher._apply_ai_action(session=session, call=call,
+            result=AiTurnResult(action=action, hangup_sms="synthetic message"))
+        session.refresh(call)
+        assert call.status == expected
+        assert (call.finished_at is not None) == ended
+
+
+@pytest.mark.parametrize("kind", ["status", "transcript", "speech", "recording"])
+def test_review_webhook_outbox_failure_rolls_back_and_retry_recovers(client, monkeypatch, kind):
+    from app.api.routers import webhooks
+    from app.models import WebhookEventIngest
+    call_id = _review_call(CallStatus.DIALING)
+    payload = {"call_id": str(call_id), "kind": kind, "transcript": "synthetic", "payload": {
+        "status": "answered", "attempt": 1, "event_id": f"review-{kind}",
+        "url": "https://recordings.example.com/synthetic.wav",
+    }}
+    if kind == "speech":
+        payload = {"call_id": str(call_id), "event_id": "review-speech", "attempt": 1,
+                   "transcript": "synthetic", "is_final": True}
+    target = "enqueue_business_callback" if kind == "recording" else "enqueue_task"
+    original = getattr(webhooks, target)
+    def fail(*args, **kwargs):
+        raise RuntimeError("injected outbox failure")
+    monkeypatch.setattr(webhooks, target, fail)
+    async def assert_committed_before_background(task_id):
+        with session_scope() as independent:
+            assert independent.get(TaskOutbox, task_id) is not None
+        return True
+    monkeypatch.setattr(webhooks, "process_task", assert_committed_before_background)
+    with pytest.raises(RuntimeError, match="injected outbox failure"):
+        client.post(f"/api/v1/webhooks/telephony/{kind}", json=payload)
+    with session_scope() as session:
+        assert session.get(CallSession, call_id).status == CallStatus.DIALING
+        assert not session.exec(select(WebhookEventIngest).where(WebhookEventIngest.call_session_id == call_id)).all()
+        assert not session.exec(select(SpeechTurn).where(SpeechTurn.call_session_id == call_id)).all()
+        assert not session.exec(select(RecordingAsset).where(RecordingAsset.call_session_id == call_id)).all()
+    monkeypatch.setattr(webhooks, target, original)
+    response = client.post(f"/api/v1/webhooks/telephony/{kind}", json=payload)
+    assert response.status_code == 200, response.text
+    with session_scope() as session:
+        tasks = session.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id == str(call_id))).all()
+        assert tasks
+        count = len(tasks)
+    assert client.post(f"/api/v1/webhooks/telephony/{kind}", json=payload).status_code == 200
+    with session_scope() as session:
+        assert len(session.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id == str(call_id))).all()) == count
+
+
+@pytest.mark.parametrize("status", [CallStatus.COMPLETED, CallStatus.FAILED, CallStatus.IN_AI])
+def test_review_late_human_unavailable_does_not_reopen_call(client, status):
+    call_id = _review_call(status)
+    response = client.post("/api/v1/webhooks/telephony/status", json={
+        "call_id": str(call_id), "kind": "status", "payload": {
+            "status": "human_unavailable", "attempt": 1, "event_id": "review-late-human",
+        },
+    })
+    assert response.status_code == 200
+    assert response.json()["result"] == "ignored"
+    with session_scope() as session:
+        assert session.get(CallSession, call_id).status == status
+
+
+@pytest.mark.parametrize("during", ["model", "speak", "sms", "new_attempt"])
+@pytest.mark.asyncio
+async def test_review_stale_ai_result_cannot_overwrite_state(client, monkeypatch, during):
+    from sqlalchemy import update
+    call_id = _review_call()
+    async def change_call(**kwargs):
+        with session_scope() as session:
+            values = {"attempts": 2} if during == "new_attempt" else {"status": CallStatus.COMPLETED}
+            session.exec(update(CallSession).where(CallSession.id == call_id).values(**values))
+            session.commit()
+        return {"playback_id": "synthetic", "playback_complete": True}
+    async def model(**kwargs):
+        if during in {"model", "new_attempt"}:
+            await change_call()
+        return AiTurnResult(action="speak", tts_text="synthetic", hangup_sms="test" if during == "sms" else None)
+    adapter = AsyncMock()
+    adapter.speak.return_value = {"playback_complete": True}
+    if during == "speak":
+        adapter.speak.side_effect = change_call
+    async def sms(*args, **kwargs):
+        await change_call()
+    monkeypatch.setattr(dispatcher, "request_ai_turn", model)
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **kwargs: adapter)
+    monkeypatch.setattr(dispatcher, "process_task", AsyncMock())
+    monkeypatch.setattr(dispatcher, "send_sms_text", sms)
+    await dispatcher._run_ai_turn_locked(call_id=call_id, transcript="test", durable=True)
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        assert call.status == (CallStatus.IN_AI if during == "new_attempt" else CallStatus.COMPLETED)
+        assert call.attempts == (2 if during == "new_attempt" else 1)
+    if during in {"model", "new_attempt"}:
+        adapter.speak.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ended", [False, True])
+async def test_review_ai_failure_never_releases_unconfirmed_capacity(client, monkeypatch, ended):
+    from sqlalchemy import update
+    call_id = _review_call()
+    async def fail_model(**kwargs):
+        if ended:
+            with session_scope() as other:
+                other.exec(update(CallSession).where(CallSession.id == call_id).values(status=CallStatus.COMPLETED))
+                other.commit()
+        raise RuntimeError("synthetic model failure")
+    monkeypatch.setattr(dispatcher, "request_ai_turn", fail_model)
+    await dispatcher._run_ai_turn_locked(call_id=call_id, durable=False)
+    with session_scope() as session:
+        assert session.get(CallSession, call_id).status == (CallStatus.COMPLETED if ended else CallStatus.IN_AI)
 
 
 @pytest.mark.skipif(engine.dialect.name != "postgresql", reason="PostgreSQL serial sequence regression")

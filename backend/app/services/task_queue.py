@@ -220,8 +220,9 @@ async def process_task(task_id: UUID) -> bool:
                 session.add(task)
                 if task.state == TaskState.DEAD and task.task_type == "ai_turn":
                     call = session.get(CallSession, UUID(task.aggregate_id))
-                    if call is not None:
-                        call.status = CallStatus.FAILED
+                    if call is not None and call.status in {CallStatus.ANSWERED, CallStatus.IN_AI}:
+                        # A failed AI job does not prove that the PBX hung up.
+                        # Keep capacity reserved for the termination reconciler.
                         call.last_error = f"AI durable task exhausted retries: {task.last_error}"
                         call.updated_at = utc_now()
                         session.add(call)

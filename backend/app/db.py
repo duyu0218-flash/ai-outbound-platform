@@ -86,3 +86,20 @@ def get_session() -> Generator[Session, None, None]:
     """FastAPI dependency that owns one SQLModel session per request."""
     with Session(engine) as session:
         yield session
+
+
+def get_webhook_session() -> Generator[Session, None, None]:
+    """Commit an entire webhook, including its dedup marker and outbox, atomically.
+
+    Existing service commits release savepoints, never the outer transaction.
+    Use a function-scoped dependency so the outer commit precedes background work.
+    """
+    with engine.connect() as connection:
+        with connection.begin():
+            if connection.dialect.name == "sqlite":
+                # sqlite's legacy transaction mode does not BEGIN before SAVEPOINT.
+                # Serialize writers before any reads, avoiding snapshot upgrades.
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+            with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
+                yield session
+                session.commit()
