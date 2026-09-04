@@ -13,6 +13,7 @@ from typing import Any, Dict
 
 import httpx
 from redis import asyncio as async_redis
+from sqlalchemy import update
 from sqlmodel import select
 
 from ..config import get_settings
@@ -43,6 +44,12 @@ from .script_flow import load_graph, simulate
 settings = get_settings()
 logger = logging.getLogger(__name__)
 _local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+AI_ACTIVE_STATUSES = {CallStatus.ANSWERED, CallStatus.IN_AI}
+
+
+def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
+    session.refresh(call)
+    return call.attempts == attempt and call.status in AI_ACTIVE_STATUSES
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -253,6 +260,7 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
             return
         if call.status not in {CallStatus.ANSWERED, CallStatus.IN_AI}:
             return
+        expected_attempt = call.attempts
 
         await append_event(
             session=session,
@@ -305,6 +313,12 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                     },
                     agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
                 )
+            # Network latency may outlive the call or even its dial attempt.
+            # Preserve script-flow progress, but discard a stale model result.
+            flow_node_key = call.flow_node_key
+            if not _ai_call_is_current(session, call, expected_attempt):
+                return
+            call.flow_node_key = flow_node_key
             result = _apply_output_guard(session, call, result, ai_config)
             session.add(
                 CallMetric(
@@ -318,12 +332,14 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                 )
             )
             session.commit()
-            await _apply_ai_action(session=session, call=call, result=result)
+            await _apply_ai_action(session=session, call=call, result=result, expected_attempt=expected_attempt)
         except Exception as exc:
-            if not durable:
-                call.status = CallStatus.FAILED
-            call.last_error = f"AI调用失败: {exc}"
-            session.add(call)
+            session.rollback()
+            session.exec(update(CallSession).where(
+                CallSession.id == call_id,
+                CallSession.attempts == expected_attempt,
+                CallSession.status.in_(AI_ACTIVE_STATUSES),
+            ).values(last_error=f"AI调用失败: {exc}"))
             session.add(
                 CallMetric(
                     tenant_id=call.tenant_id,
@@ -362,8 +378,12 @@ async def _wait_for_playback_completion(call_id, playback_id: str) -> bool:
     return False
 
 
-async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
+async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, expected_attempt: int | None = None) -> None:
+    attempt = call.attempts if expected_attempt is None else expected_attempt
+    if not _ai_call_is_current(session, call, attempt):
+        return
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+    hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
     adapter = get_telephony_adapter(
         session=session,
@@ -384,6 +404,8 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                     provider=str(ai_config.get("tts_provider") or ""),
                 )
             )
+            if not _ai_call_is_current(session, call, attempt):
+                return
             playback_id = str(response.get("playback_id") or "") or None
             playback_complete = bool(response.get("playback_complete", False))
             realtime = session.exec(
@@ -442,6 +464,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             )
             session.commit()
             raise
+    # Release database writes before waiting on remote playback/telephony/SMS.
+    session.commit()
+    hangup_confirmed = False
     if result.action == "hangup":
         if playback_id and not playback_complete:
             # Make the playback id visible to the webhook session before
@@ -460,8 +485,32 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                         detail=f"playback_id={playback_id}",
                     )
                 )
+        if not _ai_call_is_current(session, call, attempt):
+            return
+        session.commit()
         hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
-        if hangup_result.get("ended") is True:
+        hangup_confirmed = hangup_result.get("ended") is True
+
+    if result.hangup_sms and hangup_sms_allowed:
+        if not _ai_call_is_current(session, call, attempt):
+            return
+        sms_config = get_admin_setting(session, call.tenant_id, "sms")
+        sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
+        await send_sms_text(session, call, sms_text)
+
+    # Compare-and-set acquires the call row before any state/assignment writes.
+    # No network awaits are allowed until the transaction is committed below.
+    claimed = session.exec(update(CallSession).where(
+        CallSession.id == call.id,
+        CallSession.attempts == attempt,
+        CallSession.status.in_(AI_ACTIVE_STATUSES),
+    ).values(updated_at=utc_now()))
+    if claimed.rowcount != 1:
+        session.rollback()
+        return
+    session.refresh(call)
+    if result.action == "hangup":
+        if hangup_confirmed:
             call.status = CallStatus.COMPLETED
             call.finished_at = utc_now()
         else:
@@ -500,15 +549,6 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         )
     else:
         call.status = CallStatus.IN_AI
-
-    hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
-    if result.hangup_sms and hangup_sms_allowed:
-        sms_config = get_admin_setting(session, call.tenant_id, "sms")
-        sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
-        await send_sms_text(session, call, sms_text)
-        if call.status != CallStatus.WAITING_HUMAN:
-            call.status = CallStatus.COMPLETED
-            call.finished_at = utc_now()
 
     if result.escalate_priority:
         call.handoff_reason = f"escalate_priority={result.escalate_priority}"

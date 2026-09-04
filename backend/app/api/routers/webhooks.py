@@ -7,7 +7,8 @@ from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from ...api.deps import check_sms_webhook_token, check_webhook_token, get_session
+from ...api.deps import check_sms_webhook_token, check_webhook_token
+from ...db import get_webhook_session
 from ...clock import utc_now
 from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
@@ -185,7 +186,7 @@ def telephony_status(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
     _: None = Depends(check_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     call = session.get(CallSession, payload.call_id)
     if not call:
@@ -200,6 +201,12 @@ def telephony_status(
         return {"result": "ignored", "reason": "stale_attempt"}
 
     if str(raw_status).strip().lower() == "human_unavailable":
+        # Serialize with terminal callbacks; never reopen an ended/customer leg.
+        session.refresh(call, with_for_update=True)
+        if not _event_matches_current_attempt(call, payload.payload):
+            return {"result": "ignored", "reason": "stale_attempt"}
+        if call.status != CallStatus.HANDOFF_TRANSFERRING:
+            return {"result": "ignored", "reason": "inactive_handoff"}
         active_handoff = session.exec(
             select(HandoffRequest)
             .where(
@@ -208,6 +215,8 @@ def telephony_status(
             )
             .order_by(HandoffRequest.updated_at.desc())
         ).first()
+        if active_handoff is None:
+            return {"result": "ignored", "reason": "inactive_handoff"}
         assigned_agent_id = call.human_agent_id or (active_handoff.assigned_agent_id if active_handoff else None)
         if active_handoff is not None:
             active_handoff.state = HandoffState.WAITING
@@ -316,7 +325,7 @@ def telephony_transcript(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
     _: None = Depends(check_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     call = session.get(CallSession, payload.call_id)
     if not call:
@@ -381,7 +390,7 @@ def telephony_speech(
     payload: SpeechWebhookEvent,
     background_tasks: BackgroundTasks,
     _: None = Depends(check_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     call = session.get(CallSession, payload.call_id)
     if call is None:
@@ -424,7 +433,7 @@ def telephony_speech(
 def telephony_media(
     payload: MediaWebhookEvent,
     _: None = Depends(check_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     call = session.get(CallSession, payload.call_id)
     if call is None:
@@ -440,7 +449,7 @@ def telephony_recording(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
     _: None = Depends(check_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     call = session.get(CallSession, payload.call_id)
     if not call:
@@ -515,7 +524,7 @@ def telephony_recording(
 def sms_status(
     payload: SmsStatusWebhook,
     _: None = Depends(check_sms_webhook_token),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_webhook_session, scope="function"),
 ):
     if payload.sms_log_id is None and not payload.provider_message_id:
         return {"result": "ignored", "reason": "missing_message_identifier"}
