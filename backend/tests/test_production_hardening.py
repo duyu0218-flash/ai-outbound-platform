@@ -2354,7 +2354,7 @@ def test_agent_handover_assigns_authenticated_agent(client: TestClient):
     )
     assert response.status_code == 200, response.text
     assert response.json()["human_agent_id"] == agent_id
-    assert response.json()["status"] == "waiting_human"
+    assert response.json()["status"] == "handoff_transferring"
 
 
 @pytest.mark.asyncio
@@ -3524,3 +3524,265 @@ def test_production_startup_verifies_schema_without_running_ddl(monkeypatch):
     )
     db_module.create_db_and_tables()
     assert verified == [True]
+
+# Regression coverage for the seven functional defects reviewed on 2026-09-05.
+@pytest.fixture
+def review_agent(client):
+    from app.services.auth import hash_password
+    username = f"review-{uuid4().hex}"
+    with session_scope() as session:
+        agent = User(tenant_id=1, username=username, full_name="Review Agent", role="agent",
+                     password_hash=hash_password("12345678"), agent_status="ready", last_seen_at=utc_now())
+        session.add(agent)
+        session.commit()
+        agent_id = agent.id
+    yield agent_id, _bearer(_login(client, username))
+    with session_scope() as session:
+        agent = session.get(User, agent_id)
+        agent.enabled = False
+        agent.agent_status = "offline"
+        session.add(agent)
+        session.commit()
+
+
+@pytest.mark.parametrize("entry", ["accept", "manual"])
+@pytest.mark.parametrize("event", ["completed", "human_connected", "human_unavailable"])
+@pytest.mark.parametrize("command_error", [False, True])
+def test_transfer_preserves_callback_before_command_response(client, monkeypatch, review_agent, entry, event, command_error):
+    agent_id, headers = review_agent
+    with session_scope() as session:
+        call = CallSession(tenant_id=1, phone="13800009001", mode=CallMode.AI_HANDOFF,
+                           status=CallStatus.WAITING_HUMAN if entry == "accept" else CallStatus.IN_AI, attempts=1)
+        session.add(call)
+        session.flush()
+        call_id = call.id
+        _review_call_ids.append(call_id)
+        if entry == "accept":
+            handoff = HandoffRequest(tenant_id=1, call_session_id=call_id, target_group="default")
+            session.add(handoff)
+            session.flush()
+            handoff_id = handoff.id
+        session.commit()
+
+    class Adapter:
+        async def transfer_to_human(self, **kwargs):
+            with session_scope() as session:
+                call = session.get(CallSession, call_id)
+                assert call.status == CallStatus.HANDOFF_TRANSFERRING
+                assert call.human_agent_id == agent_id
+                assert session.get(User, agent_id).agent_status == "busy"
+            response = await asyncio.to_thread(client.post, "/api/v1/webhooks/telephony/status", json={
+                "call_id": str(call_id), "kind": "status",
+                "payload": {"status": event, "attempt": 1, "event_id": uuid4().hex},
+            })
+            assert response.status_code == 200, response.text
+            if event == "human_unavailable":
+                assert response.json().get("requeued") is True
+            if command_error:
+                raise RuntimeError("command response lost after callback")
+            return {"result": "transferred"}
+
+    monkeypatch.setattr("app.api.routers.voice_operations.get_telephony_adapter", lambda **_: Adapter())
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: Adapter())
+    monkeypatch.setattr(app_main.settings, "telephony_retry_times", 0)
+    path = f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept" if entry == "accept" else f"/api/v1/calls/{call_id}/handover"
+    response = client.post(path, headers=headers)
+    assert response.status_code == 200, response.text
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        handoff = session.exec(select(HandoffRequest).where(HandoffRequest.call_session_id == call_id)).one()
+        expected = {
+            "completed": (CallStatus.COMPLETED, HandoffState.EXPIRED, "ready"),
+            "human_connected": (CallStatus.IN_HUMAN, HandoffState.ACCEPTED, "busy"),
+            "human_unavailable": (CallStatus.WAITING_HUMAN, HandoffState.WAITING, "ready"),
+        }[event]
+        assert (call.status, handoff.state, session.get(User, agent_id).agent_status) == expected
+        assert (call.finished_at is not None) == (event == "completed")
+
+
+def test_manual_transfer_failure_requeues_and_can_be_accepted(client, monkeypatch, review_agent):
+    agent_id, headers = review_agent
+    call_id = _review_call(CallStatus.IN_AI)
+    adapter = AsyncMock()
+    adapter.transfer_to_human.side_effect = RuntimeError("synthetic transfer rejected")
+    monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: adapter)
+    monkeypatch.setattr("app.api.routers.voice_operations.get_telephony_adapter", lambda **_: adapter)
+    monkeypatch.setattr(app_main.settings, "telephony_retry_times", 0)
+    response = client.post(f"/api/v1/calls/{call_id}/handover", headers=headers)
+    assert response.status_code == 502, response.text
+    queue = client.get("/api/v1/handoffs?state=waiting", headers=headers).json()
+    handoff = next(row for row in queue if row["call_session_id"] == str(call_id))
+    assert handoff["assigned_agent_id"] is None
+    adapter.transfer_to_human.side_effect = None
+    adapter.transfer_to_human.return_value = {"result": "transferred"}
+    response = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff['id']}/accept", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["state"] == "accepted"
+    event = client.post("/api/v1/webhooks/telephony/status", json={"call_id": str(call_id), "kind": "status",
+                        "payload": {"status": "human_unavailable", "event_id": uuid4().hex}})
+    assert event.json().get("requeued") is True
+    with session_scope() as session:
+        assert session.get(User, agent_id).agent_status == "ready"
+
+
+def test_accept_rejects_ended_call_without_sending_transfer(client, monkeypatch, review_agent):
+    _, headers = review_agent
+    call_id = _review_call(CallStatus.COMPLETED)
+    with session_scope() as session:
+        handoff = HandoffRequest(tenant_id=1, call_session_id=call_id)
+        session.add(handoff)
+        session.commit()
+        handoff_id = handoff.id
+    adapter = AsyncMock()
+    monkeypatch.setattr("app.api.routers.voice_operations.get_telephony_adapter", lambda **_: adapter)
+    response = client.post(f"/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept", headers=headers)
+    assert response.status_code == 409
+    adapter.transfer_to_human.assert_not_called()
+
+
+def test_agent_ownership_filter_precedes_server_pagination(client, review_agent):
+    agent_id, headers = review_agent
+    with session_scope() as session:
+        for index in range(21):
+            call = CallSession(tenant_id=1, phone=f"1380001{index:04}", mode=CallMode.HUMAN_ONLY,
+                               status=CallStatus.COMPLETED, human_agent_id=agent_id,
+                               created_at=utc_now() - timedelta(days=1, seconds=index))
+            session.add(call)
+        for index in range(21):
+            session.add(CallSession(tenant_id=1, phone=f"1380002{index:04}", mode=CallMode.AI_ONLY,
+                                    status=CallStatus.COMPLETED))
+        session.commit()
+    first = client.get("/api/v1/calls?page=1&size=20", headers=headers).json()
+    second = client.get("/api/v1/calls?page=2&size=20", headers=headers).json()
+    assert len(first) == 20 and len(second) == 1
+    assert all(row["human_agent_id"] == agent_id for row in first + second)
+    assert not ({row["id"] for row in first} & {row["id"] for row in second})
+
+
+def test_restart_refreshes_unattempted_campaign_calls_and_zero_retry(client):
+    headers = _bearer(_login(client, "admin"))
+    phone = "138" + str(uuid4().int)[-8:]
+    contact = client.post("/api/v1/contacts", headers=headers,
+                          json={"phone": phone, "name": "config-sync", "consent_state": "consented"}).json()
+    payload = {"name": "config-sync", "mode": "ai_only", "contact_ids": [contact["id"]], "retry_limit": 1}
+    campaign = client.post("/api/v1/campaigns", headers=headers, json=payload).json()
+    path = f"/api/v1/campaigns/{campaign['id']}"
+    assert client.post(path + "/start?auto_dial=false", headers=headers).status_code == 200
+    assert client.post(path + "/stop", headers=headers).status_code == 200
+    payload.update(mode="human_only", retry_limit=5)
+    assert client.put(path, headers=headers, json=payload).status_code == 200
+    assert client.post(path + "/start?auto_dial=false", headers=headers).status_code == 200
+    calls = client.get(f"/api/v1/calls?campaign_id={campaign['id']}", headers=headers).json()
+    assert len(calls) == 1 and calls[0]["mode"] == "human_only" and calls[0]["max_attempts"] == 6
+    assert client.post(path + "/stop", headers=headers).status_code == 200
+    payload["retry_limit"] = 0
+    assert client.put(path, headers=headers, json=payload).status_code == 200
+    assert client.post(path + "/start?auto_dial=false", headers=headers).status_code == 200
+    with session_scope() as session:
+        call = session.get(CallSession, UUID(calls[0]["id"]))
+        assert call.max_attempts == 1
+        call.attempts = 1
+        call.status = CallStatus.NO_ANSWER
+        campaign = session.get(Campaign, campaign["id"])
+        campaign.status = "running"
+        session.add(campaign)
+        session.flush()
+        assert schedule_campaign_retry(session, call, CallStatus.NO_ANSWER) is False
+        assert call.next_attempt_at is None
+        session.add(call)
+        session.commit()
+        complete_campaign_if_terminal(session, campaign.id)
+
+
+def test_resume_completes_campaign_with_no_remaining_work(client):
+    headers = _bearer(_login(client, "admin"))
+    with session_scope() as session:
+        campaign = Campaign(tenant_id=1, name="resume-completed", mode=CallMode.HUMAN_ONLY, status="paused")
+        session.add(campaign)
+        session.flush()
+        call = CallSession(tenant_id=1, campaign_id=campaign.id, phone="13800009999", mode=CallMode.HUMAN_ONLY,
+                           status=CallStatus.COMPLETED, attempts=1)
+        session.add(call)
+        session.commit()
+        campaign_id = campaign.id
+    response = client.post(f"/api/v1/campaigns/{campaign_id}/resume", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "completed" and response.json()["dispatch_enabled"] is False
+
+
+def test_contact_selection_search_and_saved_ids_beyond_first_page(client):
+    headers = _bearer(_login(client, "admin"))
+    marker = uuid4().hex
+    with session_scope() as session:
+        old = Contact(tenant_id=1, phone="137" + str(uuid4().int)[-8:], name=marker,
+                      created_at=utc_now()-timedelta(days=2))
+        session.add(old)
+        for index in range(201):
+            session.add(Contact(tenant_id=1, phone="136" + str(uuid4().int)[-8:], name=f"bulk-{index}"))
+        session.commit()
+        old_id = old.id
+    first = client.get("/api/v1/contacts?page=1&size=200", headers=headers).json()
+    assert old_id not in {row["id"] for row in first}
+    searched = client.get(f"/api/v1/contacts?keyword={marker}", headers=headers).json()
+    saved = client.get(f"/api/v1/contacts?ids={old_id}&ids=999999999", headers=headers).json()
+    assert [row["id"] for row in searched] == [old_id]
+    assert [row["id"] for row in saved] == [old_id]
+
+
+def test_campaign_edit_syncs_flow_before_resume_but_preserves_attempted_history(client):
+    headers = _bearer(_login(client, "admin"))
+    template = client.post('/api/v1/script-templates', headers=headers, json={"name": "new-flow", "content": "synthetic"}).json()
+    flow = client.post(f"/api/v1/script-templates/{template['id']}/flows", headers=headers, json={"name": "new"}).json()
+    published = client.post(f"/api/v1/script-templates/{template['id']}/flows/{flow['id']}/publish", headers=headers)
+    assert published.status_code == 200, published.text
+    contact_ids = []
+    for _ in range(3):
+        response = client.post('/api/v1/contacts', headers=headers, json={"phone": "135"+str(uuid4().int)[-8:], "consent_state": "consented"})
+        contact_ids.append(response.json()['id'])
+    payload = {"name": "prepared-edit", "mode": "ai_only", "contact_ids": contact_ids, "retry_limit": 1}
+    campaign = client.post('/api/v1/campaigns', headers=headers, json=payload).json()
+    path = f"/api/v1/campaigns/{campaign['id']}"
+    client.post(path + '/start?auto_dial=false', headers=headers)
+    with session_scope() as session:
+        historical = session.exec(select(CallSession).where(CallSession.campaign_id == campaign['id'], CallSession.contact_id == contact_ids[1])).one()
+        historical.status = CallStatus.COMPLETED
+        historical.attempts = 1
+        session.add(historical)
+        session.commit()
+    payload.update(mode="human_only", retry_limit=0, script_template_id=template['id'], script_flow_version_id=flow['id'], contact_ids=contact_ids[:2])
+    response = client.put(path, headers=headers, json=payload)
+    assert response.status_code == 200, response.text
+    assert client.post(path + '/resume', headers=headers).status_code == 200
+    with session_scope() as session:
+        rows = {call.contact_id: call for call in session.exec(select(CallSession).where(CallSession.campaign_id == campaign['id'])).all()}
+        pending, historical, removed = (rows[cid] for cid in contact_ids)
+        assert pending.status == CallStatus.QUEUED and pending.mode == CallMode.HUMAN_ONLY
+        assert pending.max_attempts == 1 and pending.script_flow_version_id == flow['id']
+        assert pending.flow_node_key == next(node['id'] for node in flow['graph']['nodes'] if node['type'] == 'start')
+        assert historical.mode == CallMode.AI_ONLY and historical.max_attempts == 2
+        assert historical.script_flow_version_id is None
+        assert removed.status == CallStatus.FAILED and removed.next_attempt_at is None
+        _review_call_ids.extend(call.id for call in rows.values())
+
+
+def test_late_transfer_error_does_not_requeue_a_new_transfer_claim(client, monkeypatch, review_agent):
+    from app.services.call_service import handover_to_human
+    agent_id, _ = review_agent
+    call_id = _review_call(CallStatus.IN_AI)
+    class Adapter:
+        async def transfer_to_human(self, **kwargs):
+            # Same call/dial attempt/agent, but a subsequent handoff claim.
+            with session_scope() as session:
+                handoff = session.exec(select(HandoffRequest).where(HandoffRequest.call_session_id == call_id)).one()
+                handoff.updated_at = handoff.updated_at + timedelta(seconds=1)
+                session.add(handoff)
+                session.commit()
+            raise RuntimeError('late response from previous transfer')
+    monkeypatch.setattr('app.services.call_service.get_telephony_adapter', lambda **_: Adapter())
+    monkeypatch.setattr(app_main.settings, 'telephony_retry_times', 0)
+    with session_scope() as session:
+        call = asyncio.run(handover_to_human(session, tenant_id=1, call_id=call_id, human_agent_id=agent_id, reason='review'))
+        assert call.status == CallStatus.HANDOFF_TRANSFERRING
+        handoff = session.exec(select(HandoffRequest).where(HandoffRequest.call_session_id == call_id)).one()
+        assert handoff.state == HandoffState.ACCEPTING
+        assert session.get(User, agent_id).agent_status == 'busy'

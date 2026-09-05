@@ -508,12 +508,15 @@ def list_contacts(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=100, ge=1, le=200),
     keyword: str | None = Query(default=None),
+    ids: list[int] | None = Query(default=None, max_length=200),
     dnc: bool | None = Query(default=None),
     consent: str | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     skip, limit = get_pagination(page=page, size=size)
     query = select(Contact).where(Contact.tenant_id == tenant_id)
+    if ids is not None:
+        query = query.where(Contact.id.in_(ids))
     if keyword:
         like = f"%{keyword}%"
         query = query.where(Contact.phone.like(like) | Contact.name.like(like))
@@ -521,7 +524,7 @@ def list_contacts(
         query = query.where(Contact.dnc == dnc)
     if consent:
         query = query.where(Contact.consent_state == consent)
-    return session.exec(query.order_by(Contact.created_at.desc()).offset(skip).limit(limit)).all()
+    return session.exec(query.order_by(Contact.created_at.desc(), Contact.id.desc()).offset(skip).limit(limit)).all()
 
 
 @router.get("/{contact_id}", response_model=ContactOut)

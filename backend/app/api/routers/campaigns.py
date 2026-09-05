@@ -12,6 +12,8 @@ from ...models import CallSession, CallStatus, Campaign, CampaignContact, Contac
 from ...services.call_service import (
     NotFoundError,
     resolve_campaign_script,
+    complete_campaign_if_terminal,
+    sync_unattempted_campaign_call,
     start_campaign as start_campaign_service,
     dispatch_call_ids,
 )
@@ -191,6 +193,20 @@ def update_campaign(
         session.delete(rel)
     for index, contact in enumerate(contacts):
         session.add(CampaignContact(campaign_id=campaign.id, contact_id=contact.id, contact_order=index))
+
+    selected_contacts = {contact.id: contact for contact in contacts}
+    for call in session.exec(select(CallSession).where(
+        CallSession.campaign_id == campaign.id, CallSession.attempts == 0,
+    )).all():
+        contact = selected_contacts.get(call.contact_id)
+        if contact is not None:
+            sync_unattempted_campaign_call(session, campaign, call, contact)
+        else:
+            call.status = CallStatus.FAILED
+            call.next_attempt_at = None
+            call.last_error = "contact removed before dispatch"
+            call.updated_at = utc_now()
+            session.add(call)
 
     campaign.updated_at = utc_now()
     session.add(campaign)
@@ -450,6 +466,7 @@ def resume_campaign(
     campaign.updated_at = utc_now()
     session.add(campaign)
     session.commit()
+    complete_campaign_if_terminal(session, campaign.id)
     # The scheduler will pick up queued and due calls after the state commits.
     session.refresh(campaign)
     return _campaign_out(session, campaign)

@@ -58,6 +58,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError, apiRequest, formatDate } from './api'
+import { CampaignContactSelect } from './campaign-contact-select'
 import { useAuth } from './auth'
 import { setLanguage } from './i18n'
 import { WebRtcSoftphone } from './webrtc'
@@ -816,7 +817,6 @@ export function CampaignsPage() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const query = useSecureQuery<Campaign[]>(['campaigns'], '/api/v1/campaigns?page=1&size=100')
-  const contacts = useSecureQuery<Contact[]>(['contacts', 'campaign-options'], '/api/v1/contacts?page=1&size=200')
   const scripts = useSecureQuery<ScriptTemplate[]>(['scripts', 'campaign-options'], '/api/v1/script-templates?active_only=true&page=1&size=200')
   const systemOverview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
   const effectiveCapacity = systemOverview.data?.capacity.effective_max_concurrent_calls
@@ -882,11 +882,11 @@ export function CampaignsPage() {
         <Form<CampaignFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
           <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('mode')} name="mode" rules={[{ required: true }]}><Select options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item></Col></Row>
           <Form.Item label={t('voiceAiPipeline')} name="voice_ai_pipeline" extra={t('voiceAiPipelineHint')}><Select options={[{ value: 'inherit', label: t('pipeline_inherit') }, { value: 'legacy', label: 'Legacy' }, { value: 'pipecat', label: 'Pipecat' }]} /></Form.Item>
-          <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><Select mode="multiple" optionFilterProp="label" options={(contacts.data || []).map((item) => ({ value: item.id, label: `${item.name || '-'} · ${item.phone}` }))} /></Form.Item>
+          <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><CampaignContactSelect /></Form.Item>
           <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear onChange={() => form.setFieldValue('script_flow_version_id', undefined)} options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label="已发布话术画布" name="script_flow_version_id" extra="任务锁定具体发布版本；后续草稿修改不会影响运行中的外呼。"><Select allowClear disabled={!selectedTemplateId} placeholder="可选：使用平面话术" options={(publishedFlows.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label={t('content')} name="script"><Input.TextArea rows={5} /></Form.Item>
-          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={effectiveCapacity ? t('campaignConcurrencyHint', { count: effectiveCapacity }) : t('capacityLoading')}><InputNumber min={1} max={effectiveCapacity} disabled={!effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={1} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
+          <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={effectiveCapacity ? t('campaignConcurrencyHint', { count: effectiveCapacity }) : t('capacityLoading')}><InputNumber min={1} max={effectiveCapacity} disabled={!effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={0} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
           <Form.Item label={t('attemptInterval')} name="attempt_interval_sec"><InputNumber min={1} className="full-width" addonAfter={t('seconds')} /></Form.Item>
           <Space size="large"><Form.Item label={t('recording')} name="recording_enabled" valuePropName="checked"><Switch /></Form.Item><Form.Item label={t('hangupSms')} name="hangup_sms_enabled" valuePropName="checked"><Switch /></Form.Item></Space>
         </Form>
@@ -898,11 +898,11 @@ export function CampaignsPage() {
 interface CallFormValues { phone: string; mode: CallMode; campaign_id?: number; contact_id?: number; max_attempts: number }
 interface CallAnalysisReviewValues { result_code: string; intent: string; sentiment: string; qa_score: number; qa_flags: string; summary: string }
 
-function CallTable({ calls, loading, onAction, onEvents }: { calls: CallSession[]; loading: boolean; onAction: (call: CallSession, action: 'handover' | 'hangup' | 'retry') => void; onEvents: (call: CallSession) => void }) {
+function CallTable({ calls, loading, onAction, onEvents, serverPagination = false }: { serverPagination?: boolean; calls: CallSession[]; loading: boolean; onAction: (call: CallSession, action: 'handover' | 'hangup' | 'retry') => void; onEvents: (call: CallSession) => void }) {
   const { t } = useTranslation()
   const handoverable = (status: string) => ['dialing', 'answered', 'in_ai', 'waiting_human'].includes(status)
   const terminal = (status: string) => ['completed', 'failed', 'no_answer', 'busy', 'voicemail'].includes(status)
-  return <Table<CallSession> rowKey="id" loading={loading} dataSource={calls} locale={{ emptyText: t('empty') }} scroll={{ x: 1100 }} columns={[
+  return <Table<CallSession> rowKey="id" pagination={serverPagination ? false : undefined} loading={loading} dataSource={calls} locale={{ emptyText: t('empty') }} scroll={{ x: 1100 }} columns={[
     { title: t('phone'), dataIndex: 'phone', width: 150 },
     { title: t('mode'), dataIndex: 'mode', width: 150, render: (value) => t(modeOptions.find((item) => item.value === value)?.labelKey || value) },
     { title: t('status'), dataIndex: 'status', width: 130, render: (value) => <StatusTag status={value} /> },
@@ -922,7 +922,9 @@ export function CallsPage({ role }: { role: Role }) {
   const [selectedCall, setSelectedCall] = useState<CallSession | null>(null)
   const [form] = Form.useForm<CallFormValues>()
   const [reviewForm] = Form.useForm<CallAnalysisReviewValues>()
-  const query = useSecureQuery<CallSession[]>(['calls', role], '/api/v1/calls?page=1&size=100')
+  const [page, setPage] = useState(1)
+  const pageSize = 20
+  const query = useSecureQuery<CallSession[]>(['calls', role, String(page)], `/api/v1/calls?page=${page}&size=${pageSize}`)
   const events = useSecureQuery<CallEvent[]>(['call-events', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/events?page=1&size=100` : '', Boolean(selectedCall))
   const speechTurns = useSecureQuery<SpeechTurn[]>(['call-speech', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/speech-turns` : '', Boolean(selectedCall))
   const metrics = useSecureQuery<CallMetric[]>(['call-metrics', selectedCall?.id || ''], selectedCall ? `/api/v1/calls/${selectedCall.id}/metrics` : '', Boolean(selectedCall))
@@ -992,7 +994,15 @@ export function CallsPage({ role }: { role: Role }) {
   return (
     <>
       <PageTitle title={t('calls')} description={t('callHint')} action={<Space>{role === 'admin' && <Button icon={<DownloadOutlined />} onClick={() => void exportEvidence()}>{t('exportEvidence')}</Button>}<Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button><Button type="primary" icon={<PhoneOutlined />} onClick={openCreate}>{t('startCall')}</Button></Space>} />
-      <Card><CallTable calls={query.data || []} loading={query.isLoading} onEvents={setSelectedCall} onAction={(call, action) => actionMutation.mutate({ call, action })} /></Card>
+      <Card>
+        {query.isError && <Alert type="error" message={t('loadFailed')} description={query.error.message} />}
+        <CallTable serverPagination calls={query.data || []} loading={query.isFetching} onEvents={setSelectedCall} onAction={(call, action) => actionMutation.mutate({ call, action })} />
+        <Space style={{ marginTop: 16 }}>
+          <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(value => value - 1)}>{t('previousPage')}</Button>
+          <Text>{t('currentPageNumber', { page })}</Text>
+          <Button disabled={query.isFetching || !query.data || query.data.length < pageSize} onClick={() => setPage(value => value + 1)}>{t('nextPage')}</Button>
+        </Space>
+      </Card>
       <Modal title={t('startCall')} open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} confirmLoading={createMutation.isPending} destroyOnHidden>
         <Form<CallFormValues> form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)}>
           <Form.Item label={t('phone')} name="phone" rules={[{ required: true }, { pattern: /^\+?[0-9 ()-]{6,32}$/, message: t('invalidPhone') }]}><Input /></Form.Item>
