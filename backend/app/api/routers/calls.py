@@ -21,6 +21,7 @@ from ...schemas import (
 )
 from ...services.call_service import (
     CallPermissionError,
+    HandoffTransferError,
     NotFoundError,
     TERMINAL_STATUSES,
     create_call,
@@ -109,9 +110,8 @@ def list_calls_api(
             campaign_id=campaign_id,
             skip=skip,
             limit=limit,
+            human_agent_id=current.id if current is not None and current.role == "agent" and not current.is_supervisor else None,
         )
-        if current is not None and current.role == "agent" and not current.is_supervisor:
-            return [call for call in calls if call.human_agent_id == current.id]
         return calls
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid status filter")
@@ -161,7 +161,10 @@ async def handover_api(
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except CallPermissionError as exc:
+        session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except HandoffTransferError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
 
 
 @router.post("/{call_id}/hangup", response_model=CallSessionOut)
@@ -290,6 +293,7 @@ async def retry_call_api(
         _ensure_agent_call_access(call, current)
         return await retry_call(session=session, tenant_id=tenant_id, call_id=call_id)
     except CallPermissionError as exc:
+        session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
