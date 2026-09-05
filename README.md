@@ -36,6 +36,8 @@
 
 系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
 
+系统业务流程图（准备、执行、处理与复盘）：[docs/business-process.md](docs/business-process.md)
+
 部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
 
 ## 2bis. 测试账号体系（新）
