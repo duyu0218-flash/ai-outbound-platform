@@ -29,7 +29,7 @@ def aliyun_settings(**overrides) -> Settings:
         "freeswitch_tts_engine": "flite",
         "freeswitch_tts_voice": "slt",
         "freeswitch_pipecat_start_command_template": "stream {uuid} {media_ws_url}",
-        "pipecat_version": "1.8.1",
+        "pipecat_version": "1.8.1+outbound.1",
         "pipecat_media_ws_base": "ws://voice-gateway:8002/v1/pipecat/media",
         "pipecat_stt_provider": "aliyun-nls",
         "pipecat_openai_api_key": "tts-key",
@@ -190,3 +190,94 @@ def test_aliyun_start_and_stop_commands_never_include_token():
     start_json = json.dumps(service.start_command())
     assert "short-lived-token" not in start_json
     assert service.start_command()["header"]["task_id"] == "task-id"
+
+
+def test_empty_sentence_end_still_closes_speaking_state():
+    async def scenario():
+        service = make_service()
+        frames = []
+
+        async def capture(frame, _direction=None):
+            frames.append(frame)
+
+        service.push_frame = capture
+        await service._handle_event({"header": {"name": "SentenceBegin"}})
+        await service._handle_event({"header": {"name": "SentenceEnd"}, "payload": {"result": " "}})
+        assert [type(frame) for frame in frames] == [UserStartedSpeakingFrame, UserStoppedSpeakingFrame]
+
+    asyncio.run(scenario())
+
+
+def test_stop_failure_still_runs_transport_cleanup(monkeypatch):
+    from pipecat.frames.frames import EndFrame
+    from pipecat.services.stt_service import WebsocketSTTService
+
+    async def scenario():
+        service = make_service()
+        cleaned = []
+
+        async def fail():
+            raise ConnectionError("socket already closed")
+
+        async def cleanup(self, frame):
+            cleaned.append(frame)
+
+        service._send_stop = fail
+        monkeypatch.setattr(WebsocketSTTService, "stop", cleanup)
+        frame = EndFrame()
+        await service.stop(frame)
+        assert cleaned == [frame]
+
+    asyncio.run(scenario())
+
+
+def test_stuck_stop_send_is_bounded_and_cleans_up(monkeypatch):
+    from pipecat.frames.frames import EndFrame
+    from pipecat.services.stt_service import WebsocketSTTService
+
+    async def scenario():
+        service = make_service(stop_timeout_sec=0.01)
+        cleaned = []
+
+        async def stuck():
+            await asyncio.Event().wait()
+
+        async def cleanup(self, frame):
+            cleaned.append(frame)
+
+        service._send_stop = stuck
+        monkeypatch.setattr(WebsocketSTTService, "stop", cleanup)
+        frame = EndFrame()
+        await asyncio.wait_for(service.stop(frame), timeout=1)
+        assert cleaned == [frame]
+
+    asyncio.run(scenario())
+
+
+def test_cancellation_during_stop_is_preserved_after_cleanup(monkeypatch):
+    from pipecat.frames.frames import EndFrame
+    from pipecat.services.stt_service import WebsocketSTTService
+
+    async def scenario():
+        service = make_service()
+        started = asyncio.Event()
+        cleaned = []
+
+        async def stuck():
+            started.set()
+            await asyncio.Event().wait()
+
+        async def cleanup(self, frame):
+            cleaned.append(frame)
+
+        service._send_stop = stuck
+        monkeypatch.setattr(WebsocketSTTService, "stop", cleanup)
+        frame = EndFrame()
+        task = asyncio.create_task(service.stop(frame))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert cleaned == [frame]
+
+    asyncio.run(scenario())

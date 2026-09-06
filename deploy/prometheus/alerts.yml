@@ -71,3 +71,17 @@ groups:
           severity: warning
         annotations:
           summary: Repeated voice policy or budget rejections require investigation
+      - alert: AiOutboundRealtimeQueueDelay
+        expr: ai_outbound_task_oldest_ready_seconds{type="ai_turn"} > 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Real time AI tasks are waiting over two seconds
+      - alert: AiOutboundCallbackQueueDelay
+        expr: ai_outbound_task_oldest_ready_seconds{type="business_callback"} > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Customer callbacks are accumulating

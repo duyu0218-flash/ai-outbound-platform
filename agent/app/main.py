@@ -57,6 +57,8 @@ async def turn(payload: TurnRequest):
         hangup_sms = None
     action = "handoff" if handoff else "speak"
     provider = str(payload.context.get("llm_provider") or settings.llm_provider).strip().lower()
+    if provider not in {"rule", "openai-compatible"}:
+        raise RuntimeError(f"unsupported LLM provider: {provider}")
     if action == "speak" and provider == "openai-compatible":
         if not bool(payload.context.get("external_llm_enabled", False)):
             raise HTTPException(
@@ -71,8 +73,6 @@ async def turn(payload: TurnRequest):
             knowledge=payload.context.get("knowledge") or [],
             conversation=payload.context.get("conversation") or [],
         )
-    elif provider != "rule":
-        raise RuntimeError(f"unsupported LLM provider: {provider}")
     return TurnResult(
         action=action,
         tts_text=tts,

@@ -85,7 +85,14 @@ def get_admin_setting(session: Session, tenant_id: int, section: str) -> dict[st
         return dict(defaults)
     if not isinstance(saved, dict):
         return dict(defaults)
-    return {**defaults, **{key: value for key, value in saved.items() if key in defaults}}
+    result = {**defaults, **{key: value for key, value in saved.items() if key in defaults}}
+    # Existing tenant rows may predate platform-managed destinations. Never let
+    # a legacy URL affect a health probe or receive a shared service credential.
+    if section == "ai":
+        result["agent_url"] = settings.ai_agent_url
+    elif section == "sms":
+        result["endpoint"] = settings.sms_provider_endpoint
+    return result
 
 
 def get_admin_int_setting(

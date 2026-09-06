@@ -164,7 +164,7 @@ class CampaignCreate(BaseModel):
     script_flow_version_id: Optional[int] = None
     mode: CallMode
     concurrency: int = Field(default=5, ge=1, le=10_000)
-    retry_limit: int = Field(default=1, ge=1, le=10)
+    retry_limit: int = Field(default=1, ge=0, le=10)
     retry_interval_sec: int = Field(default=30, ge=1, le=604_800)
     attempt_interval_sec: int = Field(default=1800, ge=1, le=604_800)
     recording_enabled: bool = True

@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import uuid
 import weakref
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -12,7 +11,7 @@ from time import perf_counter
 from typing import Any, Dict
 
 import httpx
-from redis import asyncio as async_redis
+from sqlalchemy import update
 from sqlmodel import select
 
 from ..config import get_settings
@@ -36,13 +35,22 @@ from ..schemas import AiTurnRequest, AiTurnResult
 from .telephony import SmsAdapter, get_sms_adapter, with_retry, get_telephony_adapter
 from .call_service import resolve_campaign_script
 from .admin_settings import get_admin_setting
-from .task_queue import enqueue_business_callback, process_task
+from .task_queue import enqueue_business_callback, process_task, notify_task
+from .leases import LeaseLost
 from .knowledge import retrieve_knowledge
 from .script_flow import load_graph, simulate
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 _local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+AI_ACTIVE_STATUSES = {CallStatus.ANSWERED, CallStatus.IN_AI}
+
+
+def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    session.refresh(call)
+    return call.attempts == attempt and call.status in AI_ACTIVE_STATUSES
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -51,6 +59,7 @@ def _conversation_history(session, call: CallSession, limit: int) -> list[dict[s
         .where(
             SpeechTurn.call_session_id == call.id,
             SpeechTurn.is_final.is_(True),
+            SpeechTurn.attempt == call.attempts,
         )
         .order_by(SpeechTurn.created_at.desc(), SpeechTurn.id.desc())
         .limit(max(1, min(limit, 50)))
@@ -105,52 +114,16 @@ def _apply_output_guard(session, call: CallSession, result: AiTurnResult, ai_con
 
 @asynccontextmanager
 async def _ai_turn_lock(call_id: str):
-    """Serialize turns locally and across workers when Redis is configured."""
-    local_lock = _local_turn_locks.setdefault(call_id, asyncio.Lock())
+    from .leases import redis_lease
+    # asyncio locks belong to one event loop; independent worker lanes use Redis.
+    key = f"{id(asyncio.get_running_loop())}:{call_id}"
+    local_lock = _local_turn_locks.setdefault(key, asyncio.Lock())
     async with local_lock:
-        redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
-        redis_key = f"ai-outbound:ai-turn:{call_id}"
-        lock_token = uuid.uuid4().hex
-        acquired = redis_client is None
-        try:
-            if redis_client is not None:
-                loop = asyncio.get_running_loop()
-                deadline = loop.time() + max(0.1, settings.ai_turn_lock_wait_sec)
-                while loop.time() < deadline:
-                    try:
-                        acquired = bool(
-                            await redis_client.set(
-                                redis_key,
-                                lock_token,
-                                ex=max(5, settings.ai_turn_lock_ttl_sec),
-                                nx=True,
-                            )
-                        )
-                    except Exception:
-                        if settings.env.lower() in {"prod", "production"}:
-                            raise RuntimeError("Redis is unavailable for AI turn serialization")
-                        logger.warning("Redis unavailable; AI turn serialization is process-local", exc_info=True)
-                        acquired = True
-                        break
-                    if acquired:
-                        break
-                    await asyncio.sleep(0.05)
+        async with redis_lease(url=settings.redis_url, key=f"ai-outbound:ai-turn:{call_id}",
+                               ttl=settings.ai_turn_lock_ttl_sec, wait_sec=settings.ai_turn_lock_wait_sec) as acquired:
             if not acquired:
                 raise TimeoutError("timed out waiting for the previous AI turn")
             yield
-        finally:
-            if redis_client is not None:
-                if acquired:
-                    try:
-                        await redis_client.eval(
-                            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-                            1,
-                            redis_key,
-                            lock_token,
-                        )
-                    except Exception:
-                        logger.warning("failed to release AI turn Redis lock", exc_info=True)
-                await redis_client.aclose()
 
 
 def _run_script_flow_turn(*, session, call: CallSession, transcript: str) -> AiTurnResult | None:
@@ -190,6 +163,10 @@ async def request_ai_turn(
     context: Dict[str, Any] | None = None,
     agent_url: str | None = None,
 ) -> AiTurnResult:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    from .outbound_policy import require_platform_endpoint
+    endpoint = require_platform_endpoint(agent_url or settings.ai_agent_url, settings.ai_agent_url, "AI")
     payload = AiTurnRequest(
         call_id=call_id,
         phone=phone,
@@ -198,14 +175,14 @@ async def request_ai_turn(
         transcript=transcript,
         context=context or {},
     )
-    async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec) as client:
+    async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
         headers = (
             {"Authorization": f"Bearer {settings.ai_agent_service_token}"}
             if settings.ai_agent_service_token
             else {}
         )
         response = await client.post(
-            f"{(agent_url or settings.ai_agent_url).rstrip('/')}/agent/turn",
+            f"{endpoint}/agent/turn",
             json=payload.model_dump(mode="json"),
             headers=headers,
         )
@@ -240,12 +217,13 @@ async def run_ai_turn(
     call_id,
     transcript: str = "",
     durable: bool = False,
+    expected_attempt: int | None = None,
 ) -> None:
     async with _ai_turn_lock(str(call_id)):
-        await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable)
+        await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
 
 
-async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False) -> None:
+async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None) -> None:
     # independent session for background execution
     with session_scope() as session:
         call = session.get(CallSession, call_id)
@@ -253,6 +231,9 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
             return
         if call.status not in {CallStatus.ANSWERED, CallStatus.IN_AI}:
             return
+        if expected_attempt is not None and call.attempts != expected_attempt:
+            return
+        expected_attempt = call.attempts
 
         await append_event(
             session=session,
@@ -285,7 +266,7 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                     call,
                     int(ai_config.get("conversation_history_turns") or 12),
                 )
-                result = await request_ai_turn(
+                ai_request = dict(
                     call_id=str(call.id),
                     phone=call.phone,
                     mode=call.mode.value,
@@ -305,6 +286,15 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                     },
                     agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
                 )
+                # Release the read transaction and pool connection before model latency.
+                session.commit()
+                result = await request_ai_turn(**ai_request)
+            # Network latency may outlive the call or even its dial attempt.
+            # Preserve script-flow progress, but discard a stale model result.
+            flow_node_key = call.flow_node_key
+            if not _ai_call_is_current(session, call, expected_attempt):
+                return
+            call.flow_node_key = flow_node_key
             result = _apply_output_guard(session, call, result, ai_config)
             session.add(
                 CallMetric(
@@ -318,12 +308,17 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                 )
             )
             session.commit()
-            await _apply_ai_action(session=session, call=call, result=result)
+            await _apply_ai_action(session=session, call=call, result=result, expected_attempt=expected_attempt)
+        except LeaseLost:
+            session.rollback()
+            raise
         except Exception as exc:
-            if not durable:
-                call.status = CallStatus.FAILED
-            call.last_error = f"AI调用失败: {exc}"
-            session.add(call)
+            session.rollback()
+            session.exec(update(CallSession).where(
+                CallSession.id == call_id,
+                CallSession.attempts == expected_attempt,
+                CallSession.status.in_(AI_ACTIVE_STATUSES),
+            ).values(last_error=f"AI调用失败: {type(exc).__name__}"))
             session.add(
                 CallMetric(
                     tenant_id=call.tenant_id,
@@ -362,8 +357,12 @@ async def _wait_for_playback_completion(call_id, playback_id: str) -> bool:
     return False
 
 
-async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) -> None:
+async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, expected_attempt: int | None = None) -> None:
+    attempt = call.attempts if expected_attempt is None else expected_attempt
+    if not _ai_call_is_current(session, call, attempt):
+        return
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+    hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
     adapter = get_telephony_adapter(
         session=session,
@@ -374,16 +373,17 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
     playback_complete = False
     if result.tts_text:
         tts_started = perf_counter()
+        speak_payload = dict(call_id=str(call.id), text=result.tts_text or "",
+                             language=str(ai_config.get("language") or "zh-CN"),
+                             voice=str(ai_config.get("voice") or ""),
+                             provider=str(ai_config.get("tts_provider") or ""))
+        session.commit()
         try:
             response = await with_retry(
-                lambda: adapter.speak(
-                    call_id=str(call.id),
-                    text=result.tts_text or "",
-                    language=str(ai_config.get("language") or "zh-CN"),
-                    voice=str(ai_config.get("voice") or ""),
-                    provider=str(ai_config.get("tts_provider") or ""),
-                )
+                lambda: adapter.speak(**speak_payload)
             )
+            if not _ai_call_is_current(session, call, attempt):
+                return
             playback_id = str(response.get("playback_id") or "") or None
             playback_complete = bool(response.get("playback_complete", False))
             realtime = session.exec(
@@ -396,7 +396,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                 session.add(realtime)
             normalized_reply = " ".join((result.tts_text or "").split())
             reply_event_key = hashlib.sha256(
-                f"{call.id}:ai:{realtime.turn_sequence if realtime else 0}:{normalized_reply}".encode()
+                f"{call.id}:{attempt}:ai:{realtime.turn_sequence if realtime else 0}:{normalized_reply}".encode()
             ).hexdigest()
             existing_reply = session.exec(
                 select(SpeechTurn).where(
@@ -410,6 +410,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                     call_session_id=call.id,
                     provider_event_key=reply_event_key,
                     turn_index=realtime.turn_sequence if realtime else 0,
+                    attempt=attempt,
                     speaker_role="ai",
                     channel_id="outbound",
                     transcript=result.tts_text or "",
@@ -427,6 +428,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                     success=True,
                 )
             )
+        except LeaseLost:
+            session.rollback()
+            raise
         except Exception as exc:
             session.add(
                 CallMetric(
@@ -442,6 +446,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
             )
             session.commit()
             raise
+    # Release database writes before waiting on remote playback/telephony/SMS.
+    session.commit()
+    hangup_confirmed = False
     if result.action == "hangup":
         if playback_id and not playback_complete:
             # Make the playback id visible to the webhook session before
@@ -460,8 +467,32 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
                         detail=f"playback_id={playback_id}",
                     )
                 )
+        if not _ai_call_is_current(session, call, attempt):
+            return
+        session.commit()
         hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
-        if hangup_result.get("ended") is True:
+        hangup_confirmed = hangup_result.get("ended") is True
+
+    if result.hangup_sms and hangup_sms_allowed:
+        if not _ai_call_is_current(session, call, attempt):
+            return
+        sms_config = get_admin_setting(session, call.tenant_id, "sms")
+        sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
+        await send_sms_text(session, call, sms_text)
+
+    # Compare-and-set acquires the call row before any state/assignment writes.
+    # No network awaits are allowed until the transaction is committed below.
+    claimed = session.exec(update(CallSession).where(
+        CallSession.id == call.id,
+        CallSession.attempts == attempt,
+        CallSession.status.in_(AI_ACTIVE_STATUSES),
+    ).values(updated_at=utc_now()))
+    if claimed.rowcount != 1:
+        session.rollback()
+        return
+    session.refresh(call)
+    if result.action == "hangup":
+        if hangup_confirmed:
             call.status = CallStatus.COMPLETED
             call.finished_at = utc_now()
         else:
@@ -500,15 +531,6 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         )
     else:
         call.status = CallStatus.IN_AI
-
-    hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
-    if result.hangup_sms and hangup_sms_allowed:
-        sms_config = get_admin_setting(session, call.tenant_id, "sms")
-        sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
-        await send_sms_text(session, call, sms_text)
-        if call.status != CallStatus.WAITING_HUMAN:
-            call.status = CallStatus.COMPLETED
-            call.finished_at = utc_now()
 
     if result.escalate_priority:
         call.handoff_reason = f"escalate_priority={result.escalate_priority}"
@@ -550,7 +572,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult) 
         },
         idempotency_key=f"callback:ai-decision:{decision_event.id}",
     )
-    await process_task(callback_task.id)
+    await notify_task(callback_task.id)
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:

@@ -408,7 +408,7 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
 
     settings = freeswitch_settings(
         voice_ai_pipeline="pipecat",
-        pipecat_version="1.8.1",
+        pipecat_version="1.8.1+outbound.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
         freeswitch_pipecat_start_command_template="uuid_audio_stream {uuid} start {media_ws_url} mono 8k",
@@ -421,7 +421,7 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
         voice_ai_pipeline="pipecat",
         freeswitch_esl_password="synthetic-esl-" + "e" * 32,
         freeswitch_gateway="carrier",
-        pipecat_version="1.8.1",
+        pipecat_version="1.8.1+outbound.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
         freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
@@ -435,7 +435,7 @@ def test_pipecat_runtime_validation_requires_explicit_media_configuration():
 def test_pipecat_runtime_validation_rejects_unconfigured_legacy_fallback():
     settings = freeswitch_settings(
         voice_ai_pipeline="pipecat",
-        pipecat_version="1.8.1",
+        pipecat_version="1.8.1+outbound.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
         pipecat_fallback_to_legacy=True,
@@ -451,7 +451,7 @@ def test_freeswitch_driver_routes_media_and_tts_through_pipecat():
         fake_pipecat = FakePipecatManager()
         settings = freeswitch_settings(
             voice_ai_pipeline="pipecat",
-            pipecat_version="1.8.1",
+            pipecat_version="1.8.1+outbound.1",
             pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
             pipecat_openai_api_key="test-key",
             freeswitch_pipecat_start_command_template=(
@@ -518,7 +518,7 @@ def test_pipecat_falls_back_only_when_explicitly_configured():
         fake_pipecat = FakePipecatManager()
         settings = freeswitch_settings(
             voice_ai_pipeline="pipecat",
-            pipecat_version="1.8.1",
+            pipecat_version="1.8.1+outbound.1",
             pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
             pipecat_openai_api_key="test-key",
             pipecat_fallback_to_legacy=True,
@@ -557,7 +557,7 @@ def test_hybrid_gateway_routes_each_call_and_rejects_mismatched_fixed_mode():
         fake_pipecat = FakePipecatManager()
         settings = freeswitch_settings(
             voice_ai_pipeline="hybrid",
-            pipecat_version="1.8.1",
+            pipecat_version="1.8.1+outbound.1",
             pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
             pipecat_openai_api_key="test-key",
             freeswitch_pipecat_start_command_template="pipecat_start {uuid} {media_ws_url}",

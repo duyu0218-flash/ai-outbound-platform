@@ -273,6 +273,7 @@ class SpeechTurn(SQLModel, table=True):
     call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
     provider_event_key: str = Field(max_length=128)
     turn_index: int = Field(default=0, index=True)
+    attempt: int = Field(default=0, index=True)
     speaker_role: str = Field(default="customer", max_length=32)
     channel_id: str = Field(default="inbound", max_length=64)
     transcript: str = Field(default="", max_length=100_000)
@@ -312,6 +313,7 @@ class TaskOutbox(SQLModel, table=True):
     max_attempts: int = 5
     available_at: datetime = Field(default_factory=utc_now, index=True)
     locked_at: Optional[datetime] = None
+    lease_token: Optional[str] = Field(default=None, max_length=64)
     last_error: str = Field(default="", max_length=2000)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

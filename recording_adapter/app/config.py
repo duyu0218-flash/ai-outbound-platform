@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     recording_source_require_https: bool = False
     recording_download_timeout_sec: int = 60
     recording_max_bytes: int = 512 * 1024 * 1024
+    recording_spool_dir: str = ""
+    recording_ingest_concurrency: int = 2
+    recording_spool_reserve_bytes: int = 128 * 1024 * 1024
 
     @staticmethod
     def _secret(value: str, file_path: str, label: str) -> str:
@@ -78,9 +81,13 @@ class Settings(BaseSettings):
             raise RuntimeError("S3_KEY_PREFIX must contain only safe, non-relative path segments")
         if self.recording_max_bytes < 1024:
             raise RuntimeError("RECORDING_MAX_BYTES must be at least 1024")
+        if not 1 <= self.recording_ingest_concurrency <= 16 or self.recording_spool_reserve_bytes < 0:
+            raise RuntimeError("recording concurrency must be 1..16 and disk reserve nonnegative")
         if not self.allowed_source_hosts():
             raise RuntimeError("RECORDING_SOURCE_ALLOWED_HOSTS must not be empty")
         if self.env.lower() in {"prod", "production"}:
+            if not self.recording_spool_dir:
+                raise RuntimeError("production requires a persistent RECORDING_SPOOL_DIR for deletion tombstones")
             if len(self.resolved_service_token()) < 24:
                 raise RuntimeError("SERVICE_TOKEN must contain at least 24 characters in production")
             if len(self.resolved_metrics_token()) < 24:

@@ -209,7 +209,7 @@ class MockAdapter(TelephonyAdapter):
             headers["x-webhook-timestamp"] = stamp
             headers["x-webhook-signature"] = hmac.new(settings.telephony_webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()
         try:
-            async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec) as client:
+            async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
                 await client.post(
                     webhook_url,
                     content=body,
@@ -230,6 +230,8 @@ class HttpAdapter(TelephonyAdapter):
             self.headers["Authorization"] = f"Bearer {bearer_token}"
 
     async def _post(self, path: str, payload: dict[str, Any]) -> Dict[str, Any]:
+        from .leases import assert_execution_permitted
+        assert_execution_permitted()
         if not settings.voice_command_secret or self.tenant_id is None:
             raise RuntimeError("real telephony requires a signing secret and tenant identity")
         payload = {**payload, "tenant_id": self.tenant_id}
@@ -300,6 +302,8 @@ class HttpSmsAdapter(SmsAdapter):
         self.sender = sender
 
     async def send_sms(self, phone: str, text: str) -> Dict[str, Any]:
+        from .outbound_policy import require_platform_endpoint
+        endpoint = require_platform_endpoint(self.endpoint, settings.sms_provider_endpoint, "SMS")
         payload = {
             "to": phone,
             "text": text,
@@ -307,9 +311,9 @@ class HttpSmsAdapter(SmsAdapter):
             "sender_id": self.sender,
             "callback_url": settings.sms_callback_url,
         }
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec) as client:
+        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
             response = await client.post(
-                f"{self.endpoint}/v1/sms/send",
+                f"{endpoint}/v1/sms/send",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json=payload,
             )
@@ -382,6 +386,8 @@ async def with_retry(
     last_error: Exception | None = None
     uncertain_prior_attempt = False
     for attempt in range(max_retries + 1):
+        from .leases import assert_execution_permitted
+        assert_execution_permitted()
         try:
             return await coroutine_factory()
         except Exception as exc:

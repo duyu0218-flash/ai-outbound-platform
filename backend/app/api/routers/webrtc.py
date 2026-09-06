@@ -157,16 +157,21 @@ def _agent_snapshot(agent_id: int, tenant_id: int) -> dict:
 
 
 @router.get("/api/v1/agent/events/stream")
-async def stream_agent_events(request: Request, current: User = Depends(current_user)):
+async def stream_agent_events(request: Request, current: User = Depends(current_user),
+                              session: Session = Depends(get_session)):
     agent = _require_agent(current)
     agent_id = int(agent.id)
     tenant_id = agent.tenant_id
+    # The shared authentication dependency otherwise holds its read transaction
+    # for the lifetime of the stream. Only immutable identifiers enter the loop.
+    await asyncio.to_thread(session.close)
 
     async def generate():
         previous = ""
         last_heartbeat = 0.0
         while not await request.is_disconnected():
-            snapshot = await asyncio.to_thread(_agent_snapshot, agent_id, tenant_id)
+            async with request.app.state.agent_snapshot_slots:
+                snapshot = await asyncio.to_thread(_agent_snapshot, agent_id, tenant_id)
             canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
             now = time.monotonic()
             if canonical != previous or now - last_heartbeat >= 15:

@@ -25,6 +25,7 @@ from pipecat.frames.frames import (
     TTSStoppedFrame,
     TTSSpeakFrame,
     UserStartedSpeakingFrame,
+    UserStoppedSpeakingFrame,
 )
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker, ProcessorUnusablePolicy
@@ -140,6 +141,8 @@ class TranscriptWebhookProcessor(FrameProcessor):
             if is_final:
                 self.user_is_speaking = False
             return
+        if isinstance(frame, UserStoppedSpeakingFrame):
+            self.user_is_speaking = False
         if isinstance(frame, UserStartedSpeakingFrame):
             self.user_is_speaking = True
             if self.manager.settings.pipecat_media_protocol == "voismart":
