@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from ...api.deps import check_sms_webhook_token, check_webhook_token
-from ...db import get_webhook_session
+from ...db import get_webhook_session, webhook_transaction
 from ...clock import utc_now
 from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
@@ -17,7 +17,8 @@ from ...services.call_service import complete_campaign_if_terminal, schedule_cam
 from ...services.call_analysis import analyze_call
 from ...services.admin_settings import get_admin_int_setting
 from ...services.realtime_voice import apply_media_event, ingest_speech_turn, interrupt_playback
-from ...services.task_queue import enqueue_business_callback, enqueue_task, process_task
+from ...services.task_queue import enqueue_business_callback, enqueue_task, process_task, notify_task
+from ...services.runtime_metrics import record_webhook_duplicate
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -106,6 +107,7 @@ def _add_event(session: Session, call_id, event_type: str, source: str, payload:
     provider_key = _make_provider_event_key(call_id, event_type, source, payload_json, payload.get("event_id") if isinstance(payload, dict) else None)
     existed = _get_duplicate_event(session, call_id, provider_key)
     if existed is not None:
+        record_webhook_duplicate(event_type)
         session.exec(
             update(WebhookEventIngest)
             .where(WebhookEventIngest.id == existed.id)
@@ -143,6 +145,7 @@ def _add_event(session: Session, call_id, event_type: str, source: str, payload:
             .values(repeat_count=WebhookEventIngest.repeat_count + 1)
         )
         session.commit()
+        record_webhook_duplicate(event_type)
         return True
     return False
 
@@ -182,6 +185,7 @@ def _get_duplicate_event(session: Session, call_id, provider_key: str) -> Webhoo
 
 
 @router.post("/telephony/status")
+@webhook_transaction
 def telephony_status(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
@@ -303,9 +307,9 @@ def telephony_status(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:answered:{call.attempts}",
-            payload={"call_id": str(call.id), "transcript": payload.transcript or ""},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "transcript": payload.transcript or ""},
         )
-        background_tasks.add_task(process_task, task.id)
+        background_tasks.add_task(notify_task, task.id)
     if status_applied and mapped is not None:
         callback_task = enqueue_business_callback(
             session,
@@ -315,12 +319,13 @@ def telephony_status(
             data={"status": mapped.value, "hangup_reason": payload.payload.get("hangup_reason")},
             idempotency_key=f"callback:status:{call.id}:{call.attempts}:{mapped.value}",
         )
-        background_tasks.add_task(process_task, callback_task.id)
+        background_tasks.add_task(notify_task, callback_task.id)
 
     return {"result": "ok"}
 
 
 @router.post("/telephony/transcript")
+@webhook_transaction
 def telephony_transcript(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
@@ -370,9 +375,9 @@ def telephony_transcript(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:speech:{turn.id}",
-            payload={"call_id": str(call.id), "transcript": payload.transcript or ""},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "transcript": payload.transcript or ""},
         )
-        background_tasks.add_task(process_task, task.id)
+        background_tasks.add_task(notify_task, task.id)
     callback_task = enqueue_business_callback(
         session,
         tenant_id=call.tenant_id,
@@ -381,11 +386,12 @@ def telephony_transcript(
         data={"turn_id": turn.id, "transcript": payload.transcript or ""},
         idempotency_key=f"callback:transcript:{turn.id}",
     )
-    background_tasks.add_task(process_task, callback_task.id)
+    background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 
 @router.post("/telephony/speech")
+@webhook_transaction
 def telephony_speech(
     payload: SpeechWebhookEvent,
     background_tasks: BackgroundTasks,
@@ -409,9 +415,9 @@ def telephony_speech(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:speech:{turn.id}",
-            payload={"call_id": str(call.id), "transcript": payload.transcript},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "transcript": payload.transcript},
         )
-        background_tasks.add_task(process_task, task.id)
+        background_tasks.add_task(notify_task, task.id)
     callback_task = enqueue_business_callback(
         session,
         tenant_id=call.tenant_id,
@@ -425,11 +431,12 @@ def telephony_speech(
         },
         idempotency_key=f"callback:speech:{turn.id}",
     )
-    background_tasks.add_task(process_task, callback_task.id)
+    background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok", "duplicate": False, "turn_id": turn.id}
 
 
 @router.post("/telephony/media")
+@webhook_transaction
 def telephony_media(
     payload: MediaWebhookEvent,
     _: None = Depends(check_webhook_token),
@@ -445,6 +452,7 @@ def telephony_media(
 
 
 @router.post("/telephony/recording")
+@webhook_transaction
 def telephony_recording(
     payload: WebhookEvent,
     background_tasks: BackgroundTasks,
@@ -508,7 +516,7 @@ def telephony_recording(
                 payload={"recording_asset_id": existing_asset.id},
                 revive_dead=True,
             )
-            background_tasks.add_task(process_task, ingest_task.id)
+            background_tasks.add_task(notify_task, ingest_task.id)
         callback_task = enqueue_business_callback(
             session,
             tenant_id=call.tenant_id,
@@ -516,11 +524,12 @@ def telephony_recording(
             event_type="call.recording",
             data={"url": str(url)},
         )
-        background_tasks.add_task(process_task, callback_task.id)
+        background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 
 @router.post("/sms/status")
+@webhook_transaction
 def sms_status(
     payload: SmsStatusWebhook,
     _: None = Depends(check_sms_webhook_token),

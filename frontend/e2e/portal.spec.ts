@@ -118,9 +118,13 @@ test('invalid login stays unauthenticated and logout protects back navigation', 
 // Enable only against an explicitly seeded, isolated two-tenant test service.
 test('SPA account switch never reuses the previous tenant cache', async ({ page }) => {
   test.skip(!process.env.E2E_REVIEW_TENANTS, 'requires isolated review tenant fixtures')
+  const loginResult = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password: '12345678' } })
+  const tenantAName = `SyntheticTenantA-${Date.now()}`
+  const created = await page.request.post('/api/v1/contacts', { headers: { Authorization: `Bearer ${(await loginResult.json()).access_token}` }, data: { name: tenantAName, phone: `138${String(Date.now()).slice(-8)}`, consent_state: 'consented' } })
+  expect(created.ok()).toBeTruthy()
   await login(page, 'admin', 'admin')
   await page.goto('/admin/contacts')
-  await expect(page.getByRole('cell', { name: 'SyntheticTenantA', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: tenantAName, exact: true })).toBeVisible()
   await page.locator('.account-button').click()
   await page.locator('.ant-dropdown-menu-item-danger').click()
   await expect(page).toHaveURL(/\/admin\/login$/)
@@ -132,9 +136,9 @@ test('SPA account switch never reuses the previous tenant cache', async ({ page 
   await page.route('**/api/v1/contacts?**', route => route.abort())
   await page.locator('.app-sider [role="menuitem"]').nth(2).click()
   await expect(page).toHaveURL(/\/admin\/contacts$/)
-  await expect(page.getByRole('cell', { name: 'SyntheticTenantA', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: tenantAName, exact: true })).toHaveCount(0)
   await page.unroute('**/api/v1/contacts?**')
   await page.getByRole('button', { name: /刷新/ }).click()
   await expect(page.getByRole('cell', { name: 'SyntheticTenantB', exact: true })).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'SyntheticTenantA', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: tenantAName, exact: true })).toHaveCount(0)
 })

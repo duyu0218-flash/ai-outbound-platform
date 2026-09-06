@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "*"
 
     database_url: str = "sqlite:///./ai_outbound.db"
-    database_pool_size: int = 10
-    database_max_overflow: int = 20
+    database_pool_size: int = 5
+    database_max_overflow: int = 5
     database_pool_timeout_sec: int = 30
     database_pool_recycle_sec: int = 1800
     redis_url: str = "redis://localhost:6379/0"
@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     telephony_service_token: str = ""
     ai_agent_url: str = "http://localhost:8001"
     ai_agent_service_token: str = ""
+    business_callback_allowed_origins: str = ""
+    business_callback_private_origins: str = ""
     llm_provider: str = "rule"
     openai_model: str = "gpt-4o-mini"
     ai_callback_timeout_sec: int = 10
@@ -75,7 +77,16 @@ class Settings(BaseSettings):
     ai_turn_lock_wait_sec: float = 15.0
     recording_retention_days: int = 90
     partial_transcript_retention_hours: int = 24
-    retention_scan_interval_sec: int = 3600
+    retention_scan_interval_sec: int = 60
+    retention_batch_size: int = 1000
+    retention_run_budget_sec: int = 20
+    task_lease_sec: int = 30
+    task_timeout_sec: int = 120
+    task_poll_interval_sec: float = 0.1
+    task_ai_concurrency: int = 4
+    task_callback_concurrency: int = 4
+    task_recording_concurrency: int = 2
+    task_inline_execution_enabled: bool = False
     recording_delete_endpoint: str = ""
     recording_delete_service_token: str = ""
     recording_delete_timeout_sec: int = 15
@@ -106,12 +117,26 @@ class Settings(BaseSettings):
     request_timeout_ms: int = 15000
     request_timeout_exempt_paths: str = "/api/v1/contacts/import,/api/v1/contacts/export"
     request_id_header: str = "X-Request-ID"
+    request_admission_enabled: bool = True
+    request_admission_total_inflight: int = 0
+    request_admission_max_waiters: int = 0
+    request_admission_default_inflight: int = 0
+    request_admission_webhook_inflight: int = 0
+    request_admission_timeout_sec: float = 0.25
+    request_admission_retry_after_sec: int = 1
+    request_admission_metrics_inflight: int = 1
+    request_admission_stream_inflight: int = 64
+    agent_snapshot_concurrency: int = 2
     trusted_hosts: str = ""
     trusted_proxy_ips: str = "127.0.0.1,::1"
     rate_limit_enabled: bool = True
     rate_limit_default_rpm: int = 600
     rate_limit_auth_rpm: int = 60
     rate_limit_window_sec: int = 60
+    rate_limit_webhook_rpm: int = 12000
+    rate_limit_webhook_control_rpm: int = 6000
+    rate_limit_unverified_webhook_rpm: int = 600
+    rate_limit_memory_max_keys: int = 10000
     metrics_token: str = ""
     metrics_token_file: str = ""
 

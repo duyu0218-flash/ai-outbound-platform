@@ -125,3 +125,58 @@ def test_delete_does_not_claim_provider_side_deletion():
 def test_runtime_rejects_relative_storage_prefix():
     with pytest.raises(RuntimeError, match="S3_KEY_PREFIX"):
         _settings(s3_key_prefix="recordings/../other").validate_runtime()
+
+
+def test_ingest_spools_more_than_old_tmpfs_capacity(tmp_path):
+    import hashlib
+    size=65*1024*1024
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            for _ in range(65): yield b'x'*(1024*1024)
+    class StreamingS3(FakeS3):
+        def upload_fileobj(self,file,bucket,key,ExtraArgs):
+            digest=hashlib.sha256();count=0
+            while chunk:=file.read(1024*1024): digest.update(chunk);count+=len(chunk)
+            self.size=count;self.digest=digest.hexdigest()
+    s3=StreamingS3()
+    storage=RecordingObjectStorage(_settings(recording_max_bytes=size,recording_spool_dir=str(tmp_path)),
+        s3_client=s3,http_transport=httpx.MockTransport(lambda r:httpx.Response(200,headers={'content-type':'audio/wav'},stream=Stream())))
+    result=storage.ingest(RecordingIngestRequest(recording_asset_id=9,tenant_id=1,call_id='large',provider_url='https://recordings.example.com/large.wav'))
+    assert result['size_bytes']==s3.size==size and result['checksum_sha256']==s3.digest
+    assert [p.name for p in tmp_path.iterdir()] == ['.lifecycle']
+
+
+def test_recording_spool_full_rejects_before_download(tmp_path,monkeypatch):
+    import shutil
+    import app.storage as module
+    monkeypatch.setattr(module.shutil,'disk_usage',lambda path:shutil._ntuple_diskusage(100,99,1))
+    def unexpected(request): pytest.fail('must not download with insufficient disk space')
+    storage=RecordingObjectStorage(_settings(recording_spool_dir=str(tmp_path)),s3_client=FakeS3(),http_transport=httpx.MockTransport(unexpected))
+    with pytest.raises(RecordingStorageError,match='insufficient free space'):
+        storage.ingest(RecordingIngestRequest(recording_asset_id=1,tenant_id=1,call_id='full',provider_url='https://recordings.example.com/a.wav'))
+
+
+def test_delete_cannot_race_upload_and_tombstone_survives_restart(tmp_path):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    entered=threading.Event();release=threading.Event()
+    class SlowS3(FakeS3):
+        def upload_fileobj(self,*args,**kwargs):
+            entered.set();assert release.wait(5)
+            return super().upload_fileobj(*args,**kwargs)
+    s3=SlowS3();cfg=_settings(recording_spool_dir=str(tmp_path))
+    transport=httpx.MockTransport(lambda r:httpx.Response(200,headers={'content-type':'audio/wav'},content=b'recording'))
+    first=RecordingObjectStorage(cfg,s3_client=s3,http_transport=transport)
+    second=RecordingObjectStorage(cfg,s3_client=s3,http_transport=transport)
+    request=RecordingIngestRequest(recording_asset_id=1,tenant_id=1,call_id='race',provider_url='https://recordings.example.com/race.wav')
+    deletion=RecordingDeleteRequest(recording_asset_id=1,tenant_id=1,call_id='race',storage_uri='s3://ai-outbound-recordings/recordings/tenant-1/call-race/asset-1.wav')
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending=pool.submit(first.ingest,request);assert entered.wait(5)
+        try:
+            with pytest.raises(RecordingStorageError,match='in progress'): second.delete(deletion)
+        finally: release.set()
+        pending.result()
+    assert second.delete(deletion)
+    restarted=RecordingObjectStorage(cfg,s3_client=s3,http_transport=transport)
+    with pytest.raises(RecordingStorageError,match='tombstone'): restarted.ingest(request)
+    assert not s3.uploads

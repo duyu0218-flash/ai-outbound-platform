@@ -1,4 +1,19 @@
 import { test, expect, type Page } from '@playwright/test'
+import { createHmac } from 'node:crypto'
+
+async function postStatus(page: Page, data: object) {
+  const body = JSON.stringify(data)
+  const stamp = String(Math.floor(Date.now() / 1000))
+  const secret = process.env.E2E_WEBHOOK_SECRET || ''
+  const token = process.env.E2E_WEBHOOK_TOKEN || ''
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['x-webhook-token'] = token
+  if (secret) {
+    headers['x-webhook-timestamp'] = stamp
+    headers['x-webhook-signature'] = createHmac('sha256', secret).update(stamp + '.' + body).digest('hex')
+  }
+  return page.request.post('/api/v1/webhooks/telephony/status', { data: body, headers })
+}
 
 async function login(page: Page, portal: 'admin' | 'agent', username: string) {
   await page.goto(`/${portal}/login`)
@@ -105,6 +120,9 @@ test('manual handoff requeues on no answer and can be accepted and ended', async
   await page.getByRole('button', { name: /发起外呼/ }).click()
   const dialog = page.getByRole('dialog')
   const phone = `139${String(Date.now()).slice(-8)}`
+  const auth = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password: '12345678' } })
+  const consent = await page.request.post('/api/v1/contacts', { headers: { Authorization: `Bearer ${(await auth.json()).access_token}` }, data: { phone, name: 'Synthetic handoff consent', consent_state: 'consented' } })
+  expect(consent.ok()).toBeTruthy()
   await dialog.getByLabel('手机号', { exact: true }).fill(phone)
   const createdPromise = page.waitForResponse(r => r.url().endsWith('/api/v1/calls') && r.request().method() === 'POST')
   await dialog.getByRole('button', { name: /确.*定|OK/ }).click()
@@ -115,17 +133,17 @@ test('manual handoff requeues on no answer and can be accepted and ended', async
   const transfer = page.waitForResponse(r => r.url().includes(`/calls/${call.id}/handover`) && r.request().method() === 'POST')
   await row.getByRole('button', { name: '转人工', exact: true }).click(); await confirm(page)
   expect((await transfer).ok()).toBeTruthy()
-  const unavailable = await page.request.post('/api/v1/webhooks/telephony/status', { data: { call_id: call.id, kind: 'status', payload: { status: 'human_unavailable', attempt: call.attempts, event_id: `e2e-unavailable-${call.id}` } } })
+  const unavailable = await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'human_unavailable', attempt: call.attempts, event_id: `e2e-unavailable-${call.id}` } })
   expect((await unavailable.json()).requeued).toBeTruthy()
   await page.goto('/agent')
   const queueRow = page.locator('.handoff-item').filter({ hasText: phone })
   const accepted = page.waitForResponse(r => r.url().endsWith('/accept') && r.request().method() === 'POST')
   await queueRow.getByRole('button', { name: /接\s*受/ }).click(); await confirm(page)
   expect((await accepted).ok()).toBeTruthy()
-  await page.request.post('/api/v1/webhooks/telephony/status', { data: { call_id: call.id, kind: 'status', payload: { status: 'human_connected', attempt: call.attempts, event_id: `e2e-connected-${call.id}` } } })
+  await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'human_connected', attempt: call.attempts, event_id: `e2e-connected-${call.id}` } })
   await page.goto('/agent/calls')
   await row.getByRole('button', { name: /挂\s*断/ }).click(); await confirm(page)
-  await page.request.post('/api/v1/webhooks/telephony/status', { data: { call_id: call.id, kind: 'status', payload: { status: 'completed', attempt: call.attempts, event_id: `e2e-completed-${call.id}` } } })
+  await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'completed', attempt: call.attempts, event_id: `e2e-completed-${call.id}` } })
   await page.getByRole('button', { name: /刷\s*新/ }).click()
   await expect(row.getByRole('button', { name: /挂\s*断/ })).toBeDisabled()
   await row.getByRole('button', { name: /事\s*件/ }).click()

@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import time
 from datetime import timedelta
 
-from sqlalchemy import or_
+from sqlalchemy import or_, func, cast, String
 from sqlmodel import select
 
 from ..clock import utc_now
 from ..config import get_settings
 from ..db import session_scope
-from ..models import CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState
+from ..models import CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState, TaskOutbox, SmsLog
 from .admin_settings import get_admin_int_setting
 from .task_queue import enqueue_task
 
@@ -116,6 +117,7 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                         CallSession.last_transcript.is_not(None),
                         CallSession.summary.is_not(None),
                         CallSession.phone.not_like("redacted:%"),
+                        CallSession.recording_url.is_not(None),
                     ),
                 )
                 .order_by(CallSession.finished_at.asc())
@@ -127,9 +129,12 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                     f"{tenant_id}:{call.id}:{call.phone}".encode("utf-8"),
                     hashlib.sha256,
                 ).hexdigest()[:24]
-                call.phone = f"redacted:{phone_digest}"
+                if not call.phone.startswith("redacted:"):
+                    call.phone = f"redacted:{phone_digest}"
                 call.last_transcript = None
                 call.summary = None
+                call.recording_url = None
+                call.last_error = None
                 call.updated_at = now
                 session.add(call)
                 for event in session.exec(select(CallEvent).where(CallEvent.call_session_id == call.id)).all():
@@ -159,12 +164,45 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                     session.add(asset)
                 redacted_calls += 1
                 remaining_calls -= 1
+        scrubbed_tasks = 0
+        scrubbed_sms = 0
+        for tenant_id in call_tenant_ids:
+            days = get_admin_int_setting(session, tenant_id, "compliance", "call_sensitive_data_retention_days",
+                settings.call_sensitive_data_retention_days, minimum=1, maximum=3650)
+            text_days = get_admin_int_setting(session, tenant_id, "compliance", "final_transcript_retention_days",
+                settings.final_transcript_retention_days, minimum=1, maximum=3650)
+            text_cutoff = now - timedelta(days=min(days,text_days))
+            tasks = session.exec(select(TaskOutbox).join(CallSession,
+                func.replace(TaskOutbox.aggregate_id,"-","") == func.replace(cast(CallSession.id,String),"-","")).where(
+                TaskOutbox.tenant_id == tenant_id,CallSession.tenant_id == tenant_id,
+                CallSession.finished_at.is_not(None),CallSession.finished_at <= text_cutoff,
+                TaskOutbox.task_type.in_(["ai_turn","business_callback"]),TaskOutbox.payload_json != "{}",
+                TaskOutbox.state != TaskState.PROCESSING).order_by(TaskOutbox.created_at).limit(max(1,batch_size))).all()
+            for task in tasks:
+                task.payload_json = "{}"
+                task.last_error = ""
+                if task.state in {TaskState.PENDING,TaskState.FAILED}:
+                    task.state = TaskState.DEAD
+                task.updated_at = now
+                session.add(task)
+                scrubbed_tasks += 1
+            messages = session.exec(select(SmsLog).join(CallSession,CallSession.id == SmsLog.call_session_id).where(
+                CallSession.tenant_id == tenant_id,CallSession.finished_at.is_not(None),
+                CallSession.finished_at <= now-timedelta(days=days),
+                or_(SmsLog.content != "",SmsLog.to_phone != "redacted")).order_by(SmsLog.created_at).limit(max(1,batch_size))).all()
+            for sms in messages:
+                sms.to_phone = "redacted"
+                sms.content = ""
+                sms.provider_error = None
+                session.add(sms)
+                scrubbed_sms += 1
         recordings = session.exec(
             select(RecordingAsset)
             .where(
                 RecordingAsset.retention_until.is_not(None),
                 RecordingAsset.retention_until <= now,
                 RecordingAsset.deleted_at.is_(None),
+                RecordingAsset.state.not_in(["deletion_pending", "deletion_failed"]),
             )
             .order_by(RecordingAsset.retention_until.asc())
             .limit(max(1, batch_size))
@@ -189,9 +227,26 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                 queued_recordings += 1
         session.commit()
     return {
+        "task_payloads": scrubbed_tasks,
+        "sms_payloads": scrubbed_sms,
         "partial_transcripts": deleted_partials,
         "final_transcripts": deleted_finals,
         "redacted_calls": redacted_calls,
         "recordings": queued_recordings,
         "recording_deletion_tasks": queued_recordings,
     }
+
+
+def run_retention_cycle() -> dict[str, int]:
+    """Drain full batches within a bounded time slice, independent of dialing."""
+    deadline = time.monotonic() + max(1, settings.retention_run_budget_sec)
+    total: dict[str,int] = {}
+    while time.monotonic() < deadline:
+        from .leases import assert_execution_permitted
+        assert_execution_permitted()
+        counts = purge_expired_voice_data(batch_size=max(1,settings.retention_batch_size))
+        for key, value in counts.items():
+            total[key] = total.get(key,0) + value
+        if not any(value >= settings.retention_batch_size for value in counts.values()):
+            break
+    return total

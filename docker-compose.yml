@@ -81,6 +81,10 @@ services:
       RECORDING_SOURCE_ALLOWED_HOSTS: ${RECORDING_SOURCE_ALLOWED_HOSTS:-voice-gateway,freeswitch,host.docker.internal,localhost,127.0.0.1}
       RECORDING_SOURCE_REQUIRE_HTTPS: ${RECORDING_SOURCE_REQUIRE_HTTPS:-false}
       RECORDING_MAX_BYTES: ${RECORDING_MAX_BYTES:-536870912}
+      RECORDING_SPOOL_DIR: /var/spool/recordings
+      RECORDING_INGEST_CONCURRENCY: ${RECORDING_INGEST_CONCURRENCY:-2}
+    volumes:
+      - recording_spool:/var/spool/recordings
     expose:
       - "8003"
     ports:
@@ -241,6 +245,7 @@ services:
   # Set VOICE_GATEWAY_DRIVER=freeswitch_esl and FREESWITCH_ESL_* in the env file.
 
 volumes:
+  recording_spool:
   postgres_data:
   recording_data:
   voice_security_data:
