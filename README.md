@@ -83,6 +83,7 @@ pnpm build
 - `docs/commercial-readiness.md`: 活动级灰度、独立Worker、账号锁定/令牌撤销、监控与备份恢复演练
 - `docs/direct-deploy-foundations.md`: 可直接部署的监控、录音托管与受控SIP验收工具
 - `docs/production-acceptance.md`: 自动化、真实语音、故障和容量发布门禁
+- [离线 ASR 评测](docs/offline-asr-evaluation.md)：第一阶段人工标准答案、模型结果格式、文字错误率、热词召回和费用对比；不代表真实线路验收
 - `compatibility-matrix.toml`: Python、Node、数据库、FreeSWITCH、媒体模块和可选Pipecat的机器可读兼容基准
 - `docs/version-compatibility.md`: 版本锁定、升级、现场取证和生产发布规则
 - `docs/operator-manual.md`: 管理员、运营、质检和座席操作手册（含页面截图）

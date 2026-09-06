@@ -116,6 +116,10 @@ jobs:
           TELEPHONY_PROVIDER: mock
           AI_AGENT_URL: http://127.0.0.1:8001
         run: pytest -q tests
+      - name: Offline ASR evaluation and acceptance tooling tests
+        if: matrix.service == 'backend'
+        working-directory: .
+        run: python -m pytest -q scripts/test_evaluate_asr.py scripts/test_real_voice_acceptance.py
 
   postgres-redis-integration:
     runs-on: ubuntu-latest

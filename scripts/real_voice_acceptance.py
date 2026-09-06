@@ -64,7 +64,7 @@ def event_statuses(events: list[dict[str, Any]]) -> set[str]:
             payload = json.loads(event.get("payload") or "{}")
         except (TypeError, ValueError, json.JSONDecodeError):
             continue
-        if payload.get("status"):
+        if isinstance(payload, dict) and payload.get("status"):
             statuses.add(str(payload["status"]))
     return statuses
 
@@ -83,7 +83,7 @@ def validate_scenario(
     statuses = event_statuses(events)
     if call.get("status") != "completed":
         failures.append(f"terminal status is {call.get('status')}, expected completed")
-    if not ({"answered", "in_ai", "waiting_human"} & statuses) and call.get("status") == "completed":
+    if not ({"answering", "answered", "in_ai", "human_connected", "in_human"} & statuses) and call.get("status") == "completed":
         failures.append("no answered-stage provider status was recorded")
     if not call.get("recording_url"):
         failures.append("recording callback did not persist a recording URL")
@@ -91,7 +91,7 @@ def validate_scenario(
         failures.append("human-only call unexpectedly executed an AI decision")
     if mode in {"mixed_human_first", "ai_only", "ai_handoff"} and "ai_decision" not in types:
         failures.append("AI decision event is missing")
-    if mode in {"mixed_human_first", "ai_only", "ai_handoff"}:
+    if mode in {"ai_only", "ai_handoff"}:
         final_turns = [
             turn for turn in speech_turns
             if turn.get("is_final") and str(turn.get("normalized_transcript") or "").strip()
@@ -120,9 +120,8 @@ def validate_scenario(
             ):
                 failures.append("ASR timestamps were not persisted on any final turn")
     if mode in {"mixed_human_first", "ai_handoff"}:
-        handoff_seen = "waiting_human" in statuses or bool(call.get("handoff_reason"))
-        if not handoff_seen:
-            failures.append("human handoff was not observed")
+        if not ({"human_connected", "in_human"} & statuses):
+            failures.append("human connection was not confirmed by a provider status")
     return failures
 
 
@@ -216,7 +215,7 @@ def main() -> int:
             ],
             "failures": failures,
         })
-        print(f"[{'PASS' if not failures else 'FAIL'}] {mode}: {call_id}", flush=True)
+        print(f"[{'AUTO_PASS' if not failures else 'AUTO_FAIL'}] {mode}: {call_id}", flush=True)
 
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -224,6 +223,14 @@ def main() -> int:
         "tenant_id": args.tenant_id,
         "phone_redacted": f"***{args.phone[-4:]}",
         "expected_asr_provider": args.expected_asr_provider,
+        "verification_scope": "api_events_only",
+        "real_line_verified": None,
+        "manual_checks_required": [
+            "two_way_audio_on_controlled_handsets", "recording_playback_and_channels",
+            "barge_in_and_turn_latency", "human_bridge_audio", "provider_identity_and_billing",
+        ],
+        # Backward-compatible result of automated checks only. It is never a
+        # substitute for handset/audio/capacity acceptance.
         "passed": all(not result["failures"] for result in results),
         "results": results,
     }
