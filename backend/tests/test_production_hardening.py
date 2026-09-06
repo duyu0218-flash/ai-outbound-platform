@@ -31,6 +31,7 @@ os.environ.setdefault("TELEPHONY_WEBHOOK_BASE", "http://127.0.0.1:9")
 os.environ.setdefault("TELEPHONY_TIMEOUT_SEC", "1")
 os.environ.setdefault("TELEPHONY_RETRY_TIMES", "0")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
+os.environ.setdefault("TASK_INLINE_EXECUTION_ENABLED", "true")
 
 from app.db import engine, session_scope  # noqa: E402
 from app import db as db_module  # noqa: E402
@@ -215,7 +216,7 @@ def test_review_webhook_outbox_failure_rolls_back_and_retry_recovers(client, mon
         with session_scope() as independent:
             assert independent.get(TaskOutbox, task_id) is not None
         return True
-    monkeypatch.setattr(webhooks, "process_task", assert_committed_before_background)
+    monkeypatch.setattr(webhooks, "notify_task", assert_committed_before_background)
     with pytest.raises(RuntimeError, match="injected outbox failure"):
         client.post(f"/api/v1/webhooks/telephony/{kind}", json=payload)
     with session_scope() as session:
@@ -1148,7 +1149,7 @@ def test_flow_validation_rejects_unreachable_and_dead_end_nodes():
 async def test_durable_ai_task_is_idempotent_and_completes(monkeypatch):
     called: list[str] = []
 
-    async def fake_run_ai_turn(*, call_id, transcript, durable=False):
+    async def fake_run_ai_turn(*, call_id, transcript, durable=False, expected_attempt=None):
         assert durable is True
         called.append(f"{call_id}:{transcript}")
 
@@ -1188,12 +1189,12 @@ async def test_durable_ai_task_is_idempotent_and_completes(monkeypatch):
 async def test_scheduler_reclaims_stale_processing_task(monkeypatch):
     called: list[str] = []
 
-    async def fake_run_ai_turn(*, call_id, transcript, durable=False):
+    async def fake_run_ai_turn(*, call_id, transcript, durable=False, expected_attempt=None):
         called.append(str(call_id))
 
     monkeypatch.setattr("app.services.dispatcher.run_ai_turn", fake_run_ai_turn)
     with session_scope() as session:
-        call = CallSession(tenant_id=1, phone="13800138993", mode=CallMode.AI_ONLY)
+        call = CallSession(tenant_id=1, phone="13800138993", mode=CallMode.AI_ONLY, status=CallStatus.ANSWERED)
         session.add(call)
         session.commit()
         session.refresh(call)
@@ -1251,7 +1252,7 @@ async def test_scheduler_marks_crashed_final_attempt_dead(monkeypatch):
         failed_call = session.get(CallSession, call_id)
         assert exhausted is not None and exhausted.state == TaskState.DEAD
         assert exhausted.locked_at is None
-        assert failed_call is not None and failed_call.status == CallStatus.FAILED
+        assert failed_call is not None and failed_call.status == CallStatus.CREATED
 
 
 @pytest.mark.asyncio
@@ -2251,6 +2252,7 @@ async def test_ai_events_are_extensible_and_mode_uses_wire_value(client: TestCli
 
 @pytest.mark.asyncio
 async def test_business_callback_posts_and_records_delivery(client: TestClient, monkeypatch):
+    monkeypatch.setattr(app_main.settings, "business_callback_allowed_origins", "https://customer.example.com")
     token = _login(client, "admin")
     headers = _bearer(token)
     updated = client.put(

@@ -268,6 +268,18 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
+    if session.get_bind().dialect.name == "sqlite":
+        session.exec(update(Tenant).where(Tenant.id == call.tenant_id).values(updated_at=Tenant.updated_at))
+    tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
+    if tenant is None or not tenant.enabled:
+        session.rollback()
+        return False
+    session.expire_all()
+    session.refresh(call, with_for_update=True)
+    if call.status not in DISPATCHABLE_STATUSES or call.attempts >= call.max_attempts:
+        session.rollback()
+        return False
     can_call, reason = can_call_contact_sync(
         session,
         call.tenant_id,
@@ -285,10 +297,6 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
         complete_campaign_if_terminal(session, call.campaign_id)
         return False
 
-    tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
-    if tenant is None or not tenant.enabled:
-        session.rollback()
-        return False
     compliance = get_admin_setting(session, call.tenant_id, "compliance")
     daily_limit = max(
         1,
@@ -640,6 +648,8 @@ def get_call(session: Session, tenant_id: int, call_id: UUID) -> CallSession:
 
 
 async def _place_call_with_result(session: Session, call: CallSession) -> tuple[CallSession, bool]:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
     if call.status not in DISPATCHABLE_STATUSES:
         return call, False
 
@@ -660,6 +670,10 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
 
     if not _claim_dispatch_slot(session, call):
         session.refresh(call)
+        if call.status in DISPATCHABLE_STATUSES:
+            call.updated_at = _now()
+            session.add(call)
+            session.commit()
         return call, False
 
     claimed_attempt = call.attempts
@@ -1024,8 +1038,9 @@ async def dispatch_call_ids(
         ]
     default_concurrency = max(tenant_limits, default=max(1, int(settings.max_concurrent_calls)))
     requested_concurrency = max(1, int(max_concurrency or default_concurrency))
-    concurrency = min(requested_concurrency, *tenant_limits) if tenant_limits else requested_concurrency
-    if line_limits:
+    concurrency = min(requested_concurrency, max(1, settings.outbound_platform_max_concurrent))
+
+    if len(tenant_ids) == 1 and line_limits:
         concurrency = min(concurrency, *line_limits)
 
     async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
@@ -1174,6 +1189,9 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
             attempt = call.attempts
             try:
                 adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id)
+                from .leases import assert_execution_permitted
+                assert_execution_permitted()
+                session.commit()
                 result = await adapter.hangup(call_id=str(call.id), reason="provider_status_timeout")
                 confirmed = result.get("ended") is True
             except Exception:
@@ -1207,73 +1225,80 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
     return expired
 
 
+async def _dispatch_cycle(batch_size: int):
+    from .leases import redis_lease, assert_execution_permitted
+    async with redis_lease(url=settings.redis_url,key="ai-outbound:scheduler:leader",
+                           ttl=settings.scheduler_lock_ttl_sec) as acquired:
+        if not acquired:
+            return
+        await expire_stale_calls(batch_size=batch_size)
+        assert_execution_permitted()
+        await dispatch_due_retries(batch_size=batch_size)
+        assert_execution_permitted()
+        await dispatch_pending_calls(batch_size=batch_size)
+
+
 async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
-    global _last_retention_scan
-    poll_interval = max(0.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
-    batch_size = max(1, int(settings.scheduler_batch_size))
-    redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
-    lock_key = "ai-outbound:scheduler:leader"
-    lock_token = token_urlsafe(24)
-    try:
+    """Independent, bounded lanes. All blocking DB work owns sessions in its thread."""
+    from .task_queue import process_pending_tasks
+    from .retention import run_retention_cycle
+    poll_interval = max(.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
+    batch_size = max(1, settings.scheduler_batch_size)
+
+    async def pause(seconds):
+        try:
+            await asyncio.wait_for(stop_event.wait(),timeout=seconds)
+        except asyncio.TimeoutError:
+            pass
+
+    async def dial_loop():
         while not stop_event.is_set():
             try:
-                lock_acquired = redis_client is None
-                if redis_client is not None:
-                    try:
-                        lock_acquired = bool(
-                            await redis_client.set(
-                                lock_key,
-                                lock_token,
-                                nx=True,
-                                ex=max(2, int(settings.scheduler_lock_ttl_sec)),
-                            )
-                        )
-                    except Exception:
-                        # A production process must not run an unlocked duplicate
-                        # scheduler. Development may keep working without Redis.
-                        lock_acquired = settings.env.lower() not in {"prod", "production"}
-                        logger.exception("scheduler Redis lock unavailable")
-                if lock_acquired:
-                    if redis_client is not None:
-                        await redis_client.set(
-                            "ai-outbound:scheduler:heartbeat",
-                            _now().isoformat(),
-                            ex=max(5, int(settings.scheduler_lock_ttl_sec) * 2),
-                        )
-                    await expire_stale_calls(batch_size=batch_size)
-                    await dispatch_due_retries(batch_size=batch_size)
-                    await dispatch_pending_calls(batch_size=batch_size)
-                    from .task_queue import process_pending_tasks
-
-                    await process_pending_tasks(batch_size=batch_size)
-                    if time.monotonic() - _last_retention_scan >= max(60, settings.retention_scan_interval_sec):
-                        from .retention import purge_expired_voice_data
-
-                        purge_expired_voice_data(batch_size=batch_size)
-                        _last_retention_scan = time.monotonic()
-            except asyncio.CancelledError:
-                raise
+                await asyncio.to_thread(lambda: asyncio.run(_dispatch_cycle(batch_size)))
             except Exception:
-                logger.exception("scheduled call retry scan failed")
-            finally:
-                if redis_client is not None:
-                    try:
-                        await redis_client.eval(
-                            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-                            1,
-                            lock_key,
-                            lock_token,
-                        )
-                    except Exception:
-                        logger.debug("scheduler lock release failed", exc_info=True)
-            lock_token = token_urlsafe(24)
+                logger.exception("dial scheduler cycle failed")
+            await pause(poll_interval)
+
+    async def task_loop(types):
+        while not stop_event.is_set():
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=poll_interval)
-            except asyncio.TimeoutError:
-                continue
-    finally:
-        if redis_client is not None:
-            await redis_client.aclose()
+                # This thread owns the scan's sessions; jobs have their own bounded threads.
+                await asyncio.to_thread(lambda: asyncio.run(process_pending_tasks(
+                    batch_size=batch_size,task_types=types,threaded=True)))
+            except Exception:
+                logger.exception("task lane failed types=%s",types)
+            await pause(max(.05,settings.task_poll_interval_sec))
+
+    async def retention_loop():
+        from .leases import redis_lease
+        async def cycle():
+            async with redis_lease(url=settings.redis_url,key="ai-outbound:retention:leader",ttl=60) as acquired:
+                if acquired:
+                    await asyncio.to_thread(run_retention_cycle)
+        while not stop_event.is_set():
+            try:
+                await cycle()
+            except Exception:
+                logger.exception("retention lane failed")
+            await pause(max(1,settings.retention_scan_interval_sec))
+
+    async def heartbeat():
+        client=async_redis.from_url(settings.redis_url,decode_responses=True,
+            socket_connect_timeout=2,socket_timeout=2) if settings.redis_url else None
+        try:
+            while not stop_event.is_set():
+                try:
+                    if client:
+                        await client.set("ai-outbound:scheduler:heartbeat",_now().isoformat(),ex=30)
+                except Exception:
+                    logger.warning("worker heartbeat unavailable")
+                await pause(5)
+        finally:
+            if client:
+                await client.aclose()
+
+    await asyncio.gather(dial_loop(),task_loop(("ai_turn",)),task_loop(("business_callback",)),
+                         task_loop(("recording_ingest","recording_delete")),retention_loop(),heartbeat())
 
 
 def sync_unattempted_campaign_call(session: Session, campaign: Campaign, call: CallSession, contact: Contact) -> None:

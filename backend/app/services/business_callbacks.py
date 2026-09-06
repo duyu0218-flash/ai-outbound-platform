@@ -14,6 +14,7 @@ import httpx
 from ..db import session_scope
 from ..models import CallEvent, CallSession
 from .admin_settings import get_admin_setting
+from .outbound_policy import validate_callback_destination, CallbackTransport
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +26,14 @@ async def deliver_business_callback(
     event_type: str,
     data: dict[str, Any],
     raise_on_failure: bool = False,
+    delivery_id: str | None = None,
 ) -> bool:
     with session_scope() as session:
         config = get_admin_setting(session, tenant_id, "integration")
         callback_url = str(config.get("webhook_base_url") or "").strip()
         if not config.get("callback_enabled", False) or not callback_url:
             return True
+        validate_callback_destination(callback_url)
         call = session.get(CallSession, call_id)
         if call is None or call.tenant_id != tenant_id:
             return True
@@ -52,7 +55,11 @@ async def deliver_business_callback(
     delivery_state = "delivered"
     detail: dict[str, Any] = {"event": event_type, "url": callback_url}
     payload_bytes = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    headers = {"Content-Type": "application/json"}
+    delivery_id = delivery_id or hashlib.sha256(payload_bytes).hexdigest()
+    headers = {"Content-Type": "application/json", "X-Delivery-ID": delivery_id, "Idempotency-Key": delivery_id}
+    # Durable retries belong to the outbox, not nested unbounded backoff loops.
+    if raise_on_failure:
+        retry_times = 0
     last_error: Exception | None = None
     if secret_ref:
         secret = os.getenv(f"BUSINESS_WEBHOOK_SECRET_{secret_ref}", "")
@@ -64,8 +71,10 @@ async def deliver_business_callback(
             headers.update({"X-Webhook-Timestamp": timestamp, "X-Webhook-Signature": f"sha256={signature}"})
 
     for attempt in range(retry_times + 1) if last_error is None else ():
+        from .leases import assert_execution_permitted
+        assert_execution_permitted()
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=min(timeout, 60), follow_redirects=False, trust_env=False, transport=CallbackTransport()) as client:
                 response = await client.post(callback_url, content=payload_bytes, headers=headers)
                 response.raise_for_status()
                 detail["status_code"] = response.status_code

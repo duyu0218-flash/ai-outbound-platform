@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 import asyncio
 import json
 import logging
+import os
+import anyio.to_thread
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -32,6 +34,7 @@ from .api.routers import (
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, engine, session_scope
 from .middleware import (
+    AdmissionControlMiddleware,
     LoggingMiddleware,
     RateLimitMiddleware,
     RequestIDMiddleware,
@@ -43,6 +46,7 @@ from .services.auth import ensure_demo_users
 from .services.health import ai_agent_health_check, db_health_check, redis_health_check, telephony_http_health_check, tenant_telephony_health_check
 from .services.call_service import run_retry_scheduler
 from .services.metrics import render_prometheus_metrics
+from .services.runtime_metrics import snapshot_for_metrics
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -53,6 +57,7 @@ PROD_ALLOWED_ENVS = {"prod", "production"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.agent_snapshot_slots = asyncio.Semaphore(max(1, settings.agent_snapshot_concurrency))
     create_db_and_tables()
     _bootstrap_default_tenant()
     retry_stop_event = asyncio.Event()
@@ -104,6 +109,8 @@ def _validate_production_runtime() -> None:
         issues.append("SECRET_KEY")
     if weak_secret(settings.jwt_secret, 32) or settings.jwt_secret == settings.secret_key:
         issues.append("JWT_SECRET")
+    if settings.task_inline_execution_enabled:
+        issues.append("TASK_INLINE_EXECUTION_ENABLED must be false in production")
     tenant_api_keys_valid = False
     if settings.tenant_api_keys_json.strip():
         try:
@@ -279,13 +286,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RequestIDMiddleware)
 app.add_middleware(TimeoutMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     RateLimitMiddleware,
 )
+app.add_middleware(AdmissionControlMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 
 @app.exception_handler(RequestValidationError)
@@ -351,7 +359,7 @@ def health():
 
 
 @app.get("/healthz")
-def healthz():
+async def healthz():
     return {"status": "ok"}
 
 
@@ -388,6 +396,30 @@ def metrics(authorization: str | None = Header(default=None)) -> PlainTextRespon
     with session_scope() as session:
         body = render_prometheus_metrics(session)
     return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+@app.get("/metrics/runtime", response_class=PlainTextResponse, include_in_schema=False)
+async def runtime_metrics(authorization: str | None = Header(default=None)) -> PlainTextResponse:
+    """DB-independent diagnostics remain available during a pool/database outage."""
+    try:
+        expected = settings.resolved_metrics_token()
+    except RuntimeError:
+        expected = ""
+    if not expected or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="invalid metrics token")
+    stats = anyio.to_thread.current_default_thread_limiter().statistics()
+    lines = [f"ai_outbound_process_id {os.getpid()}",
+             f"ai_outbound_thread_tokens_borrowed {stats.borrowed_tokens}",
+             f"ai_outbound_thread_tokens_total {stats.total_tokens}",
+             f"ai_outbound_thread_tasks_waiting {stats.tasks_waiting}"]
+    seen = set()
+    for kind, name, value in snapshot_for_metrics():
+        base = name.split("{", 1)[0]
+        if base not in seen:
+            seen.add(base)
+            lines.append(f"# TYPE {base} {kind}")
+        lines.append(f"{name} {value}")
+    return PlainTextResponse("\n".join(lines) + "\n")
 
 
 app.include_router(calls_router)
