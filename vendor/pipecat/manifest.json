@@ -1,0 +1,7 @@
+{
+  "upstream_version": "1.8.1",
+  "version": "1.8.1+outbound.1",
+  "upstream_url": "https://files.pythonhosted.org/packages/ed/f3/831d7945faf23f4b1c1e4289a0340cde00e830899e67c0cbdfa83412f71f/pipecat_ai-1.8.1-py3-none-any.whl",
+  "upstream_sha256": "c0097e3946cafa431a75c3b730eb9175a0450b5104e7ae5ae58dd5f6d1a0bbad",
+  "patched_sha256": "6b06961039c593a9290d5e1ca4ed8c4baab0913869209e663a5d4654ec49bdf9"
+}

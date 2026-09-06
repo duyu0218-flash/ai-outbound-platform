@@ -317,3 +317,20 @@ def test_second_media_worker_cannot_open_same_ledger(tmp_path):
         finally:
             await first.stop()
     asyncio.run(run())
+
+
+def test_sensitive_retention_preserves_dial_dedup_and_active_attempts(tmp_path):
+    cfg=configuration(tmp_path)
+    ledger=Ledger(cfg.voice_security_db_path)
+    payload=request('expired-synthetic')
+    route=routes(cfg)['1:0']
+    row,fresh=ledger.admit(payload,route,cfg)
+    ledger.finish(row['uuid'])
+    with ledger.transaction() as db:
+        db.execute('UPDATE attempts SET ended=? WHERE uuid=?',(time.time()-181*86400,row['uuid']))
+    active,_=ledger.admit(request('active-synthetic'),route,cfg)
+    assert ledger.purge_sensitive_data(retention_days=90,audit_days=180)==1
+    old,fresh=ledger.admit(payload,route,cfg)
+    assert not fresh and old['payload']=='{}' and old['digest']==row['digest']
+    assert old['cost']==row['cost'] and json.loads(old['result'])['result']=='ended'
+    assert ledger.lookup('active-synthetic',1)['payload']!='{}'

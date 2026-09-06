@@ -67,6 +67,7 @@ def ingest_speech_turn(
         call_session_id=call.id,
         provider_event_key=key,
         turn_index=realtime.turn_sequence,
+        attempt=call.attempts,
         speaker_role=payload.speaker_role,
         channel_id=payload.channel_id,
         transcript=payload.transcript,

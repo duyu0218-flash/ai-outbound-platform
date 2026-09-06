@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiRequest } from './api'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createSessionQueryClient, disposeSessionQueries } from './query-session'
 import type { LoginResponse, Role, User } from './types'
 
 const TOKEN_KEY = 'ai-platform-access-token'
@@ -18,6 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY))
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
+  const queryClient = useMemo(() => createSessionQueryClient(), [token])
+  useEffect(() => () => disposeSessionQueries(queryClient), [queryClient])
 
   useEffect(() => {
     if (!token) {
@@ -62,14 +66,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (token) await apiRequest('/api/v1/auth/logout', { method: 'POST' }, token)
       } finally {
+        disposeSessionQueries(queryClient)
         sessionStorage.removeItem(TOKEN_KEY)
         setToken(null)
         setUser(null)
       }
     },
-  }), [loading, token, user])
+  }), [loading, token, user, queryClient])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>
+    <QueryClientProvider client={queryClient} key={user ? `${user.tenant_id}:${user.id}` : 'anonymous'}>
+      {children}
+    </QueryClientProvider>
+  </AuthContext.Provider>
 }
 
 export function useAuth() {

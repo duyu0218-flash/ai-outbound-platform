@@ -191,6 +191,8 @@ pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```
 
+语音网关采用 `1.8.1+outbound.1` 受控 Pipecat 包。非 Docker 安装须先构建经哈希校验的本地 wheel，再安装网关，不能直接从 PyPI 安装该本地版本。完整命令、分句边界与升级/回退要求见 [Pipecat 受控补丁包](docs/pipecat-controlled-patch.md)。已有部署需同步更新 `PIPECAT_VERSION`，不自动覆盖 `.env`。
+
 ## 6. 快速功能验收清单（第一轮）
 
 以下步骤建议每次部署后都执行：

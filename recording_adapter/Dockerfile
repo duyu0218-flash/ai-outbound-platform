@@ -10,6 +10,7 @@ COPY recording_adapter/app ./app
 RUN pip install --no-cache-dir .
 
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+RUN mkdir -p /var/spool/recordings && chown app:app /var/spool/recordings && chmod 700 /var/spool/recordings
 USER app
 
 EXPOSE 8003

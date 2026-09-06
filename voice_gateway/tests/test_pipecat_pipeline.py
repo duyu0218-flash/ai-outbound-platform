@@ -4,6 +4,7 @@ from datetime import timedelta
 from app.config import Settings
 from app.pipecat_pipeline import PipecatPipelineManager, TranscriptWebhookProcessor, _language
 from pipecat.frames.frames import InterimTranscriptionFrame, TranscriptionFrame
+from pipecat.frames.frames import UserStoppedSpeakingFrame
 from pipecat.processors.frame_processor import FrameDirection
 
 
@@ -16,10 +17,36 @@ def pipecat_settings() -> Settings:
         freeswitch_tts_engine="flite",
         freeswitch_tts_voice="slt",
         freeswitch_pipecat_start_command_template="stream {uuid} {media_ws_url}",
-        pipecat_version="1.8.1",
+        pipecat_version="1.8.1+outbound.1",
         pipecat_media_ws_base="ws://voice-gateway:8002/v1/pipecat/media",
         pipecat_openai_api_key="test-key",
     )
+
+
+def test_speech_stop_clears_barge_in_without_a_final_transcript(monkeypatch):
+    from pipecat.processors.frame_processor import FrameProcessor
+
+    async def scenario():
+        manager = PipecatPipelineManager(pipecat_settings())
+        session = await manager.create_session(call_id="empty-final", speech_webhook_url="", media_webhook_url="", metadata={})
+        processor = TranscriptWebhookProcessor(manager, session)
+        processor.user_is_speaking = True
+        forwarded = []
+
+        async def noop(*args):
+            pass
+
+        async def capture(frame, direction):
+            forwarded.append(frame)
+
+        monkeypatch.setattr(FrameProcessor, "process_frame", noop)
+        processor.push_frame = capture
+        frame = UserStoppedSpeakingFrame()
+        await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
+        assert processor.user_is_speaking is False
+        assert forwarded == [frame]
+
+    asyncio.run(scenario())
 
 
 def test_pipecat_session_token_is_not_exposed_as_provider_session_id():

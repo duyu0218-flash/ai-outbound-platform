@@ -27,7 +27,7 @@ The ESL driver implements:
 - recording: `uuid_record` and recording metadata callback;
 - optional media-bug command template for a selected streaming ASR module.
 
-It also supports an explicitly selected Pipecat 1.8.1 candidate pipeline for
+It also supports an explicitly selected Pipecat 1.8.1+outbound.1 candidate pipeline for
 bidirectional media, STT and TTS. Production remains on `legacy` until the real
 media module and controlled-call gates pass. See
 [`pipecat-integration.md`](pipecat-integration.md) for its contract and rollback.

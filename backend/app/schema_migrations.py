@@ -24,6 +24,11 @@ def apply_runtime_migrations(engine: Engine) -> None:
     tables = set(inspector.get_table_names())
     statements: list[str] = []
 
+    if "taskoutbox" in tables and "lease_token" not in _columns(engine, "taskoutbox"):
+        statements.append("ALTER TABLE taskoutbox ADD COLUMN lease_token VARCHAR(64)")
+    if "speechturn" in tables and "attempt" not in _columns(engine, "speechturn"):
+        statements.append("ALTER TABLE speechturn ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
+
     if "callsession" in tables:
         call_columns = _columns(engine, "callsession")
         if "human_agent_id" not in call_columns:
@@ -127,3 +132,10 @@ def apply_runtime_migrations(engine: Engine) -> None:
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_smslog_provider_message_id ON smslog (provider_message_id)")
             )
+
+        if "taskoutbox" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_type ON taskoutbox(task_type, state, available_at)"))
+        if "speechturn" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_speechturn_call_attempt ON speechturn(call_session_id, attempt, created_at)"))
+        if "callsession" in tables and {"tenant_id", "phone", "started_at"} <= _columns(engine, "callsession"):
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_callsession_tenant_phone_started ON callsession(tenant_id, phone, started_at)"))

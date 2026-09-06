@@ -12,8 +12,7 @@ dependencies = [
   "anyio==4.14.2",
   "httpx==0.28.1",
   "pydantic-settings==2.15.0",
-  "pipecat-ai[openai,websocket]==1.8.1",
-  "nltk==3.10.3",
+  "pipecat-ai[openai,websocket]==1.8.1+outbound.1",
 ]
 
 [project.optional-dependencies]

@@ -18,7 +18,7 @@ from redis import asyncio as async_redis
 
 from ..config import get_settings
 from ..clock import utc_now
-from ..models import CallEvent, CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptFlowVersion, ScriptTemplate, User
+from ..models import CallEvent, CallMode, CallSession, CallStatus, Campaign, CampaignContact, Contact, ConsentState, Tenant, ScriptFlowVersion, ScriptTemplate, User, HandoffRequest, HandoffState
 from .script_flow import load_graph
 from .telephony import (
     get_telephony_adapter,
@@ -37,6 +37,10 @@ _last_retention_scan = 0.0
 
 
 class CallPermissionError(ValueError):
+    pass
+
+
+class HandoffTransferError(RuntimeError):
     pass
 
 
@@ -264,6 +268,18 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
+    if session.get_bind().dialect.name == "sqlite":
+        session.exec(update(Tenant).where(Tenant.id == call.tenant_id).values(updated_at=Tenant.updated_at))
+    tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
+    if tenant is None or not tenant.enabled:
+        session.rollback()
+        return False
+    session.expire_all()
+    session.refresh(call, with_for_update=True)
+    if call.status not in DISPATCHABLE_STATUSES or call.attempts >= call.max_attempts:
+        session.rollback()
+        return False
     can_call, reason = can_call_contact_sync(
         session,
         call.tenant_id,
@@ -281,10 +297,6 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
         complete_campaign_if_terminal(session, call.campaign_id)
         return False
 
-    tenant = session.exec(select(Tenant).where(Tenant.id == call.tenant_id).with_for_update()).first()
-    if tenant is None or not tenant.enabled:
-        session.rollback()
-        return False
     compliance = get_admin_setting(session, call.tenant_id, "compliance")
     daily_limit = max(
         1,
@@ -616,13 +628,16 @@ def list_calls(
     campaign_id: int | None = None,
     skip: int = 0,
     limit: int = 50,
+    human_agent_id: int | None = None,
 ) -> list[CallSession]:
     query = select(CallSession).where(CallSession.tenant_id == tenant_id)
+    if human_agent_id is not None:
+        query = query.where(CallSession.human_agent_id == human_agent_id)
     if campaign_id is not None:
         query = query.where(CallSession.campaign_id == campaign_id)
     if status is not None:
         query = query.where(CallSession.status == CallStatus(str(status).lower()))
-    return session.exec(query.order_by(CallSession.created_at.desc()).offset(skip).limit(limit)).all()
+    return session.exec(query.order_by(CallSession.created_at.desc(), CallSession.id.desc()).offset(skip).limit(limit)).all()
 
 
 def get_call(session: Session, tenant_id: int, call_id: UUID) -> CallSession:
@@ -633,6 +648,8 @@ def get_call(session: Session, tenant_id: int, call_id: UUID) -> CallSession:
 
 
 async def _place_call_with_result(session: Session, call: CallSession) -> tuple[CallSession, bool]:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
     if call.status not in DISPATCHABLE_STATUSES:
         return call, False
 
@@ -653,6 +670,10 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
 
     if not _claim_dispatch_slot(session, call):
         session.refresh(call)
+        if call.status in DISPATCHABLE_STATUSES:
+            call.updated_at = _now()
+            session.add(call)
+            session.commit()
         return call, False
 
     claimed_attempt = call.attempts
@@ -803,69 +824,113 @@ def resolve_handoff_agent(session: Session, tenant_id: int, target_group: str | 
     return int(agent.id)
 
 
-async def handover_to_human(
-    session: Session,
-    *,
-    tenant_id: int,
-    call_id: UUID,
-    reason: str,
-    target_group: str | None = None,
-    human_agent_id: int | None = None,
-) -> CallSession:
+async def transfer_handoff(
+    session: Session, *, tenant_id: int, call_id: UUID, agent_id: int,
+    reason: str, handoff_id: int | None = None, adapter_factory=None,
+) -> HandoffRequest:
+    # Lock the call before the handoff and agent, matching callback lock order.
     call = get_call(session, tenant_id, call_id)
-    human_agent_id = resolve_handoff_agent(session, tenant_id, target_group, human_agent_id)
-    assigned_agent = session.get(User, human_agent_id)
-    target_group = f"agent:{human_agent_id}"
-    if not _set_call_if_status_in_uuid(
-        session,
-        call_id=call.id,
-        allowed_statuses=HANDOVERABLE_STATUSES,
-        status=CallStatus.HANDOFF_TRANSFERRING,
-        handoff_reason=reason,
-        human_agent_id=human_agent_id,
-        updated_at=_now(),
-    ):
+    session.refresh(call, with_for_update=True)
+    if call.status not in HANDOVERABLE_STATUSES:
         raise CallPermissionError("call status not handover-able")
-
-    adapter = get_telephony_adapter(
-        session=session,
-        tenant_id=tenant_id,
-        line_id=call.telephony_line_id,
-    )
+    attempt = call.attempts
+    if handoff_id is not None:
+        handoff = session.get(HandoffRequest, handoff_id)
+        if handoff is not None:
+            session.refresh(handoff, with_for_update=True)
+        if (handoff is None or handoff.tenant_id != tenant_id
+                or handoff.call_session_id != call_id or handoff.state != HandoffState.WAITING):
+            raise CallPermissionError("handoff is not waiting")
+    else:
+        handoff = session.exec(select(HandoffRequest).where(
+            HandoffRequest.call_session_id == call_id,
+            HandoffRequest.state == HandoffState.WAITING,
+        ).with_for_update()).first()
+    agent = session.get(User, agent_id)
+    if agent is not None:
+        session.refresh(agent, with_for_update=True)
+    reserved = handoff is not None and handoff.assigned_agent_id == agent_id
+    allowed_presence = {"ready", "busy"} if reserved else {"ready"}
+    if (agent is None or agent.tenant_id != tenant_id or agent.role != "agent"
+            or not agent.enabled or agent.agent_status not in allowed_presence):
+        raise CallPermissionError("agent is not ready")
+    if handoff is not None and handoff.assigned_agent_id not in {None, agent_id}:
+        raise CallPermissionError("handoff is assigned to another agent")
+    from .webrtc import media_is_registered
+    if settings.webrtc_enabled and not media_is_registered(tenant_id=tenant_id, agent_id=agent_id):
+        raise CallPermissionError("agent browser SIP endpoint is not registered")
+    if handoff is None:
+        handoff = HandoffRequest(tenant_id=tenant_id, call_session_id=call_id)
+    target_group = f"agent:{agent_id}"
+    handoff.state = HandoffState.ACCEPTING
+    handoff.assigned_agent_id = agent_id
+    handoff.target_group = target_group
+    handoff.reason = reason
+    handoff.responded_at = None
+    claim_time = _now()
+    handoff.updated_at = claim_time
+    call.status = CallStatus.HANDOFF_TRANSFERRING
+    call.human_agent_id = agent_id
+    call.handoff_reason = reason
+    call.updated_at = _now()
+    agent.agent_status = "busy"
+    agent.last_seen_at = agent.updated_at = _now()
+    session.add_all([call, agent, handoff])
+    session.commit()
+    handoff_id = handoff.id
     try:
-        await with_retry(
-            lambda: adapter.transfer_to_human(call_id=str(call.id), reason=reason, target_group=target_group)
+        adapter = (adapter_factory or get_telephony_adapter)(
+            session=session, tenant_id=tenant_id, line_id=call.telephony_line_id,
         )
+        await with_retry(lambda: adapter.transfer_to_human(
+            call_id=str(call_id), reason=reason, target_group=target_group,
+        ))
     except Exception as exc:
-        _set_call_if_status_in_uuid(
-            session,
-            call_id=call.id,
-            allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
-            status=CallStatus.WAITING_HUMAN,
-            last_error=f"handover failed: {exc}",
-            human_agent_id=None,
-            updated_at=_now(),
-        )
-        raise
+        session.refresh(call, with_for_update=True)
+        session.refresh(handoff, with_for_update=True)
+        if (call.attempts == attempt and call.status == CallStatus.HANDOFF_TRANSFERRING
+                and handoff.state == HandoffState.ACCEPTING
+            and handoff.updated_at == claim_time and handoff.assigned_agent_id == agent_id):
+            # Only roll back our still-pending transfer, never a newer callback.
+            call.status = CallStatus.WAITING_HUMAN
+            call.human_agent_id = None
+            call.last_error = f"handover failed: {exc}"
+            call.updated_at = _now()
+            handoff.state = HandoffState.WAITING
+            handoff.assigned_agent_id = None
+            handoff.target_group = "default"
+            handoff.updated_at = _now()
+            session.refresh(agent, with_for_update=True)
+            if agent.agent_status == "busy":
+                agent.agent_status = "ready"
+                agent.updated_at = _now()
+                session.add(agent)
+            session.add_all([call, handoff])
+            session.commit()
+            raise HandoffTransferError(f"telephony transfer failed: {exc}") from exc
+        # A callback already resolved the command. Preserve its durable result.
+    session.refresh(call, with_for_update=True)
+    session.refresh(handoff, with_for_update=True)
+    if (call.attempts == attempt
+            and call.status in {CallStatus.HANDOFF_TRANSFERRING, CallStatus.IN_HUMAN}
+            and handoff.state == HandoffState.ACCEPTING
+            and handoff.updated_at == claim_time and handoff.assigned_agent_id == agent_id):
+        handoff.state = HandoffState.ACCEPTED
+        handoff.responded_at = handoff.updated_at = _now()
+        session.add(handoff)
+    session.commit()
+    session.refresh(handoff)
+    return handoff
 
-    if assigned_agent is not None:
-        assigned_agent.agent_status = "busy"
-        assigned_agent.last_seen_at = _now()
-        assigned_agent.updated_at = _now()
-        session.add(assigned_agent)
-        session.commit()
 
-    _set_call_if_status_in_uuid(
-        session,
-        call_id=call.id,
-        allowed_statuses={CallStatus.HANDOFF_TRANSFERRING},
-        status=CallStatus.WAITING_HUMAN,
-        handoff_reason=reason,
-        human_agent_id=human_agent_id,
-        updated_at=_now(),
-    )
-    session.refresh(call)
-    return call
+async def handover_to_human(
+    session: Session, *, tenant_id: int, call_id: UUID, reason: str,
+    target_group: str | None = None, human_agent_id: int | None = None,
+) -> CallSession:
+    human_agent_id = resolve_handoff_agent(session, tenant_id, target_group, human_agent_id)
+    await transfer_handoff(session, tenant_id=tenant_id, call_id=call_id,
+                           agent_id=human_agent_id, reason=reason)
+    return get_call(session, tenant_id, call_id)
 
 
 async def retry_call(
@@ -973,8 +1038,9 @@ async def dispatch_call_ids(
         ]
     default_concurrency = max(tenant_limits, default=max(1, int(settings.max_concurrent_calls)))
     requested_concurrency = max(1, int(max_concurrency or default_concurrency))
-    concurrency = min(requested_concurrency, *tenant_limits) if tenant_limits else requested_concurrency
-    if line_limits:
+    concurrency = min(requested_concurrency, max(1, settings.outbound_platform_max_concurrent))
+
+    if len(tenant_ids) == 1 and line_limits:
         concurrency = min(concurrency, *line_limits)
 
     async def _dispatch_one(call_id: str) -> tuple[str, str | None, str | None]:
@@ -1123,6 +1189,9 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
             attempt = call.attempts
             try:
                 adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id)
+                from .leases import assert_execution_permitted
+                assert_execution_permitted()
+                session.commit()
                 result = await adapter.hangup(call_id=str(call.id), reason="provider_status_timeout")
                 confirmed = result.get("ended") is True
             except Exception:
@@ -1156,73 +1225,98 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
     return expired
 
 
+async def _dispatch_cycle(batch_size: int):
+    from .leases import redis_lease, assert_execution_permitted
+    async with redis_lease(url=settings.redis_url,key="ai-outbound:scheduler:leader",
+                           ttl=settings.scheduler_lock_ttl_sec) as acquired:
+        if not acquired:
+            return
+        await expire_stale_calls(batch_size=batch_size)
+        assert_execution_permitted()
+        await dispatch_due_retries(batch_size=batch_size)
+        assert_execution_permitted()
+        await dispatch_pending_calls(batch_size=batch_size)
+
+
 async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
-    global _last_retention_scan
-    poll_interval = max(0.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
-    batch_size = max(1, int(settings.scheduler_batch_size))
-    redis_client = async_redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_url else None
-    lock_key = "ai-outbound:scheduler:leader"
-    lock_token = token_urlsafe(24)
-    try:
+    """Independent, bounded lanes. All blocking DB work owns sessions in its thread."""
+    from .task_queue import process_pending_tasks
+    from .retention import run_retention_cycle
+    poll_interval = max(.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
+    batch_size = max(1, settings.scheduler_batch_size)
+
+    async def pause(seconds):
+        try:
+            await asyncio.wait_for(stop_event.wait(),timeout=seconds)
+        except asyncio.TimeoutError:
+            pass
+
+    async def dial_loop():
         while not stop_event.is_set():
             try:
-                lock_acquired = redis_client is None
-                if redis_client is not None:
-                    try:
-                        lock_acquired = bool(
-                            await redis_client.set(
-                                lock_key,
-                                lock_token,
-                                nx=True,
-                                ex=max(2, int(settings.scheduler_lock_ttl_sec)),
-                            )
-                        )
-                    except Exception:
-                        # A production process must not run an unlocked duplicate
-                        # scheduler. Development may keep working without Redis.
-                        lock_acquired = settings.env.lower() not in {"prod", "production"}
-                        logger.exception("scheduler Redis lock unavailable")
-                if lock_acquired:
-                    if redis_client is not None:
-                        await redis_client.set(
-                            "ai-outbound:scheduler:heartbeat",
-                            _now().isoformat(),
-                            ex=max(5, int(settings.scheduler_lock_ttl_sec) * 2),
-                        )
-                    await expire_stale_calls(batch_size=batch_size)
-                    await dispatch_due_retries(batch_size=batch_size)
-                    await dispatch_pending_calls(batch_size=batch_size)
-                    from .task_queue import process_pending_tasks
-
-                    await process_pending_tasks(batch_size=batch_size)
-                    if time.monotonic() - _last_retention_scan >= max(60, settings.retention_scan_interval_sec):
-                        from .retention import purge_expired_voice_data
-
-                        purge_expired_voice_data(batch_size=batch_size)
-                        _last_retention_scan = time.monotonic()
-            except asyncio.CancelledError:
-                raise
+                await asyncio.to_thread(lambda: asyncio.run(_dispatch_cycle(batch_size)))
             except Exception:
-                logger.exception("scheduled call retry scan failed")
-            finally:
-                if redis_client is not None:
-                    try:
-                        await redis_client.eval(
-                            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-                            1,
-                            lock_key,
-                            lock_token,
-                        )
-                    except Exception:
-                        logger.debug("scheduler lock release failed", exc_info=True)
-            lock_token = token_urlsafe(24)
+                logger.exception("dial scheduler cycle failed")
+            await pause(poll_interval)
+
+    async def task_loop(types):
+        while not stop_event.is_set():
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=poll_interval)
-            except asyncio.TimeoutError:
-                continue
-    finally:
-        if redis_client is not None:
-            await redis_client.aclose()
+                # This thread owns the scan's sessions; jobs have their own bounded threads.
+                await asyncio.to_thread(lambda: asyncio.run(process_pending_tasks(
+                    batch_size=batch_size,task_types=types,threaded=True)))
+            except Exception:
+                logger.exception("task lane failed types=%s",types)
+            await pause(max(.05,settings.task_poll_interval_sec))
+
+    async def retention_loop():
+        from .leases import redis_lease
+        async def cycle():
+            async with redis_lease(url=settings.redis_url,key="ai-outbound:retention:leader",ttl=60) as acquired:
+                if acquired:
+                    await asyncio.to_thread(run_retention_cycle)
+        while not stop_event.is_set():
+            try:
+                await cycle()
+            except Exception:
+                logger.exception("retention lane failed")
+            await pause(max(1,settings.retention_scan_interval_sec))
+
+    async def heartbeat():
+        client=async_redis.from_url(settings.redis_url,decode_responses=True,
+            socket_connect_timeout=2,socket_timeout=2) if settings.redis_url else None
+        try:
+            while not stop_event.is_set():
+                try:
+                    if client:
+                        await client.set("ai-outbound:scheduler:heartbeat",_now().isoformat(),ex=30)
+                except Exception:
+                    logger.warning("worker heartbeat unavailable")
+                await pause(5)
+        finally:
+            if client:
+                await client.aclose()
+
+    await asyncio.gather(dial_loop(),task_loop(("ai_turn",)),task_loop(("business_callback",)),
+                         task_loop(("recording_ingest","recording_delete")),retention_loop(),heartbeat())
+
+
+def sync_unattempted_campaign_call(session: Session, campaign: Campaign, call: CallSession, contact: Contact) -> None:
+    """Only not-yet-dialed records follow edits; preserve attempted call history."""
+    if call.attempts != 0:
+        return
+    call.phone = normalize_phone(contact.phone)
+    call.mode = campaign.mode
+    call.max_attempts = campaign.retry_limit + 1
+    call.script_flow_version_id = campaign.script_flow_version_id
+    call.flow_node_key = None
+    if campaign.script_flow_version_id is not None:
+        flow = session.get(ScriptFlowVersion, campaign.script_flow_version_id)
+        graph = load_graph(flow.graph_json)
+        call.flow_node_key = next(node.id for node in graph.nodes if node.type == "start")
+    call.voice_ai_pipeline = "pending"
+    call.updated_at = _now()
+    session.add(call)
 
 
 def start_campaign(
@@ -1285,6 +1379,7 @@ def start_campaign(
                 existing_call.status == CallStatus.FAILED
                 and existing_call.attempts < existing_call.max_attempts
             ):
+                sync_unattempted_campaign_call(session, campaign, existing_call, contact)
                 if existing_call.status == CallStatus.FAILED:
                     existing_call.status = CallStatus.CREATED
                     existing_call.next_attempt_at = None

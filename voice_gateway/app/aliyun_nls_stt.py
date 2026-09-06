@@ -176,12 +176,19 @@ class AliyunNLSSTTService(WebsocketSTTService):
         yield None
 
     async def stop(self, frame: EndFrame):
-        await self._send_stop()
         try:
-            await asyncio.wait_for(self._completed.wait(), timeout=self._stop_timeout_sec)
+            async with asyncio.timeout(self._stop_timeout_sec):
+                await self._send_stop()
+                if self._websocket is not None and self._started.is_set():
+                    await self._completed.wait()
         except TimeoutError:
             logger.warning("Alibaba Cloud NLS did not confirm StopTranscription before timeout")
-        await super().stop(frame)
+        except Exception as exc:
+            # A dead socket cannot acknowledge stop. Still release receive and
+            # reconnect tasks, without logging a possibly credential-bearing URL.
+            logger.warning("Alibaba Cloud NLS stop failed ({})", type(exc).__name__)
+        finally:
+            await super().stop(frame)
 
     async def cancel(self, frame: CancelFrame):
         await super().cancel(frame)
@@ -321,6 +328,10 @@ class AliyunNLSSTTService(WebsocketSTTService):
 
         transcript = parse_aliyun_transcript(event)
         if transcript is None:
+            if name == "SentenceEnd":
+                # Noise/empty recognition still ends the VAD speaking interval.
+                # Do not invent a final transcript or trigger a business turn.
+                await self.push_frame(UserStoppedSpeakingFrame())
             return
         latency_ms = self._observed_latency_ms(transcript.end_ms)
         if transcript.is_final:

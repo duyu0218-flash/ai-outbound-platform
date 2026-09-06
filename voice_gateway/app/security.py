@@ -133,6 +133,8 @@ class Ledger:
                     observed INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY(call_id, attempt));
                   CREATE INDEX IF NOT EXISTS attempts_scope ON attempts(tenant,line,created);
+                  CREATE INDEX IF NOT EXISTS attempts_ended ON attempts(state,ended);
+                  CREATE INDEX IF NOT EXISTS attempts_created ON attempts(created);
                   CREATE TABLE IF NOT EXISTS flags (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                   CREATE TABLE IF NOT EXISTS nonces (nonce TEXT PRIMARY KEY, expires REAL NOT NULL);
                   CREATE TABLE IF NOT EXISTS outbox (
@@ -256,6 +258,23 @@ class Ledger:
                 db.execute("UPDATE attempts SET state='ended',cost=?,ended=? WHERE uuid=?", (charge, time.time(), uuid))
 
 
+    def purge_sensitive_data(self, *, retention_days: int, audit_days: int, batch_size: int = 1000) -> int:
+        """Remove expired PII, retaining identity/digest/budget tombstones.
+
+        Unsettled attempts and undelivered callbacks remain reconcilable.
+        """
+        now = time.time()
+        with self.transaction() as db:
+            rows = db.execute("SELECT uuid FROM attempts WHERE state='ended' AND ended < ? AND payload != '{}' LIMIT ?",
+                              (now - max(1, retention_days) * 86400, batch_size)).fetchall()
+            for row in rows:
+                result = canonical({"result": "ended", "provider_call_id": row["uuid"]}).decode()
+                db.execute("UPDATE attempts SET payload='{}',result=? WHERE uuid=?", (result, row["uuid"]))
+            db.execute("UPDATE audit SET detail='' WHERE id IN (SELECT id FROM audit WHERE at < ? AND detail != '' LIMIT ?)",
+                       (now - max(1, audit_days) * 86400, batch_size))
+            return len(rows)
+
+
 class CallbackSender:
     def __init__(self, settings, ledger: Ledger | None = None):
         self.settings = settings
@@ -313,9 +332,14 @@ class CallbackSender:
                     db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
 
     async def _run(self):
+        next_purge = 0.0
         while True:
             try:
                 await self.flush()
+                if time.monotonic() >= next_purge:
+                    self.ledger.purge_sensitive_data(retention_days=self.settings.voice_sensitive_retention_days,
+                                                    audit_days=self.settings.voice_audit_retention_days)
+                    next_purge = time.monotonic() + 60
             except Exception:
                 logger.error("voice callback ledger unavailable")
             await asyncio.sleep(0.5)

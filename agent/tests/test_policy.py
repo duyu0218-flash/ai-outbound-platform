@@ -36,6 +36,24 @@ def test_ai_only_does_not_handoff_and_human_first_does():
     assert handoff is True
 
 
+def test_external_llm_handoff_never_calls_model(monkeypatch):
+    from app import main
+    async def forbidden_model(**kwargs):
+        raise AssertionError("handoff must not call the LLM")
+    monkeypatch.setattr(main, "generate_reply", forbidden_model)
+    monkeypatch.setattr(settings, "service_token", "")
+    with TestClient(app) as client:
+        for mode, transcript in [("ai_handoff", "请转人工"), ("mixed_human_first", "")]:
+            response = client.post("/agent/turn", json={
+                "call_id": "review", "phone": "13800000000", "mode": mode,
+                "transcript": transcript,
+                "context": {"llm_provider": "openai-compatible", "external_llm_enabled": True},
+            })
+            assert response.status_code == 200, response.text
+            assert response.json()["action"] == "handoff"
+            assert response.json()["handoff_to_human"] is True
+
+
 def test_agent_service_token_protects_turn_endpoint(monkeypatch):
     monkeypatch.setattr(settings, "service_token", "test-agent-token")
     payload = {"call_id": "00000000-0000-0000-0000-000000000001", "phone": "13800138000", "mode": "ai_only", "transcript": "hello"}

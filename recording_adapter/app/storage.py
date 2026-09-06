@@ -3,7 +3,13 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import re
-from tempfile import SpooledTemporaryFile
+import shutil
+import fcntl
+import os
+from contextlib import contextmanager
+from pathlib import Path
+from threading import BoundedSemaphore
+from tempfile import SpooledTemporaryFile, TemporaryDirectory, NamedTemporaryFile
 from typing import Any
 from urllib.parse import unquote, urlparse
 
@@ -37,6 +43,11 @@ def _safe_segment(value: object) -> str:
 
 
 class RecordingObjectStorage:
+    def __del__(self):
+        temporary = getattr(self, "_temporary_state", None)
+        if temporary is not None:
+            temporary.cleanup()
+
     def __init__(
         self,
         settings: Settings,
@@ -45,6 +56,10 @@ class RecordingObjectStorage:
         http_transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.settings = settings
+        self._ingest_slots = BoundedSemaphore(max(1, settings.recording_ingest_concurrency))
+        self._temporary_state = TemporaryDirectory(prefix="recording-state-") if not settings.recording_spool_dir else None
+        self._state_dir = Path(settings.recording_spool_dir or self._temporary_state.name) / ".lifecycle"
+        self._state_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._http_transport = http_transport
         self.s3 = s3_client or boto3.client(
             "s3",
@@ -127,7 +142,55 @@ class RecordingObjectStorage:
             return f".{suffix[1].lower()}"
         return ".bin"
 
+    @contextmanager
+    def _asset_operation(self, request):
+        # Shared local volume + flock coordinates adapter workers, even when a
+        # caller has timed out and the old HTTP handler is still uploading.
+        identity = f"{request.tenant_id}:{request.call_id}:{request.recording_asset_id}"
+        stem = self._state_dir / hashlib.sha256(identity.encode()).hexdigest()
+        with Path(str(stem) + ".lock").open("a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise RecordingStorageError("recording asset operation is in progress; retry later") from None
+            try:
+                yield stem
+            finally:
+                fcntl.flock(lock, fcntl.LOCK_UN)
+
+    @staticmethod
+    def _persist(path: Path, value: str):
+        with NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as file:
+            temp = Path(file.name)
+            try:
+                file.write(value)
+                file.flush()
+                os.fsync(file.fileno())
+                os.replace(temp, path)
+                directory = os.open(path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
+            finally:
+                temp.unlink(missing_ok=True)
+
     def ingest(self, request: RecordingIngestRequest) -> dict[str, object]:
+        if not self._ingest_slots.acquire(blocking=False):
+            raise RecordingStorageError("recording ingestion capacity exhausted; retry later")
+        try:
+            if self.settings.recording_spool_dir:
+                required = self.settings.recording_max_bytes * max(1, self.settings.recording_ingest_concurrency)
+                if shutil.disk_usage(self.settings.recording_spool_dir).free < required + self.settings.recording_spool_reserve_bytes:
+                    raise RecordingStorageError("recording spool has insufficient free space")
+            with self._asset_operation(request) as stem:
+                if Path(str(stem) + ".deleted").exists():
+                    raise RecordingStorageError("recording asset has a deletion tombstone")
+                return self._ingest(request, stem)
+        finally:
+            self._ingest_slots.release()
+
+    def _ingest(self, request: RecordingIngestRequest, stem: Path) -> dict[str, object]:
         source_url = str(request.provider_url)
         self._validate_source_url(source_url)
         checksum = hashlib.sha256()
@@ -147,7 +210,7 @@ class RecordingObjectStorage:
                     declared_size = int(response.headers.get("content-length", "0") or 0)
                     if declared_size > self.settings.recording_max_bytes:
                         raise RecordingDownloadError("recording exceeds configured maximum size")
-                    with SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b") as recording_file:
+                    with SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b", dir=self.settings.recording_spool_dir or None) as recording_file:
                         for chunk in response.iter_bytes(chunk_size=64 * 1024):
                             if not chunk:
                                 continue
@@ -168,6 +231,11 @@ class RecordingObjectStorage:
                             ]
                         )
                         recording_file.seek(0)
+                        key_path = Path(str(stem) + ".key")
+                        if key_path.exists():
+                            key = key_path.read_text()
+                        else:
+                            self._persist(key_path, key)
                         self.s3.upload_fileobj(
                             recording_file,
                             self.settings.s3_bucket,
@@ -195,6 +263,16 @@ class RecordingObjectStorage:
         }
 
     def delete(self, request: RecordingDeleteRequest) -> bool:
+        with self._asset_operation(request) as stem:
+            # Tombstone survives process restart and blocks late/retried uploads.
+            self._persist(Path(str(stem) + ".deleted"), "deleted")
+            key_path = Path(str(stem) + ".key")
+            if key_path.exists():
+                managed = request.model_copy(update={"storage_uri": f"s3://{self.settings.s3_bucket}/{key_path.read_text()}"})
+                self._delete(managed)
+            return self._delete(request)
+
+    def _delete(self, request: RecordingDeleteRequest) -> bool:
         if not request.storage_uri:
             if request.provider_url or request.provider_recording_id:
                 raise RecordingStorageError(

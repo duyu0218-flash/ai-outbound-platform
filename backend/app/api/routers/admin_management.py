@@ -619,6 +619,16 @@ def _validated_setting(section: str, data: dict[str, Any]) -> dict[str, Any]:
         max_calls = merged["max_concurrent_calls"]
         if not isinstance(max_calls, int) or not 1 <= max_calls <= 10_000:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid max concurrent calls")
+    from ...services.outbound_policy import require_platform_endpoint, validate_callback_destination
+    try:
+        if section == "ai" and merged.get("agent_url"):
+            require_platform_endpoint(str(merged["agent_url"]), settings.ai_agent_url, "AI")
+        if section == "sms" and merged.get("endpoint"):
+            require_platform_endpoint(str(merged["endpoint"]), settings.sms_provider_endpoint, "SMS")
+        if section == "integration" and merged.get("webhook_base_url"):
+            validate_callback_destination(str(merged["webhook_base_url"]))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     for key in ("agent_url", "endpoint", "webhook_base_url"):
         value = merged.get(key)
         if value and not str(value).startswith(("http://", "https://")):
@@ -640,7 +650,9 @@ def get_setting(
             AdminSetting.section == section,
         )
     ).first()
-    data = get_admin_setting(session, current.tenant_id, section) if not record else _validated_setting(section, json.loads(record.data_json))
+    # Reads must remain available so administrators can repair legacy settings;
+    # destination approval is enforced on writes and again before any request.
+    data = get_admin_setting(session, current.tenant_id, section)
     return AdminSettingOut(section=section, data=data, updated_at=record.updated_at if record else None)
 
 

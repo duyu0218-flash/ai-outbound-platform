@@ -6,6 +6,8 @@ import logging
 import time
 import uuid
 import re
+import hashlib
+import hmac
 from collections import defaultdict, deque
 from typing import Deque, Dict
 
@@ -15,6 +17,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from .config import get_settings
+from .services.runtime_metrics import (
+    record_admission_reject,
+    record_admission_wait,
+    record_request_inflight,
+    record_request_timeout,
+    RequestExecution,
+    request_execution,
+)
 
 logger = logging.getLogger(__name__)
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -35,37 +45,139 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class TimeoutMiddleware(BaseHTTPMiddleware):
-    """Reject requests exceeding configured timeout in production."""
+class TimeoutMiddleware:
+    """Return a deadline response while retaining ownership of unfinished work.
 
-    async def dispatch(self, request: Request, call_next):
+    Cancelling an await cannot stop a running synchronous DB transaction. Drain
+    it before returning to the outer admission gate, and suppress late responses.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
         settings = get_settings()
-        timeout_ms = int(settings.request_timeout_ms)
-        exempt_paths = {
-            path.strip()
-            for path in settings.request_timeout_exempt_paths.split(",")
-            if path.strip()
-        }
-        if request.url.path in exempt_paths:
-            return await call_next(request)
-        if timeout_ms <= 0:
-            return await call_next(request)
+        exempt = {p.strip() for p in settings.request_timeout_exempt_paths.split(",")}
+        timeout = settings.request_timeout_ms / 1000
+        if timeout <= 0 or scope["path"] in exempt:
+            return await self.app(scope, receive, send)
+        state = RequestExecution()
+        token = request_execution.set(state)
+        started = asyncio.Event()
 
-        timeout_sec = timeout_ms / 1000
+        async def guarded_send(message):
+            if not state.timed_out:
+                if message["type"] == "http.response.start":
+                    started.set()
+                await send(message)
 
+        work = asyncio.create_task(self.app(scope, receive, guarded_send))
+        response_started = asyncio.create_task(started.wait())
         try:
-            return await asyncio.wait_for(call_next(request), timeout=timeout_sec)
-        except asyncio.TimeoutError:
-            request_id = getattr(request.state, "request_id", None)
-            logger.warning("request timeout path=%s request_id=%s", request.url.path, request_id)
-            return JSONResponse(
-                status_code=504,
-                content={
-                    "error": "timeout",
-                    "message": f"request timeout after {timeout_sec}s",
-                    "request_id": request_id,
-                },
-            )
+            done, _ = await asyncio.wait({work, response_started}, timeout=timeout,
+                                         return_when=asyncio.FIRST_COMPLETED)
+            if not done and not started.is_set():
+                state.timed_out = True
+                bucket = "webhook" if scope["path"].startswith("/api/v1/webhooks/") else "default"
+                record_request_timeout(bucket)
+                response = JSONResponse(status_code=504, content={"error": "timeout",
+                    "message": "request deadline exceeded; retry with the same event ID",
+                    "request_id": scope.get("state", {}).get("request_id")},
+                    headers={"Retry-After": "1"})
+                await response(scope, receive, send)
+            # Also covers streaming responses: a started stream retains its slot.
+            await asyncio.shield(work)
+        except asyncio.CancelledError:
+            state.timed_out = True
+            try:
+                await asyncio.shield(work)
+            except Exception:
+                logger.exception("request failed while draining cancelled client")
+            raise
+        except Exception:
+            if not state.timed_out:
+                raise
+            logger.exception("request failed after deadline response")
+        finally:
+            response_started.cancel()
+            await asyncio.gather(response_started, return_exceptions=True)
+            request_execution.reset(token)
+
+
+class AdmissionControlMiddleware:
+    """Bound active AND waiting requests before rate limiting, auth or DB work."""
+
+    def __init__(self, app):
+        self.app = app
+        settings = get_settings()
+        self.enabled = bool(settings.request_admission_enabled)
+        pool_budget = max(1, settings.database_pool_size + settings.database_max_overflow)
+        self.total_limit = settings.request_admission_total_inflight or pool_budget
+        if self.total_limit < 1:
+            raise ValueError("request admission total must be positive")
+        self.limits = {
+            "default": settings.request_admission_default_inflight or self.total_limit,
+            "webhook": settings.request_admission_webhook_inflight or self.total_limit,
+            "probe": max(1, settings.request_admission_metrics_inflight),
+            "stream": max(1, settings.request_admission_stream_inflight),
+        }
+        if min(self.limits.values()) < 1:
+            raise ValueError("request admission budgets must be positive")
+        self.active = defaultdict(int)
+        self.total = 0
+        self.waiting = 0
+        self.max_waiters = max(0, settings.request_admission_max_waiters)
+        self.timeout = max(0.001, settings.request_admission_timeout_sec)
+        self.retry_after = max(1, settings.request_admission_retry_after_sec)
+        self.changed = asyncio.Event()
+
+    def available(self, bucket):
+        return self.active[bucket] < self.limits[bucket] and (bucket in {"probe", "stream"} or self.total < self.total_limit)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not self.enabled or scope["path"] == "/healthz":
+            return await self.app(scope, receive, send)
+        path = scope["path"]
+        bucket = ("stream" if path == "/api/v1/agent/events/stream" else
+                  "probe" if path in {"/metrics", "/metrics/runtime", "/readyz"} else
+                  "webhook" if path.startswith("/api/v1/webhooks/") else "default")
+        started_at = time.perf_counter()
+        reason = None
+        if not self.available(bucket):
+            if self.waiting >= self.max_waiters:
+                reason = "capacity"
+            else:
+                self.waiting += 1
+                try:
+                    async with asyncio.timeout(self.timeout):
+                        while not self.available(bucket):
+                            self.changed.clear()
+                            await self.changed.wait()
+                except TimeoutError:
+                    reason = "timeout"
+                finally:
+                    self.waiting -= 1
+        record_admission_wait(bucket, time.perf_counter() - started_at, accepted=reason is None)
+        if reason:
+            record_admission_reject(bucket, reason)
+            return await JSONResponse(status_code=503, content={"error": "admission_limit_reached",
+                "message": "system at capacity, retry soon",
+                "request_id": scope.get("state", {}).get("request_id")},
+                headers={"Retry-After": str(self.retry_after)})(scope, receive, send)
+        self.active[bucket] += 1
+        if bucket not in {"probe", "stream"}:
+            self.total += 1
+        record_request_inflight(bucket, 1)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            self.active[bucket] -= 1
+            if bucket not in {"probe", "stream"}:
+                self.total -= 1
+            record_request_inflight(bucket, -1)
+            self.changed.set()
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -117,6 +229,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/api/v1/contacts": self.default_rpm,
             "/api/v1/script-templates": self.default_rpm,
         }
+        self.webhook_rpm = max(1, settings.rate_limit_webhook_rpm)
+        self.webhook_control_rpm = max(1, settings.rate_limit_webhook_control_rpm)
+        self.unverified_webhook_rpm = max(1, settings.rate_limit_unverified_webhook_rpm)
+        self.max_memory_keys = max(100, settings.rate_limit_memory_max_keys)
+        self._redis_retry_at = 0.0
+        self._memory_sweep_at = 0.0
         self._hits: Dict[str, Deque[float]] = defaultdict(deque)
         self._lock = asyncio.Lock()
         self._key_prefix = "ai-outbound:rate-limit"
@@ -145,12 +263,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return True
 
         if self._redis is not None:
-            try:
-                return await self._is_limit_ok_redis(key, limit)
-            except Exception:
-                logger.exception("redis rate-limit unavailable, fallback to memory limiter")
-                self._redis = None
-                return await self._is_limit_ok_memory(key, limit)
+            if time.monotonic() >= self._redis_retry_at:
+                try:
+                    result = await asyncio.wait_for(self._is_limit_ok_redis(key, limit), 1.0)
+                    self._redis_retry_at = 0
+                    return result
+                except Exception:
+                    self._redis_retry_at = time.monotonic() + 1
+                    logger.warning("distributed rate limiter temporarily unavailable")
+            if get_settings().env.lower() in {"prod", "production"}:
+                raise RuntimeError("distributed rate limiter unavailable")
+        elif get_settings().env.lower() in {"prod", "production"}:
+            raise RuntimeError("distributed rate limiter unavailable")
         return await self._is_limit_ok_memory(key, limit)
 
     async def _is_limit_ok_memory(self, key: str, limit: int) -> bool:
@@ -158,6 +282,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         cutoff = time.time() - window
 
         async with self._lock:
+            if time.monotonic() >= self._memory_sweep_at:
+                for existing in list(self._hits):
+                    if not self._hits[existing] or self._hits[existing][-1] <= cutoff:
+                        del self._hits[existing]
+                self._memory_sweep_at = time.monotonic() + min(10, window)
+            if key not in self._hits and len(self._hits) >= self.max_memory_keys:
+                return False
             bucket = self._hits[key]
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()
@@ -234,7 +365,35 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 except ValueError:
                     logger.warning("ignored invalid X-Forwarded-For from trusted proxy")
         key = f"{client_host}:{bucket_path}"
-        if not await self._is_limit_ok(key, limit):
+        if path.startswith("/api/v1/webhooks/"):
+            label = "sms" if path.startswith("/api/v1/webhooks/sms/") else "telephony"
+            secret = settings.sms_webhook_secret if label == "sms" else settings.telephony_webhook_secret
+            token = settings.sms_webhook_token if label == "sms" else settings.telephony_webhook_token
+            stamp = request.headers.get("x-webhook-timestamp", "")
+            supplied = request.headers.get("x-webhook-signature", "").removeprefix("sha256=")
+            authenticated = False
+            if secret and token and hmac.compare_digest(request.headers.get("x-webhook-token", "").encode(), token.encode()):
+                try:
+                    age_ok = abs(time.time() - int(stamp)) <= max(30, min(3600, settings.webhook_signature_max_age_sec))
+                    if age_ok:
+                        body = await request.body()
+                        expected = hmac.new(secret.encode(), stamp.encode("ascii") + b"." + body, hashlib.sha256).hexdigest()
+                        authenticated = hmac.compare_digest(supplied.encode(), expected.encode())
+                except (ValueError, UnicodeError):
+                    pass
+            if authenticated:
+                control = path.endswith(("/status", "/media", "/recording"))
+                bucket = "control" if control else "speech"
+                key = f"verified-webhook:{label}:{bucket}"
+                limit = self.webhook_control_rpm if control else self.webhook_rpm
+            else:
+                key = f"unverified-webhook:{client_host}"
+                limit = self.unverified_webhook_rpm
+        try:
+            allowed = await self._is_limit_ok(key, limit)
+        except RuntimeError:
+            return JSONResponse(status_code=503, content={"error": "rate_limiter_unavailable"}, headers={"Retry-After": "1"})
+        if not allowed:
             request_id = getattr(request.state, "request_id", None)
             headers = {
                 "Retry-After": str(self.window_sec),

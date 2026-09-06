@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     voice_command_secret: str = ""
     voice_security_admin_token: str = ""
     voice_security_db_path: str = ""
+    voice_sensitive_retention_days: int = 90
+    voice_audit_retention_days: int = 180
     voice_security_routes_json: str = "{}"
     voice_security_routes_file: str = ""
     voice_callback_base_url: str = ""

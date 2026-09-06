@@ -52,7 +52,11 @@ python3 scripts/real_voice_acceptance.py \
   --confirm-dial
 ```
 
-脚本对 AI 模式会另外读取结构化转写和阶段指标：`ai_only` 必须至少有 3 个非空 ASR final，其他 AI 模式至少 1 个；指定 `--expected-asr-provider` 后还会校验供应商名、置信度、句子时间戳以及 `asr.final` 失败指标。报告中的 `asr_final_latency_ms` 是语音网关观测到的“云端句末位置到 final 到达网关”延迟，不是句子音频时长，也不是客户端到端延迟。
+脚本读取结构化转写和阶段指标：`ai_only` 必须至少有 3 个非空 ASR final，`ai_handoff` 至少 1 个；`mixed_human_first` 可以在客户开口前转人工，不强制要求 ASR final。指定 `--expected-asr-provider` 后，会对前两种模式校验供应商名、置信度、句子时间戳以及 `asr.final` 失败指标。两种转人工模式必须出现 `human_connected` 或 `in_human` 状态，只有排队或转接原因不算连接成功。报告中的 `asr_final_latency_ms` 是语音网关观测到的“云端句末位置到 final 到达网关”延迟，不是句子音频时长，也不是客户端到端延迟。
+
+脚本的 `AUTO_PASS` 和报告 `passed` 仅表示 API/事件自动检查通过；`verification_scope=api_events_only`，`real_line_verified=null`。报告列出的真机双向声音、录音回听、打断、人工桥接和供应商核实必须另行记录，不能用自动结果代替。
+
+上线前需要同一批人工标注样本的离线对比时，按 [离线 ASR 评测说明](offline-asr-evaluation.md) 导出并核验。该工具不会拨号、调用模型或改写业务数据。
 
 执行人需依次完成：
 
