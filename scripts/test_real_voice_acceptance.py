@@ -58,3 +58,26 @@ def test_expected_provider_and_failed_metric_are_enforced():
     )
     assert "an asr.final metric reports failure" in failures
     assert any("ASR provider mismatch" in failure for failure in failures)
+
+
+def test_waiting_for_agent_does_not_prove_handoff_connected():
+    failures = validate_scenario(
+        "ai_handoff", {**_call(), "handoff_reason": "customer_request"},
+        _events() + [{"event_type": "status", "payload": '{"status":"waiting_human"}'}],
+        [_turn(1)], [{"stage": "asr.final", "success": True}],
+    )
+    assert "human connection was not confirmed by a provider status" in failures
+
+
+def test_human_first_does_not_require_customer_asr_before_transfer():
+    failures = validate_scenario(
+        "mixed_human_first", _call(),
+        _events() + [{"event_type": "status", "payload": '{"status":"human_connected"}'}],
+        [], [],
+    )
+    assert failures == []
+
+
+def test_non_object_event_payload_is_ignored():
+    from scripts.real_voice_acceptance import event_statuses
+    assert event_statuses([{"payload": "null"}, {"payload": "[]"}]) == set()
