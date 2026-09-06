@@ -11,7 +11,7 @@ dependencies = [
   "fastapi==0.141.1",
   "uvicorn[standard]==0.52.4",
   "sqlmodel==0.0.42",
-  "psycopg[binary]==3.3.4",
+  "psycopg[binary]==3.3.5",
   "pydantic-settings==2.15.0",
   "anyio==4.14.2",
   "httpx==0.28.1",
