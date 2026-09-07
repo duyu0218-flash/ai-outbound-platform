@@ -137,3 +137,29 @@ def test_recording_download_is_signed_expiring_and_node_bound(tmp_path, monkeypa
     monkeypatch.setattr(settings, "voice_node_id", "node-b")
     with pytest.raises(HTTPException):
         authorized_path(settings, "synthetic.wav", expires, permit)
+
+
+def test_more_than_64_events_for_one_call_do_not_block_hash_collision(tmp_path, monkeypatch):
+    async def run():
+        secured,_=gateway(tmp_path);driver=secured.driver
+        blocked,fast=asyncio.Event(),asyncio.Event();seen=[]
+        async def handle(event):
+            if event['Unique-ID']=='ab':await blocked.wait()
+            seen.append((event['Unique-ID'],event['seq']))
+            if event['Unique-ID']=='ba':fast.set()
+        monkeypatch.setattr(driver,'_handle_event',handle)
+        workers=[asyncio.create_task(driver._event_worker(i)) for i in range(32)]
+        try:
+            async def enqueue():
+                for index in range(100):await driver._enqueue_event({'Unique-ID':'ab','seq':index})
+                await driver._enqueue_event({'Unique-ID':'ba','seq':0})
+            await asyncio.wait_for(enqueue(),1)
+            await asyncio.wait_for(fast.wait(),1)
+            blocked.set();await asyncio.wait_for(driver.event_ready.join(),2)
+            assert [seq for cid,seq in seen if cid=='ab']==list(range(100))
+            assert driver.event_metrics()['queue_depth']==0
+        finally:
+            blocked.set()
+            for worker in workers:worker.cancel()
+            await asyncio.gather(*workers,return_exceptions=True)
+    asyncio.run(run())

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import deque
+
 import asyncio
 import base64
 import json
@@ -13,6 +15,7 @@ from urllib.parse import unquote
 from uuid import UUID, uuid4
 
 import httpx
+from fastapi import HTTPException
 
 from .config import Settings
 from .esl import EslClient, EslError
@@ -133,13 +136,18 @@ class FreeswitchEslDriver:
         self.jobs: dict[str, CallBinding] = {}
         self.playback_waiters: dict[str, asyncio.Future[None]] = {}
         self.listener_task: asyncio.Task[None] | None = None
-        self.event_queues = [asyncio.Queue(maxsize=64) for _ in range(32)]
+        self.event_ready = asyncio.Queue()
+        self.event_pending = {}
+        self.event_scheduled = set()
+        self.event_slots = asyncio.Semaphore(2048)
+        self.event_queues = [self.event_ready] * 32
+        self.event_overloaded = False
         self.event_workers: list[asyncio.Task] = []
         self.event_oldest = [0.0] * len(self.event_queues)
         self.event_errors = 0
         self.media_tasks: dict[str, asyncio.Task[None]] = {}
         self.pipecat_manager = pipecat_manager or (
-            PipecatPipelineManager(settings)
+            (self._remote_media_manager(settings) if settings.media_workers_json.strip() != "[]" else PipecatPipelineManager(settings))
             if settings.voice_ai_pipeline.strip().lower() in {"pipecat", "hybrid"}
             else None
         )
@@ -174,7 +182,14 @@ class FreeswitchEslDriver:
             raise ValueError("cluster agent has no approved registrar route")
         return f"user/{extension}"
 
+    @staticmethod
+    def _remote_media_manager(settings):
+        from .media_cluster import RemoteMediaManager
+        return RemoteMediaManager(settings)
+
     async def start(self) -> None:
+        if hasattr(self.pipecat_manager, 'start'):
+            await self.pipecat_manager.start()
         if not self.event_workers:
             self.event_workers = [asyncio.create_task(self._event_worker(i), name=f"esl-events-{i}")
                                   for i in range(len(self.event_queues))]
@@ -182,23 +197,29 @@ class FreeswitchEslDriver:
             self.listener_task = asyncio.create_task(self._listen_forever(), name="freeswitch-esl-events")
 
     async def stop(self) -> None:
-        for binding in list(self.calls_by_id.values()):
-            await self._stop_ai_media(binding)
-        if self.pipecat_manager is not None:
-            for call_id in list(self.pipecat_manager.sessions_by_call):
-                await self.pipecat_manager.close(call_id)
-        if self.listener_task is None:
-            return
-        self.listener_task.cancel()
         try:
-            await self.listener_task
-        except asyncio.CancelledError:
-            pass
-        self.listener_task = None
-        for worker in self.event_workers:
-            worker.cancel()
-        await asyncio.gather(*self.event_workers, return_exceptions=True)
-        self.event_workers.clear()
+            for binding in list(self.calls_by_id.values()):
+                try:
+                    await self._stop_ai_media(binding)
+                except Exception:
+                    logger.exception("media stop unconfirmed; durable ownership retained")
+            if self.pipecat_manager is not None:
+                for call_id in list(self.pipecat_manager.sessions_by_call):
+                    try:
+                        await self.pipecat_manager.close(call_id)
+                    except Exception:
+                        logger.exception("media close unconfirmed; durable ownership retained")
+        finally:
+            if self.listener_task is not None:
+                self.listener_task.cancel()
+                await asyncio.gather(self.listener_task, return_exceptions=True)
+                self.listener_task = None
+            for worker in self.event_workers:
+                worker.cancel()
+            await asyncio.gather(*self.event_workers, return_exceptions=True)
+            self.event_workers.clear()
+            if hasattr(self.pipecat_manager, 'stop'):
+                await self.pipecat_manager.stop()
 
     async def ready(self) -> bool:
         try:
@@ -224,6 +245,11 @@ class FreeswitchEslDriver:
         handler = handlers.get(action)
         if handler is None:
             raise ValueError(f"unsupported FreeSWITCH action: {action}")
+        if action != "dial" and (payload.get("expected_attempt") is not None or payload.get("provider_call_id")):
+            binding = self._binding(payload.get("call_id"))
+            if ((payload.get("expected_attempt") is not None and payload["expected_attempt"] != binding.metadata.get("attempt"))
+                    or (payload.get("provider_call_id") and payload["provider_call_id"] != binding.fs_uuid)):
+                raise HTTPException(409, "call binding changed during command validation")
         return await handler(payload)
 
     async def _dial(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -316,7 +342,10 @@ class FreeswitchEslDriver:
         if binding.voice_ai_pipeline == "pipecat":
             if self.pipecat_manager is None:
                 raise RuntimeError("Pipecat pipeline manager is unavailable")
-            playback_id = await self.pipecat_manager.speak(binding.call_id, request.text)
+            if self.settings.media_workers_json.strip() != "[]":
+                playback_id = await self.pipecat_manager.speak(binding.call_id, request.text, request.expected_speech_event_id)
+            else:
+                playback_id = await self.pipecat_manager.speak(binding.call_id, request.text)
             return {
                 "result": "queued",
                 "provider_call_id": binding.fs_uuid,
@@ -428,17 +457,25 @@ class FreeswitchEslDriver:
         if _event_value(event, "Event-Name") == "BACKGROUND_JOB":
             binding = self.jobs.get(_event_value(event, "Job-UUID"))
             key = binding.fs_uuid if binding is not None else key
-        # Same call always uses one bounded FIFO, across channel and job events.
-        slot = sum(key.encode()) % len(self.event_queues)
+        # Global bound instead of a hash bucket bound: one slow call cannot
+        # block unrelated calls merely because their UUIDs hash to the same slot.
+        # At genuine global saturation preserve every accepted event, stop new
+        # dialing, and apply backpressure; never silently drop terminal events.
+        if self.event_slots.locked() and not self.event_overloaded:
+            self.event_overloaded = True
+            if self.security_ledger is not None:
+                await asyncio.to_thread(self.security_ledger.set_stopped, True, "ESL event capacity reached")
+        await self.event_slots.acquire()
         stamp = asyncio.get_running_loop().time()
-        if not self.event_oldest[slot]:
-            self.event_oldest[slot] = stamp
-        await self.event_queues[slot].put((stamp, event))
+        self.event_pending.setdefault(key, deque()).append((stamp, event))
+        if key not in self.event_scheduled:
+            self.event_scheduled.add(key)
+            self.event_ready.put_nowait(key)
 
     async def _event_worker(self, slot):
-        queue = self.event_queues[slot]
         while True:
-            stamp, event = await queue.get()
+            key = await self.event_ready.get()
+            stamp, event = self.event_pending[key].popleft()
             self.event_oldest[slot] = stamp
             try:
                 await self._handle_event(event)
@@ -450,15 +487,22 @@ class FreeswitchEslDriver:
                 if self.security_ledger is not None:
                     await asyncio.to_thread(self.security_ledger.set_stopped, True, "ESL event processing failed")
             finally:
-                queue.task_done()
-                if queue.empty():
-                    self.event_oldest[slot] = 0.0
+                self.event_slots.release()
+                self.event_oldest[slot] = 0.0
+                self.event_ready.task_done()
+                if self.event_pending[key]:
+                    self.event_ready.put_nowait(key)
+                else:
+                    self.event_pending.pop(key)
+                    self.event_scheduled.discard(key)
 
     def event_metrics(self):
         now = asyncio.get_running_loop().time()
-        return {"queue_depth": sum(q.qsize() for q in self.event_queues),
-                "oldest_age_sec": max((now - v for v in self.event_oldest if v), default=0),
-                "errors_total": self.event_errors}
+        stamps = [v for v in self.event_oldest if v]
+        stamps.extend(q[0][0] for q in self.event_pending.values() if q)
+        return {"queue_depth": sum(len(q) for q in self.event_pending.values()),
+                "oldest_age_sec": max((now - v for v in stamps), default=0),
+                "overloaded": int(self.event_overloaded), "errors_total": self.event_errors}
 
     async def _handle_event(self, event: dict[str, object]) -> None:
         name = _event_value(event, "Event-Name")
@@ -531,7 +575,7 @@ class FreeswitchEslDriver:
             # The peer may hang up without using our HTTP API. FS emits this
             # before module teardown; COMPLETE comes only after media closes.
             if self.pipecat_manager is not None:
-                session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+                session = self._media_session(binding)
                 if session is not None:
                     session.closing = True
             await self._cancel_media_task(binding)
@@ -556,7 +600,7 @@ class FreeswitchEslDriver:
                 await self._post_status(binding, "failed" if binding.media_failure_reason else status, event,
                                         hangup_reason=binding.media_failure_reason or cause)
             if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
-                await self.pipecat_manager.close(binding.call_id)
+                await self._close_binding_media(binding)
             else:
                 await self._post_media(binding, "closed", event=event)
             await self._post_recording(binding)
@@ -636,7 +680,7 @@ class FreeswitchEslDriver:
         try:
             await self._start_recording_and_media(binding, start_ai_media=start_ai_media)
             if start_ai_media and binding.voice_ai_pipeline == "pipecat":
-                session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+                session = self._media_session(binding)
                 if session is None:
                     raise RuntimeError("MEDIA_PIPELINE_CLOSED_DURING_STARTUP")
                 try:
@@ -784,7 +828,7 @@ class FreeswitchEslDriver:
                 except EslError:
                     logger.warning("media cleanup failed for call %s", binding.call_id)
             binding.media_started = False
-            await self.pipecat_manager.close(binding.call_id, notify=False)
+            await self._close_binding_media(binding, notify=False)
             if not self.settings.pipecat_fallback_to_legacy:
                 raise
             logger.warning("Pipecat media start failed; explicitly falling back to legacy")
@@ -792,9 +836,27 @@ class FreeswitchEslDriver:
             binding.pipeline_session_id = ""
             await self._start_legacy_media(binding)
 
+    def _media_session(self, binding):
+        session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+        if session is not None and hasattr(self.pipecat_manager, 'owners'):
+            if (session.metadata.get('attempt') != binding.metadata.get('attempt')
+                    or session.metadata.get('tenant_id') != binding.metadata.get('tenant_id')
+                    or (binding.pipeline_session_id and session.session_id != binding.pipeline_session_id)):
+                return None
+        return session
+
+    async def _close_binding_media(self, binding, *, notify=True):
+        if hasattr(self.pipecat_manager, 'owners'):
+            session = self._media_session(binding)
+            if session is not None:
+                await self.pipecat_manager.close(binding.call_id, notify=notify,
+                                                 expected_session_id=session.session_id)
+        else:
+            await self.pipecat_manager.close(binding.call_id, notify=notify)
+
     async def _stop_ai_media(self, binding: CallBinding, *, notify: bool = True) -> None:
         if self.pipecat_manager is not None:
-            session = self.pipecat_manager.sessions_by_call.get(binding.call_id)
+            session = self._media_session(binding)
             if session is not None:
                 session.closing = True
         await self._cancel_media_task(binding)
@@ -814,7 +876,7 @@ class FreeswitchEslDriver:
         finally:
             binding.media_started = False
             if binding.voice_ai_pipeline == "pipecat" and self.pipecat_manager is not None:
-                await self.pipecat_manager.close(binding.call_id, notify=notify)
+                await self._close_binding_media(binding, notify=notify)
 
     async def _post_status(
         self,

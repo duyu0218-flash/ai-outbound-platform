@@ -33,21 +33,22 @@ class WorkerRuntime:
 
 
 @asynccontextmanager
-async def http_client(**kwargs):
+async def http_client(max_connections=None, **kwargs):
+    limits = {"limits": httpx.Limits(max_connections=max_connections, max_keepalive_connections=min(128,max_connections))} if max_connections else {}
     resources = _resources.get()
     if resources is None:
-        async with httpx.AsyncClient(**kwargs) as client:
+        async with httpx.AsyncClient(**kwargs, **limits) as client:
             yield client
         return
     # Include all constructor settings, especially headers, to prevent credential
     # reuse across tenants. A lane thread runs one job at a time.
-    key = "http:" + json.dumps(kwargs, sort_keys=True)
+    key = "http:" + json.dumps({**kwargs, "max_connections": max_connections}, sort_keys=True)
     client = resources.get(key)
     if client is None:
         if len(resources) >= 8:
             _, previous = resources.popitem(last=False)
             await previous.aclose()
-        client = httpx.AsyncClient(**kwargs)
+        client = httpx.AsyncClient(**kwargs, **limits)
         resources[key] = client
     resources.move_to_end(key)
     yield client

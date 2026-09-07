@@ -19,11 +19,15 @@ class Settings(BaseSettings):
     default_hangup_sms: str = "感谢来电，如有需要请回复我们"
     default_hangup_sms_en: str = "Thank you for your time. Reply to this message if you need a human agent."
     max_output_tokens: int = 800
+    llm_max_connections: int = 256
+    llm_max_keepalive_connections: int = 128
     openai_timeout_sec: float = 8.0
     conversation_history_turns: int = 12
     conversation_history_max_chars: int = 12000
 
     def validate_runtime(self) -> None:
+        if not 1 <= self.llm_max_keepalive_connections <= self.llm_max_connections <= 1024:
+            raise RuntimeError("invalid LLM connection pool limits")
         if self.env.lower() in {"prod", "production"} and not self.service_token.strip():
             raise RuntimeError("SERVICE_TOKEN is required in production")
         if self.env.lower() in {"prod", "production"} and self.llm_provider == "openai-compatible":

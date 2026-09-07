@@ -30,25 +30,66 @@ x-backend-env: &backend-env
   RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
 
 services:
-  control-api:
+  control-api: &control-api
     <<: *app
     image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
     env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
     environment:
       <<: *backend-env
       SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '4'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '4'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '3'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       REQUEST_ADMISSION_MAX_WAITERS: '8'
       REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
     volumes:
       - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
-    cpus: 2
-    mem_limit: 2g
-    command: [uvicorn, 'app.main:app', --host, '${NODE_PRIVATE_IP:?Set node private address}', --port, '8000', --workers, '2', --no-access-log]
+    cpus: 1
+    mem_limit: 1g
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8010', --workers, '1', --no-access-log]
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://${NODE_PRIVATE_IP}:8000/readyz',timeout=3)"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/readyz',timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  control-api-2:
+    <<: *control-api
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8011', --workers, '1', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  control-api-3:
+    <<: *control-api
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8012', --workers, '1', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  control-api-4:
+    <<: *control-api
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8013', --workers, '1', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-proxy:
+    <<: *app
+    image: ${API_PROXY_IMAGE:?Set a qualified immutable NGINX image}
+    entrypoint: [nginx]
+    command: [-g, 'daemon off;']
+    volumes: [./deploy/compact/nginx.conf:/etc/nginx/nginx.conf:ro]
+    cpus: 0.5
+    mem_limit: 256m
+    depends_on: [control-api, control-api-2, control-api-3, control-api-4]
 
   task-worker:
     <<: *app
@@ -57,8 +98,8 @@ services:
     environment:
       <<: *backend-env
       SCHEDULER_ENABLED: 'true'
-      DATABASE_POOL_SIZE: '6'
-      TASK_AI_CONCURRENCY: '64'
+      DATABASE_POOL_SIZE: '2'
+      TASK_WORKER_ROLE: background
       TASK_CALLBACK_CONCURRENCY: '8'
       TASK_RECORDING_CONCURRENCY: '2'
       TASK_QUEUE_LANES: call_analysis:2
@@ -71,10 +112,42 @@ services:
     stop_grace_period: 150s
     command: [python, -m, app.worker]
 
+  ai-worker: &ai-worker
+    <<: *app
+    image: ${CONTROL_IMAGE:?Set immutable control image}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      <<: *backend-env
+      SCHEDULER_ENABLED: 'false'
+      TASK_WORKER_ROLE: ai
+      TASK_AI_CONCURRENCY: '128'
+      AI_DB_THREADS: '2'
+      AI_ACTION_THREADS: '2'
+      DATABASE_POOL_SIZE: '3'
+      TASK_POLL_INTERVAL_SEC: '0.05'
+    volumes:
+      - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    cpus: 1
+    mem_limit: 2g
+    stop_grace_period: 150s
+    command: [python, -m, app.ai_worker]
+    healthcheck:
+      test: [CMD, python, -m, app.ai_worker_health]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  ai-worker-2:
+    <<: *ai-worker
+
   ai-agent:
     <<: *app
     image: ${AGENT_IMAGE:?Set immutable agent image}
     env_file: ${COMPACT_AGENT_ENV_FILE:?Set agent secrets/config file}
+    environment:
+      LLM_MAX_CONNECTIONS: '256'
+      LLM_MAX_KEEPALIVE_CONNECTIONS: '128'
     cpus: 1
     mem_limit: 2g
     command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8001']
@@ -97,20 +170,62 @@ services:
       FREESWITCH_ESL_HOST: 127.0.0.1
       FREESWITCH_RECORDING_DIR: /var/lib/freeswitch/recordings
       VOICE_RECORDING_SOURCE_BASE_URL: http://${NODE_PRIVATE_IP}:8002
-      PIPECAT_MEDIA_WS_BASE: ws://${NODE_PRIVATE_IP}:8002/v1/pipecat/media
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set the same independent 32+ character RPC token on this host}
+      MEDIA_WORKERS_JSON: '[{"id":"media-1","endpoint":"http://127.0.0.1:8101","ws_base":"ws://127.0.0.1:8101/v1/pipecat/media","capacity":50},{"id":"media-2","endpoint":"http://127.0.0.1:8102","ws_base":"ws://127.0.0.1:8102/v1/pipecat/media","capacity":50},{"id":"media-3","endpoint":"http://127.0.0.1:8103","ws_base":"ws://127.0.0.1:8103/v1/pipecat/media","capacity":50},{"id":"media-4","endpoint":"http://127.0.0.1:8104","ws_base":"ws://127.0.0.1:8104/v1/pipecat/media","capacity":50}]'
     volumes:
       - voice_security:/var/lib/voice-security
       - ${COMPACT_ROUTES_FILE:?Set independently approved tenant/line policies}:/etc/compact/voice-routes.json:ro
       - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings:ro
-    cpus: 4
-    mem_limit: 8g
+    cpus: 1
+    mem_limit: 2g
     stop_grace_period: 30s
-    command: [uvicorn, 'app.main:app', --host, '${NODE_PRIVATE_IP}', --port, '8002', --workers, '1', --no-access-log]
+    command: [uvicorn, 'app.main:app', --host, 0.0.0.0, --port, '8002', --workers, '1', --no-access-log]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://${NODE_PRIVATE_IP}:8002/readyz',timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  media-1: &media-worker
+    <<: *app
+    image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
+    env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
+    environment: &media-env
+      ENV: production
+      VOICE_GATEWAY_DRIVER: freeswitch_esl
+      VOICE_AI_PIPELINE: pipecat
+      MEDIA_WORKERS_JSON: '[]'
+      MEDIA_WORKER_ID: media-1
+      MEDIA_WORKER_CAPACITY: '50'
+      MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set host RPC token}
+      MEDIA_CONTROL_URL: http://127.0.0.1:8002
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+    cpus: 1.5
+    mem_limit: 2g
+    stop_grace_period: 30s
+    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8101', --workers, '1', --no-access-log]
+
+  media-2:
+    <<: *media-worker
+    environment:
+      <<: *media-env
+      MEDIA_WORKER_ID: media-2
+    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8102', --workers, '1', --no-access-log]
+
+  media-3:
+    <<: *media-worker
+    environment:
+      <<: *media-env
+      MEDIA_WORKER_ID: media-3
+    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8103', --workers, '1', --no-access-log]
+
+  media-4:
+    <<: *media-worker
+    environment:
+      <<: *media-env
+      MEDIA_WORKER_ID: media-4
+    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8104', --workers, '1', --no-access-log]
 
   freeswitch:
     restart: unless-stopped
