@@ -1259,6 +1259,19 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
                 logger.exception("dial scheduler cycle failed")
             await pause(poll_interval)
 
+    lane_task_types = settings.resolved_task_queue_lanes()
+    lane_aliases = settings.resolved_task_queue_aliases()
+
+    def resolve_lane_task_types(lane_name: str) -> tuple[str, ...]:
+        lane = lane_name.strip().lower()
+        task_types = {lane}
+        for source, target in lane_aliases.items():
+            if target.strip().lower() == lane:
+                task_types.add(source.strip().lower())
+        if not task_types:
+            task_types.add(lane)
+        return tuple(sorted(task_types))
+
     async def task_loop(types):
         while not stop_event.is_set():
             try:
@@ -1297,8 +1310,8 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
             if client:
                 await client.aclose()
 
-    await asyncio.gather(dial_loop(),task_loop(("ai_turn",)),task_loop(("business_callback",)),
-                         task_loop(("recording_ingest","recording_delete")),retention_loop(),heartbeat())
+    task_loops = [task_loop(resolve_lane_task_types(lane)) for lane in sorted(lane_task_types.keys())]
+    await asyncio.gather(dial_loop(), *task_loops, retention_loop(), heartbeat())
 
 
 def sync_unattempted_campaign_call(session: Session, campaign: Campaign, call: CallSession, contact: Contact) -> None:

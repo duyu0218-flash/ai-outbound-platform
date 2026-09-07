@@ -111,14 +111,28 @@ docker compose --env-file .env \
 |---|---|
 | `POSTGRES_PASSWORD` | Compose 中 PostgreSQL 用户密码 |
 | `DATABASE_URL` | 应用数据库连接字符串 |
+| `DATABASE_URL_API` | API/Worker 运行时数据库连接（可指向 PgBouncer） |
+| `DATABASE_URL_BOOTSTRAP` | 启动与 DDL 使用的数据库连接（建议直连 PostgreSQL） |
+| `DATABASE_BOOTSTRAP_ADVISORY_LOCK` | 启动时是否启用会话锁，建议生产开启 |
+| `DATABASE_BOOTSTRAP_LOCK_NAME` | 启动时会话锁名 |
+| `DATABASE_BOOTSTRAP_DATA_LOCK_NAME` | 启动数据变更的内部锁名 |
+| `DATABASE_MIGRATION_LOCK_NAME` | 版本迁移锁名 |
 | `REDIS_PASSWORD` | Redis 密码 |
 | `REDIS_URL` | 应用 Redis 连接字符串 |
 | `AUTO_MIGRATE` | 本地可为 `true`；生产必须为 `false` |
 | `DATABASE_POOL_SIZE`、`DATABASE_MAX_OVERFLOW` | 数据库连接池容量，按并发测试调整 |
 
-生产发布前必须先备份，再显式执行迁移；应用启动成功不等于数据库发布完成。
+### 5.3 PgBouncer 与会话锁边界（API 副本评估）
+
+- 若 API 需要横向扩展，可把 `DATABASE_URL_API` 指向 PgBouncer 的事务池。
+- `DATABASE_URL_BOOTSTRAP` 建议保持直连数据库，确保启动与版本迁移中的 `pg_advisory_lock` 约束生效。
+- 不要在事务池连接上依赖会话级锁作为初始化唯一串行化手段；如必须开启，需配合单实例 bootstrap 与明确的锁名。
+- `migration_runner` 和 `create_db_and_tables` 同步使用 `DATABASE_URL_BOOTSTRAP` 及其锁名，避免不同入口产生不同锁串行化对象。
+
+生产发布前仍需执行完整备份后再走显式版本迁移；应用启动成功不等于数据库迁移完成。
 
 ## 6. 电话线路与 FreeSWITCH
+
 
 ### 6.1 向线路供应商索取的资料
 
@@ -188,6 +202,16 @@ VOICE_CALLBACK_ALLOW_PRIVATE_HTTP=true
 路由文件按 `tenant_id:line_id` 建立，每条线路必须明确：网关、主叫号码、允许/禁止号段、并发、CPS、日量、小时/日预算、保守分钟费率、计费倍数和最大通话时长。空路由表会拒绝全部真实拨号，这是正常的安全默认。
 
 不要直接使用 `deploy/security/voice-routes.example.json` 中的虚构号码和费率。
+
+### 6.5 双 FreeSWITCH 与 OpenSIPS 试点（建议）
+
+- 建议先在管理端建两套线组（或两个 tenant 线路组）：
+  - `freeswitch-primary-*`：A 组主通道，承接基础压测；
+  - `freeswitch-secondary-*`：B 组备份通道，统一命中同一回调与风控规则；
+  - `opensips-*`：先按 HTTP Bridge 方式接入 OpenSIPS 中间层，验证路由熔断与计费归集稳定性。
+- 不要求单次替换现网配置；同一租户可同时保留多条线路并用优先级/权重分流。
+- OpenSIPS 仅在独立网关层试点：先验证 `/v1/call/*` 回调耗时、幂等、重试与失败码映射，再决定是否提升到生产主路径。
+- 真实切换要点：`TELEPHONY_PROVIDER=tenant`、按线路 `provider` 标记（如 `freeswitch`/`opensips`）与 `gateway_url` 做分流；不改变数据库 `callsession` 事务语义。
 
 ## 7. ASR、TTS 与实时媒体
 

@@ -322,12 +322,21 @@ async def process_pending_tasks(*, batch_size: int = 100, task_types: tuple[str,
             ready=ready.where(TaskOutbox.task_type.in_(task_types))
         ranked=ready.subquery()
         rows=session.exec(select(ranked.c.id,ranked.c.task_type).order_by(ranked.c.tenant_rank,ranked.c.available_at).limit(max(1,batch_size))).all()
-    limits={'ai_turn':max(1,settings.task_ai_concurrency),'business_callback':max(1,settings.task_callback_concurrency),
-            'recording':max(1,settings.task_recording_concurrency)}
+    limits=settings.resolved_task_queue_lanes()
+    aliases=settings.resolved_task_queue_aliases()
     sems={key:asyncio.Semaphore(value) for key,value in limits.items()}
+    default_bucket=next(iter(sems), "recording")
+    if "recording" in sems:
+        default_bucket="recording"
+
+    def _bucket_name(task_type: str) -> str:
+        bucket=aliases.get(task_type, task_type)
+        return bucket if bucket in sems else default_bucket
+
     async def execute(row):
         task_id,kind=row
-        async with sems[kind if kind in sems else 'recording']:
+        effective=_bucket_name(kind)
+        async with sems[effective]:
             return await asyncio.to_thread(process_task_sync,task_id) if threaded else await process_task(task_id)
     return sum(await asyncio.gather(*(execute(row) for row in rows)))
 

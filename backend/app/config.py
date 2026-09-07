@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "*"
 
     database_url: str = "sqlite:///./ai_outbound.db"
+    database_url_api: str | None = None
+    database_url_bootstrap: str | None = None
+    database_bootstrap_advisory_lock: bool = True
+    database_bootstrap_lock_name: str = "ai-outbound-bootstrap-ddl"
+    database_bootstrap_data_lock_name: str = "ai-outbound-bootstrap-data"
+    database_migration_lock_name: str = "ai-outbound-schema-migrations"
     database_pool_size: int = 5
     database_max_overflow: int = 5
     database_pool_timeout_sec: int = 30
@@ -86,6 +92,8 @@ class Settings(BaseSettings):
     task_ai_concurrency: int = 4
     task_callback_concurrency: int = 4
     task_recording_concurrency: int = 2
+    task_queue_lanes: str = ""
+    task_queue_lane_aliases: str = "recording_ingest:recording,recording_delete:recording"
     task_inline_execution_enabled: bool = False
     recording_delete_endpoint: str = ""
     recording_delete_service_token: str = ""
@@ -177,6 +185,61 @@ class Settings(BaseSettings):
             except OSError as exc:
                 raise RuntimeError(f"unable to read METRICS_TOKEN_FILE: {exc}") from exc
         return self.metrics_token.strip()
+
+    def database_url_for_api(self) -> str:
+        return (self.database_url_api or self.database_url).strip() or self.database_url
+
+    def database_url_for_bootstrap(self) -> str:
+        return (
+            (self.database_url_bootstrap or self.database_url_api or self.database_url).strip()
+            or self.database_url
+        )
+
+    def resolved_task_queue_lanes(self) -> dict[str, int]:
+        lanes: dict[str, int] = {
+            "ai_turn": max(1, self.task_ai_concurrency),
+            "business_callback": max(1, self.task_callback_concurrency),
+            "recording": max(1, self.task_recording_concurrency),
+        }
+        raw = self.task_queue_lanes.strip()
+        if raw:
+            for chunk in raw.split(","):
+                if not chunk.strip():
+                    continue
+                if ":" in chunk:
+                    lane, value = chunk.split(":", 1)
+                elif "=" in chunk:
+                    lane, value = chunk.split("=", 1)
+                else:
+                    continue
+                lane = lane.strip().lower()
+                try:
+                    limit = int(value.strip())
+                except ValueError:
+                    continue
+                if not lane or limit < 1:
+                    continue
+                lanes[lane] = limit
+        return lanes
+
+    def resolved_task_queue_aliases(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        raw = self.task_queue_lane_aliases.strip()
+        if raw:
+            for chunk in raw.split(","):
+                if not chunk.strip():
+                    continue
+                if ":" in chunk:
+                    source, target = chunk.split(":", 1)
+                elif "=" in chunk:
+                    source, target = chunk.split("=", 1)
+                else:
+                    continue
+                source = source.strip().lower()
+                target = target.strip().lower()
+                if source and target:
+                    aliases[source] = target
+        return aliases
 
 
 def setup_logging(level: str) -> None:

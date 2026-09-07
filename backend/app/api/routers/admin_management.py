@@ -243,8 +243,11 @@ def _validate_gateway_url(value: str) -> None:
 
 
 def _validate_line_provider(provider: str) -> None:
-    if provider.strip().lower() not in {"http", "mock"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provider must be http or mock")
+    if provider.strip().lower() not in {"http", "mock", "freeswitch", "opensips"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="provider must be one of: http, mock, freeswitch, opensips"
+        )
 
 
 def _validate_line_configuration(provider: str, gateway_url: str) -> None:
