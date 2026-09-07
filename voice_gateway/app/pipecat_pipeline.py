@@ -52,7 +52,7 @@ class MediaPlaybackBusyError(RuntimeError):
 class RawPcmSerializer(FrameSerializer):
     """Serialize the FreeSWITCH media WebSocket as headerless PCM16 frames."""
 
-    def __init__(self, sample_rate: int, channels: int = 1, protocol: str = "raw_pcm"):
+    def __init__(self, sample_rate: int, channels: int = 1, protocol: str = "raw_pcm", *, metrics=None, session=None):
         super().__init__(
             params=FrameSerializer.InputParams(
                 ignore_rtvi_messages=True,
@@ -62,9 +62,18 @@ class RawPcmSerializer(FrameSerializer):
         self.sample_rate = sample_rate
         self.channels = channels
         self.protocol = protocol
+        self.metrics = metrics
+        self.session = session
+        self.last_pcm_at = 0.0
 
     async def serialize(self, frame: Frame) -> bytes | str | None:
         if isinstance(frame, OutputAudioRawFrame):
+            if self.metrics is not None and self.session is not None and self.session.tts_requested_at:
+                latency = asyncio.get_running_loop().time() - self.session.tts_requested_at
+                self.metrics["tts_first_audio_seconds_sum"] += latency
+                self.metrics["tts_first_audio_count"] += 1
+                self.metrics["tts_first_audio_max_seconds"] = max(self.metrics["tts_first_audio_max_seconds"], latency)
+                self.session.tts_requested_at = 0.0
             return frame.audio
         if self.protocol == "voismart":
             if isinstance(frame, InterruptionFrame):
@@ -79,6 +88,12 @@ class RawPcmSerializer(FrameSerializer):
     async def deserialize(self, data: str | bytes) -> Frame | None:
         if isinstance(data, str):
             return None
+        if self.metrics is not None:
+            now = asyncio.get_running_loop().time()
+            if self.last_pcm_at:
+                self.metrics["pcm_arrival_gap_max_seconds"] = max(self.metrics["pcm_arrival_gap_max_seconds"], now - self.last_pcm_at)
+            self.last_pcm_at = now
+            self.metrics["pcm_input_frames_total"] += 1
         return InputAudioRawFrame(
             audio=bytes(data),
             sample_rate=self.sample_rate,
@@ -111,6 +126,8 @@ class PipecatCallSession:
     media_error_code: str | None = None
     closing: bool = False
     websocket_task: asyncio.Task | None = None
+    tts_requested_at: float = 0.0
+    latest_final_event_id: str = ""
 
 
 class TranscriptWebhookProcessor(FrameProcessor):
@@ -120,20 +137,28 @@ class TranscriptWebhookProcessor(FrameProcessor):
         self.session = session
         self.sequence = 0
         self.user_is_speaking = False
+        self.latest_partial = ""
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
         if isinstance(frame, (TranscriptionFrame, InterimTranscriptionFrame)):
             self.sequence += 1
             is_final = isinstance(frame, TranscriptionFrame)
+            if not is_final:
+                self.latest_partial = frame.text
+                return
+            self.latest_partial = ""
             metadata = _transcript_metadata(frame.result)
+            final_event_id = metadata.get("provider_event_id") or f"pipecat:{self.session.session_id}:{self.sequence}"
+            self.session.latest_final_event_id = final_event_id
             await self.manager.post_speech(
                 self.session,
                 transcript=frame.text,
                 is_final=is_final,
-                event_id=metadata.get("provider_event_id")
-                or f"pipecat:{self.session.session_id}:{self.sequence}",
-                barge_in=self.user_is_speaking,
+                event_id=final_event_id,
+                # The local VAD already clears audio; a delayed backend stop
+                # could otherwise cut off the next reply.
+                barge_in=False,
                 confidence=metadata.get("confidence"),
                 start_ms=metadata.get("start_ms"),
                 end_ms=metadata.get("end_ms"),
@@ -146,10 +171,14 @@ class TranscriptWebhookProcessor(FrameProcessor):
             self.user_is_speaking = False
         if isinstance(frame, UserStartedSpeakingFrame):
             self.user_is_speaking = True
+            # Invalidate the prior reply locally before a delayed ASR final or
+            # control-plane callback can arrive. Only the new final replaces it.
+            self.session.latest_final_event_id = f"vad:{uuid4().hex}"
             if self.manager.settings.pipecat_media_protocol == "voismart":
                 # ASR/VAD speech-start alone is not a transport interruption.
                 await self.push_frame(InterruptionFrame(), FrameDirection.DOWNSTREAM)
             else:
+                await self.push_frame(InterruptionFrame(), FrameDirection.DOWNSTREAM)
                 await self.manager.post_media(self.session, "interrupted")
         await self.push_frame(frame, direction)
 
@@ -197,6 +226,9 @@ class PipecatPipelineManager:
         self.sessions_by_call: dict[str, PipecatCallSession] = {}
         self.sessions_by_token: dict[str, PipecatCallSession] = {}
         self._lock = asyncio.Lock()
+        self.metrics = {"pcm_input_frames_total": 0, "pcm_arrival_gap_max_seconds": 0.0,
+                        "tts_first_audio_count": 0, "tts_first_audio_seconds_sum": 0.0,
+                        "tts_first_audio_max_seconds": 0.0}
 
     def ready(self) -> bool:
         return version("pipecat-ai") == self.settings.pipecat_version
@@ -281,6 +313,8 @@ class PipecatPipelineManager:
             sample_rate=self.settings.pipecat_sample_rate,
             channels=self.settings.pipecat_channels,
             protocol=self.settings.pipecat_media_protocol,
+            metrics=self.metrics,
+            session=session,
         )
         transport = FastAPIWebsocketTransport(
             websocket,
@@ -408,6 +442,7 @@ class PipecatPipelineManager:
         frame = TTSSpeakFrame(text=text, append_to_context=False)
         playback_id = str(uuid4())
         session.playback_id = playback_id
+        session.tts_requested_at = asyncio.get_running_loop().time()
         if session.worker is None:
             session.pending_speech.append(frame)
         else:
@@ -534,7 +569,9 @@ class PipecatPipelineManager:
     async def _post_json(self, url: str, payload: dict[str, Any]) -> None:
         from .security import CallbackSender
 
-        await CallbackSender(self.settings).post(url, payload)
+        if not hasattr(self, "_callback_sender"):
+            self._callback_sender = CallbackSender(self.settings)
+        await self._callback_sender.post(url, payload)
 
 
 def _language(value: object) -> Language:

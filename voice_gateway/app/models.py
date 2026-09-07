@@ -14,6 +14,7 @@ class SpeakRequest(BaseModel):
     call_id: str
     expected_attempt: int | None = Field(default=None, ge=0)
     provider_call_id: str | None = None
+    expected_speech_event_id: str | None = Field(default=None, max_length=255)
     tenant_id: int | None = None
     text: str = Field(min_length=1, max_length=50_000)
     language: str = "zh-CN"
@@ -25,6 +26,7 @@ class CallRequest(BaseModel):
     call_id: str
     expected_attempt: int | None = Field(default=None, ge=0)
     provider_call_id: str | None = None
+    expected_speech_event_id: str | None = Field(default=None, max_length=255)
     tenant_id: int | None = None
     reason: str = ""
     target_group: str | None = None

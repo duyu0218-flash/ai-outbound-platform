@@ -16,6 +16,31 @@ from app.middleware import AdmissionControlMiddleware, TimeoutMiddleware
 from app.services.runtime_metrics import snapshot
 
 
+@pytest.mark.asyncio
+async def test_static_chunks_have_a_separate_bounded_budget(monkeypatch):
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, 'request_admission_total_inflight', 1)
+    monkeypatch.setattr(cfg, 'request_admission_default_inflight', 1)
+    monkeypatch.setattr(cfg, 'request_admission_static_inflight', 8)
+    monkeypatch.setattr(cfg, 'request_admission_max_waiters', 0)
+    entered, release = asyncio.Event(), asyncio.Event()
+    app = FastAPI()
+    @app.get('/control')
+    async def control():
+        entered.set(); await release.wait(); return {}
+    @app.get('/assets/{name}')
+    async def chunk(name):
+        await asyncio.sleep(.01); return {'chunk': name}
+    app.add_middleware(AdmissionControlMiddleware)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as http:
+        busy = asyncio.create_task(http.get('/control'))
+        await entered.wait()
+        results = await asyncio.gather(*(http.get(f'/assets/{i}.js') for i in range(8)))
+        assert all(response.status_code == 200 for response in results)
+        assert (await http.get('/control')).status_code == 503
+        release.set(); assert (await busy).status_code == 200
+
+
 def test_all_session_dependencies_are_lazy(client):
     before = snapshot()['db_checked_out']
     for dependency in (db.get_session, db.get_webhook_session):

@@ -1,0 +1,152 @@
+{
+  "base_commit": "419cc0b",
+  "scope": "local isolated synthetic tests; no real carrier/ASR/TTS/LLM traffic; no deployment",
+  "verification": {
+    "backend_sqlite": {
+      "passed": 178,
+      "skipped": 5
+    },
+    "backend_postgresql_redis": {
+      "passed": 183
+    },
+    "voice_gateway": {
+      "passed": 200
+    },
+    "agent": {
+      "passed": 7
+    },
+    "frontend": {
+      "passed": 11
+    },
+    "browser": {
+      "passed": 14,
+      "api_profile": "single process, pool 6/overflow 0, total admission 6/webhook 4/default 2/static 32"
+    },
+    "preflight": {
+      "passed": 3
+    },
+    "migration": "bootstrap + first migration + repeat succeeded",
+    "build": "TypeScript/Vite and Python compilation passed",
+    "compose": "docker compose config --quiet passed with synthetic env paths; no deployment"
+  },
+  "source_sha256": {
+    ".env.example": "16094c2b1a52f0b5fd9d556e8f57d3a6ae58698de60a086042707be5562e7b25",
+    "agent/app/llm.py": "9cd398b5a366e9d136ee43a020a870c7a1acd8836fa6a3610879cdae1373006b",
+    "agent/app/main.py": "d076239d4589dd34e15c0662d2dc1adce52d8108b544423b8503b46d67bd8103",
+    "backend/app/api/routers/webhooks.py": "52527114b83b323f1f8202237873995b6070bfcbca15a043635cdd66dcd4e29f",
+    "backend/app/config.py": "c80e6afab562a6bcc8350deff12262b33a662d116785cddb2707ee49674dfd85",
+    "backend/app/middleware.py": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c",
+    "backend/app/models.py": "70aa8959f9dc68a4bbe00c6e24ac1b99d4267edabdfb2816d35dd522c3b08d17",
+    "backend/app/schema_migrations.py": "88b49b564641faed929cfb9d6d1c367087d1b2dfc81e854a5ee302730cd1fa8c",
+    "backend/app/services/call_service.py": "2e710214766b38e92fb0f5fc72de9ff9e61a52b55543ccdff9061369757fe3ae",
+    "backend/app/services/dispatcher.py": "f1aee4da24ac2a6908130ab70d36b95204e2e41eef94f0f476711f1bf2b15f91",
+    "backend/app/services/gateway_cluster.py": "19d893fadec3ceaf9d1864248ddb998729768fec8c87eccc7b61b2b008eaa256",
+    "backend/app/services/knowledge.py": "d8a36732f44d02fa165e4a1e034931b3fe41b053449c589f9bf9784fa0c304bc",
+    "backend/app/services/metrics.py": "ce31504dcdd965d79a2fe425a64dd1167a023e406961d728358689f28f2592ac",
+    "backend/app/services/realtime_voice.py": "30ade11962a1b2d22bdac14e478310a26f3f93225925da81182aad106ac65065",
+    "backend/app/services/retention.py": "8ad7216944844c2735cff8737cd0f3809d6d4e385315e56378ec1666ff753fc7",
+    "backend/app/services/task_queue.py": "869fe814f982a4ed481b27963b61016d08a4db052830b3d3674beefcc399c8f3",
+    "backend/app/services/telephony.py": "d80c46b2f52ec12efabd38470293e94b004783ce0fc0b2a906a928f6f1b68f93",
+    "backend/app/services/worker_runtime.py": "4afbed2338f434c3ce6580667717c534ee32da852520e51e267979fa4bba9e4d",
+    "backend/migrations/postgresql/20260907_capacity_bottlenecks.sql": "0395e9e1c52b32b09484613bda0dc0aa7c7032fa32597b33ef2fc8f4f399ee16",
+    "backend/tests/test_capacity_bottlenecks.py": "ff7473ccf8f7677bc1f362ce64a5c6bb953c881de88a0d6a0b57a0b74c103479",
+    "backend/tests/test_production_hardening.py": "eb6c5ddab8d7c290b98768b8b15b792e68f5aea433e7cb855f22d44cdc7152e7",
+    "backend/tests/test_request_execution.py": "afb94beca74a98d278a9ad269fce83ff1047a1fe28fe7b8159b2a4a422b0d905",
+    "deploy/compact/nodes.example.json": "023bfb0b5d407023ad0a9b5b32dd9305d5b8e7c724f6c5e01adf4150efcd713f",
+    "deploy/freeswitch/dialplan/agent_restricted.xml": "86b9384c5401c9cc71d4abdbec5f78491f5db98e430eb110140851b82036493c",
+    "docker-compose.compact.yml": "b881aa6af05a78d2bc3a93c1180bc1724306148e6afe8f9d38c785e432aac030",
+    "scripts/capacity-preflight.py": "6c35e735a21e42060574cc7ac63cc2cd7664a13748089ce0985ce7636217056e",
+    "scripts/test_capacity_preflight.py": "38369a177c25104175335f554713efc969d333f27236cc509076ef7a8a4a858b",
+    "voice_gateway/app/config.py": "c5b49268d4f2dd1ba44a9bec2da9ab64fd6b4c1c863c267e9301f0eb19a8854e",
+    "voice_gateway/app/freeswitch.py": "bd00e1ec3d6bf6b47123ae0ae868a0e0d60b53546eed9be5c3f56f2892fe056b",
+    "voice_gateway/app/main.py": "cc8c3e127bad1b90db5c8a486c474d470514c7180f2152908b11202744208f7e",
+    "voice_gateway/app/models.py": "9949c64e92db25437295f63c235a40d5aed46f011db1b5932d3474c51dea65d5",
+    "voice_gateway/app/pipecat_pipeline.py": "10ce40963803e29e680d83b97e693d25de7b6e7492b75339b078e2d851717f9b",
+    "voice_gateway/app/recording_source.py": "2c4585701721483597b8695a4723714f0cec824ced7ac942860e741dad344e11",
+    "voice_gateway/app/security.py": "49d24f3d8fe9224cf76fb86d773aa36c38455be5c81ebf81cac3efad5e1c97be",
+    "voice_gateway/tests/test_capacity_bottlenecks.py": "4f5ed36b83d04da50cdd9956edab9c482dcee05beb3473ba10b0f33c04eea6df",
+    "voice_gateway/tests/test_pipecat_pipeline.py": "51e3ebf1d3b7477fef3777a1fe200c962b28bf3215ec9a2da60a89eb8ea16822"
+  },
+  "gateway_probe": {
+    "scope": "temporary SQLite; actual gateway callback producer; no real HTTP/PBX/audio",
+    "100_producer_events": {
+      "ledger_objects": 1,
+      "connections": 100,
+      "create_if_not_exists_statements": 9
+    },
+    "injected_ledger_hold_ms": 200,
+    "heartbeat_due_ms": 10,
+    "heartbeat_observed_ms": 11.03
+  },
+  "http_50_rps": {
+    "scope": "isolated mock HTTP; no media or provider calls",
+    "known_call_fixtures": true,
+    "scenario": "webhook",
+    "target_rps": 50,
+    "duration_sec": 15,
+    "planned_requests": 750,
+    "finished_requests": 750,
+    "sent_requests": 750,
+    "elapsed_sec": 14.997,
+    "successful_rps": 50.01,
+    "actual_sent_rps": 50.01,
+    "max_in_flight": 3,
+    "status_counts": {
+      "200": 750
+    },
+    "scheduled_to_finish_p95_ms": 24.958,
+    "scheduled_to_finish_p99_ms": 27.57,
+    "successful_http_p95_ms": 24.48,
+    "successful_http_p99_ms": 27.055,
+    "generator_wait_p95_ms": 0.957,
+    "generator_queue_timeout_sec": 5,
+    "progress_quantiles": "latest 10000 samples; final uses all samples",
+    "final": true,
+    "passed": true
+  },
+  "http_100_rps": {
+    "scope": "isolated mock HTTP; no media or provider calls",
+    "known_call_fixtures": true,
+    "scenario": "webhook",
+    "target_rps": 100,
+    "duration_sec": 15,
+    "planned_requests": 1500,
+    "finished_requests": 1500,
+    "sent_requests": 1500,
+    "elapsed_sec": 15.004,
+    "successful_rps": 99.38,
+    "actual_sent_rps": 99.98,
+    "max_in_flight": 5,
+    "status_counts": {
+      "503": 9,
+      "200": 1491
+    },
+    "scheduled_to_finish_p95_ms": 20.27,
+    "scheduled_to_finish_p99_ms": 40.486,
+    "successful_http_p95_ms": 19.76,
+    "successful_http_p99_ms": 40.566,
+    "generator_wait_p95_ms": 1.001,
+    "generator_queue_timeout_sec": 5,
+    "progress_quantiles": "latest 10000 samples; final uses all samples",
+    "final": true,
+    "passed": false
+  },
+  "http_retry_reconciliation": {
+    "first_pass_rejected": 9,
+    "same_event_id_retry_statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "durable_completed_calls": 1500,
+    "ingest_receipts": 1500,
+    "expected": 1500,
+    "no_real_calls": true
+  }
+}

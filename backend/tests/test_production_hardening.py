@@ -199,6 +199,11 @@ async def test_review_sms_does_not_end_unconfirmed_call(client, monkeypatch, act
 def test_review_webhook_outbox_failure_rolls_back_and_retry_recovers(client, monkeypatch, kind):
     from app.api.routers import webhooks
     from app.models import WebhookEventIngest
+    from app.services import admin_settings
+    original_setting = admin_settings.get_admin_setting
+    monkeypatch.setattr(admin_settings, "get_admin_setting", lambda session, tenant, section:
+        {"callback_enabled": True, "webhook_base_url": "https://callback.example.invalid"}
+        if section == "integration" else original_setting(session, tenant, section))
     call_id = _review_call(CallStatus.DIALING)
     payload = {"call_id": str(call_id), "kind": kind, "transcript": "synthetic", "payload": {
         "status": "answered", "attempt": 1, "event_id": f"review-{kind}",
@@ -1258,6 +1263,8 @@ async def test_scheduler_marks_crashed_final_attempt_dead(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_business_callback_task_is_durable_and_idempotent(monkeypatch):
+    monkeypatch.setattr("app.services.admin_settings.get_admin_setting", lambda *args:
+                        {"callback_enabled": True, "webhook_base_url": "https://callback.example.invalid"})
     delivered: list[str] = []
 
     async def fake_delivery(*, call_id, raise_on_failure=False, **_):
@@ -3193,13 +3200,7 @@ async def test_terminal_prompt_waits_for_playback_before_hangup(monkeypatch):
             events.append("hangup")
             return {"result": "hungup"}
 
-    async def wait_for_playback(_call_id, playback_id):
-        assert playback_id == "terminal-playback"
-        events.append("playback-complete")
-        return True
-
     monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_kwargs: OrderedAdapter())
-    monkeypatch.setattr(dispatcher, "_wait_for_playback_completion", wait_for_playback)
     with session_scope() as session:
         call = CallSession(
             tenant_id=1,
@@ -3210,12 +3211,27 @@ async def test_terminal_prompt_waits_for_playback_before_hangup(monkeypatch):
         session.add(call)
         session.commit()
         session.refresh(call)
+        call_id = call.id
+        session.add(RealtimeSession(tenant_id=1, call_session_id=call_id))
+        session.commit()
         await dispatcher._apply_ai_action(
             session=session,
             call=call,
             result=AiTurnResult(action="hangup", tts_text="感谢接听，再见。"),
         )
-    assert events == ["speak", "playback-complete", "hangup"]
+        task = session.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id == str(call_id),
+            TaskOutbox.task_type == "after_playback")).one()
+        task_id = task.id
+        assert task.available_at > utc_now()
+    assert events == ["speak"]
+    assert await process_task(task_id) is False
+    from app.services.realtime_voice import apply_media_event
+    from app.schemas import MediaWebhookEvent
+    with session_scope() as session:
+        apply_media_event(session, session.get(CallSession, call_id), MediaWebhookEvent(
+            call_id=call_id, state="listening", event_id="terminal-drained", attempt=0))
+    assert await process_task(task_id) is True
+    assert events == ["speak", "hangup"]
 
 
 def test_contact_export_escapes_spreadsheet_formulas(client: TestClient):

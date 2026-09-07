@@ -94,6 +94,7 @@ services:
       VOICE_SECURITY_ROUTES_FILE: /etc/compact/voice-routes.json
       FREESWITCH_ESL_HOST: 127.0.0.1
       FREESWITCH_RECORDING_DIR: /var/lib/freeswitch/recordings
+      VOICE_RECORDING_SOURCE_BASE_URL: http://${NODE_PRIVATE_IP}:8002
       PIPECAT_MEDIA_WS_BASE: ws://${NODE_PRIVATE_IP}:8002/v1/pipecat/media
     volumes:
       - voice_security:/var/lib/voice-security
@@ -133,7 +134,7 @@ services:
     environment:
       ENV: production
       RECORDING_SPOOL_DIR: /var/spool/recordings
-      RECORDING_INGEST_CONCURRENCY: '1'
+      RECORDING_INGEST_CONCURRENCY: '2'
     volumes: [recording_spool:/var/spool/recordings]
     cpus: 0.5
     mem_limit: 1g

@@ -334,7 +334,8 @@ def telephony_status(
             data={"status": mapped.value, "hangup_reason": payload.payload.get("hangup_reason")},
             idempotency_key=f"callback:status:{call.id}:{call.attempts}:{mapped.value}",
         )
-        background_tasks.add_task(notify_task, callback_task.id)
+        if callback_task is not None:
+            background_tasks.add_task(notify_task, callback_task.id)
 
     return {"result": "ok"}
 
@@ -401,7 +402,8 @@ def telephony_transcript(
         data={"turn_id": turn.id, "transcript": payload.transcript or ""},
         idempotency_key=f"callback:transcript:{turn.id}",
     )
-    background_tasks.add_task(notify_task, callback_task.id)
+    if callback_task is not None:
+        background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 
@@ -418,6 +420,7 @@ def telephony_speech(
         return {"result": "ignore"}
     if payload.attempt is not None and payload.attempt != call.attempts:
         return {"result": "ignored", "reason": "stale_attempt"}
+    session.refresh(call, with_for_update=True)
     turn, duplicate = ingest_speech_turn(session, call, payload)
     if duplicate:
         return {"result": "ok", "duplicate": True, "turn_id": turn.id}
@@ -430,7 +433,7 @@ def telephony_speech(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:speech:{turn.id}",
-            payload={"call_id": str(call.id), "attempt": call.attempts, "turn_sequence": turn.turn_index, "transcript": payload.transcript},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "turn_sequence": turn.turn_index, "speech_event_id": payload.event_id, "transcript": payload.transcript},
         )
         background_tasks.add_task(notify_task, task.id)
     callback_task = enqueue_business_callback(
@@ -446,7 +449,8 @@ def telephony_speech(
         },
         idempotency_key=f"callback:speech:{turn.id}",
     )
-    background_tasks.add_task(notify_task, callback_task.id)
+    if callback_task is not None:
+        background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok", "duplicate": False, "turn_id": turn.id}
 
 
@@ -554,7 +558,8 @@ def telephony_recording(
             data={"url": str(url), "attempt": recording_attempt},
             idempotency_key=f"callback:recording:{existing_asset.id}",
         )
-        background_tasks.add_task(notify_task, callback_task.id)
+        if callback_task is not None:
+            background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 

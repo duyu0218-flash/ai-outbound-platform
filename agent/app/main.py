@@ -1,15 +1,22 @@
 from typing import List
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 from pydantic import Field
 
 from .config import settings
-from .llm import generate_reply
+from .llm import generate_reply, llm_client_lifespan
 from .policy import get_default_keywords, resolve_action, ai_reply
 
 settings.validate_runtime()
-app = FastAPI(title=settings.app_name)
+@asynccontextmanager
+async def lifespan(_):
+    async with llm_client_lifespan():
+        yield
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 
 def require_service_token(authorization: str | None = Header(default=None)) -> None:

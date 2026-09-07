@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, Awaitable, TYPE_CHECKING
 from uuid import UUID
 
 import httpx
+from .worker_runtime import http_client
 from sqlalchemy import func
 from sqlmodel import select
 
@@ -210,7 +211,7 @@ class MockAdapter(TelephonyAdapter):
             headers["x-webhook-timestamp"] = stamp
             headers["x-webhook-signature"] = hmac.new(settings.telephony_webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()
         try:
-            async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
+            async with http_client(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
                 await client.post(
                     webhook_url,
                     content=body,
@@ -248,7 +249,7 @@ class HttpAdapter(TelephonyAdapter):
         stamp, nonce = str(int(time.time())), token_urlsafe(24)
         headers = {**self.headers, "Content-Type": "application/json", "x-voice-timestamp": stamp, "x-voice-nonce": nonce,
                    "x-voice-signature": hmac.new(settings.voice_command_secret.encode(), f"{stamp}.{nonce}.{path}.".encode() + body, hashlib.sha256).hexdigest()}
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
+        async with http_client(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
             response = await client.post(f"{self.endpoint}{path}", content=body)
         response.raise_for_status()
         return response.json()
@@ -268,9 +269,9 @@ class HttpAdapter(TelephonyAdapter):
         return await self._post("/v1/call/transfer", payload)
 
     async def hangup(self, *, call_id: str, reason: str = "hangup", expected_attempt: int | None = None,
-                     provider_call_id: str | None = None) -> Dict[str, Any]:
+                     provider_call_id: str | None = None, expected_speech_event_id: str | None = None) -> Dict[str, Any]:
         payload = {"call_id": call_id, "reason": reason, "expected_attempt": expected_attempt,
-                   "provider_call_id": provider_call_id}
+                   "provider_call_id": provider_call_id, "expected_speech_event_id": expected_speech_event_id}
         return await self._post("/v1/call/hangup", payload)
 
     async def speak(
@@ -281,6 +282,7 @@ class HttpAdapter(TelephonyAdapter):
         language: str = "zh-CN",
         voice: str = "",
         provider: str = "",
+        expected_speech_event_id: str | None = None,
     ) -> Dict[str, Any]:
         payload = {
             "call_id": call_id,
@@ -288,6 +290,7 @@ class HttpAdapter(TelephonyAdapter):
             "language": language,
             "voice": voice,
             "provider": provider,
+            "expected_speech_event_id": expected_speech_event_id,
         }
         return await self._post("/v1/call/speak", payload)
 
@@ -324,7 +327,7 @@ class HttpSmsAdapter(SmsAdapter):
             "sender_id": self.sender,
             "callback_url": settings.sms_callback_url,
         }
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
+        async with http_client(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
             response = await client.post(
                 f"{endpoint}/v1/sms/send",
                 headers={"Authorization": f"Bearer {self.api_key}"},

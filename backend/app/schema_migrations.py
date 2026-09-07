@@ -39,6 +39,7 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
         statements.append("ALTER TABLE speechturn ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
     additions = {
+        "gatewaynode": {"next_dial_at": "TIMESTAMP"},
         "recordingasset": {"attempt": "INTEGER NOT NULL DEFAULT 0"},
         "callanalysis": {"automatic_result_json": "TEXT NOT NULL DEFAULT '{}'", "needs_review": "BOOLEAN NOT NULL DEFAULT FALSE"},
         "realtimesession": {"last_event_sequence": "BIGINT"},
@@ -161,6 +162,9 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
             )
 
         if "taskoutbox" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_active_stream ON taskoutbox(aggregate_id,task_type,created_at,id) WHERE state IN ('PENDING','FAILED','PROCESSING')"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_tenant ON taskoutbox(task_type,tenant_id,available_at,id) WHERE state IN ('PENDING','FAILED')"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_archive ON taskoutbox(updated_at,id) WHERE state = 'COMPLETED'"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_type ON taskoutbox(task_type, state, available_at)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_stream_order ON taskoutbox(aggregate_id,task_type,state,created_at,id)"))
         if "speechturn" in tables:

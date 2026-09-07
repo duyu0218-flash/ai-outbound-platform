@@ -56,7 +56,7 @@ def render_prometheus_metrics(session: Session, *, now: datetime | None = None) 
         "# HELP ai_outbound_task_oldest_ready_seconds Age of the oldest ready task by bounded task type.",
         "# TYPE ai_outbound_task_oldest_ready_seconds gauge",
     ])
-    for kind in ("ai_turn", "business_callback", "recording_ingest", "recording_delete"):
+    for kind in ("ai_turn", "business_callback", "recording_ingest", "recording_delete", "dial_call", "after_playback"):
         oldest = session.exec(select(func.min(TaskOutbox.available_at)).where(
             TaskOutbox.task_type == kind, TaskOutbox.state.in_([TaskState.PENDING, TaskState.FAILED]),
             TaskOutbox.available_at <= current)).one()

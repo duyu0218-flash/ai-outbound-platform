@@ -30,6 +30,9 @@ class NodeSpec(BaseModel):
     id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,64}$')
     endpoint: str
     capacity: int = Field(default=200, ge=1, le=200)
+    # Must not exceed the lowest authorized gateway/route CPS. Zero is legacy
+    # development compatibility only; production requires explicit pacing.
+    cps: int = Field(default=0, ge=0, le=1000)
     enabled: bool = True
     # Explicit tenant:line scopes prevent a global roster bypassing line routing.
     routes: list[str] = Field(min_length=1)
@@ -54,6 +57,8 @@ class NodeSpec(BaseModel):
 def node_specs() -> list[NodeSpec]:
     raw = Path(settings.voice_gateway_nodes_file).read_text() if settings.voice_gateway_nodes_file else settings.voice_gateway_nodes_json
     specs = [NodeSpec.model_validate(value) for value in json.loads(raw)]
+    if settings.env.lower() in {'prod', 'production'} and any(n.cps < 1 for n in specs if n.enabled):
+        raise ValueError('production gateway roster requires explicit positive cps per node')
     if settings.voice_gateway_nodes_file and not specs:
         raise ValueError('configured gateway roster must not be empty')
     if len({n.id for n in specs}) != len(specs) or len({n.endpoint for n in specs}) != len(specs):
@@ -84,19 +89,38 @@ def choose_gateway(session, tenant_id, line_id):
         spec = eligible.get(node.id)
         if spec is None or node.endpoint != spec.endpoint:
             continue
+        if spec.cps and node.next_dial_at is not None and node.next_dial_at > utc_now():
+            continue
         capacity = min(spec.capacity, node.capacity)
         occupied = counts.get(node.id, 0)
         if occupied < capacity:
             candidates.append((occupied / capacity, node.id, node))
     if not candidates:
         raise RuntimeError('no ready gateway has an authorized capacity slot')
-    return min(candidates, key=lambda item: item[:2])[2]
+    selected = min(candidates, key=lambda item: item[:2])[2]
+    spec = eligible[selected.id]
+    if spec.cps:
+        selected.next_dial_at = utc_now() + timedelta(seconds=1 / spec.cps)
+        session.add(selected)
+    return selected
 
 
 def _store_probe(spec, started, ready, capacity):
     with session_scope() as session:
-        lock_platform_admission(session)
         node = session.get(GatewayNode, spec.id)
+        if node is not None and node.endpoint == spec.endpoint:
+            # A normal heartbeat never changes ownership. A conditional update
+            # prevents late probes from overwriting newer health/address data,
+            # without taking the global dial-admission lock.
+            session.exec(update(GatewayNode).where(
+                GatewayNode.id == spec.id, GatewayNode.endpoint == spec.endpoint,
+                GatewayNode.checked_at <= started,
+            ).values(ready=ready and spec.enabled, capacity=capacity, checked_at=started))
+            session.commit()
+            return
+        session.rollback()
+        lock_platform_admission(session)
+        node = session.get(GatewayNode, spec.id, populate_existing=True)
         if node and node.checked_at > started:
             return
         if node and node.endpoint != spec.endpoint:

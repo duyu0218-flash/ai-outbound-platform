@@ -2,9 +2,34 @@ from __future__ import annotations
 
 import httpx
 import re
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
 from .config import settings
+
+_client = None
+
+
+@asynccontextmanager
+async def llm_client_lifespan():
+    global _client
+    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
+            follow_redirects=False, limits=httpx.Limits(max_connections=128, max_keepalive_connections=64)) as client:
+        _client = client
+        try:
+            yield
+        finally:
+            _client = None
+
+
+@asynccontextmanager
+async def get_llm_client():
+    if _client is not None:
+        yield _client
+    else:
+        async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
+                                     follow_redirects=False) as client:
+            yield client
 
 
 EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
@@ -104,7 +129,7 @@ async def generate_reply(
         "max_tokens": settings.max_output_tokens,
         "temperature": 0.3,
     }
-    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec) as client:
+    async with get_llm_client() as client:
         response = await client.post(
             f"{base_url}/chat/completions",
             headers=headers,

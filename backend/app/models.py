@@ -207,6 +207,7 @@ class GatewayNode(SQLModel, table=True):
     capacity: int = 0
     ready: bool = False
     checked_at: datetime = Field(default_factory=utc_now)
+    next_dial_at: Optional[datetime] = None
 
 
 class CallSession(SQLModel, table=True):
@@ -328,6 +329,16 @@ class TaskOutbox(SQLModel, table=True):
     last_error: str = Field(default="", max_length=2000)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
+
+
+class TaskReceipt(SQLModel, table=True):
+    """Small immutable replay tombstone; completed task bodies leave the hot table."""
+    id: UUID = Field(primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    task_type: str = Field(max_length=64)
+    aggregate_id: str = Field(max_length=128)
+    idempotency_key: str = Field(unique=True, max_length=255)
+    completed_at: datetime = Field(default_factory=utc_now)
 
 
 class RecordingAsset(SQLModel, table=True):
