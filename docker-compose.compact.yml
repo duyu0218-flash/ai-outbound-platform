@@ -37,6 +37,8 @@ services:
     environment:
       <<: *backend-env
       SCHEDULER_ENABLED: 'false'
+      REQUEST_ADMISSION_MAX_WAITERS: '8'
+      REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
     volumes:
       - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
     cpus: 2

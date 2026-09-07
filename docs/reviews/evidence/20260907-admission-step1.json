@@ -1,0 +1,496 @@
+{
+  "date": "2026-09-07",
+  "base_commit": "941e3d1",
+  "scope": "isolated signed status webhooks; no real media/provider or four-host deployment",
+  "host": {
+    "os": "macOS",
+    "physical_cpu": 12,
+    "logical_cpu": 12,
+    "memory_bytes": 25769803776,
+    "docker_vm_cpu": 12,
+    "docker_vm_memory_bytes": 8319238144,
+    "api_container_cpu_memory_limits_applied": false
+  },
+  "candidate_per_api_process": {
+    "active_webhooks": 4,
+    "active_default": 2,
+    "active_total": 6,
+    "waiters": 8,
+    "wait_timeout_ms": 50,
+    "db_pool": 6,
+    "db_overflow": 0
+  },
+  "tests": {
+    "backend_postgresql_redis_passed": 185,
+    "chromium_two_api_workers_passed": 14,
+    "compile_and_diff_check": "passed",
+    "compose_resolved_parameters": "passed"
+  },
+  "runs": [
+    {
+      "name": "w1-q0-r100",
+      "connection_pools": 4,
+      "workers": 1,
+      "max_waiters": 0,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "503": 11,
+        "200": 2989
+      },
+      "scheduled_to_finish_p95_ms": 22.562,
+      "scheduled_to_finish_p99_ms": 36.911,
+      "actual_peak_http_inflight": 6,
+      "generator_wait_p95_ms": 0.648,
+      "worker_response_counts": {
+        "87702": 3000
+      },
+      "rejection_causes": {
+        "webhook:capacity": 11
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "w1-q8-r100",
+      "connection_pools": 4,
+      "workers": 1,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "200": 3000
+      },
+      "scheduled_to_finish_p95_ms": 22.567,
+      "scheduled_to_finish_p99_ms": 46.455,
+      "actual_peak_http_inflight": 7,
+      "generator_wait_p95_ms": 0.529,
+      "worker_response_counts": {
+        "87722": 3000
+      },
+      "rejection_causes": {},
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "w2-q0-r100",
+      "connection_pools": 4,
+      "workers": 2,
+      "max_waiters": 0,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "200": 2991,
+        "503": 9
+      },
+      "scheduled_to_finish_p95_ms": 21.755,
+      "scheduled_to_finish_p99_ms": 42.935,
+      "actual_peak_http_inflight": 11,
+      "generator_wait_p95_ms": 0.692,
+      "worker_response_counts": {
+        "87751": 2233,
+        "87752": 767
+      },
+      "rejection_causes": {
+        "webhook:capacity": 9
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "w2-q8-r100",
+      "connection_pools": 4,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "200": 2998,
+        "503": 2
+      },
+      "scheduled_to_finish_p95_ms": 23.009,
+      "scheduled_to_finish_p99_ms": 52.724,
+      "actual_peak_http_inflight": 13,
+      "generator_wait_p95_ms": 0.739,
+      "worker_response_counts": {
+        "87772": 2987,
+        "87771": 13
+      },
+      "rejection_causes": {
+        "webhook:timeout": 2
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "w2-q8-r200",
+      "connection_pools": 4,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 200,
+      "seconds": 30,
+      "planned": 6000,
+      "sent": 6000,
+      "first_response_counts": {
+        "200": 5862,
+        "503": 138
+      },
+      "scheduled_to_finish_p95_ms": 75.841,
+      "scheduled_to_finish_p99_ms": 90.351,
+      "actual_peak_http_inflight": 18,
+      "generator_wait_p95_ms": 0.527,
+      "worker_response_counts": {
+        "87788": 4388,
+        "87787": 1612
+      },
+      "rejection_causes": {
+        "webhook:timeout": 135,
+        "webhook:capacity": 3
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 6000,
+        "receipts": 6000,
+        "analysis_tasks": 6000,
+        "task_states": {
+          "pending": 6000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "w2-q8-r100-steady",
+      "connection_pools": 4,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 120,
+      "planned": 12000,
+      "sent": 12000,
+      "first_response_counts": {
+        "200": 12000
+      },
+      "scheduled_to_finish_p95_ms": 18.285,
+      "scheduled_to_finish_p99_ms": 23.687,
+      "actual_peak_http_inflight": 8,
+      "generator_wait_p95_ms": 0.763,
+      "worker_response_counts": {
+        "87812": 8971,
+        "87811": 3029
+      },
+      "rejection_causes": {},
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 12000,
+        "receipts": 12000,
+        "analysis_tasks": 12000,
+        "task_states": {
+          "pending": 12000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w1-q0-r100",
+      "connection_pools": 20,
+      "workers": 1,
+      "max_waiters": 0,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "503": 14,
+        "200": 2986
+      },
+      "scheduled_to_finish_p95_ms": 19.963,
+      "scheduled_to_finish_p99_ms": 37.997,
+      "actual_peak_http_inflight": 7,
+      "generator_wait_p95_ms": 0.79,
+      "worker_response_counts": {
+        "87887": 3000
+      },
+      "rejection_causes": {
+        "webhook:capacity": 14
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w1-q8-r100",
+      "connection_pools": 20,
+      "workers": 1,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "200": 3000
+      },
+      "scheduled_to_finish_p95_ms": 18.94,
+      "scheduled_to_finish_p99_ms": 34.858,
+      "actual_peak_http_inflight": 7,
+      "generator_wait_p95_ms": 0.659,
+      "worker_response_counts": {
+        "87896": 3000
+      },
+      "rejection_causes": {},
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w2-q0-r100",
+      "connection_pools": 20,
+      "workers": 2,
+      "max_waiters": 0,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "503": 25,
+        "200": 2975
+      },
+      "scheduled_to_finish_p95_ms": 21.943,
+      "scheduled_to_finish_p99_ms": 45.767,
+      "actual_peak_http_inflight": 7,
+      "generator_wait_p95_ms": 0.745,
+      "worker_response_counts": {
+        "87914": 2850,
+        "87915": 150
+      },
+      "rejection_causes": {
+        "webhook:capacity": 25
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w2-q8-r100",
+      "connection_pools": 20,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 30,
+      "planned": 3000,
+      "sent": 3000,
+      "first_response_counts": {
+        "200": 3000
+      },
+      "scheduled_to_finish_p95_ms": 37.834,
+      "scheduled_to_finish_p99_ms": 60.894,
+      "actual_peak_http_inflight": 11,
+      "generator_wait_p95_ms": 0.684,
+      "worker_response_counts": {
+        "87968": 2100,
+        "87969": 900
+      },
+      "rejection_causes": {},
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w2-q8-r200",
+      "connection_pools": 20,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 200,
+      "seconds": 30,
+      "planned": 6000,
+      "sent": 6000,
+      "first_response_counts": {
+        "200": 5963,
+        "503": 37
+      },
+      "scheduled_to_finish_p95_ms": 63.069,
+      "scheduled_to_finish_p99_ms": 86.557,
+      "actual_peak_http_inflight": 20,
+      "generator_wait_p95_ms": 0.571,
+      "worker_response_counts": {
+        "88064": 3002,
+        "88063": 2998
+      },
+      "rejection_causes": {
+        "webhook:timeout": 37
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 6000,
+        "receipts": 6000,
+        "analysis_tasks": 6000,
+        "task_states": {
+          "pending": 6000
+        }
+      },
+      "correctness_passed": true
+    },
+    {
+      "name": "pool20-w2-q8-r100-steady",
+      "connection_pools": 20,
+      "workers": 2,
+      "max_waiters": 8,
+      "rate": 100,
+      "seconds": 120,
+      "planned": 12000,
+      "sent": 12000,
+      "first_response_counts": {
+        "200": 11990,
+        "503": 10
+      },
+      "scheduled_to_finish_p95_ms": 20.07,
+      "scheduled_to_finish_p99_ms": 42.224,
+      "actual_peak_http_inflight": 12,
+      "generator_wait_p95_ms": 0.74,
+      "worker_response_counts": {
+        "88150": 3600,
+        "88151": 8400
+      },
+      "rejection_causes": {
+        "webhook:timeout": 10
+      },
+      "db_checkout_failures": 0,
+      "sampled_db_lock_wait_connections": 0,
+      "after_retries_and_duplicate_replay": {
+        "completed_calls": 12000,
+        "receipts": 12000,
+        "analysis_tasks": 12000,
+        "task_states": {
+          "pending": 12000
+        }
+      },
+      "correctness_passed": true
+    }
+  ],
+  "final_database_check": {
+    "completed_calls": 60000,
+    "webhook_receipts": 60000,
+    "pending_analysis_tasks": 60000,
+    "consumer_running_during_load": false,
+    "retry_requests": 246,
+    "duplicate_replays": 240
+  },
+  "source_sha256": {
+    "deploy/compact/backend.env.example": "8e7b3137d35b3b5f1ae931274a043337e48a4bc6d7610a37adfe4948059093f2",
+    "docker-compose.compact.yml": "e560063e9813011fe77c376b2190deb1f07818fde681841df3fa8c8dc6d77619",
+    "backend/tests/test_request_execution.py": "6c29f69717dc92bf6b1c87021c538b9963fbe373fa4026332641f2d0f2e3a1d5",
+    "backend/app/middleware.py": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c",
+    "backend/app/db.py": "b5c7570aa941c231384058a48eb28c3a82f258d6787bb4eaf1c15660ced4bc87",
+    "backend/app/api/routers/webhooks.py": "52527114b83b323f1f8202237873995b6070bfcbca15a043635cdd66dcd4e29f",
+    "backend/app/services/task_queue.py": "869fe814f982a4ed481b27963b61016d08a4db052830b3d3674beefcc399c8f3"
+  },
+  "local_artifact_sha256": {
+    "artifacts/admission-step1/w2-q0-r100/result.json": "d2dc562288a41c182bdae3cc8a2c0fd4676cf95907d37b6ac330777cf8c045f4",
+    "artifacts/admission-step1/w2-q8-r100-steady/result.json": "712e5f4e9c9cfa5bc936377edad079c4f82836fb90e10fe7d790c50e3b555b84",
+    "artifacts/admission-step1/pool20-w1-q8-r100/result.json": "ec30be08b40bb9e18f95e6ac0269bd28e3b2793b58836ff2544d8bd3172fa64c",
+    "artifacts/admission-step1/pool20-w2-q8-r200/result.json": "a757ff95425bf9addb2da23a68ca2924e50a283b07899fb3b664e35ae9f40348",
+    "artifacts/admission-step1/w1-q0-r100/result.json": "025623ff3cfbff54e2c45de121f6ec2f11d44ed65b00ab60441ab04fe0130dc7",
+    "artifacts/admission-step1/pool20-w2-q8-r100-steady/result.json": "5a19d238e3be73c48b6cf7521322a50d029126c699af7868d242777dae89890b",
+    "artifacts/admission-step1/pool20-w2-q8-r100/result.json": "f405fca9877639c545654ae6280d3939efaef2062dc82ac40ae7afbf14fb3d43",
+    "artifacts/admission-step1/w2-q8-r100/result.json": "3675bf309616a82a15cfafca2f360cc0a8c40cb756b12c7b426285c66ea6b6e1",
+    "artifacts/admission-step1/pool20-w1-q0-r100/result.json": "0998164d153c06a820dfa1efd6da744f43c41cab341bc56c9d3b57012026af49",
+    "artifacts/admission-step1/w2-q8-r200/result.json": "6960cb78f98b239e18b90a40617122bf1f13237036e46c94f0214cc5954ba232",
+    "artifacts/admission-step1/w1-q8-r100/result.json": "cf5a49f7d7be3ce89d7fe2aaf0719ae3792703941757478ff331248a91fef156",
+    "artifacts/admission-step1/pool20-w2-q0-r100/result.json": "8237944dd7d41dadf7cf1a904e5c2882aeca087251032d5a518333e49410f8ce",
+    "artifacts/admission-step1/matrix.py": "fcc266a9ac45adc831d3478cae2bf82d4794ab3732686032558d2e3c6042613f",
+    "artifacts/admission-step1/extra.py": "176ff8429da02953b0a37ee495192bf87b9258199112ed577a349c352832d2cb",
+    "artifacts/admission-step1/load.py": "0ba88fd2a6f64726994257fa4fb3de183d73cf2b63cf3e6acf5392a8e39f3f10",
+    "artifacts/admission-step1/instrumented_app.py": "3c799e8df519866694c5570dcd0f550f574e4bf0a81d50305e173a1694169348",
+    "artifacts/admission-step1/summary.json": "c63af603b74ae55416dfe5a6470b58e79c7a5ad2873439f35e43fdea92d21406",
+    "artifacts/admission-step1/browser.log": "3dffe696bb32f738128d820d4827db91513dd7b79610bad527f584bb11db8457",
+    "artifacts/admission-backend-tests.log": "8c8807372c3a6b72984fdfd3408c5dc3ac3788a3bc24a6f2019fd635733ab1e7"
+  },
+  "acceptance": {
+    "configuration_implemented": true,
+    "bounded_wait_correctness": true,
+    "zero_rejection_100rps_in_all_runs": false,
+    "sustained_200rps": false,
+    "four_host_eight_api_workers": "not verified",
+    "real_200_or_500_calls": "not verified",
+    "test_environment_deployment": false,
+    "production_deployment": false
+  }
+}
