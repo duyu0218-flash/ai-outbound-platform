@@ -12,6 +12,8 @@ class DialRequest(BaseModel):
 
 class SpeakRequest(BaseModel):
     call_id: str
+    expected_attempt: int | None = Field(default=None, ge=0)
+    provider_call_id: str | None = None
     tenant_id: int | None = None
     text: str = Field(min_length=1, max_length=50_000)
     language: str = "zh-CN"
@@ -21,6 +23,8 @@ class SpeakRequest(BaseModel):
 
 class CallRequest(BaseModel):
     call_id: str
+    expected_attempt: int | None = Field(default=None, ge=0)
+    provider_call_id: str | None = None
     tenant_id: int | None = None
     reason: str = ""
     target_group: str | None = None

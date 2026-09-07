@@ -6,6 +6,7 @@ import json
 import logging
 import weakref
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from datetime import timedelta
 from time import perf_counter
 from typing import Any, Dict
@@ -44,13 +45,23 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 _local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 AI_ACTIVE_STATUSES = {CallStatus.ANSWERED, CallStatus.IN_AI}
+_expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
 
 
 def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
     from .leases import assert_execution_permitted
     assert_execution_permitted()
     session.refresh(call)
-    return call.attempts == attempt and call.status in AI_ACTIVE_STATUSES
+    if call.attempts != attempt or call.status not in AI_ACTIVE_STATUSES:
+        return False
+    sequence = _expected_turn_sequence.get()
+    if sequence is not None:
+        realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
+        if realtime is not None:
+            session.refresh(realtime)
+            if realtime.turn_sequence != sequence:
+                return False
+    return True
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -218,9 +229,14 @@ async def run_ai_turn(
     transcript: str = "",
     durable: bool = False,
     expected_attempt: int | None = None,
+    expected_turn_sequence: int | None = None,
 ) -> None:
-    async with _ai_turn_lock(str(call_id)):
-        await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
+    token = _expected_turn_sequence.set(expected_turn_sequence)
+    try:
+        async with _ai_turn_lock(str(call_id)):
+            await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
+    finally:
+        _expected_turn_sequence.reset(token)
 
 
 async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None) -> None:
@@ -234,6 +250,8 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
         if expected_attempt is not None and call.attempts != expected_attempt:
             return
         expected_attempt = call.attempts
+        if not _ai_call_is_current(session, call, expected_attempt):
+            return
 
         await append_event(
             session=session,
@@ -368,6 +386,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         session=session,
         tenant_id=call.tenant_id,
         line_id=call.telephony_line_id,
+        call_id=call.id,
     )
     playback_id: str | None = None
     playback_complete = False

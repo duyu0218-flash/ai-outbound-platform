@@ -853,7 +853,8 @@ def test_contact_operations_reports_groups_and_billing(client: TestClient):
     assert billing_row["reached"] == 1
     assert billing_row["completed"] == 1
     assert billing_row["no_answer"] == 1
-    assert billing_row["estimated_cost"] == 0.1
+    assert billing_row["estimated_cost"] == 0
+    assert billing_row["missing_duration_count"] == 1
 
 
 def test_postgres_demo_user_bootstrap_is_concurrency_safe(monkeypatch):

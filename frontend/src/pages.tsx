@@ -1,3 +1,4 @@
+import { ScriptTemplateSelect } from './script-template-select'
 import {
   ApiOutlined,
   AuditOutlined,
@@ -277,16 +278,21 @@ export function DashboardPage() {
 
 interface ContactFormValues { phone: string; name?: string; tags?: string; consent_state: Contact['consent_state']; dnc?: boolean; timezone?: string }
 
+function ServerPager({ page, count, loading, onChange }: { page: number; count: number; loading: boolean; onChange: (page: number) => void }) {
+  return <Space style={{ marginTop: 16 }}><Button disabled={page === 1 || loading} onClick={() => onChange(page - 1)}>上一页</Button><span>第 {page} 页</span><Button disabled={count < 50 || loading} onClick={() => onChange(page + 1)}>下一页</Button></Space>
+}
+
 export function ContactsPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Contact | null>(null)
   const [form] = Form.useForm<ContactFormValues>()
-  const query = useSecureQuery<Contact[]>(['contacts', searchKeyword], `/api/v1/contacts?page=1&size=100${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
+  const query = useSecureQuery<Contact[]>(['contacts', searchKeyword, String(page)], `/api/v1/contacts?page=${page}&size=50${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
   const mutation = useMutation({
     mutationFn: (values: ContactFormValues) => apiRequest<Contact>(editing ? `/api/v1/contacts/${editing.id}` : '/api/v1/contacts', { method: editing ? 'PATCH' : 'POST', body: JSON.stringify(values) }, token),
     onSuccess: () => { message.success(t('operationSuccess')); setModalOpen(false); setEditing(null); form.resetFields(); void queryClient.invalidateQueries({ queryKey: ['contacts'] }) },
@@ -309,12 +315,12 @@ export function ContactsPage() {
       <PageTitle title={t('contacts')} description={t('contactHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('addContact')}</Button>} />
       <Card>
         <div className="table-toolbar">
-          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('phone')} / ${t('name')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => setSearchKeyword(keyword)} />
-          <Button type="primary" onClick={() => setSearchKeyword(keyword)}>{t('search')}</Button>
-          <Button onClick={() => { setKeyword(''); setSearchKeyword('') }}>{t('reset')}</Button>
+          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('phone')} / ${t('name')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => { setSearchKeyword(keyword); setPage(1) }} />
+          <Button type="primary" onClick={() => { setSearchKeyword(keyword); setPage(1) }}>{t('search')}</Button>
+          <Button onClick={() => { setKeyword(''); setSearchKeyword(''); setPage(1) }}>{t('reset')}</Button>
           <Button icon={<ReloadOutlined />} onClick={() => void query.refetch()}>{t('refresh')}</Button>
         </div>
-        <Table<Contact> rowKey="id" loading={query.isLoading} dataSource={query.data || []} locale={{ emptyText: t('empty') }} scroll={{ x: 900 }} columns={[
+        <Table<Contact> pagination={false} rowKey="id" loading={query.isLoading} dataSource={query.data || []} locale={{ emptyText: t('empty') }} scroll={{ x: 900 }} columns={[
           { title: 'ID', dataIndex: 'id', width: 70 },
           { title: t('phone'), dataIndex: 'phone', width: 160 },
           { title: t('contactName'), dataIndex: 'name', width: 150, render: (value) => value || '-' },
@@ -324,6 +330,7 @@ export function ContactsPage() {
           { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
           { title: t('actions'), key: 'actions', fixed: 'right', width: 130, render: (_, record) => <Space><Button type="text" icon={<EditOutlined />} onClick={() => openEdit(record)} /><Popconfirm title={t('confirmDelete')} onConfirm={() => remove.mutate(record.id)}><Button type="text" danger icon={<DeleteOutlined />} /></Popconfirm></Space> },
         ]} />
+      <ServerPager page={page} count={query.data?.length || 0} loading={query.isFetching} onChange={setPage} />
       </Card>
       <Modal title={editing ? t('edit') : t('addContact')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={mutation.isPending} destroyOnHidden>
         <Form<ContactFormValues> form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>
@@ -355,6 +362,7 @@ export function ContactOperationsPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -365,7 +373,7 @@ export function ContactOperationsPage() {
   const [selectedIdsText, setSelectedIdsText] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const importRequestKeys = useRef(new Map<string, string>())
-  const query = useSecureQuery<Contact[]>(['admin-contacts-ops', searchKeyword], `/api/v1/contacts?page=1&size=200${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
+  const query = useSecureQuery<Contact[]>(['admin-contacts-ops', searchKeyword, String(page)], `/api/v1/contacts?page=${page}&size=50${searchKeyword ? `&keyword=${encodeURIComponent(searchKeyword)}` : ''}`)
 
   const importMutation = useMutation({
     mutationFn: ({ file, upsert }: { file: File; upsert: boolean }) => {
@@ -481,19 +489,19 @@ export function ContactOperationsPage() {
       />
       <Card>
         <div className="table-toolbar">
-          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('phone')} / ${t('name')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => setSearchKeyword(keyword)} />
-          <Button type="primary" onClick={() => setSearchKeyword(keyword)}>{t('search')}</Button>
-          <Button onClick={() => { setKeyword(''); setSearchKeyword('') }}>{t('reset')}</Button>
+          <Input allowClear value={keyword} prefix={<SearchOutlined />} placeholder={`${t('phone')} / ${t('name')}`} onChange={(event) => setKeyword(event.target.value)} onPressEnter={() => { setSearchKeyword(keyword); setPage(1) }} />
+          <Button type="primary" onClick={() => { setSearchKeyword(keyword); setPage(1) }}>{t('search')}</Button>
+          <Button onClick={() => { setKeyword(''); setSearchKeyword(''); setPage(1) }}>{t('reset')}</Button>
           <span>{t('upsert')}</span>
           <Switch checked={importUpsert} onChange={setImportUpsert} />
           <Button danger disabled={!selectedRowKeys.length} onClick={openBatch}>{t('batchDnc')}</Button>
         </div>
-        <Table<Contact>
+        <Table<Contact> pagination={false}
           rowKey="id"
           loading={query.isLoading}
           dataSource={query.data || []}
           locale={{ emptyText: t('empty') }}
-          rowSelection={selection}
+          rowSelection={{ ...selection, preserveSelectedRowKeys: true }}
           scroll={{ x: 900 }}
           columns={[
             { title: 'ID', dataIndex: 'id', width: 70 },
@@ -506,6 +514,7 @@ export function ContactOperationsPage() {
             { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
           ]}
         />
+      <ServerPager page={page} count={query.data?.length || 0} loading={query.isFetching} onChange={setPage} />
       </Card>
       {importResult && <Card style={{ marginTop: 16 }}>
         <Descriptions title={t('importResult')} column={3} bordered size="small" items={[
@@ -651,6 +660,7 @@ export function BillingPanelPage() {
           <InputNumber addonBefore={t('billingSmsPrice')} min={0} precision={6} value={smsPrice} onChange={(value) => setSmsPrice(Number(value || 0))} />
         </Space>
       </Card>
+      <Alert style={{ marginTop: 16 }} type="info" showIcon message="费用为按秒折算的估算值，非运营商结算账单" description={`话费使用每轮拨号的 CDR 时长，缺少 CDR 时使用接通至结束的观测时长；AI 使用接通至转人工或结束的占用时长。缺少话费时长 ${billing.data?.summary.missing_duration_count || 0} 轮，缺少 AI 时长 ${billing.data?.summary.missing_ai_duration_count || 0} 轮，观测估算 ${billing.data?.summary.estimated_duration_count || 0} 轮；缺失部分未计价。`} />
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('total')} value={billing.data?.summary.calls || 0} /></Card></Col>
         <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('billableCalls')} value={billing.data?.summary.billable_calls || 0} /></Card></Col>
@@ -658,7 +668,7 @@ export function BillingPanelPage() {
         <Col xs={24} sm={6}><Card loading={billing.isLoading}><Statistic title={t('aiMinutes')} value={billing.data?.summary.ai_minutes || 0} precision={2} suffix="min" /></Card></Col>
       </Row>
       <Card style={{ marginTop: 16 }} title={t('billingRows')} loading={billing.isLoading}>
-        <Table rowKey="key" dataSource={billing.data?.rows || []} locale={{ emptyText: t('empty') }} scroll={{ x: 960 }} columns={[
+        <Table rowKey="key" dataSource={billing.data?.rows || []} locale={{ emptyText: t('empty') }} scroll={{ x: 1500 }} columns={[
           { title: t('dimension'), dataIndex: 'label', width: 170 },
           { title: t('calls'), dataIndex: 'calls' },
           { title: t('billableCalls'), dataIndex: 'billable_calls' },
@@ -668,6 +678,8 @@ export function BillingPanelPage() {
           { title: t('failed'), dataIndex: 'failed' },
           { title: t('noAnswer'), dataIndex: 'no_answer' },
           { title: t('loss'), dataIndex: 'loss' },
+          { title: '电话分钟', dataIndex: 'telephony_minutes', render: (value) => Number(value || 0).toFixed(2) },
+          { title: '缺失时长轮次', dataIndex: 'missing_duration_count' },
           { title: t('aiMinutes'), dataIndex: 'ai_minutes', render: (value) => Number(value || 0).toFixed(2) },
           { title: t('smsCount'), dataIndex: 'sms_count' },
           { title: t('estimatedCost'), dataIndex: 'estimated_cost', render: (value) => Number(value || 0).toFixed(4) },
@@ -771,7 +783,8 @@ export function ScriptsPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const query = useSecureQuery<ScriptTemplate[]>(['scripts'], '/api/v1/script-templates?page=1&size=100')
+  const [page, setPage] = useState(1)
+  const query = useSecureQuery<ScriptTemplate[]>(['scripts', String(page)], `/api/v1/script-templates?page=${page}&size=50`)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ScriptTemplate | null>(null)
   const [flowTemplate, setFlowTemplate] = useState<ScriptTemplate | null>(null)
@@ -796,6 +809,7 @@ export function ScriptsPage() {
     <>
       <PageTitle title={t('scripts')} description={t('scriptHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('createScript')}</Button>} />
       <Row gutter={[16, 16]}>{(query.data || []).map((item) => <Col xs={24} lg={12} xl={8} key={item.id}><Card loading={query.isLoading} className="script-card" title={<Space><FileTextOutlined /><span>{item.name}</span></Space>} extra={<Switch size="small" checked={item.is_active} onChange={() => toggle.mutate(item)} />} actions={[<Button type="text" icon={<ControlOutlined />} onClick={() => setFlowTemplate(item)}>话术画布</Button>, <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(item)}>{t('edit')}</Button>, <Popconfirm title={t('confirmDelete')} onConfirm={() => remove.mutate(item)}><Button type="text" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>]}><Space wrap><Tag>{item.category}</Tag><Tag>v{item.version}</Tag>{item.tags && <Tag color="blue">{item.tags}</Tag>}</Space><Paragraph ellipsis={{ rows: 4, expandable: true }} className="script-preview">{item.content}</Paragraph><Text type="secondary">{formatDate(item.updated_at)}</Text></Card></Col>)}</Row>
+      <ServerPager page={page} count={query.data?.length || 0} loading={query.isFetching} onChange={setPage} />
       {!query.isLoading && !query.data?.length && <Card><Empty description={t('empty')} /></Card>}
       <Modal width={680} title={editing ? t('edit') : t('createScript')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={mutation.isPending} destroyOnHidden>
         <Form<ScriptFormValues> form={form} layout="vertical" onFinish={(values) => mutation.mutate(values)}>
@@ -816,8 +830,8 @@ export function CampaignsPage() {
   const { t } = useTranslation()
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const query = useSecureQuery<Campaign[]>(['campaigns'], '/api/v1/campaigns?page=1&size=100')
-  const scripts = useSecureQuery<ScriptTemplate[]>(['scripts', 'campaign-options'], '/api/v1/script-templates?active_only=true&page=1&size=200')
+  const [page, setPage] = useState(1)
+  const query = useSecureQuery<Campaign[]>(['campaigns', String(page)], `/api/v1/campaigns?page=${page}&size=50`)
   const systemOverview = useSecureQuery<SystemOverview>(['system-overview'], '/api/v1/admin/system-overview')
   const effectiveCapacity = systemOverview.data?.capacity.effective_max_concurrent_calls
   const [modalOpen, setModalOpen] = useState(false)
@@ -859,7 +873,7 @@ export function CampaignsPage() {
     <>
       <PageTitle title={t('campaigns')} description={t('campaignHint')} action={<Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>{t('createCampaign')}</Button>} />
       <Card>
-        <Table<Campaign> rowKey="id" loading={query.isLoading} dataSource={(query.data || []).filter((item) => item.status !== 'deleted')} locale={{ emptyText: t('empty') }} scroll={{ x: 900 }} columns={[
+        <Table<Campaign> pagination={false} rowKey="id" loading={query.isLoading} dataSource={(query.data || []).filter((item) => item.status !== 'deleted')} locale={{ emptyText: t('empty') }} scroll={{ x: 900 }} columns={[
           { title: 'ID', dataIndex: 'id', width: 70 },
           { title: t('name'), dataIndex: 'name', width: 200 },
           { title: t('mode'), dataIndex: 'mode', width: 150, render: (value) => t(modeOptions.find((item) => item.value === value)?.labelKey || value) },
@@ -869,21 +883,22 @@ export function CampaignsPage() {
           { title: t('status'), dataIndex: 'status', render: (value) => <StatusTag status={value} /> },
           { title: t('createdAt'), dataIndex: 'created_at', width: 170, render: formatDate },
           { title: t('actions'), fixed: 'right', width: 360, render: (_, record) => <Space size={4} wrap>
-            {['draft', 'failed', 'stopped'].includes(record.status) && <Popconfirm title={t('confirmStart')} onConfirm={() => startMutation.mutate(record.id)}><Button type="primary" ghost size="small" icon={<RocketOutlined />} loading={startMutation.isPending}>{t('start')}</Button></Popconfirm>}
-            {['draft', 'failed', 'stopped'].includes(record.status) && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button>}
+            {['draft', 'failed', 'stopped', 'prepared'].includes(record.status) && <Popconfirm title={t('confirmStart')} onConfirm={() => startMutation.mutate(record.id)}><Button type="primary" ghost size="small" icon={<RocketOutlined />} loading={startMutation.isPending}>{t('start')}</Button></Popconfirm>}
+            {['draft', 'failed', 'stopped', 'prepared'].includes(record.status) && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>{t('edit')}</Button>}
             {record.status === 'running' && <Button size="small" icon={<PauseCircleOutlined />} onClick={() => statusMutation.mutate({ id: record.id, action: 'pause' })}>{t('pause')}</Button>}
             {record.status === 'paused' && <Button size="small" icon={<PlayCircleOutlined />} onClick={() => statusMutation.mutate({ id: record.id, action: 'resume' })}>{t('resume')}</Button>}
-            {['running', 'paused'].includes(record.status) && <Popconfirm title={t('confirmStop')} onConfirm={() => statusMutation.mutate({ id: record.id, action: 'stop' })}><Button size="small" danger icon={<StopOutlined />}>{t('stop')}</Button></Popconfirm>}
-            {!['running', 'paused'].includes(record.status) && <Popconfirm title={t('confirmDelete')} onConfirm={() => deleteMutation.mutate(record.id)}><Button size="small" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>}
+            {['running', 'paused', 'prepared'].includes(record.status) && <Popconfirm title={t('confirmStop')} onConfirm={() => statusMutation.mutate({ id: record.id, action: 'stop' })}><Button size="small" danger icon={<StopOutlined />}>{t('stop')}</Button></Popconfirm>}
+            {!['running', 'paused', 'prepared'].includes(record.status) && <Popconfirm title={t('confirmDelete')} onConfirm={() => deleteMutation.mutate(record.id)}><Button size="small" danger icon={<DeleteOutlined />}>{t('delete')}</Button></Popconfirm>}
           </Space> },
         ]} />
+      <ServerPager page={page} count={query.data?.length || 0} loading={query.isFetching} onChange={setPage} />
       </Card>
       <Modal width={760} title={editing ? t('editCampaign') : t('createCampaign')} open={modalOpen} onCancel={() => { setModalOpen(false); setEditing(null) }} onOk={() => form.submit()} confirmLoading={saveMutation.isPending} destroyOnHidden>
         <Form<CampaignFormValues> form={form} layout="vertical" onFinish={(values) => saveMutation.mutate(values)}>
           <Row gutter={12}><Col span={12}><Form.Item label={t('name')} name="name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col span={12}><Form.Item label={t('mode')} name="mode" rules={[{ required: true }]}><Select options={modeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))} /></Form.Item></Col></Row>
           <Form.Item label={t('voiceAiPipeline')} name="voice_ai_pipeline" extra={t('voiceAiPipelineHint')}><Select options={[{ value: 'inherit', label: t('pipeline_inherit') }, { value: 'legacy', label: 'Legacy' }, { value: 'pipecat', label: 'Pipecat' }]} /></Form.Item>
           <Form.Item label={t('contactsSelected')} name="contact_ids" rules={[{ required: true }]}><CampaignContactSelect /></Form.Item>
-          <Form.Item label={t('scriptTemplate')} name="script_template_id"><Select allowClear onChange={() => form.setFieldValue('script_flow_version_id', undefined)} options={(scripts.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
+          <Form.Item label={t('scriptTemplate')} name="script_template_id"><ScriptTemplateSelect token={token} onChange={() => form.setFieldValue('script_flow_version_id', undefined)} /></Form.Item>
           <Form.Item label="已发布话术画布" name="script_flow_version_id" extra="任务锁定具体发布版本；后续草稿修改不会影响运行中的外呼。"><Select allowClear disabled={!selectedTemplateId} placeholder="可选：使用平面话术" options={(publishedFlows.data || []).map((item) => ({ value: item.id, label: `${item.name} · v${item.version}` }))} /></Form.Item>
           <Form.Item label={t('content')} name="script"><Input.TextArea rows={5} /></Form.Item>
           <Row gutter={12}><Col span={8}><Form.Item label={t('concurrency')} name="concurrency" extra={effectiveCapacity ? t('campaignConcurrencyHint', { count: effectiveCapacity }) : t('capacityLoading')}><InputNumber min={1} max={effectiveCapacity} disabled={!effectiveCapacity} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryLimit')} name="retry_limit"><InputNumber min={0} max={10} className="full-width" /></Form.Item></Col><Col span={8}><Form.Item label={t('retryInterval')} name="retry_interval_sec"><InputNumber min={1} className="full-width" /></Form.Item></Col></Row>
@@ -1014,8 +1029,8 @@ export function CallsPage({ role }: { role: Role }) {
         <Descriptions size="small" column={1} bordered items={selectedCall ? [{ key: 'id', label: 'ID', children: selectedCall.id }, { key: 'status', label: t('status'), children: <StatusTag status={selectedCall.status} /> }, { key: 'mode', label: t('mode'), children: t(modeOptions.find((item) => item.value === selectedCall.mode)?.labelKey || selectedCall.mode) }] : []} />
         <Tabs style={{ marginTop: 16 }} items={[
           { key: 'speech', label: '结构化转写', children: <List loading={speechTurns.isLoading} dataSource={speechTurns.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag color={item.is_final ? 'blue' : 'default'}>{item.speaker_role} · {item.is_final ? '最终' : '临时'}</Tag><Text type="secondary">置信度 {item.confidence == null ? '-' : `${Math.round(item.confidence * 100)}%`}</Text></Space>} description={item.transcript || '（空转写）'} /></List.Item>} /> },
-          { key: 'analysis', label: t('resultsAndQa'), children: analysis.data ? <Space direction="vertical" size="middle" className="full-width"><Descriptions bordered size="small" column={1} items={[{ key: 'result', label: t('callResult'), children: analysis.data.result_code }, { key: 'intent', label: t('intent'), children: analysis.data.intent }, { key: 'sentiment', label: t('sentiment'), children: analysis.data.sentiment }, { key: 'score', label: t('qaScore'), children: analysis.data.qa_score }, { key: 'flags', label: t('qaFlags'), children: analysis.data.qa_flags_json }, { key: 'review', label: t('reviewState'), children: <StatusTag status={analysis.data.review_state} /> }, { key: 'summary', label: t('summary'), children: analysis.data.summary }]} />{(role === 'admin' || user?.is_supervisor) && <Button type="primary" onClick={openReview}>{t('correctAnalysis')}</Button>}</Space> : <Empty description={analysis.isLoading ? t('loading') : t('empty')} /> },
-          { key: 'recordings', label: '录音资产', children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Text>{item.media_format || 'unknown'}</Text><Text type="secondary">{item.duration_sec == null ? '-' : `${item.duration_sec}s`}</Text></Space>} description={item.storage_uri || item.provider_url} /></List.Item>} /> },
+          { key: 'analysis', label: t('resultsAndQa'), children: analysis.data ? <Space direction="vertical" size="middle" className="full-width"><Descriptions bordered size="small" column={1} items={[{ key: 'result', label: t('callResult'), children: analysis.data.result_code }, { key: 'intent', label: t('intent'), children: analysis.data.intent }, { key: 'sentiment', label: t('sentiment'), children: analysis.data.sentiment }, { key: 'score', label: t('qaScore'), children: analysis.data.qa_score }, { key: 'flags', label: t('qaFlags'), children: analysis.data.qa_flags_json }, { key: 'review', label: t('reviewState'), children: <Space><StatusTag status={analysis.data.review_state} />{analysis.data.needs_review && <Tag color="warning">有新证据，待复核</Tag>}</Space> }, { key: 'summary', label: t('summary'), children: analysis.data.summary }]} />{(role === 'admin' || user?.is_supervisor) && <Button type="primary" onClick={openReview}>{t('correctAnalysis')}</Button>}</Space> : <Empty description={analysis.isLoading ? t('loading') : t('empty')} /> },
+          { key: 'recordings', label: '录音资产', children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Tag>{item.attempt ? `第 ${item.attempt} 轮` : '历史轮次未知'}</Tag><Text>{item.media_format || 'unknown'}</Text><Text type="secondary">{item.duration_sec == null ? '-' : `${item.duration_sec}s`}</Text></Space>} description={item.storage_uri || item.provider_url} /></List.Item>} /> },
           { key: 'metrics', label: '阶段指标', children: <Table<CallMetric> size="small" rowKey="id" pagination={false} loading={metrics.isLoading} dataSource={metrics.data || []} columns={[{ title: '阶段', dataIndex: 'stage' }, { title: '耗时', dataIndex: 'duration_ms', render: (value) => value == null ? '-' : `${value} ms` }, { title: '结果', dataIndex: 'success', render: (value) => <Tag color={value ? 'success' : 'error'}>{value ? '成功' : '失败'}</Tag> }, { title: '错误码', dataIndex: 'error_code', render: (value) => value || '-' }]} /> },
           { key: 'events', label: t('events'), children: <List className="event-list" loading={events.isLoading} dataSource={events.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.event_type}</Tag><Text type="secondary">{formatDate(item.created_at)}</Text></Space>} description={<pre>{item.payload}</pre>} /></List.Item>} /> },
         ]} />
@@ -1119,7 +1134,7 @@ export function QualityReviewPage() {
         ]} />}
         <Tabs style={{ marginTop: 16 }} items={[
           { key: 'speech', label: t('transcriptEvidence'), children: <List loading={speechTurns.isLoading} dataSource={speechTurns.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Tag color={item.speaker_role === 'customer' ? 'blue' : 'default'}>{t(item.speaker_role, { defaultValue: item.speaker_role })}</Tag>} description={item.transcript || '-'} /></List.Item>} /> },
-          { key: 'recordings', label: t('recordingEvidence'), children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Text>{item.media_format || 'unknown'}</Text></Space>} description={item.storage_uri || item.provider_url || '-'} /></List.Item>} /> },
+          { key: 'recordings', label: t('recordingEvidence'), children: <List loading={recordings.isLoading} dataSource={recordings.data || []} locale={{ emptyText: t('empty') }} renderItem={(item) => <List.Item><List.Item.Meta title={<Space><Tag>{item.state}</Tag><Tag>{item.attempt ? `第 ${item.attempt} 轮` : '历史轮次未知'}</Tag><Text>{item.media_format || 'unknown'}</Text></Space>} description={item.storage_uri || item.provider_url || '-'} /></List.Item>} /> },
         ]} />
       </Drawer>
       <Modal title={t('reviewCall')} open={reviewOpen} onCancel={() => setReviewOpen(false)} onOk={() => reviewForm.submit()} confirmLoading={reviewMutation.isPending} destroyOnHidden>

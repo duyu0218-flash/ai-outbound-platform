@@ -21,6 +21,7 @@ from ...clock import utc_now
 from ...config import get_settings
 from ...db import get_session
 from ...models import (
+    CallMode,
     AdminSetting,
     AuditLog,
     Campaign,
@@ -1155,7 +1156,8 @@ def billing(
         for line_id, line_name in session.exec(select(TelephonyLine.id, TelephonyLine.name).where(TelephonyLine.id.in_(line_ids))).all()
     }
 
-    ai_stage_ms_by_call = _duration_ms_sum(session, tenant_id, since, "ai.turn")
+    from ...services.billing_usage import usage_by_call
+    durations = usage_by_call(session, tenant_id, [call.id for call in calls])
     sms_counts_by_call = _sms_counts(session, tenant_id, since)
 
     rows_by_key: dict[str, dict[str, float | int]] = defaultdict(lambda: {
@@ -1215,18 +1217,21 @@ def billing(
             row["handoff"] = int(row["handoff"]) + 1
             summary.handoff += 1
 
-        ai_ms = ai_stage_ms_by_call.get(str(call.id), 0)
-        ai_minutes = ai_ms / 1000 / 60
-        row["ai_minutes"] = float(row["ai_minutes"]) + ai_minutes
-        summary.ai_minutes = round(summary.ai_minutes + ai_minutes, 4)
+        duration = durations.get(str(call.id), dict(telephony_minutes=0, ai_minutes=0,
+            missing_duration_count=max(0, call.attempts - 1) if status in {"no_answer", "busy"} else (call.attempts or int(status not in {"created", "queued", "failed"})),
+            missing_ai_duration_count=0 if call.mode == CallMode.HUMAN_ONLY else (max(0, call.attempts - 1) if status in {"no_answer", "busy"} else (call.attempts or int(status not in {"created", "queued", "failed"}))),
+            estimated_duration_count=0))
+        ai_minutes = duration["ai_minutes"]
+        for metric, value in duration.items():
+            row[metric] = row.get(metric, 0) + value
+            setattr(summary, metric, getattr(summary, metric) + value)
 
         sms_count = sms_counts_by_call.get(str(call.id), 0)
         row["sms_count"] = int(row["sms_count"]) + sms_count
         summary.sms_count = int(summary.sms_count + sms_count)
 
         call_cost = ai_minutes * ai_unit_price_per_minute + sms_count * sms_unit_price
-        if status in {"answered", "in_ai", "waiting_human", "handoff_transferring", "in_human", "completed"}:
-            call_cost += telephony_unit_price_per_minute
+        call_cost += duration["telephony_minutes"] * telephony_unit_price_per_minute
         row["estimated_cost"] = float(row["estimated_cost"]) + call_cost
         summary.estimated_cost = round(summary.estimated_cost + call_cost, 4)
 
@@ -1246,6 +1251,10 @@ def billing(
                 failed=int(metrics["failed"]),
                 no_answer=int(metrics["no_answer"]),
                 loss=int(metrics["loss"]),
+                telephony_minutes=round(float(metrics.get("telephony_minutes", 0)), 4),
+                missing_duration_count=int(metrics.get("missing_duration_count", 0)),
+                missing_ai_duration_count=int(metrics.get("missing_ai_duration_count", 0)),
+                estimated_duration_count=int(metrics.get("estimated_duration_count", 0)),
                 ai_minutes=round(float(metrics["ai_minutes"]), 4),
                 sms_count=int(metrics["sms_count"]),
                 estimated_cost=round(float(metrics["estimated_cost"]), 4),

@@ -112,6 +112,11 @@ class Settings(BaseSettings):
     outbound_allowed_phone_prefixes: str = ""
     outbound_daily_call_limit: int = 10_000
     outbound_platform_max_concurrent: int = 20
+    voice_gateway_nodes_json: str = "[]"
+    voice_gateway_nodes_file: str = ""
+    voice_gateway_health_ttl_sec: int = 20
+    voice_gateway_health_poll_sec: float = 5.0
+    terminal_analysis_async: bool = False
     voice_command_secret: str = ""
     outbound_security_approval_token: str = ""
     tenant_api_scopes_json: str = "{}"
@@ -200,6 +205,7 @@ class Settings(BaseSettings):
             "ai_turn": max(1, self.task_ai_concurrency),
             "business_callback": max(1, self.task_callback_concurrency),
             "recording": max(1, self.task_recording_concurrency),
+            "call_analysis": 2,
         }
         raw = self.task_queue_lanes.strip()
         if raw:

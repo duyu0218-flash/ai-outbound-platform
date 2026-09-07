@@ -89,6 +89,7 @@ REQUIRED_PRODUCTION_TABLES = {
     "callsession",
     "taskoutbox",
     "recordingasset",
+    "callusage",
 }
 
 
@@ -101,10 +102,16 @@ def verify_database_schema() -> None:
             + ", ".join(missing)
         )
     inspector = inspect(engine)
-    for table, required in {"taskoutbox": {"lease_token"}, "speechturn": {"attempt"}}.items():
+    call_columns = {c["name"] for c in inspector.get_columns("callsession")}
+    if not {"gateway_node_id", "gateway_endpoint"} <= call_columns:
+        raise RuntimeError("database migration 20260907_compact_cluster is required")
+    if settings.voice_gateway_nodes_file or settings.voice_gateway_nodes_json.strip() != "[]":
+        if "gatewaynode" not in tables or not {"gateway_node_id", "gateway_endpoint"} <= {c["name"] for c in inspector.get_columns("callsession")}:
+            raise RuntimeError("compact cluster schema migration is required before enabling the gateway roster")
+    for table, required in {"taskoutbox": {"lease_token"}, "speechturn": {"attempt"}, "recordingasset": {"attempt"}, "callanalysis": {"automatic_result_json", "needs_review"}, "realtimesession": {"last_event_sequence"}}.items():
         columns = {c["name"] for c in inspector.get_columns(table)} if table in tables else set()
         if required - columns:
-            raise RuntimeError("database migration 20260906_execution_leases is required: "
+            raise RuntimeError("database migration 20260907_review_fixes is required: "
                                + table + "." + ",".join(sorted(required - columns)))
 
 
@@ -124,26 +131,22 @@ def create_db_and_tables(*, force: bool = False) -> None:
         SQLModel.metadata.create_all(connection)
         apply_runtime_migrations(connection)
 
-    if _is_postgresql_url(bootstrap_url):
-        # Every worker lifespan can run bootstrap code during startup.
-        # Use advisory lock on the same bootstrap connection so DDL and enum
-        # updates are serialized safely across startup races.
-        lock_name = _build_lock_key(settings.database_bootstrap_lock_name, "ai-outbound-bootstrap-ddl")
-        with bootstrap_engine.connect() as bootstrap_connection:
-            _acquire_advisory_lock(bootstrap_connection, lock_name, enabled=settings.database_bootstrap_advisory_lock)
+    try:
+        with bootstrap_engine.connect() as connection:
+            locked = _is_postgresql_url(bootstrap_url) and settings.database_bootstrap_advisory_lock
+            lock_name = _build_lock_key(settings.database_bootstrap_lock_name, "ai-outbound-bootstrap-ddl")
+            _acquire_advisory_lock(connection, lock_name, enabled=locked)
+            # Lock acquisition autobegins a transaction; session locks survive commit.
+            connection.commit()
             try:
-                with bootstrap_connection.begin():
-                    _run_initialization(bootstrap_connection)
+                with connection.begin():
+                    _run_initialization(connection)
             finally:
-                _release_advisory_lock(
-                    bootstrap_connection,
-                    lock_name,
-                    enabled=settings.database_bootstrap_advisory_lock,
-                )
-        return
-
-    with bootstrap_engine.begin() as bootstrap_connection:
-        _run_initialization(bootstrap_connection)
+                connection.rollback()
+                _release_advisory_lock(connection, lock_name, enabled=locked)
+                connection.commit()
+    finally:
+        bootstrap_engine.dispose()
 
 
 def get_engine_url() -> str:

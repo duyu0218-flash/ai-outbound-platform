@@ -147,6 +147,8 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                     analysis.summary = ""
                     analysis.qa_flags_json = "[]"
                     analysis.structured_json = "{}"
+                    analysis.automatic_result_json = "{}"
+                    analysis.needs_review = False
                     analysis.updated_at = now
                     session.add(analysis)
                 for metric in session.exec(select(CallMetric).where(CallMetric.call_session_id == call.id)).all():

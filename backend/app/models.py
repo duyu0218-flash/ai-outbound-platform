@@ -201,6 +201,14 @@ class ScriptFlowVersion(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class GatewayNode(SQLModel, table=True):
+    id: str = Field(primary_key=True, max_length=64)
+    endpoint: str = Field(max_length=512)
+    capacity: int = 0
+    ready: bool = False
+    checked_at: datetime = Field(default_factory=utc_now)
+
+
 class CallSession(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
@@ -221,6 +229,8 @@ class CallSession(SQLModel, table=True):
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
     telephony_line_id: Optional[int] = Field(default=None, foreign_key="telephonyline.id", index=True)
+    gateway_node_id: Optional[str] = Field(default=None, max_length=64, index=True)
+    gateway_endpoint: Optional[str] = Field(default=None, max_length=512)
     conversation_id: Optional[str] = None
     voice_ai_pipeline: str = Field(default="pending", max_length=16)
     last_transcript: Optional[str] = None
@@ -255,6 +265,7 @@ class RealtimeSession(SQLModel, table=True):
     codec: str = Field(default="pcm_s16le", max_length=32)
     sample_rate: int = 16000
     channel_count: int = 1
+    last_event_sequence: Optional[int] = None
     turn_sequence: int = 0
     playback_id: Optional[str] = Field(default=None, max_length=255)
     started_at: Optional[datetime] = None
@@ -323,6 +334,7 @@ class RecordingAsset(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int = 0
     provider_recording_id: Optional[str] = Field(default=None, index=True, max_length=255)
     provider_url: str = Field(default="", max_length=2000)
     storage_uri: str = Field(default="", max_length=2000)
@@ -350,6 +362,8 @@ class CallAnalysis(SQLModel, table=True):
     qa_score: int = 0
     qa_flags_json: str = "[]"
     structured_json: str = "{}"
+    automatic_result_json: str = "{}"
+    needs_review: bool = False
     review_state: str = Field(default="auto", max_length=32)
     reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
     reviewed_at: Optional[datetime] = None
@@ -449,3 +463,18 @@ class AuditLog(SQLModel, table=True):
     resource_id: Optional[str] = Field(default=None, max_length=200)
     detail: str = Field(default="", max_length=4000)
     created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class CallUsage(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_session_id", "attempt", name="uq_callusage_attempt"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int
+    answered_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    ai_ended_at: Optional[datetime] = None
+    telephony_seconds: Optional[float] = None
+    ai_seconds: Optional[float] = None
+    duration_source: str = "missing"
+    created_at: datetime = Field(default_factory=utc_now)

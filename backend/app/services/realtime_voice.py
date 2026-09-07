@@ -56,7 +56,9 @@ def ingest_speech_turn(
     realtime = get_or_create_realtime_session(session, call)
     if payload.is_final:
         realtime.turn_sequence += 1
-    realtime.state = RealtimeState.THINKING if payload.is_final else RealtimeState.LISTENING
+    from .call_service import TERMINAL_STATUSES
+    if call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED:
+        realtime.state = RealtimeState.THINKING if payload.is_final else RealtimeState.LISTENING
     realtime.updated_at = utc_now()
     if realtime.started_at is None:
         realtime.started_at = utc_now()
@@ -133,6 +135,24 @@ def _speech_metric_detail(payload: SpeechWebhookEvent) -> str:
 
 def apply_media_event(session: Session, call: CallSession, payload: MediaWebhookEvent) -> RealtimeSession:
     realtime = get_or_create_realtime_session(session, call)
+    from .call_service import TERMINAL_STATUSES
+    attempt = call.attempts if payload.attempt is None else payload.attempt
+    if attempt != call.attempts or (call.attempts > 1 and payload.attempt is None):
+        return realtime
+    if call.status in TERMINAL_STATUSES and payload.state != RealtimeState.CLOSED:
+        return realtime
+    if realtime.attempt == attempt:
+        if realtime.state == RealtimeState.CLOSED:
+            return realtime
+        if payload.event_sequence is not None and realtime.last_event_sequence is not None and payload.event_sequence <= realtime.last_event_sequence:
+            return realtime
+    else:
+        realtime.started_at = None
+        realtime.ended_at = None
+        realtime.last_event_sequence = None
+        realtime.provider_session_id = None
+    realtime.attempt = attempt
+    realtime.last_event_sequence = payload.event_sequence if payload.event_sequence is not None else realtime.last_event_sequence
     realtime.state = payload.state
     if payload.attempt is not None:
         realtime.attempt = payload.attempt
@@ -186,13 +206,25 @@ async def interrupt_playback(call_id: UUID) -> None:
                 session=session,
                 tenant_id=call.tenant_id,
                 line_id=call.telephony_line_id,
+                call_id=call.id,
             )
-            await with_retry(lambda: adapter.stop_speaking(call_id=str(call.id)))
+            from .call_service import TERMINAL_STATUSES
+            from .telephony import HttpAdapter
+            if call.status in TERMINAL_STATUSES:
+                return
             realtime = get_or_create_realtime_session(session, call)
-            realtime.state = RealtimeState.INTERRUPTED
-            realtime.playback_id = None
-            realtime.updated_at = utc_now()
-            session.add(realtime)
+            expected_attempt, playback_id = call.attempts, realtime.playback_id
+            command_id, provider_id = str(call.id), call.telephony_call_id
+            session.commit()
+            identity = {"expected_attempt": expected_attempt, "provider_call_id": provider_id} if isinstance(adapter, HttpAdapter) else {}
+            await with_retry(lambda: adapter.stop_speaking(call_id=command_id, **identity))
+            session.refresh(call, with_for_update=True)
+            session.refresh(realtime)
+            if call.attempts == expected_attempt and call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED and realtime.playback_id == playback_id:
+                realtime.state = RealtimeState.INTERRUPTED
+                realtime.playback_id = None
+                realtime.updated_at = utc_now()
+                session.add(realtime)
         except Exception as exc:
             success = False
             error = str(exc)

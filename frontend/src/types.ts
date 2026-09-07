@@ -120,6 +120,10 @@ export interface AdminBillingRow {
   failed: number
   no_answer: number
   loss: number
+  telephony_minutes: number
+  missing_duration_count: number
+  missing_ai_duration_count: number
+  estimated_duration_count: number
   ai_minutes: number
   sms_count: number
   estimated_cost: number
@@ -134,6 +138,10 @@ export interface AdminBillingSummary {
   failed: number
   no_answer: number
   loss: number
+  telephony_minutes: number
+  missing_duration_count: number
+  missing_ai_duration_count: number
+  estimated_duration_count: number
   ai_minutes: number
   sms_count: number
   ai_unit_price_per_minute: number
@@ -264,6 +272,7 @@ export interface CallMetric {
 }
 
 export interface RecordingAsset {
+  attempt: number
   id: number
   provider_url: string
   storage_uri: string
@@ -370,6 +379,8 @@ export interface CallAnalysis {
   qa_score: number
   qa_flags_json: string
   structured_json: string
+  automatic_result_json: string
+  needs_review: boolean
   review_state: string
   updated_at: string
 }

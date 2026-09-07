@@ -157,15 +157,22 @@ def review_call_analysis(
     call = _visible_call(session, tenant_id, call_id, current)
     if current is not None and current.role != "admin" and not current.is_supervisor:
         raise HTTPException(status_code=403, detail="supervisor permission required")
-    analysis = session.exec(select(CallAnalysis).where(CallAnalysis.call_session_id == call_id)).first()
+    if session.get_bind().dialect.name == "sqlite":
+        from sqlalchemy import update
+        session.exec(update(CallSession).where(CallSession.id == call.id).values(updated_at=CallSession.updated_at))
+    session.refresh(call, with_for_update=True)
+    analysis = session.exec(select(CallAnalysis).where(CallAnalysis.call_session_id == call_id).execution_options(populate_existing=True)).first()
     if analysis is None:
         analysis = analyze_call(session, call)
+        session.refresh(call, with_for_update=True)
+        session.refresh(analysis)
     updates = payload.model_dump(exclude_unset=True, exclude={"qa_flags"})
     for field, value in updates.items():
         setattr(analysis, field, value)
     if payload.qa_flags is not None:
         analysis.qa_flags_json = json.dumps(payload.qa_flags, ensure_ascii=False)
     analysis.review_state = "reviewed"
+    analysis.needs_review = False
     analysis.reviewed_by = current.id if current is not None else None
     analysis.reviewed_at = utc_now()
     analysis.updated_at = utc_now()
@@ -263,7 +270,7 @@ def list_quality_reviews(
         .where(CallAnalysis.tenant_id == tenant_id, CallSession.tenant_id == tenant_id)
     )
     if review_state:
-        query = query.where(CallAnalysis.review_state == review_state)
+        query = query.where(or_(CallAnalysis.review_state == "auto", CallAnalysis.needs_review.is_(True))) if review_state == "auto" else query.where(CallAnalysis.review_state == review_state)
     if max_score is not None:
         query = query.where(CallAnalysis.qa_score <= max_score)
     rows = session.exec(
@@ -285,7 +292,7 @@ def list_quality_reviews(
             summary=analysis.summary,
             qa_score=analysis.qa_score,
             qa_flags_json=analysis.qa_flags_json,
-            review_state=analysis.review_state,
+            review_state="needs_review" if analysis.needs_review else analysis.review_state,
             reviewed_by=analysis.reviewed_by,
             reviewed_at=analysis.reviewed_at,
             updated_at=analysis.updated_at,

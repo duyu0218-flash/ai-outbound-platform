@@ -196,6 +196,7 @@ def telephony_status(
     if not call:
         return {"result": "ignore"}
 
+    session.refresh(call, with_for_update=True)
     raw_status = payload.payload.get("status", "")
     mapped = _status_to_call_status(raw_status)
     is_duplicate = _add_event(session, call.id, "status", "telephony", payload.payload)
@@ -264,11 +265,18 @@ def telephony_status(
         call.finished_at = utc_now()
         if call.human_agent_id is not None:
             assigned_agent = session.get(User, call.human_agent_id)
-            if assigned_agent is not None and assigned_agent.agent_status == "busy":
-                assigned_agent.agent_status = "ready"
-                assigned_agent.last_seen_at = utc_now()
-                assigned_agent.updated_at = utc_now()
-                session.add(assigned_agent)
+            if assigned_agent is not None:
+                session.refresh(assigned_agent, with_for_update=True)
+                from ...services.call_service import CAPACITY_STATUSES
+                other_active = session.exec(select(CallSession.id).where(
+                    CallSession.human_agent_id == assigned_agent.id,
+                    CallSession.id != call.id, CallSession.status.in_(CAPACITY_STATUSES),
+                ).limit(1)).first()
+                if assigned_agent.agent_status == "busy" and other_active is None:
+                    assigned_agent.agent_status = "ready"
+                    assigned_agent.last_seen_at = utc_now()
+                    assigned_agent.updated_at = utc_now()
+                    session.add(assigned_agent)
         for handoff in session.exec(
             select(HandoffRequest).where(
                 HandoffRequest.call_session_id == call.id,
@@ -288,6 +296,8 @@ def telephony_status(
 
     session.add(call)
     if status_applied and mapped is not None:
+        from ...services.billing_usage import record_status_usage
+        record_status_usage(session, call, mapped, payload.payload)
         schedule_campaign_retry(session, call, mapped)
     session.commit()
     if mapped in {
@@ -298,7 +308,12 @@ def telephony_status(
         CallStatus.NO_ANSWER,
     }:
         complete_campaign_if_terminal(session, call.campaign_id)
-        analyze_call(session, call)
+        if settings.terminal_analysis_async:
+            enqueue_task(session, tenant_id=call.tenant_id, task_type="call_analysis",
+                         aggregate_id=str(call.id), idempotency_key=f"analysis:{call.id}:{call.attempts}",
+                         payload={"call_id": str(call.id), "attempt": call.attempts})
+        else:
+            analyze_call(session, call)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         task = enqueue_task(
@@ -415,7 +430,7 @@ def telephony_speech(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:speech:{turn.id}",
-            payload={"call_id": str(call.id), "attempt": call.attempts, "transcript": payload.transcript},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "turn_sequence": turn.turn_index, "transcript": payload.transcript},
         )
         background_tasks.add_task(notify_task, task.id)
     callback_task = enqueue_business_callback(
@@ -445,6 +460,9 @@ def telephony_media(
     call = session.get(CallSession, payload.call_id)
     if call is None:
         return {"result": "ignore"}
+    session.refresh(call, with_for_update=True)
+    if _add_event(session, call.id, "media", "media_gateway", payload.model_dump(mode="json")):
+        return {"result": "ok", "duplicate": True}
     if payload.attempt is not None and payload.attempt != call.attempts:
         return {"result": "ignored", "reason": "stale_attempt"}
     realtime = apply_media_event(session, call, payload)
@@ -462,11 +480,19 @@ def telephony_recording(
     call = session.get(CallSession, payload.call_id)
     if not call:
         return {"result": "ignore"}
+    session.refresh(call, with_for_update=True)
+    raw_attempt = payload.payload.get("attempt")
+    if raw_attempt is None:
+        if call.attempts > 1:
+            return {"result": "ignored", "reason": "ambiguous_attempt"}
+        recording_attempt = call.attempts
+    elif type(raw_attempt) is not int or raw_attempt < 0 or raw_attempt > call.attempts:
+        return {"result": "ignored", "reason": "invalid_attempt"}
+    else:
+        recording_attempt = raw_attempt
     is_duplicate = _add_event(session, call.id, "recording", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
-    if not _event_matches_current_attempt(call, payload.payload):
-        return {"result": "ignored", "reason": "stale_attempt"}
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     if campaign and not campaign.recording_enabled:
         return {"result": "ignored", "reason": "recording_disabled"}
@@ -481,17 +507,20 @@ def telephony_recording(
             minimum=1,
             maximum=3_650,
         )
-        call.recording_url = str(url)
+        if recording_attempt == call.attempts:
+            call.recording_url = str(url)
         existing_asset = session.exec(
             select(RecordingAsset).where(
                 RecordingAsset.call_session_id == call.id,
                 RecordingAsset.provider_url == str(url),
+                RecordingAsset.attempt == recording_attempt,
             )
         ).first()
         if existing_asset is None:
             existing_asset = RecordingAsset(
                 tenant_id=call.tenant_id,
                 call_session_id=call.id,
+                attempt=recording_attempt,
                 provider_recording_id=str(payload.payload.get("recording_id") or "") or None,
                 provider_url=str(url),
                 storage_uri=str(payload.payload.get("storage_uri") or ""),
@@ -522,7 +551,8 @@ def telephony_recording(
             tenant_id=call.tenant_id,
             call_id=call.id,
             event_type="call.recording",
-            data={"url": str(url)},
+            data={"url": str(url), "attempt": recording_attempt},
+            idempotency_key=f"callback:recording:{existing_asset.id}",
         )
         background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}

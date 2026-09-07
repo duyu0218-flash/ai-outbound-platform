@@ -762,6 +762,9 @@ class FreeswitchEslDriver:
             "event_id": provider_event_id,
             "voice_ai_pipeline": binding.voice_ai_pipeline,
         })
+        billsec = _event_value(event, "variable_billsec")
+        if billsec.isdigit():
+            data["billable_duration_sec"] = int(billsec)
         if hangup_reason:
             data["hangup_reason"] = hangup_reason
         await self._post_json(
@@ -789,6 +792,7 @@ class FreeswitchEslDriver:
             {
                 "call_id": binding.call_id,
                 "event_id": f"fs:{binding.fs_uuid}:media:{state}:{stamp}",
+                "event_sequence": int(stamp) if stamp.isdigit() else int(datetime.now(timezone.utc).timestamp() * 1_000_000),
                 "state": state,
                 "provider_session_id": binding.fs_uuid,
                 "playback_id": playback_id,

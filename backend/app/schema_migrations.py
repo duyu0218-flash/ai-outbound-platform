@@ -38,8 +38,24 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
     if "speechturn" in tables and "attempt" not in _columns(bind, "speechturn"):
         statements.append("ALTER TABLE speechturn ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
+    additions = {
+        "recordingasset": {"attempt": "INTEGER NOT NULL DEFAULT 0"},
+        "callanalysis": {"automatic_result_json": "TEXT NOT NULL DEFAULT '{}'", "needs_review": "BOOLEAN NOT NULL DEFAULT FALSE"},
+        "realtimesession": {"last_event_sequence": "BIGINT"},
+    }
+    for table, columns in additions.items():
+        if table in tables:
+            existing = _columns(bind, table)
+            for name, definition in columns.items():
+                if name not in existing:
+                    statements.append(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
     if "callsession" in tables:
         call_columns = _columns(bind, "callsession")
+        if "gateway_node_id" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN gateway_node_id VARCHAR(64)")
+        if "gateway_endpoint" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN gateway_endpoint VARCHAR(512)")
         if "human_agent_id" not in call_columns:
             statements.append("ALTER TABLE callsession ADD COLUMN human_agent_id INTEGER")
         if "telephony_line_id" not in call_columns:
@@ -117,6 +133,7 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
             logger.info("applying database migration: %s", statement)
             connection.execute(text(statement))
         if "callsession" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_callsession_gateway_capacity ON callsession(gateway_node_id,status)"))
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_callsession_telephony_line_id ON callsession (telephony_line_id)")
             )
@@ -145,7 +162,8 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
 
         if "taskoutbox" in tables:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_type ON taskoutbox(task_type, state, available_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_stream_order ON taskoutbox(aggregate_id,task_type,state,created_at,id)"))
         if "speechturn" in tables:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_speechturn_call_attempt ON speechturn(call_session_id, attempt, created_at)"))
-        if "callsession" in tables and {"tenant_id", "phone", "started_at"} <= _columns(engine, "callsession"):
+        if "callsession" in tables and {"tenant_id", "phone", "started_at"} <= _columns(bind, "callsession"):
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_callsession_tenant_phone_started ON callsession(tenant_id, phone, started_at)"))
