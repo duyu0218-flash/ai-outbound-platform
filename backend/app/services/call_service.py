@@ -268,6 +268,8 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    from .gateway_cluster import lock_platform_admission, choose_gateway
+    lock_platform_admission(session)
     # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
     if session.get_bind().dialect.name == "sqlite":
         session.exec(update(Tenant).where(Tenant.id == call.tenant_id).values(updated_at=Tenant.updated_at))
@@ -278,6 +280,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     session.expire_all()
     session.refresh(call, with_for_update=True)
     if call.status not in DISPATCHABLE_STATUSES or call.attempts >= call.max_attempts:
+        session.rollback()
+        return False
+    platform_active = session.exec(select(func.count(CallSession.id)).where(
+        CallSession.status.in_(CAPACITY_STATUSES))).one()
+    if platform_active >= max(1, settings.outbound_platform_max_concurrent):
         session.rollback()
         return False
     can_call, reason = can_call_contact_sync(
@@ -378,6 +385,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             session.rollback()
             return False
 
+    try:
+        gateway = choose_gateway(session, call.tenant_id, selected_line.id if selected_line else None)
+    except RuntimeError:
+        session.rollback()
+        return False
     now = _now()
     next_attempt = int(call.attempts) + 1
     stmt = (
@@ -395,6 +407,10 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             updated_at=now,
             last_error=None,
             telephony_line_id=selected_line.id if selected_line is not None else None,
+            gateway_node_id=gateway.id if gateway else None,
+            gateway_endpoint=gateway.endpoint if gateway else None,
+            telephony_call_id=None,
+            ai_session_id=None,
         )
     )
     result = session.exec(stmt)
@@ -682,6 +698,7 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         session=session,
         tenant_id=call.tenant_id,
         line_id=call.telephony_line_id,
+        call_id=call.id,
     )
     callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
     payload = {
@@ -693,6 +710,7 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         # Providers that do not send their own event id still need callbacks
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,
+        "gateway_node_id": call.gateway_node_id,
         "transcript_webhook_url": f"{settings.telephony_webhook_base}{settings.transcript_event_url}",
         "speech_webhook_url": f"{settings.telephony_webhook_base}{settings.speech_event_url}",
         "media_webhook_url": f"{settings.telephony_webhook_base}{settings.media_event_url}",
@@ -737,11 +755,15 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             payload["recording_enabled"] = campaign.recording_enabled
             payload["hangup_sms_enabled"] = campaign.hangup_sms_enabled
 
+    # Snapshot before commit expires ORM attributes. No connection is retained
+    # across provider I/O, including retry sleeps.
+    dial_call_id, dial_phone = str(call.id), call.phone
+    session.commit()
     try:
         result = await with_retry(
             lambda: adapter.dial(
-                call_id=str(call.id),
-                phone=call.phone,
+                call_id=dial_call_id,
+                phone=dial_phone,
                 webhook_url=callback_url,
                 metadata=payload,
             )
@@ -881,6 +903,7 @@ async def transfer_handoff(
     try:
         adapter = (adapter_factory or get_telephony_adapter)(
             session=session, tenant_id=tenant_id, line_id=call.telephony_line_id,
+            call_id=call.id,
         )
         await with_retry(lambda: adapter.transfer_to_human(
             call_id=str(call_id), reason=reason, target_group=target_group,
@@ -1188,7 +1211,7 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
         for call in calls:
             attempt = call.attempts
             try:
-                adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id)
+                adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id, call_id=call.id)
                 from .leases import assert_execution_permitted
                 assert_execution_permitted()
                 session.commit()
@@ -1240,7 +1263,6 @@ async def _dispatch_cycle(batch_size: int):
 
 async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
     """Independent, bounded lanes. All blocking DB work owns sessions in its thread."""
-    from .task_queue import process_pending_tasks
     from .retention import run_retention_cycle
     poll_interval = max(.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
     batch_size = max(1, settings.scheduler_batch_size)
@@ -1272,16 +1294,6 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
             task_types.add(lane)
         return tuple(sorted(task_types))
 
-    async def task_loop(types):
-        while not stop_event.is_set():
-            try:
-                # This thread owns the scan's sessions; jobs have their own bounded threads.
-                await asyncio.to_thread(lambda: asyncio.run(process_pending_tasks(
-                    batch_size=batch_size,task_types=types,threaded=True)))
-            except Exception:
-                logger.exception("task lane failed types=%s",types)
-            await pause(max(.05,settings.task_poll_interval_sec))
-
     async def retention_loop():
         from .leases import redis_lease
         async def cycle():
@@ -1310,8 +1322,11 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
             if client:
                 await client.aclose()
 
-    task_loops = [task_loop(resolve_lane_task_types(lane)) for lane in sorted(lane_task_types.keys())]
-    await asyncio.gather(dial_loop(), *task_loops, retention_loop(), heartbeat())
+    from .task_queue import run_task_lane
+    from .gateway_cluster import run_gateway_probes
+    task_loops = [run_task_lane(stop_event, task_types=resolve_lane_task_types(lane),
+                               concurrency=lane_task_types[lane]) for lane in sorted(lane_task_types)]
+    await asyncio.gather(dial_loop(), *task_loops, retention_loop(), heartbeat(), run_gateway_probes(stop_event))
 
 
 def sync_unattempted_campaign_call(session: Session, campaign: Campaign, call: CallSession, contact: Contact) -> None:

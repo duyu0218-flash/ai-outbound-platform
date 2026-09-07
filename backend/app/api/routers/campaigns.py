@@ -130,7 +130,7 @@ def list_campaigns(
     session: Session = Depends(get_session),
 ):
     skip, limit = get_pagination(page=page, size=size)
-    query = select(Campaign).where(Campaign.tenant_id == tenant_id).order_by(Campaign.created_at.desc())
+    query = select(Campaign).where(Campaign.tenant_id == tenant_id).order_by(Campaign.created_at.desc(), Campaign.id.desc())
     campaigns = session.exec(query.offset(skip).limit(limit)).all()
     return [_campaign_out(session, campaign) for campaign in campaigns]
 

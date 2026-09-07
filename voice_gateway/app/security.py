@@ -13,9 +13,11 @@ import hmac
 import json
 import logging
 import math
+import random
 import re
 import sqlite3
 import time
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -112,9 +114,18 @@ class Ledger:
     def __init__(self, path: str):
         self.path = path
         self.initialized = False
+        self._transaction_lock = threading.RLock()
 
     @contextmanager
     def transaction(self):
+        # Callback disk I/O runs in threads; initialization and writes still
+        # have a single local owner. Never share a ledger between processes.
+        with self._transaction_lock:
+            with self._transaction() as db:
+                yield db
+
+    @contextmanager
+    def _transaction(self):
         if not self.path:
             raise HTTPException(503, "voice security ledger is not configured")
         db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
@@ -143,6 +154,14 @@ class Ledger:
                   CREATE TABLE IF NOT EXISTS audit (
                     id INTEGER PRIMARY KEY, at REAL NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL);
                 """)
+                columns = {row[1] for row in db.execute("PRAGMA table_info(outbox)")}
+                if "stream_key" not in columns:
+                    db.execute("ALTER TABLE outbox ADD COLUMN stream_key TEXT NOT NULL DEFAULT ''")
+                    for row in db.execute("SELECT id,body FROM outbox").fetchall():
+                        payload = json.loads(row["body"])
+                        db.execute("UPDATE outbox SET stream_key=? WHERE id=?",
+                                   (str(payload.get("call_id") or row["id"]), row["id"]))
+                db.execute("CREATE INDEX IF NOT EXISTS outbox_stream_order ON outbox(stream_key,created)")
                 self.initialized = True
             db.execute("BEGIN IMMEDIATE")
             yield db
@@ -276,10 +295,16 @@ class Ledger:
 
 
 class CallbackSender:
+    """Durable per-call ordering with independent, bounded delivery slots."""
     def __init__(self, settings, ledger: Ledger | None = None):
         self.settings = settings
         self.ledger = ledger or (Ledger(settings.voice_security_db_path) if settings.voice_security_db_path else None)
         self.task = None
+        self.client = None
+        self._claim_lock = asyncio.Lock()
+        self._inflight: set[str] = set()
+        self._wake = asyncio.Event()
+        self.concurrency = max(1, min(128, getattr(settings, "voice_callback_concurrency", 16)))
 
     async def start(self):
         if self.ledger and self.task is None:
@@ -293,6 +318,15 @@ class CallbackSender:
             except asyncio.CancelledError:
                 pass
             self.task = None
+        if self.client:
+            await self.client.aclose()
+            self.client = None
+
+    def _persist(self, url, body, stream_key):
+        key = hashlib.sha256(url.encode() + b"\0" + body).hexdigest()
+        with self.ledger.transaction() as db:
+            db.execute("INSERT OR IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)",
+                       (key, url, body, time.time(), time.time(), stream_key or key))
 
     async def post(self, url: str, payload: dict):
         validate_callback_url(self.settings, url)
@@ -300,11 +334,10 @@ class CallbackSender:
         if not self.ledger:
             await self._send(url, body)
             return
-        # Content id makes repeated producer delivery idempotent. Body/ID stay
-        # stable on retries; signature timestamp is freshly generated.
-        key = hashlib.sha256(url.encode() + b"\0" + body).hexdigest()
-        with self.ledger.transaction() as db:
-            db.execute("INSERT OR IGNORE INTO outbox(id,url,body,created,due) VALUES (?,?,?,?,?)", (key, url, body, time.time(), time.time()))
+        # One stream across status/speech/media URLs: a retried answer must
+        # precede its final transcript. Stable event bodies survive restarts.
+        await asyncio.to_thread(self._persist, url, body, str(payload.get("call_id") or ""))
+        self._wake.set()
 
     async def _send(self, url, body):
         validate_callback_url(self.settings, url)
@@ -312,37 +345,100 @@ class CallbackSender:
         headers = {"Content-Type": "application/json", "x-webhook-token": self.settings.webhook_token}
         if self.settings.webhook_secret:
             headers.update({"x-webhook-timestamp": stamp, "x-webhook-signature": hmac.new(self.settings.webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()})
-        async with httpx.AsyncClient(timeout=self.settings.request_timeout_sec, follow_redirects=False, trust_env=False) as client:
-            response = await client.post(url, content=body, headers=headers)
-            response.raise_for_status()
+        if self.client is None:
+            self.client = httpx.AsyncClient(timeout=self.settings.request_timeout_sec,
+                follow_redirects=False, trust_env=False,
+                limits=httpx.Limits(max_connections=self.concurrency, max_keepalive_connections=self.concurrency))
+        response = await self.client.post(url, content=body, headers=headers)
+        response.raise_for_status()
+        if response.status_code != 200:
+            raise httpx.HTTPStatusError("callback requires durable 200 acknowledgement", request=response.request, response=response)
 
-    async def flush(self):
+    def _ready_rows(self, limit, excluded):
+        placeholders = ",".join("?" for _ in excluded)
+        exclude = f"AND o.id NOT IN ({placeholders})" if excluded else ""
         with self.ledger.transaction() as db:
-            rows = db.execute("SELECT * FROM outbox WHERE due <= ? ORDER BY created LIMIT 50", (time.time(),)).fetchall()
-        for row in rows:
+            return [dict(row) for row in db.execute(f"""
+                SELECT o.* FROM outbox o WHERE o.due <= ? {exclude}
+                AND NOT EXISTS (SELECT 1 FROM outbox earlier
+                    WHERE earlier.stream_key=o.stream_key
+                    AND (earlier.created < o.created OR
+                         (earlier.created=o.created AND earlier.rowid < o.rowid)))
+                ORDER BY o.created,o.rowid LIMIT ?
+            """, (time.time(), *excluded, limit)).fetchall()]
+
+    async def _claim(self, limit):
+        async with self._claim_lock:
+            available = min(limit, self.concurrency - len(self._inflight))
+            if available <= 0:
+                return []
+            rows = await asyncio.to_thread(self._ready_rows, available, tuple(self._inflight))
+            self._inflight.update(row["id"] for row in rows)
+            return rows
+
+    def _complete(self, row, retry_after):
+        with self.ledger.transaction() as db:
+            if retry_after is None:
+                db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
+            else:
+                db.execute("UPDATE outbox SET failures=failures+1,due=? WHERE id=?",
+                           (time.time() + retry_after, row["id"]))
+
+    async def _deliver(self, row):
+        try:
+            retry_after = None
             try:
                 await self._send(row["url"], row["body"])
-            except (httpx.HTTPError, HTTPException):
-                # Do not log URLs, secrets, transcripts or response bodies.
+            except (httpx.HTTPError, HTTPException) as exc:
                 logger.warning("voice callback delivery failed id=%s", row["id"])
-                with self.ledger.transaction() as db:
-                    db.execute("UPDATE outbox SET failures=failures+1,due=? WHERE id=?", (time.time() + min(60, 2 ** min(row["failures"], 6)), row["id"]))
-            else:
-                with self.ledger.transaction() as db:
-                    db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
+                retry_after = min(60, 2 ** min(row["failures"], 6)) + random.uniform(0, .25)
+                if isinstance(exc, httpx.HTTPStatusError):
+                    try:
+                        retry_after = max(retry_after, min(300, float(exc.response.headers.get("Retry-After", "0"))))
+                    except ValueError:
+                        pass
+            await asyncio.to_thread(self._complete, row, retry_after)
+        finally:
+            self._inflight.discard(row["id"])
+            self._wake.set()
+
+    async def flush(self):
+        # Bounded one-shot API retained for diagnostics/tests.
+        rows = await self._claim(self.concurrency)
+        await asyncio.gather(*(self._deliver(row) for row in rows))
+        return len(rows)
 
     async def _run(self):
+        pending = set()
         next_purge = 0.0
-        while True:
-            try:
-                await self.flush()
-                if time.monotonic() >= next_purge:
-                    self.ledger.purge_sensitive_data(retention_days=self.settings.voice_sensitive_retention_days,
-                                                    audit_days=self.settings.voice_audit_retention_days)
-                    next_purge = time.monotonic() + 60
-            except Exception:
-                logger.error("voice callback ledger unavailable")
-            await asyncio.sleep(0.5)
+        try:
+            while True:
+                self._wake.clear()
+                done = {task for task in pending if task.done()}
+                pending.difference_update(done)
+                for task in done:
+                    try:
+                        task.result()
+                    except Exception:
+                        logger.error("voice callback ledger unavailable")
+                try:
+                    rows = await self._claim(self.concurrency)
+                    pending.update(asyncio.create_task(self._deliver(row)) for row in rows)
+                    if time.monotonic() >= next_purge:
+                        await asyncio.to_thread(self.ledger.purge_sensitive_data,
+                            retention_days=self.settings.voice_sensitive_retention_days,
+                            audit_days=self.settings.voice_audit_retention_days)
+                        next_purge = time.monotonic() + 60
+                except Exception:
+                    logger.error("voice callback ledger unavailable")
+                try:
+                    await asyncio.wait_for(self._wake.wait(), max(.01, self.settings.voice_callback_poll_sec))
+                except asyncio.TimeoutError:
+                    pass
+        finally:
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
 
 
 class SecureDriver:
@@ -391,13 +487,15 @@ class SecureDriver:
 
     async def ready(self):
         try:
-            state = self.ledger.summary()
+            state = await asyncio.to_thread(self.ledger.summary)
             return bool(routes(self.settings)) and not state["stopped"] and state["oldest_callback_age_sec"] < self.settings.voice_callback_failure_stop_sec and await self.driver.ready()
         except Exception:
             return False
 
     def policy(self, payload):
         metadata = payload.get("metadata") or {}
+        if self.settings.voice_node_id and metadata.get("gateway_node_id") != self.settings.voice_node_id:
+            raise HTTPException(403, "dial permit targets a different gateway node")
         tenant, attempt = metadata.get("tenant_id"), metadata.get("attempt")
         if type(tenant) is not int or tenant < 1 or type(attempt) is not int or attempt < 1:
             raise HTTPException(403, "dial requires tenant and attempt identity")
@@ -424,13 +522,13 @@ class SecureDriver:
         try:
             return await self._post(action, payload)
         except HTTPException as exc:
-            self.ledger.rejected(str(exc.detail))
+            await asyncio.to_thread(self.ledger.rejected, str(exc.detail))
             raise
 
     async def _post(self, action, payload):
         if action == "dial":
             route = self.policy(payload)
-            row, fresh = self.ledger.admit(payload, route, self.settings)
+            row, fresh = await asyncio.to_thread(self.ledger.admit, payload, route, self.settings)
             if not fresh:
                 return json.loads(row["result"]) if row["result"] else {"result": "pending_reconciliation", "provider_call_id": row["uuid"]}
             outgoing = json.loads(row["payload"])
@@ -438,14 +536,18 @@ class SecureDriver:
             outgoing["_max_duration_sec"] = min(route.max_duration_sec, self.settings.voice_max_duration_sec)
             outgoing["metadata"].update(freeswitch_gateway=route.gateway, caller_id=route.caller_id)
             result = await self.driver.post(action, outgoing)
-            self.ledger.result(row["uuid"], result)
+            await asyncio.to_thread(self.ledger.result, row["uuid"], result)
             return result
         tenant = payload.get("tenant_id")
         if type(tenant) is not int or tenant < 1:
             raise HTTPException(403, "call control requires tenant identity")
-        row = self.ledger.lookup(payload["call_id"], tenant)
+        row = await asyncio.to_thread(self.ledger.lookup, payload["call_id"], tenant)
         if row is None:
             raise HTTPException(404, "call not found in tenant")
+        if payload.get("expected_attempt") is not None and payload["expected_attempt"] != row["attempt"]:
+            raise HTTPException(409, "stale call attempt")
+        if payload.get("provider_call_id") and payload["provider_call_id"] != row["uuid"]:
+            raise HTTPException(409, "stale provider call")
         if action in {"hangup", "status"}:
             if row["state"] == "ended":
                 return {"result": "hungup", "ended": True, "provider_call_id": row["uuid"]}

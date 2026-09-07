@@ -13,6 +13,10 @@ RISK_WORDS = ("投诉", "骚扰", "报警", "删除号码", "别再打")
 
 
 def analyze_call(session: Session, call: CallSession) -> CallAnalysis:
+    if session.get_bind().dialect.name == "sqlite":
+        from sqlalchemy import update
+        session.exec(update(CallSession).where(CallSession.id == call.id).values(updated_at=CallSession.updated_at))
+    session.refresh(call, with_for_update=True)
     turns = session.exec(
         select(SpeechTurn)
         .where(SpeechTurn.call_session_id == call.id, SpeechTurn.is_final.is_(True))
@@ -59,6 +63,19 @@ def analyze_call(session: Session, call: CallSession) -> CallAnalysis:
     ).first()
     if analysis is None:
         analysis = CallAnalysis(tenant_id=call.tenant_id, call_session_id=call.id)
+    automatic = json.dumps(dict(result_code=result_code, sentiment=sentiment, intent=intent,
+                                summary=summary, qa_score=qa_score, qa_flags=qa_flags,
+                                structured=structured), ensure_ascii=False, sort_keys=True)
+    if analysis.review_state == "reviewed":
+        if analysis.automatic_result_json != automatic:
+            analysis.needs_review = True
+        analysis.automatic_result_json = automatic
+        analysis.updated_at = utc_now()
+        session.add(analysis)
+        session.commit()
+        session.refresh(analysis)
+        return analysis
+    analysis.automatic_result_json = automatic
     analysis.result_code = result_code
     analysis.sentiment = sentiment
     analysis.intent = intent

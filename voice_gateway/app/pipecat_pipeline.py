@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import secrets
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from importlib.metadata import version
@@ -517,6 +518,7 @@ class PipecatPipelineManager:
             {
                 "call_id": session.call_id,
                 "event_id": f"pipecat:{session.session_id}:media:{state}:{uuid4()}",
+                "event_sequence": time.time_ns() // 1000,
                 "state": state,
                 "provider_session_id": session.session_id,
                 "playback_id": playback_id,

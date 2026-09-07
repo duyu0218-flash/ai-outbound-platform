@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 import secrets
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, status
@@ -39,7 +40,7 @@ async def require_service_token(request: Request, authorization: str | None = He
         ledger = getattr(driver, "ledger", None)
         if ledger is None or not settings.voice_command_secret:
             raise HTTPException(503, "signed voice command enforcement is not configured")
-        ledger.verify_command(settings.voice_command_secret, request.url.path, await request.body(), request.headers)
+        await asyncio.to_thread(ledger.verify_command, settings.voice_command_secret, request.url.path, await request.body(), request.headers)
 
 
 async def require_security_admin(request: Request, authorization: str | None = Header(default=None)):
@@ -86,6 +87,9 @@ async def ready():
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PBX driver is not ready")
     return {
         "status": "ready",
+        "node_id": settings.voice_node_id,
+        "call_capacity": min(settings.voice_max_concurrent, settings.pipecat_max_active_sessions)
+        if settings.voice_ai_pipeline in {"pipecat", "hybrid"} else settings.voice_max_concurrent,
         "driver": settings.voice_gateway_driver,
         "voice_ai_pipeline": settings.voice_ai_pipeline,
     }

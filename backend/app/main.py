@@ -255,28 +255,24 @@ def _bootstrap_default_tenant() -> None:
         logger.warning("api_key looks like demo value, update in production")
     _validate_production_runtime()
 
-    if engine.dialect.name != "postgresql":
-        with session_scope() as session:
-            _bootstrap_default_tenant_data(session)
-        return
-
-    # Every uvicorn worker runs the lifespan hook. Serialize default tenant and
-    # demo-user seeding so two fresh workers cannot insert the same unique
-    # username concurrently and terminate the whole parent process.
-    with engine.connect() as lock_connection:
-        lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-data'))"))
-        # Session-level advisory locks survive a transaction commit. End the
-        # lock-acquisition transaction before binding a Session so its commit
-        # makes seeded rows visible before another process can acquire the lock.
-        lock_connection.commit()
-        try:
-            with Session(lock_connection) as session:
-                _bootstrap_default_tenant_data(session)
-        finally:
-            if lock_connection.in_transaction():
-                lock_connection.rollback()
-            lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-data'))"))
-            lock_connection.commit()
+    from .db import _bootstrap_engine
+    bootstrap_engine = _bootstrap_engine()
+    try:
+        with bootstrap_engine.connect() as connection:
+            locked = connection.dialect.name == "postgresql" and settings.database_bootstrap_advisory_lock
+            if locked:
+                connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-data'))"))
+                connection.commit()
+            try:
+                with Session(connection) as session:
+                    _bootstrap_default_tenant_data(session)
+            finally:
+                connection.rollback()
+                if locked:
+                    connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-data'))"))
+                    connection.commit()
+    finally:
+        bootstrap_engine.dispose()
 
 
 app.add_middleware(

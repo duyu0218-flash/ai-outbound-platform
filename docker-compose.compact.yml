@@ -1,0 +1,154 @@
+# Standalone Linux-host stack: run once on each of four independent hosts.
+# Managed PostgreSQL/Redis, cloud LB and object storage are external.
+x-app: &app
+  restart: unless-stopped
+  network_mode: host
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 1024
+  tmpfs: [/tmp:rw,nosuid,size=256m]
+  ulimits:
+    nofile: {soft: 65536, hard: 65536}
+  logging:
+    driver: json-file
+    options: {max-size: 20m, max-file: '3'}
+
+x-backend-env: &backend-env
+  ENV: production
+  AUTO_MIGRATE: 'false'
+  DEMO_USERS_ENABLED: 'false'
+  VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+  OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+  MAX_CONCURRENT_CALLS: '500'
+  TERMINAL_ANALYSIS_ASYNC: 'true'
+  TASK_INLINE_EXECUTION_ENABLED: 'false'
+  AI_AGENT_URL: http://127.0.0.1:8001
+  DATABASE_POOL_SIZE: '6'
+  DATABASE_MAX_OVERFLOW: '0'
+  RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+  RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+
+services:
+  control-api:
+    <<: *app
+    image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      <<: *backend-env
+      SCHEDULER_ENABLED: 'false'
+    volumes:
+      - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    cpus: 2
+    mem_limit: 2g
+    command: [uvicorn, 'app.main:app', --host, '${NODE_PRIVATE_IP:?Set node private address}', --port, '8000', --workers, '2', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://${NODE_PRIVATE_IP}:8000/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  task-worker:
+    <<: *app
+    image: ${CONTROL_IMAGE:?Set immutable control image}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      <<: *backend-env
+      SCHEDULER_ENABLED: 'true'
+      DATABASE_POOL_SIZE: '6'
+      TASK_AI_CONCURRENCY: '64'
+      TASK_CALLBACK_CONCURRENCY: '8'
+      TASK_RECORDING_CONCURRENCY: '2'
+      TASK_QUEUE_LANES: call_analysis:2
+      TASK_POLL_INTERVAL_SEC: '0.05'
+      SCHEDULER_BATCH_SIZE: '50'
+    volumes:
+      - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    cpus: 2
+    mem_limit: 4g
+    stop_grace_period: 150s
+    command: [python, -m, app.worker]
+
+  ai-agent:
+    <<: *app
+    image: ${AGENT_IMAGE:?Set immutable agent image}
+    env_file: ${COMPACT_AGENT_ENV_FILE:?Set agent secrets/config file}
+    cpus: 1
+    mem_limit: 2g
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8001']
+
+  voice-gateway:
+    <<: *app
+    image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
+    env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
+    environment:
+      ENV: production
+      VOICE_NODE_ID: ${NODE_ID:?Set unique roster node ID}
+      VOICE_GATEWAY_DRIVER: freeswitch_esl
+      VOICE_AI_PIPELINE: pipecat
+      VOICE_MAX_CONCURRENT: '200'
+      PIPECAT_MAX_ACTIVE_SESSIONS: '200'
+      VOICE_CALLBACK_CONCURRENCY: '32'
+      VOICE_CALLBACK_POLL_SEC: '0.05'
+      VOICE_SECURITY_DB_PATH: /var/lib/voice-security/ledger.db
+      VOICE_SECURITY_ROUTES_FILE: /etc/compact/voice-routes.json
+      FREESWITCH_ESL_HOST: 127.0.0.1
+      FREESWITCH_RECORDING_DIR: /var/lib/freeswitch/recordings
+      PIPECAT_MEDIA_WS_BASE: ws://${NODE_PRIVATE_IP}:8002/v1/pipecat/media
+    volumes:
+      - voice_security:/var/lib/voice-security
+      - ${COMPACT_ROUTES_FILE:?Set independently approved tenant/line policies}:/etc/compact/voice-routes.json:ro
+      - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings:ro
+    cpus: 4
+    mem_limit: 8g
+    stop_grace_period: 30s
+    command: [uvicorn, 'app.main:app', --host, '${NODE_PRIVATE_IP}', --port, '8002', --workers, '1', --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://${NODE_PRIVATE_IP}:8002/readyz',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  freeswitch:
+    restart: unless-stopped
+    network_mode: host
+    image: ${FREESWITCH_IMAGE:?Set tested FreeSWITCH image with compatible audio module}
+    cpus: 6
+    mem_limit: 4g
+    pids_limit: 2048
+    ulimits:
+      nofile: {soft: 65536, hard: 65536}
+    volumes:
+      - ${FREESWITCH_CONFIG_DIR:?Set qualified SIP/dialplan/media configuration}:/etc/freeswitch:ro
+      - ${FREESWITCH_RECORDING_DIR:?Set node recording path}:/var/lib/freeswitch/recordings
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: 20m, max-file: '3'}
+
+  recording-adapter:
+    <<: *app
+    image: ${RECORDING_IMAGE:?Set immutable recording adapter image}
+    env_file: ${COMPACT_RECORDING_ENV_FILE:?Set object-storage credentials/config file}
+    environment:
+      ENV: production
+      RECORDING_SPOOL_DIR: /var/spool/recordings
+      RECORDING_INGEST_CONCURRENCY: '1'
+    volumes: [recording_spool:/var/spool/recordings]
+    cpus: 0.5
+    mem_limit: 1g
+    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8003']
+
+  # Optional SIP edge on node-1 and node-2; never run an unconfigured router.
+  sip-edge:
+    profiles: [sip-edge]
+    <<: *app
+    image: ${OPENSIPS_IMAGE:-registry.example.invalid/outbound/sip-edge:configure-before-use}
+    volumes:
+      - ${OPENSIPS_CONFIG_FILE:-./deploy/compact/opensips.cfg}:/etc/opensips/opensips.cfg:ro
+    cpus: 0.5
+    mem_limit: 512m
+
+volumes:
+  voice_security:
+  recording_spool:
