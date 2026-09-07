@@ -25,20 +25,55 @@ class ObservedQueuePool(QueuePool):
 
 
 engine_options = {"echo": False, "poolclass": ObservedQueuePool}
-if settings.database_url.startswith("sqlite"):
-    engine_options["connect_args"] = {"check_same_thread": False}
-else:
-    engine_options.update(
-        {
-            "pool_pre_ping": True,
-            "pool_size": max(1, settings.database_pool_size),
-            "max_overflow": max(0, settings.database_max_overflow),
-            "pool_timeout": max(1, settings.database_pool_timeout_sec),
-            "pool_recycle": max(60, settings.database_pool_recycle_sec),
-        }
-    )
 
-engine = create_engine(settings.database_url, **engine_options)
+def _build_engine_options(database_url: str) -> dict:
+    opts = {"echo": False, "poolclass": ObservedQueuePool}
+    if database_url.startswith("sqlite"):
+        opts["connect_args"] = {"check_same_thread": False}
+    else:
+        opts.update(
+            {
+                "pool_pre_ping": True,
+                "pool_size": max(1, settings.database_pool_size),
+                "max_overflow": max(0, settings.database_max_overflow),
+                "pool_timeout": max(1, settings.database_pool_timeout_sec),
+                "pool_recycle": max(60, settings.database_pool_recycle_sec),
+            }
+        )
+    return opts
+
+
+def create_engine_for_url(database_url: str):
+    return create_engine(database_url, **_build_engine_options(database_url))
+
+
+def get_database_url_for_api() -> str:
+    return settings.database_url_for_api()
+
+
+def get_database_url_for_bootstrap() -> str:
+    return settings.database_url_for_bootstrap()
+
+
+def _build_lock_key(lock_name: str | None, fallback: str) -> str:
+    return (lock_name or fallback).strip() or fallback
+
+
+def _is_postgresql_url(database_url: str) -> bool:
+    return database_url.startswith(("postgresql://", "postgresql+psycopg://"))
+
+
+def _acquire_advisory_lock(connection, lock_name: str, *, enabled: bool) -> None:
+    if enabled:
+        connection.execute(text("SELECT pg_advisory_lock(hashtext(:lock_name))"), {"lock_name": lock_name})
+
+
+def _release_advisory_lock(connection, lock_name: str, *, enabled: bool) -> None:
+    if enabled:
+        connection.execute(text("SELECT pg_advisory_unlock(hashtext(:lock_name))"), {"lock_name": lock_name})
+
+
+engine = create_engine_for_url(get_database_url_for_api())
 
 event.listen(engine, "checkout", lambda *args: record_db_checkout())
 event.listen(engine, "checkin", lambda *args: record_db_checkin())
@@ -82,28 +117,46 @@ def create_db_and_tables(*, force: bool = False) -> None:
         verify_database_schema()
         return
 
-    if settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-        # Every uvicorn worker runs lifespan. Serialize initial DDL so two fresh
-        # workers cannot race while creating PostgreSQL enum types or tables.
-        with engine.connect() as lock_connection:
-            lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-ddl'))"))
+    bootstrap_url = get_database_url_for_bootstrap()
+    bootstrap_engine = _bootstrap_engine()
+
+    def _run_initialization(connection):
+        SQLModel.metadata.create_all(connection)
+        apply_runtime_migrations(connection)
+
+    if _is_postgresql_url(bootstrap_url):
+        # Every worker lifespan can run bootstrap code during startup.
+        # Use advisory lock on the same bootstrap connection so DDL and enum
+        # updates are serialized safely across startup races.
+        lock_name = _build_lock_key(settings.database_bootstrap_lock_name, "ai-outbound-bootstrap-ddl")
+        with bootstrap_engine.connect() as bootstrap_connection:
+            _acquire_advisory_lock(bootstrap_connection, lock_name, enabled=settings.database_bootstrap_advisory_lock)
             try:
-                SQLModel.metadata.create_all(engine)
-                apply_runtime_migrations(engine)
+                with bootstrap_connection.begin():
+                    _run_initialization(bootstrap_connection)
             finally:
-                lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-ddl'))"))
-                lock_connection.commit()
+                _release_advisory_lock(
+                    bootstrap_connection,
+                    lock_name,
+                    enabled=settings.database_bootstrap_advisory_lock,
+                )
         return
-    SQLModel.metadata.create_all(engine)
-    apply_runtime_migrations(engine)
+
+    with bootstrap_engine.begin() as bootstrap_connection:
+        _run_initialization(bootstrap_connection)
 
 
 def get_engine_url() -> str:
-    return settings.database_url
+    return get_database_url_for_api()
 
 
 def _acquire_connection():
     return engine.connect()
+
+
+def _bootstrap_engine():
+    bootstrap_url = get_database_url_for_bootstrap()
+    return create_engine_for_url(bootstrap_url)
 
 
 @contextmanager
@@ -153,11 +206,13 @@ class WebhookSession(Session):
             return
         try:
             if success:
-                self.commit()
-                if self.outer_transaction is not None:
+                if self.in_transaction():
+                    self.commit()
+                if self.outer_transaction is not None and self.outer_transaction.is_active:
                     self.outer_transaction.commit()
             else:
-                self.rollback()
+                if self.outer_transaction is not None and self.outer_transaction.is_active:
+                    self.outer_transaction.rollback()
         finally:
             self.close()
             if self.outer_connection is not None:
@@ -175,10 +230,12 @@ def webhook_transaction(func):
         with execution_threads():
             try:
                 result = func(*args, **kwargs)
+            except BaseException:
+                session.finish(success=False)
+                raise
+            else:
                 session.finish(success=True)
                 return result
-            finally:
-                session.finish(success=False)
     return wrapped
 
 
