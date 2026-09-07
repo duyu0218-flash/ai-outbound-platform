@@ -11,7 +11,7 @@ from sqlmodel import select
 from ..clock import utc_now
 from ..config import get_settings
 from ..db import session_scope
-from ..models import CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState, TaskOutbox, SmsLog
+from ..models import CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState, TaskOutbox, TaskReceipt, SmsLog
 from .admin_settings import get_admin_int_setting
 from .task_queue import enqueue_task
 
@@ -247,8 +247,50 @@ def run_retention_cycle() -> dict[str, int]:
         from .leases import assert_execution_permitted
         assert_execution_permitted()
         counts = purge_expired_voice_data(batch_size=max(1,settings.retention_batch_size))
+        counts.update(archive_expired_operational_rows(batch_size=max(1, settings.retention_batch_size)))
         for key, value in counts.items():
             total[key] = total.get(key,0) + value
         if not any(value >= settings.retention_batch_size for value in counts.values()):
             break
     return total
+
+
+def archive_expired_operational_rows(*, batch_size=500):
+    """Only already-redacted, terminal history older than 180 days is compacted.
+
+    WebhookEventIngest remains the lifecycle replay tombstone. Task receipts
+    preserve task identity forever without payloads or active-queue indexes.
+    Failed/dead/processing work is never silently purged.
+    """
+    from .task_queue import lock_task_identity
+    from .call_service import TERMINAL_STATUSES
+    cutoff = utc_now() - timedelta(days=180)
+    counts = {"archived_tasks": 0, "expired_events": 0, "expired_metrics": 0}
+    with session_scope() as session:
+        expired = (CallSession.finished_at <= cutoff, CallSession.status.in_(TERMINAL_STATUSES),
+                   CallSession.phone.like('redacted:%'))
+        candidates = session.exec(select(TaskOutbox.id, TaskOutbox.idempotency_key).join(CallSession,
+            func.replace(TaskOutbox.aggregate_id, '-', '') == func.replace(cast(CallSession.id, String), '-', '')
+        ).where(*expired, TaskOutbox.state == TaskState.COMPLETED, TaskOutbox.updated_at <= cutoff,
+                TaskOutbox.tenant_id == CallSession.tenant_id)
+            .order_by(TaskOutbox.updated_at).limit(batch_size)).all()
+        session.rollback()
+        for task_id, key in candidates:
+            lock_task_identity(session, key)
+            task = session.exec(select(TaskOutbox).where(TaskOutbox.id == task_id).with_for_update()).first()
+            if task is not None and task.state == TaskState.COMPLETED and task.updated_at <= cutoff:
+                if session.get(TaskReceipt, task.id) is None:
+                    session.add(TaskReceipt(id=task.id, tenant_id=task.tenant_id, task_type=task.task_type,
+                        aggregate_id=task.aggregate_id, idempotency_key=task.idempotency_key,
+                        completed_at=task.updated_at))
+                session.delete(task)
+                counts['archived_tasks'] += 1
+            session.commit()
+        for model, key in ((CallEvent, 'expired_events'), (CallMetric, 'expired_metrics')):
+            rows = session.exec(select(model).join(CallSession, model.call_session_id == CallSession.id)
+                .where(*expired, model.created_at <= cutoff).order_by(model.created_at).limit(batch_size)).all()
+            for row in rows:
+                session.delete(row)
+                counts[key] += 1
+            session.commit()
+    return counts

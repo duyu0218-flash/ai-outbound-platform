@@ -99,6 +99,20 @@ def validate_security_settings(settings) -> None:
     if parsed.scheme != "https" and not settings.voice_callback_allow_private_http:
         raise RuntimeError("internal callback HTTP requires explicit VOICE_CALLBACK_ALLOW_PRIVATE_HTTP=true")
     configured_routes = routes(settings)  # Empty map deliberately permits NO calls.
+    if settings.voice_recording_source_base_url:
+        source = urlsplit(settings.voice_recording_source_base_url)
+        if (source.scheme not in {"http", "https"} or not source.hostname or source.username or source.password
+                or source.path not in {"", "/"} or source.query or source.fragment):
+            raise RuntimeError("VOICE_RECORDING_SOURCE_BASE_URL must be this node's trusted HTTP origin")
+    agent_roster = json.loads(settings.voice_agent_registrars_json)
+    if not isinstance(agent_roster, dict) or any(
+        not re.fullmatch(r"[1-9][0-9]*:[1-9][0-9]*", key)
+        or not isinstance(value, str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*:[0-9]{1,5}", value)
+        or not 1 <= int(value.rsplit(":", 1)[1]) <= 65535
+        for key, value in agent_roster.items()
+    ):
+        raise RuntimeError("VOICE_AGENT_REGISTRARS_JSON requires tenant:agent -> trusted host:port")
     if configured_routes and settings.freeswitch_dialplan_context != "agent-restricted":
         raise RuntimeError("real dialing requires FREESWITCH_DIALPLAN_CONTEXT=agent-restricted")
     if not 1 <= settings.voice_callback_failure_stop_sec <= 60:
@@ -125,13 +139,14 @@ class Ledger:
                 yield db
 
     @contextmanager
-    def _transaction(self):
+    def _transaction(self, *, readonly=False):
         if not self.path:
             raise HTTPException(503, "voice security ledger is not configured")
         db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
         db.row_factory = sqlite3.Row
         try:
-            db.execute("PRAGMA journal_mode=WAL")
+            if not readonly:
+                db.execute("PRAGMA journal_mode=WAL")
             db.execute("PRAGMA synchronous=FULL")
             if not self.initialized:
                 db.executescript("""
@@ -163,7 +178,7 @@ class Ledger:
                                    (str(payload.get("call_id") or row["id"]), row["id"]))
                 db.execute("CREATE INDEX IF NOT EXISTS outbox_stream_order ON outbox(stream_key,created)")
                 self.initialized = True
-            db.execute("BEGIN IMMEDIATE")
+            db.execute("BEGIN" if readonly else "BEGIN IMMEDIATE")
             yield db
             db.execute("COMMIT")
         except BaseException:
@@ -172,6 +187,21 @@ class Ledger:
             raise
         finally:
             db.close()
+
+    @contextmanager
+    def read(self):
+        # Bootstrap is serialized once; WAL readers do not wait for the writer.
+        if not self.initialized:
+            with self.transaction():
+                pass
+        with self._transaction(readonly=True) as db:
+            yield db
+
+    def overdue(self):
+        with self.read() as db:
+            return [dict(row) for row in db.execute(
+                "SELECT call_id,tenant FROM attempts WHERE state != 'ended' AND deadline <= ? LIMIT 200",
+                (time.time(),)).fetchall()]
 
     def verify_command(self, secret: str, path: str, body: bytes, headers) -> None:
         stamp, nonce, signature = (headers.get(k, "") for k in ("x-voice-timestamp", "x-voice-nonce", "x-voice-signature"))
@@ -194,7 +224,7 @@ class Ledger:
             db.execute("INSERT INTO audit(at,action,detail) VALUES (?,?,?)", (time.time(), "stop" if stopped else "resume", reason[:300]))
 
     def summary(self) -> dict:
-        with self.transaction() as db:
+        with self.read() as db:
             flag = db.execute("SELECT value FROM flags WHERE key='stopped'").fetchone()
             pending = db.execute("SELECT COUNT(*), MIN(created) FROM outbox").fetchone()
             return {"stopped": bool(flag and flag[0] == "1"), "pending_callbacks": pending[0],
@@ -236,7 +266,12 @@ class Ledger:
                        route.hour_budget_minor, route.day_budget_minor)]
             for where, args, concurrency, cps, daily, hourly_budget, daily_budget in scopes:
                 count = lambda condition, params=(): db.execute(f"SELECT COUNT(*) FROM attempts WHERE {where} AND ({condition})", (*args, *params)).fetchone()[0]
-                if count("state != 'ended'") >= concurrency or count("created >= ?", (now - 1,)) >= cps or count("created >= ?", (day,)) >= daily:
+                if count("state != 'ended'") >= concurrency or count("created >= ?", (now - 1,)) >= cps:
+                    # Emitted only BEFORE intent is committed or ESL is called.
+                    # The control plane may requeue without consuming an attempt.
+                    raise HTTPException(429, "voice concurrency/CPS hard limit reached", headers={
+                        "X-Voice-Dial-Admitted": "false", "Retry-After": "1"})
+                if count("created >= ?", (day,)) >= daily:
                     raise HTTPException(429, "voice call/concurrency/CPS hard limit reached")
                 for start, budget in ((hour, hourly_budget), (day, daily_budget)):
                     spent = db.execute(f"SELECT COALESCE(SUM(cost),0) FROM attempts WHERE {where} AND (created >= ? OR ended >= ? OR state != 'ended')", (*args, start, start)).fetchone()[0]
@@ -256,12 +291,12 @@ class Ledger:
             db.execute("UPDATE attempts SET result=?, state=CASE WHEN state='ended' THEN state ELSE 'active' END WHERE uuid=?", (canonical(result).decode(), uuid))
 
     def lookup(self, call_id: str, tenant: int) -> dict | None:
-        with self.transaction() as db:
+        with self.read() as db:
             row = db.execute("SELECT * FROM attempts WHERE call_id=? AND tenant=? ORDER BY attempt DESC LIMIT 1", (call_id, tenant)).fetchone()
             return dict(row) if row else None
 
     def known_uuid(self, uuid: str) -> bool:
-        with self.transaction() as db:
+        with self.read() as db:
             return db.execute("SELECT 1 FROM attempts WHERE uuid=? AND state != 'ended'", (uuid,)).fetchone() is not None
 
     def mark_seen(self, uuid: str):
@@ -357,7 +392,7 @@ class CallbackSender:
     def _ready_rows(self, limit, excluded):
         placeholders = ",".join("?" for _ in excluded)
         exclude = f"AND o.id NOT IN ({placeholders})" if excluded else ""
-        with self.ledger.transaction() as db:
+        with self.ledger.read() as db:
             return [dict(row) for row in db.execute(f"""
                 SELECT o.* FROM outbox o WHERE o.due <= ? {exclude}
                 AND NOT EXISTS (SELECT 1 FROM outbox earlier
@@ -461,7 +496,7 @@ class SecureDriver:
         self.lock_file = open(self.settings.voice_security_db_path + ".lock", "a")
         try:
             fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self.ledger.summary()
+            await asyncio.to_thread(self.ledger.summary)
             await self.driver.start()
             await self.sender.start()
             self.reconcile_task = asyncio.create_task(self._reconcile(), name="voice-pbx-reconciliation")
@@ -499,6 +534,11 @@ class SecureDriver:
         tenant, attempt = metadata.get("tenant_id"), metadata.get("attempt")
         if type(tenant) is not int or tenant < 1 or type(attempt) is not int or attempt < 1:
             raise HTTPException(403, "dial requires tenant and attempt identity")
+        if metadata.get("mode") == "human_only" and metadata.get("human_agent_id"):
+            try:
+                self.driver._agent_destination(tenant, int(metadata["human_agent_id"]))
+            except (ValueError, TypeError, KeyError):
+                raise HTTPException(400, "approved agent registrar route is required") from None
         route = routes(self.settings).get(f"{tenant}:{metadata.get('telephony_line_id') or 0}")
         if not route:
             raise HTTPException(403, "tenant line is not authorized")
@@ -548,6 +588,11 @@ class SecureDriver:
             raise HTTPException(409, "stale call attempt")
         if payload.get("provider_call_id") and payload["provider_call_id"] != row["uuid"]:
             raise HTTPException(409, "stale provider call")
+        if row["state"] != "ended" and action in {"speak", "hangup"} and payload.get("expected_speech_event_id") is not None:
+            manager = self.driver.pipecat_manager
+            media = manager.sessions_by_call.get(payload["call_id"]) if manager else None
+            if media is None or media.latest_final_event_id != payload["expected_speech_event_id"]:
+                raise HTTPException(409, "stale speech generation")
         if action in {"hangup", "status"}:
             if row["state"] == "ended":
                 return {"result": "hungup", "ended": True, "provider_call_id": row["uuid"]}
@@ -559,14 +604,14 @@ class SecureDriver:
                     pass
             exists = (await self.driver.client.api(f"uuid_exists {row['uuid']}")).strip().lower()
             if exists == "true":
-                self.ledger.mark_seen(row["uuid"])
+                await asyncio.to_thread(self.ledger.mark_seen, row["uuid"])
             # A negative lookup during asynchronous originate is NOT proof of
             # termination: keep the reservation until the full safety deadline.
             # An originate job may still be queued inside PBX. Absence alone
             # is NEVER proof that an unobserved job cannot start later.
             ended = exists == "false" and bool(row["observed"]) and time.time() >= row["deadline"]
             if ended:
-                self.ledger.finish(row["uuid"])
+                await asyncio.to_thread(self.ledger.finish, row["uuid"])
                 binding = self.driver.calls_by_uuid.get(row["uuid"])
                 if binding is not None:
                     await self.driver._stop_ai_media(binding)
@@ -585,8 +630,7 @@ class SecureDriver:
     async def _reconcile(self):
         while True:
             try:
-                with self.ledger.transaction() as db:
-                    rows = db.execute("SELECT call_id,tenant FROM attempts WHERE state != 'ended' AND deadline <= ?", (time.time(),)).fetchall()
+                rows = await asyncio.to_thread(self.ledger.overdue)
                 for row in rows:
                     await self.post("hangup", {"call_id": row["call_id"], "tenant_id": row["tenant"]})
             except Exception:

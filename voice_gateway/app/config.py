@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     voice_callback_concurrency: int = 16
     voice_callback_poll_sec: float = 0.1
     voice_node_id: str = ""
+    # Approved tenant:agent -> registrar host:port. Cluster handoff must have an
+    # explicit route; HTTP call ownership alone cannot locate a SIP registration.
+    voice_agent_registrars_json: str = "{}"
+    voice_recording_source_base_url: str = ""
     voice_max_concurrent: int = 20
     voice_cps: int = 2
     voice_daily_call_limit: int = 1000

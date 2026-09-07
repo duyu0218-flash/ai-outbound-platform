@@ -148,12 +148,13 @@ def test_pipecat_interim_transcript_does_not_trigger_final_turn():
             ),
             FrameDirection.DOWNSTREAM,
         )
-        assert [item["is_final"] for item in captured] == [False, True]
-        assert [item["barge_in"] for item in captured] == [True, True]
-        assert captured[1]["event_id"] == "aliyun-final-1"
-        assert captured[1]["confidence"] == 0.92
-        assert (captured[1]["start_ms"], captured[1]["end_ms"]) == (100, 900)
-        assert captured[1]["latency_ms"] == 75
+        assert [item["is_final"] for item in captured] == [True]
+        assert processor.latest_partial == ""
+        assert [item["barge_in"] for item in captured] == [False]
+        assert captured[0]["event_id"] == "aliyun-final-1"
+        assert captured[0]["confidence"] == 0.92
+        assert (captured[0]["start_ms"], captured[0]["end_ms"]) == (100, 900)
+        assert captured[0]["latency_ms"] == 75
         assert processor.user_is_speaking is False
 
     asyncio.run(scenario())

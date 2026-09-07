@@ -1,5 +1,26 @@
 # 四台应用服务器部署
 
+本轮代码修复与验证边界见 [P1/P2 修复验收记录](../../docs/reviews/20260907-capacity-p1-p2-fixes.md)。以下新增配置必须合并到各节点实际配置，不会自动覆盖租户已保存策略。
+
+## 本轮升级新增配置
+
+- `nodes.json` 每个启用节点需要明确 `cps`，不得高于该节点/全部授权线路中的最低 CPS。示例 2 只是安全起始值；生产清单不允许省略。
+- 网关 `voice.env` 配置 `VOICE_AGENT_REGISTRARS_JSON`，例如 `{"1:23":"10.20.0.12:5060"}` 表示租户 1 的坐席 23 真正注册在该 PBX。必须同时验证浏览器注册位置、目标 PBX 的私网 SIP 鉴权/ACL 和 `agent-restricted` 拨号计划。缺少集群坐席路由会明确拒绝，不会退回本地用户查找。
+- compact 为网关设置专有 `VOICE_RECORDING_SOURCE_BASE_URL=http://${NODE_PRIVATE_IP}:8002`，复用现有只读录音目录，提供带节点签名的 24 小时下载链接。录音适配器 `RECORDING_SOURCE_ALLOWED_HOSTS` 必须包括四台实际节点地址；公网或跨不可信网络须改为节点专有 HTTPS 地址。适配器并发 2，节点下载并发 2；长期故障导致签名过期需要重新签发或补录。
+- 默认新增 `dial_call:8` 与 `after_playback:4` 后台执行通道；等待播放不再占用 AI 槽。静态页面/资源使用独立有界名额 32；数据库请求名额仍维持原值。
+- 新迁移 `20260907_capacity_bottlenecks.sql` 增加 CPS 预留字段、TaskReceipt 及索引。完整升级先验证迁移和备份恢复，再升级网关/受限拨号计划、worker 与 API；不得只更新 API 而保留不认识新任务类型的 worker。
+
+通过管理凭据读取真实生效的网关策略并预检（下列时长和接通率仅为命令示例，应换成实测值）：
+
+```sh
+python scripts/capacity-preflight.py --roster /etc/ai-outbound/nodes.json \
+  --admin-token-file /secure/voice-admin-token --scope 1:0 --target 500 \
+  --mean-duration-sec 180 --answer-rate 0.5 --hours 8 \
+  --turn-interval-sec 4 --mean-ai-task-sec 3 --ai-slots-per-host 64
+```
+
+预检同时计算 N-1 与 AI 70% 利用率预算。上例会因 AI 槽位不足而失败，这是预期行为；应优化实测耗时或经资源/配额验证后调整槽位。`policy_check_passed` 也不代表真实音频已验收，输出中未验证项目必须逐项完成。
+
 当前部署目标为：四台独立 Linux 宿主机，每台包含 FreeSWITCH、网关、Pipecat、API、AI Agent 和后台任务；PostgreSQL、Redis、负载均衡、录音对象存储使用托管服务。单节点 200 路、全平台 500 路均为待真实媒体验收的目标。
 
 ## 配置与发布入口

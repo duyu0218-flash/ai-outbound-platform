@@ -153,6 +153,7 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
         realtime.provider_session_id = None
     realtime.attempt = attempt
     realtime.last_event_sequence = payload.event_sequence if payload.event_sequence is not None else realtime.last_event_sequence
+    previous_playback_id = realtime.playback_id
     realtime.state = payload.state
     if payload.attempt is not None:
         realtime.attempt = payload.attempt
@@ -166,6 +167,18 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
         realtime.started_at = utc_now()
     if payload.state == RealtimeState.CLOSED:
         realtime.ended_at = utc_now()
+    if payload.state in {RealtimeState.LISTENING, RealtimeState.INTERRUPTED, RealtimeState.CLOSED}:
+        from ..models import TaskOutbox, TaskState
+        pending = session.exec(select(TaskOutbox).where(
+            TaskOutbox.aggregate_id == str(call.id), TaskOutbox.task_type == "after_playback",
+            TaskOutbox.state == TaskState.PENDING).with_for_update()).all()
+        for task in pending:
+            continuation = json.loads(task.payload_json)
+            if (continuation.get("attempt") == attempt
+                    and continuation.get("playback_id") == previous_playback_id
+                    and realtime.playback_id != previous_playback_id):
+                task.available_at = utc_now()
+                session.add(task)
     session.add(realtime)
     session.add(
         CallMetric(

@@ -139,6 +139,7 @@ class Settings(BaseSettings):
     request_admission_retry_after_sec: int = 1
     request_admission_metrics_inflight: int = 1
     request_admission_stream_inflight: int = 64
+    request_admission_static_inflight: int = 32
     agent_snapshot_concurrency: int = 2
     trusted_hosts: str = ""
     trusted_proxy_ips: str = "127.0.0.1,::1"
@@ -206,6 +207,8 @@ class Settings(BaseSettings):
             "business_callback": max(1, self.task_callback_concurrency),
             "recording": max(1, self.task_recording_concurrency),
             "call_analysis": 2,
+            "after_playback": 4,
+            "dial_call": 8,
         }
         raw = self.task_queue_lanes.strip()
         if raw:

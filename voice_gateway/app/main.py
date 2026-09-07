@@ -4,7 +4,7 @@ import secrets
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, status
 from pydantic import BaseModel, Field
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, FileResponse
 
 from .config import get_settings
 from .drivers import make_driver
@@ -18,15 +18,44 @@ settings = get_settings()
 async def lifespan(_: FastAPI):
     settings.validate_runtime()
     await driver.start()
+    async def measure_lag():
+        global event_loop_lag_sec
+        loop = asyncio.get_running_loop()
+        while True:
+            started = loop.time()
+            await asyncio.sleep(.1)
+            event_loop_lag_sec = max(0, loop.time() - started - .1)
+    lag_task = asyncio.create_task(measure_lag())
     try:
         yield
     finally:
+        lag_task.cancel()
+        await asyncio.gather(lag_task, return_exceptions=True)
         await driver.stop()
 
 
 app = FastAPI(title="AI Outbound Voice Gateway", version="0.1.0", lifespan=lifespan)
 driver = make_driver(settings)
 draining = False
+event_loop_lag_sec = 0.0
+recording_download_slots = asyncio.Semaphore(2)
+
+
+class RecordingResponse(FileResponse):
+    async def __call__(self, scope, receive, send):
+        from starlette.responses import JSONResponse
+        if recording_download_slots.locked():
+            return await JSONResponse({"error": "recording download capacity"}, status_code=503,
+                                      headers={"Retry-After": "1"})(scope, receive, send)
+        async with recording_download_slots:
+            await super().__call__(scope, receive, send)
+
+
+@app.get("/v1/recordings/{filename}")
+async def recording_source(filename: str, expires: int, signature: str):
+    from .recording_source import authorized_path
+    path = await asyncio.to_thread(authorized_path, settings, filename, expires, signature)
+    return RecordingResponse(path, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
 
 async def require_service_token(request: Request, authorization: str | None = Header(default=None)) -> None:
@@ -119,8 +148,18 @@ async def metrics() -> PlainTextResponse:
         "",
     ])
     ledger = getattr(driver, "ledger", None)
+    body += f"# TYPE ai_outbound_voice_event_loop_lag_seconds gauge\nai_outbound_voice_event_loop_lag_seconds {event_loop_lag_sec}\n"
+    event_metrics = getattr(driver, "event_metrics", None)
+    if event_metrics:
+        for name, value in event_metrics().items():
+            kind = "counter" if name.endswith("_total") else "gauge"
+            body += f"# TYPE ai_outbound_voice_esl_{name} {kind}\nai_outbound_voice_esl_{name} {value}\n"
+    if pipecat_manager is not None:
+        for name, value in getattr(pipecat_manager, "metrics", {}).items():
+            kind = "counter" if name.endswith(("_total", "_count", "_sum")) else "gauge"
+            body += f"# TYPE ai_outbound_voice_{name} {kind}\nai_outbound_voice_{name} {value}\n"
     if ledger is not None:
-        summary = ledger.summary()
+        summary = await asyncio.to_thread(ledger.summary)
         for name, value in summary.items():
             metric_type = "counter" if name == "rejected_commands" else "gauge"
             body += f"# TYPE ai_outbound_voice_security_{name} {metric_type}\nai_outbound_voice_security_{name} {int(value) if isinstance(value, bool) else value}\n"
@@ -166,8 +205,8 @@ async def security_stop(payload: SecurityStopRequest):
     ledger = getattr(driver, "ledger", None)
     if ledger is None:
         raise HTTPException(409, "security ledger requires real gateway driver")
-    ledger.set_stopped(payload.stopped, payload.reason)
-    return ledger.summary()
+    await asyncio.to_thread(ledger.set_stopped, payload.stopped, payload.reason)
+    return await asyncio.to_thread(ledger.summary)
 
 
 @app.get("/v1/admin/security", dependencies=[Depends(require_security_admin)])
@@ -175,7 +214,23 @@ async def security_status():
     ledger = getattr(driver, "ledger", None)
     if ledger is None:
         raise HTTPException(409, "security ledger requires real gateway driver")
-    return ledger.summary()
+    return await asyncio.to_thread(ledger.summary)
+
+
+@app.get("/v1/admin/capacity", dependencies=[Depends(require_security_admin)])
+async def capacity_policy():
+    """Effective approved limits only; no credentials or assumed PBX capacity."""
+    from .security import routes
+    policies = await asyncio.to_thread(routes, settings)
+    return {"node_id": settings.voice_node_id,
+            "call_capacity": min(settings.voice_max_concurrent, settings.pipecat_max_active_sessions),
+            "cps": settings.voice_cps, "daily_calls": settings.voice_daily_call_limit,
+            "hour_budget_minor": settings.voice_hour_budget_minor,
+            "day_budget_minor": settings.voice_day_budget_minor,
+            "routes": {key: {name: getattr(policy, name) for name in (
+                "max_concurrent", "cps", "calls_per_day", "hour_budget_minor", "day_budget_minor",
+                "max_duration_sec", "rate_minor_per_minute", "billing_multiplier")}
+                for key, policy in policies.items()}}
 
 
 async def _media_action(action: str, payload: CallRequest | SpeakRequest):

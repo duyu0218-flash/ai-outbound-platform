@@ -5,6 +5,7 @@ import time
 import hashlib
 import json
 import logging
+import threading
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -16,11 +17,28 @@ from ..clock import utc_now
 from ..config import get_settings
 from .leases import monitored_lease, assert_execution_permitted, LeaseLost
 from ..db import session_scope
-from ..models import CallSession, CallStatus, RecordingAsset, TaskOutbox, TaskState
+from ..models import CallSession, CallStatus, RecordingAsset, TaskOutbox, TaskState, TaskReceipt, Tenant
 from .runtime_metrics import record_outbox_duplicate
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+_claim_cursors = {}
+_claim_cursor_lock = threading.Lock()
+
+
+class TaskDeferred(Exception):
+    """No external admission occurred; retry later without spending an attempt."""
+
+
+def lock_task_identity(session, key):
+    # Shared by enqueue and archive: an insert cannot slip between archiving
+    # the completed row and recording its replay tombstone.
+    if session.get_bind().dialect.name == 'postgresql':
+        from sqlalchemy import text
+        value = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], 'big', signed=True)
+        session.execute(text('SELECT pg_advisory_xact_lock(:key)'), {'key': value})
+    else:
+        session.exec(update(TaskOutbox).where(TaskOutbox.id == UUID(int=0)).values(updated_at=TaskOutbox.updated_at))
 
 
 def enqueue_task(
@@ -33,12 +51,36 @@ def enqueue_task(
     payload: dict,
     max_attempts: int = 5,
     revive_dead: bool = False,
+    available_at=None,
 ) -> TaskOutbox:
+    lock_task_identity(session, idempotency_key)
+    receipt = session.exec(select(TaskReceipt).where(TaskReceipt.idempotency_key == idempotency_key)).first()
+    if receipt is not None:
+        record_outbox_duplicate(task_type)
+        return TaskOutbox(id=receipt.id, tenant_id=receipt.tenant_id, task_type=receipt.task_type,
+            aggregate_id=receipt.aggregate_id, idempotency_key=receipt.idempotency_key,
+            state=TaskState.COMPLETED, payload_json='{}')
     if task_type == "ai_turn" and "attempt" not in payload:
         call = session.get(CallSession, UUID(aggregate_id))
         if call is None or call.tenant_id != tenant_id:
             raise ValueError("AI task requires an existing tenant call")
         payload = {**payload, "attempt": call.attempts}
+    if task_type == "ai_turn" and type(payload.get("turn_sequence")) is int:
+        older = session.exec(select(TaskOutbox).where(
+            TaskOutbox.tenant_id == tenant_id, TaskOutbox.aggregate_id == aggregate_id,
+            TaskOutbox.task_type == "ai_turn",
+            TaskOutbox.state.in_([TaskState.PENDING, TaskState.FAILED]),
+        ).with_for_update()).all()
+        for previous in older:
+            old = json.loads(previous.payload_json)
+            if (old.get("attempt") == payload.get("attempt")
+                    and type(old.get("turn_sequence")) is int
+                    and old["turn_sequence"] < payload["turn_sequence"]):
+                previous.state = TaskState.COMPLETED
+                previous.last_error = "superseded by newer final transcript"
+                previous.updated_at = utc_now()
+                session.add(previous)
+        session.flush()
     existing = session.exec(select(TaskOutbox).where(TaskOutbox.idempotency_key == idempotency_key)).first()
     if existing is not None:
         if not revive_dead or existing.state != TaskState.DEAD:
@@ -64,6 +106,7 @@ def enqueue_task(
         idempotency_key=idempotency_key,
         payload_json=json.dumps(payload, ensure_ascii=False),
         max_attempts=max(1, max_attempts),
+        available_at=available_at or utc_now(),
     )
     session.add(task)
     try:
@@ -116,7 +159,11 @@ def enqueue_business_callback(
     event_type: str,
     data: dict,
     idempotency_key: str | None = None,
-) -> TaskOutbox:
+) -> TaskOutbox | None:
+    from .admin_settings import get_admin_setting
+    config = get_admin_setting(session, tenant_id, "integration")
+    if not config.get("callback_enabled") or not str(config.get("webhook_base_url") or "").strip():
+        return None
     canonical = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(f"{call_id}:{event_type}:{canonical}".encode()).hexdigest()
     return enqueue_task(
@@ -168,7 +215,16 @@ def _record_dead_task(session, task):
 
 async def _execute_task(task_id, token, task_type, payload):
     assert_execution_permitted()
-    if task_type == 'ai_turn':
+    if task_type == 'dial_call':
+        from .call_service import _place_call_with_result
+        with session_scope() as session:
+            call = session.get(CallSession, UUID(payload['call_id']))
+            if call is None or call.attempts != payload['attempt'] or call.status != CallStatus.QUEUED:
+                return
+            call, attempted = await _place_call_with_result(session, call)
+            if not attempted and call.status == CallStatus.QUEUED:
+                raise TaskDeferred()
+    elif task_type == 'ai_turn':
         from .dispatcher import run_ai_turn
         attempt = payload.get('attempt')
         if type(attempt) is not int:
@@ -180,7 +236,11 @@ async def _execute_task(task_id, token, task_type, payload):
                 return
         await run_ai_turn(call_id=UUID(payload['call_id']), transcript=str(payload.get('transcript') or ''),
                           durable=True, expected_attempt=attempt,
+                          **({'expected_speech_event_id': payload['speech_event_id']} if 'speech_event_id' in payload else {}),
                           **({'expected_turn_sequence': payload['turn_sequence']} if 'turn_sequence' in payload else {}))
+    elif task_type == 'after_playback':
+        from .dispatcher import resume_after_playback
+        await resume_after_playback(payload)
     elif task_type == 'business_callback':
         from .business_callbacks import deliver_business_callback
         await deliver_business_callback(tenant_id=int(payload['tenant_id']),call_id=UUID(payload['call_id']),
@@ -285,6 +345,18 @@ async def process_task(task_id: UUID, *, claimed=None) -> bool:
     except asyncio.CancelledError:
         # Shutdown leaves the durable claim for bounded lease recovery.
         raise
+    except TaskDeferred:
+        with session_scope() as session:
+            task = _owned_task(session, task_id, token)
+            if task is not None:
+                task.state = TaskState.PENDING
+                task.attempts = max(0, task.attempts - 1)
+                task.available_at = utc_now() + timedelta(seconds=1)
+                task.locked_at = task.lease_token = None
+                task.last_error = 'waiting for dial admission'
+                task.updated_at = utc_now()
+                session.add(task); session.commit()
+        return False
     except Exception as exc:
         logger.warning('durable task failed id=%s type=%s error_type=%s',task_id,task_type,type(exc).__name__)
         with session_scope() as session:
@@ -390,17 +462,36 @@ def claim_ready_tasks(task_types: tuple[str, ...], limit: int):
             earlier.state.in_([TaskState.PENDING, TaskState.FAILED, TaskState.PROCESSING]),
             or_(earlier.created_at < TaskOutbox.created_at,
                 and_(earlier.created_at == TaskOutbox.created_at, earlier.id < TaskOutbox.id))))
-        ready = select(TaskOutbox.id, TaskOutbox.available_at,
-            func.row_number().over(partition_by=TaskOutbox.tenant_id,
-                order_by=(TaskOutbox.available_at, TaskOutbox.id)).label('tenant_rank')).where(
+        eligible = (
             TaskOutbox.task_type.in_(task_types), TaskOutbox.available_at <= now,
-            TaskOutbox.attempts < TaskOutbox.max_attempts, no_earlier,
+            TaskOutbox.attempts < TaskOutbox.max_attempts,
             or_(TaskOutbox.state.in_([TaskState.PENDING, TaskState.FAILED]),
                 (TaskOutbox.state == TaskState.PROCESSING) & (TaskOutbox.locked_at <= cutoff)))
-        ranked = ready.subquery()
-        query = select(TaskOutbox).join(ranked, ranked.c.id == TaskOutbox.id).order_by(
-            ranked.c.tenant_rank, ranked.c.available_at, TaskOutbox.id).limit(max(1, limit))
-        rows = session.exec(query.with_for_update(skip_locked=True, of=TaskOutbox)).all()
+        # Enumerate tenant heads via EXISTS/index probes, then read only a
+        # bounded number per tenant. Never sort the entire ready backlog with
+        # ROW_NUMBER on every 50 ms poll. Rotate the starting tenant each poll.
+        tenant_query = select(Tenant.id).where(exists(select(TaskOutbox.id).where(
+            TaskOutbox.tenant_id == Tenant.id, *eligible, no_earlier)))
+        with _claim_cursor_lock:
+            cursor = _claim_cursors.get(task_types, 0)
+        tenant_limit = min(32, max(1, limit))
+        tenant_ids = list(session.exec(tenant_query.where(Tenant.id > cursor)
+            .order_by(Tenant.id).limit(tenant_limit)).all())
+        if len(tenant_ids) < tenant_limit:
+            tenant_ids.extend(session.exec(tenant_query.where(Tenant.id <= cursor)
+                .order_by(Tenant.id).limit(tenant_limit - len(tenant_ids))).all())
+        rows = []
+        for index, tenant_id in enumerate(tenant_ids):
+            per_tenant = max(1, (limit - len(rows)) // (len(tenant_ids) - index))
+            rows.extend(session.exec(select(TaskOutbox).where(
+                TaskOutbox.tenant_id == tenant_id, *eligible, no_earlier)
+                .order_by(TaskOutbox.available_at, TaskOutbox.id).limit(per_tenant)
+                .with_for_update(skip_locked=True, of=TaskOutbox)).all())
+        if tenant_ids:
+            with _claim_cursor_lock:
+                if len(_claim_cursors) >= 64 and task_types not in _claim_cursors:
+                    _claim_cursors.clear()
+                _claim_cursors[task_types] = tenant_ids[-1]
         claims = []
         for task in rows:
             token = uuid4().hex
@@ -424,6 +515,17 @@ async def run_task_lane(stop_event: asyncio.Event, *, task_types: tuple[str, ...
     sessions/event loops. A recording lane cannot exhaust the AI lane's executor.
     """
     from concurrent.futures import ThreadPoolExecutor
+    import threading
+    from .worker_runtime import WorkerRuntime
+    local = threading.local()
+    runtimes = []
+    runtime_lock = threading.Lock()
+    def execute(task_id, claim):
+        if not hasattr(local, "runtime"):
+            local.runtime = WorkerRuntime()
+            with runtime_lock:
+                runtimes.append(local.runtime)
+        return local.runtime.run(process_task(task_id, claimed=claim))
     executor = ThreadPoolExecutor(max_workers=max(1, concurrency), thread_name_prefix=task_types[0])
     pending = set()
     loop = asyncio.get_running_loop()
@@ -441,9 +543,7 @@ async def run_task_lane(stop_event: asyncio.Event, *, task_types: tuple[str, ...
                 try:
                     claims = await asyncio.to_thread(claim_ready_tasks, task_types, available)
                     for task_id, claim in claims:
-                        def execute(task_id=task_id, claim=claim):
-                            return asyncio.run(process_task(task_id, claimed=claim))
-                        pending.add(loop.run_in_executor(executor, execute))
+                        pending.add(loop.run_in_executor(executor, execute, task_id, claim))
                 except Exception:
                     logger.exception('task lane claim failed')
             if pending:
@@ -458,3 +558,6 @@ async def run_task_lane(stop_event: asyncio.Event, *, task_types: tuple[str, ...
         # No new claims while draining; accepted work retains its lease renewal.
         await asyncio.gather(*pending, return_exceptions=True)
         executor.shutdown(wait=True)
+        # All jobs are drained; close each client on its original loop.
+        for runtime in runtimes:
+            await asyncio.to_thread(runtime.close)

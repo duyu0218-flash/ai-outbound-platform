@@ -12,6 +12,7 @@ from time import perf_counter
 from typing import Any, Dict
 
 import httpx
+from .worker_runtime import http_client
 from sqlalchemy import update
 from sqlmodel import select
 
@@ -46,6 +47,7 @@ logger = logging.getLogger(__name__)
 _local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 AI_ACTIVE_STATUSES = {CallStatus.ANSWERED, CallStatus.IN_AI}
 _expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
+_expected_speech_event = ContextVar("expected_speech_event", default=None)
 
 
 def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
@@ -186,7 +188,7 @@ async def request_ai_turn(
         transcript=transcript,
         context=context or {},
     )
-    async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
+    async with http_client(timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
         headers = (
             {"Authorization": f"Bearer {settings.ai_agent_service_token}"}
             if settings.ai_agent_service_token
@@ -230,13 +232,16 @@ async def run_ai_turn(
     durable: bool = False,
     expected_attempt: int | None = None,
     expected_turn_sequence: int | None = None,
+    expected_speech_event_id: str | None = None,
 ) -> None:
     token = _expected_turn_sequence.set(expected_turn_sequence)
+    speech_token = _expected_speech_event.set(expected_speech_event_id)
     try:
         async with _ai_turn_lock(str(call_id)):
             await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
     finally:
         _expected_turn_sequence.reset(token)
+        _expected_speech_event.reset(speech_token)
 
 
 async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None) -> None:
@@ -359,23 +364,31 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
                 raise
 
 
-async def _wait_for_playback_completion(call_id, playback_id: str) -> bool:
-    deadline = asyncio.get_running_loop().time() + max(1, int(settings.tts_playback_timeout_sec))
-    while asyncio.get_running_loop().time() < deadline:
-        with session_scope() as playback_session:
-            realtime = playback_session.exec(
-                select(RealtimeSession).where(RealtimeSession.call_session_id == call_id)
-            ).first()
-            if realtime is not None and (
-                realtime.state in {RealtimeState.LISTENING, RealtimeState.INTERRUPTED, RealtimeState.CLOSED}
-                and realtime.playback_id != playback_id
-            ):
-                return True
-        await asyncio.sleep(0.1)
-    return False
+async def resume_after_playback(payload):
+    """Durable continuation, woken by media ACK or the bounded playback deadline."""
+    from uuid import UUID
+    with session_scope() as session:
+        call = session.get(CallSession, UUID(payload["call_id"]))
+        if call is None:
+            return
+        token = _expected_turn_sequence.set(payload.get("turn_sequence"))
+        speech_token = _expected_speech_event.set(payload.get("speech_event_id"))
+        try:
+            if not _ai_call_is_current(session, call, payload["attempt"]):
+                return
+            await _apply_ai_action(session=session, call=call,
+                result=AiTurnResult.model_validate(payload["result"]).model_copy(update={"tts_text": None}),
+                expected_attempt=payload["attempt"])
+        finally:
+            _expected_turn_sequence.reset(token)
+            _expected_speech_event.reset(speech_token)
 
 
 async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, expected_attempt: int | None = None) -> None:
+    # Session.commit expires ORM attributes. Never dereference call after a
+    # commit while preparing an await: even its primary key checks out a DB
+    # connection again and pins it for the entire remote operation.
+    command_call_id = call.id
     attempt = call.attempts if expected_attempt is None else expected_attempt
     if not _ai_call_is_current(session, call, attempt):
         return
@@ -388,6 +401,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         line_id=call.telephony_line_id,
         call_id=call.id,
     )
+    from .telephony import HttpAdapter
+    speech_guard = ({"expected_speech_event_id": _expected_speech_event.get() or ""}
+                    if isinstance(adapter, HttpAdapter) and call.voice_ai_pipeline == "pipecat" else {})
     playback_id: str | None = None
     playback_complete = False
     if result.tts_text:
@@ -395,7 +411,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         speak_payload = dict(call_id=str(call.id), text=result.tts_text or "",
                              language=str(ai_config.get("language") or "zh-CN"),
                              voice=str(ai_config.get("voice") or ""),
-                             provider=str(ai_config.get("tts_provider") or ""))
+                             provider=str(ai_config.get("tts_provider") or ""), **speech_guard)
         session.commit()
         try:
             response = await with_retry(
@@ -470,26 +486,31 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
     hangup_confirmed = False
     if result.action == "hangup":
         if playback_id and not playback_complete:
-            # Make the playback id visible to the webhook session before
-            # waiting for the gateway's listening/interrupted/closed event.
-            session.commit()
-            playback_complete = await _wait_for_playback_completion(call.id, playback_id)
-            if not playback_complete:
-                session.add(
-                    CallMetric(
-                        tenant_id=call.tenant_id,
-                        call_session_id=call.id,
-                        stage="tts.playback",
-                        provider=str(ai_config.get("tts_provider") or "gateway"),
-                        success=False,
-                        error_code="TTS_PLAYBACK_TIMEOUT",
-                        detail=f"playback_id={playback_id}",
-                    )
-                )
+            from .task_queue import enqueue_task
+            realtime = session.exec(select(RealtimeSession).where(
+                RealtimeSession.call_session_id == command_call_id)).first()
+            # Do not occupy an AI worker or poll SQL while the user hears audio.
+            # Store intent before ACK, with a deadline surviving worker restarts.
+            task = enqueue_task(session, tenant_id=call.tenant_id, task_type="after_playback",
+                aggregate_id=str(command_call_id),
+                idempotency_key=f"after-playback:{command_call_id}:{attempt}:{playback_id}",
+                available_at=utc_now() + timedelta(seconds=max(1, settings.tts_playback_timeout_sec)),
+                payload={"call_id": str(command_call_id), "attempt": attempt,
+                    "turn_sequence": realtime.turn_sequence if realtime else None,
+                    "playback_id": playback_id, "speech_event_id": _expected_speech_event.get(), "result": result.model_dump(mode="json")})
+            # Recheck after the insertion commit to cover an ACK that raced it.
+            if realtime is not None:
+                session.refresh(realtime)
+                if realtime.playback_id != playback_id:
+                    from ..models import TaskOutbox, TaskState
+                    session.exec(update(TaskOutbox).where(TaskOutbox.id == task.id,
+                        TaskOutbox.state == TaskState.PENDING).values(available_at=utc_now()))
+                    session.commit()
+            return
         if not _ai_call_is_current(session, call, attempt):
             return
         session.commit()
-        hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
+        hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(command_call_id), reason="ai_decision", **speech_guard))
         hangup_confirmed = hangup_result.get("ended") is True
 
     if result.hangup_sms and hangup_sms_allowed:
@@ -591,7 +612,8 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         },
         idempotency_key=f"callback:ai-decision:{decision_event.id}",
     )
-    await notify_task(callback_task.id)
+    if callback_task is not None:
+        await notify_task(callback_task.id)
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:
@@ -610,8 +632,10 @@ async def send_sms_text(session, call: CallSession, text: str) -> None:
         session.commit()
         return
     adapter: SmsAdapter = get_sms_adapter(sms_config)
+    destination_phone = call.phone
+    session.commit()
     try:
-        sms_result = await with_retry(lambda: adapter.send_sms(call.phone, text))
+        sms_result = await with_retry(lambda: adapter.send_sms(destination_phone, text))
         state = str(sms_result.get("state", "sent"))
         provider_message_id = str(sms_result.get("message_id") or sms_result.get("provider_message_id") or "") or None
     except Exception as exc:
