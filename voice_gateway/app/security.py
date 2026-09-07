@@ -1,7 +1,7 @@
 """Fail-closed admission and durable accounting for one FreeSWITCH gateway.
 
 SQLite transactions coordinate requests; an exclusive process lock prevents
-accidentally starting multiple media workers on this single-host deployment.
+accidentally starting multiple PBX controllers on this single-host deployment.
 The ledger MUST live on a persistent local volume, never a tmpfs or NFS share.
 """
 from __future__ import annotations
@@ -290,9 +290,12 @@ class Ledger:
         with self.transaction() as db:
             db.execute("UPDATE attempts SET result=?, state=CASE WHEN state='ended' THEN state ELSE 'active' END WHERE uuid=?", (canonical(result).decode(), uuid))
 
-    def lookup(self, call_id: str, tenant: int) -> dict | None:
+    def lookup(self, call_id: str, tenant: int, attempt: int | None = None) -> dict | None:
         with self.read() as db:
-            row = db.execute("SELECT * FROM attempts WHERE call_id=? AND tenant=? ORDER BY attempt DESC LIMIT 1", (call_id, tenant)).fetchone()
+            if attempt is None:
+                row = db.execute("SELECT * FROM attempts WHERE call_id=? AND tenant=? ORDER BY attempt DESC LIMIT 1", (call_id, tenant)).fetchone()
+            else:
+                row = db.execute("SELECT * FROM attempts WHERE call_id=? AND tenant=? AND attempt=?", (call_id, tenant, attempt)).fetchone()
             return dict(row) if row else None
 
     def known_uuid(self, uuid: str) -> bool:
@@ -487,6 +490,7 @@ class SecureDriver:
             driver.pipecat_manager._post_json = self.sender.post
         self.lock_file = None
         self.reconcile_task = None
+        self.media_reconcile_task = None
 
     def __getattr__(self, name):
         return getattr(self.driver, name)
@@ -500,12 +504,17 @@ class SecureDriver:
             await self.driver.start()
             await self.sender.start()
             self.reconcile_task = asyncio.create_task(self._reconcile(), name="voice-pbx-reconciliation")
+            if hasattr(self.driver.pipecat_manager, "owners"):
+                self.media_reconcile_task = asyncio.create_task(self._reconcile_media(), name="voice-media-reconciliation")
         except BaseException:
             self.lock_file.close()
             self.lock_file = None
             raise
 
     async def stop(self):
+        if self.media_reconcile_task:
+            self.media_reconcile_task.cancel()
+            await asyncio.gather(self.media_reconcile_task, return_exceptions=True)
         if self.reconcile_task:
             self.reconcile_task.cancel()
             try:
@@ -513,8 +522,10 @@ class SecureDriver:
             except asyncio.CancelledError:
                 pass
         try:
-            await self.driver.stop()
-            await self.sender.stop()
+            try:
+                await self.driver.stop()
+            finally:
+                await self.sender.stop()
         finally:
             if self.lock_file:
                 self.lock_file.close()
@@ -590,9 +601,12 @@ class SecureDriver:
             raise HTTPException(409, "stale provider call")
         if row["state"] != "ended" and action in {"speak", "hangup"} and payload.get("expected_speech_event_id") is not None:
             manager = self.driver.pipecat_manager
-            media = manager.sessions_by_call.get(payload["call_id"]) if manager else None
-            if media is None or media.latest_final_event_id != payload["expected_speech_event_id"]:
-                raise HTTPException(409, "stale speech generation")
+            if hasattr(manager, 'validate_generation'):
+                await manager.validate_generation(payload["call_id"], payload["expected_speech_event_id"], action)
+            else:
+                media = manager.sessions_by_call.get(payload["call_id"]) if manager else None
+                if media is None or media.latest_final_event_id != payload["expected_speech_event_id"]:
+                    raise HTTPException(409, "stale speech generation")
         if action in {"hangup", "status"}:
             if row["state"] == "ended":
                 return {"result": "hungup", "ended": True, "provider_call_id": row["uuid"]}
@@ -625,7 +639,8 @@ class SecureDriver:
             raise HTTPException(403, "transfer requires an authorized agent ID")
         # After restart control is kept fail-closed unless a genuine PBX event
         # has reconstructed the binding. Hangup/status never need that binding.
-        return await self.driver.post(action, payload)
+        return await self.driver.post(action, {**payload, "expected_attempt": row["attempt"],
+                                               "provider_call_id": row["uuid"]})
 
     async def _reconcile(self):
         while True:
@@ -635,4 +650,31 @@ class SecureDriver:
                     await self.post("hangup", {"call_id": row["call_id"], "tenant_id": row["tenant"]})
             except Exception:
                 logger.error("voice PBX reconciliation unavailable; reservations retained")
+            await asyncio.sleep(2)
+
+
+    async def _reconcile_media_once(self):
+        manager = self.driver.pipecat_manager
+        slots = asyncio.Semaphore(8)
+        async def reconcile(owner):
+            async with slots:
+                media = owner.session
+                tenant, attempt = media.metadata.get('tenant_id'), media.metadata.get('attempt')
+                if type(tenant) is not int or type(attempt) is not int:
+                    return  # Never infer another tenant or dial attempt.
+                row = await asyncio.to_thread(self.ledger.lookup, media.call_id, tenant, attempt)
+                if row is not None and row['state'] == 'ended':
+                    await manager.close(media.call_id, notify=False, expected_session_id=media.session_id)
+                elif row is not None and media.terminated.is_set() and media.media_error_code:
+                    await self.post('hangup', {'call_id':media.call_id, 'tenant_id':tenant,
+                        'expected_attempt':attempt, 'provider_call_id':row['uuid']})
+        results = await asyncio.gather(*(reconcile(owner) for owner in list(manager.owners.values())),
+                                       return_exceptions=True)
+        if any(isinstance(result, Exception) for result in results):
+            logger.warning('media reconciliation incomplete; affected reservations retained')
+
+    async def _reconcile_media(self):
+        # An unavailable media worker must not delay PBX hard-deadline checks.
+        while True:
+            await self._reconcile_media_once()
             await asyncio.sleep(2)

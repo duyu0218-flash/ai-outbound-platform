@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     task_lease_sec: int = 30
     task_timeout_sec: int = 120
     task_poll_interval_sec: float = 0.1
+    task_worker_role: str = "all"
+    ai_worker_health_path: str = "/tmp/ai-worker-health.json"
+    ai_db_threads: int = 2
+    ai_action_threads: int = 2
     task_ai_concurrency: int = 4
     task_callback_concurrency: int = 4
     task_recording_concurrency: int = 2
@@ -229,6 +233,12 @@ class Settings(BaseSettings):
                 if not lane or limit < 1:
                     continue
                 lanes[lane] = limit
+        if self.task_worker_role not in {"all", "background", "ai"}:
+            raise ValueError("TASK_WORKER_ROLE must be all, background or ai")
+        if self.task_worker_role == "background":
+            lanes.pop("ai_turn", None)
+        if self.task_worker_role == "ai":
+            return {"ai_turn": lanes["ai_turn"]}
         return lanes
 
     def resolved_task_queue_aliases(self) -> dict[str, str]:
@@ -248,6 +258,8 @@ class Settings(BaseSettings):
                 target = target.strip().lower()
                 if source and target:
                     aliases[source] = target
+        if self.task_worker_role != "all" and ("ai_turn" in aliases or "ai_turn" in aliases.values()):
+            raise ValueError("dedicated AI workers cannot alias the ai_turn lane")
         return aliases
 
 

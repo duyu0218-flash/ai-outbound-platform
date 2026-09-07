@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 import json
 import logging
 import secrets
@@ -128,6 +129,8 @@ class PipecatCallSession:
     websocket_task: asyncio.Task | None = None
     tts_requested_at: float = 0.0
     latest_final_event_id: str = ""
+    rpc_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    rpc_results: OrderedDict = field(default_factory=OrderedDict)
 
 
 class TranscriptWebhookProcessor(FrameProcessor):
@@ -523,6 +526,7 @@ class PipecatPipelineManager:
             session.speech_webhook_url,
             {
                 "call_id": session.call_id,
+                "provider_session_id": session.session_id,
                 "event_id": event_id,
                 "transcript": transcript,
                 "is_final": is_final,

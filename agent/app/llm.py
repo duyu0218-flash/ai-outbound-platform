@@ -14,7 +14,7 @@ _client = None
 async def llm_client_lifespan():
     global _client
     async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
-            follow_redirects=False, limits=httpx.Limits(max_connections=128, max_keepalive_connections=64)) as client:
+            follow_redirects=False, limits=httpx.Limits(max_connections=settings.llm_max_connections, max_keepalive_connections=settings.llm_max_keepalive_connections)) as client:
         _client = client
         try:
             yield

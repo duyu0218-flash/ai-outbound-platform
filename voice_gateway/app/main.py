@@ -267,3 +267,27 @@ async def hangup(payload: CallRequest):
 @app.post("/v1/call/status", dependencies=[Depends(require_service_token)])
 async def call_status(payload: CallRequest):
     return await _media_action("status", payload)
+
+
+class MediaEvent(BaseModel):
+    worker_id: str = Field(max_length=128)
+    epoch: str = Field(max_length=128)
+    call_id: str = Field(max_length=128)
+    session_id: str = Field(max_length=128)
+    url: str = Field(max_length=2048)
+    payload: dict
+
+
+@app.post('/v1/internal/media-events', include_in_schema=False)
+async def media_event(event: MediaEvent, authorization: str | None = Header(default=None)):
+    if len(settings.media_rpc_token) < 32 or not secrets.compare_digest(
+            authorization or '', 'Bearer ' + settings.media_rpc_token):
+        raise HTTPException(401, 'media RPC credential required')
+    manager = getattr(driver, 'pipecat_manager', None)
+    if not hasattr(manager, 'validate_event'):
+        raise HTTPException(503, 'media cluster is disabled')
+    manager.validate_event(event)
+    # The controller's FULL-synchronous journal is the acceptance boundary.
+    # Worker retries retain the original event_id; backend dedup remains final.
+    await driver.sender.post(event.url, event.payload)
+    return {'accepted': True}

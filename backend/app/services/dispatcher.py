@@ -188,7 +188,7 @@ async def request_ai_turn(
         transcript=transcript,
         context=context or {},
     )
-    async with http_client(timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
+    async with http_client(max_connections=max(100, settings.task_ai_concurrency), timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
         headers = (
             {"Authorization": f"Bearer {settings.ai_agent_service_token}"}
             if settings.ai_agent_service_token
@@ -244,124 +244,155 @@ async def run_ai_turn(
         _expected_speech_event.reset(speech_token)
 
 
-async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None) -> None:
-    # independent session for background execution
+async def _prepare_ai_turn(call_id, transcript, expected_attempt):
     with session_scope() as session:
         call = session.get(CallSession, call_id)
-        if not call:
-            return
-        if call.status not in {CallStatus.ANSWERED, CallStatus.IN_AI}:
-            return
-        if expected_attempt is not None and call.attempts != expected_attempt:
-            return
-        expected_attempt = call.attempts
+        if call is None:
+            return None
+        expected_attempt = call.attempts if expected_attempt is None else expected_attempt
         if not _ai_call_is_current(session, call, expected_attempt):
+            return None
+        expected_attempt = call.attempts
+        await append_event(session=session, call_id=call.id, event_type="ai_start",
+                           source="dispatcher", payload={"transcript": transcript})
+        ai_started = perf_counter()
+        ai_config = get_admin_setting(session, call.tenant_id, "ai")
+        campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+        language = str(ai_config.get("language") or "zh-CN")
+        result = _run_script_flow_turn(session=session, call=call, transcript=transcript)
+        provider = "script_flow"
+        knowledge: list[dict[str, Any]] = []
+        if result is None:
+            if not ai_config.get("enabled", True):
+                raise RuntimeError("AI service is disabled for tenant")
+            campaign_script = resolve_campaign_script(
+                session,
+                tenant_id=call.tenant_id,
+                campaign_id=call.campaign_id,
+            )
+            knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
+            provider = str(ai_config.get("llm_provider") or "rule")
+            history = _conversation_history(
+                session,
+                call,
+                int(ai_config.get("conversation_history_turns") or 12),
+            )
+            ai_request = dict(
+                call_id=str(call.id),
+                phone=call.phone,
+                mode=call.mode.value,
+                script=campaign_script,
+                transcript=transcript,
+                context={
+                    "campaign_id": call.campaign_id,
+                    "tenant_id": call.tenant_id,
+                    "language": language,
+                    "recording_enabled": campaign.recording_enabled if campaign else True,
+                    "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
+                    "llm_provider": str(ai_config.get("llm_provider") or "rule"),
+                    "llm_model": str(ai_config.get("llm_model") or ""),
+                    "external_llm_enabled": bool(ai_config.get("external_llm_enabled", False)),
+                    "knowledge": knowledge,
+                    "conversation": history,
+                },
+                agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
+            )
+        snapshot = dict(call_id=call_id, attempt=expected_attempt, result=result,
+            ai_request=ai_request if result is None else None, ai_config=ai_config,
+            provider=provider, knowledge_count=len(knowledge), started=ai_started,
+            flow_node_key=call.flow_node_key)
+        # Keep script-flow progress private until output guards and the action phase.
+        session.rollback()
+        return snapshot
+
+
+async def _finish_ai_turn(snapshot, result):
+    with session_scope() as session:
+        call = session.get(CallSession, snapshot['call_id'])
+        if call is None or not _ai_call_is_current(session, call, snapshot['attempt']):
             return
+        call.flow_node_key = snapshot['flow_node_key']
+        result = _apply_output_guard(session, call, result, snapshot['ai_config'])
+        session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
+            stage="ai.turn", provider=snapshot['provider'],
+            duration_ms=int((perf_counter()-snapshot['started'])*1000), success=True,
+            detail=f"knowledge_hits={snapshot['knowledge_count']}"))
+        session.commit()
+        await _apply_ai_action(session=session, call=call, result=result,
+                               expected_attempt=snapshot['attempt'])
 
-        await append_event(
-            session=session,
-            call_id=call.id,
-            event_type="ai_start",
-            source="dispatcher",
-            payload={"transcript": transcript},
-        )
 
-        try:
-            ai_started = perf_counter()
-            ai_config = get_admin_setting(session, call.tenant_id, "ai")
-            campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
-            language = str(ai_config.get("language") or "zh-CN")
-            result = _run_script_flow_turn(session=session, call=call, transcript=transcript)
-            provider = "script_flow"
-            knowledge: list[dict[str, Any]] = []
-            if result is None:
-                if not ai_config.get("enabled", True):
-                    raise RuntimeError("AI service is disabled for tenant")
-                campaign_script = resolve_campaign_script(
-                    session,
-                    tenant_id=call.tenant_id,
-                    campaign_id=call.campaign_id,
-                )
-                knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
-                provider = str(ai_config.get("llm_provider") or "rule")
-                history = _conversation_history(
-                    session,
-                    call,
-                    int(ai_config.get("conversation_history_turns") or 12),
-                )
-                ai_request = dict(
-                    call_id=str(call.id),
-                    phone=call.phone,
-                    mode=call.mode.value,
-                    script=campaign_script,
-                    transcript=transcript,
-                    context={
-                        "campaign_id": call.campaign_id,
-                        "tenant_id": call.tenant_id,
-                        "language": language,
-                        "recording_enabled": campaign.recording_enabled if campaign else True,
-                        "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
-                        "llm_provider": str(ai_config.get("llm_provider") or "rule"),
-                        "llm_model": str(ai_config.get("llm_model") or ""),
-                        "external_llm_enabled": bool(ai_config.get("external_llm_enabled", False)),
-                        "knowledge": knowledge,
-                        "conversation": history,
-                    },
-                    agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
-                )
-                # Release the read transaction and pool connection before model latency.
-                session.commit()
-                result = await request_ai_turn(**ai_request)
-            # Network latency may outlive the call or even its dial attempt.
-            # Preserve script-flow progress, but discard a stale model result.
-            flow_node_key = call.flow_node_key
-            if not _ai_call_is_current(session, call, expected_attempt):
-                return
-            call.flow_node_key = flow_node_key
-            result = _apply_output_guard(session, call, result, ai_config)
-            session.add(
-                CallMetric(
-                    tenant_id=call.tenant_id,
-                    call_session_id=call.id,
-                    stage="ai.turn",
-                    provider=provider,
-                    duration_ms=int((perf_counter() - ai_started) * 1000),
-                    success=True,
-                    detail=f"knowledge_hits={len(knowledge)}",
-                )
-            )
-            session.commit()
-            await _apply_ai_action(session=session, call=call, result=result, expected_attempt=expected_attempt)
-        except LeaseLost:
-            session.rollback()
+async def _fail_ai_turn(call_id, expected_attempt, exc):
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        if call is None or not _ai_call_is_current(session, call, expected_attempt):
+            return
+        call.last_error=f"AI调用失败: {type(exc).__name__}"
+        session.add(call)
+        session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
+            stage="ai.turn", success=False, error_code="AI_TURN_FAILED", detail=str(exc)[:2000]))
+        session.commit()
+        await append_event(session=session, call_id=call.id, event_type="error",
+            source="dispatcher", payload={"module":"dispatcher", "error":str(exc)})
+
+
+async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None):
+    try:
+        snapshot = await _prepare_ai_turn(call_id, transcript, expected_attempt)
+        if snapshot is None:
+            return
+        expected_attempt = snapshot['attempt']
+        result = snapshot['result']
+        if result is None:
+            result = await request_ai_turn(**snapshot['ai_request'])
+        await _finish_ai_turn(snapshot, result)
+    except LeaseLost:
+        raise
+    except Exception as exc:
+        await _fail_ai_turn(call_id, expected_attempt, exc)
+        if durable:
             raise
-        except Exception as exc:
-            session.rollback()
-            session.exec(update(CallSession).where(
-                CallSession.id == call_id,
-                CallSession.attempts == expected_attempt,
-                CallSession.status.in_(AI_ACTIVE_STATUSES),
-            ).values(last_error=f"AI调用失败: {type(exc).__name__}"))
-            session.add(
-                CallMetric(
-                    tenant_id=call.tenant_id,
-                    call_session_id=call.id,
-                    stage="ai.turn",
-                    success=False,
-                    error_code="AI_TURN_FAILED",
-                    detail=str(exc)[:2000],
-                )
-            )
-            session.commit()
-            await append_event(
-                session=session,
-                call_id=call.id,
-                event_type="error",
-                source="dispatcher",
-                payload={"module": "dispatcher", "error": str(exc)},
-            )
-            if durable:
+
+
+async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', expected_attempt=None,
+                            expected_turn_sequence=None, expected_speech_event_id=None):
+    """Model latency holds a coroutine, never a DB connection or lane thread."""
+    token = _expected_turn_sequence.set(expected_turn_sequence)
+    speech_token = _expected_speech_event.set(expected_speech_event_id)
+    try:
+        async with _ai_turn_lock(str(call_id)):
+            try:
+                snapshot = await pool.run(_prepare_ai_turn, call_id, transcript, expected_attempt)
+                if snapshot is None:
+                    return
+                expected_attempt = snapshot['attempt']
+                result = snapshot['result']
+                if result is None:
+                    request = asyncio.create_task(request_ai_turn(**snapshot['ai_request']))
+                    try:
+                        while not request.done():
+                            done, _ = await asyncio.wait({request}, timeout=1)
+                            if not done and not await pool.run(_ai_snapshot_current, snapshot):
+                                return
+                        result = request.result()
+                    finally:
+                        if not request.done():request.cancel()
+                        await asyncio.gather(request, return_exceptions=True)
+                await (action_pool or pool).run(_finish_ai_turn, snapshot, result)
+            except LeaseLost:
                 raise
+            except Exception as exc:
+                await pool.run(_fail_ai_turn, call_id, expected_attempt, exc)
+                raise
+    finally:
+        _expected_turn_sequence.reset(token)
+        _expected_speech_event.reset(speech_token)
+
+
+def _ai_snapshot_current(snapshot):
+    with session_scope() as session:
+        call = session.get(CallSession, snapshot['call_id'])
+        return call is not None and _ai_call_is_current(session, call, snapshot['attempt'])
 
 
 async def resume_after_playback(payload):
