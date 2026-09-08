@@ -133,15 +133,16 @@ def _voice_security_contract_module():
     # Load only the independent security protocol module, not the gateway's
     # app package/Pipecat runtime, so this test verifies both implementations.
     import importlib.util
+    import importlib
     import sys
-    name = "voice_security_contract"
+    name = "voice_contract_package"
     if name not in sys.modules:
-        path = Path(__file__).resolve().parents[2] / "voice_gateway/app/security.py"
-        spec = importlib.util.spec_from_file_location(name, path)
+        path = Path(__file__).resolve().parents[2] / "voice_gateway/app/__init__.py"
+        spec = importlib.util.spec_from_file_location(name, path, submodule_search_locations=[str(path.parent)])
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
         spec.loader.exec_module(module)
-    return sys.modules[name]
+    return importlib.import_module(name + '.security')
 
 
 _review_call_ids = []

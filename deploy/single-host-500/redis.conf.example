@@ -1,0 +1,10 @@
+bind 127.0.0.1
+protected-mode yes
+port 6379
+dir /data
+appendonly yes
+appendfsync everysec
+maxmemory 512mb
+maxmemory-policy noeviction
+# Password comes from redis.env REDISCLI_AUTH via the container command.
+# Never evict distributed locks/admission keys to hide pressure.

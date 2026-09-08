@@ -119,7 +119,7 @@ jobs:
       - name: Offline ASR evaluation and acceptance tooling tests
         if: matrix.service == 'backend'
         working-directory: .
-        run: python -m pytest -q scripts/test_evaluate_asr.py scripts/test_real_voice_acceptance.py
+        run: python -m pytest -q scripts/test_evaluate_asr.py scripts/test_real_voice_acceptance.py scripts/test_capacity_preflight.py scripts/test_node200_pbx.py scripts/test_single_host_profile.py
 
   postgres-redis-integration:
     runs-on: ubuntu-latest

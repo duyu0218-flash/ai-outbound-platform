@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     media_worker_id: str = ""
     media_worker_capacity: int = 50
     media_rpc_timeout_sec: float = 5.0
+    media_allow_degraded_admission: bool = False
+    media_health_ttl_sec: float = 2.0
     pipecat_stt_provider: str = "openai-realtime"
     pipecat_tts_provider: str = "openai"
     pipecat_openai_api_key: str = ""

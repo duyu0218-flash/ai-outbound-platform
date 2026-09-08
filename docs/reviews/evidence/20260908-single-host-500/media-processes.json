@@ -1,0 +1,26 @@
+{
+  "media_processes": 12,
+  "synthetic_control_sessions": 500,
+  "distribution": {
+    "media-1": 42,
+    "media-2": 42,
+    "media-3": 42,
+    "media-4": 42,
+    "media-5": 42,
+    "media-6": 41,
+    "media-7": 41,
+    "media-8": 41,
+    "media-9": 41,
+    "media-10": 42,
+    "media-11": 42,
+    "media-12": 42
+  },
+  "resource_session_limit": 600,
+  "create_seconds": 0.6160239171003923,
+  "over_resource_limit_rejected": true,
+  "journal_recovery_preserved": true,
+  "worker_restart_affected_sessions": 42,
+  "replacement_sessions": 42,
+  "real_sip_audio_asr_tts": false,
+  "passed": true
+}

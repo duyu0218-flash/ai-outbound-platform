@@ -39,6 +39,8 @@ def worker_specs(settings):
         raise ValueError('media cluster requires a private RPC token and controller journal')
     if rows and sum(int(row['capacity']) for row in rows) < settings.pipecat_max_active_sessions:
         raise ValueError('media roster capacity is below host session limit')
+    if not .5 <= settings.media_health_ttl_sec <= 30:
+        raise ValueError('media health TTL must be between .5 and 30 seconds')
     return rows
 
 
@@ -87,6 +89,7 @@ class RemoteMediaManager:
         self.sessions_by_call = {}
         self.owners = {}
         self.health = {}
+        self.health_checked_at = {}
         self.metrics = {}
         self.lock = asyncio.Lock()
         self.client = None
@@ -113,7 +116,24 @@ class RemoteMediaManager:
         if self.client: await self.client.aclose()
 
     def ready(self):
-        return bool(self.specs) and all(self.health.get(s['id'],{}).get('ready') for s in self.specs)
+        if self.settings.media_allow_degraded_admission:
+            return self.admission_capacity() > 0
+        return bool(self.specs) and all(self._healthy(s) for s in self.specs)
+
+    def _healthy(self, spec):
+        return (self.health.get(spec['id'], {}).get('ready') is True and
+                time.monotonic() - self.health_checked_at.get(spec['id'], float('-inf'))
+                <= self.settings.media_health_ttl_sec)
+
+    def admission_capacity(self):
+        # Failed owners remain in the durable journal and backend occupancy.
+        # Healthy capacity is only a conservative ceiling for NEW admission.
+        return min(self.settings.pipecat_max_active_sessions,
+                   sum(s['capacity'] for s in self.specs if self._healthy(s)))
+
+    def _used(self, spec):
+        known = {cid for cid, owner in self.owners.items() if owner.spec['id'] == spec['id']}
+        return len(known | set(self.health.get(spec['id'], {}).get('sessions', {})))
 
     async def _monitor(self):
         while True:
@@ -122,15 +142,21 @@ class RemoteMediaManager:
 
     async def refresh(self):
         async def poll(spec):
+            started = time.monotonic()
             try:
-                response = await self.client.get(spec['endpoint']+'/internal/state')
+                response = await self.client.get(spec['endpoint']+'/internal/state',
+                                                 timeout=min(self.settings.media_rpc_timeout_sec, self.settings.media_health_ttl_sec / 2))
                 response.raise_for_status(); data=response.json()
-                if data['worker_id'] != spec['id'] or data['capacity'] != spec['capacity']:
+                if (data['worker_id'] != spec['id'] or data['capacity'] != spec['capacity']
+                        or not isinstance(data.get('sessions'), dict) or not data.get('epoch')):
                     raise ValueError('worker identity or capacity differs from roster')
-                return spec,data
-            except (httpx.HTTPError, ValueError, KeyError): return spec,{'ready':False}
-        for spec,data in await asyncio.gather(*(poll(s) for s in self.specs)):
+                return spec,data,started
+            except (httpx.HTTPError, ValueError, KeyError, TypeError): return spec,{'ready':False},started
+        for spec,data,started in await asyncio.gather(*(poll(s) for s in self.specs)):
+            if started < self.health_checked_at.get(spec['id'], float('-inf')):
+                continue
             self.health[spec['id']] = data
+            self.health_checked_at[spec['id']] = started
             for owner in list(self.owners.values()):
                 if owner.spec['id'] != spec['id']: continue
                 session = owner.session
@@ -147,7 +173,9 @@ class RemoteMediaManager:
                     session.media_error_code=state.get('media_error_code') or session.media_error_code
                 # A pending create may not have reached the worker yet. Its own
                 # startup deadline handles absence; never erase its reservation.
-        self.metrics = {'media_workers_ready':sum(bool(d.get('ready')) for d in self.health.values())}
+        self.metrics = {'media_workers_ready':sum(bool(self._healthy(s)) for s in self.specs),
+                        'media_admission_capacity': self.admission_capacity(),
+                        'media_failed_owners': sum(o.session.terminated.is_set() for o in self.owners.values())}
         for data in self.health.values():
             for name, value in data.get('metrics', {}).items():
                 if isinstance(value, (float, int)):
@@ -181,8 +209,8 @@ class RemoteMediaManager:
             choices=[]
             for spec in self.specs:
                 health=self.health.get(spec['id'],{})
-                used=sum(o.spec['id']==spec['id'] for o in self.owners.values())
-                if health.get('ready') and used<spec['capacity']: choices.append((used/spec['capacity'],spec['id'],spec))
+                used=self._used(spec)
+                if self._healthy(spec) and used<spec['capacity']: choices.append((used/spec['capacity'],spec['id'],spec))
             if not choices: raise RuntimeError('no media process has capacity')
             spec=min(choices)[2]
             session=PipecatCallSession(call_id=call_id,session_id=str(uuid4()),token=secrets.token_urlsafe(32),

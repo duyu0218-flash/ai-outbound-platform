@@ -100,6 +100,47 @@ def test_global_500_limit_is_atomic_across_concurrent_claims(cluster):
         assert selected.gateway_node_id == specs[3]['id']
 
 
+def test_single_host_500_mixed_inflight_admission_is_atomic(cluster, monkeypatch):
+    from pydantic import ValidationError
+    specs, ids = cluster
+    spec = {**specs[0], 'capacity':500}
+    assert gateway_cluster.NodeSpec.model_validate(spec).capacity == 500
+    with pytest.raises(ValidationError):
+        gateway_cluster.NodeSpec.model_validate({**spec, 'capacity':501})
+    monkeypatch.setattr(gateway_cluster.settings, 'voice_gateway_nodes_json', json.dumps([spec]))
+    with session_scope() as session:
+        node = session.get(GatewayNode, spec['id']); node.capacity=500; session.add(node); session.commit()
+    for state, count in [(CallStatus.DIALING,100), (CallStatus.ANSWERED,99),
+                         (CallStatus.IN_AI,100), (CallStatus.WAITING_HUMAN,100), (CallStatus.IN_HUMAN,100)]:
+        make_calls(ids,count,status=state,attempts=1,gateway_node_id=spec['id'],gateway_endpoint=spec['endpoint'])
+    candidates=make_calls(ids,16)
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        assert sum(pool.map(claim,candidates)) == 1
+    with session_scope() as session:
+        admitted=[session.get(CallSession,cid) for cid in candidates if session.get(CallSession,cid).attempts]
+        assert len(admitted)==1 and admitted[0].gateway_node_id==spec['id']
+
+
+def test_model_dependency_stops_new_admission_but_preserves_calls(cluster, monkeypatch):
+    import httpx
+    specs, ids = cluster
+    existing = make_calls(ids,1,status=CallStatus.IN_AI,attempts=1,
+                          gateway_node_id=specs[0]['id'],gateway_endpoint=specs[0]['endpoint'])[0]
+    monkeypatch.setattr(gateway_cluster.settings,'outbound_require_agent_ready',True)
+    monkeypatch.setattr(gateway_cluster.settings,'ai_agent_url','http://model.invalid')
+    original=httpx.AsyncClient
+    def respond(req):
+        if req.url.host=='model.invalid':return httpx.Response(503)
+        i=int(req.url.host.split('-')[1].split('.')[0])
+        return httpx.Response(200,json={'status':'ready','node_id':specs[i]['id'],'call_capacity':200})
+    monkeypatch.setattr(httpx,'AsyncClient',lambda **kw:original(transport=httpx.MockTransport(respond),**kw))
+    asyncio.run(gateway_cluster.probe_gateways())
+    assert not claim(make_calls(ids,1)[0])
+    with session_scope() as session:
+        call=session.get(CallSession,existing)
+        assert call.status==CallStatus.IN_AI and call.gateway_endpoint==specs[0]['endpoint']
+
+
 def test_owner_commands_ignore_changed_line_and_node_health(cluster, monkeypatch):
     specs, ids = cluster
     cid = make_calls(ids, 1)[0]
