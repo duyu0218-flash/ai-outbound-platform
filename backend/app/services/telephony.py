@@ -295,9 +295,11 @@ class HttpAdapter(TelephonyAdapter):
         return await self._post("/v1/call/speak", payload)
 
     async def stop_speaking(self, *, call_id: str, expected_attempt: int | None = None,
-                            provider_call_id: str | None = None) -> Dict[str, Any]:
-        return await self._post("/v1/call/stop-speaking", {"call_id": call_id,
-                                "expected_attempt": expected_attempt, "provider_call_id": provider_call_id})
+                            provider_call_id: str | None = None, expected_speech_event_id: str | None = None) -> Dict[str, Any]:
+        payload = {"call_id": call_id, "expected_attempt": expected_attempt, "provider_call_id": provider_call_id}
+        if expected_speech_event_id is not None:
+            payload["expected_speech_event_id"] = expected_speech_event_id
+        return await self._post("/v1/call/stop-speaking", payload)
 
 
 class SmsAdapter(ABC):

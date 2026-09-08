@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { createHmac } from 'node:crypto'
 
-async function postStatus(page: Page, data: object) {
+async function postStatus(page: Page, data: { call_id: string; kind: string; payload: { status: string; attempt: number; event_id: string } }) {
   const body = JSON.stringify(data)
   const stamp = String(Math.floor(Date.now() / 1000))
   const secret = process.env.E2E_WEBHOOK_SECRET || ''
@@ -12,7 +12,18 @@ async function postStatus(page: Page, data: object) {
     headers['x-webhook-timestamp'] = stamp
     headers['x-webhook-signature'] = createHmac('sha256', secret).update(stamp + '.' + body).digest('hex')
   }
-  return page.request.post('/api/v1/webhooks/telephony/status', { data: body, headers })
+  const response = await page.request.post('/api/v1/webhooks/telephony/status', { data: body, headers })
+  expect(response.ok()).toBeTruthy()
+  if ((await response.json()).result === 'received') {
+    const auth = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password: '12345678' } })
+    const headers = { Authorization: `Bearer ${(await auth.json()).access_token}` }
+    // A durable ACK is not a business result: wait for the committed audit event.
+    await expect.poll(async () => {
+      const events = await page.request.get(`/api/v1/calls/${data.call_id}/events`, { headers })
+      return (await events.json()).some((event: { payload: string }) => JSON.parse(event.payload).event_id === data.payload.event_id)
+    }).toBeTruthy()
+  }
+  return response
 }
 
 async function login(page: Page, portal: 'admin' | 'agent', username: string) {
@@ -134,7 +145,9 @@ test('manual handoff requeues on no answer and can be accepted and ended', async
   await row.getByRole('button', { name: '转人工', exact: true }).click(); await confirm(page)
   expect((await transfer).ok()).toBeTruthy()
   const unavailable = await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'human_unavailable', attempt: call.attempts, event_id: `e2e-unavailable-${call.id}` } })
-  expect((await unavailable.json()).requeued).toBeTruthy()
+  const receipt = await unavailable.json()
+  if (receipt.result === 'received') expect(receipt.receipt_id).toBeTruthy()
+  else expect(receipt.requeued).toBeTruthy()
   await page.goto('/agent')
   const queueRow = page.locator('.handoff-item').filter({ hasText: phone })
   const accepted = page.waitForResponse(r => r.url().endsWith('/accept') && r.request().method() === 'POST')

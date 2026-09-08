@@ -402,7 +402,10 @@ class FreeswitchEslDriver:
         if binding.voice_ai_pipeline == "pipecat":
             if self.pipecat_manager is None:
                 raise RuntimeError("Pipecat pipeline manager is unavailable")
-            await self.pipecat_manager.interrupt(binding.call_id)
+            if hasattr(self.pipecat_manager, 'validate_generation'):
+                await self.pipecat_manager.interrupt(binding.call_id, expected_speech_event_id=payload.get('expected_speech_event_id'))
+            else:
+                await self.pipecat_manager.interrupt(binding.call_id)
             return {
                 "result": "stopped",
                 "provider_call_id": binding.fs_uuid,

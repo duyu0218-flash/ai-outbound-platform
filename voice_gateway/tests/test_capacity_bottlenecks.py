@@ -86,7 +86,7 @@ def test_cluster_agent_route_is_explicit_and_not_taken_from_request(tmp_path):
     asyncio.run(run())
 
 
-def test_stale_speech_generation_cannot_speak_or_hangup(tmp_path):
+def test_stale_speech_generation_cannot_speak_hangup_or_interrupt(tmp_path):
     from fastapi import HTTPException
     from types import SimpleNamespace
     async def run():
@@ -95,7 +95,7 @@ def test_stale_speech_generation_cannot_speak_or_hangup(tmp_path):
         secured.driver.pipecat_manager = SimpleNamespace(sessions_by_call={payload["call_id"]:
             SimpleNamespace(latest_final_event_id="new-final")})
         before = list(fake.api_commands)
-        for action in ("speak", "hangup"):
+        for action in ("speak", "hangup", "stop-speaking"):
             with pytest.raises(HTTPException) as caught:
                 await secured.post(action, {"call_id": payload["call_id"], "tenant_id": 1,
                     "expected_speech_event_id": "old-final", "text": "obsolete"})

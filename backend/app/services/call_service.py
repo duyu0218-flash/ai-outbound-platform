@@ -273,6 +273,10 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
 
     from .gateway_cluster import lock_platform_admission, choose_gateway
     lock_platform_admission(session)
+    from .callback_inbox import ready as callback_inbox_ready
+    if not callback_inbox_ready(session):
+        session.rollback()
+        return False
     # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
     if session.get_bind().dialect.name == "sqlite":
         session.exec(update(Tenant).where(Tenant.id == call.tenant_id).values(updated_at=Tenant.updated_at))

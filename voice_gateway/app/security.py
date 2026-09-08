@@ -617,7 +617,7 @@ class SecureDriver:
             raise HTTPException(409, "stale call attempt")
         if payload.get("provider_call_id") and payload["provider_call_id"] != row["uuid"]:
             raise HTTPException(409, "stale provider call")
-        if row["state"] != "ended" and action in {"speak", "hangup"} and payload.get("expected_speech_event_id") is not None:
+        if row["state"] != "ended" and action in {"speak", "hangup", "stop-speaking"} and payload.get("expected_speech_event_id") is not None:
             manager = self.driver.pipecat_manager
             if hasattr(manager, 'validate_generation'):
                 await manager.validate_generation(payload["call_id"], payload["expected_speech_event_id"], action)

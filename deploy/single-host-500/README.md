@@ -5,12 +5,14 @@
 ## 组件及容量
 
 - 一个 FreeSWITCH、一个控制网关、一份网关安全账本；12 个媒体进程各 50，媒体预算 600，业务上限 500。
-- 六个单进程 API，每进程 6 个 DB 连接、回调最多 5、管理请求保留 1；四个 AI worker 各 160 异步任务、2 个 DB 线程、4 个动作线程、5 个 DB 连接。
-- 一个后台调度角色，8 个 DB 连接；回调、录音、分析、播放后动作及拨号独立有界工作池。总应用 DB 连接上限 `6×6+4×5+8=64`，PostgreSQL 上限 120，留迁移、运维余量。
+- 六个单进程 API，每进程 5 个 DB 连接、回调最多 4、管理请求保留 1；四个 AI worker 各 160 异步任务、2 个 DB 线程、4 个动作线程、5 个 DB 连接。
+- 一个后台调度角色，8 个 DB 连接；回调、录音、分析、播放后动作及拨号独立有界工作池。另有六个 Inbox 消费者各 1 个 DB 连接，总应用 DB 连接上限 `6×5+6×1+4×5+8=64`，PostgreSQL 上限 120，留迁移、运维余量。
 - 两个 Agent 各 320 连接，共享 `model_quota/account.db` 的账号 RPM、估算 TPM、短时请求预算及限流冷却。模型网络等待不占用数据库。UTF-8 字节加输出上限是保守估算口径，需对选定模型 tokenizer 校准，不能作为供应商账单。
 - PostgreSQL 和 Redis 同机，数据卷独立。模型额度账本与语音账本独立，只有模型账本由两个 Agent 共享；不得复制 PBX 控制者或共用网关安全账本。
 
 媒体失败会保留原通话归属和容量，终止旧媒体代次并请求 PBX 收尾。新拨号取健康媒体容量、平台、租户、线路、任务和网关额度中的最小值。健康信息过期则停止准入；进程重启不会把旧通话移给新进程。Agent 额度/服务探测失败时，调度器停止向节点发起新呼叫；此保护有探测周期延迟，已接通通话仍走原超时及可听兜底策略。`/readyz` 不代表真实云语音和线路已验证。
+
+回调接收与业务消费已解耦；启用、死信处理、停用排空规则见[Inbox 修复说明](../../docs/reviews/20260908-callback-inbox.md)。
 
 ## 配置与启动顺序
 
@@ -19,7 +21,7 @@
 3. 按 `.env.example` 和真实线路/云服务填写 backend.env、agent.env、voice.env、recording.env。voice.env 必须设 `VOICE_CALLBACK_BASE_URL=http://127.0.0.1:8000`、`VOICE_CALLBACK_ALLOW_PRIVATE_HTTP=true`，独立签名密钥、ESL 凭据、`PIPECAT_MEDIA_PROTOCOL=voismart`、固定 Pipecat 版本及真实 ASR/TTS 配置。Agent 使用 `LLM_PROVIDER=openai-compatible` 和批准的 HTTPS 地址/allowlist。服务之间的 token 必须匹配，独立用途密钥必须不同。
 4. nodes.json 使用唯一 `single-500`，CPS 先设 15。voice-routes.json 必须为真实获准租户/线路填写前缀、主叫、网关、500 上限和独立 CPS/日限额/费用预算。**不自动放宽租户、任务、线路、日限额或预算。** 网关 `VOICE_CPS`、日限额、金额预算也需按同一工作量明确配置，否则较小限额仍拦截。`LLM_APPROVED_*` 填实际批准预算，不可直接把评估示例当成已获额度。
 5. 合并 switch.conf.example.xml 到已验收的 PBX 配置；保留 ESL 仅回环、SIP 鉴权/ACL、`agent-restricted`、音频模块、WAV 兜底音及录音权限。媒体 RPC、Agent、网关、DB 和 Redis 全部只在回环监听；业务端口 8000 由另行配置的 HTTPS 入口代理，转发与可信代理配置需一起验收。RTP 防火墙与 XML 范围一致；不开放 ESL。
-6. 启动 DB/Redis，执行现有备份、迁移与初始化流程，再启动应用；生产保持 `AUTO_MIGRATE=false`，迁移失败不可启动调度。应用非 root UID 必须可写新建的 voice_security、model_quota 和 recording_spool 数据卷，权限需按已构建镜像 UID 初始化。
+6. 启动 DB/Redis，执行现有备份、迁移与初始化流程（含 `20260908_callback_inbox.sql`），先启动六个 callback-worker，再启动应用；生产保持 `AUTO_MIGRATE=false`，迁移失败不可启动调度。应用非 root UID 必须可写新建的 voice_security、model_quota 和 recording_spool 数据卷，权限需按已构建镜像 UID 初始化。
 
 只读渲染及校验示例（执行时配置包含秘密，渲染文件存私有目录）：
 

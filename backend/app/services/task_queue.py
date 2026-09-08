@@ -240,7 +240,10 @@ async def _execute_task(task_id, token, task_type, payload):
                           **({'expected_speech_event_id': payload['speech_event_id']} if 'speech_event_id' in payload else {}),
                           **({'expected_turn_sequence': payload['turn_sequence']} if 'turn_sequence' in payload else {}))
     elif task_type == 'after_playback':
-        if payload.get('product_kind'):
+        if payload.get('inbox_interrupt'):
+            from .realtime_voice import interrupt_playback
+            await interrupt_playback(UUID(payload['call_id']), receipt_guard=payload, raise_on_failure=True)
+        elif payload.get('product_kind'):
             from .conversation_policy import run_product_task
             await run_product_task(payload)
         else:
