@@ -50,10 +50,10 @@ _expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
 _expected_speech_event = ContextVar("expected_speech_event", default=None)
 
 
-def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
+def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
     from .leases import assert_execution_permitted
     assert_execution_permitted()
-    session.refresh(call)
+    session.refresh(call, with_for_update=True if lock else None)
     if call.attempts != attempt or call.status not in AI_ACTIVE_STATUSES:
         return False
     sequence = _expected_turn_sequence.get()
@@ -348,7 +348,10 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
 async def _finish_ai_turn(snapshot, result):
     with session_scope() as session:
         call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not _ai_call_is_current(session, call, snapshot['attempt']):
+        # Match webhook lock order: call -> conversation/realtime -> child rows.
+        # Locking conversation first can deadlock when metric FK checks wait on
+        # a callback's call lock while that callback waits on conversation state.
+        if call is None or not _ai_call_is_current(session, call, snapshot['attempt'], lock=True):
             return
         call.flow_node_key = snapshot['flow_node_key']
         from .conversation_policy import state_for,save_state
@@ -518,7 +521,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
     # connection again and pins it for the entire remote operation.
     command_call_id = call.id
     attempt = call.attempts if expected_attempt is None else expected_attempt
-    if not _ai_call_is_current(session, call, attempt):
+    if not _ai_call_is_current(session, call, attempt, lock=True):
         return
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
@@ -553,7 +556,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
             response = await with_retry(
                 lambda: adapter.speak(**speak_payload)
             )
-            if not _ai_call_is_current(session, call, attempt):
+            if not _ai_call_is_current(session, call, attempt, lock=True):
                 return
             playback_id = str(response.get("playback_id") or "") or None
             playback_complete = bool(response.get("playback_complete", False))
@@ -727,6 +730,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
     session.add(call)
     session.commit()
     from .conversation_policy import arm_timer
+    # The preceding commit released the call lock. Reacquire it before changing
+    # playback/timer state and inserting the decision event's FK child row.
+    session.refresh(call, with_for_update=True)
     if call.status == CallStatus.WAITING_HUMAN:
         arm_timer(session, call, 'handoff')
     elif playback_complete and call.status in AI_ACTIVE_STATUSES:

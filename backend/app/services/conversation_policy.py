@@ -307,9 +307,10 @@ def collect_slot(data,policy,text,evidence):
     return next_slot(data,policy)
 
 
-def arm_timer(session,call,kind='silence'):
+def arm_timer(session,call,kind='silence',*,state=None):
     from .task_queue import enqueue_task
-    state=state_for(session,call); data=json.loads(state.data_json)
+    state=state_for(session,call) if state is None else state
+    data=json.loads(state.data_json)
     policy=ScenarioPolicy.model_validate_json(state.policy_json)
     if kind=='silence' and data.get('model_pending'):
         return
@@ -328,7 +329,7 @@ def on_media(session,call,payload):
     if call.status not in ACTIVE | {CallStatus.WAITING_HUMAN}:
         state.generation+=1;state.deadline=None;session.add(state);return
     if payload.state==RealtimeState.LISTENING and call.status in ACTIVE:
-        arm_timer(session,call,'failure' if payload.error_code else 'silence')
+        arm_timer(session,call,'failure' if payload.error_code else 'silence',state=state)
     elif payload.state in {RealtimeState.SPEAKING,RealtimeState.INTERRUPTED,RealtimeState.CLOSED}:
         state.generation+=1;state.deadline=None;state.timer_kind='';session.add(state)
 
