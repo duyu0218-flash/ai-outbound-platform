@@ -2,6 +2,8 @@
 
 单服务器 500 在途呼叫的代码及部署候选见[单机配置](deploy/single-host-500/README.md)和[开发验收报告](docs/reviews/20260908-single-host-500-implementation.md)。本地合成会话测试已覆盖 500 路；600 回调/秒混合压测未达标，真实 500 路商用容量尚未验收。
 
+回调重复 SQL、死锁修复和 Linux 同机对比见[吞吐定位记录](docs/reviews/20260908-callback-throughput.md)。18,000 条事件完整处理已有通过记录，持续 600 回调/秒及排队时延目标仍未通过。
+
 本机 FreeSWITCH + VoiSmart 双向媒体部署、打断及播放完成验收，见[接入说明](docs/voismart-local-media.md)；真实线路和云语音仍需单独验收。
 
 真实拨号须先配置[防盗打保护与升级条件](docs/toll-fraud-protection.md)：签名命令、独立路由白名单、持久化预算/幂等账本和 PBX 硬挂断均为强制门禁，`ENV=dev` 不豁免。旧网关配置不能直接用于真实外呼。

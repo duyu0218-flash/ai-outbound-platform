@@ -1,0 +1,18 @@
+{
+  "baseline": "667b4c9b1ed9c76e5d7896ccd927ae52904e5dd7",
+  "files": {
+    "README.md": "873ca9f0b428d9d995d536390173351485da6f7865c9a6eed53f7cb3998dac4a",
+    "backend/app/api/routers/webhooks.py": "0a0704dd3399fcaf709502c626d50c4e3c8d65d2770c8ce8072113b9fce68bb9",
+    "backend/app/db.py": "fdbc5c0c769bc1f05687d89d2cd66f4c7b75c533f0f3b74c1ff625dc235c1937",
+    "backend/app/services/conversation_policy.py": "50485b7b2ab0a9e35d01dd750a053f3892c5de3e07d8edeba3bc54acedb8a72d",
+    "backend/app/services/dispatcher.py": "482d3ab733cd1cd8b12a6f4083d1b53ab1b84ad2c61c74255e7b7b114ac55862",
+    "backend/app/services/realtime_voice.py": "54c895304cae82aa21acc729f9164f656fa9f0cb6bf32c8b582a78ebe60f8285",
+    "backend/app/services/task_queue.py": "d4138012313187c4a613e5fee142dce342c14dd328cb9c3a1cc4ee4ee1c2cc52",
+    "backend/tests/test_callback_throughput.py": "e2151e24404aa32ff1993b4f3169758921b9c337393bf7261ee5b8c72e555fcb",
+    "docker-compose.callback-load.yml": "1ed66615f7996cddbefed9298a4afb208888f8fedacd3e1a5ca19db21a21a05a",
+    "docs/reviews/20260908-callback-throughput.md": "c78fd8f279bfd32021b7b9e038eec2198e37f7ba23d6ebd03fd75ec1d276de0e",
+    "scripts/fixtures/single500_instrumented_api.py": "4fae4f34a8a5235a68d2fe13fadc72cc326b83db4d7b0408922199b089294c6f",
+    "scripts/fixtures/single500_linux_nginx.conf": "7b3d04c1141173357e002aef238e3138fc31bb9f64182913b48c3e1f420d0693",
+    "scripts/load-single-host-dialogue.py": "73227084cadc72292e21e9c85e4675150d072025e25d35049c04f7550d1f1025"
+  }
+}

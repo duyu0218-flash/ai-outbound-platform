@@ -417,12 +417,10 @@ def telephony_speech(
     _: None = Depends(check_webhook_token),
     session: Session = Depends(get_webhook_session, scope="function"),
 ):
-    call = session.get(CallSession, payload.call_id)
+    call = session.exec(select(CallSession).where(CallSession.id == payload.call_id)
+                        .with_for_update().execution_options(populate_existing=True)).first()
     if call is None:
         return {"result": "ignore"}
-    if payload.attempt is not None and payload.attempt != call.attempts:
-        return {"result": "ignored", "reason": "stale_attempt"}
-    session.refresh(call, with_for_update=True)
     if payload.attempt is not None and payload.attempt != call.attempts:
         return {"result": "ignored", "reason": "stale_attempt"}
     turn, duplicate = ingest_speech_turn(session, call, payload)
@@ -514,10 +512,10 @@ def telephony_media(
     _: None = Depends(check_webhook_token),
     session: Session = Depends(get_webhook_session, scope="function"),
 ):
-    call = session.get(CallSession, payload.call_id)
+    call = session.exec(select(CallSession).where(CallSession.id == payload.call_id)
+                        .with_for_update().execution_options(populate_existing=True)).first()
     if call is None:
         return {"result": "ignore"}
-    session.refresh(call, with_for_update=True)
     if _add_event(session, call.id, "media", "media_gateway", payload.model_dump(mode="json")):
         return {"result": "ok", "duplicate": True}
     if payload.attempt is not None and payload.attempt != call.attempts:

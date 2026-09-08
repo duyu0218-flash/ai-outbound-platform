@@ -188,7 +188,11 @@ class WebhookSession(Session):
         self.outer_connection = None
         self.outer_transaction = None
         self.finished = False
-        super().__init__(bind=engine, join_transaction_mode="create_savepoint")
+        # Service commits release a savepoint, not the event's outer transaction.
+        # Expiring every ORM object here caused repeated SELECTs of the same
+        # locked call after each service operation. Explicit lock refreshes still
+        # refresh concurrent state; nothing is cached beyond this request.
+        super().__init__(bind=engine, join_transaction_mode="create_savepoint", expire_on_commit=False)
 
     def get_bind(self, mapper=None, *, clause=None, bind=None, **kwargs):
         if self.outer_connection is None:

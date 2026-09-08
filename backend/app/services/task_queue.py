@@ -118,7 +118,8 @@ def enqueue_task(
             raise
         record_outbox_duplicate(task_type)
         return existing
-    session.refresh(task)
+    if session.expire_on_commit:
+        session.refresh(task)
     return task
 
 

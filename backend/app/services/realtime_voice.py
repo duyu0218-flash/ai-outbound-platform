@@ -34,7 +34,8 @@ def get_or_create_realtime_session(session: Session, call: CallSession) -> Realt
         realtime = RealtimeSession(tenant_id=call.tenant_id, call_session_id=call.id)
         session.add(realtime)
         session.commit()
-        session.refresh(realtime)
+        if session.expire_on_commit:
+            session.refresh(realtime)
     return realtime
 
 
@@ -132,7 +133,8 @@ def ingest_speech_turn(
         if existing is None:
             raise
         return existing, True
-    session.refresh(turn)
+    if session.expire_on_commit:
+        session.refresh(turn)
     return turn, False
 
 
@@ -214,7 +216,8 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
         )
     )
     session.commit()
-    session.refresh(realtime)
+    if session.expire_on_commit:
+        session.refresh(realtime)
     return realtime
 
 
