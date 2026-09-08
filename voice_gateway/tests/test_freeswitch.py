@@ -591,3 +591,18 @@ def test_hybrid_gateway_routes_each_call_and_rejects_mismatched_fixed_mode():
             })
 
     asyncio.run(scenario())
+
+
+def test_installed_failure_prompt_bypasses_tts_provider():
+    async def scenario():
+        fake=FakeEslClient()
+        driver=FreeswitchEslDriver(freeswitch_settings(freeswitch_fallback_audio_path='/opt/prompts/service-failed.wav'),client=fake)
+        async def capture(*args,**kwargs):pass
+        driver._post_json=capture
+        await driver.post('dial',{'call_id':'fallback-test','phone':'13800138000',
+            'webhook_url':'http://control-api:8000/api/v1/webhooks/telephony/status','metadata':{'attempt':1}})
+        result=await driver.post('speak',{'call_id':'fallback-test','text':'服务暂不可用','provider':'fallback-audio'})
+        assert result['result']=='playing'
+        assert any('/opt/prompts/service-failed.wav aleg' in command for command in fake.api_commands)
+        assert not any('speak:' in command for command in fake.api_commands)
+    asyncio.run(scenario())

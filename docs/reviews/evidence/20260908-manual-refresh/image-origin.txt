@@ -1,0 +1,1 @@
+manual-20260908-control-api sha256:6e2b8f4ab7a3d886472ccb0b93a33495f9604dbea95924a4cb6391f8ddb28820 <repository-root>

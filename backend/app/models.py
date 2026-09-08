@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index, CheckConstraint, Column, BigInteger, Integer
 from sqlmodel import Field, SQLModel
 
 from .clock import utc_now
@@ -122,6 +122,67 @@ class Contact(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class ScenarioVersion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    campaign_id: Optional[int] = Field(default=None, index=True, foreign_key="campaign.id")
+    policy_json: str = "{}"
+    published_by: Optional[int] = None
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ConversationState(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_id", "attempt", name="uq_conversation_attempt"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int = 0
+    policy_json: str = "{}"
+    policy_version_id: Optional[int] = None
+    data_json: str = "{}"
+    generation: int = 0
+    deadline: Optional[datetime] = Field(default=None,index=True)
+    timer_kind: str = ""
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PhoneSuppression(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "phone", name="uq_phone_suppression"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    phone: str = Field(index=True)
+    reason: str = ""
+    source_call_id: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class CallbackAppointment(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4,primary_key=True)
+    tenant_id: int = Field(index=True,foreign_key="tenant.id")
+    source_call_id: UUID = Field(index=True,foreign_key="callsession.id")
+    request_key: str = Field(unique=True,max_length=200)
+    scheduled_at: datetime = Field(index=True)
+    state: str = Field(default="confirmed",index=True)
+    revision: int = 1
+    dial_call_id: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProductWorkItem(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4,primary_key=True)
+    tenant_id: int = Field(index=True,foreign_key="tenant.id")
+    event_key: str = Field(unique=True,max_length=250)
+    call_id: Optional[UUID] = Field(default=None,foreign_key="callsession.id")
+    kind: str = Field(index=True)
+    state: str = Field(default="open",index=True)
+    phone: str = ""
+    detail_json: str = "{}"
+    assigned_to: Optional[int] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class ContactImportJob(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "request_key", name="uq_contact_import_tenant_key"),
@@ -201,6 +262,15 @@ class ScriptFlowVersion(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class GatewayNode(SQLModel, table=True):
+    id: str = Field(primary_key=True, max_length=64)
+    endpoint: str = Field(max_length=512)
+    capacity: int = 0
+    ready: bool = False
+    checked_at: datetime = Field(default_factory=utc_now)
+    next_dial_at: Optional[datetime] = None
+
+
 class CallSession(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
@@ -221,6 +291,8 @@ class CallSession(SQLModel, table=True):
     ai_session_id: Optional[str] = None
     telephony_call_id: Optional[str] = None
     telephony_line_id: Optional[int] = Field(default=None, foreign_key="telephonyline.id", index=True)
+    gateway_node_id: Optional[str] = Field(default=None, max_length=64, index=True)
+    gateway_endpoint: Optional[str] = Field(default=None, max_length=512)
     conversation_id: Optional[str] = None
     voice_ai_pipeline: str = Field(default="pending", max_length=16)
     last_transcript: Optional[str] = None
@@ -255,6 +327,7 @@ class RealtimeSession(SQLModel, table=True):
     codec: str = Field(default="pcm_s16le", max_length=32)
     sample_rate: int = 16000
     channel_count: int = 1
+    last_event_sequence: Optional[int] = None
     turn_sequence: int = 0
     playback_id: Optional[str] = Field(default=None, max_length=255)
     started_at: Optional[datetime] = None
@@ -319,10 +392,21 @@ class TaskOutbox(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class TaskReceipt(SQLModel, table=True):
+    """Small immutable replay tombstone; completed task bodies leave the hot table."""
+    id: UUID = Field(primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    task_type: str = Field(max_length=64)
+    aggregate_id: str = Field(max_length=128)
+    idempotency_key: str = Field(unique=True, max_length=255)
+    completed_at: datetime = Field(default_factory=utc_now)
+
+
 class RecordingAsset(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(index=True, foreign_key="tenant.id")
     call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int = 0
     provider_recording_id: Optional[str] = Field(default=None, index=True, max_length=255)
     provider_url: str = Field(default="", max_length=2000)
     storage_uri: str = Field(default="", max_length=2000)
@@ -350,6 +434,8 @@ class CallAnalysis(SQLModel, table=True):
     qa_score: int = 0
     qa_flags_json: str = "[]"
     structured_json: str = "{}"
+    automatic_result_json: str = "{}"
+    needs_review: bool = False
     review_state: str = Field(default="auto", max_length=32)
     reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
     reviewed_at: Optional[datetime] = None
@@ -364,6 +450,10 @@ class KnowledgeItem(SQLModel, table=True):
     content: str = Field(max_length=50_000)
     category: str = Field(default="default", index=True, max_length=100)
     keywords: str = Field(default="", max_length=2000)
+    source: str = Field(default="", max_length=2000)
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    campaign_id: Optional[int] = Field(default=None, index=True, foreign_key="campaign.id")
     is_active: bool = True
     version: int = 1
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
@@ -449,3 +539,58 @@ class AuditLog(SQLModel, table=True):
     resource_id: Optional[str] = Field(default=None, max_length=200)
     detail: str = Field(default="", max_length=4000)
     created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class CallUsage(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_session_id", "attempt", name="uq_callusage_attempt"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_session_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int
+    answered_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    ai_ended_at: Optional[datetime] = None
+    telephony_seconds: Optional[float] = None
+    ai_seconds: Optional[float] = None
+    duration_source: str = "missing"
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class CallbackInboxPartition(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("pending_count >= 0 AND pending_bytes >= 0", name="ck_callback_capacity"),
+    )
+    id: int = Field(primary_key=True)
+    pending_count: int = 0
+    pending_bytes: int = 0
+
+
+class CallbackInbox(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_callback_ready", "partition_id", "state", "id"),
+        Index("ix_callback_call_order", "call_id", "state", "id"),
+        Index("ix_callback_age", "state", "received_at"),
+        Index("ix_callback_cleanup", "state", "completed_at"),
+    )
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True))
+    receipt_key: str = Field(unique=True, max_length=64)
+    partition_id: int
+    # No call FK: acknowledging reception must not wait on business row locks.
+    call_id: UUID
+    kind: str = Field(max_length=32)
+    body_json: str
+    body_digest: str = Field(max_length=64)
+    body_bytes: int
+    state: str = Field(default="pending", max_length=16)
+    received_at: datetime = Field(default_factory=utc_now)
+    available_at: datetime = Field(default_factory=utc_now)
+    completed_at: Optional[datetime] = None
+    attempts: int = 0
+    error_type: str = Field(default="", max_length=128)
+
+
+class CallbackInboxWorker(SQLModel, table=True):
+    id: str = Field(primary_key=True, max_length=64)
+    heartbeat_at: datetime = Field(default_factory=utc_now)
+    processed: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    max_latency_ms: float = 0

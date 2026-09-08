@@ -34,7 +34,8 @@ def get_or_create_realtime_session(session: Session, call: CallSession) -> Realt
         realtime = RealtimeSession(tenant_id=call.tenant_id, call_session_id=call.id)
         session.add(realtime)
         session.commit()
-        session.refresh(realtime)
+        if session.expire_on_commit:
+            session.refresh(realtime)
     return realtime
 
 
@@ -56,7 +57,21 @@ def ingest_speech_turn(
     realtime = get_or_create_realtime_session(session, call)
     if payload.is_final:
         realtime.turn_sequence += 1
-    realtime.state = RealtimeState.THINKING if payload.is_final else RealtimeState.LISTENING
+    from ..models import ConversationState
+    policy_state = session.exec(select(ConversationState).where(ConversationState.call_id == call.id,
+        ConversationState.attempt == call.attempts)).first()
+    if policy_state is not None:
+        policy_state.generation += 1
+        policy_state.deadline = None
+        policy_state.timer_kind = ''
+        data = json.loads(policy_state.data_json)
+        if payload.is_final:
+            data['speech_event_id'] = payload.event_id
+        policy_state.data_json = json.dumps(data, ensure_ascii=False)
+        session.add(policy_state)
+    from .call_service import TERMINAL_STATUSES
+    if call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED:
+        realtime.state = RealtimeState.THINKING if payload.is_final else RealtimeState.LISTENING
     realtime.updated_at = utc_now()
     if realtime.started_at is None:
         realtime.started_at = utc_now()
@@ -118,7 +133,8 @@ def ingest_speech_turn(
         if existing is None:
             raise
         return existing, True
-    session.refresh(turn)
+    if session.expire_on_commit:
+        session.refresh(turn)
     return turn, False
 
 
@@ -133,6 +149,25 @@ def _speech_metric_detail(payload: SpeechWebhookEvent) -> str:
 
 def apply_media_event(session: Session, call: CallSession, payload: MediaWebhookEvent) -> RealtimeSession:
     realtime = get_or_create_realtime_session(session, call)
+    from .call_service import TERMINAL_STATUSES
+    attempt = call.attempts if payload.attempt is None else payload.attempt
+    if attempt != call.attempts or (call.attempts > 1 and payload.attempt is None):
+        return realtime
+    if call.status in TERMINAL_STATUSES and payload.state != RealtimeState.CLOSED:
+        return realtime
+    if realtime.attempt == attempt:
+        if realtime.state == RealtimeState.CLOSED:
+            return realtime
+        if payload.event_sequence is not None and realtime.last_event_sequence is not None and payload.event_sequence <= realtime.last_event_sequence:
+            return realtime
+    else:
+        realtime.started_at = None
+        realtime.ended_at = None
+        realtime.last_event_sequence = None
+        realtime.provider_session_id = None
+    realtime.attempt = attempt
+    realtime.last_event_sequence = payload.event_sequence if payload.event_sequence is not None else realtime.last_event_sequence
+    previous_playback_id = realtime.playback_id
     realtime.state = payload.state
     if payload.attempt is not None:
         realtime.attempt = payload.attempt
@@ -146,7 +181,21 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
         realtime.started_at = utc_now()
     if payload.state == RealtimeState.CLOSED:
         realtime.ended_at = utc_now()
+    if payload.state in {RealtimeState.LISTENING, RealtimeState.INTERRUPTED, RealtimeState.CLOSED}:
+        from ..models import TaskOutbox, TaskState
+        pending = session.exec(select(TaskOutbox).where(
+            TaskOutbox.aggregate_id == str(call.id), TaskOutbox.task_type == "after_playback",
+            TaskOutbox.state == TaskState.PENDING).with_for_update()).all()
+        for task in pending:
+            continuation = json.loads(task.payload_json)
+            if (not continuation.get('product_kind') and continuation.get("attempt") == attempt
+                    and continuation.get("playback_id") == previous_playback_id
+                    and realtime.playback_id != previous_playback_id):
+                task.available_at = utc_now()
+                session.add(task)
     session.add(realtime)
+    from .conversation_policy import on_media
+    on_media(session, call, payload)
     session.add(
         CallMetric(
             tenant_id=call.tenant_id,
@@ -167,11 +216,12 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
         )
     )
     session.commit()
-    session.refresh(realtime)
+    if session.expire_on_commit:
+        session.refresh(realtime)
     return realtime
 
 
-async def interrupt_playback(call_id: UUID) -> None:
+async def interrupt_playback(call_id: UUID, *, receipt_guard: dict | None = None, raise_on_failure: bool = False) -> None:
     from ..db import session_scope
 
     started = perf_counter()
@@ -186,13 +236,49 @@ async def interrupt_playback(call_id: UUID) -> None:
                 session=session,
                 tenant_id=call.tenant_id,
                 line_id=call.telephony_line_id,
+                call_id=call.id,
             )
-            await with_retry(lambda: adapter.stop_speaking(call_id=str(call.id)))
+            from .call_service import TERMINAL_STATUSES
+            from .telephony import HttpAdapter
+            if call.status in TERMINAL_STATUSES:
+                return
             realtime = get_or_create_realtime_session(session, call)
-            realtime.state = RealtimeState.INTERRUPTED
-            realtime.playback_id = None
-            realtime.updated_at = utc_now()
-            session.add(realtime)
+            if receipt_guard is not None and (
+                call.attempts != receipt_guard['attempt']
+                or realtime.playback_id != receipt_guard['playback_id']
+                or realtime.turn_sequence != receipt_guard['turn_sequence']
+            ):
+                return
+            expected_attempt, playback_id = call.attempts, realtime.playback_id
+            command_id, provider_id = str(call.id), call.telephony_call_id
+            session.commit()
+            identity = {"expected_attempt": expected_attempt, "provider_call_id": provider_id} if isinstance(adapter, HttpAdapter) else {}
+            if isinstance(adapter, HttpAdapter) and call.voice_ai_pipeline == 'pipecat' and receipt_guard and receipt_guard.get('speech_event_id'):
+                identity['expected_speech_event_id'] = receipt_guard['speech_event_id']
+            async def stop_current():
+                import httpx
+                try:
+                    return await adapter.stop_speaking(call_id=command_id, **identity)
+                except httpx.HTTPStatusError as exc:
+                    # The gateway may observe a newer generation after our DB
+                    # snapshot. Its explicit stale fence is a completed no-op.
+                    if receipt_guard and exc.response.status_code == 409:
+                        try:
+                            detail = exc.response.json().get('detail')
+                        except (ValueError, AttributeError):
+                            detail = None
+                        if detail in {'stale speech generation', 'stale dial attempt', 'stale provider call'}:
+                            return False
+                    raise
+            if await with_retry(stop_current) is False:
+                return
+            session.refresh(call, with_for_update=True)
+            session.refresh(realtime)
+            if call.attempts == expected_attempt and call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED and realtime.playback_id == playback_id:
+                realtime.state = RealtimeState.INTERRUPTED
+                realtime.playback_id = None
+                realtime.updated_at = utc_now()
+                session.add(realtime)
         except Exception as exc:
             success = False
             error = str(exc)
@@ -216,3 +302,5 @@ async def interrupt_playback(call_id: UUID) -> None:
             )
         )
         session.commit()
+        if not success and raise_on_failure:
+            raise RuntimeError("durable playback interrupt failed")

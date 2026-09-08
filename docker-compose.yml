@@ -121,6 +121,12 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
+      DATABASE_URL_API: ${DATABASE_URL_API:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_URL_BOOTSTRAP: ${DATABASE_URL_BOOTSTRAP:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_BOOTSTRAP_ADVISORY_LOCK: ${DATABASE_BOOTSTRAP_ADVISORY_LOCK:-true}
+      DATABASE_BOOTSTRAP_LOCK_NAME: ${DATABASE_BOOTSTRAP_LOCK_NAME:-ai-outbound-bootstrap-ddl}
+      DATABASE_BOOTSTRAP_DATA_LOCK_NAME: ${DATABASE_BOOTSTRAP_DATA_LOCK_NAME:-ai-outbound-bootstrap-data}
+      DATABASE_MIGRATION_LOCK_NAME: ${DATABASE_MIGRATION_LOCK_NAME:-ai-outbound-schema-migrations}
       REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
       TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
@@ -166,6 +172,12 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
+      DATABASE_URL_API: ${DATABASE_URL_API:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_URL_BOOTSTRAP: ${DATABASE_URL_BOOTSTRAP:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_BOOTSTRAP_ADVISORY_LOCK: ${DATABASE_BOOTSTRAP_ADVISORY_LOCK:-true}
+      DATABASE_BOOTSTRAP_LOCK_NAME: ${DATABASE_BOOTSTRAP_LOCK_NAME:-ai-outbound-bootstrap-ddl}
+      DATABASE_BOOTSTRAP_DATA_LOCK_NAME: ${DATABASE_BOOTSTRAP_DATA_LOCK_NAME:-ai-outbound-bootstrap-data}
+      DATABASE_MIGRATION_LOCK_NAME: ${DATABASE_MIGRATION_LOCK_NAME:-ai-outbound-schema-migrations}
       REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
       TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
@@ -175,6 +187,8 @@ services:
       RECORDING_INGEST_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
       RECORDING_DELETE_ENDPOINT: ${RECORDING_DELETE_ENDPOINT:-http://recording-adapter:8003/v1/recordings/delete}
       RECORDING_DELETE_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
+      TASK_QUEUE_LANES: ${TASK_QUEUE_LANES:-}
+      TASK_QUEUE_LANE_ALIASES: ${TASK_QUEUE_LANE_ALIASES:-recording_ingest:recording,recording_delete:recording}
       SCHEDULER_ENABLED: "true"
     command: ["python", "-m", "app.worker"]
     healthcheck:

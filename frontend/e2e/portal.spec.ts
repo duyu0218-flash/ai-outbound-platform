@@ -68,7 +68,7 @@ test('recording notice text can be saved and is restored after reload', async ({
 test('all administrator menu entries are clickable and return to the dashboard', async ({ page }) => {
   await login(page, 'admin', 'admin')
   const menu = page.locator('.app-sider [role="menuitem"]')
-  await expect(menu).toHaveCount(15)
+  await expect(menu).toHaveCount(16)
   const count = await menu.count()
   for (let index = 0; index < count; index++) {
     await menu.nth(index).click()

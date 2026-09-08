@@ -1,0 +1,12 @@
+$ vitest run
+
+ RUN  v3.2.7 /Users/lixiaomei/Documents/ChatGPT/AI外呼系统/duyu0218-flash/ai-outbound-platform/frontend
+
+ ✓ src/renew-registration.test.ts (3 tests) 2ms
+ ✓ src/query-session.test.ts (2 tests) 3ms
+ ✓ src/api.test.ts (6 tests) 18ms
+
+ Test Files  3 passed (3)
+      Tests  11 passed (11)
+   Start at  11:41:44
+   Duration  467ms (transform 41ms, setup 0ms, collect 74ms, tests 22ms, environment 853ms, prepare 114ms)

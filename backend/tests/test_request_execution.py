@@ -16,6 +16,107 @@ from app.middleware import AdmissionControlMiddleware, TimeoutMiddleware
 from app.services.runtime_metrics import snapshot
 
 
+@pytest.mark.asyncio
+async def test_compact_waiting_budget_absorbs_burst_without_entering_handler(monkeypatch, client):
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, 'request_admission_total_inflight', 6)
+    monkeypatch.setattr(cfg, 'request_admission_webhook_inflight', 4)
+    monkeypatch.setattr(cfg, 'request_admission_max_waiters', 8)
+    monkeypatch.setattr(cfg, 'request_admission_timeout_sec', .05)
+    release = asyncio.Event()
+    entered = 0
+    async def inner(scope, receive, send):
+        nonlocal entered
+        entered += 1
+        await release.wait()
+        await send({'type': 'http.response.start', 'status': 200, 'headers': []})
+        await send({'type': 'http.response.body', 'body': b'ok'})
+    gate = AdmissionControlMiddleware(inner)
+    async def call():
+        messages = []
+        async def receive(): return {'type': 'http.disconnect'}
+        async def send(message): messages.append(message)
+        await gate({'type': 'http', 'path': '/api/v1/webhooks/status'}, receive, send)
+        return messages[0]['status']
+    tasks = [asyncio.create_task(call()) for _ in range(12)]
+    try:
+        # One event-loop turn starts each task; all eight wait before DB/handler work.
+        await asyncio.sleep(0)
+        assert (gate.total, gate.waiting, entered) == (4, 8, 4)
+        assert await call() == 503
+        release.set()
+        assert await asyncio.gather(*tasks) == [200] * 12
+        assert (gate.total, gate.waiting, entered) == (0, 0, 12)
+    finally:
+        release.set()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_compact_wait_timeout_does_not_execute_and_budget_recovers(monkeypatch, client):
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, 'request_admission_total_inflight', 1)
+    monkeypatch.setattr(cfg, 'request_admission_max_waiters', 8)
+    monkeypatch.setattr(cfg, 'request_admission_timeout_sec', .05)
+    entered, release = asyncio.Event(), asyncio.Event()
+    executions = 0
+    async def inner(scope, receive, send):
+        nonlocal executions
+        executions += 1
+        entered.set()
+        await release.wait()
+        await send({'type': 'http.response.start', 'status': 200, 'headers': []})
+        await send({'type': 'http.response.body', 'body': b'ok'})
+    gate = AdmissionControlMiddleware(inner)
+    async def call():
+        messages = []
+        async def receive(): return {'type': 'http.disconnect'}
+        async def send(message): messages.append(message)
+        await gate({'type': 'http', 'path': '/api/v1/webhooks/status'}, receive, send)
+        return messages[0]
+    first = asyncio.create_task(call())
+    try:
+        await entered.wait()
+        before = snapshot()['admission_rejections'].get('webhook:timeout', 0)
+        response = await asyncio.wait_for(call(), 2)
+        assert response['status'] == 503
+        assert (b'retry-after', b'1') in response['headers']
+        assert snapshot()['admission_rejections']['webhook:timeout'] == before + 1
+        assert (gate.total, gate.waiting, executions) == (1, 0, 1)
+        release.set()
+        assert (await first)['status'] == 200
+        assert (await call())['status'] == 200
+        assert (gate.total, gate.waiting, executions) == (0, 0, 2)
+    finally:
+        release.set()
+        await first
+
+
+@pytest.mark.asyncio
+async def test_static_chunks_have_a_separate_bounded_budget(monkeypatch):
+    cfg = get_settings()
+    monkeypatch.setattr(cfg, 'request_admission_total_inflight', 1)
+    monkeypatch.setattr(cfg, 'request_admission_default_inflight', 1)
+    monkeypatch.setattr(cfg, 'request_admission_static_inflight', 8)
+    monkeypatch.setattr(cfg, 'request_admission_max_waiters', 0)
+    entered, release = asyncio.Event(), asyncio.Event()
+    app = FastAPI()
+    @app.get('/control')
+    async def control():
+        entered.set(); await release.wait(); return {}
+    @app.get('/assets/{name}')
+    async def chunk(name):
+        await asyncio.sleep(.01); return {'chunk': name}
+    app.add_middleware(AdmissionControlMiddleware)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as http:
+        busy = asyncio.create_task(http.get('/control'))
+        await entered.wait()
+        results = await asyncio.gather(*(http.get(f'/assets/{i}.js') for i in range(8)))
+        assert all(response.status_code == 200 for response in results)
+        assert (await http.get('/control')).status_code == 503
+        release.set(); assert (await busy).status_code == 200
+
+
 def test_all_session_dependencies_are_lazy(client):
     before = snapshot()['db_checked_out']
     for dependency in (db.get_session, db.get_webhook_session):

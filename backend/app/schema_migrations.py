@@ -8,29 +8,56 @@ not start with a model/database mismatch.
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 
 from sqlalchemy import inspect, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 
 logger = logging.getLogger(__name__)
 
+def _columns(bind: Engine | Connection, table: str) -> set[str]:
+    return {str(item["name"]) for item in inspect(bind).get_columns(table)}
 
-def _columns(engine: Engine, table: str) -> set[str]:
-    return {str(item["name"]) for item in inspect(engine).get_columns(table)}
+
+@contextmanager
+def _bind_transaction(bind: Engine | Connection):
+    if isinstance(bind, Connection) and bind.in_transaction():
+        yield bind
+        return
+    with bind.begin() as connection:
+        yield connection
 
 
-def apply_runtime_migrations(engine: Engine) -> None:
-    inspector = inspect(engine)
+def apply_runtime_migrations(bind: Engine | Connection) -> None:
+    inspector = inspect(bind)
     tables = set(inspector.get_table_names())
     statements: list[str] = []
 
-    if "taskoutbox" in tables and "lease_token" not in _columns(engine, "taskoutbox"):
+    if "taskoutbox" in tables and "lease_token" not in _columns(bind, "taskoutbox"):
         statements.append("ALTER TABLE taskoutbox ADD COLUMN lease_token VARCHAR(64)")
-    if "speechturn" in tables and "attempt" not in _columns(engine, "speechturn"):
+    if "speechturn" in tables and "attempt" not in _columns(bind, "speechturn"):
         statements.append("ALTER TABLE speechturn ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
+    additions = {
+        "knowledgeitem": {"source":"VARCHAR(2000) NOT NULL DEFAULT ''", "valid_from":"TIMESTAMP", "valid_until":"TIMESTAMP", "campaign_id":"INTEGER"},
+        "gatewaynode": {"next_dial_at": "TIMESTAMP"},
+        "recordingasset": {"attempt": "INTEGER NOT NULL DEFAULT 0"},
+        "callanalysis": {"automatic_result_json": "TEXT NOT NULL DEFAULT '{}'", "needs_review": "BOOLEAN NOT NULL DEFAULT FALSE"},
+        "realtimesession": {"last_event_sequence": "BIGINT"},
+    }
+    for table, columns in additions.items():
+        if table in tables:
+            existing = _columns(bind, table)
+            for name, definition in columns.items():
+                if name not in existing:
+                    statements.append(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
     if "callsession" in tables:
-        call_columns = _columns(engine, "callsession")
+        call_columns = _columns(bind, "callsession")
+        if "gateway_node_id" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN gateway_node_id VARCHAR(64)")
+        if "gateway_endpoint" not in call_columns:
+            statements.append("ALTER TABLE callsession ADD COLUMN gateway_endpoint VARCHAR(512)")
         if "human_agent_id" not in call_columns:
             statements.append("ALTER TABLE callsession ADD COLUMN human_agent_id INTEGER")
         if "telephony_line_id" not in call_columns:
@@ -45,7 +72,7 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE callsession ADD COLUMN campaign_contact_key VARCHAR(128)")
 
     if "campaign" in tables:
-        campaign_columns = _columns(engine, "campaign")
+        campaign_columns = _columns(bind, "campaign")
         if "script_flow_version_id" not in campaign_columns:
             statements.append("ALTER TABLE campaign ADD COLUMN script_flow_version_id INTEGER")
         if "voice_ai_pipeline" not in campaign_columns:
@@ -54,12 +81,12 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE campaign ADD COLUMN dispatch_enabled BOOLEAN NOT NULL DEFAULT FALSE")
 
     if "realtimesession" in tables:
-        realtime_columns = _columns(engine, "realtimesession")
+        realtime_columns = _columns(bind, "realtimesession")
         if "attempt" not in realtime_columns:
             statements.append("ALTER TABLE realtimesession ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
     if "telephonyline" in tables:
-        line_columns = _columns(engine, "telephonyline")
+        line_columns = _columns(bind, "telephonyline")
         if "priority" not in line_columns:
             statements.append("ALTER TABLE telephonyline ADD COLUMN priority INTEGER NOT NULL DEFAULT 100")
         if "weight" not in line_columns:
@@ -68,7 +95,7 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE telephonyline ADD COLUMN credential_ref VARCHAR(128) NOT NULL DEFAULT ''")
 
     if "user" in tables:
-        user_columns = _columns(engine, "user")
+        user_columns = _columns(bind, "user")
         if "agent_status" not in user_columns:
             statements.append("ALTER TABLE \"user\" ADD COLUMN agent_status VARCHAR(32) NOT NULL DEFAULT 'offline'")
         if "last_seen_at" not in user_columns:
@@ -83,7 +110,7 @@ def apply_runtime_migrations(engine: Engine) -> None:
             statements.append("ALTER TABLE \"user\" ADD COLUMN last_login_at TIMESTAMP")
 
     if "smslog" in tables:
-        sms_columns = _columns(engine, "smslog")
+        sms_columns = _columns(bind, "smslog")
         if "provider_message_id" not in sms_columns:
             statements.append("ALTER TABLE smslog ADD COLUMN provider_message_id VARCHAR(255)")
         if "provider_error" not in sms_columns:
@@ -91,15 +118,16 @@ def apply_runtime_migrations(engine: Engine) -> None:
         if "updated_at" not in sms_columns:
             statements.append("ALTER TABLE smslog ADD COLUMN updated_at TIMESTAMP")
 
-    with engine.begin() as connection:
-        if engine.dialect.name == "postgresql" and "handoffrequest" in tables:
+    with _bind_transaction(bind) as connection:
+        dialect_name = connection.dialect.name
+        if dialect_name == "postgresql" and "handoffrequest" in tables:
             # SQLModel creates Python enums as native PostgreSQL enums. Older
             # installations therefore need the transient claim state added
             # before the handoff acceptance endpoint can use it.
             connection.execute(
                 text("ALTER TYPE handoffstate ADD VALUE IF NOT EXISTS 'ACCEPTING'")
             )
-        if engine.dialect.name == "postgresql" and "callsession" in tables:
+        if dialect_name == "postgresql" and "callsession" in tables:
             connection.execute(
                 text("ALTER TYPE callstatus ADD VALUE IF NOT EXISTS 'IN_HUMAN'")
             )
@@ -107,6 +135,7 @@ def apply_runtime_migrations(engine: Engine) -> None:
             logger.info("applying database migration: %s", statement)
             connection.execute(text(statement))
         if "callsession" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_callsession_gateway_capacity ON callsession(gateway_node_id,status)"))
             connection.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_callsession_telephony_line_id ON callsession (telephony_line_id)")
             )
@@ -134,8 +163,12 @@ def apply_runtime_migrations(engine: Engine) -> None:
             )
 
         if "taskoutbox" in tables:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_active_stream ON taskoutbox(aggregate_id,task_type,created_at,id) WHERE state IN ('PENDING','FAILED','PROCESSING')"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_tenant ON taskoutbox(task_type,tenant_id,available_at,id) WHERE state IN ('PENDING','FAILED')"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_archive ON taskoutbox(updated_at,id) WHERE state = 'COMPLETED'"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_ready_type ON taskoutbox(task_type, state, available_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_taskoutbox_stream_order ON taskoutbox(aggregate_id,task_type,state,created_at,id)"))
         if "speechturn" in tables:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_speechturn_call_attempt ON speechturn(call_session_id, attempt, created_at)"))
-        if "callsession" in tables and {"tenant_id", "phone", "started_at"} <= _columns(engine, "callsession"):
+        if "callsession" in tables and {"tenant_id", "phone", "started_at"} <= _columns(bind, "callsession"):
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_callsession_tenant_phone_started ON callsession(tenant_id, phone, started_at)"))

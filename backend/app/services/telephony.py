@@ -8,8 +8,10 @@ from abc import ABC, abstractmethod
 import os
 import re
 from typing import Any, Callable, Dict, Awaitable, TYPE_CHECKING
+from uuid import UUID
 
 import httpx
+from .worker_runtime import http_client
 from sqlalchemy import func
 from sqlmodel import select
 
@@ -209,7 +211,7 @@ class MockAdapter(TelephonyAdapter):
             headers["x-webhook-timestamp"] = stamp
             headers["x-webhook-signature"] = hmac.new(settings.telephony_webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()
         try:
-            async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
+            async with http_client(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
                 await client.post(
                     webhook_url,
                     content=body,
@@ -222,9 +224,12 @@ class MockAdapter(TelephonyAdapter):
 
 
 class HttpAdapter(TelephonyAdapter):
-    def __init__(self, endpoint: str, credential_ref: str = "", bearer_token: str = "", tenant_id: int | None = None):
+    def __init__(self, endpoint: str, credential_ref: str = "", bearer_token: str = "", tenant_id: int | None = None,
+                 expected_attempt: int | None = None, provider_call_id: str | None = None):
         self.endpoint = endpoint.rstrip("/")
         self.tenant_id = tenant_id
+        self.expected_attempt = expected_attempt
+        self.provider_call_id = provider_call_id
         self.headers = _credential_headers(credential_ref)
         if bearer_token and "Authorization" not in self.headers:
             self.headers["Authorization"] = f"Bearer {bearer_token}"
@@ -235,11 +240,16 @@ class HttpAdapter(TelephonyAdapter):
         if not settings.voice_command_secret or self.tenant_id is None:
             raise RuntimeError("real telephony requires a signing secret and tenant identity")
         payload = {**payload, "tenant_id": self.tenant_id}
+        if path != "/v1/call/dial":
+            if payload.get("expected_attempt") is None:
+                payload["expected_attempt"] = self.expected_attempt
+            if not payload.get("provider_call_id"):
+                payload["provider_call_id"] = self.provider_call_id
         body = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
         stamp, nonce = str(int(time.time())), token_urlsafe(24)
         headers = {**self.headers, "Content-Type": "application/json", "x-voice-timestamp": stamp, "x-voice-nonce": nonce,
                    "x-voice-signature": hmac.new(settings.voice_command_secret.encode(), f"{stamp}.{nonce}.{path}.".encode() + body, hashlib.sha256).hexdigest()}
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
+        async with http_client(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
             response = await client.post(f"{self.endpoint}{path}", content=body)
         response.raise_for_status()
         return response.json()
@@ -258,8 +268,10 @@ class HttpAdapter(TelephonyAdapter):
         payload = {"call_id": call_id, "reason": reason, "target_group": target_group}
         return await self._post("/v1/call/transfer", payload)
 
-    async def hangup(self, *, call_id: str, reason: str = "hangup") -> Dict[str, Any]:
-        payload = {"call_id": call_id, "reason": reason}
+    async def hangup(self, *, call_id: str, reason: str = "hangup", expected_attempt: int | None = None,
+                     provider_call_id: str | None = None, expected_speech_event_id: str | None = None) -> Dict[str, Any]:
+        payload = {"call_id": call_id, "reason": reason, "expected_attempt": expected_attempt,
+                   "provider_call_id": provider_call_id, "expected_speech_event_id": expected_speech_event_id}
         return await self._post("/v1/call/hangup", payload)
 
     async def speak(
@@ -270,6 +282,7 @@ class HttpAdapter(TelephonyAdapter):
         language: str = "zh-CN",
         voice: str = "",
         provider: str = "",
+        expected_speech_event_id: str | None = None,
     ) -> Dict[str, Any]:
         payload = {
             "call_id": call_id,
@@ -277,11 +290,16 @@ class HttpAdapter(TelephonyAdapter):
             "language": language,
             "voice": voice,
             "provider": provider,
+            "expected_speech_event_id": expected_speech_event_id,
         }
         return await self._post("/v1/call/speak", payload)
 
-    async def stop_speaking(self, *, call_id: str) -> Dict[str, Any]:
-        return await self._post("/v1/call/stop-speaking", {"call_id": call_id})
+    async def stop_speaking(self, *, call_id: str, expected_attempt: int | None = None,
+                            provider_call_id: str | None = None, expected_speech_event_id: str | None = None) -> Dict[str, Any]:
+        payload = {"call_id": call_id, "expected_attempt": expected_attempt, "provider_call_id": provider_call_id}
+        if expected_speech_event_id is not None:
+            payload["expected_speech_event_id"] = expected_speech_event_id
+        return await self._post("/v1/call/stop-speaking", payload)
 
 
 class SmsAdapter(ABC):
@@ -311,7 +329,7 @@ class HttpSmsAdapter(SmsAdapter):
             "sender_id": self.sender,
             "callback_url": settings.sms_callback_url,
         }
-        async with httpx.AsyncClient(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
+        async with http_client(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
             response = await client.post(
                 f"{endpoint}/v1/sms/send",
                 headers={"Authorization": f"Bearer {self.api_key}"},
@@ -326,6 +344,7 @@ def get_telephony_adapter(
     session: "Session | None" = None,
     tenant_id: int | None = None,
     line_id: int | None = None,
+    call_id: UUID | None = None,
 ) -> TelephonyAdapter:
     provider = (settings.telephony_provider or "mock").strip().lower()
     endpoint = settings.telephony_provider_endpoint or settings.sip_provider_endpoint
@@ -337,6 +356,21 @@ def get_telephony_adapter(
             line_id=line_id,
             enabled_only=line_id is None,
         )
+    if call_id is not None:
+        if session is None or tenant_id is None:
+            raise RuntimeError("call routing requires a tenant session")
+        call = session.get(CallSession, call_id)
+        if call is None or call.tenant_id != tenant_id:
+            raise RuntimeError("call routing tenant mismatch")
+        if call.gateway_node_id:
+            if not call.gateway_endpoint:
+                raise RuntimeError("persisted gateway endpoint is missing")
+            return HttpAdapter(call.gateway_endpoint, line.credential_ref if line else "",
+                               bearer_token=settings.telephony_service_token, tenant_id=tenant_id,
+                               expected_attempt=call.attempts, provider_call_id=call.telephony_call_id)
+    else:
+        call = None
+    identity = {"expected_attempt": call.attempts, "provider_call_id": call.telephony_call_id} if call else {}
     if line is not None:
         provider = line.provider.strip().lower()
         endpoint = line.gateway_url.strip()
@@ -346,13 +380,13 @@ def get_telephony_adapter(
             raise RuntimeError(
                 "tenant telephony line must point to an HTTP bridge endpoint; direct SIP dialing is not supported by the control service"
             )
-        return HttpAdapter(endpoint, line.credential_ref, tenant_id=tenant_id)
+        return HttpAdapter(endpoint, line.credential_ref, tenant_id=tenant_id, **identity)
     if provider == "tenant":
         raise RuntimeError("no enabled telephony line configured for tenant")
     if provider == "http":
         if not endpoint:
             raise RuntimeError("telephony provider is HTTP but endpoint is not configured")
-        return HttpAdapter(endpoint, bearer_token=settings.telephony_service_token, tenant_id=tenant_id)
+        return HttpAdapter(endpoint, bearer_token=settings.telephony_service_token, tenant_id=tenant_id, **identity)
     return MockAdapter()
 
 

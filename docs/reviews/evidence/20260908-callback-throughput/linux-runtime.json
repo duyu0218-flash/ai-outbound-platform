@@ -1,0 +1,1 @@
+{"python": "3.11.16 (main, Aug 25 2026, 01:23:02) [GCC 14.2.0]", "packages": {"sqlalchemy": "2.0.52", "sqlmodel": "0.0.42", "fastapi": "0.141.1", "httpx": "0.28.1", "psycopg": "3.3.4", "uvicorn": "0.52.4"}}

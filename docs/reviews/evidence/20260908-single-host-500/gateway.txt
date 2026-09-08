@@ -1,0 +1,177 @@
+.......................F................................................ [ 33%]
+........................................................................ [ 66%]
+........................................................................ [100%]
+=================================== FAILURES ===================================
+__________________ test_esl_client_authenticates_and_runs_api __________________
+
+    def test_esl_client_authenticates_and_runs_api():
+        async def read_command(reader: asyncio.StreamReader) -> str:
+            lines: list[bytes] = []
+            while True:
+                line = await reader.readline()
+                if not line or line in {b"\n", b"\r\n"}:
+                    return b"".join(lines).decode().strip()
+                lines.append(line)
+
+        async def scenario():
+            async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+                writer.write(b"Content-Type: auth/request\n\n")
+                await writer.drain()
+                assert await read_command(reader) == "auth secret"
+                writer.write(b"Content-Type: command/reply\nReply-Text: +OK accepted\n\n")
+                await writer.drain()
+                assert await read_command(reader) == "api status"
+                writer.write(b"Content-Type: api/response\nContent-Length: 9\n\nUP 1 year")
+                await writer.drain()
+                writer.close()
+                await writer.wait_closed()
+
+            server = await asyncio.start_server(handle, "127.0.0.1", 0)
+            port = server.sockets[0].getsockname()[1]
+            async with server:
+                result = await EslClient("127.0.0.1", port, "secret").api("status")
+            assert result == "UP 1 year"
+
+>       asyncio.run(scenario())
+
+tests/test_freeswitch.py:131:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/Users/lixiaomei/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Users/lixiaomei/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/lixiaomei/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_freeswitch.py:125: in scenario
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/lixiaomei/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/streams.py:84: in start_server
+    return await loop.create_server(factory, host, port, **kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <_UnixSelectorEventLoop running=False closed=True debug=False>
+protocol_factory = <function start_server.<locals>.factory at 0x10d5a6700>
+host = '127.0.0.1', port = 0, family = <AddressFamily.AF_UNSPEC: 0>
+flags = <AddressInfo.AI_PASSIVE: 1>
+sock = <socket.socket [closed] fd=-1, family=2, type=1, proto=6>, backlog = 100
+ssl = None, reuse_address = True, reuse_port = None
+ssl_handshake_timeout = None, ssl_shutdown_timeout = None, start_serving = True
+
+    async def create_server(
+            self, protocol_factory, host=None, port=None,
+            *,
+            family=socket.AF_UNSPEC,
+            flags=socket.AI_PASSIVE,
+            sock=None,
+            backlog=100,
+            ssl=None,
+            reuse_address=None,
+            reuse_port=None,
+            ssl_handshake_timeout=None,
+            ssl_shutdown_timeout=None,
+            start_serving=True):
+        """Create a TCP server.
+
+        The host parameter can be a string, in that case the TCP server is
+        bound to host and port.
+
+        The host parameter can also be a sequence of strings and in that case
+        the TCP server is bound to all hosts of the sequence. If a host
+        appears multiple times (possibly indirectly e.g. when hostnames
+        resolve to the same IP address), the server is only bound once to that
+        host.
+
+        Return a Server object which can be used to stop the service.
+
+        This method is a coroutine.
+        """
+        if isinstance(ssl, bool):
+            raise TypeError('ssl argument must be an SSLContext or None')
+
+        if ssl_handshake_timeout is not None and ssl is None:
+            raise ValueError(
+                'ssl_handshake_timeout is only meaningful with ssl')
+
+        if ssl_shutdown_timeout is not None and ssl is None:
+            raise ValueError(
+                'ssl_shutdown_timeout is only meaningful with ssl')
+
+        if sock is not None:
+            _check_ssl_socket(sock)
+
+        if host is not None or port is not None:
+            if sock is not None:
+                raise ValueError(
+                    'host/port and sock can not be specified at the same time')
+
+            if reuse_address is None:
+                reuse_address = os.name == "posix" and sys.platform != "cygwin"
+            sockets = []
+            if host == '':
+                hosts = [None]
+            elif (isinstance(host, str) or
+                  not isinstance(host, collections.abc.Iterable)):
+                hosts = [host]
+            else:
+                hosts = host
+
+            fs = [self._create_server_getaddrinfo(host, port, family=family,
+                                                  flags=flags)
+                  for host in hosts]
+            infos = await tasks.gather(*fs)
+            infos = set(itertools.chain.from_iterable(infos))
+
+            completed = False
+            try:
+                for res in infos:
+                    af, socktype, proto, canonname, sa = res
+                    try:
+                        sock = socket.socket(af, socktype, proto)
+                    except socket.error:
+                        # Assume it's a bad family/type/protocol combination.
+                        if self._debug:
+                            logger.warning('create_server() failed to create '
+                                           'socket.socket(%r, %r, %r)',
+                                           af, socktype, proto, exc_info=True)
+                        continue
+                    sockets.append(sock)
+                    if reuse_address:
+                        sock.setsockopt(
+                            socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+                    # Since Linux 6.12.9, SO_REUSEPORT is not allowed
+                    # on other address families than AF_INET/AF_INET6.
+                    if reuse_port and af in (socket.AF_INET, socket.AF_INET6):
+                        _set_reuseport(sock)
+                    # Disable IPv4/IPv6 dual stack support (enabled by
+                    # default on Linux) which makes a single socket
+                    # listen on both address families.
+                    if (_HAS_IPv6 and
+                            af == socket.AF_INET6 and
+                            hasattr(socket, 'IPPROTO_IPV6')):
+                        sock.setsockopt(socket.IPPROTO_IPV6,
+                                        socket.IPV6_V6ONLY,
+                                        True)
+                    try:
+                        sock.bind(sa)
+                    except OSError as err:
+                        msg = ('error while attempting '
+                               'to bind on address %r: %s'
+                               % (sa, str(err).lower()))
+                        if err.errno == errno.EADDRNOTAVAIL:
+                            # Assume the family is not enabled (bpo-30945)
+                            sockets.pop()
+                            sock.close()
+                            if self._debug:
+                                logger.warning(msg)
+                            continue
+>                       raise OSError(err.errno, msg) from None
+E                       PermissionError: [Errno 1] error while attempting to bind on address ('127.0.0.1', 0): [errno 1] operation not permitted
+
+/Users/lixiaomei/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:1584: PermissionError
+=========================== short test summary info ============================
+FAILED tests/test_freeswitch.py::test_esl_client_authenticates_and_runs_api
+1 failed, 215 passed in 2.63s

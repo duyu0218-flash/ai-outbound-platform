@@ -1,15 +1,22 @@
 from typing import List
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel
 from pydantic import Field
 
 from .config import settings
-from .llm import generate_reply
+from .llm import generate_reply, llm_client_lifespan, quota
 from .policy import get_default_keywords, resolve_action, ai_reply
 
 settings.validate_runtime()
-app = FastAPI(title=settings.app_name)
+@asynccontextmanager
+async def lifespan(_):
+    async with llm_client_lifespan():
+        yield
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 
 def require_service_token(authorization: str | None = Header(default=None)) -> None:
@@ -41,6 +48,14 @@ class TurnResult(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get('/readyz', dependencies=[Depends(require_service_token)])
+async def ready():
+    if not await quota.ready():
+        raise HTTPException(503, 'model account budget unavailable')
+    return {'status': 'ready', 'inflight': quota.inflight,
+            'model_connectivity_verified': False}
 
 
 @app.post("/agent/turn", dependencies=[Depends(require_service_token)])

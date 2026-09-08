@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import List
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +35,12 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "*"
 
     database_url: str = "sqlite:///./ai_outbound.db"
+    database_url_api: str | None = None
+    database_url_bootstrap: str | None = None
+    database_bootstrap_advisory_lock: bool = True
+    database_bootstrap_lock_name: str = "ai-outbound-bootstrap-ddl"
+    database_bootstrap_data_lock_name: str = "ai-outbound-bootstrap-data"
+    database_migration_lock_name: str = "ai-outbound-schema-migrations"
     database_pool_size: int = 5
     database_max_overflow: int = 5
     database_pool_timeout_sec: int = 30
@@ -57,6 +64,19 @@ class Settings(BaseSettings):
     telephony_timeout_sec: int = 8
     telephony_retry_times: int = 2
     telephony_retry_backoff_sec: float = 1.0
+    # Fixed 64 partitions: changing their count would invalidate call ordering.
+    callback_inbox_enabled: bool = False
+    callback_inbox_health_path: str = "/tmp/callback-inbox-health.json"
+    callback_inbox_partition_limit: int = Field(default=256, ge=1, le=4096)
+    callback_inbox_partition_bytes: int = Field(default=4 * 1024 * 1024, ge=262144, le=16777216)
+    callback_inbox_body_bytes: int = Field(default=262144, ge=1024, le=262144)
+    callback_inbox_batch_size: int = Field(default=32, ge=1, le=128)
+    callback_inbox_batch_budget_ms: int = Field(default=50, ge=1, le=500)
+    callback_inbox_poll_sec: float = Field(default=0.02, ge=0.005, le=1)
+    callback_inbox_max_attempts: int = Field(default=5, ge=1, le=20)
+    callback_inbox_max_age_sec: float = Field(default=1, ge=0.1, le=30)
+    callback_inbox_worker_ttl_sec: int = Field(default=10, ge=3, le=60)
+    callback_inbox_receipt_days: int = Field(default=7, ge=7, le=90)
     scheduler_enabled: bool = True
     scheduler_poll_interval_sec: float = 1.0
     scheduler_batch_size: int = 200
@@ -83,9 +103,16 @@ class Settings(BaseSettings):
     task_lease_sec: int = 30
     task_timeout_sec: int = 120
     task_poll_interval_sec: float = 0.1
+    task_worker_role: str = "all"
+    ai_worker_health_path: str = "/tmp/ai-worker-health.json"
+    ai_db_threads: int = 2
+    outbound_require_agent_ready: bool = False
+    ai_action_threads: int = 2
     task_ai_concurrency: int = 4
     task_callback_concurrency: int = 4
     task_recording_concurrency: int = 2
+    task_queue_lanes: str = ""
+    task_queue_lane_aliases: str = "recording_ingest:recording,recording_delete:recording"
     task_inline_execution_enabled: bool = False
     recording_delete_endpoint: str = ""
     recording_delete_service_token: str = ""
@@ -104,6 +131,11 @@ class Settings(BaseSettings):
     outbound_allowed_phone_prefixes: str = ""
     outbound_daily_call_limit: int = 10_000
     outbound_platform_max_concurrent: int = 20
+    voice_gateway_nodes_json: str = "[]"
+    voice_gateway_nodes_file: str = ""
+    voice_gateway_health_ttl_sec: int = 20
+    voice_gateway_health_poll_sec: float = 5.0
+    terminal_analysis_async: bool = False
     voice_command_secret: str = ""
     outbound_security_approval_token: str = ""
     tenant_api_scopes_json: str = "{}"
@@ -126,6 +158,7 @@ class Settings(BaseSettings):
     request_admission_retry_after_sec: int = 1
     request_admission_metrics_inflight: int = 1
     request_admission_stream_inflight: int = 64
+    request_admission_static_inflight: int = 32
     agent_snapshot_concurrency: int = 2
     trusted_hosts: str = ""
     trusted_proxy_ips: str = "127.0.0.1,::1"
@@ -177,6 +210,72 @@ class Settings(BaseSettings):
             except OSError as exc:
                 raise RuntimeError(f"unable to read METRICS_TOKEN_FILE: {exc}") from exc
         return self.metrics_token.strip()
+
+    def database_url_for_api(self) -> str:
+        return (self.database_url_api or self.database_url).strip() or self.database_url
+
+    def database_url_for_bootstrap(self) -> str:
+        return (
+            (self.database_url_bootstrap or self.database_url_api or self.database_url).strip()
+            or self.database_url
+        )
+
+    def resolved_task_queue_lanes(self) -> dict[str, int]:
+        lanes: dict[str, int] = {
+            "ai_turn": max(1, self.task_ai_concurrency),
+            "business_callback": max(1, self.task_callback_concurrency),
+            "recording": max(1, self.task_recording_concurrency),
+            "call_analysis": 2,
+            "after_playback": 4,
+            "dial_call": 8,
+        }
+        raw = self.task_queue_lanes.strip()
+        if raw:
+            for chunk in raw.split(","):
+                if not chunk.strip():
+                    continue
+                if ":" in chunk:
+                    lane, value = chunk.split(":", 1)
+                elif "=" in chunk:
+                    lane, value = chunk.split("=", 1)
+                else:
+                    continue
+                lane = lane.strip().lower()
+                try:
+                    limit = int(value.strip())
+                except ValueError:
+                    continue
+                if not lane or limit < 1:
+                    continue
+                lanes[lane] = limit
+        if self.task_worker_role not in {"all", "background", "ai"}:
+            raise ValueError("TASK_WORKER_ROLE must be all, background or ai")
+        if self.task_worker_role == "background":
+            lanes.pop("ai_turn", None)
+        if self.task_worker_role == "ai":
+            return {"ai_turn": lanes["ai_turn"]}
+        return lanes
+
+    def resolved_task_queue_aliases(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        raw = self.task_queue_lane_aliases.strip()
+        if raw:
+            for chunk in raw.split(","):
+                if not chunk.strip():
+                    continue
+                if ":" in chunk:
+                    source, target = chunk.split(":", 1)
+                elif "=" in chunk:
+                    source, target = chunk.split("=", 1)
+                else:
+                    continue
+                source = source.strip().lower()
+                target = target.strip().lower()
+                if source and target:
+                    aliases[source] = target
+        if self.task_worker_role != "all" and ("ai_turn" in aliases or "ai_turn" in aliases.values()):
+            raise ValueError("dedicated AI workers cannot alias the ai_turn lane")
+        return aliases
 
 
 def setup_logging(level: str) -> None:

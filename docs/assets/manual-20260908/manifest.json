@@ -1,0 +1,702 @@
+{
+  "application_commit": "26f205b",
+  "environment": "isolated Docker Compose, synthetic data, Mock telephony",
+  "screenshots": [
+    {
+      "file": "admin-login.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 458377,
+      "sha256": "9c23190c2f2d1f2bf365a267028949a20d15253aa0c330afb860d1ba1d0bad08",
+      "captured_at": "2026-09-08T14:57:51.083008+00:00"
+    },
+    {
+      "file": "agent-calls.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 52724,
+      "sha256": "2b90bc85f29b5857046d57a1ad7279aabf7689aff37589f945eaf3cf686667f1",
+      "captured_at": "2026-09-08T14:58:11.227229+00:00"
+    },
+    {
+      "file": "agent-handoff-accepted.png",
+      "width": 1280,
+      "height": 1263,
+      "bytes": 130409,
+      "sha256": "7fc9e17063f6575058687084751cfa49c342d7415d923d7e04765cd0f9fbc705",
+      "captured_at": "2026-09-08T15:15:43.959384+00:00"
+    },
+    {
+      "file": "agent-handoff-pending.png",
+      "width": 1280,
+      "height": 1263,
+      "bytes": 131843,
+      "sha256": "a2e8c8e8f1f8aa796bfd73e2d6e06ea548185de0ef7296aaa3df6e1567da31c5",
+      "captured_at": "2026-09-08T15:15:43.568425+00:00"
+    },
+    {
+      "file": "agent-login.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 459741,
+      "sha256": "01cbde6eccd203a5439afb473f4c4ade52cc4f102f2b47f915cf07513d8fa3fb",
+      "captured_at": "2026-09-08T14:58:10.324764+00:00"
+    },
+    {
+      "file": "agent-workspace.png",
+      "width": 1440,
+      "height": 1263,
+      "bytes": 131799,
+      "sha256": "9e8d14671d9425a5496444621237235feccd4f45c19abaf49344b96c3d9c9e8e",
+      "captured_at": "2026-09-08T14:58:10.842880+00:00"
+    },
+    {
+      "file": "appointment-before.png",
+      "width": 992,
+      "height": 248,
+      "bytes": 23670,
+      "sha256": "0e2b8b7fb0fb912e4e2a8d24f2de436022b6689daf2437606eb2b2dd4c5589cc",
+      "captured_at": "2026-09-08T15:20:27.028454+00:00"
+    },
+    {
+      "file": "appointment-cancelled.png",
+      "width": 992,
+      "height": 248,
+      "bytes": 22423,
+      "sha256": "092976e7c95181ff0a9a3d75bbd0854bfc54bb258c983772390b252c8c277c08",
+      "captured_at": "2026-09-08T15:20:28.003036+00:00"
+    },
+    {
+      "file": "appointment-saved.png",
+      "width": 992,
+      "height": 248,
+      "bytes": 23670,
+      "sha256": "0e2b8b7fb0fb912e4e2a8d24f2de436022b6689daf2437606eb2b2dd4c5589cc",
+      "captured_at": "2026-09-08T15:20:27.385349+00:00"
+    },
+    {
+      "file": "appointment-time-filled.png",
+      "width": 992,
+      "height": 248,
+      "bytes": 24442,
+      "sha256": "60d0019f40a156f1885d9d78f6b4509e20cb41617f4c8a233ea1d74dc323d65d",
+      "captured_at": "2026-09-08T15:20:27.093108+00:00"
+    },
+    {
+      "file": "billing.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 129469,
+      "sha256": "aa2ba80f1cd42f93519e2da494ffaa1001a438db0f232298e7de7a1cb6a4cf68",
+      "captured_at": "2026-09-08T14:57:58.282456+00:00"
+    },
+    {
+      "file": "call-ended.png",
+      "width": 1280,
+      "height": 720,
+      "bytes": 75419,
+      "sha256": "42e94bde9d1b018dc05dec7e2c45bd45cac53084a2c858313595bbe58ea28323",
+      "captured_at": "2026-09-08T15:15:44.497275+00:00"
+    },
+    {
+      "file": "call-events.png",
+      "width": 1440,
+      "height": 1222,
+      "bytes": 148489,
+      "sha256": "b55c34720aadb9c7195228ec47ddbf9b3d0f8d61436bb6039266342f69b9b5a9",
+      "captured_at": "2026-09-08T15:21:20.102860+00:00"
+    },
+    {
+      "file": "call-handoff-request.png",
+      "width": 1280,
+      "height": 720,
+      "bytes": 79651,
+      "sha256": "d49df3fd879d985f6b5bbc07115ce36fe518d0b8f2330b4b173c38bfb0fb47ae",
+      "captured_at": "2026-09-08T15:15:43.333588+00:00"
+    },
+    {
+      "file": "calls-filled.png",
+      "width": 520,
+      "height": 398,
+      "bytes": 16412,
+      "sha256": "c3e391f1e66e752c329bfc828ffd522cf62ccc9f2a1fb42fb30dceade2c83c46",
+      "captured_at": "2026-09-08T15:14:56.740795+00:00"
+    },
+    {
+      "file": "calls-form.png",
+      "width": 520,
+      "height": 398,
+      "bytes": 14862,
+      "sha256": "2db7d26fe93cd99ac66837e10f5785d4f52186567238a42eda3fdd68018f04c9",
+      "captured_at": "2026-09-08T15:14:56.439932+00:00"
+    },
+    {
+      "file": "calls.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 82402,
+      "sha256": "ed48f153b03f87ac86f137c75448078b7765a9978323e9c934ee6c3c2183cccc",
+      "captured_at": "2026-09-08T14:57:55.943495+00:00"
+    },
+    {
+      "file": "campaign-paused.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 157256,
+      "sha256": "c92d286a89877be64fa6926a0232e65074d494a22bdf909b69320c6dd8cad6a9",
+      "captured_at": "2026-09-08T15:16:45.328305+00:00"
+    },
+    {
+      "file": "campaign-resumed.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 157138,
+      "sha256": "6f03ac3d22905d06a0a206b0498a55f85a3f207c7cb328a5c2723c6430b3e913",
+      "captured_at": "2026-09-08T15:16:45.676497+00:00"
+    },
+    {
+      "file": "campaign-running.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 157662,
+      "sha256": "45c287a8fbb6c5ebb7e86c8891247a25739deac2eed05cf4c5b6bc39740707d0",
+      "captured_at": "2026-09-08T15:16:44.988919+00:00"
+    },
+    {
+      "file": "campaign-start-confirm.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 164693,
+      "sha256": "433ba6f9c26ef0df0f07512cbe421febe1e438f0c935e91412d17f933625443c",
+      "captured_at": "2026-09-08T15:16:44.638263+00:00"
+    },
+    {
+      "file": "campaign-stopped.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 157896,
+      "sha256": "736478dc5c11604e62fc4ebef99ee9cbbf18956dee1a3573aed5654afa4743de",
+      "captured_at": "2026-09-08T15:16:46.318729+00:00"
+    },
+    {
+      "file": "campaigns-filled.png",
+      "width": 760,
+      "height": 1104,
+      "bytes": 74758,
+      "sha256": "586dd35b4e49c39bc8dce2a877813f053c8c0cc1a7d387c40aeab87b57bb0f23",
+      "captured_at": "2026-09-08T15:14:55.483061+00:00"
+    },
+    {
+      "file": "campaigns-form.png",
+      "width": 760,
+      "height": 1104,
+      "bytes": 63617,
+      "sha256": "1ff58afdf598ffee767f5d48591c8b8af8cd7b7c0301d551970e1af8ed8421d5",
+      "captured_at": "2026-09-08T15:14:54.325922+00:00"
+    },
+    {
+      "file": "campaigns-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 87625,
+      "sha256": "4ff3f3b3b648c6cb855868bea549d0bfc53f461e7f02089ae3ab8bdf0f8afa10",
+      "captured_at": "2026-09-08T15:06:19.796048+00:00"
+    },
+    {
+      "file": "campaigns.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 76521,
+      "sha256": "4000300220de950b5fa68c1bf8bbbadce50990d177998b5cb030a9f25598d4ed",
+      "captured_at": "2026-09-08T14:57:54.797809+00:00"
+    },
+    {
+      "file": "contacts-filled.png",
+      "width": 520,
+      "height": 472,
+      "bytes": 24218,
+      "sha256": "95dd44858d9c3f764207612a30eba75630ee8c0669a9f9c621cb399bed4c6846",
+      "captured_at": "2026-09-08T15:11:25.857171+00:00"
+    },
+    {
+      "file": "contacts-form.png",
+      "width": 520,
+      "height": 472,
+      "bytes": 19466,
+      "sha256": "4e801ccb3f210e9fb8463416372b227e0815ff55c8f0ad90f964497bb9340d8b",
+      "captured_at": "2026-09-08T15:11:25.231749+00:00"
+    },
+    {
+      "file": "contacts-operations.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 88202,
+      "sha256": "8dc14ba8363b76225a78664098df3c62451a9e512374a010379cb074f36561e0",
+      "captured_at": "2026-09-08T14:57:57.076660+00:00"
+    },
+    {
+      "file": "contacts-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 89580,
+      "sha256": "bc1ce367e9b247d6fcfa535e7051df37026202f67c7b0374f0194c00e44c0aea",
+      "captured_at": "2026-09-08T15:06:07.603958+00:00"
+    },
+    {
+      "file": "contacts.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 83007,
+      "sha256": "d8733e2ccc00b77b0a41d6184a6ecd4f7be4808f6e939af88e0f0580da9df9e7",
+      "captured_at": "2026-09-08T14:57:52.568727+00:00"
+    },
+    {
+      "file": "dashboard.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 132289,
+      "sha256": "b9f1efc7a1d618b105c265c7b6d27a9b9ee49471ffa717764cba6cc6b2f26b52",
+      "captured_at": "2026-09-08T14:57:51.763684+00:00"
+    },
+    {
+      "file": "followup-completed.png",
+      "width": 1440,
+      "height": 1592,
+      "bytes": 187286,
+      "sha256": "576bc7e384920d7076ca2eee34c431d5b2b3cae4232c465125240b5ac5880058",
+      "captured_at": "2026-09-08T15:06:16.731204+00:00"
+    },
+    {
+      "file": "followup-pending.png",
+      "width": 1440,
+      "height": 1592,
+      "bytes": 190177,
+      "sha256": "46bcead988d4b37904e8620ad7e38a4e3b7ca5ff5cb57ff14af376e760603f0c",
+      "captured_at": "2026-09-08T15:06:16.135845+00:00"
+    },
+    {
+      "file": "group-monitor.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 91477,
+      "sha256": "f798b9ebc27257073437f43fda7736380fd0f38389a2e3e15816790b7fe71f67",
+      "captured_at": "2026-09-08T14:57:57.874933+00:00"
+    },
+    {
+      "file": "knowledge-filled.png",
+      "width": 520,
+      "height": 756,
+      "bytes": 25489,
+      "sha256": "6cd06fa85ab2469936141fb7ccc6374ee48fb0455013f0c69a94282c763d0c6e",
+      "captured_at": "2026-09-08T15:11:27.143441+00:00"
+    },
+    {
+      "file": "knowledge-form.png",
+      "width": 520,
+      "height": 756,
+      "bytes": 16474,
+      "sha256": "06e4d1b28a042a7b47ab92d127f9165c2d5ad6bdeb8750dba0bc75d949c082b8",
+      "captured_at": "2026-09-08T15:11:26.841083+00:00"
+    },
+    {
+      "file": "knowledge-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 86769,
+      "sha256": "e62be77c838b0c28c66ee47d6117bf53b6c74a739a2c1564bfe316a0fe0651fb",
+      "captured_at": "2026-09-08T15:06:09.441325+00:00"
+    },
+    {
+      "file": "knowledge.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 76117,
+      "sha256": "50e1bad9a31cb5deead39d532fcdac92e2e3681726b8e42b4f8925ede600875f",
+      "captured_at": "2026-09-08T14:58:00.925050+00:00"
+    },
+    {
+      "file": "lines-filled.png",
+      "width": 520,
+      "height": 530,
+      "bytes": 34609,
+      "sha256": "223cc7143c86a58893e29590a54e3914a908dc1c2f2fdfd4d4f5907b8860742c",
+      "captured_at": "2026-09-08T15:11:24.269654+00:00"
+    },
+    {
+      "file": "lines-form.png",
+      "width": 520,
+      "height": 530,
+      "bytes": 31106,
+      "sha256": "8c9cdf9017dae7f3cff95c906259a418f5f4e926fe892f55e579517ef00b6ff3",
+      "captured_at": "2026-09-08T15:11:23.624547+00:00"
+    },
+    {
+      "file": "lines-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 85559,
+      "sha256": "52b90c001365ee32b9ce8d2df5793320c2dce822a270c2f17770c58bfb435b80",
+      "captured_at": "2026-09-08T15:05:01.570625+00:00"
+    },
+    {
+      "file": "lines.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 80561,
+      "sha256": "d307807fe30d25700524d173dde76006fe7e2155fb9345c3d43e065163dade9a",
+      "captured_at": "2026-09-08T14:57:59.811396+00:00"
+    },
+    {
+      "file": "logout-menu.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 138810,
+      "sha256": "d39ea346bd3351dcae9b81dd90bceb3676933d19f16d4879e8728e068203bfa2",
+      "captured_at": "2026-09-08T14:58:09.297267+00:00"
+    },
+    {
+      "file": "logout-result.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 458377,
+      "sha256": "9c23190c2f2d1f2bf365a267028949a20d15253aa0c330afb860d1ba1d0bad08",
+      "captured_at": "2026-09-08T14:58:09.804192+00:00"
+    },
+    {
+      "file": "product-knowledge-filled.png",
+      "width": 1440,
+      "height": 1601,
+      "bytes": 157883,
+      "sha256": "5958d5a500c9ae0d67b92730c03fc356dbecfdf77ab4892f2216be9a57cd1004",
+      "captured_at": "2026-09-08T15:06:14.988798+00:00"
+    },
+    {
+      "file": "product-knowledge-result.png",
+      "width": 1440,
+      "height": 1608,
+      "bytes": 168294,
+      "sha256": "2124fc9820ed8132b068403514115985da96f99bd129205da8ee60bc7b1565a6",
+      "captured_at": "2026-09-08T15:06:15.508300+00:00"
+    },
+    {
+      "file": "product-policy-filled.png",
+      "width": 1440,
+      "height": 1630,
+      "bytes": 185243,
+      "sha256": "bbfb9318979f63a3945300df2108d021bfd4df7b843398dae6270fc961b54419",
+      "captured_at": "2026-09-08T15:06:12.842585+00:00"
+    },
+    {
+      "file": "product-policy-saved.png",
+      "width": 1440,
+      "height": 1630,
+      "bytes": 184582,
+      "sha256": "bbef8a77a75c524e6d7f4701de220e9a141b4e7a1da25226d5fdac83652328c9",
+      "captured_at": "2026-09-08T15:06:13.965742+00:00"
+    },
+    {
+      "file": "product-simulation-result.png",
+      "width": 1440,
+      "height": 1193,
+      "bytes": 142554,
+      "sha256": "69fae096b98fe82008a375f13c0cf53a7ecf7adda28b15894184c4643dab3a54",
+      "captured_at": "2026-09-08T15:06:14.519249+00:00"
+    },
+    {
+      "file": "product-slots-filled.png",
+      "width": 1440,
+      "height": 1218,
+      "bytes": 130226,
+      "sha256": "72f59844a92fe9a5678142451bcdad498700afc637746ff03e08e49dfb601af7",
+      "captured_at": "2026-09-08T15:06:13.310235+00:00"
+    },
+    {
+      "file": "product-tab-0.png",
+      "width": 1440,
+      "height": 1630,
+      "bytes": 179228,
+      "sha256": "6d9a2aa9d58dbb7bd2118d77497cc6ab14cea75e740f216cceab0ce19ba33044",
+      "captured_at": "2026-09-08T14:58:04.992874+00:00"
+    },
+    {
+      "file": "product-tab-1.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 107739,
+      "sha256": "4af0bddf1a8b432724ef90e0f704f5a5ee5756188fdbb885a3c2caed16727323",
+      "captured_at": "2026-09-08T14:58:05.399420+00:00"
+    },
+    {
+      "file": "product-tab-2.png",
+      "width": 1440,
+      "height": 1754,
+      "bytes": 160915,
+      "sha256": "f3575125a1e458282d7c69e4be82a65bbcdb73cd64ad7dff72c9ea096f367e10",
+      "captured_at": "2026-09-08T14:58:05.848951+00:00"
+    },
+    {
+      "file": "product-tab-3.png",
+      "width": 1440,
+      "height": 1312,
+      "bytes": 127109,
+      "sha256": "7f9ac487accd5d727a4030b233903f4a404031fd0179a140676e96c57f963bfc",
+      "captured_at": "2026-09-08T14:58:06.280813+00:00"
+    },
+    {
+      "file": "product-tab-4.png",
+      "width": 1440,
+      "height": 1312,
+      "bytes": 127097,
+      "sha256": "dace11e06f405589e5a30eefa9fedff0dccba3cfaf8f1c99cc35005036a36ad3",
+      "captured_at": "2026-09-08T14:58:06.709206+00:00"
+    },
+    {
+      "file": "product-tab-5.png",
+      "width": 1440,
+      "height": 1312,
+      "bytes": 127132,
+      "sha256": "b1c8c1195ba77b8b2ddfbbbe6247143366606acec976867c110b2c898f1f1562",
+      "captured_at": "2026-09-08T14:58:07.142801+00:00"
+    },
+    {
+      "file": "product-tab-6.png",
+      "width": 1440,
+      "height": 1434,
+      "bytes": 147053,
+      "sha256": "2d9893d8270508aa8d4eee766f84232889a7063d53a3bb26d3c7e475398688aa",
+      "captured_at": "2026-09-08T14:58:07.567668+00:00"
+    },
+    {
+      "file": "product-tab-7.png",
+      "width": 1440,
+      "height": 1312,
+      "bytes": 131580,
+      "sha256": "770b7dcd2967903f11ca180e18f1e85278d9893ea5d1a4c95951dab59145d8a4",
+      "captured_at": "2026-09-08T14:58:08.000010+00:00"
+    },
+    {
+      "file": "product-tab-8.png",
+      "width": 1440,
+      "height": 1720,
+      "bytes": 141611,
+      "sha256": "fee5a6a4f083b393b044de2b556d2e3b7058ef4a4dc9306cbc8f0e00c104a132",
+      "captured_at": "2026-09-08T14:58:08.444586+00:00"
+    },
+    {
+      "file": "product.png",
+      "width": 1440,
+      "height": 1630,
+      "bytes": 179152,
+      "sha256": "1c281e77c9bf3d39ae7147d2c6b2d6476d87206d3a534632364f07e6df1ff8b9",
+      "captured_at": "2026-09-08T14:58:04.561683+00:00"
+    },
+    {
+      "file": "quality.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 92043,
+      "sha256": "4187e72ff301bea6e3a826f7e36596549ed43adc72b7d039c277261bafccc1f3",
+      "captured_at": "2026-09-08T14:57:52.165160+00:00"
+    },
+    {
+      "file": "reports.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 101958,
+      "sha256": "fb0299cc8c23bf128c730edffb415c75271df3cbbafb7f9491a0ab4728410f98",
+      "captured_at": "2026-09-08T14:57:57.477033+00:00"
+    },
+    {
+      "file": "script-flow-created.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 96142,
+      "sha256": "0d881b60a59b83aaa6fba775470ebc4e4eda665ff6f447c995a643ec4143bfcf",
+      "captured_at": "2026-09-08T15:16:46.842562+00:00"
+    },
+    {
+      "file": "script-flow-publish-confirm.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 104642,
+      "sha256": "13a57f05551fd850d9ae31c5cfb1b6b464993b2791dd677f261a38bf45ed1c4f",
+      "captured_at": "2026-09-08T15:16:47.170082+00:00"
+    },
+    {
+      "file": "script-flow-published.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 95054,
+      "sha256": "6e1d194475bd2d802ec8324ec84a6e01612cbde721e007e74092a028df1ae298",
+      "captured_at": "2026-09-08T15:16:47.516573+00:00"
+    },
+    {
+      "file": "script-flow.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 42145,
+      "sha256": "a6797523d097a9aa5f0985e05aaa19c244d7dbb751e3e7101765981ce9716bfa",
+      "captured_at": "2026-09-08T15:06:11.682843+00:00"
+    },
+    {
+      "file": "scripts-filled.png",
+      "width": 680,
+      "height": 660,
+      "bytes": 29285,
+      "sha256": "a300ba7ca95f5b993cda41f3ca0896fae3de0c200458e19b072c120c4b61322c",
+      "captured_at": "2026-09-08T15:11:28.408249+00:00"
+    },
+    {
+      "file": "scripts-form.png",
+      "width": 680,
+      "height": 660,
+      "bytes": 18400,
+      "sha256": "819c3041b0cafaec65e6ed7fe2a97a5c755f67c6b34eb33c90bc1d6d6ebcc29b",
+      "captured_at": "2026-09-08T15:11:28.100298+00:00"
+    },
+    {
+      "file": "scripts-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 90954,
+      "sha256": "5ae7ae29db3dd99648ced3599d0f65b7279623ad45109cf079b100b9b82fabb5",
+      "captured_at": "2026-09-08T15:06:11.284245+00:00"
+    },
+    {
+      "file": "scripts.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 72231,
+      "sha256": "bb3e2207784f6d38f5b3faa5ff379ea08f057ccdfc267041a72f6a5a82e5d477",
+      "captured_at": "2026-09-08T14:57:53.678205+00:00"
+    },
+    {
+      "file": "settings-saved-0.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 133818,
+      "sha256": "6ff30fb366dd3645020f9f520d2a5e3e9f8aa5159dc751646592bcaf3f8b1f61",
+      "captured_at": "2026-09-08T15:06:00.896390+00:00"
+    },
+    {
+      "file": "settings-saved-1.png",
+      "width": 1440,
+      "height": 1062,
+      "bytes": 152573,
+      "sha256": "b7eaf504f8040cf1640a738dc30595d7fe65d686fb7a09be2a4f45620682c8f9",
+      "captured_at": "2026-09-08T15:06:02.014969+00:00"
+    },
+    {
+      "file": "settings-saved-2.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 115996,
+      "sha256": "d8f2e798f19dd50c9ecdc28c7a1d79bb8d06183e268459c5235586a456b83073",
+      "captured_at": "2026-09-08T15:06:03.103692+00:00"
+    },
+    {
+      "file": "settings-saved-3.png",
+      "width": 1440,
+      "height": 1076,
+      "bytes": 166489,
+      "sha256": "81cd488966f393975d6f247ffc11f18a8350eb9ec552d283a6a6ecc99640574a",
+      "captured_at": "2026-09-08T15:06:04.305529+00:00"
+    },
+    {
+      "file": "settings-saved-4.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 116531,
+      "sha256": "4ce4ee77ac47fb74f5e20f80d14aa6a2ec23c4f8c195cef9a49fac2d2baad921",
+      "captured_at": "2026-09-08T15:06:05.388381+00:00"
+    },
+    {
+      "file": "settings-tab-0.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 131722,
+      "sha256": "cdc4fb38609e819dc58b14a7c8d7db095b7df630b3342f51ed27e878b3641488",
+      "captured_at": "2026-09-08T14:58:02.448418+00:00"
+    },
+    {
+      "file": "settings-tab-1.png",
+      "width": 1440,
+      "height": 1062,
+      "bytes": 149026,
+      "sha256": "b7e5d583cc355a7202fd62680d9e468384f0762faede8a219866471273e5a25c",
+      "captured_at": "2026-09-08T14:58:02.882005+00:00"
+    },
+    {
+      "file": "settings-tab-2.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 112409,
+      "sha256": "fd706c0e8aafe53a5ef1f8be4b382a7376640cb4153910d87d671c244f808653",
+      "captured_at": "2026-09-08T14:58:03.296926+00:00"
+    },
+    {
+      "file": "settings-tab-3.png",
+      "width": 1440,
+      "height": 1076,
+      "bytes": 162803,
+      "sha256": "f3ca7cc0fce1fc7356e944c4bf3a0439a8bcc5d4c5cc4664f5bb9f7049a8cc36",
+      "captured_at": "2026-09-08T14:58:03.726003+00:00"
+    },
+    {
+      "file": "settings-tab-4.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 112821,
+      "sha256": "18fa2b7806a4562fdba45c846b27cab51e4d5048e0beb16d2319db2bfce8b333",
+      "captured_at": "2026-09-08T14:58:04.122369+00:00"
+    },
+    {
+      "file": "settings.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 131722,
+      "sha256": "cdc4fb38609e819dc58b14a7c8d7db095b7df630b3342f51ed27e878b3641488",
+      "captured_at": "2026-09-08T14:58:02.038998+00:00"
+    },
+    {
+      "file": "system.png",
+      "width": 1440,
+      "height": 1573,
+      "bytes": 146508,
+      "sha256": "f5b8b1efd3156f578fa7b2efe8cd91bebb4d4c0158040756c2f772d39d9b0977",
+      "captured_at": "2026-09-08T14:58:08.868915+00:00"
+    },
+    {
+      "file": "users-filled.png",
+      "width": 520,
+      "height": 398,
+      "bytes": 23202,
+      "sha256": "0c396d1e6b52509e10e2a290bf7770d9f571cf6aa8f3149b32757b03e9ee9178",
+      "captured_at": "2026-09-08T15:11:22.633786+00:00"
+    },
+    {
+      "file": "users-form.png",
+      "width": 520,
+      "height": 398,
+      "bytes": 19450,
+      "sha256": "dd705d55ff958f618db04534515c56fca3efb7b858567f5f5fca2e547eb4a7e5",
+      "captured_at": "2026-09-08T15:11:22.326044+00:00"
+    },
+    {
+      "file": "users-saved.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 102789,
+      "sha256": "7e3e701521bd16f145dcfbb322f0314c84a88967de6cf61a051382db3cd65b4d",
+      "captured_at": "2026-09-08T15:03:22.197528+00:00"
+    },
+    {
+      "file": "users.png",
+      "width": 1440,
+      "height": 1050,
+      "bytes": 95079,
+      "sha256": "913911fe8572f7f5831178d56947ce93245df908ba1857ae6c2dfd2455cf4dd4",
+      "captured_at": "2026-09-08T14:57:58.676412+00:00"
+    }
+  ]
+}

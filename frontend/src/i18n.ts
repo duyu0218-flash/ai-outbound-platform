@@ -2,6 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 const zh = {
+  prepared: '已准备', needs_review: '有新证据，待复核',
   product: 'AI 外呼平台', adminPortal: '管理中心', agentPortal: '座席中心',
   dashboard: '仪表盘', qualityReview: '质检复核', contacts: '客户管理', scripts: '话术管理', campaigns: '外呼任务', calls: '通话记录',
   contactsOperations: '客户运营', reports: '运营报表', groupMonitor: '分组监控', billing: '账单与计费',
@@ -74,6 +75,7 @@ const zh = {
 }
 
 const en: typeof zh = {
+  prepared: 'Prepared', needs_review: 'New evidence, review required',
   product: 'AI Outbound Platform', adminPortal: 'Admin Center', agentPortal: 'Agent Center',
   dashboard: 'Dashboard', qualityReview: 'Quality Review', contacts: 'Contacts', scripts: 'Scripts', campaigns: 'Campaigns', calls: 'Call History',
   contactsOperations: 'Contact Operations', reports: 'Reports', groupMonitor: 'Group Monitor', billing: 'Billing & Usage',

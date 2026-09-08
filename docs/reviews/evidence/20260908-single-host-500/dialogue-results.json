@@ -1,0 +1,34 @@
+{
+  "synthetic_active_calls": 500,
+  "final_transcripts_per_second": 200,
+  "media_events_per_second": 400,
+  "duration_seconds": 30,
+  "all_delivery_statuses_including_retries": {
+    "503": 11,
+    "200": 11961,
+    "504": 2
+  },
+  "pending_callbacks": 6039,
+  "oldest_callback_age_sec": 80.1009931564331,
+  "durable_commit_batches": 3637,
+  "durable_operations": 29974,
+  "callback_p99_ms": 721.4913750067353,
+  "generator_lag_p99_ms": 207.17191696166992,
+  "api_distribution": {},
+  "task_states": {
+    "pending": 6,
+    "processing": 134,
+    "completed": 3858
+  },
+  "final_transcripts": 4002,
+  "successful_ai_metrics": 3864,
+  "model": {
+    "active": 135,
+    "peak": 157,
+    "total": 3999,
+    "cancelled": 0
+  },
+  "elapsed_with_drain_seconds": 100.07152612495702,
+  "real_sip_rtp_asr_tts_llm": false,
+  "correctness_passed": false
+}

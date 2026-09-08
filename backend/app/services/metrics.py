@@ -56,7 +56,7 @@ def render_prometheus_metrics(session: Session, *, now: datetime | None = None) 
         "# HELP ai_outbound_task_oldest_ready_seconds Age of the oldest ready task by bounded task type.",
         "# TYPE ai_outbound_task_oldest_ready_seconds gauge",
     ])
-    for kind in ("ai_turn", "business_callback", "recording_ingest", "recording_delete"):
+    for kind in ("ai_turn", "business_callback", "recording_ingest", "recording_delete", "dial_call", "after_playback"):
         oldest = session.exec(select(func.min(TaskOutbox.available_at)).where(
             TaskOutbox.task_type == kind, TaskOutbox.state.in_([TaskState.PENDING, TaskState.FAILED]),
             TaskOutbox.available_at <= current)).one()
@@ -103,4 +103,10 @@ def render_prometheus_metrics(session: Session, *, now: datetime | None = None) 
             lines.append(f"# TYPE {metric_name} {metric_type}")
             exported_types.add(key)
         lines.append(f"{metric_name_with_labels} {value}")
+    from ..config import get_settings
+    if get_settings().callback_inbox_enabled:
+        from .callback_inbox import snapshot
+        for name, value in snapshot(session).items():
+            metric = 'ai_outbound_callback_inbox_' + name
+            lines.extend([f'# TYPE {metric} gauge', f'{metric} {float(value)}'])
     return "\n".join(lines) + "\n"

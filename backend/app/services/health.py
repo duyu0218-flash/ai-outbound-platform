@@ -46,6 +46,10 @@ def ai_agent_health_check(path: str = "/health", base_url: Optional[str] = None)
 
 def telephony_http_health_check() -> str:
     settings = get_settings()
+    if settings.voice_gateway_nodes_file or settings.voice_gateway_nodes_json.strip() != "[]":
+        # Do not remove every API replica when the old/default first gateway
+        # is drained. The fleet is usable while another authorized node is ready.
+        return _gateway_fleet_health()
     if (settings.telephony_provider or "mock").strip().lower() != "http":
         return "ok"
     endpoint = (settings.telephony_provider_endpoint or settings.sip_provider_endpoint).strip()
@@ -58,6 +62,8 @@ def telephony_http_health_check() -> str:
 
 def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
     settings = get_settings()
+    if settings.voice_gateway_nodes_file or settings.voice_gateway_nodes_json.strip() != "[]":
+        return _gateway_fleet_health(tenant_id)
     provider = (settings.telephony_provider or "mock").strip().lower()
     if provider != "tenant":
         return telephony_http_health_check() if provider == "http" else "mock"
@@ -83,6 +89,26 @@ def tenant_telephony_health_check(session: Session, tenant_id: int) -> str:
     if all(state == "mock" for state in states):
         return "mock"
     return "unavailable"
+
+
+def _gateway_fleet_health(tenant_id: int | None = None) -> str:
+    from datetime import timedelta
+    from ..clock import utc_now
+    from ..models import GatewayNode
+    from .gateway_cluster import node_specs
+    settings = get_settings()
+    try:
+        specs = {n.id: n for n in node_specs() if n.enabled and
+                 (tenant_id is None or any(scope.startswith(f"{tenant_id}:") for scope in n.routes))}
+        cutoff = utc_now() - timedelta(seconds=max(1, settings.voice_gateway_health_ttl_sec))
+        with Session(engine) as session:
+            for node in session.exec(select(GatewayNode).where(
+                GatewayNode.ready.is_(True), GatewayNode.checked_at >= cutoff, GatewayNode.capacity > 0)).all():
+                if node.id in specs and node.endpoint == specs[node.id].endpoint:
+                    return "ok"
+        return "unavailable"
+    except Exception:
+        return "unavailable"
 
 
 def _probe_http(base_url: Optional[str], path: str, timeout: float = 2.0) -> str:

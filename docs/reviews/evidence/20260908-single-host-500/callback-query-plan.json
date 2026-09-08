@@ -1,0 +1,56 @@
+{
+  "scope": "read-only copy of synthetic callback backlog, 100 claims of 32 heads",
+  "before": {
+    "ms_per_claim": 1.9275316700804979,
+    "query_plan": [
+      [
+        4,
+        0,
+        216,
+        "SCAN o"
+      ],
+      [
+        10,
+        0,
+        0,
+        "CORRELATED SCALAR SUBQUERY 1"
+      ],
+      [
+        14,
+        10,
+        54,
+        "SEARCH earlier USING COVERING INDEX outbox_stream_order (stream_key=?)"
+      ],
+      [
+        54,
+        0,
+        0,
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    ]
+  },
+  "after": {
+    "ms_per_claim": 0.04981249920092523,
+    "query_plan": [
+      [
+        5,
+        0,
+        222,
+        "SCAN o USING INDEX outbox_created_order"
+      ],
+      [
+        12,
+        0,
+        0,
+        "CORRELATED SCALAR SUBQUERY 1"
+      ],
+      [
+        16,
+        12,
+        54,
+        "SEARCH earlier USING COVERING INDEX outbox_stream_order (stream_key=?)"
+      ]
+    ]
+  },
+  "same_heads": true
+}

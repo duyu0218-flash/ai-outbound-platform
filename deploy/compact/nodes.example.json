@@ -1,0 +1,42 @@
+[
+  {
+    "id": "node-1",
+    "endpoint": "http://10.20.0.11:8002",
+    "capacity": 200,
+    "enabled": true,
+    "routes": [
+      "1:0"
+    ],
+    "cps": 2
+  },
+  {
+    "id": "node-2",
+    "endpoint": "http://10.20.0.12:8002",
+    "capacity": 200,
+    "enabled": true,
+    "routes": [
+      "1:0"
+    ],
+    "cps": 2
+  },
+  {
+    "id": "node-3",
+    "endpoint": "http://10.20.0.13:8002",
+    "capacity": 200,
+    "enabled": true,
+    "routes": [
+      "1:0"
+    ],
+    "cps": 2
+  },
+  {
+    "id": "node-4",
+    "endpoint": "http://10.20.0.14:8002",
+    "capacity": 200,
+    "enabled": true,
+    "routes": [
+      "1:0"
+    ],
+    "cps": 2
+  }
+]

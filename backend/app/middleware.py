@@ -122,6 +122,7 @@ class AdmissionControlMiddleware:
             "webhook": settings.request_admission_webhook_inflight or self.total_limit,
             "probe": max(1, settings.request_admission_metrics_inflight),
             "stream": max(1, settings.request_admission_stream_inflight),
+            "static": max(1, settings.request_admission_static_inflight),
         }
         if min(self.limits.values()) < 1:
             raise ValueError("request admission budgets must be positive")
@@ -134,13 +135,17 @@ class AdmissionControlMiddleware:
         self.changed = asyncio.Event()
 
     def available(self, bucket):
-        return self.active[bucket] < self.limits[bucket] and (bucket in {"probe", "stream"} or self.total < self.total_limit)
+        return self.active[bucket] < self.limits[bucket] and (bucket in {"probe", "stream", "static"} or self.total < self.total_limit)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http" or not self.enabled or scope["path"] == "/healthz":
             return await self.app(scope, receive, send)
         path = scope["path"]
-        bucket = ("stream" if path == "/api/v1/agent/events/stream" else
+        # Vite loads several JS/CSS chunks in parallel. These file responses use
+        # no DB connection and must not compete for the two control-API slots.
+        static_path = path in {"/", "/admin", "/agent"} or path.startswith(("/assets/", "/admin/", "/agent/"))
+        bucket = ("static" if static_path and scope.get("method") in {"GET", "HEAD"} else
+                  "stream" if path == "/api/v1/agent/events/stream" else
                   "probe" if path in {"/metrics", "/metrics/runtime", "/readyz"} else
                   "webhook" if path.startswith("/api/v1/webhooks/") else "default")
         started_at = time.perf_counter()
@@ -167,14 +172,14 @@ class AdmissionControlMiddleware:
                 "request_id": scope.get("state", {}).get("request_id")},
                 headers={"Retry-After": str(self.retry_after)})(scope, receive, send)
         self.active[bucket] += 1
-        if bucket not in {"probe", "stream"}:
+        if bucket not in {"probe", "stream", "static"}:
             self.total += 1
         record_request_inflight(bucket, 1)
         try:
             await self.app(scope, receive, send)
         finally:
             self.active[bucket] -= 1
-            if bucket not in {"probe", "stream"}:
+            if bucket not in {"probe", "stream", "static"}:
                 self.total -= 1
             record_request_inflight(bucket, -1)
             self.changed.set()

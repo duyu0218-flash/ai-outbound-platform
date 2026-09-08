@@ -1,0 +1,12 @@
+[
+  {
+    "id": "single-500",
+    "endpoint": "http://127.0.0.1:8002",
+    "capacity": 500,
+    "cps": 15,
+    "enabled": true,
+    "routes": [
+      "1:0"
+    ]
+  }
+]

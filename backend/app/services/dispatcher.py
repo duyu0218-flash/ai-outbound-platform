@@ -6,11 +6,13 @@ import json
 import logging
 import weakref
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from datetime import timedelta
 from time import perf_counter
 from typing import Any, Dict
 
 import httpx
+from .worker_runtime import http_client
 from sqlalchemy import update
 from sqlmodel import select
 
@@ -44,13 +46,24 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 _local_turn_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 AI_ACTIVE_STATUSES = {CallStatus.ANSWERED, CallStatus.IN_AI}
+_expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
+_expected_speech_event = ContextVar("expected_speech_event", default=None)
 
 
-def _ai_call_is_current(session, call: CallSession, attempt: int) -> bool:
+def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
     from .leases import assert_execution_permitted
     assert_execution_permitted()
-    session.refresh(call)
-    return call.attempts == attempt and call.status in AI_ACTIVE_STATUSES
+    session.refresh(call, with_for_update=True if lock else None)
+    if call.attempts != attempt or call.status not in AI_ACTIVE_STATUSES:
+        return False
+    sequence = _expected_turn_sequence.get()
+    if sequence is not None:
+        realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
+        if realtime is not None:
+            session.refresh(realtime)
+            if realtime.turn_sequence != sequence:
+                return False
+    return True
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -133,7 +146,14 @@ def _run_script_flow_turn(*, session, call: CallSession, transcript: str) -> AiT
     if not version or version.tenant_id != call.tenant_id or version.status != "published":
         raise RuntimeError("bound script flow version is unavailable")
     graph = load_graph(version.graph_json)
-    decision = simulate(graph, call.flow_node_key, transcript, silence=not transcript.strip())
+    from .conversation_policy import state_for,save_state
+    flow_state = state_for(session,call)
+    flow_data = json.loads(flow_state.data_json)
+    cached = flow_data.get('flow_turn') or {}
+    if flow_data.get('sequence') is not None and cached.get('sequence') == flow_data['sequence'] and cached.get('transcript') == transcript:
+        call.flow_node_key = cached['node']
+        return AiTurnResult.model_validate(cached['result'])
+    decision = simulate(graph, call.flow_node_key, transcript, silence=not transcript.strip(),variables=flow_data.get('flow_variables'))
     node_map = {node.id: node for node in graph.nodes}
     current = node_map.get(decision.current_node_id)
     target = node_map.get(decision.next_node_id or "")
@@ -141,16 +161,28 @@ def _run_script_flow_turn(*, session, call: CallSession, transcript: str) -> AiT
     # deterministic message->listen edge, then evaluate that same transcript
     # against the listen node so the first answer is never discarded.
     if transcript.strip() and current and current.type in {"start", "message"} and target and target.type == "listen":
-        decision = simulate(graph, target.id, transcript, silence=False)
+        decision = simulate(graph, target.id, transcript, silence=False,variables=decision.variables)
+    visited=set()
+    while decision.next_node_id and node_map[decision.next_node_id].type in {'set','branch'}:
+        if decision.next_node_id in visited:
+            raise RuntimeError('flow contains an automatic cycle')
+        visited.add(decision.next_node_id)
+        decision = simulate(graph,decision.next_node_id,transcript,silence=False,variables=decision.variables)
+    flow_data['flow_variables']=decision.variables
+    save_state(session,flow_state,flow_data)
     call.flow_node_key = decision.next_node_id or decision.current_node_id
     action = decision.action
     if action in {"wait", "listen", "continue"}:
         action = "continue"
-    return AiTurnResult(
+    result = AiTurnResult(
         action=action,
         tts_text=decision.prompt or None,
         handoff_to_human=action == "handoff",
     )
+    flow_data['flow_turn']={'sequence':flow_data.get('sequence'),'transcript':transcript,
+        'node':call.flow_node_key,'result':result.model_dump(mode='json')}
+    save_state(session,flow_state,flow_data)
+    return result
 
 
 async def request_ai_turn(
@@ -175,7 +207,7 @@ async def request_ai_turn(
         transcript=transcript,
         context=context or {},
     )
-    async with httpx.AsyncClient(timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
+    async with http_client(max_connections=max(100, settings.task_ai_concurrency), timeout=settings.ai_callback_timeout_sec, follow_redirects=False, trust_env=False) as client:
         headers = (
             {"Authorization": f"Bearer {settings.ai_agent_service_token}"}
             if settings.ai_agent_service_token
@@ -218,157 +250,299 @@ async def run_ai_turn(
     transcript: str = "",
     durable: bool = False,
     expected_attempt: int | None = None,
+    expected_turn_sequence: int | None = None,
+    expected_speech_event_id: str | None = None,
 ) -> None:
-    async with _ai_turn_lock(str(call_id)):
-        await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
+    token = _expected_turn_sequence.set(expected_turn_sequence)
+    speech_token = _expected_speech_event.set(expected_speech_event_id)
+    try:
+        async with _ai_turn_lock(str(call_id)):
+            await _run_ai_turn_locked(call_id=call_id, transcript=transcript, durable=durable, expected_attempt=expected_attempt)
+    finally:
+        _expected_turn_sequence.reset(token)
+        _expected_speech_event.reset(speech_token)
 
 
-async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None) -> None:
-    # independent session for background execution
+async def _prepare_ai_turn(call_id, transcript, expected_attempt):
     with session_scope() as session:
         call = session.get(CallSession, call_id)
-        if not call:
-            return
-        if call.status not in {CallStatus.ANSWERED, CallStatus.IN_AI}:
-            return
-        if expected_attempt is not None and call.attempts != expected_attempt:
-            return
+        if call is None:
+            return None
+        expected_attempt = call.attempts if expected_attempt is None else expected_attempt
+        if not _ai_call_is_current(session, call, expected_attempt):
+            return None
         expected_attempt = call.attempts
-
-        await append_event(
-            session=session,
-            call_id=call.id,
-            event_type="ai_start",
-            source="dispatcher",
-            payload={"transcript": transcript},
-        )
-
-        try:
-            ai_started = perf_counter()
-            ai_config = get_admin_setting(session, call.tenant_id, "ai")
-            campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
-            language = str(ai_config.get("language") or "zh-CN")
+        await append_event(session=session, call_id=call.id, event_type="ai_start",
+                           source="dispatcher", payload={"transcript": transcript})
+        ai_started = perf_counter()
+        ai_config = get_admin_setting(session, call.tenant_id, "ai")
+        campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
+        language = str(ai_config.get("language") or "zh-CN")
+        from .conversation_policy import prepare_turn, state_for
+        session.refresh(call, with_for_update=True)
+        if not _ai_call_is_current(session, call, expected_attempt):
+            return None
+        original_flow_node = call.flow_node_key
+        result = prepare_turn(session, call, transcript)
+        policy_state = state_for(session, call)
+        policy_snapshot = json.loads(policy_state.policy_json)
+        ai_config = policy_snapshot.get('_ai') or ai_config
+        language = str(policy_snapshot.get('language') or ai_config.get('language') or 'zh-CN')
+        if result is None:
             result = _run_script_flow_turn(session=session, call=call, transcript=transcript)
-            provider = "script_flow"
-            knowledge: list[dict[str, Any]] = []
-            if result is None:
-                if not ai_config.get("enabled", True):
-                    raise RuntimeError("AI service is disabled for tenant")
-                campaign_script = resolve_campaign_script(
-                    session,
-                    tenant_id=call.tenant_id,
-                    campaign_id=call.campaign_id,
-                )
-                knowledge = retrieve_knowledge(session, call.tenant_id, transcript)
-                provider = str(ai_config.get("llm_provider") or "rule")
-                history = _conversation_history(
-                    session,
-                    call,
-                    int(ai_config.get("conversation_history_turns") or 12),
-                )
-                ai_request = dict(
-                    call_id=str(call.id),
-                    phone=call.phone,
-                    mode=call.mode.value,
-                    script=campaign_script,
-                    transcript=transcript,
-                    context={
-                        "campaign_id": call.campaign_id,
-                        "tenant_id": call.tenant_id,
-                        "language": language,
-                        "recording_enabled": campaign.recording_enabled if campaign else True,
-                        "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
-                        "llm_provider": str(ai_config.get("llm_provider") or "rule"),
-                        "llm_model": str(ai_config.get("llm_model") or ""),
-                        "external_llm_enabled": bool(ai_config.get("external_llm_enabled", False)),
-                        "knowledge": knowledge,
-                        "conversation": history,
-                    },
-                    agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
-                )
-                # Release the read transaction and pool connection before model latency.
-                session.commit()
-                result = await request_ai_turn(**ai_request)
-            # Network latency may outlive the call or even its dial attempt.
-            # Preserve script-flow progress, but discard a stale model result.
-            flow_node_key = call.flow_node_key
-            if not _ai_call_is_current(session, call, expected_attempt):
-                return
-            call.flow_node_key = flow_node_key
-            result = _apply_output_guard(session, call, result, ai_config)
-            session.add(
-                CallMetric(
-                    tenant_id=call.tenant_id,
-                    call_session_id=call.id,
-                    stage="ai.turn",
-                    provider=provider,
-                    duration_ms=int((perf_counter() - ai_started) * 1000),
-                    success=True,
-                    detail=f"knowledge_hits={len(knowledge)}",
-                )
+        provider = "script_flow"
+        knowledge: list[dict[str, Any]] = []
+        if result is None:
+            if not ai_config.get("enabled", True):
+                raise RuntimeError("AI service is disabled for tenant")
+            campaign_script = resolve_campaign_script(
+                session,
+                tenant_id=call.tenant_id,
+                campaign_id=call.campaign_id,
             )
-            session.commit()
-            await _apply_ai_action(session=session, call=call, result=result, expected_attempt=expected_attempt)
+            campaign_script = policy_snapshot.get('_script', campaign_script)
+            from .knowledge import retrieve_bound_knowledge
+            knowledge = retrieve_bound_knowledge(session, policy_state, transcript, call.campaign_id)
+            provider = str(ai_config.get("llm_provider") or "rule")
+            history = _conversation_history(
+                session,
+                call,
+                int(ai_config.get("conversation_history_turns") or 12),
+            )
+            ai_request = dict(
+                call_id=str(call.id),
+                phone=call.phone,
+                mode=call.mode.value,
+                script=campaign_script,
+                transcript=transcript,
+                context={
+                    "campaign_id": call.campaign_id,
+                    "tenant_id": call.tenant_id,
+                    "language": language,
+                    "recording_enabled": campaign.recording_enabled if campaign else True,
+                    "hangup_sms_enabled": campaign.hangup_sms_enabled if campaign else True,
+                    "llm_provider": str(ai_config.get("llm_provider") or "rule"),
+                    "llm_model": str(ai_config.get("llm_model") or ""),
+                    "external_llm_enabled": bool(ai_config.get("external_llm_enabled", False)),
+                    "knowledge": knowledge,
+                    "conversation": history,
+                },
+                agent_url=str(ai_config.get("agent_url") or settings.ai_agent_url),
+            )
+        snapshot = dict(call_id=call_id, attempt=expected_attempt, result=result,
+            ai_request=ai_request if result is None else None, ai_config=ai_config,
+            provider=provider, knowledge_count=len(knowledge), started=ai_started,
+            flow_node_key=call.flow_node_key, model_wait_seconds=policy_snapshot.get('model_wait_seconds',4),
+            model_wait_prompt=policy_snapshot.get('model_wait_prompt','请稍等，我正在为您确认。'))
+        policy_data=json.loads(policy_state.data_json)
+        policy_data['model_pending']=result is None
+        from .conversation_policy import save_state
+        save_state(session,policy_state,policy_data)
+        # Keep script-flow progress private until output guards and the action phase.
+        call.flow_node_key = original_flow_node
+        session.add(call)
+        session.commit()
+        return snapshot
+
+
+async def _finish_ai_turn(snapshot, result):
+    with session_scope() as session:
+        call = session.get(CallSession, snapshot['call_id'])
+        # Match webhook lock order: call -> conversation/realtime -> child rows.
+        # Locking conversation first can deadlock when metric FK checks wait on
+        # a callback's call lock while that callback waits on conversation state.
+        if call is None or not _ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+            return
+        call.flow_node_key = snapshot['flow_node_key']
+        from .conversation_policy import state_for,save_state
+        product_state=state_for(session,call);product_data=json.loads(product_state.data_json)
+        product_data['model_pending']=False;save_state(session,product_state,product_data)
+        result = _apply_output_guard(session, call, result, snapshot['ai_config'])
+        session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
+            stage="ai.turn", provider=snapshot['provider'],
+            duration_ms=int((perf_counter()-snapshot['started'])*1000), success=True,
+            detail=f"knowledge_hits={snapshot['knowledge_count']}"))
+        session.commit()
+        await _apply_ai_action(session=session, call=call, result=result,
+                               expected_attempt=snapshot['attempt'])
+
+
+async def _fail_ai_turn(call_id, expected_attempt, exc):
+    with session_scope() as session:
+        call = session.get(CallSession, call_id)
+        if call is None or not _ai_call_is_current(session, call, expected_attempt):
+            return
+        call.last_error=f"AI调用失败: {type(exc).__name__}"
+        session.add(call)
+        session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
+            stage="ai.turn", success=False, error_code="AI_TURN_FAILED", detail=str(exc)[:2000]))
+        session.commit()
+        await append_event(session=session, call_id=call.id, event_type="error",
+            source="dispatcher", payload={"module":"dispatcher", "error":str(exc)})
+        from .conversation_policy import state_for, reply, save_state, add_work
+        from ..product_schemas import ScenarioPolicy
+        session.refresh(call, with_for_update=True)
+        state = state_for(session, call)
+        data = json.loads(state.data_json)
+        if data.get('failure_handled'):
+            return
+        data['failure_handled'] = True
+        data['model_pending'] = False
+        data['outcome'] = 'service_failure'
+        add_work(session, call, 'service_failure', f'failure:{call.id}:{call.attempts}', {'error':type(exc).__name__})
+        save_state(session, state, data)
+        session.commit()
+        fallback = reply(ScenarioPolicy.model_validate_json(state.policy_json).failure_prompt, 'hangup')
+        try:
+            await _apply_ai_action(session=session, call=call, result=fallback, expected_attempt=expected_attempt)
         except LeaseLost:
-            session.rollback()
             raise
-        except Exception as exc:
-            session.rollback()
-            session.exec(update(CallSession).where(
-                CallSession.id == call_id,
-                CallSession.attempts == expected_attempt,
-                CallSession.status.in_(AI_ACTIVE_STATUSES),
-            ).values(last_error=f"AI调用失败: {type(exc).__name__}"))
-            session.add(
-                CallMetric(
-                    tenant_id=call.tenant_id,
-                    call_session_id=call.id,
-                    stage="ai.turn",
-                    success=False,
-                    error_code="AI_TURN_FAILED",
-                    detail=str(exc)[:2000],
-                )
-            )
-            session.commit()
-            await append_event(
-                session=session,
-                call_id=call.id,
-                event_type="error",
-                source="dispatcher",
-                payload={"module": "dispatcher", "error": str(exc)},
-            )
-            if durable:
+        except Exception:
+            # A failed speech service must not prevent bounded PBX termination.
+            try:
+                await _apply_ai_action(session=session, call=call, result=fallback,
+                    expected_attempt=expected_attempt, fallback_audio=True)
+                return
+            except LeaseLost:
                 raise
+            except Exception:
+                pass
+            try:
+                await _apply_ai_action(session=session, call=call,
+                    result=AiTurnResult(action='hangup'), expected_attempt=expected_attempt)
+            except LeaseLost:
+                raise
+            except Exception:
+                logger.warning('fallback termination unconfirmed; PBX reconciliation retains capacity')
 
 
-async def _wait_for_playback_completion(call_id, playback_id: str) -> bool:
-    deadline = asyncio.get_running_loop().time() + max(1, int(settings.tts_playback_timeout_sec))
-    while asyncio.get_running_loop().time() < deadline:
-        with session_scope() as playback_session:
-            realtime = playback_session.exec(
-                select(RealtimeSession).where(RealtimeSession.call_session_id == call_id)
-            ).first()
-            if realtime is not None and (
-                realtime.state in {RealtimeState.LISTENING, RealtimeState.INTERRUPTED, RealtimeState.CLOSED}
-                and realtime.playback_id != playback_id
-            ):
-                return True
-        await asyncio.sleep(0.1)
-    return False
+async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = False, expected_attempt: int | None = None):
+    try:
+        snapshot = await _prepare_ai_turn(call_id, transcript, expected_attempt)
+        if snapshot is None:
+            return
+        expected_attempt = snapshot['attempt']
+        result = snapshot['result']
+        if result is None:
+            result = await _wait_for_ai(snapshot)
+            if result is None:return
+        await _finish_ai_turn(snapshot, result)
+    except LeaseLost:
+        raise
+    except Exception as exc:
+        await _fail_ai_turn(call_id, expected_attempt, exc)
+        if durable:
+            raise
 
 
-async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, expected_attempt: int | None = None) -> None:
+async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', expected_attempt=None,
+                            expected_turn_sequence=None, expected_speech_event_id=None):
+    """Model latency holds a coroutine, never a DB connection or lane thread."""
+    token = _expected_turn_sequence.set(expected_turn_sequence)
+    speech_token = _expected_speech_event.set(expected_speech_event_id)
+    try:
+        async with _ai_turn_lock(str(call_id)):
+            try:
+                snapshot = await pool.run(_prepare_ai_turn, call_id, transcript, expected_attempt)
+                if snapshot is None:
+                    return
+                expected_attempt = snapshot['attempt']
+                result = snapshot['result']
+                if result is None:
+                    result = await _wait_for_ai(snapshot,pool=pool,action_pool=action_pool)
+                    if result is None:return
+                await (action_pool or pool).run(_finish_ai_turn, snapshot, result)
+            except LeaseLost:
+                raise
+            except Exception as exc:
+                await pool.run(_fail_ai_turn, call_id, expected_attempt, exc)
+                raise
+    finally:
+        _expected_turn_sequence.reset(token)
+        _expected_speech_event.reset(speech_token)
+
+
+async def _speak_wait_notice(snapshot):
+    with session_scope() as session:
+        call=session.get(CallSession,snapshot['call_id'])
+        if call is None or not _ai_call_is_current(session,call,snapshot['attempt']):return
+        await _apply_ai_action(session=session,call=call,expected_attempt=snapshot['attempt'],
+            result=AiTurnResult(action='speak',tts_text=snapshot['model_wait_prompt']))
+
+
+async def _wait_for_ai(snapshot,pool=None,action_pool=None):
+    request=asyncio.create_task(request_ai_turn(**snapshot['ai_request']))
+    started=perf_counter();notice_sent=False
+    try:
+        while not request.done():
+            done,_=await asyncio.wait({request},timeout=1)
+            if done:break
+            current=await pool.run(_ai_snapshot_current,snapshot) if pool else _ai_snapshot_current(snapshot)
+            if not current:return None
+            if not notice_sent and perf_counter()-started>=snapshot.get('model_wait_seconds',4):
+                notice_sent=True
+                if pool:await (action_pool or pool).run(_speak_wait_notice,snapshot)
+                else:await _speak_wait_notice(snapshot)
+        return request.result()
+    finally:
+        if not request.done():request.cancel()
+        await asyncio.gather(request,return_exceptions=True)
+
+
+def _ai_snapshot_current(snapshot):
+    with session_scope() as session:
+        call = session.get(CallSession, snapshot['call_id'])
+        return call is not None and _ai_call_is_current(session, call, snapshot['attempt'])
+
+
+async def resume_after_playback(payload):
+    """Durable continuation, woken by media ACK or the bounded playback deadline."""
+    from uuid import UUID
+    with session_scope() as session:
+        call = session.get(CallSession, UUID(payload["call_id"]))
+        if call is None:
+            return
+        token = _expected_turn_sequence.set(payload.get("turn_sequence"))
+        speech_token = _expected_speech_event.set(payload.get("speech_event_id"))
+        try:
+            if not _ai_call_is_current(session, call, payload["attempt"]):
+                return
+            await _apply_ai_action(session=session, call=call,
+                result=AiTurnResult.model_validate(payload["result"]).model_copy(update={"tts_text": None}),
+                expected_attempt=payload["attempt"])
+        finally:
+            _expected_turn_sequence.reset(token)
+            _expected_speech_event.reset(speech_token)
+
+
+async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, expected_attempt: int | None = None, fallback_audio: bool = False) -> None:
+    # Session.commit expires ORM attributes. Never dereference call after a
+    # commit while preparing an await: even its primary key checks out a DB
+    # connection again and pins it for the entire remote operation.
+    command_call_id = call.id
     attempt = call.attempts if expected_attempt is None else expected_attempt
-    if not _ai_call_is_current(session, call, attempt):
+    if not _ai_call_is_current(session, call, attempt, lock=True):
         return
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     hangup_sms_allowed = campaign.hangup_sms_enabled if campaign else True
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
+    from .conversation_policy import state_for
+    product_snapshot = json.loads(state_for(session, call).policy_json)
+    ai_config = {**ai_config, **(product_snapshot.get('_ai') or {})}
+    for name in ('voice', 'language'):
+        if product_snapshot.get(name):
+            ai_config[name] = product_snapshot[name]
+    if fallback_audio:
+        ai_config['tts_provider'] = 'fallback-audio'
     adapter = get_telephony_adapter(
         session=session,
         tenant_id=call.tenant_id,
         line_id=call.telephony_line_id,
+        call_id=call.id,
     )
+    from .telephony import HttpAdapter
+    speech_guard = ({"expected_speech_event_id": _expected_speech_event.get() or ""}
+                    if isinstance(adapter, HttpAdapter) and call.voice_ai_pipeline == "pipecat" else {})
     playback_id: str | None = None
     playback_complete = False
     if result.tts_text:
@@ -376,13 +550,13 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         speak_payload = dict(call_id=str(call.id), text=result.tts_text or "",
                              language=str(ai_config.get("language") or "zh-CN"),
                              voice=str(ai_config.get("voice") or ""),
-                             provider=str(ai_config.get("tts_provider") or ""))
+                             provider=str(ai_config.get("tts_provider") or ""), **speech_guard)
         session.commit()
         try:
             response = await with_retry(
                 lambda: adapter.speak(**speak_payload)
             )
-            if not _ai_call_is_current(session, call, attempt):
+            if not _ai_call_is_current(session, call, attempt, lock=True):
                 return
             playback_id = str(response.get("playback_id") or "") or None
             playback_complete = bool(response.get("playback_complete", False))
@@ -451,26 +625,31 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
     hangup_confirmed = False
     if result.action == "hangup":
         if playback_id and not playback_complete:
-            # Make the playback id visible to the webhook session before
-            # waiting for the gateway's listening/interrupted/closed event.
-            session.commit()
-            playback_complete = await _wait_for_playback_completion(call.id, playback_id)
-            if not playback_complete:
-                session.add(
-                    CallMetric(
-                        tenant_id=call.tenant_id,
-                        call_session_id=call.id,
-                        stage="tts.playback",
-                        provider=str(ai_config.get("tts_provider") or "gateway"),
-                        success=False,
-                        error_code="TTS_PLAYBACK_TIMEOUT",
-                        detail=f"playback_id={playback_id}",
-                    )
-                )
+            from .task_queue import enqueue_task
+            realtime = session.exec(select(RealtimeSession).where(
+                RealtimeSession.call_session_id == command_call_id)).first()
+            # Do not occupy an AI worker or poll SQL while the user hears audio.
+            # Store intent before ACK, with a deadline surviving worker restarts.
+            task = enqueue_task(session, tenant_id=call.tenant_id, task_type="after_playback",
+                aggregate_id=str(command_call_id),
+                idempotency_key=f"after-playback:{command_call_id}:{attempt}:{playback_id}",
+                available_at=utc_now() + timedelta(seconds=max(1, settings.tts_playback_timeout_sec)),
+                payload={"call_id": str(command_call_id), "attempt": attempt,
+                    "turn_sequence": realtime.turn_sequence if realtime else None,
+                    "playback_id": playback_id, "speech_event_id": _expected_speech_event.get(), "result": result.model_dump(mode="json")})
+            # Recheck after the insertion commit to cover an ACK that raced it.
+            if realtime is not None:
+                session.refresh(realtime)
+                if realtime.playback_id != playback_id:
+                    from ..models import TaskOutbox, TaskState
+                    session.exec(update(TaskOutbox).where(TaskOutbox.id == task.id,
+                        TaskOutbox.state == TaskState.PENDING).values(available_at=utc_now()))
+                    session.commit()
+            return
         if not _ai_call_is_current(session, call, attempt):
             return
         session.commit()
-        hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason="ai_decision"))
+        hangup_result = await with_retry(lambda: adapter.hangup(call_id=str(command_call_id), reason="ai_decision", **speech_guard))
         hangup_confirmed = hangup_result.get("ended") is True
 
     if result.hangup_sms and hangup_sms_allowed:
@@ -498,6 +677,9 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         else:
             call.last_error = "hangup requested; awaiting PBX termination"
     elif result.action == "handoff" or result.handoff_to_human:
+        from .conversation_policy import state_for, in_hours
+        from ..product_schemas import ScenarioPolicy
+        product_policy = ScenarioPolicy.model_validate_json(state_for(session, call).policy_json)
         presence_cutoff = utc_now() - timedelta(seconds=max(30, settings.agent_presence_timeout_sec))
         assigned_agent = session.exec(
             select(User)
@@ -508,9 +690,12 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
                 User.agent_status == "ready",
                 User.last_seen_at.is_not(None),
                 User.last_seen_at >= presence_cutoff,
+                User.id.in_(product_policy.handoff_agent_ids) if product_policy.handoff_agent_ids else True,
             )
-            .order_by(User.last_seen_at.asc(), User.id.asc())
+            .order_by(User.last_seen_at.asc(), User.id.asc()).with_for_update(skip_locked=True)
         ).first()
+        if not in_hours(product_policy, utc_now()) and state_for(session, call).policy_version_id is not None:
+            assigned_agent = None
         target_group = f"agent:{assigned_agent.id}" if assigned_agent is not None else None
         call.status = CallStatus.WAITING_HUMAN
         call.handoff_reason = "ai_decision"
@@ -544,6 +729,18 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
 
     session.add(call)
     session.commit()
+    from .conversation_policy import arm_timer
+    # The preceding commit released the call lock. Reacquire it before changing
+    # playback/timer state and inserting the decision event's FK child row.
+    session.refresh(call, with_for_update=True)
+    if call.status == CallStatus.WAITING_HUMAN:
+        arm_timer(session, call, 'handoff')
+    elif playback_complete and call.status in AI_ACTIVE_STATUSES:
+        realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
+        if realtime:
+            realtime.state = RealtimeState.LISTENING
+            session.add(realtime)
+        arm_timer(session, call)
     decision_event = await append_event(
         session=session,
         call_id=call.id,
@@ -572,7 +769,8 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         },
         idempotency_key=f"callback:ai-decision:{decision_event.id}",
     )
-    await notify_task(callback_task.id)
+    if callback_task is not None:
+        await notify_task(callback_task.id)
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:
@@ -591,8 +789,10 @@ async def send_sms_text(session, call: CallSession, text: str) -> None:
         session.commit()
         return
     adapter: SmsAdapter = get_sms_adapter(sms_config)
+    destination_phone = call.phone
+    session.commit()
     try:
-        sms_result = await with_retry(lambda: adapter.send_sms(call.phone, text))
+        sms_result = await with_retry(lambda: adapter.send_sms(destination_phone, text))
         state = str(sms_result.get("state", "sent"))
         provider_message_id = str(sms_result.get("message_id") or sms_result.get("provider_message_id") or "") or None
     except Exception as exc:

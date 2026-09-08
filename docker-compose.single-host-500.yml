@@ -1,0 +1,873 @@
+# Standalone Linux single-host qualification profile; 500 total in-flight calls, NOT measured capacity.
+# Use this file alone; extends imports individual compact services.
+services:
+  control-api:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8010'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  control-api-2:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8011'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  control-api-3:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8012'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  control-api-4:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8013'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  control-api-5:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8014'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8014/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  control-api-6:
+    extends:
+      file: docker-compose.compact.yml
+      service: control-api
+    environment:
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8015'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8015/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.25
+  api-proxy:
+    extends:
+      file: docker-compose.compact.yml
+      service: api-proxy
+    volumes:
+    - ./deploy/single-host-500/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+    - control-api
+    - control-api-2
+    - control-api-3
+    - control-api-4
+    - control-api-5
+    - control-api-6
+  task-worker:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      DATABASE_POOL_SIZE: '8'
+      CALLBACK_INBOX_ENABLED: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8004
+      OUTBOUND_REQUIRE_AGENT_READY: 'true'
+      TASK_QUEUE_LANES: call_analysis:2,after_playback:8,dial_call:16
+      SCHEDULER_POLL_INTERVAL_SEC: '0.1'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 1.5
+    mem_limit: 3g
+  callback-worker-1:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  callback-worker-2:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  callback-worker-3:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  callback-worker-4:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  callback-worker-5:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  callback-worker-6:
+    extends:
+      file: docker-compose.compact.yml
+      service: task-worker
+    environment:
+      CALLBACK_INBOX_ENABLED: 'true'
+      SCHEDULER_ENABLED: 'false'
+      DATABASE_POOL_SIZE: '1'
+      DATABASE_MAX_OVERFLOW: '0'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    command: [python, -m, app.callback_inbox_worker]
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  ai-worker-1:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-worker
+    environment:
+      TASK_AI_CONCURRENCY: '160'
+      AI_DB_THREADS: '2'
+      AI_ACTION_THREADS: '4'
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.75
+    mem_limit: 1536m
+  ai-worker-2:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-worker
+    environment:
+      TASK_AI_CONCURRENCY: '160'
+      AI_DB_THREADS: '2'
+      AI_ACTION_THREADS: '4'
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.75
+    mem_limit: 1536m
+  ai-worker-3:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-worker
+    environment:
+      TASK_AI_CONCURRENCY: '160'
+      AI_DB_THREADS: '2'
+      AI_ACTION_THREADS: '4'
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.75
+    mem_limit: 1536m
+  ai-worker-4:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-worker
+    environment:
+      TASK_AI_CONCURRENCY: '160'
+      AI_DB_THREADS: '2'
+      AI_ACTION_THREADS: '4'
+      DATABASE_POOL_SIZE: '5'
+      CALLBACK_INBOX_ENABLED: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8004
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cpus: 0.75
+    mem_limit: 1536m
+  ai-agent-1:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-agent
+    environment:
+      ENV: production
+      LLM_PROVIDER: openai-compatible
+      LLM_MAX_CONNECTIONS: '320'
+      LLM_MAX_KEEPALIVE_CONNECTIONS: '160'
+      LLM_QUOTA_DB_PATH: /var/lib/model-quota/account.db
+      LLM_QUOTA_SCOPE: primary-account
+      LLM_QUOTA_RPM: ${LLM_APPROVED_RPM:?Set approved account RPM}
+      LLM_QUOTA_TPM: ${LLM_APPROVED_TPM:?Set approved estimated token budget}
+      LLM_QUOTA_RPS: ${LLM_APPROVED_RPS:?Set approved short-burst request budget}
+      MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-200}
+    volumes:
+    - model_quota:/var/lib/model-quota
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8025'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8025/health',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    cpus: 0.5
+    mem_limit: 1g
+  ai-agent-2:
+    extends:
+      file: docker-compose.compact.yml
+      service: ai-agent
+    environment:
+      ENV: production
+      LLM_PROVIDER: openai-compatible
+      LLM_MAX_CONNECTIONS: '320'
+      LLM_MAX_KEEPALIVE_CONNECTIONS: '160'
+      LLM_QUOTA_DB_PATH: /var/lib/model-quota/account.db
+      LLM_QUOTA_SCOPE: primary-account
+      LLM_QUOTA_RPM: ${LLM_APPROVED_RPM:?Set approved account RPM}
+      LLM_QUOTA_TPM: ${LLM_APPROVED_TPM:?Set approved estimated token budget}
+      LLM_QUOTA_RPS: ${LLM_APPROVED_RPS:?Set approved short-burst request budget}
+      MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-200}
+    volumes:
+    - model_quota:/var/lib/model-quota
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8026'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8026/health',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    cpus: 0.5
+    mem_limit: 1g
+  voice-gateway:
+    extends:
+      file: docker-compose.compact.yml
+      service: voice-gateway
+    environment:
+      VOICE_MAX_CONCURRENT: '500'
+      PIPECAT_MAX_ACTIVE_SESSIONS: '600'
+      MEDIA_ALLOW_DEGRADED_ADMISSION: 'true'
+      VOICE_RECORDING_SOURCE_BASE_URL: http://127.0.0.1:8002
+      MEDIA_WORKERS_JSON: '[{"id":"media-1","endpoint":"http://127.0.0.1:8101","ws_base":"ws://127.0.0.1:8101/v1/pipecat/media","capacity":50},{"id":"media-2","endpoint":"http://127.0.0.1:8102","ws_base":"ws://127.0.0.1:8102/v1/pipecat/media","capacity":50},{"id":"media-3","endpoint":"http://127.0.0.1:8103","ws_base":"ws://127.0.0.1:8103/v1/pipecat/media","capacity":50},{"id":"media-4","endpoint":"http://127.0.0.1:8104","ws_base":"ws://127.0.0.1:8104/v1/pipecat/media","capacity":50},{"id":"media-5","endpoint":"http://127.0.0.1:8105","ws_base":"ws://127.0.0.1:8105/v1/pipecat/media","capacity":50},{"id":"media-6","endpoint":"http://127.0.0.1:8106","ws_base":"ws://127.0.0.1:8106/v1/pipecat/media","capacity":50},{"id":"media-7","endpoint":"http://127.0.0.1:8107","ws_base":"ws://127.0.0.1:8107/v1/pipecat/media","capacity":50},{"id":"media-8","endpoint":"http://127.0.0.1:8108","ws_base":"ws://127.0.0.1:8108/v1/pipecat/media","capacity":50},{"id":"media-9","endpoint":"http://127.0.0.1:8109","ws_base":"ws://127.0.0.1:8109/v1/pipecat/media","capacity":50},{"id":"media-10","endpoint":"http://127.0.0.1:8110","ws_base":"ws://127.0.0.1:8110/v1/pipecat/media","capacity":50},{"id":"media-11","endpoint":"http://127.0.0.1:8111","ws_base":"ws://127.0.0.1:8111/v1/pipecat/media","capacity":50},{"id":"media-12","endpoint":"http://127.0.0.1:8112","ws_base":"ws://127.0.0.1:8112/v1/pipecat/media","capacity":50}]'
+    command:
+    - uvicorn
+    - app.main:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8002'
+    - --workers
+    - '1'
+    - --no-access-log
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/readyz',timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  media-1:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-1
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8101'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-2:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-2
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8102/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8102'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-3:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-3
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8103/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8103'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-4:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-4
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8104/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8104'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-5:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-5
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8105/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8105'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-6:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-6
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8106/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8106'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-7:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-7
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8107/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8107'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-8:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-8
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8108/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8108'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-9:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-9
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8109/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8109'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-10:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-10
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8110/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8110'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-11:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-11
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8111/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8111'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  media-12:
+    extends:
+      file: docker-compose.compact.yml
+      service: media-1
+    environment:
+      MEDIA_WORKER_ID: media-12
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8112/v1/pipecat/media
+    cpus: 1
+    command:
+    - uvicorn
+    - app.media_worker:app
+    - --host
+    - 127.0.0.1
+    - --port
+    - '8112'
+    - --workers
+    - '1'
+    - --no-access-log
+    mem_limit: 1536m
+  freeswitch:
+    extends:
+      file: docker-compose.compact.yml
+      service: freeswitch
+    cpus: 4
+  recording-adapter:
+    extends:
+      file: docker-compose.compact.yml
+      service: recording-adapter
+  db:
+    image: ${POSTGRES_IMAGE:?Set qualified PostgreSQL 16 immutable image}
+    restart: unless-stopped
+    network_mode: host
+    env_file: ${SINGLE500_POSTGRES_ENV_FILE:?Set database credential file}
+    command:
+    - postgres
+    - -c
+    - listen_addresses=127.0.0.1
+    - -c
+    - max_connections=120
+    - -c
+    - shared_buffers=2GB
+    - -c
+    - work_mem=8MB
+    - -c
+    - max_wal_size=4GB
+    - -c
+    - synchronous_commit=on
+    - -c
+    - fsync=on
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    cpus: 3
+    mem_limit: 8g
+    shm_size: 1g
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+  redis:
+    image: ${REDIS_IMAGE:?Set qualified Redis immutable image}
+    restart: unless-stopped
+    network_mode: host
+    command:
+    - sh
+    - -c
+    - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDISCLI_AUTH"
+    volumes:
+    - ${SINGLE500_REDIS_CONFIG_FILE:?Set Redis password and persistence config}:/usr/local/etc/redis/redis.conf:ro
+    - redis_data:/data
+    cpus: 0.5
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    env_file: ${SINGLE500_REDIS_ENV_FILE:?Set Redis credential file with REDISCLI_AUTH}
+volumes:
+  voice_security: null
+  recording_spool: null
+  model_quota: null
+  postgres_data: null
+  redis_data: null

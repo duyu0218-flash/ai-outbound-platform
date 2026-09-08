@@ -1,654 +1,239 @@
-# AI 外呼平台安装与部署手册
+# AI 外呼平台安装教程
 
-本文档面向你们当前仓库，给出从开发环境到生产环境的完整可执行流程。按该文档可完成：
+> 更新：2026-09-08；应用代码基准：`26f205b`。面向首次部署人员。本文与[平台配置手册](docs/platform-configuration-guide.md)、[产品操作手册](docs/operator-manual.md)配套使用。
+>
+> 图中页面来自本次最新代码构建的独立 Docker 演示环境，电话、短信和业务数据为 Mock/合成数据。截图端口为 `18080`，常规安装默认 `8000`。第三方账号开通、真实线路、云语音和生产发布尚未验收，不能按截图推断已接通。
 
-- 基础服务部署（PostgreSQL/Redis）
-- 后端控制面（`control-api`）与 AI 服务（`ai-agent`）启动
-- 基础联调验证
-- 海外扩展的先期准备
+## 1. 先选择安装目标
 
-> 本手册默认仓库名为 `ai-outbound-platform`，安装位置为你的本机目录。
+| 目标 | 使用文件 | 完成后能验证什么 |
+|---|---|---|
+| 首次安装、页面和业务演练 | `docker-compose.yml` | 登录、配置保存、客户/话术/任务、Mock 通话 |
+| 增加监控告警 | 基础文件 + `docker-compose.observability.yml` | Prometheus、Grafana、Alertmanager |
+| FreeSWITCH 合成媒体验证 | 另见[本机媒体说明](docs/voismart-local-media.md) | 合成双向媒体；不代表运营商电话 |
+| 单服务器 500 总在途候选 | 独立 `docker-compose.single-host-500.yml` | 配置/预算预检；仍需真实容量验收 |
 
-## 1. 前置条件
+先完成基础安装，再接电话和语音。500 指呼出、振铃、AI/人工接通的总和。当前持续回调吞吐与队列时延仍未达标，32 核/64 GiB 是首轮目标机候选，并非实测最低采购要求。详见[容量模板](deploy/single-host-500/README.md)。
 
-### 1.1 必要软件
+## 2. 检查安装工具
 
-- Docker Desktop / Docker Engine（推荐）
-- docker-compose v2+
-- Git
-- jq（脚本验收依赖）
-- 可选：Python 3.11、Node.js（仅用于本地开发工具）
+准备 Git、Docker Engine 或 Docker Desktop、Compose v2；API 验收脚本需要 `curl` 和 `jq`。Docker 安装不需要宿主机安装 Python/Node。二次开发使用版本见[兼容矩阵](compatibility-matrix.toml)。
 
-安装示例（macOS）：
 ```bash
-brew install jq
+git --version
+docker version
+docker compose version
+curl --version
+jq --version
 ```
 
-### 1.2 目录结构确认
+预期：Docker 同时返回 Client 和 Server；只有 Client 或连接 socket 失败时，先启动 Docker 并检查本机权限。镜像/依赖下载失败需排查网络，不跳过构建或依赖校验。
 
-- `backend/`：控制面服务（FastAPI）
-- `agent/`：AI 话术策略服务（FastAPI）
-- `docker-compose.yml`：本地一键启动文件
-- `.env.example`：环境变量示例
-- `.github/workflows/ci.yml`：CI 静态编译与后端回归测试
+## 3. 获取与确认代码
 
-## 2. 一次性获取代码
+首次安装：
 
 ```bash
-git clone git@github.com:<your-org>/ai-outbound-platform.git
+git clone https://github.com/duyu0218-flash/ai-outbound-platform.git
 cd ai-outbound-platform
+git status --short --branch
+git log -1 --oneline
 ```
 
-如果你已经有仓库，可跳过此步，直接在项目根目录执行后续步骤。
+如从本次更新的 PR 安装，先在 GitHub 确认 PR 的分支和提交，再检出该分支；默认克隆的 `main` 只有在 PR 合入后才包含分支更新。
 
-## 3. 配置环境变量
-
-### 3.1 生成 `.env`
+已有仓库：
 
 ```bash
-cp .env.example .env
+git rev-parse --show-toplevel
+git status --short --branch
+git fetch origin --prune
+git log --oneline HEAD..origin/main
 ```
 
-编辑 `.env`，至少更新以下参数：
+只有工作树干净、当前就是要升级的分支，并确认可快进时才执行 `git pull --ff-only`。本地有独立提交时先比较并合并，禁止用 `reset --hard` 覆盖本地工作。`.env`、数据库、录音和私有线路配置不是代码更新的一部分。
 
-- `API_KEY`：默认租户的服务端 API Key；多租户集成请改用 `TENANT_API_KEYS_JSON={"1":"...","2":"..."}`
-- `DATABASE_URL`：数据库连接字符串
-- `REDIS_URL`：Redis 连接字符串
-- `TELEPHONY_PROVIDER`：`mock`（联调）或 `http`（调用内置语音网关）
-- `VOICE_GATEWAY_DRIVER`：`mock`、`pbx_http` 或 `freeswitch_esl`；FreeSWITCH 直连使用 `freeswitch_esl`
-- `TELEPHONY_WEBHOOK_TOKEN`：建议给网关回调加签
-- `TELEPHONY_SERVICE_TOKEN`：控制服务调用语音网关的内部 Bearer Token
-- `AI_AGENT_URL`：AI 服务地址（compose 下默认 `http://ai-agent:8001`）
-- `AI_AGENT_SERVICE_TOKEN`：控制服务调用 AI Agent 的内部 Bearer Token
-- `SMS_PROVIDER`：`mock` 或对接真实短信供应商
-- 生产化增强参数（建议按环境调参）：
-  - `REQUEST_TIMEOUT_MS=15000`（单请求超时）
-  - `REQUEST_ID_HEADER=X-Request-ID`（链路透传）
-  - `TRUSTED_HOSTS=localhost,127.0.0.1`（生产改成你的域名白名单）
-  - `RATE_LIMIT_ENABLED=true`
-  - `RATE_LIMIT_DEFAULT_RPM=600`
-  - `RATE_LIMIT_AUTH_RPM=60`
-  - `RATE_LIMIT_WINDOW_SEC=60`
-  - `DATABASE_POOL_SIZE=10`
-  - `DATABASE_MAX_OVERFLOW=20`
-  - `DATABASE_POOL_TIMEOUT_SEC=30`
-  - `DATABASE_POOL_RECYCLE_SEC=1800`
-  - `DEFAULT_CALL_TIMEOUT_SEC=120`（无终态回调时释放并发）
-  - `SCHEDULER_ENABLED=true`（异步活动必须开启）
+## 4. 建立环境文件
 
-### 3.2 默认测试账号体系（推荐先验收）
-
-服务启动会创建两类默认测试账号：
-
-- 管理员：`admin / 12345678`（角色：`admin`）
-- 座席：`1001@test / 12345678`（角色：`agent`）
-
-访问方式：
-
-- 管理端地址：[http://localhost:8000/admin](http://localhost:8000/admin)
-- 座席端地址：[http://localhost:8000/agent](http://localhost:8000/agent)
-- 文档地址：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)
-
-### 3.3 中英文界面切换
-
-- 管理端和座席端右上角均有 `中文 / English` 选择器。
-- 语言切换即时生效，无需重新登录。
-- 语言偏好保存在浏览器本地，并在 `/admin` 与 `/agent` 之间共享。
-- 语言偏好只保存 `zh-CN` 或 `en-US`，不会保存密码、Token 或 API Key。
-
-### 3.4 前端页面结构
-
-- 管理端运营模块：`/admin` 仪表盘、`/admin/contacts` 客户管理、`/admin/scripts` 话术管理、`/admin/campaigns` 外呼任务、`/admin/calls` 通话记录。
-- 管理端系统模块：`/admin/users` 用户与座席、`/admin/lines` 外呼线路、`/admin/settings` 系统配置、`/admin/system` 监控与审计。
-- 座席端：`/agent` 座席工作台、`/agent/calls` 通话记录。
-- 登录入口：`/admin/login` 与 `/agent/login`。
-- Docker 构建会自动安装并编译 `frontend`；本地直接运行后端前，请先在 `frontend` 执行 `pnpm install && pnpm build`。
-
-直接登录 API：
+在仓库根目录执行。已存在 `.env` 时保留并逐项合并新参数：
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"12345678"}'
-```
-
-生产环境先使用预置管理员登录 `/admin/users` 创建正式账号、完成权限与密码验收，再设置 `DEMO_USERS_ENABLED=false` 并重启。演示密码不得带入生产。系统禁止管理员停用或降级自己，并保证每个租户至少保留一个启用的管理员。
-
-管理页面不会保存短信、线路或大模型密钥。生产密钥必须通过环境变量或独立密钥管理服务注入，避免在浏览器和审计日志中泄露。
-
-### 3.5 从管理端调整并发容量
-
-1. 使用管理员账号进入 `/admin/settings`，选择“并发容量”。
-2. 设置“租户最大同时通话数”并保存。该值保存到数据库，新的拨号抢占和调度批次会立即读取，无需重启。
-3. 进入 `/admin/lines` 确认启用线路的并发值；进入 `/admin/campaigns` 配置活动并发。
-4. 进入 `/admin/system` 查看“已配置容量、实际生效并发、当前活跃通话、可用槽位”。
-
-实际生效值为租户容量、活动并发和启用线路并发中的最小值。`.env` 中的 `MAX_CONCURRENT_CALLS` 只是该租户尚未保存容量配置时的默认值。提高页面配置不会自动购买运营商、PBX、ASR 或 TTS 并发额度，正式提高前必须确认外部容量。
-
-## 4. Docker 方式启动（推荐）
-
-### 4.1 一键启动
-
-```bash
-docker compose up -d --build
-```
-
-### 4.2 查看服务状态
-
-```bash
-docker compose ps
-docker compose logs -f control-api
-docker compose logs -f ai-agent
-```
-
-### 4.3 健康检查
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8001/health
-curl http://localhost:8000/readyz
-```
-
-### 4.4 生产健康就绪验收
-
-```bash
-curl -s http://localhost:8000/health | jq
-curl -s http://localhost:8000/readyz | jq
-curl -i http://localhost:8000/api/v1/calls -H "x-api-key: dev-api-key" -H "x-tenant-id: 1" | head -n 1
-```
-
-验收要点：
-
-- `/health` 为“存活探针”：返回 `200` 且 `checks.db=ok`、`checks.redis=ok`（或 `redis` 未配置时也可为 `ok`）。
-- `/readyz` 为“就绪探针”：除 `db/redis` 外还会检查 `ai_agent` 与 `telephony`，用于编排器和切流前置校验。
-- 所有 API 响应应包含 `request_id`，便于后续定位故障。
-- 触发频控场景应返回 `429`，且有 `Retry-After` 与 `X-RateLimit-*`。
-
-## 5. 本地开发运行方式（不走 docker）
-
-> 仅用于开发排查，生产不推荐直接用此方式。
-
-### 5.1 启动数据库
-
-- 使用本机 PostgreSQL/Redis，或将 `DATABASE_URL` / `REDIS_URL` 指向云端服务。
-
-### 5.2 安装依赖并启动服务
-
-```bash
-# 后端控制面
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-export APP_PORT=8000
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# 新开终端，启动 AI 服务
-cd ../agent
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-uvicorn app.main:app --host 0.0.0.0 --port 8001
-```
-
-语音网关采用 `1.8.1+outbound.1` 受控 Pipecat 包。非 Docker 安装须先构建经哈希校验的本地 wheel，再安装网关，不能直接从 PyPI 安装该本地版本。完整命令、分句边界与升级/回退要求见 [Pipecat 受控补丁包](docs/pipecat-controlled-patch.md)。已有部署需同步更新 `PIPECAT_VERSION`，不自动覆盖 `.env`。
-
-## 6. 快速功能验收清单（第一轮）
-
-以下步骤建议每次部署后都执行：
-
-1. 新建联系人（可选：设置同意与 DNC）
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/contacts \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1" \
-    -H "Content-Type: application/json" \
-    -d '{"phone":"13800000000","name":"测试用户","tags":"onboard","consent_state":"consented"}'
-   ```
-2. 新建活动并绑定联系人
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/campaigns \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1" \
-    -H "Content-Type: application/json" \
-    -d '{"name":"demo-活动","script":"标准话术","mode":"ai_handoff","contact_ids":[1]}'
-   ```
-3. 新建话术模板并绑定活动（推荐）
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/script-templates \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1" \
-    -H "Content-Type: application/json" \
-    -d '{"name":"售前话术","category":"sales","content":"您好，{客户姓名}，请问我是否可以先确认您的来电需求？","is_active":true}'
-
-   curl -X POST http://localhost:8000/api/v1/campaigns \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1" \
-    -H "Content-Type: application/json" \
-    -d '{"name":"template-活动","script_template_id":1,"mode":"ai_handoff","contact_ids":[1]}'
-   ```
-4. 查看模板列表
-   ```bash
-   curl -X GET "http://localhost:8000/api/v1/script-templates?active_only=true&page=1&size=20" \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1"
-   ```
-5. 启动活动（模拟自动拨号）
-   ```bash
-   curl -X POST "http://localhost:8000/api/v1/campaigns/1/start?max_dials=10" \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1"
-   ```
-6. 查询通话会话
-   ```bash
-   curl -X GET "http://localhost:8000/api/v1/calls?page=1&size=20" \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1"
-   ```
-7. 查询通话事件（用于排障）
-   ```bash
-   curl -X GET "http://localhost:8000/api/v1/calls/<call_id>/events" \
-    -H "x-api-key: <你的 API_KEY>" \
-    -H "x-tenant-id: 1"
-   ```
-
-## 6. 账号体系验收（推荐）
-
-启动服务后，直接一键执行：
-
-```bash
-bash scripts/test-demo-accounts.sh
-```
-
-> 提示：`scripts/test-demo-accounts.sh` 依赖 `jq` 解析返回 JSON。
-
-脚本会自动验证：
-- `/health`
-- admin 与 agent 登录 token 获取
-- `GET /api/v1/auth/me`
-- `GET /api/v1/admin/dashboard` 与 `GET /api/v1/agent/dashboard`
-- 角色隔离（agent 不能访问 admin 接口）
-
-说明：管理员账户可访问两类控制台，座席仅可访问座席控制台
-
-如需做一次完整 API 流程 smoke（联系人→模板→活动→启动→通话→事件），再执行：
-
-```bash
-bash scripts/smoke-outbound-api.sh
-```
-
-## 6.1 一体化验收命令清单（上/下线前可直接执行）
-
-### 6.1.1 活动异步拨号增强验收
-
-建议执行一次异步启动链路（`async_dial=true`）：
-
-```bash
-CAMPAIGN_ID=<你的活动ID>
-curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=true&max_dials=5" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" | jq .
-```
-
-返回 `dispatch_mode=async` 且 `dispatch_result.status=queued` 视为通过。随后立即查询：
-
-```bash
-curl -sS -X GET "${BASE_URL}/api/v1/calls?page=1&size=20" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" | jq .
-```
-
-如果你要切回同步可控验证，用 `async_dial=false`。
-
-### 6.1.2 webhook 回调幂等增强验收
-
-取任意会话 ID（如 `/api/v1/calls` 首条），重复同一 webhook 回调两次，事件只应记录一次（前提：回调 payload 去重）：
-
-```bash
-CALL_ID=<你的通话ID>
-curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
-  -H "Content-Type: application/json" \
-  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
-  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
-
-curl -sS -X POST "${BASE_URL}/api/v1/webhooks/telephony/status" \
-  -H "Content-Type: application/json" \
-  -H "x-webhook-token: ${TELEPHONY_WEBHOOK_TOKEN}" \
-  -d "{\"call_id\":\"${CALL_ID}\",\"kind\":\"status\",\"payload\":{\"status\":\"answered\",\"event_id\":\"evt-dup-test\"}}"
-
-curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" | jq .
-```
-
-理想现象：重复请求都返回 200，但事件列表仅新增 1 条（同一通话状态快照不重复）。
-
-执行后续命令可把验收标准化（查询 webhook 去重计数/重复记录）：
-
-```bash
-bash scripts/test-webhook-idempotent.sh
-```
-
-建议在部署完成后，按顺序执行以下命令，任意一步失败即停止并排查。
-
-```bash
-set -euo pipefail
-
-# 统一环境变量
-export BASE_URL="${BASE_URL:-http://localhost:8000}"
-export API_KEY="${API_KEY:-dev-api-key}"
-export TENANT_ID="${TENANT_ID:-1}"
-export ADMIN_USER="${DEMO_ADMIN_USERNAME:-admin}"
-export ADMIN_PASS="${DEMO_ADMIN_PASSWORD:-12345678}"
-export AGENT_USER="${DEMO_AGENT_USERNAME:-1001@test}"
-export AGENT_PASS="${DEMO_AGENT_PASSWORD:-12345678}"
-
-echo "1) 健康检查"
-curl -sS "${BASE_URL}/health" | jq .
-curl -sS "${BASE_URL}/readyz" | jq .
-curl -sS "http://localhost:8001/health" | jq .
-
-echo "2) 页面入口检查"
-curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/admin"            # 200
-curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/agent"            # 200
-curl -sS -o /dev/null -w "%{http_code}\n" "${BASE_URL}/docs.html"        # 302 -> /docs
-
-echo "3) 账号登录与权限链路"
-admin_login=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" | jq -r '.access_token')
-if [ -z "$admin_login" ] || [ "$admin_login" = "null" ]; then
-  echo "admin 登录失败"; exit 1
+if [ ! -e .env ]; then
+  cp .env.example .env
 fi
-echo "admin token: ${admin_login:0:20}..."
-
-agent_login=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"${AGENT_USER}\",\"password\":\"${AGENT_PASS}\"}" | jq -r '.access_token')
-if [ -z "$agent_login" ] || [ "$agent_login" = "null" ]; then
-  echo "agent 登录失败"; exit 1
-fi
-echo "agent token: ${agent_login:0:20}..."
-
-curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/auth/me" | jq -e --arg user "${ADMIN_USER}" '.username == $user'
-curl -sS -H "Authorization: Bearer ${agent_login}" "${BASE_URL}/api/v1/auth/me" | jq -e --arg user "${AGENT_USER}" '.username == $user'
-
-curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/admin/dashboard" | jq
-curl -sS -H "Authorization: Bearer ${admin_login}" "${BASE_URL}/api/v1/agent/dashboard" | jq
-curl -sS -H "Authorization: Bearer ${agent_login}" "${BASE_URL}/api/v1/agent/dashboard" | jq
-
-# 角色隔离：座席不可访问 admin dashboard
-agent_admin_code=$(curl -sS -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer ${agent_login}" \
-  "${BASE_URL}/api/v1/admin/dashboard")
-if [ "${agent_admin_code}" != "403" ]; then
-  echo "角色隔离异常：agent_admin_code=${agent_admin_code}"; exit 1
-fi
-
-echo "4) 核心链路 smoke（联系人→模板→活动→启动→查询）"
-contact_id=$(curl -sS -X POST "${BASE_URL}/api/v1/contacts" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"13800000000","name":"验收用户","consent_state":"consented"}' | jq -r '.id')
-if [ -z "$contact_id" ] || [ "$contact_id" = "null" ]; then
-  echo "新建联系人失败"; exit 1
-fi
-
-template_id=$(curl -sS -X POST "${BASE_URL}/api/v1/script-templates" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"验收话术","category":"sales","content":"您好，{客户姓名}，我是AI外呼助手。","is_active":true}' | jq -r '.id')
-if [ -z "$template_id" ] || [ "$template_id" = "null" ]; then
-  echo "新建话术模板失败"; exit 1
-fi
-
-campaign_id=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" \
-  -H "Content-Type: application/json" \
-  -d "{\"name\":\"验收活动\",\"mode\":\"ai_handoff\",\"script_template_id\":${template_id},\"contact_ids\":[${contact_id}]}" | jq -r '.id')
-if [ -z "$campaign_id" ] || [ "$campaign_id" = "null" ]; then
-  echo "新建活动失败"; exit 1
-fi
-
-curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${campaign_id}/start?max_dials=1" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" | jq
-
-curl -sS -G "${BASE_URL}/api/v1/calls" \
-  --data-urlencode "page=1" \
-  --data-urlencode "size=5" \
-  -H "x-api-key: ${API_KEY}" \
-  -H "x-tenant-id: ${TENANT_ID}" | jq
-
-echo "5) 限流和告警检查（可选）"
-status_code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/healthz")
-echo "healthz status=${status_code}"
-
-echo "验收完成：PASS"
+chmod 600 .env
 ```
 
-注意：`jq -e` 或 JSON 结构不同会使命令失败，这说明链路返回格式与预期不一致，需回到对应接口日志排查。
+编辑 `.env`，首次本机演练至少确认：
 
-### 6.3 上线前 0-5 标准验收清单（建议直接粘贴到发布记录）
+```dotenv
+APP_ENV_FILE=.env
+ENV=dev
+DEMO_USERS_ENABLED=true
+TELEPHONY_PROVIDER=mock
+VOICE_GATEWAY_DRIVER=mock
+VOICE_AI_PIPELINE=legacy
+SMS_PROVIDER=mock
+LLM_PROVIDER=rule
+AI_AGENT_URL=http://ai-agent:8001
+CALLBACK_INBOX_ENABLED=false
+```
+
+基础演练使用同步回调；要启用 Inbox 必须一并完成 PostgreSQL 迁移和独立消费者部署，见第 10 节。不能只改开关。
+
+`--env-file .env` 用于 Compose 参数替换，`APP_ENV_FILE=.env` 用于服务的 `env_file`；两者须指向同一配置。DB/Redis 密码、连接串与服务双方 Token 必须一致；不同用途密钥必须独立。可用 `openssl rand -hex 32` 生成随机值，在私有文件内保存，不截图、不提交。
+
+| 配置组 | 需确认的参数 | 从哪里取得 |
+|---|---|---|
+| 数据库/缓存 | `POSTGRES_PASSWORD`、`REDIS_PASSWORD` | 本环境生成，Compose 会生成内部连接地址 |
+| 应用鉴权 | `SECRET_KEY`、`JWT_SECRET`、`API_KEY` | 各自生成；生产按租户分配 API Key |
+| 服务鉴权 | `AI_AGENT_SERVICE_TOKEN`、`TELEPHONY_SERVICE_TOKEN` | 本环境生成，调用方/接收方一致 |
+| 回调鉴权 | `TELEPHONY_WEBHOOK_TOKEN`、`TELEPHONY_WEBHOOK_SECRET` | 本环境生成，与网关匹配 |
+| 录音 | `RECORDING_STORAGE_SERVICE_TOKEN`、S3 访问凭据 | 本环境生成；生产使用私有存储凭据 |
+
+开发示例密码不能用于公网或生产。页面只配置非敏感业务项，不能把 SIP 密码、API Key 填在页面“凭据引用”里。
+
+## 5. 构建并启动基础平台
 
 ```bash
-export BASE_URL="${BASE_URL:-http://localhost:8000}"
-export API_KEY="${API_KEY:-dev-api-key}"
-export TENANT_ID="${TENANT_ID:-1}"
-export ADMIN_USER="${DEMO_ADMIN_USERNAME:-admin}"
-export ADMIN_PASS="${DEMO_ADMIN_PASSWORD:-12345678}"
-export AGENT_USER="${DEMO_AGENT_USERNAME:-1001@test}"
-export AGENT_PASS="${DEMO_AGENT_PASSWORD:-12345678}"
-
-set -euo pipefail
-
-# 0. 控制面可达
-curl -fS "${BASE_URL}/health" >/dev/null
-curl -fS "${BASE_URL}/readyz" >/dev/null
-curl -fS "${BASE_URL}/healthz" >/dev/null
-curl -fS "http://localhost:8001/health" >/dev/null
-
-# 1. 页面入口
-for u in /admin /agent /docs.html; do
-  code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}${u}")
-  [ "$code" -ge 200 ] && [ "$code" -le 399 ]
-done
-
-# 2. 鉴权角色链路
-ADMIN_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}" | jq -r '.access_token')
-AGENT_TOKEN=$(curl -sS -X POST "${BASE_URL}/api/v1/auth/login" -H 'Content-Type: application/json' -d "{\"username\":\"${AGENT_USER}\",\"password\":\"${AGENT_PASS}\"}" | jq -r '.access_token')
-curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${ADMIN_TOKEN}"
-curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/agent/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}"
-agent_admin_code=$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/api/v1/admin/dashboard" -H "Authorization: Bearer ${AGENT_TOKEN}")
-[ "$agent_admin_code" = "403" ]
-
-# 3. 核心链路（联系人→模板→活动）
-CONTACT_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/contacts" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"phone":"13800000001","name":"验收联系人","consent_state":"consented","dnc":false}' | jq -r '.id')
-TEMPLATE_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/script-templates" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d '{"name":"上线验收话术","content":"您好，我来协助核对业务问题。","category":"check","is_active":true}' | jq -r '.id')
-CAMPAIGN_ID=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" -H 'Content-Type: application/json' -d "{\"name\":\"上线验收活动\",\"mode\":\"ai_handoff\",\"script_template_id\":${TEMPLATE_ID},\"contact_ids\":[${CONTACT_ID}]}" | jq -r '.id')
-START=$(curl -sS -X POST "${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/start?auto_dial=true&async_dial=false&max_dials=1" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" | jq -r '.dispatch_mode')
-[ "$START" = "sync" ]
-
-# 4. 事件闭环
-CALL_ID=$(curl -sS -G "${BASE_URL}/api/v1/calls" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" --data-urlencode "page=1" --data-urlencode "size=1" | jq -r '.[0].id')
-[ -n "$CALL_ID" ] && [ "$CALL_ID" != "null" ]
-curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/events?page=1&size=20" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
-curl -sS -G "${BASE_URL}/api/v1/calls/${CALL_ID}/webhook-stats" -H "x-api-key:${API_KEY}" -H "x-tenant-id:${TENANT_ID}" >/dev/null
-
-# 5. 复测脚本
-bash scripts/test-demo-accounts.sh
-bash scripts/test-webhook-idempotent.sh
-bash scripts/test-campaign-start.sh
-
-echo "上线前验收通过"
+docker compose --env-file .env config --quiet
+docker compose --env-file .env up -d --build
+docker compose --env-file .env ps
 ```
 
-另外，若你只想快速验证活动启动参数（`async_dial` 与 `max_dials`）：
+首次拉取和构建需要等待网络下载。等待依赖服务健康后再登录。此清单启动 PostgreSQL、Redis、SeaweedFS、录音适配器、控制 API、任务 Worker、AI Agent、Voice Gateway。
+
+验证服务：
 
 ```bash
-bash scripts/test-campaign-start.sh
+curl -fsS http://127.0.0.1:8000/health
+curl -fsS http://127.0.0.1:8000/readyz
+docker compose --env-file .env exec -T ai-agent \
+  python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8001/health').read().decode())"
 ```
 
-脚本会分别验证：
-- `async_dial=false` 的同步发起是否返回 `dispatch_mode=sync`；
-- `async_dial=true` 的异步发起是否返回 `dispatch_mode=async` 且 `dispatch_result.status=queued`；
-- `max_dials` 是否限制最终会话条目不超出预期。
+`ai-agent:8001` 仅在容器私网开放，不能直接请求宿主机 `localhost:8001`。`readyz` 是依赖就绪检查，不是电话接通证据。
 
-## 7. 核心模式说明
+基础端口只绑定本机回环。远程访问先建立 SSH 隧道，例如 `ssh -L 8000:127.0.0.1:8000 用户@服务器`，再在本机打开页面；正式多人访问需另行配置 HTTPS 入口和受控访问策略。
 
-- **纯人工**：`human_only`（只建立呼叫，不触发 AI）
-- **纯 AI**：`ai_only`（全程 AI 交互）
-- **AI+转人工**：`ai_handoff`（AI 识别到关键词后转人工）
-- **AI+短信**：`ai_with_sms`（会话内可挂起时可触发挂断短信）
+安装验证的实际输出见[本次验证记录](docs/reviews/20260908-manual-refresh.md)。
 
-### 7.1 API 示例
+## 6. 首次登录
 
-- 纯 AI 外呼：`"mode":"ai_only"`
-- AI+人工：`"mode":"ai_handoff"`
-- AI+短信：`"mode":"ai_with_sms"`
+打开 `http://127.0.0.1:8000/admin/login`。非生产且启用演示账号时使用 `admin / 12345678`，点击登录进入仪表盘。
 
-## 8. webhook 回调配置（重要）
+![步骤6：管理员登录](docs/assets/manual-20260908/admin-login.png)
 
-将你的 PBX/外呼网关回调地址配置为：
+![步骤6：首次进入管理中心](docs/assets/manual-20260908/dashboard.png)
 
-- `POST /api/v1/webhooks/telephony/status`
-- `POST /api/v1/webhooks/telephony/transcript`
-- `POST /api/v1/webhooks/telephony/recording`
+座席入口 `http://127.0.0.1:8000/agent/login`，演示账号 `1001@test / 12345678`。登录失败、退出后返回、座席越权都要检查，不能只验证页面能打开。
 
-回调请求头建议增加：
+## 7. 按顺序完成平台配置
 
-- `x-webhook-token: <TELEPHONY_WEBHOOK_TOKEN>`
+每一步都要“填写 → 保存 → 刷新 → 核对回显”。具体字段和前后截图见[配置图解](docs/platform-configuration-guide.md#14-逐步配置截图2026-09-08)。
 
-回调负载建议包含 `call_id`（UUID）、`kind`、`payload`。
+1. **用户与座席**：新增正式管理员/座席，验证新账号，再停用演示账号。
 
-## 9. 外呼供应商（telephony）对接说明
+   ![步骤7.1：新增用户](docs/assets/manual-20260908/users-form.png)
 
-如果你将 `TELEPHONY_PROVIDER=http`，网关必须支持：
+2. **外呼线路**：本机选 Mock；真实环境配置已获准的网关、主叫、凭据引用、并发。
 
-- `POST /v1/call/dial`
-- `POST /v1/call/speak`
-- `POST /v1/call/transfer`
-- `POST /v1/call/hangup`
+   ![步骤7.2：线路参数](docs/assets/manual-20260908/lines-form.png)
 
-请求/返回字段请按 `backend/app/services/telephony.py` 中的 `HttpAdapter` 期望值对齐。`dial` 会携带 `caller_id` 和媒体参数；`speak` 接收 `text`、`language`、`voice`、`provider`，网关负责完成实际 TTS 或播放。
+3. **系统配置 → 并发容量**：首次从小并发验证；以实际生效容量为准。
 
-仓库内置的 `voice-gateway` 可以设置 `VOICE_GATEWAY_DRIVER=freeswitch_esl`，直接连接 FreeSWITCH Event Socket，不再要求另写 HTTP 适配器。还需在 FreeSWITCH 中配置真实 SIP Trunk，并按 [FreeSWITCH 接入说明](docs/freeswitch-integration.md) 设置 ESL、TTS、媒体流和录音参数。
+   ![步骤7.3：并发容量](docs/assets/manual-20260908/settings-tab-0.png)
 
-多租户部署可设置 `TELEPHONY_PROVIDER=tenant`。控制服务会对所有启用线路汇总并发容量，再按优先级、权重和当前占用率选路；选中后把 `telephony_line_id` 绑定到通话，后续播放、转接和挂断使用同一条线路。`provider=mock` 仅用于验收，其余线路的 `gateway` 必须是 `http://` 或 `https://` 语音桥接地址。直接填写 SIP URI 不会自动完成注册、媒体协商或 WebRTC 坐席接听；这些能力必须由 FreeSWITCH、Asterisk 或运营商平台承载并通过 HTTP 适配接口接入。
+4. **AI 与语音**：保存租户策略，服务器另行配置语音/模型连接与密钥。
 
-## 10. 升级与部署（生产）
+   ![步骤7.4：AI 与语音](docs/assets/manual-20260908/settings-tab-1.png)
 
-### 10.1 镜像与版本策略
+5. **短信配置**：核对服务商、签名、模板和启用状态。
 
-- `control-api`、`ai-agent` 建议使用固定镜像 tag（例如 `v1.x.x`）
-- 全量版本基准记录在 `compatibility-matrix.toml`，维护和升级规则见 [版本约束与兼容矩阵](docs/version-compatibility.md)。
-- 开发环境可以使用矩阵内的可读Tag；生产环境的 Python、Node、PostgreSQL、Redis、FreeSWITCH、coturn、Nginx 镜像必须使用 `repository@sha256:<digest>`。
-- 发布前执行 `python scripts/check-version-constraints.py --production-env /secure/path/production.env`；真实环境版本或摘要缺失时不得发布。
-- 生产升级禁止只依赖 `create_all`。本版本 PostgreSQL 升级脚本位于：
-  - `backend/migrations/postgresql/20260828_event_audit_indexes.sql`
-  - `backend/migrations/postgresql/20260828_admin_management.sql`
-  - `backend/migrations/postgresql/20260828_contact_integrity.sql`
-  - `backend/migrations/postgresql/20260828_call_retry_schedule.sql`
-  - `backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql`
-  - `backend/migrations/postgresql/20260829_agent_presence_sms_receipts.sql`
-  - `backend/migrations/postgresql/20260829_realtime_voice_p0_p1.sql`
-  - `backend/migrations/postgresql/20260829_script_flow.sql`
-  - `backend/migrations/postgresql/20260829_durable_tasks.sql`
+   ![步骤7.5：短信配置](docs/assets/manual-20260908/settings-tab-2.png)
 
-发布顺序：
+6. **合规策略**：核对同意、DNC、时段、频次、录音告知和保留期。
+
+   ![步骤7.6：合规策略](docs/assets/manual-20260908/settings-tab-3.png)
+
+7. **接口与回调**：填写接收地址、凭据引用及重试参数，再由双方验证签名和对账。
+
+   ![步骤7.7：业务回调](docs/assets/manual-20260908/settings-tab-4.png)
+
+8. **监控与审计**：确认依赖、实际并发、积压和操作记录。
+
+   ![步骤7.8：监控与审计](docs/assets/manual-20260908/system.png)
+
+## 8. 跑通首次业务操作
+
+按[产品操作手册](docs/operator-manual.md)完成：
+
+客户创建/导入 → 知识与话术 → 业务交付策略与试跑 → 任务草稿 → Mock 启动/暂停/恢复/停止 → 通话记录 → 座席接管 → 质检/人工跟进 → 报表。
+
+![步骤8：创建任务](docs/assets/manual-20260908/campaigns-form.png)
+
+先用独立演示库和合成号码。业务试跑只执行规则，不拨电话，不调用大模型，不发短信。真实拨号前必须完成下一节全部接入验收。
+
+## 9. 接入真实电话、语音与坐席
+
+| 顺序 | 操作 | 验收依据 |
+|---|---|---|
+| 1 | 取得 SIP Trunk、批准主叫、并发/CPS/预算及白名单资料 | 供应商资料与合同额度 |
+| 2 | 配置 FreeSWITCH 网关、拨号计划、SIP/RTP、防火墙 | 受控实拨、双向声音 |
+| 3 | 配置 `freeswitch_esl`、独立命令签名、路由白名单、持久预算账本 | 无路由/超预算拒拨，硬超时挂断 |
+| 4 | 配置 VoiSmart/Pipecat、ASR、TTS、录音告知音 | 客户说话识别、回复播放、打断、录音 |
+| 5 | 按需配置外部 LLM、短信和业务回调 | 超时兜底、回执、签名、幂等和对账 |
+| 6 | 需要人工接听时配置 WSS/TURN/坐席 SIP | 真机耳麦、双向声音、接听/拒绝/超时回退 |
+
+参数和操作位置见[平台配置手册第6—10节](docs/platform-configuration-guide.md#6-电话线路与-freeswitch)。本次没有访问或配置用户的运营商、云语音控制台，外部控制台截图和真实接入操作仍为**未验证/待补**。不得将本平台截图冒充供应商控制台截图。
+
+## 10. 最新回调 Inbox 和单机 500 候选
+
+普通基础 Compose 默认使用同步回调。Inbox 启用顺序：停止新拨号和流量切换 → 备份 → 执行版本化迁移（含 `20260908_callback_inbox.sql`）→ 同一后端配置启用开关 → 启动消费者 → 检查心跳/死信/最老积压 → 放行。
+
+- 单机候选使用独立的[500部署清单](deploy/single-host-500/README.md)，不能把它随意叠加基础 Compose。
+- `result=received` 只证明回调已持久接收；业务结果必须查询话单/事件，不能据此判定接通、转人工或短信成功。
+- 死信修复后使用 `python -m app.callback_inbox_worker --retry <receipt_id>` 重排；具体容器/环境必须指向对应消费者。
+- 回退先暂停入口并排空，包括死信，之后再统一停用；禁止同步/Inbox 两种模式混用。
+- 持续 600 回调/秒与小于 1 秒队列时延门槛尚未通过；不把配置中的 500 写成商用容量。
+
+完整操作和当前失败证据见[Inbox说明](docs/reviews/20260908-callback-inbox.md)。
+
+## 11. 监控、升级、备份与回退
+
+可选监控（先生成私有监控密码）：
 
 ```bash
-# 1. 备份（替换连接信息与文件名）
-pg_dump --format=custom --file=ai_outbound_before_20260828.dump "$DATABASE_URL"
-
-# 2. 暂停写入流量/活动派发后，按文件名顺序执行未应用过的脚本
-# 该命令使用 PostgreSQL 顾问锁、版本表和 SHA-256 校验，已执行脚本不会重复运行
-cd backend
-python -m app.migration_runner
-
-# 3. 发布固定版本镜像，启动后检查
-curl -fS http://localhost:8000/health
-curl -fS http://localhost:8000/readyz
+./scripts/bootstrap-deployment-secrets.sh
+docker compose --env-file .env -f docker-compose.yml \
+  -f docker-compose.observability.yml up -d --build
 ```
 
-最新脚本还会补齐坐席归属、通话线路绑定、线路优先级/权重/凭证引用字段及索引。应用启动时也会执行同等的幂等加列迁移，但生产环境仍建议先在维护窗口显式执行 SQL。必须先备份，并在预发布 PostgreSQL 上演练后再执行生产变更。
+本机入口：Prometheus `9090`、Alertmanager `9093`、Grafana `3000`。Grafana 密码在 `.secrets/grafana_admin_password`，不要放进手册或截图。
 
-### 10.2 安全建议（生产必做）
+升级旧环境须先确认 Compose 项目名、工作目录、运行镜像和目标提交，暂停新拨号并排空在途任务，备份数据库、录音、私有配置和语音/模型账本。数据库备份使用 `scripts/backup-postgres.sh`（需要 `BACKUP_DATABASE_URL`、`BACKUP_DIR` 与 `pg_dump`）；用 `scripts/verify-postgres-backup.sh` 和 `scripts/restore-postgres-drill.sh` 验证恢复。
 
-- 不要把 `.env` 明文放在仓库
-- 代理层只放行必需端口
-- `TELEPHONY_WEBHOOK_TOKEN` 必须有值
-- `TELEPHONY_SERVICE_TOKEN` 与 `AI_AGENT_SERVICE_TOKEN` 必须使用不同的强随机值
-- 使用 HTTP 短信供应商时必须配置 `SMS_CALLBACK_URL` 与 `SMS_WEBHOOK_TOKEN`，供应商回执请求携带 `x-webhook-token`
-- 日志中打码手机号（如有敏感合规要求）
-- 对接短信/电话接口增加重试和幂等保护
-- 强制设置 `TRUSTED_HOSTS`，避免 Host 头注入
-- `ENV=production` 时服务会拒绝默认密钥、SQLite、空 Redis、`mock` 电话适配器、通配 CORS、演示账号或空电话 webhook token；启用 HTTP 短信时也会拒绝空短信回调地址或回调 token
-- 设置 `CORS_ALLOW_ORIGINS=https://你的管理域名`，不要使用 `*`
-- 设置 `DEMO_USERS_ENABLED=false`，并使用至少 32 字符的非占位符 `SECRET_KEY` / `JWT_SECRET`；多租户服务调用配置 `TENANT_API_KEYS_JSON`
-
-### 10.3 代码级回归检查
+生产保持 `AUTO_MIGRATE=false`。构建目标镜像后，在受控发布窗口按项目迁移器显式升级，示例：
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q tests
-cd ..
-
-cd agent
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q tests
-cd ..
-
-cd frontend
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-cd ..
-
-PYTHONPYCACHEPREFIX=/tmp/ai-outbound-pycache python3 -m compileall -q backend/app agent/app
-git diff --check
+docker compose --env-file .env build
+docker compose --env-file .env run --rm --no-deps control-api \
+  python -m app.migration_runner
 ```
 
-GitHub Actions 会分别执行控制服务和 AI 服务测试，并在控制服务任务中重新构建、校验前端产物。合并前应确认两个矩阵任务均为绿色。
+此命令要求 DB 已启动、连接配置正确、备份已验证。迁移失败时不启动调度。保留旧代码/镜像与数据备份；回退不能只改 Git 或删除数据卷，需核对迁移兼容性及未完成的外呼/回调账本。不要使用 `down -v` 作为升级步骤。
 
-以上检查通过只代表代码和开发环境回归通过，不等同于真实 PBX、短信、录音存储、多实例 Redis/PostgreSQL 或生产网络验收通过。
+## 12. 排错与验收边界
 
-### 10.4 本版本功能边界
+| 现象 | 检查与处理 |
+|---|---|
+| `not a git repository` | 进入包含 `docker-compose.yml`、`.git` 的实际仓库根 |
+| 端口被占用 | 用独立 Compose 项目名、容器前缀及宿主机端口；保留旧实例 |
+| `/admin` 503 或无内容 | 查看构建是否完成、镜像是否包含 `app/static/index.html` |
+| `/readyz` 非200 | `docker compose logs --tail=100 control-api task-worker ai-agent voice-gateway`，逐依赖处理 |
+| 页面设置成功却未接电话 | 核对实际 provider、FreeSWITCH、线路和云语音；保存并不等于接通 |
+| 任务启动后不拨号 | 客户同意/DNC/频控、合规外呼时段与已发布业务策略服务时段（两者都须允许）、启用线路/容量、Worker 和积压 |
+| Inbox 回调200但话单没更新 | 查消费者心跳、死信、最老待处理时间及业务事件 |
+| 软电话不可点击 | 查看 WebRTC 是否启用、HTTPS/WSS/TURN 是否完成 |
 
-- 活动：支持启动、暂停、恢复、停止和删除。停止只终止未派发任务，已经提交给运营商的通话要逐通挂断。
-- 录音与短信：活动开关已在服务端强制执行；系统保存录音回调 URL 和短信日志，但真实对象存储与短信送达取决于外部服务。
-- 短信重试：管理员可在 `/admin/system` 查看并重试失败/禁用状态的日志；成功记录不能重复发送。
-- 双语：管理端、座席端和规则型 AI 回复支持中文/英文。真实 ASR/LLM/TTS 的双语效果需要接入后另行验收。
-- 坐席工作台：具备浏览器 WebRTC 软电话、耳麦设备选择、SIP 注册门控、转人工队列、接听/拒绝、静音、保持、DTMF、挂机和弱网指标；真实 WSS、coturn、FreeSWITCH、耳机和线路必须按 `docs/browser-webrtc.md` 独立验收。
-- 生产部署：`scripts/bootstrap.sh` 不再覆盖已有 `.env`；控制 API worker 可通过 `CONTROL_API_WORKERS` 配置。多 worker 调度已使用 Redis 主锁，Redis 不可用时生产调度器不会降级为无锁执行；仍必须执行实际 PBX/ASR/TTS 容量压测。
-
-## 11. 常见故障排查
-
-### 11.1 启动失败
-
-- `control-api` 起不来：优先检查 `DATABASE_URL`、`REDIS_URL`、`AI_AGENT_URL`
-- `ai-agent` 起不来：检查端口占用及镜像构建成功
-
-### 11.2 不能外呼
-
-- 检查 `TELEPHONY_PROVIDER` 与 `TELEPHONY_PROVIDER_ENDPOINT`
-- 检查是否开启并传了 `TELEPHONY_WEBHOOK_TOKEN`
-- 检查联系人是否 `dnc`、`consent_state` 是否是 `not_consented/revoked`
-
-### 11.3 回调未生效
-
-- 回调 URL 是否可从公网上访问
-- `x-webhook-token` 是否一致
-- 回调 payload 中是否带 `call_id`
-
-## 12. 版本记录
-
-- `0.1.0`：控制面+AI 基础能力（含活动、呼叫、webhook、事件查询、重试接口）
+本次已验证、未验证、已知问题、环境限制及上线前置条件集中记录在[验收记录](docs/reviews/20260908-manual-refresh.md)。代码提交、静态检查、开发环境、测试发布、真机和生产分别记录。

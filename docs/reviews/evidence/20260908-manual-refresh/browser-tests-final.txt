@@ -1,0 +1,26 @@
+
+Running 19 tests using 1 worker
+
+(node:22303) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › frontend/e2e/architecture-hardening.spec.ts:3:1 › platform service destinations are read only and AI settings save and reload (1.6s)
+  ✓   2 [chromium] › frontend/e2e/functional-fixes.spec.ts:40:1 › campaign contact search and paging preserve selections and zero retries (4.7s)
+  ✓   3 [chromium] › frontend/e2e/functional-fixes.spec.ts:107:1 › call pagination requests a different server page and supports returning (707ms)
+  ✓   4 [chromium] › frontend/e2e/functional-fixes.spec.ts:127:1 › manual handoff requeues on no answer and can be accepted and ended (2.7s)
+  ✓   5 [chromium] › frontend/e2e/portal.spec.ts:11:1 › administrator can enter every management route and log out (2.9s)
+  ✓   6 [chromium] › frontend/e2e/portal.spec.ts:37:1 › agent is redirected away from the administrator portal (738ms)
+  ✓   7 [chromium] › frontend/e2e/portal.spec.ts:49:1 › recording notice text can be saved and is restored after reload (858ms)
+  ✓   8 [chromium] › frontend/e2e/portal.spec.ts:68:1 › all administrator menu entries are clickable and return to the dashboard (1.4s)
+  ✓   9 [chromium] › frontend/e2e/portal.spec.ts:83:1 › contacts can be saved, searched and restored after reload (1.4s)
+  ✓  10 [chromium] › frontend/e2e/portal.spec.ts:100:1 › invalid login stays unauthenticated and logout protects back navigation (1.3s)
+  ✓  11 [chromium] › frontend/e2e/portal.spec.ts:119:1 › SPA account switch never reuses the previous tenant cache (2.5s)
+  ✓  12 [chromium] › frontend/e2e/product-capabilities.spec.ts:10:1 › business policy saves fields and FAQ, simulates negation and rejects stale publishing (1.4s)
+  ✓  13 [chromium] › frontend/e2e/product-capabilities.spec.ts:45:1 › knowledge and incoming follow-up save, search and complete (1.5s)
+  ✓  14 [chromium] › frontend/e2e/product-capabilities.spec.ts:73:1 › agent and anonymous sessions cannot access product administration (549ms)
+  ✓  15 [chromium] › frontend/e2e/product-capabilities.spec.ts:82:1 › seeded appointment can be rescheduled and cancelled from its row (1.5s)
+  ✓  16 [chromium] › frontend/e2e/product-capabilities.spec.ts:109:1 › flow editor persists a collection variable and exposes new node types (2.9s)
+  ✓  17 [chromium] › frontend/e2e/review-fixes.spec.ts:9:1 › reviewed lists fetch later server pages and return (3.7s)
+  ✓  18 [chromium] › frontend/e2e/review-fixes.spec.ts:36:1 › prepared campaign supports edit start pause resume stop (2.7s)
+  ✓  19 [chromium] › frontend/e2e/review-fixes.spec.ts:67:1 › billing explains missing duration evidence (569ms)
+
+  19 passed (36.2s)

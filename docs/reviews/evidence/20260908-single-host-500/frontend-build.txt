@@ -1,0 +1,14 @@
+$ tsc -b && vite build
+vite v6.4.3 building for production...
+transforming...
+✓ 3243 modules transformed.
+rendering chunks...
+computing gzip size...
+../backend/app/static/index.html                     1.05 kB │ gzip:   0.58 kB
+../backend/app/static/assets/index-CZjmRZf7.css      7.85 kB │ gzip:   2.51 kB
+../backend/app/static/assets/query-DLN6vZyO.js      41.91 kB │ gzip:  12.37 kB
+../backend/app/static/assets/i18n-DSrGkO-R.js       45.43 kB │ gzip:  14.43 kB
+../backend/app/static/assets/react-DcdzuIYl.js     238.89 kB │ gzip:  76.95 kB
+../backend/app/static/assets/index-pn5Jfv7b.js     406.53 kB │ gzip: 100.71 kB
+../backend/app/static/assets/antd-BUxF70Z9.js    1,031.09 kB │ gzip: 321.99 kB
+✓ built in 2.58s

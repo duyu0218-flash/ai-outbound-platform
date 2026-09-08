@@ -102,3 +102,10 @@ def test_llm_redaction_and_host_allowlist(monkeypatch):
         assert "not allowlisted" in str(exc)
     else:
         raise AssertionError("unapproved LLM host must be rejected")
+
+
+def test_negated_handoff_is_not_a_transfer_request():
+    from app.policy import is_handoff
+    for text in ('不用转人工','不要给我转人工','不需要人工','do not transfer to human'):
+        assert not is_handoff(text,['人工','human'])
+    assert is_handoff('请转人工',['人工'])

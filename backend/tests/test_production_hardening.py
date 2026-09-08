@@ -133,15 +133,16 @@ def _voice_security_contract_module():
     # Load only the independent security protocol module, not the gateway's
     # app package/Pipecat runtime, so this test verifies both implementations.
     import importlib.util
+    import importlib
     import sys
-    name = "voice_security_contract"
+    name = "voice_contract_package"
     if name not in sys.modules:
-        path = Path(__file__).resolve().parents[2] / "voice_gateway/app/security.py"
-        spec = importlib.util.spec_from_file_location(name, path)
+        path = Path(__file__).resolve().parents[2] / "voice_gateway/app/__init__.py"
+        spec = importlib.util.spec_from_file_location(name, path, submodule_search_locations=[str(path.parent)])
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
         spec.loader.exec_module(module)
-    return sys.modules[name]
+    return importlib.import_module(name + '.security')
 
 
 _review_call_ids = []
@@ -199,6 +200,11 @@ async def test_review_sms_does_not_end_unconfirmed_call(client, monkeypatch, act
 def test_review_webhook_outbox_failure_rolls_back_and_retry_recovers(client, monkeypatch, kind):
     from app.api.routers import webhooks
     from app.models import WebhookEventIngest
+    from app.services import admin_settings
+    original_setting = admin_settings.get_admin_setting
+    monkeypatch.setattr(admin_settings, "get_admin_setting", lambda session, tenant, section:
+        {"callback_enabled": True, "webhook_base_url": "https://callback.example.invalid"}
+        if section == "integration" else original_setting(session, tenant, section))
     call_id = _review_call(CallStatus.DIALING)
     payload = {"call_id": str(call_id), "kind": kind, "transcript": "synthetic", "payload": {
         "status": "answered", "attempt": 1, "event_id": f"review-{kind}",
@@ -296,9 +302,17 @@ async def test_review_ai_failure_never_releases_unconfirmed_capacity(client, mon
                 other.commit()
         raise RuntimeError("synthetic model failure")
     monkeypatch.setattr(dispatcher, "request_ai_turn", fail_model)
+    adapter = AsyncMock()
+    adapter.speak.return_value = {"playback_complete": True}
+    adapter.hangup.return_value = {"ended": False}
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **kwargs: adapter)
     await dispatcher._run_ai_turn_locked(call_id=call_id, durable=False)
     with session_scope() as session:
         assert session.get(CallSession, call_id).status == (CallStatus.COMPLETED if ended else CallStatus.IN_AI)
+    if ended:
+        adapter.hangup.assert_not_awaited()
+    else:
+        adapter.hangup.assert_awaited_once()
 
 
 @pytest.mark.skipif(engine.dialect.name != "postgresql", reason="PostgreSQL serial sequence regression")
@@ -853,7 +867,8 @@ def test_contact_operations_reports_groups_and_billing(client: TestClient):
     assert billing_row["reached"] == 1
     assert billing_row["completed"] == 1
     assert billing_row["no_answer"] == 1
-    assert billing_row["estimated_cost"] == 0.1
+    assert billing_row["estimated_cost"] == 0
+    assert billing_row["missing_duration_count"] == 1
 
 
 def test_postgres_demo_user_bootstrap_is_concurrency_safe(monkeypatch):
@@ -1257,6 +1272,8 @@ async def test_scheduler_marks_crashed_final_attempt_dead(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_business_callback_task_is_durable_and_idempotent(monkeypatch):
+    monkeypatch.setattr("app.services.admin_settings.get_admin_setting", lambda *args:
+                        {"callback_enabled": True, "webhook_base_url": "https://callback.example.invalid"})
     delivered: list[str] = []
 
     async def fake_delivery(*, call_id, raise_on_failure=False, **_):
@@ -3192,13 +3209,7 @@ async def test_terminal_prompt_waits_for_playback_before_hangup(monkeypatch):
             events.append("hangup")
             return {"result": "hungup"}
 
-    async def wait_for_playback(_call_id, playback_id):
-        assert playback_id == "terminal-playback"
-        events.append("playback-complete")
-        return True
-
     monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **_kwargs: OrderedAdapter())
-    monkeypatch.setattr(dispatcher, "_wait_for_playback_completion", wait_for_playback)
     with session_scope() as session:
         call = CallSession(
             tenant_id=1,
@@ -3209,12 +3220,27 @@ async def test_terminal_prompt_waits_for_playback_before_hangup(monkeypatch):
         session.add(call)
         session.commit()
         session.refresh(call)
+        call_id = call.id
+        session.add(RealtimeSession(tenant_id=1, call_session_id=call_id))
+        session.commit()
         await dispatcher._apply_ai_action(
             session=session,
             call=call,
             result=AiTurnResult(action="hangup", tts_text="感谢接听，再见。"),
         )
-    assert events == ["speak", "playback-complete", "hangup"]
+        task = session.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id == str(call_id),
+            TaskOutbox.task_type == "after_playback")).one()
+        task_id = task.id
+        assert task.available_at > utc_now()
+    assert events == ["speak"]
+    assert await process_task(task_id) is False
+    from app.services.realtime_voice import apply_media_event
+    from app.schemas import MediaWebhookEvent
+    with session_scope() as session:
+        apply_media_event(session, session.get(CallSession, call_id), MediaWebhookEvent(
+            call_id=call_id, state="listening", event_id="terminal-drained", attempt=0))
+    assert await process_task(task_id) is True
+    assert events == ["speak", "hangup"]
 
 
 def test_contact_export_escapes_spreadsheet_formulas(client: TestClient):
