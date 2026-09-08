@@ -1,0 +1,11 @@
+
+ RUN  v3.2.7 /Users/lixiaomei/Documents/ChatGPT/AI外呼系统/duyu0218-flash/ai-outbound-platform/frontend
+
+ ✓ src/renew-registration.test.ts (3 tests) 2ms
+ ✓ src/query-session.test.ts (2 tests) 2ms
+ ✓ src/api.test.ts (6 tests) 29ms
+
+ Test Files  3 passed (3)
+      Tests  11 passed (11)
+   Start at  08:10:32
+   Duration  530ms (transform 60ms, setup 0ms, collect 95ms, tests 34ms, environment 817ms, prepare 129ms)

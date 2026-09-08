@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     voice_callback_base_url: str = ""
     voice_callback_allow_private_http: bool = False
     voice_callback_failure_stop_sec: int = 30
+    voice_callback_concurrency: int = 16
+    voice_callback_poll_sec: float = 0.1
+    voice_node_id: str = ""
+    # Approved tenant:agent -> registrar host:port. Cluster handoff must have an
+    # explicit route; HTTP call ownership alone cannot locate a SIP registration.
+    voice_agent_registrars_json: str = "{}"
+    voice_recording_source_base_url: str = ""
     voice_max_concurrent: int = 20
     voice_cps: int = 2
     voice_daily_call_limit: int = 1000
@@ -50,6 +57,7 @@ class Settings(BaseSettings):
     freeswitch_agent_extension_template: str = "agent_{agent_id}"
     freeswitch_default_handoff_extension: str = "handoff_default"
     freeswitch_tts_engine: str = ""
+    freeswitch_fallback_audio_path: str = ""
     freeswitch_tts_voice: str = ""
     freeswitch_tts_uri_template: str = "speak:{engine}|{voice}|{text}"
     freeswitch_tts_http_endpoint: str = ""
@@ -68,6 +76,14 @@ class Settings(BaseSettings):
     pipecat_session_timeout_sec: int = 300
     pipecat_media_connect_timeout_sec: float = 15.0
     pipecat_max_active_sessions: int = 100
+    media_workers_json: str = "[]"
+    media_rpc_token: str = ""
+    media_control_url: str = "http://127.0.0.1:8002"
+    media_worker_id: str = ""
+    media_worker_capacity: int = 50
+    media_rpc_timeout_sec: float = 5.0
+    media_allow_degraded_admission: bool = False
+    media_health_ttl_sec: float = 2.0
     pipecat_stt_provider: str = "openai-realtime"
     pipecat_tts_provider: str = "openai"
     pipecat_openai_api_key: str = ""
@@ -180,63 +196,7 @@ class Settings(BaseSettings):
             except (KeyError, ValueError) as exc:
                 raise RuntimeError(f"invalid FreeSWITCH command template: {exc}") from exc
         if pipecat_enabled:
-            if self.pipecat_media_protocol not in {"raw_pcm", "voismart"}:
-                raise RuntimeError("PIPECAT_MEDIA_PROTOCOL must be raw_pcm or voismart")
-            if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", self.pipecat_version):
-                raise RuntimeError("PIPECAT_VERSION must be an exact version for the Pipecat pipeline")
-            if not self.pipecat_media_ws_base.startswith(("ws://", "wss://")):
-                raise RuntimeError("PIPECAT_MEDIA_WS_BASE must use ws:// or wss://")
-            if not self.freeswitch_pipecat_start_command_template.strip() and self.pipecat_media_protocol != "voismart":
-                raise RuntimeError("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required")
-            stt_provider = self.pipecat_stt_provider.strip().lower()
-            if stt_provider not in {"openai-realtime", "aliyun-nls"}:
-                raise RuntimeError(
-                    "the current Pipecat integration supports PIPECAT_STT_PROVIDER=openai-realtime or aliyun-nls"
-                )
-            if self.pipecat_tts_provider != "openai":
-                raise RuntimeError("the current Pipecat integration supports PIPECAT_TTS_PROVIDER=openai")
-            if not self.pipecat_openai_api_key.strip():
-                raise RuntimeError("PIPECAT_OPENAI_API_KEY is required for the OpenAI TTS pipeline")
-            if stt_provider == "openai-realtime" and not self.pipecat_openai_realtime_base_url.startswith(
-                ("ws://", "wss://")
-            ):
-                raise RuntimeError("PIPECAT_OPENAI_REALTIME_BASE_URL must use ws:// or wss://")
-            if self.pipecat_sample_rate not in {8000, 16000, 24000, 48000}:
-                raise RuntimeError("PIPECAT_SAMPLE_RATE must be 8000, 16000, 24000 or 48000")
-            if self.pipecat_channels != 1:
-                raise RuntimeError("the telephony Pipecat pipeline currently requires mono audio")
-            if self.pipecat_session_timeout_sec < 30:
-                raise RuntimeError("PIPECAT_SESSION_TIMEOUT_SEC must be at least 30")
-            if not 0 < self.pipecat_media_connect_timeout_sec <= self.pipecat_session_timeout_sec:
-                raise RuntimeError("PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC must be positive and no greater than the session timeout")
-            if self.pipecat_max_active_sessions < 1:
-                raise RuntimeError("PIPECAT_MAX_ACTIVE_SESSIONS must be at least 1")
-            if self.pipecat_fallback_to_legacy and not self.freeswitch_media_start_command_template.strip():
-                raise RuntimeError(
-                    "PIPECAT_FALLBACK_TO_LEGACY=true requires FREESWITCH_MEDIA_START_COMMAND_TEMPLATE"
-                )
-            if stt_provider == "aliyun-nls":
-                if self.pipecat_sample_rate not in {8000, 16000}:
-                    raise RuntimeError("Alibaba Cloud NLS requires PIPECAT_SAMPLE_RATE=8000 or 16000")
-                if not self.aliyun_nls_appkey.strip():
-                    raise RuntimeError("ALIYUN_NLS_APPKEY is required for aliyun-nls")
-                try:
-                    aliyun_token = self.resolved_aliyun_nls_token()
-                except RuntimeError as exc:
-                    raise RuntimeError(str(exc)) from exc
-                if not aliyun_token:
-                    raise RuntimeError("ALIYUN_NLS_TOKEN or ALIYUN_NLS_TOKEN_FILE is required for aliyun-nls")
-                parsed_gateway = urlsplit(self.aliyun_nls_gateway_url.strip())
-                if parsed_gateway.scheme not in {"ws", "wss"} or not parsed_gateway.netloc:
-                    raise RuntimeError("ALIYUN_NLS_GATEWAY_URL must be a valid ws:// or wss:// URL")
-                if any(key.lower() == "token" for key, _ in parse_qsl(parsed_gateway.query)):
-                    raise RuntimeError("ALIYUN_NLS_GATEWAY_URL must not contain a token query parameter")
-                if self.env.lower() in {"prod", "production"} and parsed_gateway.scheme != "wss":
-                    raise RuntimeError("production Alibaba Cloud NLS must use wss://")
-                if not 200 <= self.aliyun_nls_max_sentence_silence_ms <= 2000:
-                    raise RuntimeError("ALIYUN_NLS_MAX_SENTENCE_SILENCE_MS must be between 200 and 2000")
-                if self.aliyun_nls_connect_timeout_sec <= 0 or self.aliyun_nls_stop_timeout_sec <= 0:
-                    raise RuntimeError("Alibaba Cloud NLS timeouts must be greater than zero")
+            self.validate_media_runtime()
         if self.env.lower() in {"prod", "production"} and driver == "freeswitch_esl":
             if self.freeswitch_esl_password == "ClueCon":
                 raise RuntimeError("production FreeSWITCH cannot use the default ESL password")
@@ -247,6 +207,67 @@ class Settings(BaseSettings):
         from .security import validate_security_settings
 
         validate_security_settings(self)
+
+
+    def validate_media_runtime(self) -> None:
+        """Media-only process validates speech dependencies, without PBX ownership."""
+        if self.pipecat_media_protocol not in {"raw_pcm", "voismart"}:
+            raise RuntimeError("PIPECAT_MEDIA_PROTOCOL must be raw_pcm or voismart")
+        if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", self.pipecat_version):
+            raise RuntimeError("PIPECAT_VERSION must be an exact version for the Pipecat pipeline")
+        if not self.pipecat_media_ws_base.startswith(("ws://", "wss://")):
+            raise RuntimeError("PIPECAT_MEDIA_WS_BASE must use ws:// or wss://")
+        if not self.freeswitch_pipecat_start_command_template.strip() and self.pipecat_media_protocol != "voismart":
+            raise RuntimeError("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE is required")
+        stt_provider = self.pipecat_stt_provider.strip().lower()
+        if stt_provider not in {"openai-realtime", "aliyun-nls"}:
+            raise RuntimeError(
+                "the current Pipecat integration supports PIPECAT_STT_PROVIDER=openai-realtime or aliyun-nls"
+            )
+        if self.pipecat_tts_provider != "openai":
+            raise RuntimeError("the current Pipecat integration supports PIPECAT_TTS_PROVIDER=openai")
+        if not self.pipecat_openai_api_key.strip():
+            raise RuntimeError("PIPECAT_OPENAI_API_KEY is required for the OpenAI TTS pipeline")
+        if stt_provider == "openai-realtime" and not self.pipecat_openai_realtime_base_url.startswith(
+            ("ws://", "wss://")
+        ):
+            raise RuntimeError("PIPECAT_OPENAI_REALTIME_BASE_URL must use ws:// or wss://")
+        if self.pipecat_sample_rate not in {8000, 16000, 24000, 48000}:
+            raise RuntimeError("PIPECAT_SAMPLE_RATE must be 8000, 16000, 24000 or 48000")
+        if self.pipecat_channels != 1:
+            raise RuntimeError("the telephony Pipecat pipeline currently requires mono audio")
+        if self.pipecat_session_timeout_sec < 30:
+            raise RuntimeError("PIPECAT_SESSION_TIMEOUT_SEC must be at least 30")
+        if not 0 < self.pipecat_media_connect_timeout_sec <= self.pipecat_session_timeout_sec:
+            raise RuntimeError("PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC must be positive and no greater than the session timeout")
+        if self.pipecat_max_active_sessions < 1:
+            raise RuntimeError("PIPECAT_MAX_ACTIVE_SESSIONS must be at least 1")
+        if self.pipecat_fallback_to_legacy and not self.freeswitch_media_start_command_template.strip():
+            raise RuntimeError(
+                "PIPECAT_FALLBACK_TO_LEGACY=true requires FREESWITCH_MEDIA_START_COMMAND_TEMPLATE"
+            )
+        if stt_provider == "aliyun-nls":
+            if self.pipecat_sample_rate not in {8000, 16000}:
+                raise RuntimeError("Alibaba Cloud NLS requires PIPECAT_SAMPLE_RATE=8000 or 16000")
+            if not self.aliyun_nls_appkey.strip():
+                raise RuntimeError("ALIYUN_NLS_APPKEY is required for aliyun-nls")
+            try:
+                aliyun_token = self.resolved_aliyun_nls_token()
+            except RuntimeError as exc:
+                raise RuntimeError(str(exc)) from exc
+            if not aliyun_token:
+                raise RuntimeError("ALIYUN_NLS_TOKEN or ALIYUN_NLS_TOKEN_FILE is required for aliyun-nls")
+            parsed_gateway = urlsplit(self.aliyun_nls_gateway_url.strip())
+            if parsed_gateway.scheme not in {"ws", "wss"} or not parsed_gateway.netloc:
+                raise RuntimeError("ALIYUN_NLS_GATEWAY_URL must be a valid ws:// or wss:// URL")
+            if any(key.lower() == "token" for key, _ in parse_qsl(parsed_gateway.query)):
+                raise RuntimeError("ALIYUN_NLS_GATEWAY_URL must not contain a token query parameter")
+            if self.env.lower() in {"prod", "production"} and parsed_gateway.scheme != "wss":
+                raise RuntimeError("production Alibaba Cloud NLS must use wss://")
+            if not 200 <= self.aliyun_nls_max_sentence_silence_ms <= 2000:
+                raise RuntimeError("ALIYUN_NLS_MAX_SENTENCE_SILENCE_MS must be between 200 and 2000")
+            if self.aliyun_nls_connect_timeout_sec <= 0 or self.aliyun_nls_stop_timeout_sec <= 0:
+                raise RuntimeError("Alibaba Cloud NLS timeouts must be greater than zero")
 
 
 @lru_cache

@@ -31,7 +31,7 @@ def list_templates(
 ):
     skip, limit = get_pagination(page=page, size=size)
     query = select(ScriptTemplate).where(ScriptTemplate.tenant_id == tenant_id).order_by(
-        ScriptTemplate.updated_at.desc()
+        ScriptTemplate.updated_at.desc(), ScriptTemplate.id.desc()
     )
     if category:
         query = query.where(ScriptTemplate.category == category)

@@ -1,0 +1,1591 @@
+{
+  "dialogue-profile": {
+    "api_processes": [
+      {
+        "pid": 9883,
+        "cpu_seconds": 18.381738,
+        "responses": {
+          "200": 2009,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.5583005733788013e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 20651,
+          "SAVEPOINT": 6104,
+          "INSERT": 8117,
+          "RELEASE": 6104,
+          "UPDATE": 4548
+        },
+        "sql_seconds": {
+          "SELECT": 12.77152058831416,
+          "SAVEPOINT": 4.330095396609977,
+          "INSERT": 5.370591092156246,
+          "RELEASE": 3.3116805913159624,
+          "UPDATE": 2.8278922588797286
+        }
+      },
+      {
+        "pid": 9881,
+        "cpu_seconds": 18.387472,
+        "responses": {
+          "200": 2000,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.3208016753196716e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 20774,
+          "SAVEPOINT": 6080,
+          "INSERT": 8084,
+          "RELEASE": 6080,
+          "UPDATE": 4526
+        },
+        "sql_seconds": {
+          "SELECT": 12.849210988963023,
+          "SAVEPOINT": 4.346824729582295,
+          "INSERT": 5.444918582215905,
+          "RELEASE": 3.372521926299669,
+          "UPDATE": 2.9163774796761572
+        }
+      },
+      {
+        "pid": 9879,
+        "cpu_seconds": 18.417631999999998,
+        "responses": {
+          "200": 2005
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.537497155368328e-05,
+        "admission_rejections": {},
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 20830,
+          "SAVEPOINT": 6103,
+          "INSERT": 8112,
+          "RELEASE": 6103,
+          "UPDATE": 4608
+        },
+        "sql_seconds": {
+          "SELECT": 12.821666061063297,
+          "SAVEPOINT": 4.379192987224087,
+          "INSERT": 5.348822282161564,
+          "RELEASE": 3.346925592981279,
+          "UPDATE": 2.8944945168914273
+        }
+      },
+      {
+        "pid": 9884,
+        "cpu_seconds": 18.365197000000002,
+        "responses": {
+          "200": 1989
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.737498678267002e-05,
+        "admission_rejections": {},
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 21074,
+          "SAVEPOINT": 6053,
+          "INSERT": 8049,
+          "RELEASE": 6053,
+          "UPDATE": 4666
+        },
+        "sql_seconds": {
+          "SELECT": 13.055558598367497,
+          "SAVEPOINT": 4.360409040004015,
+          "INSERT": 5.314477721694857,
+          "RELEASE": 3.326128308661282,
+          "UPDATE": 2.8701489521190524
+        }
+      },
+      {
+        "pid": 9880,
+        "cpu_seconds": 18.393427,
+        "responses": {
+          "200": 1989
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.4833989553153515e-05,
+        "admission_rejections": {},
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 20792,
+          "SAVEPOINT": 6056,
+          "INSERT": 8050,
+          "RELEASE": 6056,
+          "UPDATE": 4566
+        },
+        "sql_seconds": {
+          "SELECT": 12.972475471324287,
+          "SAVEPOINT": 4.320642372244038,
+          "INSERT": 5.35149295674637,
+          "RELEASE": 3.314164248527959,
+          "UPDATE": 2.907259015715681
+        }
+      },
+      {
+        "pid": 9882,
+        "cpu_seconds": 18.504027999999998,
+        "responses": {
+          "200": 1999,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.695798709988594e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": null,
+        "sql_counts": {
+          "SELECT": 20941,
+          "SAVEPOINT": 6078,
+          "INSERT": 8082,
+          "RELEASE": 6078,
+          "UPDATE": 4599
+        },
+        "sql_seconds": {
+          "SELECT": 12.969497641315684,
+          "SAVEPOINT": 4.34776787890587,
+          "INSERT": 5.365536630153656,
+          "RELEASE": 3.3301452067680657,
+          "UPDATE": 2.9412027539219707
+        }
+      }
+    ],
+    "sql_per_success": 22.851888916687514,
+    "sql_counts": {
+      "SELECT": 125062,
+      "SAVEPOINT": 36474,
+      "INSERT": 48494,
+      "RELEASE": 36474,
+      "UPDATE": 27513
+    },
+    "cpu_sec": 110.44949399999999
+  },
+  "dialogue-direct": {
+    "api_processes": [
+      {
+        "pid": 10032,
+        "cpu_seconds": 30.900720999999997,
+        "responses": {
+          "200": 3000,
+          "503": 3,
+          "500": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.4750054106116295e-05,
+        "admission_rejections": {
+          "webhook:timeout": 3
+        },
+        "http_ms": {
+          "speech": {
+            "count": 1055,
+            "mean": 76.054814522777,
+            "p99": 158.71529199648649
+          },
+          "media": {
+            "count": 1949,
+            "mean": 55.46599518541885,
+            "p99": 113.94470802042633
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24334,
+          "SAVEPOINT": 9311,
+          "INSERT": 12389,
+          "RELEASE": 9310,
+          "UPDATE": 7264,
+          "ROLLBACK": 1
+        },
+        "sql_seconds": {
+          "SELECT": 48.36498689092696,
+          "SAVEPOINT": 21.725165841635317,
+          "INSERT": 24.616370847448707,
+          "RELEASE": 16.78620418754872,
+          "UPDATE": 17.312877622200176,
+          "ROLLBACK": 0.00397724995855242
+        }
+      },
+      {
+        "pid": 10036,
+        "cpu_seconds": 30.69446,
+        "responses": {
+          "200": 2992,
+          "500": 3,
+          "503": 8
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.566705759614706e-05,
+        "admission_rejections": {
+          "webhook:timeout": 8
+        },
+        "http_ms": {
+          "speech": {
+            "count": 973,
+            "mean": 74.89953082658346,
+            "p99": 137.06529093906283
+          },
+          "media": {
+            "count": 2030,
+            "mean": 55.83853413949588,
+            "p99": 116.70699995011091
+          }
+        },
+        "sql_counts": {
+          "SELECT": 23863,
+          "SAVEPOINT": 9260,
+          "INSERT": 12339,
+          "RELEASE": 9257,
+          "UPDATE": 7048,
+          "ROLLBACK": 3
+        },
+        "sql_seconds": {
+          "SELECT": 46.83219416951761,
+          "SAVEPOINT": 21.575532327173278,
+          "INSERT": 24.298348189680837,
+          "RELEASE": 16.59460921154823,
+          "UPDATE": 15.657142732408829,
+          "ROLLBACK": 0.013682416989468038
+        }
+      },
+      {
+        "pid": 10034,
+        "cpu_seconds": 30.738887,
+        "responses": {
+          "200": 3002,
+          "500": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.8625054508447647e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 969,
+            "mean": 74.78223373102826,
+            "p99": 148.57183396816254
+          },
+          "media": {
+            "count": 2034,
+            "mean": 55.263463134459336,
+            "p99": 107.02795803081244
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24009,
+          "SAVEPOINT": 9304,
+          "INSERT": 12395,
+          "RELEASE": 9303,
+          "UPDATE": 7073,
+          "ROLLBACK": 1
+        },
+        "sql_seconds": {
+          "SELECT": 47.097808628110215,
+          "SAVEPOINT": 21.54954223090317,
+          "INSERT": 24.521348397131078,
+          "RELEASE": 16.57225987315178,
+          "UPDATE": 16.75628247531131,
+          "ROLLBACK": 0.004523125011473894
+        }
+      },
+      {
+        "pid": 10033,
+        "cpu_seconds": 30.670386999999998,
+        "responses": {
+          "200": 3001,
+          "503": 1,
+          "500": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.254095695912838e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": {
+          "speech": {
+            "count": 1038,
+            "mean": 71.76501744080008,
+            "p99": 136.07545802369714
+          },
+          "media": {
+            "count": 1965,
+            "mean": 55.24300273286259,
+            "p99": 117.60804196819663
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24202,
+          "SAVEPOINT": 9286,
+          "INSERT": 12367,
+          "RELEASE": 9285,
+          "UPDATE": 7218,
+          "ROLLBACK": 1
+        },
+        "sql_seconds": {
+          "SELECT": 47.831678091781214,
+          "SAVEPOINT": 21.761010445887223,
+          "INSERT": 24.642567564733326,
+          "RELEASE": 16.500140809221193,
+          "UPDATE": 14.082200980512425,
+          "ROLLBACK": 0.007641374948434532
+        }
+      },
+      {
+        "pid": 10031,
+        "cpu_seconds": 30.699564000000002,
+        "responses": {
+          "200": 3003,
+          "500": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.6583013348281384e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1000,
+            "mean": 72.48948574601673,
+            "p99": 142.55179197061807
+          },
+          "media": {
+            "count": 2004,
+            "mean": 55.559608362372984,
+            "p99": 114.02795801404864
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24124,
+          "SAVEPOINT": 9306,
+          "INSERT": 12400,
+          "RELEASE": 9305,
+          "UPDATE": 7138,
+          "ROLLBACK": 1
+        },
+        "sql_seconds": {
+          "SELECT": 47.33876430068631,
+          "SAVEPOINT": 21.866998412180692,
+          "INSERT": 24.52905405778438,
+          "RELEASE": 16.671259756782092,
+          "UPDATE": 14.805866742040962,
+          "ROLLBACK": 0.002450917032547295
+        }
+      },
+      {
+        "pid": 10035,
+        "cpu_seconds": 30.638288,
+        "responses": {
+          "200": 3002,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.558401320129633e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": {
+          "speech": {
+            "count": 977,
+            "mean": 71.82228665831313,
+            "p99": 147.15000009164214
+          },
+          "media": {
+            "count": 2026,
+            "mean": 55.24599300459559,
+            "p99": 111.12433299422264
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24100,
+          "SAVEPOINT": 9311,
+          "INSERT": 12390,
+          "RELEASE": 9311,
+          "UPDATE": 7050
+        },
+        "sql_seconds": {
+          "SELECT": 47.495636574109085,
+          "SAVEPOINT": 21.64705929066986,
+          "INSERT": 24.524843973922543,
+          "RELEASE": 16.529259444214404,
+          "UPDATE": 14.831263336120173
+        }
+      }
+    ],
+    "sql_per_success": 20.73661111111111,
+    "sql_counts": {
+      "SELECT": 144632,
+      "SAVEPOINT": 55778,
+      "INSERT": 74280,
+      "RELEASE": 55771,
+      "UPDATE": 42791,
+      "ROLLBACK": 7
+    },
+    "cpu_sec": 184.342307
+  },
+  "dialogue-locked": {
+    "api_processes": [
+      {
+        "pid": 10158,
+        "cpu_seconds": 30.632832999999998,
+        "responses": {
+          "200": 2999,
+          "503": 2
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.0666979253292084e-05,
+        "admission_rejections": {
+          "webhook:timeout": 2
+        },
+        "http_ms": {
+          "speech": {
+            "count": 1005,
+            "mean": 71.30188488364405,
+            "p99": 133.0092919524759
+          },
+          "media": {
+            "count": 1996,
+            "mean": 55.89473054573763,
+            "p99": 118.22470801416785
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24213,
+          "SAVEPOINT": 9313,
+          "INSERT": 12388,
+          "RELEASE": 9313,
+          "UPDATE": 7124
+        },
+        "sql_seconds": {
+          "SELECT": 47.55911276699044,
+          "SAVEPOINT": 21.662604430806823,
+          "INSERT": 24.694843298755586,
+          "RELEASE": 16.78718510561157,
+          "UPDATE": 15.070620399084873
+        }
+      },
+      {
+        "pid": 10155,
+        "cpu_seconds": 30.525128,
+        "responses": {
+          "200": 2999,
+          "503": 2
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.2332998923957348e-05,
+        "admission_rejections": {
+          "webhook:timeout": 2
+        },
+        "http_ms": {
+          "speech": {
+            "count": 1007,
+            "mean": 70.83331461028911,
+            "p99": 134.697167086415
+          },
+          "media": {
+            "count": 1994,
+            "mean": 54.96129697465937,
+            "p99": 111.69720801990479
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24021,
+          "SAVEPOINT": 9268,
+          "INSERT": 12350,
+          "RELEASE": 9268,
+          "UPDATE": 7132
+        },
+        "sql_seconds": {
+          "SELECT": 47.289401455782354,
+          "SAVEPOINT": 21.61414760677144,
+          "INSERT": 24.418784698820673,
+          "RELEASE": 16.46617632044945,
+          "UPDATE": 14.157112714252435
+        }
+      },
+      {
+        "pid": 10157,
+        "cpu_seconds": 30.724494,
+        "responses": {
+          "200": 2998,
+          "503": 3
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.1959072910249233e-05,
+        "admission_rejections": {
+          "webhook:timeout": 3
+        },
+        "http_ms": {
+          "speech": {
+            "count": 1011,
+            "mean": 71.1415531445372,
+            "p99": 144.89412505645305
+          },
+          "media": {
+            "count": 1990,
+            "mean": 55.151553777860826,
+            "p99": 113.89195802621543
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24041,
+          "SAVEPOINT": 9265,
+          "INSERT": 12350,
+          "RELEASE": 9265,
+          "UPDATE": 7124
+        },
+        "sql_seconds": {
+          "SELECT": 47.32033501355909,
+          "SAVEPOINT": 21.663887764094397,
+          "INSERT": 24.64500888052862,
+          "RELEASE": 16.684178899158724,
+          "UPDATE": 13.971755397738889
+        }
+      },
+      {
+        "pid": 10153,
+        "cpu_seconds": 30.484952,
+        "responses": {
+          "200": 3002
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.2082938812673092e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 970,
+            "mean": 70.8425571540726,
+            "p99": 143.78995797596872
+          },
+          "media": {
+            "count": 2032,
+            "mean": 55.04818441147832,
+            "p99": 120.56458403822035
+          }
+        },
+        "sql_counts": {
+          "SELECT": 23910,
+          "SAVEPOINT": 9290,
+          "INSERT": 12377,
+          "RELEASE": 9290,
+          "UPDATE": 7045
+        },
+        "sql_seconds": {
+          "SELECT": 46.89074585668277,
+          "SAVEPOINT": 21.555719127878547,
+          "INSERT": 24.494369007181376,
+          "RELEASE": 16.70914257131517,
+          "UPDATE": 13.945761979441158
+        }
+      },
+      {
+        "pid": 10156,
+        "cpu_seconds": 30.712792,
+        "responses": {
+          "200": 3000,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.4958088286221027e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": {
+          "speech": {
+            "count": 991,
+            "mean": 70.47392149534787,
+            "p99": 137.54429190885276
+          },
+          "media": {
+            "count": 2010,
+            "mean": 55.656429348033924,
+            "p99": 116.52437504380941
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24050,
+          "SAVEPOINT": 9294,
+          "INSERT": 12372,
+          "RELEASE": 9294,
+          "UPDATE": 7113
+        },
+        "sql_seconds": {
+          "SELECT": 46.982568389736116,
+          "SAVEPOINT": 21.665254307212308,
+          "INSERT": 24.582848654477857,
+          "RELEASE": 16.64764337730594,
+          "UPDATE": 14.000350111862645
+        }
+      },
+      {
+        "pid": 10154,
+        "cpu_seconds": 30.648989,
+        "responses": {
+          "200": 3002
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.750001683831215e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1019,
+            "mean": 70.79934347713397,
+            "p99": 133.8743339292705
+          },
+          "media": {
+            "count": 1983,
+            "mean": 55.31253229442277,
+            "p99": 110.22354196757078
+          }
+        },
+        "sql_counts": {
+          "SELECT": 24167,
+          "SAVEPOINT": 9292,
+          "INSERT": 12380,
+          "RELEASE": 9292,
+          "UPDATE": 7185
+        },
+        "sql_seconds": {
+          "SELECT": 47.32204278605059,
+          "SAVEPOINT": 21.631224127253518,
+          "INSERT": 24.587527143070474,
+          "RELEASE": 16.753302025725134,
+          "UPDATE": 14.205429191701114
+        }
+      }
+    ],
+    "sql_per_success": 20.710333333333335,
+    "sql_counts": {
+      "SELECT": 144402,
+      "SAVEPOINT": 55722,
+      "INSERT": 74217,
+      "RELEASE": 55722,
+      "UPDATE": 42723
+    },
+    "cpu_sec": 183.729188
+  },
+  "dialogue-final-proxy": {
+    "api_processes": [
+      {
+        "pid": 10315,
+        "cpu_seconds": 16.257376999999998,
+        "responses": {
+          "200": 2176
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.2040953151881695e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 698,
+            "mean": 24.223595216335262,
+            "p99": 88.47537497058511
+          },
+          "media": {
+            "count": 1478,
+            "mean": 15.63912011457403,
+            "p99": 58.70287504512817
+          }
+        },
+        "sql_counts": {
+          "SELECT": 12928,
+          "SAVEPOINT": 5132,
+          "INSERT": 8794,
+          "RELEASE": 5132,
+          "UPDATE": 4956
+        },
+        "sql_seconds": {
+          "SELECT": 7.9656317584449425,
+          "SAVEPOINT": 3.848047133302316,
+          "INSERT": 5.714691375615075,
+          "RELEASE": 2.6909593630116433,
+          "UPDATE": 3.077486425638199
+        }
+      },
+      {
+        "pid": 10313,
+        "cpu_seconds": 16.096947,
+        "responses": {
+          "200": 2159
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.1416967026889324e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 737,
+            "mean": 22.293154174415204,
+            "p99": 77.70745793823153
+          },
+          "media": {
+            "count": 1422,
+            "mean": 16.411852658727582,
+            "p99": 68.0904999608174
+          }
+        },
+        "sql_counts": {
+          "SELECT": 13051,
+          "SAVEPOINT": 5139,
+          "INSERT": 8731,
+          "RELEASE": 5139,
+          "UPDATE": 5002
+        },
+        "sql_seconds": {
+          "SELECT": 8.007979281479493,
+          "SAVEPOINT": 3.8371120607480407,
+          "INSERT": 5.576230584643781,
+          "RELEASE": 2.6290787768084556,
+          "UPDATE": 2.9711431921459734
+        }
+      },
+      {
+        "pid": 10311,
+        "cpu_seconds": 16.051976,
+        "responses": {
+          "200": 2154
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.337495632469654e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 696,
+            "mean": 24.435220679653614,
+            "p99": 96.88945801462978
+          },
+          "media": {
+            "count": 1458,
+            "mean": 15.624742912012312,
+            "p99": 58.66083304863423
+          }
+        },
+        "sql_counts": {
+          "SELECT": 12847,
+          "SAVEPOINT": 5092,
+          "INSERT": 8705,
+          "RELEASE": 5092,
+          "UPDATE": 4873
+        },
+        "sql_seconds": {
+          "SELECT": 8.013832312542945,
+          "SAVEPOINT": 3.811696014017798,
+          "INSERT": 5.597262457711622,
+          "RELEASE": 2.67788812762592,
+          "UPDATE": 3.0922906288178638
+        }
+      },
+      {
+        "pid": 10316,
+        "cpu_seconds": 16.072611,
+        "responses": {
+          "200": 2140
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.266703475266695e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 762,
+            "mean": 23.614485675543595,
+            "p99": 100.82908300682902
+          },
+          "media": {
+            "count": 1378,
+            "mean": 16.0709262243641,
+            "p99": 60.63000007998198
+          }
+        },
+        "sql_counts": {
+          "SELECT": 13098,
+          "SAVEPOINT": 5128,
+          "INSERT": 8650,
+          "RELEASE": 5128,
+          "UPDATE": 4999
+        },
+        "sql_seconds": {
+          "SELECT": 8.161135626258329,
+          "SAVEPOINT": 3.7794356134254485,
+          "INSERT": 5.567755146534182,
+          "RELEASE": 2.7004649562295526,
+          "UPDATE": 3.136615074588917
+        }
+      },
+      {
+        "pid": 10314,
+        "cpu_seconds": 15.955763000000001,
+        "responses": {
+          "200": 2156
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.4791963621973991e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 681,
+            "mean": 22.945848807812872,
+            "p99": 83.46341596916318
+          },
+          "media": {
+            "count": 1475,
+            "mean": 16.10712155936507,
+            "p99": 60.35049993079156
+          }
+        },
+        "sql_counts": {
+          "SELECT": 12774,
+          "SAVEPOINT": 5071,
+          "INSERT": 8711,
+          "RELEASE": 5071,
+          "UPDATE": 4878
+        },
+        "sql_seconds": {
+          "SELECT": 7.817101454245858,
+          "SAVEPOINT": 3.7782822800800204,
+          "INSERT": 5.684039917192422,
+          "RELEASE": 2.665874309139326,
+          "UPDATE": 2.9396077307173982
+        }
+      },
+      {
+        "pid": 10312,
+        "cpu_seconds": 16.298148,
+        "responses": {
+          "200": 2160
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 1.4542019926011562e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 749,
+            "mean": 23.61818365205592,
+            "p99": 85.90674994047731
+          },
+          "media": {
+            "count": 1411,
+            "mean": 16.042953278472705,
+            "p99": 58.095416985452175
+          }
+        },
+        "sql_counts": {
+          "SELECT": 13120,
+          "SAVEPOINT": 5157,
+          "INSERT": 8734,
+          "RELEASE": 5157,
+          "UPDATE": 5028
+        },
+        "sql_seconds": {
+          "SELECT": 8.204432163736783,
+          "SAVEPOINT": 3.7931361101800576,
+          "INSERT": 5.61587129405234,
+          "RELEASE": 2.7210089615546167,
+          "UPDATE": 3.110129062552005
+        }
+      }
+    ],
+    "sql_per_success": 17.0967168791039,
+    "sql_counts": {
+      "SELECT": 77818,
+      "SAVEPOINT": 30719,
+      "INSERT": 52325,
+      "RELEASE": 30719,
+      "UPDATE": 29736
+    },
+    "cpu_sec": 96.732822
+  },
+  "dialogue-linux": {
+    "api_processes": [
+      {
+        "pid": 8,
+        "cpu_seconds": 23.172455,
+        "responses": {
+          "200": 3017
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.166694659739733e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 989,
+            "mean": 17.623045293640637,
+            "p99": 45.76383309904486
+          },
+          "media": {
+            "count": 2028,
+            "mean": 13.934506787996577,
+            "p99": 44.77845795918256
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18393,
+          "SAVEPOINT": 7207,
+          "INSERT": 12292,
+          "RELEASE": 7207,
+          "UPDATE": 7044
+        },
+        "sql_seconds": {
+          "SELECT": 7.5866043898276985,
+          "SAVEPOINT": 2.33996292098891,
+          "INSERT": 5.251206532004289,
+          "RELEASE": 1.8182392048183829,
+          "UPDATE": 2.6442643464542925
+        }
+      },
+      {
+        "pid": 9,
+        "cpu_seconds": 23.450325,
+        "responses": {
+          "200": 2980
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.3832970075309277e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1004,
+            "mean": 17.93249125234816,
+            "p99": 47.58745792787522
+          },
+          "media": {
+            "count": 1976,
+            "mean": 13.861625848987483,
+            "p99": 44.88141706679016
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18338,
+          "SAVEPOINT": 7144,
+          "INSERT": 12151,
+          "RELEASE": 7144,
+          "UPDATE": 7016
+        },
+        "sql_seconds": {
+          "SELECT": 7.519454077468254,
+          "SAVEPOINT": 2.4122189570916817,
+          "INSERT": 4.982097556698136,
+          "RELEASE": 1.862506940960884,
+          "UPDATE": 2.5776980213122442
+        }
+      },
+      {
+        "pid": 11,
+        "cpu_seconds": 23.104909,
+        "responses": {
+          "200": 2991
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.8958038203418255e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1000,
+            "mean": 17.472388511290774,
+            "p99": 44.86641602125019
+          },
+          "media": {
+            "count": 1991,
+            "mean": 13.772453713763575,
+            "p99": 46.30904202349484
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18365,
+          "SAVEPOINT": 7166,
+          "INSERT": 12194,
+          "RELEASE": 7166,
+          "UPDATE": 6978
+        },
+        "sql_seconds": {
+          "SELECT": 7.461709260591306,
+          "SAVEPOINT": 2.21974641806446,
+          "INSERT": 5.017728160484694,
+          "RELEASE": 1.7986196118872613,
+          "UPDATE": 2.6605952811660245
+        }
+      },
+      {
+        "pid": 7,
+        "cpu_seconds": 23.100411,
+        "responses": {
+          "200": 2977
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.470899537205696e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 975,
+            "mean": 17.976263935606067,
+            "p99": 48.70758403558284
+          },
+          "media": {
+            "count": 2002,
+            "mean": 13.692444740768082,
+            "p99": 43.07445790618658
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18091,
+          "SAVEPOINT": 7099,
+          "INSERT": 12114,
+          "RELEASE": 7099,
+          "UPDATE": 6901
+        },
+        "sql_seconds": {
+          "SELECT": 7.227478964370675,
+          "SAVEPOINT": 2.3812673358479515,
+          "INSERT": 5.073581189964898,
+          "RELEASE": 1.8626872060121968,
+          "UPDATE": 2.5760530580300838
+        }
+      },
+      {
+        "pid": 10,
+        "cpu_seconds": 23.244020000000003,
+        "responses": {
+          "200": 3016
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.9416987672448158e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 987,
+            "mean": 17.370583606542304,
+            "p99": 44.57091703079641
+          },
+          "media": {
+            "count": 2029,
+            "mean": 14.049141467943652,
+            "p99": 42.842374998144805
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18374,
+          "SAVEPOINT": 7210,
+          "INSERT": 12291,
+          "RELEASE": 7210,
+          "UPDATE": 7023
+        },
+        "sql_seconds": {
+          "SELECT": 7.435048952582292,
+          "SAVEPOINT": 2.3521559620276093,
+          "INSERT": 5.187335951719433,
+          "RELEASE": 1.8023824269184843,
+          "UPDATE": 2.671216520597227
+        }
+      },
+      {
+        "pid": 12,
+        "cpu_seconds": 23.62845,
+        "responses": {
+          "200": 3019
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.0459021218121052e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1045,
+            "mean": 17.80596772358089,
+            "p99": 50.568209029734135
+          },
+          "media": {
+            "count": 1974,
+            "mean": 13.827312416470164,
+            "p99": 43.87187503743917
+          }
+        },
+        "sql_counts": {
+          "SELECT": 18739,
+          "SAVEPOINT": 7271,
+          "INSERT": 12294,
+          "RELEASE": 7271,
+          "UPDATE": 7135
+        },
+        "sql_seconds": {
+          "SELECT": 7.458288294146769,
+          "SAVEPOINT": 2.416253360453993,
+          "INSERT": 5.160648270510137,
+          "RELEASE": 1.8719617871101946,
+          "UPDATE": 2.645797866396606
+        }
+      }
+    ],
+    "sql_per_success": 17.32927777777778,
+    "sql_counts": {
+      "SELECT": 110300,
+      "SAVEPOINT": 43097,
+      "INSERT": 73336,
+      "RELEASE": 43097,
+      "UPDATE": 42097
+    },
+    "cpu_sec": 139.70057
+  },
+  "dialogue-linux-volume": {
+    "api_processes": [
+      {
+        "pid": 8,
+        "cpu_seconds": 24.15701,
+        "responses": {
+          "200": 3044
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.191595897078514e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1009,
+            "mean": 17.691070134996096,
+            "p99": 66.34725001640618
+          },
+          "media": {
+            "count": 2035,
+            "mean": 14.69919700633176,
+            "p99": 60.39270793553442
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20543,
+          "SAVEPOINT": 7927,
+          "INSERT": 13032,
+          "RELEASE": 7927,
+          "UPDATE": 7739
+        },
+        "sql_seconds": {
+          "SELECT": 7.167283366667107,
+          "SAVEPOINT": 2.3284235928440467,
+          "INSERT": 5.006346284062602,
+          "RELEASE": 1.8176628253422678,
+          "UPDATE": 2.709584087599069
+        }
+      },
+      {
+        "pid": 9,
+        "cpu_seconds": 24.27608,
+        "responses": {
+          "200": 3067
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.0667055398225784e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1035,
+            "mean": 17.187624353497032,
+            "p99": 58.97512496449053
+          },
+          "media": {
+            "count": 2032,
+            "mean": 14.455104891889578,
+            "p99": 55.99654105026275
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20866,
+          "SAVEPOINT": 8025,
+          "INSERT": 13166,
+          "RELEASE": 8025,
+          "UPDATE": 7872
+        },
+        "sql_seconds": {
+          "SELECT": 6.982008562772535,
+          "SAVEPOINT": 2.2807821810711175,
+          "INSERT": 5.065570278209634,
+          "RELEASE": 1.8144942780490965,
+          "UPDATE": 2.7238227396737784
+        }
+      },
+      {
+        "pid": 11,
+        "cpu_seconds": 24.921317000000002,
+        "responses": {
+          "200": 2891
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.5624951124191284e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 947,
+            "mean": 19.483801355111435,
+            "p99": 72.29137502145022
+          },
+          "media": {
+            "count": 1944,
+            "mean": 15.500853924162652,
+            "p99": 54.177750018425286
+          }
+        },
+        "sql_counts": {
+          "SELECT": 19515,
+          "SAVEPOINT": 7534,
+          "INSERT": 12402,
+          "RELEASE": 7534,
+          "UPDATE": 7347
+        },
+        "sql_seconds": {
+          "SELECT": 6.924930714652874,
+          "SAVEPOINT": 2.453329098294489,
+          "INSERT": 5.169401558232494,
+          "RELEASE": 1.818483452894725,
+          "UPDATE": 2.805480955983512
+        }
+      },
+      {
+        "pid": 7,
+        "cpu_seconds": 24.486605,
+        "responses": {
+          "200": 3056
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.295904025435448e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1013,
+            "mean": 17.586497993204787,
+            "p99": 61.16533395834267
+          },
+          "media": {
+            "count": 2043,
+            "mean": 14.494126129369386,
+            "p99": 52.88791691418737
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20665,
+          "SAVEPOINT": 7965,
+          "INSERT": 13101,
+          "RELEASE": 7965,
+          "UPDATE": 7806
+        },
+        "sql_seconds": {
+          "SELECT": 6.973052445217036,
+          "SAVEPOINT": 2.2672497300663963,
+          "INSERT": 5.160575102898292,
+          "RELEASE": 1.9090164978988469,
+          "UPDATE": 2.7217282076599076
+        }
+      },
+      {
+        "pid": 10,
+        "cpu_seconds": 24.611213,
+        "responses": {
+          "200": 3050
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 2.6999972760677338e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1018,
+            "mean": 17.149211327323034,
+            "p99": 51.83108395431191
+          },
+          "media": {
+            "count": 2032,
+            "mean": 14.6626813612662,
+            "p99": 54.30666694883257
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20816,
+          "SAVEPOINT": 8011,
+          "INSERT": 13132,
+          "RELEASE": 8011,
+          "UPDATE": 7817
+        },
+        "sql_seconds": {
+          "SELECT": 6.972861821646802,
+          "SAVEPOINT": 2.2020673723891377,
+          "INSERT": 5.073012642911635,
+          "RELEASE": 1.809795092092827,
+          "UPDATE": 2.731327889021486
+        }
+      },
+      {
+        "pid": 12,
+        "cpu_seconds": 24.65288,
+        "responses": {
+          "200": 2892
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.4291064366698265e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 978,
+            "mean": 19.266341437118086,
+            "p99": 64.50991693418473
+          },
+          "media": {
+            "count": 1914,
+            "mean": 15.570958651497167,
+            "p99": 59.51108306180686
+          }
+        },
+        "sql_counts": {
+          "SELECT": 19555,
+          "SAVEPOINT": 7538,
+          "INSERT": 12380,
+          "RELEASE": 7538,
+          "UPDATE": 7419
+        },
+        "sql_seconds": {
+          "SELECT": 7.155311414273456,
+          "SAVEPOINT": 2.501932719373144,
+          "INSERT": 5.223957190988585,
+          "RELEASE": 1.9295425433665514,
+          "UPDATE": 2.807726176455617
+        }
+      }
+    ],
+    "sql_per_success": 18.842944444444445,
+    "sql_counts": {
+      "SELECT": 121960,
+      "SAVEPOINT": 47000,
+      "INSERT": 77213,
+      "RELEASE": 47000,
+      "UPDATE": 46000
+    },
+    "cpu_sec": 147.105105
+  },
+  "dialogue-linux-wal": {
+    "api_processes": [
+      {
+        "pid": 8,
+        "cpu_seconds": 24.659647,
+        "responses": {
+          "200": 2880,
+          "503": 1
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 4.412501584738493e-05,
+        "admission_rejections": {
+          "webhook:timeout": 1
+        },
+        "http_ms": {
+          "speech": {
+            "count": 953,
+            "mean": 18.72448278649672,
+            "p99": 68.45133297611028
+          },
+          "media": {
+            "count": 1928,
+            "mean": 16.055829053335533,
+            "p99": 56.42400006763637
+          }
+        },
+        "sql_counts": {
+          "SELECT": 19380,
+          "SAVEPOINT": 7486,
+          "INSERT": 12330,
+          "RELEASE": 7486,
+          "UPDATE": 7348
+        },
+        "sql_seconds": {
+          "SELECT": 7.267982357065193,
+          "SAVEPOINT": 2.4191946865757927,
+          "INSERT": 4.986122784670442,
+          "RELEASE": 1.8152134576812387,
+          "UPDATE": 2.722718385164626
+        }
+      },
+      {
+        "pid": 9,
+        "cpu_seconds": 24.751709,
+        "responses": {
+          "200": 2904
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 4.4459011405706406e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 957,
+            "mean": 19.450238466339698,
+            "p99": 69.45341709069908
+          },
+          "media": {
+            "count": 1947,
+            "mean": 15.876164915827957,
+            "p99": 60.961542068980634
+          }
+        },
+        "sql_counts": {
+          "SELECT": 19587,
+          "SAVEPOINT": 7558,
+          "INSERT": 12443,
+          "RELEASE": 7558,
+          "UPDATE": 7379
+        },
+        "sql_seconds": {
+          "SELECT": 7.699955832911655,
+          "SAVEPOINT": 2.4566869732225314,
+          "INSERT": 5.08771141176112,
+          "RELEASE": 2.040396196185611,
+          "UPDATE": 2.6803768327226862
+        }
+      },
+      {
+        "pid": 11,
+        "cpu_seconds": 24.317496,
+        "responses": {
+          "200": 3077
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.770797047764063e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1014,
+            "mean": 17.480934314182694,
+            "p99": 54.073791950941086
+          },
+          "media": {
+            "count": 2063,
+            "mean": 14.722030700698596,
+            "p99": 56.533832917921245
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20776,
+          "SAVEPOINT": 8015,
+          "INSERT": 13189,
+          "RELEASE": 8015,
+          "UPDATE": 7825
+        },
+        "sql_seconds": {
+          "SELECT": 7.044371179188602,
+          "SAVEPOINT": 2.2842247231164947,
+          "INSERT": 5.228361534886062,
+          "RELEASE": 1.8282062719808891,
+          "UPDATE": 2.7224021669244394
+        }
+      },
+      {
+        "pid": 7,
+        "cpu_seconds": 24.096149,
+        "responses": {
+          "200": 3043
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.308302257210016e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1013,
+            "mean": 18.45272808018079,
+            "p99": 71.43074995838106
+          },
+          "media": {
+            "count": 2030,
+            "mean": 14.39044002714232,
+            "p99": 49.630124936811626
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20576,
+          "SAVEPOINT": 7957,
+          "INSERT": 13051,
+          "RELEASE": 7957,
+          "UPDATE": 7777
+        },
+        "sql_seconds": {
+          "SELECT": 7.198460529441945,
+          "SAVEPOINT": 2.2933241347782314,
+          "INSERT": 5.099850118160248,
+          "RELEASE": 1.8658490106463432,
+          "UPDATE": 2.797429786878638
+        }
+      },
+      {
+        "pid": 10,
+        "cpu_seconds": 24.123723,
+        "responses": {
+          "200": 3061
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.224995452910662e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1031,
+            "mean": 17.682523316695605,
+            "p99": 58.57345892582089
+          },
+          "media": {
+            "count": 2030,
+            "mean": 14.442388546708147,
+            "p99": 50.61000003479421
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20765,
+          "SAVEPOINT": 7996,
+          "INSERT": 13115,
+          "RELEASE": 7996,
+          "UPDATE": 7808
+        },
+        "sql_seconds": {
+          "SELECT": 6.8291151754092425,
+          "SAVEPOINT": 2.2157386244507506,
+          "INSERT": 5.014745188062079,
+          "RELEASE": 1.8228274207795039,
+          "UPDATE": 2.6797009852016345
+        }
+      },
+      {
+        "pid": 12,
+        "cpu_seconds": 24.160179,
+        "responses": {
+          "200": 3035
+        },
+        "db_checkout_failures": 0,
+        "db_wait_seconds_p99": 3.5375007428228855e-05,
+        "admission_rejections": {},
+        "http_ms": {
+          "speech": {
+            "count": 1033,
+            "mean": 18.458922535730103,
+            "p99": 85.2588340640068
+          },
+          "media": {
+            "count": 2002,
+            "mean": 14.518533438198979,
+            "p99": 49.6870829956606
+          }
+        },
+        "sql_counts": {
+          "SELECT": 20728,
+          "SAVEPOINT": 7946,
+          "INSERT": 13020,
+          "RELEASE": 7946,
+          "UPDATE": 7806
+        },
+        "sql_seconds": {
+          "SELECT": 7.194961441564374,
+          "SAVEPOINT": 2.2539781149243936,
+          "INSERT": 5.180485762073658,
+          "RELEASE": 1.8361823660088703,
+          "UPDATE": 2.7731451739091426
+        }
+      }
+    ],
+    "sql_per_success": 18.82327777777778,
+    "sql_counts": {
+      "SELECT": 121812,
+      "SAVEPOINT": 46958,
+      "INSERT": 77148,
+      "RELEASE": 46958,
+      "UPDATE": 45943
+    },
+    "cpu_sec": 146.108903
+  }
+}

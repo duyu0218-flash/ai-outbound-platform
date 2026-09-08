@@ -1,0 +1,663 @@
+{
+  "scope": "local macOS and isolated Docker PostgreSQL/Redis/NGINX, synthetic calls/models; no live SIP/RTP/ASR/TTS/LLM",
+  "implementation_dates": [
+    "2026-09-07",
+    "2026-09-08"
+  ],
+  "baseline_commit": "f1ec088",
+  "tests": {
+    "backend_postgresql_redis": 189,
+    "voice_gateway": 210,
+    "agent": 7,
+    "pbx_preflight_and_capacity": 5,
+    "chromium": 14
+  },
+  "media": {
+    "media_processes": 4,
+    "synthetic_control_sessions": 200,
+    "distribution": {
+      "media-1": 50,
+      "media-2": 50,
+      "media-3": 50,
+      "media-4": 50
+    },
+    "create_200_seconds": 0.14176016696728766,
+    "201st_rejected": true,
+    "journal_recovery_preserved": true,
+    "worker_restart_affected_sessions": 50,
+    "replacement_sessions": 50,
+    "real_sip_audio_asr_tts": false,
+    "passed": true
+  },
+  "ai": {
+    "ai_worker_processes": 2,
+    "slots_per_process": 128,
+    "model_peak": 256,
+    "unique_calls": 256,
+    "task_states": {
+      "completed": 256
+    },
+    "max_task_attempts": 1,
+    "elapsed_seconds": 5.697392666013911,
+    "model_delay_seconds": 3,
+    "db_threads_per_process": 2,
+    "action_threads_per_process": 2,
+    "pool_connections_per_process": 3,
+    "db_while_256_models_wait": [
+      {
+        "model_active": 256,
+        "states": {
+          "idle": 5
+        }
+      },
+      {
+        "model_active": 256,
+        "states": {
+          "idle": 5
+        }
+      },
+      {
+        "model_active": 256,
+        "states": {
+          "idle": 5
+        }
+      },
+      {
+        "model_active": 256,
+        "states": {
+          "idle": 5
+        }
+      },
+      {
+        "model_active": 256,
+        "states": {
+          "idle": 3,
+          "idle in transaction": 2
+        }
+      }
+    ],
+    "real_llm_sip_audio": false,
+    "passed": true
+  },
+  "dialogue": {
+    "synthetic_active_calls": 200,
+    "final_transcripts_per_second": 50,
+    "media_events_per_second": 100,
+    "duration_seconds": 30,
+    "first_attempt_statuses": {
+      "200": 4500
+    },
+    "retry_statuses": {},
+    "unresolved_failures": 0,
+    "callback_p99_ms": 39.060084032826126,
+    "generator_lag_p99_ms": 1.3357499847188592,
+    "api_distribution": {
+      "91675": 1065,
+      "91674": 1087,
+      "91672": 1081,
+      "91673": 1267
+    },
+    "task_states": {
+      "completed": 1500
+    },
+    "final_transcripts": 1500,
+    "successful_ai_metrics": 1500,
+    "model": {
+      "active": 0,
+      "peak": 158,
+      "total": 1500,
+      "cancelled": 0
+    },
+    "elapsed_with_drain_seconds": 33.113846332998946,
+    "real_sip_rtp_asr_tts_llm": false,
+    "correctness_passed": true
+  },
+  "api": [
+    {
+      "scenario": "proxy-r100",
+      "workers": 2,
+      "connections_per_process": 6,
+      "target_rps": 100,
+      "duration_sec": 30,
+      "status_counts": {
+        "200": 3000
+      },
+      "scheduled_to_finish_p99_ms": 31.614,
+      "worker_response_counts": {
+        "90955": 1500,
+        "90956": 1500
+      },
+      "db_before_retry": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 3000,
+        "receipts": 3000,
+        "analysis_tasks": 3000,
+        "task_states": {
+          "pending": 3000
+        }
+      },
+      "retries": 0,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    },
+    {
+      "scenario": "proxy-r200",
+      "workers": 2,
+      "connections_per_process": 6,
+      "target_rps": 200,
+      "duration_sec": 30,
+      "status_counts": {
+        "200": 5995,
+        "503": 5
+      },
+      "scheduled_to_finish_p99_ms": 66.123,
+      "worker_response_counts": {
+        "90992": 3005,
+        "90993": 2995
+      },
+      "db_before_retry": {
+        "completed_calls": 5995,
+        "receipts": 5995,
+        "analysis_tasks": 5995,
+        "task_states": {
+          "pending": 5995
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 6000,
+        "receipts": 6000,
+        "analysis_tasks": 6000,
+        "task_states": {
+          "pending": 6000
+        }
+      },
+      "retries": 5,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    },
+    {
+      "scenario": "proxy-r400",
+      "workers": 2,
+      "connections_per_process": 6,
+      "target_rps": 400,
+      "duration_sec": 30,
+      "status_counts": {
+        "200": 7323,
+        "503": 4677
+      },
+      "scheduled_to_finish_p99_ms": 97.837,
+      "worker_response_counts": {
+        "91061": 6016,
+        "91062": 5984
+      },
+      "db_before_retry": {
+        "completed_calls": 7323,
+        "receipts": 7323,
+        "analysis_tasks": 7323,
+        "task_states": {
+          "pending": 7323
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 12000,
+        "receipts": 12000,
+        "analysis_tasks": 12000,
+        "task_states": {
+          "pending": 12000
+        }
+      },
+      "retries": 4677,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    },
+    {
+      "scenario": "proxy4-r200",
+      "workers": 4,
+      "connections_per_process": 4,
+      "target_rps": 200,
+      "duration_sec": 30,
+      "status_counts": {
+        "200": 6000
+      },
+      "scheduled_to_finish_p99_ms": 48.59,
+      "worker_response_counts": {
+        "91160": 1499,
+        "91161": 1501,
+        "91162": 1504,
+        "91159": 1496
+      },
+      "db_before_retry": {
+        "completed_calls": 6000,
+        "receipts": 6000,
+        "analysis_tasks": 6000,
+        "task_states": {
+          "pending": 6000
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 6000,
+        "receipts": 6000,
+        "analysis_tasks": 6000,
+        "task_states": {
+          "pending": 6000
+        }
+      },
+      "retries": 0,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    },
+    {
+      "scenario": "proxy4-r400",
+      "workers": 4,
+      "connections_per_process": 4,
+      "target_rps": 400,
+      "duration_sec": 30,
+      "status_counts": {
+        "200": 9878,
+        "503": 2122
+      },
+      "scheduled_to_finish_p99_ms": 107.298,
+      "worker_response_counts": {
+        "91172": 3009,
+        "91170": 2973,
+        "91173": 2998,
+        "91171": 3020
+      },
+      "db_before_retry": {
+        "completed_calls": 9878,
+        "receipts": 9878,
+        "analysis_tasks": 9878,
+        "task_states": {
+          "pending": 9878
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 12000,
+        "receipts": 12000,
+        "analysis_tasks": 12000,
+        "task_states": {
+          "pending": 12000
+        }
+      },
+      "retries": 2122,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    },
+    {
+      "scenario": "proxy4-analysis-r200-steady",
+      "workers": 4,
+      "connections_per_process": 4,
+      "target_rps": 200,
+      "duration_sec": 120,
+      "status_counts": {
+        "503": 283,
+        "200": 23717
+      },
+      "scheduled_to_finish_p99_ms": 70.398,
+      "worker_response_counts": {
+        "91384": 6555,
+        "91385": 5819,
+        "91387": 5800,
+        "91386": 5826
+      },
+      "db_before_retry": {
+        "completed_calls": 23717,
+        "receipts": 23717,
+        "analysis_tasks": 23717,
+        "task_states": {
+          "pending": 19616,
+          "completed": 4101
+        }
+      },
+      "db_after_retry_and_duplicates": {
+        "completed_calls": 24000,
+        "receipts": 24000,
+        "analysis_tasks": 24000,
+        "task_states": {
+          "pending": 19740,
+          "completed": 4260
+        }
+      },
+      "retries": 283,
+      "duplicate_replays": 20,
+      "correctness_passed": true
+    }
+  ],
+  "compose": {
+    "services": [
+      "ai-agent",
+      "ai-worker",
+      "ai-worker-2",
+      "api-proxy",
+      "control-api",
+      "control-api-2",
+      "control-api-3",
+      "control-api-4",
+      "freeswitch",
+      "media-1",
+      "media-2",
+      "media-3",
+      "media-4",
+      "recording-adapter",
+      "task-worker",
+      "voice-gateway"
+    ],
+    "cpu_limit_sum": 23.0,
+    "services_detail": {
+      "ai-agent": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8001"
+        ],
+        "cpus": 1,
+        "memory": "2147483648"
+      },
+      "ai-worker": {
+        "command": [
+          "python",
+          "-m",
+          "app.ai_worker"
+        ],
+        "cpus": 1,
+        "memory": "2147483648"
+      },
+      "ai-worker-2": {
+        "command": [
+          "python",
+          "-m",
+          "app.ai_worker"
+        ],
+        "cpus": 1,
+        "memory": "2147483648"
+      },
+      "api-proxy": {
+        "command": [
+          "-g",
+          "daemon off;"
+        ],
+        "cpus": 0.5,
+        "memory": "268435456"
+      },
+      "control-api": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8010",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1,
+        "memory": "1073741824"
+      },
+      "control-api-2": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8011",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1,
+        "memory": "1073741824"
+      },
+      "control-api-3": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8012",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1,
+        "memory": "1073741824"
+      },
+      "control-api-4": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8013",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1,
+        "memory": "1073741824"
+      },
+      "freeswitch": {
+        "command": null,
+        "cpus": 6,
+        "memory": "4294967296"
+      },
+      "media-1": {
+        "command": [
+          "uvicorn",
+          "app.media_worker:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8101",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1.5,
+        "memory": "2147483648"
+      },
+      "media-2": {
+        "command": [
+          "uvicorn",
+          "app.media_worker:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8102",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1.5,
+        "memory": "2147483648"
+      },
+      "media-3": {
+        "command": [
+          "uvicorn",
+          "app.media_worker:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8103",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1.5,
+        "memory": "2147483648"
+      },
+      "media-4": {
+        "command": [
+          "uvicorn",
+          "app.media_worker:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8104",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1.5,
+        "memory": "2147483648"
+      },
+      "recording-adapter": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8003"
+        ],
+        "cpus": 0.5,
+        "memory": "1073741824"
+      },
+      "task-worker": {
+        "command": [
+          "python",
+          "-m",
+          "app.worker"
+        ],
+        "cpus": 2,
+        "memory": "4294967296"
+      },
+      "voice-gateway": {
+        "command": [
+          "uvicorn",
+          "app.main:app",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8002",
+          "--workers",
+          "1",
+          "--no-access-log"
+        ],
+        "cpus": 1,
+        "memory": "2147483648"
+      }
+    }
+  },
+  "metrics_routes": [
+    {
+      "process": 1,
+      "unauthenticated": 401,
+      "authenticated": 200,
+      "post_denied": 403
+    },
+    {
+      "process": 2,
+      "unauthenticated": 401,
+      "authenticated": 200,
+      "post_denied": 403
+    },
+    {
+      "process": 3,
+      "unauthenticated": 401,
+      "authenticated": 200,
+      "post_denied": 403
+    },
+    {
+      "process": 4,
+      "unauthenticated": 401,
+      "authenticated": 200,
+      "post_denied": 403
+    }
+  ],
+  "source_sha256": {
+    "agent/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "agent/app/config.py": "c3e341e8b2effe3a23be3b3053b911241cb3724a0253e516957f451dd105e762",
+    "agent/app/llm.py": "d40b2dcf8f0b432a881af6adecdfb75b3a629fca6b5db57df00980c5b782a459",
+    "agent/app/main.py": "d076239d4589dd34e15c0662d2dc1adce52d8108b544423b8503b46d67bd8103",
+    "agent/app/policy.py": "bb32e0b7a01262bdde08d8105e6a6172a58faae61627121fba815ca1c419620b",
+    "backend/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "backend/app/ai_worker.py": "df8e47758685702b5573e95d8f9238207ecc8a0b0760a6282958a0c9824dcfa0",
+    "backend/app/ai_worker_health.py": "0357f1192eae1937ae1f7f2fc225987a51c91c7241e7ecd50324680b3e104800",
+    "backend/app/api/deps.py": "f7b2944918f2c71dfa077134c33fed3ed50cc29ce56b894c0f6d41da728feab5",
+    "backend/app/api/routers/__init__.py": "411705519a6361a87f0e07729202966a482931e946bc3d239c8b7728b36b189d",
+    "backend/app/api/routers/admin_management.py": "8888be63a5c1b58b50f487dd582d0180feca3ff949a58ff8cf144e8c2c7fa7c1",
+    "backend/app/api/routers/auth.py": "46b38b3011ce68695e5ed43bb30bfddabb2f19da717f90a9c5f9283329a90245",
+    "backend/app/api/routers/calls.py": "0f77da77af8bd82c306d5dedc949d4eb41866dfd0f0dd42de44e298766729ee5",
+    "backend/app/api/routers/campaigns.py": "8c13d96cc9ef4d12831946f425d1d666a4380ac8f8ecb02de18cee1d979a3c13",
+    "backend/app/api/routers/contacts.py": "6765d4e23f7be62e4ac0e6141fef086c3857c05eefdcc5d748a5af5983fff01d",
+    "backend/app/api/routers/pages.py": "cdddb309ce1b04155f5b61cab3fd97d2c6bb62474548190b78efff5e2766b494",
+    "backend/app/api/routers/portal.py": "fd56f1bfe26b62f695ce5d10d234560c9f276a7c63f752cd82084baa29fcb402",
+    "backend/app/api/routers/script_flows.py": "4fc703434e1d3fa14512450032949540ca7045955f860cef519591dc62b67b35",
+    "backend/app/api/routers/script_templates.py": "5481a3a9d099ff459f583f222dd7802fd3b3e5592531df9a682318895192637c",
+    "backend/app/api/routers/voice_operations.py": "7b982bed4c705062a6da3cad897948542808af20c54be09de6f7b8fb30edc342",
+    "backend/app/api/routers/webhooks.py": "52527114b83b323f1f8202237873995b6070bfcbca15a043635cdd66dcd4e29f",
+    "backend/app/api/routers/webrtc.py": "2c80fb9035cebec2f2a023a5408fd61a7f57a7c87cd131e42d37025d5b8049d6",
+    "backend/app/clock.py": "f16a2c13ce13fbb1d84991bab350df11b5ce977393fd20ea9ebfe62fc88b6ed5",
+    "backend/app/config.py": "4ac085c11a83c492df37980572a0cab8d5ca01099896868b176a16bda675076e",
+    "backend/app/db.py": "b5c7570aa941c231384058a48eb28c3a82f258d6787bb4eaf1c15660ced4bc87",
+    "backend/app/main.py": "69eb5133b3e15dd482f956382ff5a609ef9b868c2220a80d0dc1b89a23ed1699",
+    "backend/app/middleware.py": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c",
+    "backend/app/migration_runner.py": "d546362f4e60e60433e0da0009ed158db74f43acf4c80323cb808b64c52334f9",
+    "backend/app/models.py": "70aa8959f9dc68a4bbe00c6e24ac1b99d4267edabdfb2816d35dd522c3b08d17",
+    "backend/app/schema_bootstrap.py": "abdcbc9f98e731f4e0bf52893b08ba2462ffbba70ee73540e404f6efcebd9574",
+    "backend/app/schema_migrations.py": "88b49b564641faed929cfb9d6d1c367087d1b2dfc81e854a5ee302730cd1fa8c",
+    "backend/app/schemas.py": "e623cf0dcab4a9df58fdbbfea3942f829c78e0fd5d98096d56bf08ea406dc77c",
+    "backend/app/services/__init__.py": "12d04a636179220b49034c1454d2eacb3f02d8ae333ec594016f31ae6c8a5bc2",
+    "backend/app/services/admin_settings.py": "2c1d6897baa681a1c4f3aa3c6155e6589a045d1f8528b858c9ff4d0b7d92e053",
+    "backend/app/services/async_ai.py": "c3f7bac01c2215ce081f6ae9074e2ff8c34fa7cb7a3c18485161952a148874c1",
+    "backend/app/services/auth.py": "f0464db0f91d618e35b75d078d8d115e6ed77428466509020c3143ab4e53c444",
+    "backend/app/services/billing_usage.py": "1f8d5fc27544a547c3a86c73273913b193b3bff308d0da70909cf5dbfdd7b468",
+    "backend/app/services/business_callbacks.py": "f26a58219f8eb51b3316f1e51d022d0a5555a5f9f4bee24baa937d66af5cc2c0",
+    "backend/app/services/call_analysis.py": "595c6262f9fa7d374c3c071376f7ce7bac36267e8f56be2d0dbc28f6e5b7a5ed",
+    "backend/app/services/call_service.py": "2e710214766b38e92fb0f5fc72de9ff9e61a52b55543ccdff9061369757fe3ae",
+    "backend/app/services/dispatcher.py": "06d0102ed1b36c13d7912f8abfd49b4cdca876366ba933443db831eaffdfde8b",
+    "backend/app/services/gateway_cluster.py": "19d893fadec3ceaf9d1864248ddb998729768fec8c87eccc7b61b2b008eaa256",
+    "backend/app/services/health.py": "94d829fa94892427e5da23e67cc8da1987f27a18797ca360f9c0668ae8c9045d",
+    "backend/app/services/knowledge.py": "d8a36732f44d02fa165e4a1e034931b3fe41b053449c589f9bf9784fa0c304bc",
+    "backend/app/services/leases.py": "a9730ab8393dc4f5f19c44d99d9563fe3002d845dc94f5c2588a748a66a884c0",
+    "backend/app/services/metrics.py": "ce31504dcdd965d79a2fe425a64dd1167a023e406961d728358689f28f2592ac",
+    "backend/app/services/outbound_policy.py": "9b68312fdff5d2aca9bbf8fc50d4cc398f33a54a432708a86b7745d6d542c2b3",
+    "backend/app/services/realtime_voice.py": "30ade11962a1b2d22bdac14e478310a26f3f93225925da81182aad106ac65065",
+    "backend/app/services/recording_storage.py": "6cabe16abd4c47a0b162e70036b0ad36482137e02d2f80da5c693e7d800816a7",
+    "backend/app/services/retention.py": "8ad7216944844c2735cff8737cd0f3809d6d4e385315e56378ec1666ff753fc7",
+    "backend/app/services/runtime_metrics.py": "109da24419d4246aaab736f807876188709e52b64e8e5ed80c474f067b3de84f",
+    "backend/app/services/script_flow.py": "cd6d9b7c929b9403853a9ec40115e3ccf194cf82baad033eefd879cb8c768c46",
+    "backend/app/services/task_queue.py": "869fe814f982a4ed481b27963b61016d08a4db052830b3d3674beefcc399c8f3",
+    "backend/app/services/telephony.py": "d80c46b2f52ec12efabd38470293e94b004783ce0fc0b2a906a928f6f1b68f93",
+    "backend/app/services/webrtc.py": "c867ff654fb01b9f1540ae1f01b8532c8364f877da799ef7235211ab98e540ca",
+    "backend/app/services/worker_runtime.py": "48d62b7dd9d2c79abb06aba2fdbab838f8822c2dd1959acc47f48673ea12b9ba",
+    "backend/app/worker.py": "9bf9c6feccd9dc6734998ac29a0d01e5478ba087e29db31bab15417d8c87d783",
+    "backend/app/worker_health.py": "10db4b70a53f1303367f238cae92770f0e1fd5ccf7ff56e9e76da68dab19a844",
+    "deploy/compact/nginx.conf": "b458ab80be07a8f5aa65542893c7dcb4d99bf4cc189385e62b957273dd0ca722",
+    "docker-compose.compact.yml": "8574c12ffde6b9dcca1350afee523657964a1010e84c5b83285b86bc69e16b69",
+    "voice_gateway/app/__init__.py": "376ccbb0735fecd092b0507516053f13a8e4fa5105292b91916363b516c80685",
+    "voice_gateway/app/aliyun_nls_stt.py": "24d7b09367555529d4c4d3c6266e5308f72f8f088689fdc3d09ae7b56d203127",
+    "voice_gateway/app/config.py": "5f237c3b662d309451e47d07d12eff7e2ac3bf8d79f9d2fa13bee41e641e4533",
+    "voice_gateway/app/drivers.py": "caead8ffe82bbbaa5ebf4e96577c3017a86305dbcf880f8884f588cb31bb2dfb",
+    "voice_gateway/app/esl.py": "1de6b3a1cd7377cb8bb83c7efe4ba453cfe0bea242105fd025374e7abceec15c",
+    "voice_gateway/app/freeswitch.py": "227d59f58319b77475490fa835d1da1802d7aea6d7d55265d6084137ee1c101d",
+    "voice_gateway/app/main.py": "1843cb3299fe0b741b86221748dcd7bbfbbb012674922feb72e8d0896bcda6f3",
+    "voice_gateway/app/media_cluster.py": "3826f2d0af3f1648df809392b746db0125e154fb51b0103103e1887d95dcdeca",
+    "voice_gateway/app/media_worker.py": "2bea30734eb48e5a474aab6d50b6e577ac8f8722878dd19103779d2c7ccddf07",
+    "voice_gateway/app/models.py": "9949c64e92db25437295f63c235a40d5aed46f011db1b5932d3474c51dea65d5",
+    "voice_gateway/app/pipecat_pipeline.py": "60d60bfddb13a88114a155c5d9ce7da2e64b9c0b355396b46774bcdd1347cfaf",
+    "voice_gateway/app/recording_source.py": "2c4585701721483597b8695a4723714f0cec824ced7ac942860e741dad344e11",
+    "voice_gateway/app/rtp.py": "c81d2b88fbb637cfb97f345dcc39dc3349908af6d363335ff2f9043f09957959",
+    "voice_gateway/app/security.py": "9a092287926cb632ab856ff3af81f20bb42efa8edd9c96758393a6fe02c7c781"
+  },
+  "measurement_notes": [
+    "API proxy on Docker Desktop routes to host Python processes; this is not a Linux single-host hardware qualification.",
+    "200 terminal status callbacks per second enqueue 200 analysis jobs per second; this is not equivalent to 200 concurrent calls.",
+    "AI DB and model counters are separate samples; brief idle-in-transaction states in transition samples do not measure model-held transactions. The gated 20-model regression checks zero checked-out connections directly."
+  ],
+  "production_verified": false
+}

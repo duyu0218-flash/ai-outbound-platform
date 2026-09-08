@@ -121,6 +121,9 @@ def can_call_contact_sync(
     exclude_call_id: UUID | None = None,
 ) -> tuple[bool, str]:
     normalized = normalize_phone(phone)
+    from .conversation_policy import suppressed
+    if suppressed(session, tenant_id, normalized):
+        return False, "contact_dnc"
     compliance = get_admin_setting(session, tenant_id, "compliance")
     contact = session.exec(
         select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized)
@@ -268,6 +271,12 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    from .gateway_cluster import lock_platform_admission, choose_gateway
+    lock_platform_admission(session)
+    from .callback_inbox import ready as callback_inbox_ready
+    if not callback_inbox_ready(session):
+        session.rollback()
+        return False
     # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
     if session.get_bind().dialect.name == "sqlite":
         session.exec(update(Tenant).where(Tenant.id == call.tenant_id).values(updated_at=Tenant.updated_at))
@@ -278,6 +287,16 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     session.expire_all()
     session.refresh(call, with_for_update=True)
     if call.status not in DISPATCHABLE_STATUSES or call.attempts >= call.max_attempts:
+        session.rollback()
+        return False
+    from .conversation_policy import current_policy, in_hours
+    product_policy, product_version = current_policy(session, call.tenant_id, call.campaign_id)
+    if product_version is not None and not in_hours(product_policy, _now()):
+        session.rollback()
+        return False
+    platform_active = session.exec(select(func.count(CallSession.id)).where(
+        CallSession.status.in_(CAPACITY_STATUSES))).one()
+    if platform_active >= max(1, settings.outbound_platform_max_concurrent):
         session.rollback()
         return False
     can_call, reason = can_call_contact_sync(
@@ -378,6 +397,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             session.rollback()
             return False
 
+    try:
+        gateway = choose_gateway(session, call.tenant_id, selected_line.id if selected_line else None)
+    except RuntimeError:
+        session.rollback()
+        return False
     now = _now()
     next_attempt = int(call.attempts) + 1
     stmt = (
@@ -395,6 +419,10 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             updated_at=now,
             last_error=None,
             telephony_line_id=selected_line.id if selected_line is not None else None,
+            gateway_node_id=gateway.id if gateway else None,
+            gateway_endpoint=gateway.endpoint if gateway else None,
+            telephony_call_id=None,
+            ai_session_id=None,
         )
     )
     result = session.exec(stmt)
@@ -491,6 +519,11 @@ def can_retry_call(call: CallSession) -> tuple[bool, str]:
 
 
 def schedule_campaign_retry(session: Session, call: CallSession, terminal_status: CallStatus) -> bool:
+    from .conversation_policy import suppressed, current_policy
+    policy, policy_version = current_policy(session, call.tenant_id, call.campaign_id)
+    if suppressed(session, call.tenant_id, call.phone) or any(cause in (call.last_error or '') for cause in policy.permanent_causes):
+        call.next_attempt_at = None
+        return False
     if terminal_status not in {CallStatus.FAILED, CallStatus.NO_ANSWER, CallStatus.BUSY, CallStatus.VOICEMAIL}:
         call.next_attempt_at = None
         return False
@@ -506,6 +539,8 @@ def schedule_campaign_retry(session: Session, call: CallSession, terminal_status
         if terminal_status == CallStatus.FAILED
         else campaign.attempt_interval_sec
     )
+    if policy_version is not None:
+        delay_seconds = policy.retry_seconds.get(terminal_status.value, delay_seconds)
     call.next_attempt_at = _now() + timedelta(seconds=max(1, int(delay_seconds)))
     return True
 
@@ -682,6 +717,7 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         session=session,
         tenant_id=call.tenant_id,
         line_id=call.telephony_line_id,
+        call_id=call.id,
     )
     callback_url = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/status"
     payload = {
@@ -693,11 +729,17 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         # Providers that do not send their own event id still need callbacks
         # from a retry attempt to be distinguishable from the first attempt.
         "attempt": claimed_attempt,
+        "gateway_node_id": call.gateway_node_id,
         "transcript_webhook_url": f"{settings.telephony_webhook_base}{settings.transcript_event_url}",
         "speech_webhook_url": f"{settings.telephony_webhook_base}{settings.speech_event_url}",
         "media_webhook_url": f"{settings.telephony_webhook_base}{settings.media_event_url}",
         "recording_webhook_url": f"{settings.telephony_webhook_base}{settings.call_recording_event_url}",
     }
+    from .conversation_policy import state_for
+    scenario = state_for(session, call)
+    from ..product_schemas import ScenarioPolicy
+    payload['scenario_policy'] = ScenarioPolicy.model_validate_json(scenario.policy_json).model_dump(mode='json')
+    payload['dtmf_webhook_url'] = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/dtmf"
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
     selected_pipeline = select_voice_ai_pipeline(session, call, ai_config=ai_config)
     if call.voice_ai_pipeline != selected_pipeline:
@@ -737,11 +779,15 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
             payload["recording_enabled"] = campaign.recording_enabled
             payload["hangup_sms_enabled"] = campaign.hangup_sms_enabled
 
+    # Snapshot before commit expires ORM attributes. No connection is retained
+    # across provider I/O, including retry sleeps.
+    dial_call_id, dial_phone = str(call.id), call.phone
+    session.commit()
     try:
         result = await with_retry(
             lambda: adapter.dial(
-                call_id=str(call.id),
-                phone=call.phone,
+                call_id=dial_call_id,
+                phone=dial_phone,
                 webhook_url=callback_url,
                 metadata=payload,
             )
@@ -779,6 +825,16 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         definitive_rejection = (isinstance(exc, httpx.HTTPStatusError)
                                 and exc.response.status_code in {400, 401, 403, 404, 422, 429}
                                 and not getattr(exc, "telephony_outcome_unknown", False))
+        if (isinstance(adapter, HttpAdapter) and definitive_rejection
+                and exc.response.status_code == 429
+                and exc.response.headers.get("X-Voice-Dial-Admitted") == "false"):
+            _set_call_if_status_in(session, call_id=dial_call_id, expected_attempt=claimed_attempt,
+                allowed_statuses={CallStatus.DIALING}, status=CallStatus.QUEUED,
+                attempts=claimed_attempt - 1, telephony_call_id=None, ai_session_id=None,
+                gateway_node_id=None, gateway_endpoint=None, started_at=None,
+                last_error="gateway capacity/CPS deferred before admission", updated_at=_now())
+            session.refresh(call)
+            return call, False
         if isinstance(adapter, HttpAdapter) and not definitive_rejection:
             _set_call_if_status_in(session, call_id=str(call.id), expected_attempt=claimed_attempt,
                                   allowed_statuses={CallStatus.DIALING},
@@ -881,7 +937,9 @@ async def transfer_handoff(
     try:
         adapter = (adapter_factory or get_telephony_adapter)(
             session=session, tenant_id=tenant_id, line_id=call.telephony_line_id,
+            call_id=call.id,
         )
+        session.commit()
         await with_retry(lambda: adapter.transfer_to_human(
             call_id=str(call_id), reason=reason, target_group=target_group,
         ))
@@ -1101,7 +1159,22 @@ async def dispatch_call_ids(
     }
 
 
-async def dispatch_due_retries(*, batch_size: int = 200) -> int:
+def enqueue_dial_calls(call_ids):
+    from .task_queue import enqueue_task
+    with session_scope() as session:
+        for cid in call_ids:
+            call = session.get(CallSession, UUID(str(cid)))
+            if call is None or call.status != CallStatus.QUEUED:
+                continue
+            enqueue_task(session, tenant_id=call.tenant_id, task_type="dial_call",
+                aggregate_id=str(call.id), idempotency_key=f"dial:{call.id}:{call.attempts + 1}",
+                payload={"call_id": str(call.id), "attempt": call.attempts})
+            call.updated_at = _now()
+            session.add(call)
+        session.commit()
+
+
+async def dispatch_due_retries(*, batch_size: int = 200, enqueue_only: bool = False) -> int:
     now = _now()
     claimed_ids: list[str] = []
     with session_scope() as session:
@@ -1135,7 +1208,10 @@ async def dispatch_due_retries(*, batch_size: int = 200) -> int:
                 claimed_ids.append(str(call_id))
         session.commit()
     if claimed_ids:
-        await dispatch_call_ids(claimed_ids)
+        if enqueue_only:
+            enqueue_dial_calls(claimed_ids)
+        else:
+            await dispatch_call_ids(claimed_ids)
         with session_scope() as session:
             campaign_ids = set(
                 session.exec(
@@ -1147,7 +1223,7 @@ async def dispatch_due_retries(*, batch_size: int = 200) -> int:
     return len(claimed_ids)
 
 
-async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
+async def dispatch_pending_calls(*, batch_size: int = 200, enqueue_only: bool = False) -> int:
     with session_scope() as session:
         pending_ids = session.exec(
             select(CallSession.id)
@@ -1165,7 +1241,10 @@ async def dispatch_pending_calls(*, batch_size: int = 200) -> int:
             .limit(batch_size)
         ).all()
     if pending_ids:
-        await dispatch_call_ids([str(call_id) for call_id in pending_ids])
+        if enqueue_only:
+            enqueue_dial_calls(pending_ids)
+        else:
+            await dispatch_call_ids([str(call_id) for call_id in pending_ids])
     return len(pending_ids)
 
 
@@ -1186,13 +1265,14 @@ async def expire_stale_calls(*, batch_size: int = 200) -> int:
             .limit(batch_size)
         ).all()
         for call in calls:
+            command_call_id = str(call.id)
             attempt = call.attempts
             try:
-                adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id)
+                adapter = get_telephony_adapter(session=session, tenant_id=call.tenant_id, line_id=call.telephony_line_id, call_id=call.id)
                 from .leases import assert_execution_permitted
                 assert_execution_permitted()
                 session.commit()
-                result = await adapter.hangup(call_id=str(call.id), reason="provider_status_timeout")
+                result = await adapter.hangup(call_id=command_call_id, reason="provider_status_timeout")
                 confirmed = result.get("ended") is True
             except Exception:
                 confirmed = False
@@ -1231,16 +1311,13 @@ async def _dispatch_cycle(batch_size: int):
                            ttl=settings.scheduler_lock_ttl_sec) as acquired:
         if not acquired:
             return
-        await expire_stale_calls(batch_size=batch_size)
+        await dispatch_due_retries(batch_size=batch_size, enqueue_only=True)
         assert_execution_permitted()
-        await dispatch_due_retries(batch_size=batch_size)
-        assert_execution_permitted()
-        await dispatch_pending_calls(batch_size=batch_size)
+        await dispatch_pending_calls(batch_size=batch_size, enqueue_only=True)
 
 
 async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: float | None = None) -> None:
     """Independent, bounded lanes. All blocking DB work owns sessions in its thread."""
-    from .task_queue import process_pending_tasks
     from .retention import run_retention_cycle
     poll_interval = max(.1, float(poll_interval_sec or settings.scheduler_poll_interval_sec))
     batch_size = max(1, settings.scheduler_batch_size)
@@ -1259,15 +1336,18 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
                 logger.exception("dial scheduler cycle failed")
             await pause(poll_interval)
 
-    async def task_loop(types):
-        while not stop_event.is_set():
-            try:
-                # This thread owns the scan's sessions; jobs have their own bounded threads.
-                await asyncio.to_thread(lambda: asyncio.run(process_pending_tasks(
-                    batch_size=batch_size,task_types=types,threaded=True)))
-            except Exception:
-                logger.exception("task lane failed types=%s",types)
-            await pause(max(.05,settings.task_poll_interval_sec))
+    lane_task_types = settings.resolved_task_queue_lanes()
+    lane_aliases = settings.resolved_task_queue_aliases()
+
+    def resolve_lane_task_types(lane_name: str) -> tuple[str, ...]:
+        lane = lane_name.strip().lower()
+        task_types = {lane}
+        for source, target in lane_aliases.items():
+            if target.strip().lower() == lane:
+                task_types.add(source.strip().lower())
+        if not task_types:
+            task_types.add(lane)
+        return tuple(sorted(task_types))
 
     async def retention_loop():
         from .leases import redis_lease
@@ -1281,6 +1361,21 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
             except Exception:
                 logger.exception("retention lane failed")
             await pause(max(1,settings.retention_scan_interval_sec))
+
+    async def reconciliation_loop():
+        # A PBX timeout must not prevent the healthy gateways from dialing.
+        from .leases import redis_lease
+        async def cycle():
+            async with redis_lease(url=settings.redis_url, key="ai-outbound:reconciliation:leader",
+                                   ttl=settings.scheduler_lock_ttl_sec) as acquired:
+                if acquired:
+                    await expire_stale_calls(batch_size=batch_size)
+        while not stop_event.is_set():
+            try:
+                await asyncio.to_thread(lambda: asyncio.run(cycle()))
+            except Exception:
+                logger.exception("PBX reconciliation failed; capacity retained")
+            await pause(poll_interval)
 
     async def heartbeat():
         client=async_redis.from_url(settings.redis_url,decode_responses=True,
@@ -1297,8 +1392,11 @@ async def run_retry_scheduler(stop_event: asyncio.Event, *, poll_interval_sec: f
             if client:
                 await client.aclose()
 
-    await asyncio.gather(dial_loop(),task_loop(("ai_turn",)),task_loop(("business_callback",)),
-                         task_loop(("recording_ingest","recording_delete")),retention_loop(),heartbeat())
+    from .task_queue import run_task_lane
+    from .gateway_cluster import run_gateway_probes
+    task_loops = [run_task_lane(stop_event, task_types=resolve_lane_task_types(lane),
+                               concurrency=lane_task_types[lane]) for lane in sorted(lane_task_types)]
+    await asyncio.gather(dial_loop(), reconciliation_loop(), *task_loops, retention_loop(), heartbeat(), run_gateway_probes(stop_event))
 
 
 def sync_unattempted_campaign_call(session: Session, campaign: Campaign, call: CallSession, contact: Contact) -> None:

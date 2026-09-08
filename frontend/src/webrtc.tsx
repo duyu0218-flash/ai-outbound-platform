@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { SimpleUser, type SimpleUserDelegate, type SimpleUserOptions } from 'sip.js/lib/platform/web'
 import { apiRequest } from './api'
+import { renewRegistration } from './renew-registration'
 import type { AgentMediaStatus, CallAnalysis, CallSession, SpeechTurn, WebRtcSessionConfig } from './types'
 
 const { Text, Title } = Typography
@@ -44,6 +45,8 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null)
   const simpleUserRef = useRef<SimpleUser | null>(null)
   const mountedRef = useRef(true)
+  const connectingRef = useRef(false)
+  const phoneConfigRef = useRef<WebRtcSessionConfig | null>(null)
   const [config, setConfig] = useState<WebRtcSessionConfig | null>(null)
   const [registration, setRegistration] = useState<AgentMediaStatus['registration_state']>('disconnected')
   const [mediaState, setMediaState] = useState<AgentMediaStatus['media_state']>('idle')
@@ -125,6 +128,8 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
   }, [postStatus])
 
   const connect = useCallback(async () => {
+    if (connectingRef.current) return
+    connectingRef.current = true
     setBusy(true)
     setLastError('')
     setRegistration('connecting')
@@ -144,6 +149,21 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
       const session = await apiRequest<WebRtcSessionConfig>('/api/v1/agent/webrtc/session', { method: 'POST' }, token)
       setConfig(session)
       if (!session.enabled) throw new Error('服务器尚未启用浏览器软电话')
+      const existing = simpleUserRef.current
+      const previous = phoneConfigRef.current
+      if (existing && previous && previous.wss_url === session.wss_url && previous.sip_uri === session.sip_uri && previous.authorization_password === session.authorization_password) {
+        await existing.register()
+        phoneConfigRef.current = session
+        setRegistration('registered')
+        return
+      }
+      // Read the SIP session immediately before replacement, including incoming calls
+      // that arrived while credentials or microphone permission were being fetched.
+      if ((existing as unknown as { session?: unknown } | null)?.session) {
+        setRegistration('registered')
+        setLastError('注册配置已变化，将在本次通话结束后应用')
+        return
+      }
       const delegate: SimpleUserDelegate = {
         onServerConnect: () => setRegistration('connecting'),
         onServerDisconnect: (error) => {
@@ -209,6 +229,7 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
       await disconnect()
       const phone = new SimpleUser(session.wss_url, options)
       simpleUserRef.current = phone
+      phoneConfigRef.current = session
       await phone.connect()
       await phone.register()
     } catch (error) {
@@ -220,6 +241,7 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
       message.error(text)
       void postStatus({ registration_state: 'error', media_state: 'error', last_error: text })
     } finally {
+      connectingRef.current = false
       setBusy(false)
     }
   }, [config, disconnect, enumerateDevices, inputDevice, onPlatformUpdate, onRegistered, postStatus, token])
@@ -278,10 +300,23 @@ export function WebRtcSoftphone({ token, activeCall, onRegistered, onPlatformUpd
 
   useEffect(() => {
     if (!config?.expires_at || registration !== 'registered') return
-    const refreshInMs = Math.max(30_000, new Date(config.expires_at).getTime() - Date.now() - 60_000)
-    const timer = window.setTimeout(() => void connect(), refreshInMs)
+    const refreshInMs = Math.max(10_000, new Date(config.expires_at).getTime() - Date.now() - 60_000)
+    const timer = window.setTimeout(async () => {
+      try {
+        const session = await renewRegistration(
+          () => apiRequest<WebRtcSessionConfig>('/api/v1/agent/webrtc/session', { method: 'POST' }, token),
+          () => ({ phone: simpleUserRef.current, config: phoneConfigRef.current }),
+        )
+        if (!mountedRef.current) return
+        setConfig(session)
+        phoneConfigRef.current = session
+      } catch (error) {
+        setLastError(error instanceof Error ? error.message : '凭据续期失败，将重试')
+        setConfig((current) => current ? { ...current, expires_at: new Date(Date.now() + 70_000).toISOString() } : current)
+      }
+    }, refreshInMs)
     return () => window.clearTimeout(timer)
-  }, [config?.expires_at, connect, registration])
+  }, [config?.expires_at, registration, token])
 
   useEffect(() => {
     if (!connectedAt) { setElapsed(0); return }

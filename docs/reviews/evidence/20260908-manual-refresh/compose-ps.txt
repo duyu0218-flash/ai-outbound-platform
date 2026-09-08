@@ -1,0 +1,9 @@
+NAME                                IMAGE                               COMMAND                  SERVICE             CREATED         STATUS                        PORTS
+manual-20260908-agent               manual-20260908-ai-agent            "uvicorn app.main:ap…"   ai-agent            2 minutes ago   Up 2 minutes (healthy)        8001/tcp
+manual-20260908-control             manual-20260908-control-api         "uvicorn app.main:ap…"   control-api         2 minutes ago   Up About a minute (healthy)   127.0.0.1:18080->8000/tcp
+manual-20260908-db                  postgres:16-alpine                  "docker-entrypoint.s…"   db                  2 minutes ago   Up 2 minutes (healthy)        5432/tcp
+manual-20260908-recording-adapter   manual-20260908-recording-adapter   "uvicorn app.main:ap…"   recording-adapter   2 minutes ago   Up About a minute (healthy)   127.0.0.1:18083->8003/tcp
+manual-20260908-redis               redis:7-alpine                      "docker-entrypoint.s…"   redis               2 minutes ago   Up 2 minutes (healthy)        6379/tcp
+manual-20260908-seaweedfs           chrislusf/seaweedfs:4.44            "/entrypoint.sh mini…"   seaweedfs           2 minutes ago   Up 2 minutes (healthy)        127.0.0.1:18333->8333/tcp
+manual-20260908-voice-gateway       manual-20260908-voice-gateway       "uvicorn app.main:ap…"   voice-gateway       2 minutes ago   Up 2 minutes (healthy)        8002/tcp
+manual-20260908-worker              manual-20260908-task-worker         "python -m app.worker"   task-worker         2 minutes ago   Up About a minute (healthy)   

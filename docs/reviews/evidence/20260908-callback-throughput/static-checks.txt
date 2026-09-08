@@ -1,0 +1,7 @@
+Python AST: PASS
+git diff --check: PASS
+
+.venv-backend/bin/python scripts/check-version-constraints.py: PASS
+Version constraints and compatibility matrix: PASS
+
+docker compose -p static-callback-load -f docker-compose.callback-load.yml config --quiet: PASS

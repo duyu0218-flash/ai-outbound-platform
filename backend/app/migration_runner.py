@@ -24,18 +24,24 @@ def _psycopg_dsn(url: str) -> str:
     return url.replace("postgresql+psycopg://", "postgresql://", 1)
 
 
+def _build_lock_name(lock_name: str | None) -> str:
+    return (lock_name or "ai-outbound-schema-migrations").strip() or "ai-outbound-schema-migrations"
+
+
 def apply_postgres_migrations() -> list[str]:
     settings = get_settings()
-    if not settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+    database_url = settings.database_url_for_bootstrap()
+    if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
         raise RuntimeError("versioned migrations require a PostgreSQL DATABASE_URL")
     directory = _migration_directory()
     files = sorted(directory.glob("*.sql"))
     if not files:
         raise RuntimeError(f"no migration files found in {directory}")
     applied: list[str] = []
-    with psycopg.connect(_psycopg_dsn(settings.database_url)) as connection:
+    lock_name = _build_lock_name(settings.database_migration_lock_name)
+    with psycopg.connect(_psycopg_dsn(database_url)) as connection:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT pg_advisory_lock(hashtext('ai-outbound-schema-migrations'))")
+            cursor.execute("SELECT pg_advisory_lock(hashtext(%s))", (lock_name,))
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS schema_migration_history (
@@ -68,7 +74,7 @@ def apply_postgres_migrations() -> list[str]:
                         (version, checksum),
                     )
                 applied.append(version)
-            cursor.execute("SELECT pg_advisory_unlock(hashtext('ai-outbound-schema-migrations'))")
+            cursor.execute("SELECT pg_advisory_unlock(hashtext(%s))", (lock_name,))
     return applied
 
 

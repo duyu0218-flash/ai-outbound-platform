@@ -25,20 +25,55 @@ class ObservedQueuePool(QueuePool):
 
 
 engine_options = {"echo": False, "poolclass": ObservedQueuePool}
-if settings.database_url.startswith("sqlite"):
-    engine_options["connect_args"] = {"check_same_thread": False}
-else:
-    engine_options.update(
-        {
-            "pool_pre_ping": True,
-            "pool_size": max(1, settings.database_pool_size),
-            "max_overflow": max(0, settings.database_max_overflow),
-            "pool_timeout": max(1, settings.database_pool_timeout_sec),
-            "pool_recycle": max(60, settings.database_pool_recycle_sec),
-        }
-    )
 
-engine = create_engine(settings.database_url, **engine_options)
+def _build_engine_options(database_url: str) -> dict:
+    opts = {"echo": False, "poolclass": ObservedQueuePool}
+    if database_url.startswith("sqlite"):
+        opts["connect_args"] = {"check_same_thread": False}
+    else:
+        opts.update(
+            {
+                "pool_pre_ping": True,
+                "pool_size": max(1, settings.database_pool_size),
+                "max_overflow": max(0, settings.database_max_overflow),
+                "pool_timeout": max(1, settings.database_pool_timeout_sec),
+                "pool_recycle": max(60, settings.database_pool_recycle_sec),
+            }
+        )
+    return opts
+
+
+def create_engine_for_url(database_url: str):
+    return create_engine(database_url, **_build_engine_options(database_url))
+
+
+def get_database_url_for_api() -> str:
+    return settings.database_url_for_api()
+
+
+def get_database_url_for_bootstrap() -> str:
+    return settings.database_url_for_bootstrap()
+
+
+def _build_lock_key(lock_name: str | None, fallback: str) -> str:
+    return (lock_name or fallback).strip() or fallback
+
+
+def _is_postgresql_url(database_url: str) -> bool:
+    return database_url.startswith(("postgresql://", "postgresql+psycopg://"))
+
+
+def _acquire_advisory_lock(connection, lock_name: str, *, enabled: bool) -> None:
+    if enabled:
+        connection.execute(text("SELECT pg_advisory_lock(hashtext(:lock_name))"), {"lock_name": lock_name})
+
+
+def _release_advisory_lock(connection, lock_name: str, *, enabled: bool) -> None:
+    if enabled:
+        connection.execute(text("SELECT pg_advisory_unlock(hashtext(:lock_name))"), {"lock_name": lock_name})
+
+
+engine = create_engine_for_url(get_database_url_for_api())
 
 event.listen(engine, "checkout", lambda *args: record_db_checkout())
 event.listen(engine, "checkin", lambda *args: record_db_checkin())
@@ -46,6 +81,7 @@ event.listen(engine, "commit", lambda *args: record_late_commit())
 
 
 REQUIRED_PRODUCTION_TABLES = {
+    "scenarioversion", "conversationstate", "phonesuppression", "callbackappointment", "productworkitem",
     "tenant",
     "user",
     "contact",
@@ -54,6 +90,7 @@ REQUIRED_PRODUCTION_TABLES = {
     "callsession",
     "taskoutbox",
     "recordingasset",
+    "callusage",
 }
 
 
@@ -65,11 +102,19 @@ def verify_database_schema() -> None:
             "database schema is not initialized; run the approved schema bootstrap/migrations first: "
             + ", ".join(missing)
         )
+    if settings.callback_inbox_enabled and not {"callbackinbox", "callbackinboxpartition", "callbackinboxworker"} <= tables:
+        raise RuntimeError("database migration 20260908_callback_inbox is required")
     inspector = inspect(engine)
-    for table, required in {"taskoutbox": {"lease_token"}, "speechturn": {"attempt"}}.items():
+    call_columns = {c["name"] for c in inspector.get_columns("callsession")}
+    if not {"gateway_node_id", "gateway_endpoint"} <= call_columns:
+        raise RuntimeError("database migration 20260907_compact_cluster is required")
+    if settings.voice_gateway_nodes_file or settings.voice_gateway_nodes_json.strip() != "[]":
+        if "gatewaynode" not in tables or not {"gateway_node_id", "gateway_endpoint"} <= {c["name"] for c in inspector.get_columns("callsession")}:
+            raise RuntimeError("compact cluster schema migration is required before enabling the gateway roster")
+    for table, required in {"taskoutbox": {"lease_token"}, "speechturn": {"attempt"}, "recordingasset": {"attempt"}, "callanalysis": {"automatic_result_json", "needs_review"}, "realtimesession": {"last_event_sequence"}}.items():
         columns = {c["name"] for c in inspector.get_columns(table)} if table in tables else set()
         if required - columns:
-            raise RuntimeError("database migration 20260906_execution_leases is required: "
+            raise RuntimeError("database migration 20260907_review_fixes is required: "
                                + table + "." + ",".join(sorted(required - columns)))
 
 
@@ -80,30 +125,50 @@ def create_db_and_tables(*, force: bool = False) -> None:
     is_prod = settings.env.lower() in {"prod", "production"}
     if is_prod and not settings.auto_migrate and not force:
         verify_database_schema()
+        from .services.callback_inbox import verify_mode
+        verify_mode()
         return
 
-    if settings.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-        # Every uvicorn worker runs lifespan. Serialize initial DDL so two fresh
-        # workers cannot race while creating PostgreSQL enum types or tables.
-        with engine.connect() as lock_connection:
-            lock_connection.execute(text("SELECT pg_advisory_lock(hashtext('ai-outbound-bootstrap-ddl'))"))
+    bootstrap_url = get_database_url_for_bootstrap()
+    bootstrap_engine = _bootstrap_engine()
+
+    def _run_initialization(connection):
+        SQLModel.metadata.create_all(connection)
+        apply_runtime_migrations(connection)
+        from .services.callback_inbox import seed_partitions
+        seed_partitions(connection)
+
+    try:
+        with bootstrap_engine.connect() as connection:
+            locked = _is_postgresql_url(bootstrap_url) and settings.database_bootstrap_advisory_lock
+            lock_name = _build_lock_key(settings.database_bootstrap_lock_name, "ai-outbound-bootstrap-ddl")
+            _acquire_advisory_lock(connection, lock_name, enabled=locked)
+            # Lock acquisition autobegins a transaction; session locks survive commit.
+            connection.commit()
             try:
-                SQLModel.metadata.create_all(engine)
-                apply_runtime_migrations(engine)
+                with connection.begin():
+                    _run_initialization(connection)
             finally:
-                lock_connection.execute(text("SELECT pg_advisory_unlock(hashtext('ai-outbound-bootstrap-ddl'))"))
-                lock_connection.commit()
-        return
-    SQLModel.metadata.create_all(engine)
-    apply_runtime_migrations(engine)
+                connection.rollback()
+                _release_advisory_lock(connection, lock_name, enabled=locked)
+                connection.commit()
+    finally:
+        bootstrap_engine.dispose()
+    from .services.callback_inbox import verify_mode
+    verify_mode()
 
 
 def get_engine_url() -> str:
-    return settings.database_url
+    return get_database_url_for_api()
 
 
 def _acquire_connection():
     return engine.connect()
+
+
+def _bootstrap_engine():
+    bootstrap_url = get_database_url_for_bootstrap()
+    return create_engine_for_url(bootstrap_url)
 
 
 @contextmanager
@@ -131,7 +196,11 @@ class WebhookSession(Session):
         self.outer_connection = None
         self.outer_transaction = None
         self.finished = False
-        super().__init__(bind=engine, join_transaction_mode="create_savepoint")
+        # Service commits release a savepoint, not the event's outer transaction.
+        # Expiring every ORM object here caused repeated SELECTs of the same
+        # locked call after each service operation. Explicit lock refreshes still
+        # refresh concurrent state; nothing is cached beyond this request.
+        super().__init__(bind=engine, join_transaction_mode="create_savepoint", expire_on_commit=False)
 
     def get_bind(self, mapper=None, *, clause=None, bind=None, **kwargs):
         if self.outer_connection is None:
@@ -153,16 +222,65 @@ class WebhookSession(Session):
             return
         try:
             if success:
-                self.commit()
-                if self.outer_transaction is not None:
+                if self.in_transaction():
+                    self.commit()
+                if self.outer_transaction is not None and self.outer_transaction.is_active:
                     self.outer_transaction.commit()
             else:
-                self.rollback()
+                if self.outer_transaction is not None and self.outer_transaction.is_active:
+                    self.outer_transaction.rollback()
+        except BaseException:
+            # A commit hook/driver failure can mark SQLAlchemy's transaction
+            # inactive while the DBAPI connection still has an open transaction.
+            # Roll it back explicitly before any connection returns to the pool.
+            if self.outer_connection is not None:
+                try:
+                    self.outer_connection.connection.rollback()
+                except BaseException:
+                    self.outer_connection.invalidate()
+            raise
         finally:
             self.close()
             if self.outer_connection is not None:
                 self.outer_connection.close()  # rolls back on any failure
             self.finished = True
+
+
+class InboxBatchSession(WebhookSession):
+    """Flush service commits; one savepoint per event and one durable batch commit.
+
+    Legacy handlers may rollback on a duplicate insert. Only that event's
+    savepoint is rolled back, preserving earlier events in the current batch.
+    """
+    def __init__(self):
+        super().__init__()
+        self.event_savepoint = None
+        self.batching = True
+
+    def begin_event(self):
+        self.event_savepoint = self.begin_nested()
+
+    def end_event(self):
+        self.flush()
+        self.event_savepoint.commit()
+        self.event_savepoint = None
+
+    def commit(self):
+        if self.batching:
+            self.flush()
+        else:
+            super().commit()
+
+    def rollback(self):
+        if self.batching and self.event_savepoint is not None:
+            self.event_savepoint.rollback()
+            self.event_savepoint = self.begin_nested()
+        else:
+            super().rollback()
+
+    def finish(self, *, success):
+        self.batching = False
+        super().finish(success=success)
 
 
 def webhook_transaction(func):
@@ -174,11 +292,23 @@ def webhook_transaction(func):
             return func(*args, **kwargs)  # explicitly supplied service-test session
         with execution_threads():
             try:
-                result = func(*args, **kwargs)
+                if settings.callback_inbox_enabled and func.__name__ in {
+                    "telephony_status", "telephony_transcript", "telephony_speech",
+                    "telephony_dtmf", "telephony_media", "telephony_recording",
+                }:
+                    from .services.callback_inbox import receive
+                    # Receipt has one flush and one outer commit; no business
+                    # savepoints are needed on this short transaction.
+                    session.join_transaction_mode = "rollback_only"
+                    result = receive(session, func.__name__, kwargs["payload"])
+                else:
+                    result = func(*args, **kwargs)
+            except BaseException:
+                session.finish(success=False)
+                raise
+            else:
                 session.finish(success=True)
                 return result
-            finally:
-                session.finish(success=False)
     return wrapped
 
 

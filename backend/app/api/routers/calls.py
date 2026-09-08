@@ -1,3 +1,4 @@
+import httpx
 from typing import List
 from uuid import UUID
 
@@ -184,18 +185,44 @@ async def hangup_api(
             session=session,
             tenant_id=tenant_id,
             line_id=call.telephony_line_id,
+            call_id=call.id,
         )
-        result = await with_retry(lambda: adapter.hangup(call_id=str(call.id), reason=reason))
-        if result.get("ended") is not True:
-            raise HTTPException(503, "hangup requested; PBX termination is not yet confirmed")
         if call.status in TERMINAL_STATUSES:
             return call
-
-        call.status = CallStatus.COMPLETED
-        call.finished_at = utc_now()
-        session.add(call)
+        expected_attempt, provider_id = call.attempts, call.telephony_call_id
+        command_id = str(call.id)
         session.commit()
-        return call
+        from ...services.telephony import HttpAdapter
+        identity = {"expected_attempt": expected_attempt, "provider_call_id": provider_id} if isinstance(adapter, HttpAdapter) else {}
+        result = await with_retry(lambda: adapter.hangup(call_id=command_id, reason=reason, **identity))
+        if result.get("ended") is not True:
+            raise HTTPException(503, "hangup requested; PBX termination is not yet confirmed")
+        # Finalization owns a fresh transaction and serializes with retry/callbacks.
+        import asyncio
+        from ...db import WebhookSession
+        from .webhooks import telephony_status
+        from ...schemas import WebhookEvent
+        from fastapi import BackgroundTasks
+        def finalize():
+            owned = WebhookSession()
+            try:
+                telephony_status(WebhookEvent(call_id=call_id, kind="status", payload={
+                    "status": "completed", "attempt": expected_attempt,
+                    "event_id": f"manual-hangup:{command_id}:{expected_attempt}",
+                    "hangup_reason": reason,
+                }), BackgroundTasks(), session=owned)
+                owned.finish(success=True)
+            except BaseException:
+                owned.finish(success=False)
+                raise
+        await asyncio.to_thread(finalize)
+        session.expire_all()
+        return get_call(session, tenant_id, call_id)
+
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 409:
+            raise HTTPException(409, "call attempt changed; refresh before hanging up again") from exc
+        raise HTTPException(502, "telephony hangup failed") from exc
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 

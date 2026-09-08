@@ -4,6 +4,7 @@ import {
   BarChartOutlined,
   BookOutlined,
   CustomerServiceOutlined,
+  ControlOutlined,
   DatabaseOutlined,
   FileTextOutlined,
   GlobalOutlined,
@@ -52,6 +53,7 @@ const adminNavigation = [
   { key: '/admin/lines', icon: <CustomerServiceOutlined />, labelKey: 'lines' },
   { key: '/admin/knowledge', icon: <BookOutlined />, labelKey: 'knowledge' },
   { key: '/admin/settings', icon: <SettingOutlined />, labelKey: 'settings' },
+  { key: '/admin/product', icon: <ControlOutlined />, labelKey: '业务交付策略' },
   { key: '/admin/system', icon: <SettingOutlined />, labelKey: 'system' },
 ]
 

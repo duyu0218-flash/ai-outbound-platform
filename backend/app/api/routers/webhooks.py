@@ -196,6 +196,7 @@ def telephony_status(
     if not call:
         return {"result": "ignore"}
 
+    session.refresh(call, with_for_update=True)
     raw_status = payload.payload.get("status", "")
     mapped = _status_to_call_status(raw_status)
     is_duplicate = _add_event(session, call.id, "status", "telephony", payload.payload)
@@ -240,6 +241,8 @@ def telephony_status(
         call.last_error = str(payload.payload.get("hangup_reason") or "agent did not answer")
         call.updated_at = utc_now()
         session.add(call)
+        from ...services.conversation_policy import arm_timer
+        arm_timer(session, call, "handoff")
         session.commit()
         return {"result": "ok", "requeued": True}
 
@@ -264,11 +267,18 @@ def telephony_status(
         call.finished_at = utc_now()
         if call.human_agent_id is not None:
             assigned_agent = session.get(User, call.human_agent_id)
-            if assigned_agent is not None and assigned_agent.agent_status == "busy":
-                assigned_agent.agent_status = "ready"
-                assigned_agent.last_seen_at = utc_now()
-                assigned_agent.updated_at = utc_now()
-                session.add(assigned_agent)
+            if assigned_agent is not None:
+                session.refresh(assigned_agent, with_for_update=True)
+                from ...services.call_service import CAPACITY_STATUSES
+                other_active = session.exec(select(CallSession.id).where(
+                    CallSession.human_agent_id == assigned_agent.id,
+                    CallSession.id != call.id, CallSession.status.in_(CAPACITY_STATUSES),
+                ).limit(1)).first()
+                if assigned_agent.agent_status == "busy" and other_active is None:
+                    assigned_agent.agent_status = "ready"
+                    assigned_agent.last_seen_at = utc_now()
+                    assigned_agent.updated_at = utc_now()
+                    session.add(assigned_agent)
         for handoff in session.exec(
             select(HandoffRequest).where(
                 HandoffRequest.call_session_id == call.id,
@@ -288,6 +298,8 @@ def telephony_status(
 
     session.add(call)
     if status_applied and mapped is not None:
+        from ...services.billing_usage import record_status_usage
+        record_status_usage(session, call, mapped, payload.payload)
         schedule_campaign_retry(session, call, mapped)
     session.commit()
     if mapped in {
@@ -298,7 +310,12 @@ def telephony_status(
         CallStatus.NO_ANSWER,
     }:
         complete_campaign_if_terminal(session, call.campaign_id)
-        analyze_call(session, call)
+        if settings.terminal_analysis_async:
+            enqueue_task(session, tenant_id=call.tenant_id, task_type="call_analysis",
+                         aggregate_id=str(call.id), idempotency_key=f"analysis:{call.id}:{call.attempts}",
+                         payload={"call_id": str(call.id), "attempt": call.attempts})
+        else:
+            analyze_call(session, call)
 
     if status_applied and mapped == CallStatus.ANSWERED and call.mode != CallMode.HUMAN_ONLY:
         task = enqueue_task(
@@ -319,7 +336,8 @@ def telephony_status(
             data={"status": mapped.value, "hangup_reason": payload.payload.get("hangup_reason")},
             idempotency_key=f"callback:status:{call.id}:{call.attempts}:{mapped.value}",
         )
-        background_tasks.add_task(notify_task, callback_task.id)
+        if callback_task is not None:
+            background_tasks.add_task(notify_task, callback_task.id)
 
     return {"result": "ok"}
 
@@ -386,7 +404,8 @@ def telephony_transcript(
         data={"turn_id": turn.id, "transcript": payload.transcript or ""},
         idempotency_key=f"callback:transcript:{turn.id}",
     )
-    background_tasks.add_task(notify_task, callback_task.id)
+    if callback_task is not None:
+        background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 
@@ -398,7 +417,8 @@ def telephony_speech(
     _: None = Depends(check_webhook_token),
     session: Session = Depends(get_webhook_session, scope="function"),
 ):
-    call = session.get(CallSession, payload.call_id)
+    call = session.exec(select(CallSession).where(CallSession.id == payload.call_id)
+                        .with_for_update().execution_options(populate_existing=True)).first()
     if call is None:
         return {"result": "ignore"}
     if payload.attempt is not None and payload.attempt != call.attempts:
@@ -406,6 +426,14 @@ def telephony_speech(
     turn, duplicate = ingest_speech_turn(session, call, payload)
     if duplicate:
         return {"result": "ok", "duplicate": True, "turn_id": turn.id}
+    if payload.is_final and call.status == CallStatus.WAITING_HUMAN:
+        from ...services.dialogue_rules import classify
+        from ...services.conversation_policy import state_for, release_waiting_agents
+        from ...product_schemas import ScenarioPolicy
+        policy=ScenarioPolicy.model_validate_json(state_for(session,call).policy_json)
+        if (payload.confidence is None or payload.confidence>=policy.confidence_threshold) and classify(payload.transcript) in {'stop_contact','wrong_person','decline_handoff','end','callback'}:
+            release_waiting_agents(session,call)
+            call.status=CallStatus.IN_AI;call.human_agent_id=None;session.add(call)
     if payload.barge_in:
         background_tasks.add_task(interrupt_playback, call.id)
     if payload.is_final and call.mode != CallMode.HUMAN_ONLY:
@@ -415,7 +443,7 @@ def telephony_speech(
             task_type="ai_turn",
             aggregate_id=str(call.id),
             idempotency_key=f"ai:{call.id}:speech:{turn.id}",
-            payload={"call_id": str(call.id), "attempt": call.attempts, "transcript": payload.transcript},
+            payload={"call_id": str(call.id), "attempt": call.attempts, "turn_sequence": turn.turn_index, "speech_event_id": payload.event_id, "transcript": payload.transcript},
         )
         background_tasks.add_task(notify_task, task.id)
     callback_task = enqueue_business_callback(
@@ -431,8 +459,50 @@ def telephony_speech(
         },
         idempotency_key=f"callback:speech:{turn.id}",
     )
-    background_tasks.add_task(notify_task, callback_task.id)
+    if callback_task is not None:
+        background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok", "duplicate": False, "turn_id": turn.id}
+
+
+@router.post('/telephony/dtmf')
+@webhook_transaction
+def telephony_dtmf(payload: WebhookEvent, background_tasks: BackgroundTasks,
+    _: None = Depends(check_webhook_token), session: Session = Depends(get_webhook_session, scope='function')):
+    from ...services.conversation_policy import state_for, save_state, arm_timer
+    from ...product_schemas import ScenarioPolicy
+    call = session.get(CallSession, payload.call_id)
+    if call is None or payload.payload.get('attempt') != call.attempts:
+        return {'result':'ignored'}
+    session.refresh(call, with_for_update=True)
+    if payload.payload.get('attempt') != call.attempts:
+        return {'result':'ignored','reason':'stale_attempt'}
+    if call.status not in {CallStatus.ANSWERED,CallStatus.IN_AI}:
+        return {'result':'ignored'}
+    digit = str(payload.payload.get('digit') or '')
+    event_id = str(payload.payload.get('event_id') or '')
+    if len(digit)!=1 or digit not in '0123456789*#' or not event_id:
+        raise HTTPException(422,'invalid DTMF event')
+    if _add_event(session,call.id,'dtmf','freeswitch',payload.payload):
+        return {'result':'ok','duplicate':True}
+    state=state_for(session,call); data=json.loads(state.data_json)
+    policy=ScenarioPolicy.model_validate_json(state.policy_json)
+    slot=next((s for s in policy.slots if s.key==data.get('active_slot') and s.kind=='digits'),None)
+    if slot is None:return {'result':'ignored','reason':'no_digit_field'}
+    digits=data.get('dtmf_buffer','')
+    complete=digit==policy.dtmf_end
+    if digit.isdigit():digits+=digit
+    if len(digits)>policy.dtmf_max_digits:
+        data['dtmf_buffer']='';save_state(session,state,data)
+        return {'result':'rejected','reason':'too_many_digits'}
+    if complete and digits:
+        data['dtmf_buffer']='';save_state(session,state,data)
+        return telephony_speech.__wrapped__(SpeechWebhookEvent(call_id=call.id,event_id='dtmf:'+event_id,
+            transcript=digits,is_final=True,attempt=call.attempts,confidence=1,speaker_role='customer'),
+            background_tasks,session=session)
+    data['dtmf_buffer']=digits;save_state(session,state,data)
+    state.deadline=None
+    arm_timer(session,call)
+    return {'result':'collecting','digit_count':len(digits)}
 
 
 @router.post("/telephony/media")
@@ -442,9 +512,12 @@ def telephony_media(
     _: None = Depends(check_webhook_token),
     session: Session = Depends(get_webhook_session, scope="function"),
 ):
-    call = session.get(CallSession, payload.call_id)
+    call = session.exec(select(CallSession).where(CallSession.id == payload.call_id)
+                        .with_for_update().execution_options(populate_existing=True)).first()
     if call is None:
         return {"result": "ignore"}
+    if _add_event(session, call.id, "media", "media_gateway", payload.model_dump(mode="json")):
+        return {"result": "ok", "duplicate": True}
     if payload.attempt is not None and payload.attempt != call.attempts:
         return {"result": "ignored", "reason": "stale_attempt"}
     realtime = apply_media_event(session, call, payload)
@@ -462,11 +535,19 @@ def telephony_recording(
     call = session.get(CallSession, payload.call_id)
     if not call:
         return {"result": "ignore"}
+    session.refresh(call, with_for_update=True)
+    raw_attempt = payload.payload.get("attempt")
+    if raw_attempt is None:
+        if call.attempts > 1:
+            return {"result": "ignored", "reason": "ambiguous_attempt"}
+        recording_attempt = call.attempts
+    elif type(raw_attempt) is not int or raw_attempt < 0 or raw_attempt > call.attempts:
+        return {"result": "ignored", "reason": "invalid_attempt"}
+    else:
+        recording_attempt = raw_attempt
     is_duplicate = _add_event(session, call.id, "recording", "telephony", payload.payload)
     if is_duplicate:
         return {"result": "ok"}
-    if not _event_matches_current_attempt(call, payload.payload):
-        return {"result": "ignored", "reason": "stale_attempt"}
     campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
     if campaign and not campaign.recording_enabled:
         return {"result": "ignored", "reason": "recording_disabled"}
@@ -481,17 +562,20 @@ def telephony_recording(
             minimum=1,
             maximum=3_650,
         )
-        call.recording_url = str(url)
+        if recording_attempt == call.attempts:
+            call.recording_url = str(url)
         existing_asset = session.exec(
             select(RecordingAsset).where(
                 RecordingAsset.call_session_id == call.id,
                 RecordingAsset.provider_url == str(url),
+                RecordingAsset.attempt == recording_attempt,
             )
         ).first()
         if existing_asset is None:
             existing_asset = RecordingAsset(
                 tenant_id=call.tenant_id,
                 call_session_id=call.id,
+                attempt=recording_attempt,
                 provider_recording_id=str(payload.payload.get("recording_id") or "") or None,
                 provider_url=str(url),
                 storage_uri=str(payload.payload.get("storage_uri") or ""),
@@ -506,6 +590,11 @@ def telephony_recording(
     session.add(call)
     session.commit()
     if url:
+        if recording_attempt == call.attempts and call.status in {CallStatus.COMPLETED,CallStatus.FAILED,CallStatus.NO_ANSWER,CallStatus.BUSY,CallStatus.VOICEMAIL}:
+            refresh_task = enqueue_task(session,tenant_id=call.tenant_id,task_type='call_analysis',aggregate_id=str(call.id),
+                idempotency_key=f'analysis-recording:{call.id}:{recording_attempt}:{existing_asset.id}',
+                payload={'call_id':str(call.id),'attempt':recording_attempt})
+            background_tasks.add_task(notify_task,refresh_task.id)
         if existing_asset is not None and not existing_asset.storage_uri and settings.recording_ingest_endpoint.strip():
             ingest_task = enqueue_task(
                 session,
@@ -522,9 +611,11 @@ def telephony_recording(
             tenant_id=call.tenant_id,
             call_id=call.id,
             event_type="call.recording",
-            data={"url": str(url)},
+            data={"url": str(url), "attempt": recording_attempt},
+            idempotency_key=f"callback:recording:{existing_asset.id}",
         )
-        background_tasks.add_task(notify_task, callback_task.id)
+        if callback_task is not None:
+            background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok"}
 
 

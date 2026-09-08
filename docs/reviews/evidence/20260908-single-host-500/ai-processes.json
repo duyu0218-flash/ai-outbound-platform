@@ -1,0 +1,53 @@
+{
+  "ai_worker_processes": 4,
+  "slots_per_process": 160,
+  "model_peak": 500,
+  "unique_calls": 500,
+  "task_states": {
+    "completed": 500
+  },
+  "max_task_attempts": 1,
+  "elapsed_seconds": 8.908522083074786,
+  "model_delay_seconds": 3,
+  "db_threads_per_process": 2,
+  "action_threads_per_process": 4,
+  "pool_connections_per_process": 5,
+  "db_while_all_models_wait": [
+    {
+      "model_active": 500,
+      "states": {
+        "idle": 8,
+        "idle in transaction": 1
+      }
+    },
+    {
+      "model_active": 500,
+      "states": {
+        "idle": 8,
+        "idle in transaction": 1
+      }
+    },
+    {
+      "model_active": 500,
+      "states": {
+        "active": 1,
+        "idle": 8
+      }
+    },
+    {
+      "model_active": 500,
+      "states": {
+        "idle": 8,
+        "idle in transaction": 1
+      }
+    },
+    {
+      "model_active": 500,
+      "states": {
+        "idle": 9
+      }
+    }
+  ],
+  "real_llm_sip_audio": false,
+  "passed": true
+}

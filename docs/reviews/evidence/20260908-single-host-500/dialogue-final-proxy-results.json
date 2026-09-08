@@ -1,0 +1,839 @@
+{
+  "synthetic_active_calls": 500,
+  "final_transcripts_per_second": 200,
+  "media_events_per_second": 400,
+  "duration_seconds": 30,
+  "network_path": "docker-desktop-nginx-to-host",
+  "all_delivery_statuses_including_retries": {
+    "200": 12942
+  },
+  "pending_callbacks": 5058,
+  "oldest_callback_age_sec": 78.06516885757446,
+  "durable_commit_batches": 3720,
+  "durable_operations": 30942,
+  "delivery_http_p99_ms": 650.5952090956271,
+  "generator_lag_p99_ms": 246.83349998667836,
+  "queue_samples": [
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842137.2017431
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 435,
+      "oldest_callback_age_sec": 0.851348876953125,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842138.224292
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 908,
+      "oldest_callback_age_sec": 1.5927197933197021,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842139.243231
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1384,
+      "oldest_callback_age_sec": 2.3832061290740967,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842140.260792
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1797,
+      "oldest_callback_age_sec": 3.2535641193389893,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842141.282882
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 2249,
+      "oldest_callback_age_sec": 4.028800964355469,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842142.3023412
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 2761,
+      "oldest_callback_age_sec": 4.793311834335327,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842143.34185
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3238,
+      "oldest_callback_age_sec": 5.5754029750823975,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842144.363088
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3688,
+      "oldest_callback_age_sec": 6.424354076385498,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842145.390789
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 4159,
+      "oldest_callback_age_sec": 7.292272090911865,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842146.413067
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 4636,
+      "oldest_callback_age_sec": 7.9933130741119385,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842147.4401548
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5214,
+      "oldest_callback_age_sec": 8.823439121246338,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842148.462763
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5675,
+      "oldest_callback_age_sec": 9.763390064239502,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842149.493675
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6169,
+      "oldest_callback_age_sec": 10.42429494857788,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842150.5141618
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6601,
+      "oldest_callback_age_sec": 11.328370809555054,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842151.53248
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7085,
+      "oldest_callback_age_sec": 12.036143064498901,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842152.555532
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7600,
+      "oldest_callback_age_sec": 12.778867959976196,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842153.594246
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8101,
+      "oldest_callback_age_sec": 13.51814603805542,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842154.618264
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8599,
+      "oldest_callback_age_sec": 14.427314043045044,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842155.641247
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9072,
+      "oldest_callback_age_sec": 15.145602941513062,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842156.666003
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9559,
+      "oldest_callback_age_sec": 15.946753025054932,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842157.698674
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10053,
+      "oldest_callback_age_sec": 16.692991971969604,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842158.726899
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10509,
+      "oldest_callback_age_sec": 17.574382066726685,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842159.7567239
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10984,
+      "oldest_callback_age_sec": 18.368848085403442,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842160.7813172
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11469,
+      "oldest_callback_age_sec": 19.218955039978027,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842161.8050969
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11946,
+      "oldest_callback_age_sec": 20.140603065490723,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842162.828634
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12429,
+      "oldest_callback_age_sec": 20.862073183059692,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842163.8471959
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12900,
+      "oldest_callback_age_sec": 21.609113216400146,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842164.869837
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13383,
+      "oldest_callback_age_sec": 22.388338088989258,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842165.897533
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13869,
+      "oldest_callback_age_sec": 23.218979120254517,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842166.922312
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 14002,
+      "oldest_callback_age_sec": 23.92926001548767,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842167.9512908
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13841,
+      "oldest_callback_age_sec": 24.704410314559937,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842168.971937
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13714,
+      "oldest_callback_age_sec": 25.56384587287903,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842169.998894
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13590,
+      "oldest_callback_age_sec": 26.320700883865356,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842171.0219882
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13462,
+      "oldest_callback_age_sec": 27.11441683769226,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842172.04061
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13328,
+      "oldest_callback_age_sec": 27.97605872154236,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842173.066848
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13183,
+      "oldest_callback_age_sec": 28.686672925949097,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842174.0906932
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13061,
+      "oldest_callback_age_sec": 29.555010080337524,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842175.115538
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12932,
+      "oldest_callback_age_sec": 30.380724906921387,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842176.145084
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12809,
+      "oldest_callback_age_sec": 31.203012943267822,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842177.1752589
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12679,
+      "oldest_callback_age_sec": 31.97057294845581,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842178.203208
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12524,
+      "oldest_callback_age_sec": 32.72041177749634,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842179.226666
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12392,
+      "oldest_callback_age_sec": 33.51115417480469,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842180.2483919
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12266,
+      "oldest_callback_age_sec": 34.360413789749146,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842181.2775009
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12148,
+      "oldest_callback_age_sec": 35.138596057891846,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842182.3060648
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12020,
+      "oldest_callback_age_sec": 36.00368285179138,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842183.329865
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11877,
+      "oldest_callback_age_sec": 36.768574953079224,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842184.355926
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11746,
+      "oldest_callback_age_sec": 37.648066997528076,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842185.383442
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11617,
+      "oldest_callback_age_sec": 38.623234033584595,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842186.410945
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11484,
+      "oldest_callback_age_sec": 39.4318528175354,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842187.431232
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11358,
+      "oldest_callback_age_sec": 40.21468901634216,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842188.459709
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11201,
+      "oldest_callback_age_sec": 40.97921800613403,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842189.4878972
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11070,
+      "oldest_callback_age_sec": 41.83330798149109,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842190.513813
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10947,
+      "oldest_callback_age_sec": 42.58256387710571,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842191.547602
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10820,
+      "oldest_callback_age_sec": 43.37094187736511,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842192.571867
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10690,
+      "oldest_callback_age_sec": 44.11193609237671,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842193.59572
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10551,
+      "oldest_callback_age_sec": 44.93968987464905,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842194.620353
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10424,
+      "oldest_callback_age_sec": 45.83059000968933,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842195.640466
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10291,
+      "oldest_callback_age_sec": 46.593212366104126,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842196.663498
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10158,
+      "oldest_callback_age_sec": 47.361668825149536,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842197.6864698
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10024,
+      "oldest_callback_age_sec": 48.25252604484558,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842198.7126248
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9870,
+      "oldest_callback_age_sec": 48.89090299606323,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842199.731816
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9735,
+      "oldest_callback_age_sec": 49.73721194267273,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842200.758424
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9605,
+      "oldest_callback_age_sec": 50.4251868724823,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842201.787272
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9481,
+      "oldest_callback_age_sec": 51.2477548122406,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842202.818281
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9346,
+      "oldest_callback_age_sec": 52.086834192276,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842203.8448582
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9203,
+      "oldest_callback_age_sec": 52.834890842437744,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842204.8705878
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9069,
+      "oldest_callback_age_sec": 53.734620809555054,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842205.889859
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8941,
+      "oldest_callback_age_sec": 54.506442070007324,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842206.915143
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8813,
+      "oldest_callback_age_sec": 55.340007066726685,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842207.94172
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8685,
+      "oldest_callback_age_sec": 56.178356885910034,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842208.966306
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8537,
+      "oldest_callback_age_sec": 57.076464891433716,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842209.993098
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8404,
+      "oldest_callback_age_sec": 57.908899784088135,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842211.022878
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8264,
+      "oldest_callback_age_sec": 58.57762002944946,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842212.046102
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8137,
+      "oldest_callback_age_sec": 59.3548629283905,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842213.08175
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8017,
+      "oldest_callback_age_sec": 60.2036030292511,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842214.107994
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7874,
+      "oldest_callback_age_sec": 60.953176975250244,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842215.131528
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7743,
+      "oldest_callback_age_sec": 61.78210997581482,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842216.151294
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7606,
+      "oldest_callback_age_sec": 62.627930879592896,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842217.1816478
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7473,
+      "oldest_callback_age_sec": 63.38433623313904,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842218.2078688
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7346,
+      "oldest_callback_age_sec": 64.23466897010803,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842219.240337
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7190,
+      "oldest_callback_age_sec": 64.9723470211029,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842220.2656
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7057,
+      "oldest_callback_age_sec": 65.82916903495789,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842221.28262
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6923,
+      "oldest_callback_age_sec": 66.57867479324341,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842222.3004942
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6798,
+      "oldest_callback_age_sec": 67.51250910758972,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842223.322349
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6672,
+      "oldest_callback_age_sec": 68.29524612426758,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842224.3491352
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6527,
+      "oldest_callback_age_sec": 69.0225887298584,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842225.3691971
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6395,
+      "oldest_callback_age_sec": 69.83439087867737,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842226.396224
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6265,
+      "oldest_callback_age_sec": 70.59858894348145,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842227.421736
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6138,
+      "oldest_callback_age_sec": 71.42091917991638,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842228.4433122
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6009,
+      "oldest_callback_age_sec": 72.23275017738342,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842229.4752462
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5849,
+      "oldest_callback_age_sec": 73.00327897071838,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842230.501745
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5721,
+      "oldest_callback_age_sec": 73.85158801078796,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842231.521806
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5589,
+      "oldest_callback_age_sec": 74.69041419029236,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842232.5497391
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5462,
+      "oldest_callback_age_sec": 75.51464915275574,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842233.5659761
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5345,
+      "oldest_callback_age_sec": 76.31222677230835,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842234.610869
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5216,
+      "oldest_callback_age_sec": 77.10462594032288,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842235.635039
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5081,
+      "oldest_callback_age_sec": 77.96084213256836,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1788842236.673248
+    }
+  ],
+  "capacity_slo_passed": false,
+  "task_states": {
+    "processing": 127,
+    "completed": 4191
+  },
+  "final_transcripts": 4323,
+  "successful_ai_metrics": 4203,
+  "model": {
+    "active": 121,
+    "peak": 166,
+    "total": 4322,
+    "cancelled": 0
+  },
+  "ai_transcripts": 0,
+  "media_ingest_events": 8622,
+  "call_states": {
+    "in_ai": 500
+  },
+  "failed_metrics": 0,
+  "ai_max_attempts": 1,
+  "sender_stage_ms": {
+    "commit": {
+      "count": 3720,
+      "sum": 6910.254827700555,
+      "p50": 1.5676250914111733,
+      "p99": 4.724791971966624
+    },
+    "claim": {
+      "count": 3690,
+      "sum": 4492.277320474386,
+      "p50": 1.0656249942258,
+      "p99": 3.0875420197844505
+    }
+  },
+  "elapsed_with_drain_seconds": 99.6418854589574,
+  "real_sip_rtp_asr_tts_llm": false,
+  "correctness_passed": false
+}

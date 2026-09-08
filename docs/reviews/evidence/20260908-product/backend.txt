@@ -1,0 +1,13 @@
+..........ss............................................................ [ 30%]
+.......................ss................s..............s............... [ 60%]
+........................................................................ [ 91%]
+................s....                                                    [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_architecture_hardening.py:182: requires isolated Redis
+SKIPPED [1] tests/test_architecture_hardening.py:201: requires isolated PostgreSQL row locking
+SKIPPED [1] tests/test_product_postgres.py:34: isolated PostgreSQL URL not supplied
+SKIPPED [1] tests/test_product_postgres.py:50: isolated PostgreSQL URL not supplied
+SKIPPED [1] tests/test_production_hardening.py:317: PostgreSQL serial sequence regression
+SKIPPED [1] tests/test_production_hardening.py:875: PostgreSQL advisory locks are covered by the integration job
+SKIPPED [1] tests/test_review_fixes.py:161: requires bounded PostgreSQL pool
+230 passed, 7 skipped in 15.07s

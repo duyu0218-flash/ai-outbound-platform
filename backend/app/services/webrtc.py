@@ -43,7 +43,7 @@ def _set_value(key: str, value: str, ttl: int) -> None:
     try:
         client = _redis_client()
         if client is not None:
-            client.setex(key, max(1, ttl), value)
+            client.set(key, value, ex=max(1, ttl))
             client.close()
             return
     except (OSError, redis.RedisError):
@@ -91,7 +91,9 @@ def _delete_value(key: str) -> None:
 
 def issue_sip_credential(*, tenant_id: int, agent_id: int) -> tuple[str, str, datetime]:
     extension = agent_extension(agent_id)
-    password = secrets.token_urlsafe(24)
+    existing = get_sip_credential(extension)
+    password = (str(existing["password"]) if existing and existing.get("tenant_id") == tenant_id
+                and existing.get("agent_id") == agent_id and existing.get("password") else secrets.token_urlsafe(24))
     ttl = max(60, int(settings.webrtc_sip_credential_ttl_sec))
     expires_at = utc_now() + timedelta(seconds=ttl)
     payload = json.dumps(

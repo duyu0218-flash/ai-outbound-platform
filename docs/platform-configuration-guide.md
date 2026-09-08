@@ -1,6 +1,6 @@
 # AI 外呼平台配置手册
 
-> 适用版本：本仓库当前本地部署；核对日期：2026-09-03
+> 适用版本：应用代码 `26f205b`；核对日期：2026-09-08
 >
 > 适用对象：部署人员、系统管理员、线路对接人员和验收人员
 >
@@ -26,17 +26,13 @@
 
 只有该链路全部接通并实拨通过，才能称为真实外呼可用。容器健康、Mock 呼叫和合成音频测试不能代替真实线路验收。
 
-## 2. 当前本地部署状态
+## 2. 本次验证环境
 
-2026-09-03 只读检查结果：
+2026-09-08 使用本地最新代码 `26f205b` 重新构建独立 Docker Compose 环境，容器前缀 `manual-20260908`、控制端口 `18080`，数据库与录音数据卷独立。基础安装默认端口仍为 `8000`。
 
-- `control-api`、`task-worker`、`ai-agent`、`voice-gateway`、PostgreSQL、Redis、SeaweedFS、录音适配器等本地服务正在运行；业务容器健康。
-- 本地另有 `freeswitch-media` 和 `media-probe`，用于 VoiSmart 双向媒体合成验收；它们不是运营商线路。
-- Control API 当前通过 HTTP 调用内部 Voice Gateway，但 Voice Gateway 的实际驱动仍为 `mock`。
-- 当前语音流水线为 `legacy`，大模型为本地 `rule`，短信为 `mock`。
-- 运行容器没有注入可用的云 ASR、云 TTS、外部 LLM 凭据；真实主叫号码也未配置。
+本环境使用 Mock 电话、Mock 短信与 rule 模型，不拨真实号码。真实运营商、云 ASR/TTS/LLM、WebRTC 耳麦和生产接入均未验证。旧实例仍在运行，它的状态不作为本次新代码验收依据。
 
-因此当前状态是：**本地系统和测试基础设施已运行，真实电话、云语音、真机坐席和生产发布未完成配置与验收。**
+本次页面截图、保存回显及验证记录见[图解](#14-逐步配置截图2026-09-08)与[验收记录](reviews/20260908-manual-refresh.md)。安装命令统一见[安装教程](../INSTALL.md)。
 
 ## 3. 配置文件与安全规则
 
@@ -45,8 +41,9 @@
 不要修改或提交 `.env.example`。新环境应在确认目标文件不存在后复制为已被 Git 忽略的 `.env`；已有 `.env` 时先备份并逐项合并，不能覆盖：
 
 ```bash
-test ! -e .env
-cp .env.example .env
+if [ ! -e .env ]; then
+  cp .env.example .env
+fi
 chmod 600 .env
 ```
 
@@ -56,12 +53,11 @@ chmod 600 .env
 APP_ENV_FILE=.env
 ```
 
-启动时显式指定：
+基础安装启动时显式指定（可选监控需先运行 `./scripts/bootstrap-deployment-secrets.sh`，再追加 observability 文件）：
 
 ```bash
 docker compose --env-file .env \
   -f docker-compose.yml \
-  -f docker-compose.observability.yml \
   up -d --build
 ```
 
@@ -111,14 +107,28 @@ docker compose --env-file .env \
 |---|---|
 | `POSTGRES_PASSWORD` | Compose 中 PostgreSQL 用户密码 |
 | `DATABASE_URL` | 应用数据库连接字符串 |
+| `DATABASE_URL_API` | API/Worker 运行时数据库连接（可指向 PgBouncer） |
+| `DATABASE_URL_BOOTSTRAP` | 启动与 DDL 使用的数据库连接（建议直连 PostgreSQL） |
+| `DATABASE_BOOTSTRAP_ADVISORY_LOCK` | 启动时是否启用会话锁，建议生产开启 |
+| `DATABASE_BOOTSTRAP_LOCK_NAME` | 启动时会话锁名 |
+| `DATABASE_BOOTSTRAP_DATA_LOCK_NAME` | 启动数据变更的内部锁名 |
+| `DATABASE_MIGRATION_LOCK_NAME` | 版本迁移锁名 |
 | `REDIS_PASSWORD` | Redis 密码 |
 | `REDIS_URL` | 应用 Redis 连接字符串 |
 | `AUTO_MIGRATE` | 本地可为 `true`；生产必须为 `false` |
 | `DATABASE_POOL_SIZE`、`DATABASE_MAX_OVERFLOW` | 数据库连接池容量，按并发测试调整 |
 
-生产发布前必须先备份，再显式执行迁移；应用启动成功不等于数据库发布完成。
+### 5.3 PgBouncer 与会话锁边界（API 副本评估）
+
+- 若 API 需要横向扩展，可把 `DATABASE_URL_API` 指向 PgBouncer 的事务池。
+- `DATABASE_URL_BOOTSTRAP` 建议保持直连数据库，确保启动与版本迁移中的 `pg_advisory_lock` 约束生效。
+- 不要在事务池连接上依赖会话级锁作为初始化唯一串行化手段；如必须开启，需配合单实例 bootstrap 与明确的锁名。
+- `migration_runner` 和 `create_db_and_tables` 同步使用 `DATABASE_URL_BOOTSTRAP` 及其锁名，避免不同入口产生不同锁串行化对象。
+
+生产发布前仍需执行完整备份后再走显式版本迁移；应用启动成功不等于数据库迁移完成。
 
 ## 6. 电话线路与 FreeSWITCH
+
 
 ### 6.1 向线路供应商索取的资料
 
@@ -188,6 +198,10 @@ VOICE_CALLBACK_ALLOW_PRIVATE_HTTP=true
 路由文件按 `tenant_id:line_id` 建立，每条线路必须明确：网关、主叫号码、允许/禁止号段、并发、CPS、日量、小时/日预算、保守分钟费率、计费倍数和最大通话时长。空路由表会拒绝全部真实拨号，这是正常的安全默认。
 
 不要直接使用 `deploy/security/voice-routes.example.json` 中的虚构号码和费率。
+
+### 6.5 多节点与 OpenSIPS 边界
+
+OpenSIPS 仍属于架构评估，当前页面的 `Mock` / `HTTP Bridge` 选项不能等同于已实现专用 OpenSIPS 适配器。不能通过填写一个 provider 名称就获得跨 PBX 路由、容量租约和故障切换能力。多节点须按[节点部署说明](compact-node200-implementation.md)单独部署和验证归属、排空及重启对账。
 
 ## 7. ASR、TTS 与实时媒体
 
@@ -374,6 +388,8 @@ FREESWITCH_CONFIG_DIR=<完整私有配置目录>
 
 入口：`/admin/settings`
 
+服务商地址等只读字段由服务器统一管理，不可编辑时回到 `.env` 修改，不能把只读项写成页面可保存配置。
+
 1. **并发容量**：设置租户上限；实际值取租户、任务、线路和平台硬上限的最小值。
 2. **AI 与语音**：选择规则/大模型、ASR/TTS 名称、音色、语言、历史轮数、回复长度、禁用表达和兜底话术。
 3. **短信配置**：启用状态、服务商、发送方、接口和挂机模板。
@@ -391,7 +407,7 @@ FREESWITCH_CONFIG_DIR=<完整私有配置目录>
 3. `/admin/contacts`：已获得合法授权的客户；
 4. `/admin/campaigns`：模式、名单、线路、并发、重试、录音和短信策略。
 
-任务启动前必须检查话术已发布、客户未进入 DNC、当前时间允许外呼、线路启用且容量足够。
+任务启动前必须检查话术已发布、客户未进入 DNC、当前时间同时满足合规外呼时段与已发布业务策略的服务日历、线路启用且容量足够。业务策略时段外会保持排队，不能只看系统合规时段。
 
 ## 12. 参数如何生效
 
@@ -506,3 +522,74 @@ python scripts/check-version-constraints.py \
 | 生产发布 | 未验证 |
 
 进一步操作说明见：[安装部署](../INSTALL.md)、[FreeSWITCH 接入](freeswitch-integration.md)、[Pipecat 接入](pipecat-integration.md)、[本机媒体验收](voismart-local-media.md)、[浏览器坐席](browser-webrtc.md)、[防盗打](toll-fraud-protection.md)、[生产验收](production-acceptance.md)和[系统操作手册](operator-manual.md)。
+
+
+## 14. 逐步配置截图（2026-09-08）
+
+以下截图来自独立 Mock 演示环境，展示“入口、填写、保存和回显”。按顺序设置，每一步保存后刷新，核对值没有恢复成旧值。图片不是生产参数模板；具体并发、时段、号码和供应商取值必须按本环境确认。
+
+### 14.1 账号：创建 → 保存 → 验证登录
+
+点击“用户与座席”→“新增用户”，输入唯一用户名、姓名、至少8位密码，选择角色与班组长权限。保存后刷新列表，再用新账号登录。演示管理员不能直接停用自己；先建立另一个正式管理员，验证后再停用演示账户和关闭自动演示账号。
+
+![填写账号](assets/manual-20260908/users-filled.png)
+
+![账号保存回显](assets/manual-20260908/users-saved.png)
+
+### 14.2 线路：选择服务商 → 填并发 → 保存
+
+演练选 Mock。真实接入选 HTTP Bridge，配置网关、批准的主叫和凭证引用。页面中的“凭证引用”是 `TELEPHONY_SECRET_<引用>` 的引用名。保存后刷新列表确认服务商、启用状态和容量。
+
+![填写演示线路](assets/manual-20260908/lines-filled.png)
+
+![线路保存回显](assets/manual-20260908/lines-saved.png)
+
+### 14.3 并发：填写上限 → 保存 → 检查实际生效容量
+
+进入“系统配置”→“并发容量”，本次演示设置5路。实际值还受平台、任务、线路、健康节点/媒体与网关预算约束；不代表5路真实通话已经通过验收，更不能直接改成500后宣布商用达标。
+
+![并发保存后](assets/manual-20260908/settings-saved-0.png)
+
+### 14.4 AI 与语音：核对策略 → 保存
+
+检查规则/外部模型启用、ASR/TTS名称、音色、语言、回复长度、禁用表达和兜底。界面只读的服务地址由服务器配置；外部凭据按第7—8节注入。刷新确认回显后，仍需用真实语音检查识别、回复和打断。
+
+![AI设置保存后](assets/manual-20260908/settings-saved-1.png)
+
+### 14.5 短信：核对开关和模板 → 保存
+
+选择演练 Mock 或已接通的 HTTP Bridge，填写签名/发送方与挂机模板。截图仅验证配置保存；短信送达、回执和真实计费未验证。
+
+![短信设置保存后](assets/manual-20260908/settings-saved-2.png)
+
+### 14.6 合规：核对约束 → 保存 → 刷新确认
+
+逐项检查DNC、明确同意、录音告知正文、号段、每日次数、间隔、数据保留期、允许时段和时区。不要照抄测试中的全天开放、零间隔或演示号段到生产。
+
+![合规保存后](assets/manual-20260908/settings-saved-3.png)
+
+### 14.7 回调：填地址及引用 → 保存 → 接收方对账
+
+回调地址填已审批的HTTPS接收端，凭据填引用，配置超时和重试。地址域名须通过服务器allowlist。启用前验证签名与接收方幂等；演示截图中的关闭状态不代表外部系统已接通。
+
+![回调保存后](assets/manual-20260908/settings-saved-4.png)
+
+### 14.8 业务策略：设置 → 发布 → 试跑
+
+进入“业务交付策略”，按[产品手册第19节](operator-manual.md#19-业务交付策略从客户回答到人工跟进)设异常话术、采集字段、转人工与服务时间，发布后刷新并检查版本。
+
+![采集字段填写](assets/manual-20260908/product-slots-filled.png)
+
+![发布后回显](assets/manual-20260908/product-policy-saved.png)
+
+![拒绝转人工与停止联系试跑](assets/manual-20260908/product-simulation-result.png)
+
+### 14.9 配置最新回调持久接收
+
+`CALLBACK_INBOX_ENABLED` 是部署配置，没有管理端开关。六类电话回调可以先持久接收后消费，短信回执仍是原同步路径。启用时必须同时迁移数据库、统一后端模式并启动 `app.callback_inbox_worker`；消费者心跳、死信与最老积压会影响就绪和新拨号准入。
+
+默认每批最多32条，事件间检查50ms预算；该预算不强制中断正在执行的事件。`result=received` 不是业务完成。重试必须保持原事件身份；同身份换正文为冲突。生产操作按[Inbox启用与回退](reviews/20260908-callback-inbox.md#启用与回退)及[500模板](../deploy/single-host-500/README.md)。本次基础安装截图未启用Inbox，不替代该功能独立验收。
+
+### 14.10 第三方控制台截图缺口
+
+本次没有取得运营商、云语音、短信及正式WebRTC环境的控制台配置记录，以下截图与实测均待补：SIP账号/IP白名单/批准主叫、ASR项目AppKey与热词发布、TTS音色与额度、模型地址/额度、短信签名和模板审核、正式域名证书/TURN。对应平台参数已在第6—10节列出，现场操作需依据实际供应商控制台。不能用本平台配置截图或示意图替代。

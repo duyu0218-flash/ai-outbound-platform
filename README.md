@@ -1,5 +1,11 @@
 # AI 外呼平台
 
+单服务器 500 在途呼叫的代码及部署候选见[单机配置](deploy/single-host-500/README.md)和[开发验收报告](docs/reviews/20260908-single-host-500-implementation.md)。本地合成会话测试已覆盖 500 路；600 回调/秒混合压测未达标，真实 500 路商用容量尚未验收。
+
+回调持久接收、同通话保序、有界批处理和积压准入保护已实现，启用方式及验证边界见 [Inbox 修复报告](docs/reviews/20260908-callback-inbox.md)。
+
+回调重复 SQL、死锁修复和 Linux 同机对比见[吞吐定位记录](docs/reviews/20260908-callback-throughput.md)。18,000 条事件完整处理已有通过记录，持续 600 回调/秒及排队时延目标仍未通过。
+
 本机 FreeSWITCH + VoiSmart 双向媒体部署、打断及播放完成验收，见[接入说明](docs/voismart-local-media.md)；真实线路和云语音仍需单独验收。
 
 真实拨号须先配置[防盗打保护与升级条件](docs/toll-fraud-protection.md)：签名命令、独立路由白名单、持久化预算/幂等账本和 PBX 硬挂断均为强制门禁，`ENV=dev` 不豁免。旧网关配置不能直接用于真实外呼。
@@ -34,6 +40,8 @@
 
 前端采用 React、TypeScript、Ant Design 与 TanStack Query，生产构建由控制服务同源托管。
 
+2026-09-08 图文手册：[安装教程](INSTALL.md) · [平台配置](docs/platform-configuration-guide.md) · [产品手册](docs/operator-manual.md) · [本次验证记录](docs/reviews/20260908-manual-refresh.md)
+
 系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
 
 部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
@@ -41,9 +49,9 @@
 ## 2bis. 测试账号体系（新）
 
 - 以下演示账号仅在非生产环境且 `DEMO_USERS_ENABLED=true` 时创建并显示；生产环境登录页不会预填或公开演示凭据。
-- 管理端测试地址：[http://localhost:8000/admin](http://localhost:8000/admin)  
+- 管理端测试地址：[http://localhost:8000/admin](http://localhost:8000/admin)
   默认账号：`admin` / `12345678`
-- 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)  
+- 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)
   默认账号：`1001@test` / `12345678`
 - 文档页：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)（指向 `/docs`）
 
@@ -95,12 +103,13 @@ pnpm build
 完整安装与生产化部署请先看： [INSTALL.md](INSTALL.md)
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+if [ ! -e .env ]; then cp .env.example .env; fi
+chmod 600 .env
+APP_ENV_FILE=.env docker compose --env-file .env up -d --build
 ```
 
 - 控制面：http://localhost:8000/health
-- AI 服务：http://localhost:8001/health
+- AI 服务：容器内 `http://ai-agent:8001/health`，默认不开放宿主机 8001 端口
 
 需要同时启动第一批商用基础设施（SeaweedFS、录音适配器、Prometheus、Alertmanager、Grafana）：
 
@@ -125,10 +134,18 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d -
 | `API_KEY` | 管理 API 鉴权头 `x-api-key`（主 key） |
 | `UI_API_KEY` | 可选备用 API key |
 | `TENANT_API_KEYS_JSON` | 多租户服务端 Key 映射，例如 `{"1":"...","2":"..."}`；Key 只能访问绑定租户 |
-| `DATABASE_URL` | 数据库链接（建议 PostgreSQL） |
+| `DATABASE_URL` | 数据库链接（建议 PostgreSQL）；兼容旧配置 |
+| `DATABASE_URL_API` | API/Worker 使用的数据库链接；用于并发副本（建议 PgBouncer 事务池） |
+| `DATABASE_URL_BOOTSTRAP` | 启动/迁移使用的直连数据库链接；避免在事务池上使用会话级锁 |
+| `DATABASE_BOOTSTRAP_ADVISORY_LOCK` | 是否启用启动锁（建议生产 true） |
+| `DATABASE_BOOTSTRAP_LOCK_NAME` | 启动会话锁名 |
+| `DATABASE_BOOTSTRAP_DATA_LOCK_NAME` | 启动数据锁名（留给分阶段部署留白） |
+| `DATABASE_MIGRATION_LOCK_NAME` | 版本化 migration 锁名（默认 `ai-outbound-schema-migrations`） |
 | `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | PostgreSQL 连接池常驻连接/溢出连接数 |
 | `DATABASE_POOL_TIMEOUT_SEC` / `DATABASE_POOL_RECYCLE_SEC` | 获取连接超时/连接回收秒数 |
 | `REDIS_URL` | Redis 链接 |
+| `TASK_QUEUE_LANES` | 可配置 lane 并发（示例：`ai_turn:4,business_callback:6,recording:4`） |
+| `TASK_QUEUE_LANE_ALIASES` | 任务类型别名映射（默认 `recording_ingest:recording,recording_delete:recording`） |
 | `DEFAULT_TENANT_ID` | 默认租户 ID |
 | `TELEPHONY_PROVIDER` | `mock`、`http` 或 `tenant`；`tenant` 按租户读取管理端启用线路 |
 | `TELEPHONY_PROVIDER_ENDPOINT` | `http` 模式下电信/网关 API 地址 |
@@ -330,6 +347,25 @@ bash scripts/test-campaign-start.sh
 - AI 设置选择 `rule` 时使用本地规则模式；选择 `openai-compatible` 时，Agent 会使用环境变量中的 `OPENAI_BASE_URL`、`OPENAI_API_KEY` 调用兼容的 `/chat/completions`。
 - 坐席登录后状态进入 `ready`，工作台每 30 秒发送心跳，可切换忙碌/离线；AI 转人工会优先分配最近仍在线的空闲坐席，通话终止后自动释放。
 - 启用业务回调后，状态、转写、录音 URL 和 AI 决策会 POST 到配置的 Webhook；支持 HMAC-SHA256 签名、指数退避重试和投递审计事件。
+
+## 7. 运行时对照：Granian 与 PgBouncer（建议先在压测环境）
+
+- Baseline 维持当前 `uvicorn` 运行参数；对照时不改其他业务配置，避免把环境差异归因错误。
+- 推荐执行：
+  - `wrk -t4 -c200 -d120s http://127.0.0.1:8000/readyz`
+  - `wrk -t4 -c200 -d120s --latency http://127.0.0.1:8000/health`
+  - 自研压测脚本对 `campaign start` + 回调链路做 2 分钟以上长耗时对照
+- 关注 P95、错误率、吞吐、数据库会话数、连接等待/池满、队列堆积。
+- Granian 命令（对照）：
+  - `granian --interface asgi --host 0.0.0.0 --port 8000 --workers 2 app.main:app`
+- 当 API 副本走 PgBouncer 时：
+  - `DATABASE_URL_API` 指向 PgBouncer（事务池也可）
+  - `DATABASE_URL_BOOTSTRAP` 仍走 PostgreSQL 直连
+  - 启动与 migration 锁走会话锁，避免在事务池导致锁语义偏移：
+    - `DATABASE_BOOTSTRAP_ADVISORY_LOCK=true`
+    - `DATABASE_BOOTSTRAP_LOCK_NAME`（启动锁）
+    - `DATABASE_BOOTSTRAP_DATA_LOCK_NAME`（预留，按部署策略使用）
+    - `DATABASE_MIGRATION_LOCK_NAME`（版本 SQL 执行锁）
 
 ## 7. 上线仍需完成的外部集成
 

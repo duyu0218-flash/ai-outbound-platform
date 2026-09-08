@@ -122,6 +122,10 @@ class AdminBillingRow(BaseModel):
     failed: int = 0
     no_answer: int = 0
     loss: int = 0
+    telephony_minutes: float = 0
+    missing_duration_count: int = 0
+    missing_ai_duration_count: int = 0
+    estimated_duration_count: int = 0
     ai_minutes: float = 0
     sms_count: int = 0
     estimated_cost: float = 0
@@ -136,6 +140,10 @@ class AdminBillingSummary(BaseModel):
     failed: int = 0
     no_answer: int = 0
     loss: int = 0
+    telephony_minutes: float = 0
+    missing_duration_count: int = 0
+    missing_ai_duration_count: int = 0
+    estimated_duration_count: int = 0
     ai_minutes: float = 0
     sms_count: int = 0
     ai_unit_price_per_minute: float = 0
@@ -467,6 +475,7 @@ class SpeechWebhookEvent(BaseModel):
 
 class MediaWebhookEvent(BaseModel):
     call_id: UUID
+    event_sequence: Optional[int] = Field(default=None, ge=0)
     event_id: str = Field(min_length=1, max_length=255)
     state: RealtimeState
     provider_session_id: Optional[str] = Field(default=None, max_length=255)
@@ -529,6 +538,7 @@ class CallMetricOut(BaseModel):
 class RecordingAssetOut(BaseModel):
     id: int
     call_session_id: UUID
+    attempt: int = 0
     provider_recording_id: Optional[str] = None
     provider_url: str
     storage_uri: str
@@ -553,6 +563,8 @@ class CallAnalysisOut(BaseModel):
     qa_score: int
     qa_flags_json: str
     structured_json: str
+    automatic_result_json: str = "{}"
+    needs_review: bool = False
     review_state: str
     reviewed_by: Optional[int] = None
     reviewed_at: Optional[datetime] = None
@@ -689,18 +701,22 @@ class FlowPosition(BaseModel):
 
 class FlowNode(BaseModel):
     id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
-    type: str = Field(pattern=r"^(start|message|listen|handoff|hangup)$")
+    type: str = Field(pattern=r"^(start|message|listen|handoff|hangup|collect|set|branch)$")
     label: str = Field(min_length=1, max_length=200)
     prompt: str = Field(default="", max_length=20_000)
     position: FlowPosition
+    variable: str = Field(default='',max_length=40,pattern=r'^[a-zA-Z0-9_]*$')
+    value: str = Field(default='',max_length=500)
 
 
 class FlowEdge(BaseModel):
     id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     source: str = Field(min_length=1, max_length=128)
     target: str = Field(min_length=1, max_length=128)
-    condition: str = Field(default="always", pattern=r"^(always|keyword|silence)$")
+    condition: str = Field(default="always", pattern=r"^(always|keyword|silence|intent|equals|not_equals)$")
     keywords: List[str] = Field(default_factory=list, max_length=50)
+    variable: str = Field(default='',max_length=40,pattern=r'^[a-zA-Z0-9_]*$')
+    value: str = Field(default='',max_length=500)
 
 
 class ScriptFlowGraph(BaseModel):
@@ -738,6 +754,7 @@ class ScriptFlowSimulateRequest(BaseModel):
     current_node_id: Optional[str] = None
     transcript: str = Field(default="", max_length=20_000)
     silence: bool = False
+    variables: dict[str,str] = Field(default_factory=dict,max_length=50)
 
 
 class ScriptFlowSimulateOut(BaseModel):
@@ -746,6 +763,7 @@ class ScriptFlowSimulateOut(BaseModel):
     action: str
     prompt: str = ""
     matched_edge_id: Optional[str] = None
+    variables: dict[str,str] = Field(default_factory=dict)
 
 
 class AdminUserCreate(BaseModel):

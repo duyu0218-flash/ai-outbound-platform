@@ -1,10 +1,39 @@
 from __future__ import annotations
 
 import httpx
+import asyncio
 import re
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
 from .config import settings
+from .quota import AccountQuota, estimated_tokens
+
+_client = None
+quota = AccountQuota(settings)
+
+
+@asynccontextmanager
+async def llm_client_lifespan():
+    global _client
+    await asyncio.to_thread(quota.initialize)
+    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
+            follow_redirects=False, limits=httpx.Limits(max_connections=settings.llm_max_connections, max_keepalive_connections=settings.llm_max_keepalive_connections)) as client:
+        _client = client
+        try:
+            yield
+        finally:
+            _client = None
+
+
+@asynccontextmanager
+async def get_llm_client():
+    if _client is not None:
+        yield _client
+    else:
+        async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
+                                     follow_redirects=False) as client:
+            yield client
 
 
 EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
@@ -104,14 +133,24 @@ async def generate_reply(
         "max_tokens": settings.max_output_tokens,
         "temperature": 0.3,
     }
-    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec) as client:
-        response = await client.post(
-            f"{base_url}/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        response.raise_for_status()
-        data = response.json()
+    await quota.acquire(estimated_tokens(messages, settings.max_output_tokens))
+    try:
+        async with get_llm_client() as client:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            if response.status_code in {429, 503} and settings.llm_quota_db_path:
+                try:
+                    seconds = max(1, min(300, float(response.headers.get('Retry-After', '5'))))
+                except ValueError:
+                    seconds = 5
+                await asyncio.to_thread(quota.block, seconds)
+            response.raise_for_status()
+            data = response.json()
+    finally:
+        quota.release()
     try:
         content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
