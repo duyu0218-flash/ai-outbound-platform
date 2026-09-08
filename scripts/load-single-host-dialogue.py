@@ -14,6 +14,7 @@ TEST_DB=os.environ.get('SINGLE500_TEST_DB','node200single500dialogue')
 RATE=int(os.environ.get('SINGLE500_TURN_RATE','200'));SECONDS=30;TOTAL=RATE*SECONDS
 assert re.fullmatch(r'[a-z0-9_-]+',LABEL) and re.fullmatch(r'node200single500[a-z0-9_]+',TEST_DB) and 1<=RATE<=400
 DEST=OUT/LABEL;DEST.mkdir(parents=True,exist_ok=True)
+SOURCE_HASHES={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'backend/app/db.py', ROOT/'backend/app/models.py', ROOT/'backend/app/services/callback_inbox.py', ROOT/'backend/app/callback_inbox_worker.py', ROOT/'backend/app/services/realtime_voice.py', ROOT/'scripts/load-single-host-dialogue.py')}
 REPORT=ROOT/'docs/reviews/evidence/20260908-single-host-500'/f'{LABEL}-results.json'
 assert os.environ.get('SINGLE500_ISOLATED_MOCK')=='true', 'explicit isolated mock confirmation required'
 DSN=f'postgresql+psycopg://node200:synthetic-node200-local@127.0.0.1:15443/{TEST_DB}'
@@ -22,8 +23,8 @@ env=dict(os.environ,ENV='test',DATABASE_URL=DSN,DATABASE_URL_API=DSN,DATABASE_UR
  TELEPHONY_WEBHOOK_TOKEN='node200-synthetic-token',TELEPHONY_WEBHOOK_SECRET='node200-synthetic-secret',
  AI_AGENT_URL='http://127.0.0.1:18941',AI_CALLBACK_TIMEOUT_SEC='30',TASK_TIMEOUT_SEC='60',
  TASK_LEASE_SEC='30',AI_TURN_LOCK_TTL_SEC='30',SCHEDULER_ENABLED='false',TASK_INLINE_EXECUTION_ENABLED='false',
- DEMO_USERS_ENABLED='true',TRUSTED_HOSTS='*',RATE_LIMIT_ENABLED='false',DATABASE_POOL_SIZE='6',DATABASE_MAX_OVERFLOW='0',
- REQUEST_ADMISSION_TOTAL_INFLIGHT='6',REQUEST_ADMISSION_WEBHOOK_INFLIGHT='5',REQUEST_ADMISSION_DEFAULT_INFLIGHT='1',
+ DEMO_USERS_ENABLED='true',TRUSTED_HOSTS='*',RATE_LIMIT_ENABLED='false',CALLBACK_INBOX_ENABLED='true',DATABASE_POOL_SIZE='5',DATABASE_MAX_OVERFLOW='0',
+ REQUEST_ADMISSION_TOTAL_INFLIGHT='5',REQUEST_ADMISSION_WEBHOOK_INFLIGHT='4',REQUEST_ADMISSION_DEFAULT_INFLIGHT='1',
  REQUEST_ADMISSION_MAX_WAITERS='8',REQUEST_ADMISSION_TIMEOUT_SEC='.05',LOG_LEVEL='WARNING',
  PYTHONPATH=str(ROOT/'backend')+':'+str(ROOT/'scripts/fixtures'),LOAD_ARTIFACT_DIR=str(DEST),TASK_POLL_INTERVAL_SEC='.05')
 os.environ.update(env);sys.path.insert(0,str(ROOT/'backend'))
@@ -49,6 +50,7 @@ async def main():
     for port in (18910,18911,18912,18913,18914,18915):launch([sys.executable,'-m','uvicorn','single500_instrumented_api:app','--host','127.0.0.1','--port',str(port),'--no-access-log'])
     launch([sys.executable,'-m','uvicorn','single500_model_fixture:app','--host','127.0.0.1','--port','18941','--no-access-log'])
     for i in range(4):launch([sys.executable,'-m','app.ai_worker'],dict(TASK_WORKER_ROLE='ai',TASK_AI_CONCURRENCY='160',DATABASE_POOL_SIZE='5',AI_ACTION_THREADS='4',AI_WORKER_HEALTH_PATH=str(DEST/f'health-{i}.json')))
+    for i in range(6):launch([sys.executable,'-m','app.callback_inbox_worker'],dict(DATABASE_POOL_SIZE='1',CALLBACK_INBOX_HEALTH_PATH=str(DEST/f'inbox-health-{i}.json')))
     statuses=Counter();retries=Counter();latencies=[];lags=[];pids=Counter();failed=[];jobs=set();sem=asyncio.Semaphore(64)
     async with httpx.AsyncClient(trust_env=False,timeout=10,limits=httpx.Limits(max_connections=100)) as http:
         for _ in range(100):
@@ -102,10 +104,15 @@ async def main():
         sender._send=observe
         await sender.start()
         queue_samples=[]
+        from app.services.callback_inbox import snapshot as inbox_snapshot
+        def read_inbox():
+            with session_scope() as s: return inbox_snapshot(s)
+        inbox_samples=[]
         async def sample_queue():
             while True:
                 sample=await asyncio.to_thread(sender.ledger.summary)
                 sample['at']=time.time();queue_samples.append(sample)
+                inbox_samples.append(await asyncio.to_thread(read_inbox))
                 await asyncio.sleep(1)
         observer=asyncio.create_task(sample_queue())
         async def post(kind,body):
@@ -125,8 +132,9 @@ async def main():
         for _ in range(600):
             with session_scope() as s:
                 states={k.value:v for k,v in s.exec(select(TaskOutbox.state,func.count()).where(TaskOutbox.task_type=='ai_turn').group_by(TaskOutbox.state)).all()}
-            if states.get('completed')==TOTAL and (await asyncio.to_thread(sender.ledger.summary))['pending_callbacks']==0:break
+            if (await asyncio.to_thread(read_inbox))['pending']==0 and states.get('completed')==TOTAL and (await asyncio.to_thread(sender.ledger.summary))['pending_callbacks']==0:break
             await asyncio.sleep(.1)
+        await asyncio.sleep(1.1)  # Flush consumer commit-inclusive latency heartbeats.
         observer.cancel();await asyncio.gather(observer,return_exceptions=True)
         await sender.stop()
         queue=sender.ledger.summary()
@@ -139,18 +147,20 @@ async def main():
             failures=s.exec(select(func.count()).select_from(CallMetric).where(CallMetric.success.is_(False))).one()
             attempts=s.exec(select(func.max(TaskOutbox.attempts)).where(TaskOutbox.task_type=='ai_turn')).one()
             metrics=s.exec(select(func.count()).select_from(CallMetric).where(CallMetric.stage=='ai.turn',CallMetric.success.is_(True))).one()
+        inbox_final=await asyncio.to_thread(read_inbox)
         q=lambda a,p:sorted(a)[min(len(a)-1,int(len(a)*p))] if a else 0
-        result=dict(synthetic_active_calls=500,final_transcripts_per_second=RATE,media_events_per_second=RATE*2,duration_seconds=30,
+        result=dict(source_sha256=SOURCE_HASHES,synthetic_active_calls=500,final_transcripts_per_second=RATE,media_events_per_second=RATE*2,duration_seconds=30,
             network_path='loopback-direct-round-robin' if direct else os.environ.get('SINGLE500_NETWORK_LABEL','docker-desktop-nginx-to-host'),
             callback_ledger_storage='explicit-local-volume' if 'SINGLE500_LEDGER_DIR' in os.environ else 'artifact-directory',
             all_delivery_statuses_including_retries=dict(statuses),pending_callbacks=queue['pending_callbacks'],oldest_callback_age_sec=queue['oldest_callback_age_sec'],durable_commit_batches=sender.writer.batches,durable_operations=sender.writer.operations,
             delivery_http_p99_ms=q(latencies,.99),generator_lag_p99_ms=q(lags,.99),queue_samples=queue_samples,
-            capacity_slo_passed=queue['pending_callbacks']==0 and sum(v for k,v in statuses.items() if k!='200')==0 and max((r['oldest_callback_age_sec'] for r in queue_samples),default=0)<=1,
+            inbox_final=inbox_final,inbox_samples=inbox_samples,
+            capacity_slo_passed=inbox_final['pending']==0 and inbox_final['max_completion_latency_ms']<=1000 and queue['pending_callbacks']==0 and sum(v for k,v in statuses.items() if k!='200')==0 and max((r['oldest_callback_age_sec'] for r in queue_samples),default=0)<=1,
             task_states=states,final_transcripts=turns,successful_ai_metrics=metrics,model=stats,
             ai_transcripts=ai_turns,media_ingest_events=media,call_states=call_states,failed_metrics=failures,ai_max_attempts=attempts,
             sender_stage_ms={k:{'count':len(v),'sum':sum(v),'p50':q(v,.5),'p99':q(v,.99)} for k,v in sender_timings.items()},
             elapsed_with_drain_seconds=time.monotonic()-start,real_sip_rtp_asr_tts_llm=False,
-            correctness_passed=queue['pending_callbacks']==0 and statuses['200']==TOTAL*3 and states.get('completed')==TOTAL
+            correctness_passed=inbox_final['pending']==0 and inbox_final['dead']==0 and inbox_final['processed']==TOTAL*3 and queue['pending_callbacks']==0 and statuses['200']==TOTAL*3 and states.get('completed')==TOTAL
                 and turns==TOTAL and media==TOTAL*2 and call_states=={'in_ai':500} and failures==0)
         REPORT.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)
         if not result['correctness_passed'] or not result['capacity_slo_passed']:
@@ -158,7 +168,7 @@ async def main():
 try:asyncio.run(main())
 finally:
     # Drain workers while API and synthetic model are still reachable.
-    for group in (processes[7:],processes[:7]):
+    for group in (processes[11:],processes[7:11],processes[:7]):
         for p in group:
             if p.poll() is None:p.terminate()
         for p in group:

@@ -102,6 +102,8 @@ def verify_database_schema() -> None:
             "database schema is not initialized; run the approved schema bootstrap/migrations first: "
             + ", ".join(missing)
         )
+    if settings.callback_inbox_enabled and not {"callbackinbox", "callbackinboxpartition", "callbackinboxworker"} <= tables:
+        raise RuntimeError("database migration 20260908_callback_inbox is required")
     inspector = inspect(engine)
     call_columns = {c["name"] for c in inspector.get_columns("callsession")}
     if not {"gateway_node_id", "gateway_endpoint"} <= call_columns:
@@ -123,6 +125,8 @@ def create_db_and_tables(*, force: bool = False) -> None:
     is_prod = settings.env.lower() in {"prod", "production"}
     if is_prod and not settings.auto_migrate and not force:
         verify_database_schema()
+        from .services.callback_inbox import verify_mode
+        verify_mode()
         return
 
     bootstrap_url = get_database_url_for_bootstrap()
@@ -131,6 +135,8 @@ def create_db_and_tables(*, force: bool = False) -> None:
     def _run_initialization(connection):
         SQLModel.metadata.create_all(connection)
         apply_runtime_migrations(connection)
+        from .services.callback_inbox import seed_partitions
+        seed_partitions(connection)
 
     try:
         with bootstrap_engine.connect() as connection:
@@ -148,6 +154,8 @@ def create_db_and_tables(*, force: bool = False) -> None:
                 connection.commit()
     finally:
         bootstrap_engine.dispose()
+    from .services.callback_inbox import verify_mode
+    verify_mode()
 
 
 def get_engine_url() -> str:
@@ -221,11 +229,58 @@ class WebhookSession(Session):
             else:
                 if self.outer_transaction is not None and self.outer_transaction.is_active:
                     self.outer_transaction.rollback()
+        except BaseException:
+            # A commit hook/driver failure can mark SQLAlchemy's transaction
+            # inactive while the DBAPI connection still has an open transaction.
+            # Roll it back explicitly before any connection returns to the pool.
+            if self.outer_connection is not None:
+                try:
+                    self.outer_connection.connection.rollback()
+                except BaseException:
+                    self.outer_connection.invalidate()
+            raise
         finally:
             self.close()
             if self.outer_connection is not None:
                 self.outer_connection.close()  # rolls back on any failure
             self.finished = True
+
+
+class InboxBatchSession(WebhookSession):
+    """Flush service commits; one savepoint per event and one durable batch commit.
+
+    Legacy handlers may rollback on a duplicate insert. Only that event's
+    savepoint is rolled back, preserving earlier events in the current batch.
+    """
+    def __init__(self):
+        super().__init__()
+        self.event_savepoint = None
+        self.batching = True
+
+    def begin_event(self):
+        self.event_savepoint = self.begin_nested()
+
+    def end_event(self):
+        self.flush()
+        self.event_savepoint.commit()
+        self.event_savepoint = None
+
+    def commit(self):
+        if self.batching:
+            self.flush()
+        else:
+            super().commit()
+
+    def rollback(self):
+        if self.batching and self.event_savepoint is not None:
+            self.event_savepoint.rollback()
+            self.event_savepoint = self.begin_nested()
+        else:
+            super().rollback()
+
+    def finish(self, *, success):
+        self.batching = False
+        super().finish(success=success)
 
 
 def webhook_transaction(func):
@@ -237,7 +292,17 @@ def webhook_transaction(func):
             return func(*args, **kwargs)  # explicitly supplied service-test session
         with execution_threads():
             try:
-                result = func(*args, **kwargs)
+                if settings.callback_inbox_enabled and func.__name__ in {
+                    "telephony_status", "telephony_transcript", "telephony_speech",
+                    "telephony_dtmf", "telephony_media", "telephony_recording",
+                }:
+                    from .services.callback_inbox import receive
+                    # Receipt has one flush and one outer commit; no business
+                    # savepoints are needed on this short transaction.
+                    session.join_transaction_mode = "rollback_only"
+                    result = receive(session, func.__name__, kwargs["payload"])
+                else:
+                    result = func(*args, **kwargs)
             except BaseException:
                 session.finish(success=False)
                 raise

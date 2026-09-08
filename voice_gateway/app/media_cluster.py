@@ -231,7 +231,8 @@ class RemoteMediaManager:
     async def validate_generation(self, call_id, expected, action):
         await self.rpc(self.owners[call_id],'fence',expected_speech_event_id=expected,closing=action=='hangup')
 
-    async def interrupt(self, call_id): await self.rpc(self.owners[call_id],'interrupt')
+    async def interrupt(self, call_id, expected_speech_event_id=None):
+        await self.rpc(self.owners[call_id], 'interrupt', expected_speech_event_id=expected_speech_event_id)
 
     async def handle_module_event(self, call_id, kind, timestamp_us=0):
         owner=self.owners.get(call_id)

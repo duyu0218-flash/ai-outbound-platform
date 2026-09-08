@@ -10,9 +10,10 @@ def assess(config):
     errors = []
     api = [v for k, v in services.items() if k == 'control-api' or k.startswith('control-api-')]
     ai = [v for k, v in services.items() if k.startswith('ai-worker-')]
+    callbacks = [v for k, v in services.items() if k.startswith('callback-worker-')]
     agents = [v for k, v in services.items() if k.startswith('ai-agent-')]
     media = [v for k, v in services.items() if k.startswith('media-')]
-    for label, rows, required in [('API', api, 6), ('AI', ai, 4), ('Agent', agents, 2), ('media', media, 12)]:
+    for label, rows, required in [('callback', callbacks, 6), ('API', api, 6), ('AI', ai, 4), ('Agent', agents, 2), ('media', media, 12)]:
         if len(rows) != required:
             errors.append(f'{label}: expected {required} processes')
     gateway = services['voice-gateway']['environment']
@@ -28,9 +29,12 @@ def assess(config):
         if int(env['MEDIA_WORKER_CAPACITY']) != spec['capacity'] or env['PIPECAT_MEDIA_WS_BASE'] != spec['ws_base']:
             errors.append('media capacity/address mismatch: ' + spec['id'])
     db_connections = sum(int(row['environment']['DATABASE_POOL_SIZE']) + int(row['environment'].get('DATABASE_MAX_OVERFLOW', 0))
-                         for row in api + ai + [services['task-worker']])
+                         for row in api + ai + callbacks + [services['task-worker']])
     if db_connections > 64:
         errors.append('application DB pool budget exceeds 64')
+    for row in api + ai + callbacks + [services['task-worker']]:
+        if str(row['environment'].get('CALLBACK_INBOX_ENABLED', '')).lower() != 'true':
+            errors.append('all backend roles must enable durable callback reception')
     ai_slots = sum(int(row['environment']['TASK_AI_CONCURRENCY']) for row in ai)
     if ai_slots != 640:
         errors.append('AI lane budget must be 640')

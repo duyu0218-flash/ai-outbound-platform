@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index, CheckConstraint, Column, BigInteger, Integer
 from sqlmodel import Field, SQLModel
 
 from .clock import utc_now
@@ -554,3 +554,43 @@ class CallUsage(SQLModel, table=True):
     ai_seconds: Optional[float] = None
     duration_source: str = "missing"
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class CallbackInboxPartition(SQLModel, table=True):
+    __table_args__ = (
+        CheckConstraint("pending_count >= 0 AND pending_bytes >= 0", name="ck_callback_capacity"),
+    )
+    id: int = Field(primary_key=True)
+    pending_count: int = 0
+    pending_bytes: int = 0
+
+
+class CallbackInbox(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_callback_ready", "partition_id", "state", "id"),
+        Index("ix_callback_call_order", "call_id", "state", "id"),
+        Index("ix_callback_age", "state", "received_at"),
+        Index("ix_callback_cleanup", "state", "completed_at"),
+    )
+    id: Optional[int] = Field(default=None, sa_column=Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True))
+    receipt_key: str = Field(unique=True, max_length=64)
+    partition_id: int
+    # No call FK: acknowledging reception must not wait on business row locks.
+    call_id: UUID
+    kind: str = Field(max_length=32)
+    body_json: str
+    body_digest: str = Field(max_length=64)
+    body_bytes: int
+    state: str = Field(default="pending", max_length=16)
+    received_at: datetime = Field(default_factory=utc_now)
+    available_at: datetime = Field(default_factory=utc_now)
+    completed_at: Optional[datetime] = None
+    attempts: int = 0
+    error_type: str = Field(default="", max_length=128)
+
+
+class CallbackInboxWorker(SQLModel, table=True):
+    id: str = Field(primary_key=True, max_length=64)
+    heartbeat_at: datetime = Field(default_factory=utc_now)
+    processed: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    max_latency_ms: float = 0

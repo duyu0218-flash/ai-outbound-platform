@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import List
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -63,6 +64,19 @@ class Settings(BaseSettings):
     telephony_timeout_sec: int = 8
     telephony_retry_times: int = 2
     telephony_retry_backoff_sec: float = 1.0
+    # Fixed 64 partitions: changing their count would invalidate call ordering.
+    callback_inbox_enabled: bool = False
+    callback_inbox_health_path: str = "/tmp/callback-inbox-health.json"
+    callback_inbox_partition_limit: int = Field(default=256, ge=1, le=4096)
+    callback_inbox_partition_bytes: int = Field(default=4 * 1024 * 1024, ge=262144, le=16777216)
+    callback_inbox_body_bytes: int = Field(default=262144, ge=1024, le=262144)
+    callback_inbox_batch_size: int = Field(default=32, ge=1, le=128)
+    callback_inbox_batch_budget_ms: int = Field(default=50, ge=1, le=500)
+    callback_inbox_poll_sec: float = Field(default=0.02, ge=0.005, le=1)
+    callback_inbox_max_attempts: int = Field(default=5, ge=1, le=20)
+    callback_inbox_max_age_sec: float = Field(default=1, ge=0.1, le=30)
+    callback_inbox_worker_ttl_sec: int = Field(default=10, ge=3, le=60)
+    callback_inbox_receipt_days: int = Field(default=7, ge=7, le=90)
     scheduler_enabled: bool = True
     scheduler_poll_interval_sec: float = 1.0
     scheduler_batch_size: int = 200

@@ -1,0 +1,37 @@
+{
+  "code_implemented": true,
+  "source_matches_final_load": true,
+  "static_checks_passed": true,
+  "full_sqlite": {
+    "passed": 251,
+    "skipped": 11
+  },
+  "full_postgres": {
+    "passed": 262,
+    "skipped": 1
+  },
+  "final_inbox_sqlite": {
+    "passed": 27,
+    "skipped": 3
+  },
+  "final_inbox_postgres": {
+    "passed": 30,
+    "skipped": 0
+  },
+  "chromium": {
+    "passed": 19
+  },
+  "gateway": {
+    "passed": 71
+  },
+  "compose": {
+    "passed": 3
+  },
+  "final_load": "20260908-single-host-500/dialogue-inbox-06-results.json",
+  "final_load_correctness_passed": false,
+  "final_load_capacity_passed": false,
+  "production_deployed": false,
+  "shared_test_environment_deployed": false,
+  "real_phone_verified": false,
+  "remote_ci_run": false
+}

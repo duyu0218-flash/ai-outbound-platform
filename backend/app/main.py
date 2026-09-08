@@ -374,6 +374,13 @@ def readyz() -> dict[str, Any]:
         "ai_agent": ai_agent_health_check(),
         "telephony": telephony_check,
     }
+    if settings.callback_inbox_enabled:
+        from .services.callback_inbox import ready as callback_inbox_ready
+        try:
+            with session_scope() as session:
+                checks['callback_inbox'] = 'ok' if callback_inbox_ready(session) else 'consumer unavailable or backlog exceeds SLO'
+        except Exception:
+            checks['callback_inbox'] = 'unavailable'
     payload = {
         "status": "ready",
         "checks": checks,

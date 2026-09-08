@@ -221,7 +221,7 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
     return realtime
 
 
-async def interrupt_playback(call_id: UUID) -> None:
+async def interrupt_playback(call_id: UUID, *, receipt_guard: dict | None = None, raise_on_failure: bool = False) -> None:
     from ..db import session_scope
 
     started = perf_counter()
@@ -243,11 +243,35 @@ async def interrupt_playback(call_id: UUID) -> None:
             if call.status in TERMINAL_STATUSES:
                 return
             realtime = get_or_create_realtime_session(session, call)
+            if receipt_guard is not None and (
+                call.attempts != receipt_guard['attempt']
+                or realtime.playback_id != receipt_guard['playback_id']
+                or realtime.turn_sequence != receipt_guard['turn_sequence']
+            ):
+                return
             expected_attempt, playback_id = call.attempts, realtime.playback_id
             command_id, provider_id = str(call.id), call.telephony_call_id
             session.commit()
             identity = {"expected_attempt": expected_attempt, "provider_call_id": provider_id} if isinstance(adapter, HttpAdapter) else {}
-            await with_retry(lambda: adapter.stop_speaking(call_id=command_id, **identity))
+            if isinstance(adapter, HttpAdapter) and call.voice_ai_pipeline == 'pipecat' and receipt_guard and receipt_guard.get('speech_event_id'):
+                identity['expected_speech_event_id'] = receipt_guard['speech_event_id']
+            async def stop_current():
+                import httpx
+                try:
+                    return await adapter.stop_speaking(call_id=command_id, **identity)
+                except httpx.HTTPStatusError as exc:
+                    # The gateway may observe a newer generation after our DB
+                    # snapshot. Its explicit stale fence is a completed no-op.
+                    if receipt_guard and exc.response.status_code == 409:
+                        try:
+                            detail = exc.response.json().get('detail')
+                        except (ValueError, AttributeError):
+                            detail = None
+                        if detail in {'stale speech generation', 'stale dial attempt', 'stale provider call'}:
+                            return False
+                    raise
+            if await with_retry(stop_current) is False:
+                return
             session.refresh(call, with_for_update=True)
             session.refresh(realtime)
             if call.attempts == expected_attempt and call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED and realtime.playback_id == playback_id:
@@ -278,3 +302,5 @@ async def interrupt_playback(call_id: UUID) -> None:
             )
         )
         session.commit()
+        if not success and raise_on_failure:
+            raise RuntimeError("durable playback interrupt failed")
