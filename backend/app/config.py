@@ -92,6 +92,7 @@ class Settings(BaseSettings):
     task_worker_role: str = "all"
     ai_worker_health_path: str = "/tmp/ai-worker-health.json"
     ai_db_threads: int = 2
+    outbound_require_agent_ready: bool = False
     ai_action_threads: int = 2
     task_ai_concurrency: int = 4
     task_callback_concurrency: int = 4

@@ -45,3 +45,19 @@ def test_missing_node_identity_fails_closed():
     result = assess(nodes, policies)
     assert not result["policy_check_passed"]
     assert any("identity" in error for error in result["blockers"])
+
+
+def test_single_host_total_inflight_has_no_extra_ringing_or_n_minus_one():
+    nodes, policies = fixture()
+    nodes=nodes[:1];nodes[0].update(capacity=500,cps=15)
+    policies['0'].update(call_capacity=500,cps=15,daily_calls=400000)
+    policies['0']['routes']['1:0'].update(max_concurrent=500,cps=15,calls_per_day=400000)
+    result=preflight.assess(nodes,policies,scope='1:0',target=500,mean_duration=120,
+        mean_setup=20,answer_rate=.3,hours=8,turn_interval=4,mean_ai_task=3,
+        ai_slots_per_host=640,topology='single-host',call_semantics='inflight')
+    assert result['policy_check_passed'],result['blockers']
+    assert abs(result['required']['cps']-500/56)<.00001
+    assert result['required']['ai_slots']==536
+    assert set(result['scenarios'])=={'all_nodes'}
+    assert not result['n_minus_one_budget_checked']
+    assert not result['whole_host_failover_verified']

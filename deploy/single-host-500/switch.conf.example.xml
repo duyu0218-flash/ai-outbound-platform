@@ -1,0 +1,9 @@
+<!-- Merge with the qualified PBX configuration; never replace SIP/ACL/dialplan. -->
+<configuration name="switch.conf" description="Single-host qualification budget">
+  <settings>
+    <param name="max-sessions" value="1500"/>
+    <param name="sessions-per-second" value="100"/>
+    <param name="rtp-start-port" value="20000"/>
+    <param name="rtp-end-port" value="29999"/>
+  </settings>
+</configuration>

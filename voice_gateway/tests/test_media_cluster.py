@@ -126,6 +126,7 @@ def test_retry_and_concurrent_close_cannot_reuse_or_delete_wrong_owner(tmp_path,
     async def run():
         manager=RemoteMediaManager(settings_for(tmp_path));manager.store.initialize()
         manager.health={spec['id']:{'ready':True,'epoch':spec['id']} for spec in manager.specs}
+        manager.health_checked_at={spec['id']:__import__('time').monotonic() for spec in manager.specs}
         entered=asyncio.Event();release=asyncio.Event();close_count=0
         async def rpc(owner,action,**kwargs):
             nonlocal close_count

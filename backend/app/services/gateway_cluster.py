@@ -29,7 +29,9 @@ class NodeSpec(BaseModel):
     model_config = ConfigDict(extra='forbid')
     id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,64}$')
     endpoint: str
-    capacity: int = Field(default=200, ge=1, le=200)
+    # One PBX/controller identity also supports the single-host 500 profile.
+    # This is a configuration ceiling, never a measured capacity certificate.
+    capacity: int = Field(default=200, ge=1, le=500)
     # Must not exceed the lowest authorized gateway/route CPS. Zero is legacy
     # development compatibility only; production requires explicit pacing.
     cps: int = Field(default=0, ge=0, le=1000)
@@ -146,6 +148,15 @@ async def probe_gateways():
     if not specs:
         return
     async with httpx.AsyncClient(timeout=2, trust_env=False, follow_redirects=False) as client:
+        dependency_ready = True
+        if settings.outbound_require_agent_ready:
+            try:
+                response = await client.get(settings.ai_agent_url.rstrip('/') + '/readyz',
+                    headers={'Authorization': 'Bearer ' + settings.ai_agent_service_token})
+                response.raise_for_status()
+                dependency_ready = response.json().get('status') == 'ready'
+            except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+                dependency_ready = False
         async def probe(spec):
             started = utc_now()
             ready, capacity = False, 0
@@ -153,7 +164,7 @@ async def probe_gateways():
                 response = await client.get(spec.endpoint + '/readyz')
                 response.raise_for_status()
                 data = response.json()
-                ready = data.get('status') == 'ready' and data.get('node_id') == spec.id
+                ready = dependency_ready and data.get('status') == 'ready' and data.get('node_id') == spec.id
                 capacity = min(spec.capacity, int(data.get('call_capacity', 0)))
             except (httpx.HTTPError, ValueError, TypeError):
                 pass

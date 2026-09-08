@@ -114,10 +114,12 @@ async def ready():
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="voice gateway is draining")
     if not await driver.ready():
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PBX driver is not ready")
+    manager = getattr(driver, 'pipecat_manager', None)
+    media_capacity = manager.admission_capacity() if hasattr(manager, 'admission_capacity') else settings.pipecat_max_active_sessions
     return {
         "status": "ready",
         "node_id": settings.voice_node_id,
-        "call_capacity": min(settings.voice_max_concurrent, settings.pipecat_max_active_sessions)
+        "call_capacity": min(settings.voice_max_concurrent, media_capacity)
         if settings.voice_ai_pipeline in {"pipecat", "hybrid"} else settings.voice_max_concurrent,
         "driver": settings.voice_gateway_driver,
         "voice_ai_pipeline": settings.voice_ai_pipeline,
@@ -148,6 +150,15 @@ async def metrics() -> PlainTextResponse:
         "",
     ])
     ledger = getattr(driver, "ledger", None)
+    sender = getattr(driver, 'sender', None)
+    if sender is not None:
+        for name, value, kind in (
+            ('commit_batches_total', sender.writer.batches, 'counter'),
+            ('committed_operations_total', sender.writer.operations, 'counter'),
+            ('pending_commit_operations', sender.writer.queue.qsize(), 'gauge'),
+            ('http_inflight', len(sender._inflight), 'gauge'),
+        ):
+            body += f'# TYPE ai_outbound_voice_callback_{name} {kind}\nai_outbound_voice_callback_{name} {value}\n'
     body += f"# TYPE ai_outbound_voice_event_loop_lag_seconds gauge\nai_outbound_voice_event_loop_lag_seconds {event_loop_lag_sec}\n"
     event_metrics = getattr(driver, "event_metrics", None)
     if event_metrics:

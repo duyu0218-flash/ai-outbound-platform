@@ -8,7 +8,7 @@ async def stats():return {'active':active,'peak':peak,'unique_calls':len(seen)}
 async def turn(body:dict):
     global active,peak
     active+=1;peak=max(peak,active);seen.add(body['call_id'])
-    if active>=256:gate.set()
+    if active>=int(os.environ.get('SYNTHETIC_AI_CALLS','256')):gate.set()
     try:
         await asyncio.wait_for(gate.wait(),30)
         await asyncio.sleep(3)

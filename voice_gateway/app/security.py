@@ -27,6 +27,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from .durable_batch import DurableBatch
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,9 @@ class Ledger:
                         db.execute("UPDATE outbox SET stream_key=? WHERE id=?",
                                    (str(payload.get("call_id") or row["id"]), row["id"]))
                 db.execute("CREATE INDEX IF NOT EXISTS outbox_stream_order ON outbox(stream_key,created)")
+                # Find the oldest ready stream heads without sorting every
+                # queued event on each free HTTP slot (large burst backlogs).
+                db.execute("CREATE INDEX IF NOT EXISTS outbox_created_order ON outbox(created)")
                 self.initialized = True
             db.execute("BEGIN" if readonly else "BEGIN IMMEDIATE")
             yield db
@@ -236,7 +240,7 @@ class Ledger:
         with self.transaction() as db:
             db.execute("INSERT INTO audit(at,action,detail) VALUES (?, 'reject', ?)", (time.time(), reason[:200]))
 
-    def admit(self, payload: dict, route: RoutePolicy, settings) -> tuple[dict, bool]:
+    def admit(self, payload: dict, route: RoutePolicy, settings, capacity_limit=None) -> tuple[dict, bool]:
         metadata = payload["metadata"]
         tenant, attempt = int(metadata["tenant_id"]), int(metadata["attempt"])
         line = str(metadata.get("telephony_line_id") or 0)
@@ -258,7 +262,8 @@ class Ledger:
             if db.execute("SELECT 1 FROM outbox WHERE created < ? LIMIT 1", (now - settings.voice_callback_failure_stop_sec,)).fetchone():
                 raise HTTPException(503, "callback delivery unhealthy; new calls stopped")
             day, hour = int(now // 86400) * 86400, int(now // 3600) * 3600
-            scopes = [("1=1", (), settings.voice_max_concurrent, settings.voice_cps, settings.voice_daily_call_limit,
+            host_limit = settings.voice_max_concurrent if capacity_limit is None else min(settings.voice_max_concurrent, max(0, capacity_limit))
+            scopes = [("1=1", (), host_limit, settings.voice_cps, settings.voice_daily_call_limit,
                        settings.voice_hour_budget_minor, settings.voice_day_budget_minor),
                       ("tenant=?", (tenant,), settings.voice_max_concurrent, settings.voice_cps, settings.voice_daily_call_limit,
                        settings.voice_hour_budget_minor, settings.voice_day_budget_minor),
@@ -343,6 +348,7 @@ class CallbackSender:
         self._inflight: set[str] = set()
         self._wake = asyncio.Event()
         self.concurrency = max(1, min(128, getattr(settings, "voice_callback_concurrency", 16)))
+        self.writer = DurableBatch(self._commit_batch)
 
     async def start(self):
         if self.ledger and self.task is None:
@@ -356,15 +362,28 @@ class CallbackSender:
             except asyncio.CancelledError:
                 pass
             self.task = None
+        await self.writer.close()
         if self.client:
             await self.client.aclose()
             self.client = None
 
     def _persist(self, url, body, stream_key):
-        key = hashlib.sha256(url.encode() + b"\0" + body).hexdigest()
+        self._commit_batch([('persist', url, body, stream_key, time.time())])
+
+    def _commit_batch(self, operations):
         with self.ledger.transaction() as db:
-            db.execute("INSERT OR IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)",
-                       (key, url, body, time.time(), time.time(), stream_key or key))
+            for operation in operations:
+                if operation[0] == 'persist':
+                    _, url, body, stream_key, created = operation
+                    key = hashlib.sha256(url.encode() + b"\0" + body).hexdigest()
+                    db.execute("INSERT OR IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)",
+                               (key, url, body, created, created, stream_key or key))
+                else:
+                    _, row_id, due = operation
+                    if due is None:
+                        db.execute("DELETE FROM outbox WHERE id=?", (row_id,))
+                    else:
+                        db.execute("UPDATE outbox SET failures=failures+1,due=? WHERE id=?", (due, row_id))
 
     async def post(self, url: str, payload: dict):
         validate_callback_url(self.settings, url)
@@ -374,7 +393,7 @@ class CallbackSender:
             return
         # One stream across status/speech/media URLs: a retried answer must
         # precede its final transcript. Stable event bodies survive restarts.
-        await asyncio.to_thread(self._persist, url, body, str(payload.get("call_id") or ""))
+        await self.writer.submit(('persist', url, body, str(payload.get("call_id") or ""), time.time()))
         self._wake.set()
 
     async def _send(self, url, body):
@@ -414,14 +433,6 @@ class CallbackSender:
             self._inflight.update(row["id"] for row in rows)
             return rows
 
-    def _complete(self, row, retry_after):
-        with self.ledger.transaction() as db:
-            if retry_after is None:
-                db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
-            else:
-                db.execute("UPDATE outbox SET failures=failures+1,due=? WHERE id=?",
-                           (time.time() + retry_after, row["id"]))
-
     async def _deliver(self, row):
         try:
             retry_after = None
@@ -435,7 +446,8 @@ class CallbackSender:
                         retry_after = max(retry_after, min(300, float(exc.response.headers.get("Retry-After", "0"))))
                     except ValueError:
                         pass
-            await asyncio.to_thread(self._complete, row, retry_after)
+            await self.writer.submit(('complete', row['id'],
+                                      None if retry_after is None else time.time() + retry_after))
         finally:
             self._inflight.discard(row["id"])
             self._wake.set()
@@ -579,7 +591,13 @@ class SecureDriver:
     async def _post(self, action, payload):
         if action == "dial":
             route = self.policy(payload)
-            row, fresh = await asyncio.to_thread(self.ledger.admit, payload, route, self.settings)
+            manager = self.driver.pipecat_manager
+            capacity_limit = None
+            if hasattr(manager, 'admission_capacity'):
+                capacity_limit = manager.admission_capacity() if manager.ready() else 0
+            # The controller rechecks its fresh local media budget, even when
+            # the backend's periodic node probe has not seen a failure yet.
+            row, fresh = await asyncio.to_thread(self.ledger.admit, payload, route, self.settings, capacity_limit)
             if not fresh:
                 return json.loads(row["result"]) if row["result"] else {"result": "pending_reconciliation", "provider_call_id": row["uuid"]}
             outgoing = json.loads(row["payload"])
