@@ -301,9 +301,17 @@ async def test_review_ai_failure_never_releases_unconfirmed_capacity(client, mon
                 other.commit()
         raise RuntimeError("synthetic model failure")
     monkeypatch.setattr(dispatcher, "request_ai_turn", fail_model)
+    adapter = AsyncMock()
+    adapter.speak.return_value = {"playback_complete": True}
+    adapter.hangup.return_value = {"ended": False}
+    monkeypatch.setattr(dispatcher, "get_telephony_adapter", lambda **kwargs: adapter)
     await dispatcher._run_ai_turn_locked(call_id=call_id, durable=False)
     with session_scope() as session:
         assert session.get(CallSession, call_id).status == (CallStatus.COMPLETED if ended else CallStatus.IN_AI)
+    if ended:
+        adapter.hangup.assert_not_awaited()
+    else:
+        adapter.hangup.assert_awaited_once()
 
 
 @pytest.mark.skipif(engine.dialect.name != "postgresql", reason="PostgreSQL serial sequence regression")

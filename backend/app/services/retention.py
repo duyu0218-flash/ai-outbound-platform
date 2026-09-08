@@ -11,7 +11,7 @@ from sqlmodel import select
 from ..clock import utc_now
 from ..config import get_settings
 from ..db import session_scope
-from ..models import CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState, TaskOutbox, TaskReceipt, SmsLog
+from ..models import ConversationState, ProductWorkItem, CallAnalysis, CallEvent, CallMetric, CallSession, RecordingAsset, SpeechTurn, TaskState, TaskOutbox, TaskReceipt, SmsLog
 from .admin_settings import get_admin_int_setting
 from .task_queue import enqueue_task
 
@@ -92,7 +92,7 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                 deleted_finals += 1
                 remaining_finals -= 1
 
-        call_tenant_ids = set(session.exec(select(CallSession.tenant_id).distinct()).all())
+        call_tenant_ids = set(session.exec(select(CallSession.tenant_id).distinct()).all()) | set(session.exec(select(ProductWorkItem.tenant_id).distinct()).all())
         remaining_calls = max(1, batch_size)
         for tenant_id in call_tenant_ids:
             if remaining_calls <= 0:
@@ -107,6 +107,11 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                 maximum=3_650,
             )
             cutoff = now - timedelta(days=retention_days)
+            for item in session.exec(select(ProductWorkItem).where(ProductWorkItem.tenant_id==tenant_id,
+                ProductWorkItem.call_id.is_(None),ProductWorkItem.created_at<=cutoff,
+                ProductWorkItem.phone.not_like('redacted:%')).limit(remaining_calls)).all():
+                digest=hmac.new(settings.secret_key.encode(),f'{tenant_id}:{item.id}:{item.phone}'.encode(),hashlib.sha256).hexdigest()[:24]
+                item.phone=f'redacted:{digest}';item.detail_json='{}';session.add(item)
             calls = session.exec(
                 select(CallSession)
                 .where(
@@ -137,6 +142,11 @@ def purge_expired_voice_data(*, batch_size: int = 500) -> dict[str, int]:
                 call.last_error = None
                 call.updated_at = now
                 session.add(call)
+                for state in session.exec(select(ConversationState).where(ConversationState.call_id==call.id)).all():
+                    state.data_json='{}';state.policy_json='{}';state.deadline=None;state.generation+=1
+                    session.add(state)
+                for item in session.exec(select(ProductWorkItem).where(ProductWorkItem.call_id==call.id)).all():
+                    item.phone=call.phone;item.detail_json='{}';session.add(item)
                 for event in session.exec(select(CallEvent).where(CallEvent.call_session_id == call.id)).all():
                     event.payload = "{}"
                     session.add(event)

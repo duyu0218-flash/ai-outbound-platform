@@ -239,8 +239,12 @@ async def _execute_task(task_id, token, task_type, payload):
                           **({'expected_speech_event_id': payload['speech_event_id']} if 'speech_event_id' in payload else {}),
                           **({'expected_turn_sequence': payload['turn_sequence']} if 'turn_sequence' in payload else {}))
     elif task_type == 'after_playback':
-        from .dispatcher import resume_after_playback
-        await resume_after_playback(payload)
+        if payload.get('product_kind'):
+            from .conversation_policy import run_product_task
+            await run_product_task(payload)
+        else:
+            from .dispatcher import resume_after_playback
+            await resume_after_playback(payload)
     elif task_type == 'business_callback':
         from .business_callbacks import deliver_business_callback
         await deliver_business_callback(tenant_id=int(payload['tenant_id']),call_id=UUID(payload['call_id']),

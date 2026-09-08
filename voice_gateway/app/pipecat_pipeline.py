@@ -145,11 +145,19 @@ class TranscriptWebhookProcessor(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
         if isinstance(frame, (TranscriptionFrame, InterimTranscriptionFrame)):
+            policy = self.session.metadata.get('scenario_policy') or {}
+            playing = bool(self.session.playback_id or self.session.module_speaking)
+            urgent = any(word in frame.text for word in ('别再打', '停止联系', '挂断'))
+            if playing and not urgent and (not policy.get('allow_interruptions', True) or len(frame.text.strip()) < int(policy.get('min_interrupt_chars', 1))):
+                return
             self.sequence += 1
             is_final = isinstance(frame, TranscriptionFrame)
             if not is_final:
                 self.latest_partial = frame.text
                 return
+            if playing and (urgent or int(policy.get('min_interrupt_chars', 1)) > 1):
+                await self.push_frame(InterruptionFrame(), FrameDirection.DOWNSTREAM)
+                await self.manager.post_media(self.session, 'interrupted')
             self.latest_partial = ""
             metadata = _transcript_metadata(frame.result)
             final_event_id = metadata.get("provider_event_id") or f"pipecat:{self.session.session_id}:{self.sequence}"
@@ -174,6 +182,10 @@ class TranscriptWebhookProcessor(FrameProcessor):
             self.user_is_speaking = False
         if isinstance(frame, UserStartedSpeakingFrame):
             self.user_is_speaking = True
+            policy = self.session.metadata.get('scenario_policy') or {}
+            playing = bool(self.session.playback_id or self.session.module_speaking)
+            if playing and (not policy.get('allow_interruptions', True) or int(policy.get('min_interrupt_chars', 1)) > 1):
+                return
             # Invalidate the prior reply locally before a delayed ASR final or
             # control-plane callback can arrive. Only the new final replaces it.
             self.session.latest_final_event_id = f"vad:{uuid4().hex}"
@@ -375,6 +387,9 @@ class PipecatPipelineManager:
 
         @transport.event_handler("on_client_connected")
         async def on_client_connected(_transport, _client):
+            delay = int((session.metadata.get('scenario_policy') or {}).get('opening_delay_ms', 0))
+            if delay:
+                await asyncio.sleep(min(5, max(0, delay / 1000)))
             session.startup_complete.set()
             await self.post_media(session, "listening")
             pending = list(session.pending_speech)
@@ -410,7 +425,7 @@ class PipecatPipelineManager:
         return _make_stt_service(self.settings, session), OpenAITTSService(
             api_key=self.settings.pipecat_openai_api_key,
             base_url=self.settings.pipecat_openai_base_url or None,
-            voice=self.settings.pipecat_tts_voice,
+            voice=str((session.metadata.get('scenario_policy') or {}).get('voice') or self.settings.pipecat_tts_voice),
             model=self.settings.pipecat_tts_model,
             sample_rate=self.settings.pipecat_sample_rate,
         )
@@ -592,6 +607,7 @@ def _language(value: object) -> Language:
 
 
 def _make_stt_service(settings: Settings, session: PipecatCallSession):
+    policy = session.metadata.get('scenario_policy') or {}
     provider = settings.pipecat_stt_provider.strip().lower()
     if provider == "aliyun-nls":
         return AliyunNLSSTTService(
@@ -599,9 +615,9 @@ def _make_stt_service(settings: Settings, session: PipecatCallSession):
             token_getter=settings.resolved_aliyun_nls_token,
             gateway_url=settings.aliyun_nls_gateway_url.strip(),
             sample_rate=settings.pipecat_sample_rate,
-            vocabulary_id=settings.aliyun_nls_vocabulary_id.strip(),
+            vocabulary_id=str(policy.get('vocabulary_id') or settings.aliyun_nls_vocabulary_id).strip(),
             customization_id=settings.aliyun_nls_customization_id.strip(),
-            max_sentence_silence_ms=settings.aliyun_nls_max_sentence_silence_ms,
+            max_sentence_silence_ms=int(policy.get('sentence_silence_ms') or settings.aliyun_nls_max_sentence_silence_ms),
             enable_punctuation_prediction=settings.aliyun_nls_enable_punctuation_prediction,
             enable_inverse_text_normalization=settings.aliyun_nls_enable_inverse_text_normalization,
             enable_words=settings.aliyun_nls_enable_words,
@@ -614,7 +630,7 @@ def _make_stt_service(settings: Settings, session: PipecatCallSession):
     return OpenAIRealtimeSTTService(
         api_key=settings.pipecat_openai_api_key,
         base_url=settings.pipecat_openai_realtime_base_url,
-        language=_language(session.metadata.get("language")),
+        language=_language(policy.get("language") or session.metadata.get("language")),
     )
 
 

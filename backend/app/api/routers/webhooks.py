@@ -241,6 +241,8 @@ def telephony_status(
         call.last_error = str(payload.payload.get("hangup_reason") or "agent did not answer")
         call.updated_at = utc_now()
         session.add(call)
+        from ...services.conversation_policy import arm_timer
+        arm_timer(session, call, "handoff")
         session.commit()
         return {"result": "ok", "requeued": True}
 
@@ -421,9 +423,19 @@ def telephony_speech(
     if payload.attempt is not None and payload.attempt != call.attempts:
         return {"result": "ignored", "reason": "stale_attempt"}
     session.refresh(call, with_for_update=True)
+    if payload.attempt is not None and payload.attempt != call.attempts:
+        return {"result": "ignored", "reason": "stale_attempt"}
     turn, duplicate = ingest_speech_turn(session, call, payload)
     if duplicate:
         return {"result": "ok", "duplicate": True, "turn_id": turn.id}
+    if payload.is_final and call.status == CallStatus.WAITING_HUMAN:
+        from ...services.dialogue_rules import classify
+        from ...services.conversation_policy import state_for, release_waiting_agents
+        from ...product_schemas import ScenarioPolicy
+        policy=ScenarioPolicy.model_validate_json(state_for(session,call).policy_json)
+        if (payload.confidence is None or payload.confidence>=policy.confidence_threshold) and classify(payload.transcript) in {'stop_contact','wrong_person','decline_handoff','end','callback'}:
+            release_waiting_agents(session,call)
+            call.status=CallStatus.IN_AI;call.human_agent_id=None;session.add(call)
     if payload.barge_in:
         background_tasks.add_task(interrupt_playback, call.id)
     if payload.is_final and call.mode != CallMode.HUMAN_ONLY:
@@ -452,6 +464,47 @@ def telephony_speech(
     if callback_task is not None:
         background_tasks.add_task(notify_task, callback_task.id)
     return {"result": "ok", "duplicate": False, "turn_id": turn.id}
+
+
+@router.post('/telephony/dtmf')
+@webhook_transaction
+def telephony_dtmf(payload: WebhookEvent, background_tasks: BackgroundTasks,
+    _: None = Depends(check_webhook_token), session: Session = Depends(get_webhook_session, scope='function')):
+    from ...services.conversation_policy import state_for, save_state, arm_timer
+    from ...product_schemas import ScenarioPolicy
+    call = session.get(CallSession, payload.call_id)
+    if call is None or payload.payload.get('attempt') != call.attempts:
+        return {'result':'ignored'}
+    session.refresh(call, with_for_update=True)
+    if payload.payload.get('attempt') != call.attempts:
+        return {'result':'ignored','reason':'stale_attempt'}
+    if call.status not in {CallStatus.ANSWERED,CallStatus.IN_AI}:
+        return {'result':'ignored'}
+    digit = str(payload.payload.get('digit') or '')
+    event_id = str(payload.payload.get('event_id') or '')
+    if len(digit)!=1 or digit not in '0123456789*#' or not event_id:
+        raise HTTPException(422,'invalid DTMF event')
+    if _add_event(session,call.id,'dtmf','freeswitch',payload.payload):
+        return {'result':'ok','duplicate':True}
+    state=state_for(session,call); data=json.loads(state.data_json)
+    policy=ScenarioPolicy.model_validate_json(state.policy_json)
+    slot=next((s for s in policy.slots if s.key==data.get('active_slot') and s.kind=='digits'),None)
+    if slot is None:return {'result':'ignored','reason':'no_digit_field'}
+    digits=data.get('dtmf_buffer','')
+    complete=digit==policy.dtmf_end
+    if digit.isdigit():digits+=digit
+    if len(digits)>policy.dtmf_max_digits:
+        data['dtmf_buffer']='';save_state(session,state,data)
+        return {'result':'rejected','reason':'too_many_digits'}
+    if complete and digits:
+        data['dtmf_buffer']='';save_state(session,state,data)
+        return telephony_speech.__wrapped__(SpeechWebhookEvent(call_id=call.id,event_id='dtmf:'+event_id,
+            transcript=digits,is_final=True,attempt=call.attempts,confidence=1,speaker_role='customer'),
+            background_tasks,session=session)
+    data['dtmf_buffer']=digits;save_state(session,state,data)
+    state.deadline=None
+    arm_timer(session,call)
+    return {'result':'collecting','digit_count':len(digits)}
 
 
 @router.post("/telephony/media")
@@ -539,6 +592,11 @@ def telephony_recording(
     session.add(call)
     session.commit()
     if url:
+        if recording_attempt == call.attempts and call.status in {CallStatus.COMPLETED,CallStatus.FAILED,CallStatus.NO_ANSWER,CallStatus.BUSY,CallStatus.VOICEMAIL}:
+            refresh_task = enqueue_task(session,tenant_id=call.tenant_id,task_type='call_analysis',aggregate_id=str(call.id),
+                idempotency_key=f'analysis-recording:{call.id}:{recording_attempt}:{existing_asset.id}',
+                payload={'call_id':str(call.id),'attempt':recording_attempt})
+            background_tasks.add_task(notify_task,refresh_task.id)
         if existing_asset is not None and not existing_asset.storage_uri and settings.recording_ingest_endpoint.strip():
             ingest_task = enqueue_task(
                 session,

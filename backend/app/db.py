@@ -81,6 +81,7 @@ event.listen(engine, "commit", lambda *args: record_late_commit())
 
 
 REQUIRED_PRODUCTION_TABLES = {
+    "scenarioversion", "conversationstate", "phonesuppression", "callbackappointment", "productworkitem",
     "tenant",
     "user",
     "contact",

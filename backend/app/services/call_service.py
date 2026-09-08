@@ -121,6 +121,9 @@ def can_call_contact_sync(
     exclude_call_id: UUID | None = None,
 ) -> tuple[bool, str]:
     normalized = normalize_phone(phone)
+    from .conversation_policy import suppressed
+    if suppressed(session, tenant_id, normalized):
+        return False, "contact_dnc"
     compliance = get_admin_setting(session, tenant_id, "compliance")
     contact = session.exec(
         select(Contact).where(Contact.tenant_id == tenant_id, Contact.phone == normalized)
@@ -280,6 +283,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     session.expire_all()
     session.refresh(call, with_for_update=True)
     if call.status not in DISPATCHABLE_STATUSES or call.attempts >= call.max_attempts:
+        session.rollback()
+        return False
+    from .conversation_policy import current_policy, in_hours
+    product_policy, product_version = current_policy(session, call.tenant_id, call.campaign_id)
+    if product_version is not None and not in_hours(product_policy, _now()):
         session.rollback()
         return False
     platform_active = session.exec(select(func.count(CallSession.id)).where(
@@ -507,6 +515,11 @@ def can_retry_call(call: CallSession) -> tuple[bool, str]:
 
 
 def schedule_campaign_retry(session: Session, call: CallSession, terminal_status: CallStatus) -> bool:
+    from .conversation_policy import suppressed, current_policy
+    policy, policy_version = current_policy(session, call.tenant_id, call.campaign_id)
+    if suppressed(session, call.tenant_id, call.phone) or any(cause in (call.last_error or '') for cause in policy.permanent_causes):
+        call.next_attempt_at = None
+        return False
     if terminal_status not in {CallStatus.FAILED, CallStatus.NO_ANSWER, CallStatus.BUSY, CallStatus.VOICEMAIL}:
         call.next_attempt_at = None
         return False
@@ -522,6 +535,8 @@ def schedule_campaign_retry(session: Session, call: CallSession, terminal_status
         if terminal_status == CallStatus.FAILED
         else campaign.attempt_interval_sec
     )
+    if policy_version is not None:
+        delay_seconds = policy.retry_seconds.get(terminal_status.value, delay_seconds)
     call.next_attempt_at = _now() + timedelta(seconds=max(1, int(delay_seconds)))
     return True
 
@@ -716,6 +731,11 @@ async def _place_call_with_result(session: Session, call: CallSession) -> tuple[
         "media_webhook_url": f"{settings.telephony_webhook_base}{settings.media_event_url}",
         "recording_webhook_url": f"{settings.telephony_webhook_base}{settings.call_recording_event_url}",
     }
+    from .conversation_policy import state_for
+    scenario = state_for(session, call)
+    from ..product_schemas import ScenarioPolicy
+    payload['scenario_policy'] = ScenarioPolicy.model_validate_json(scenario.policy_json).model_dump(mode='json')
+    payload['dtmf_webhook_url'] = f"{settings.telephony_webhook_base}/api/v1/webhooks/telephony/dtmf"
     ai_config = get_admin_setting(session, call.tenant_id, "ai")
     selected_pipeline = select_voice_ai_pipeline(session, call, ai_config=ai_config)
     if call.voice_ai_pipeline != selected_pipeline:

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     freeswitch_agent_extension_template: str = "agent_{agent_id}"
     freeswitch_default_handoff_extension: str = "handoff_default"
     freeswitch_tts_engine: str = ""
+    freeswitch_fallback_audio_path: str = ""
     freeswitch_tts_voice: str = ""
     freeswitch_tts_uri_template: str = "speak:{engine}|{voice}|{text}"
     freeswitch_tts_http_endpoint: str = ""

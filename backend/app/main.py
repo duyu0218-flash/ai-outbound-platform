@@ -79,6 +79,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+from .api.routers.product import router as product_router
+app.include_router(product_router)
 frontend_dir = Path(__file__).resolve().parent / "static"
 app.mount("/assets", StaticFiles(directory=frontend_dir / "assets", check_dir=False), name="frontend-assets")
 

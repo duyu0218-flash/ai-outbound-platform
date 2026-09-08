@@ -39,6 +39,7 @@ def apply_runtime_migrations(bind: Engine | Connection) -> None:
         statements.append("ALTER TABLE speechturn ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0")
 
     additions = {
+        "knowledgeitem": {"source":"VARCHAR(2000) NOT NULL DEFAULT ''", "valid_from":"TIMESTAMP", "valid_until":"TIMESTAMP", "campaign_id":"INTEGER"},
         "gatewaynode": {"next_dial_at": "TIMESTAMP"},
         "recordingasset": {"attempt": "INTEGER NOT NULL DEFAULT 0"},
         "callanalysis": {"automatic_result_json": "TEXT NOT NULL DEFAULT '{}'", "needs_review": "BOOLEAN NOT NULL DEFAULT FALSE"},

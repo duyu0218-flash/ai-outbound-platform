@@ -1,11 +1,21 @@
 from typing import List
+import re
 
 from .config import settings
 
 
 def is_handoff(transcript: str, keywords: List[str]) -> bool:
     content = (transcript or "").lower()
-    return any(k.strip().lower() in content for k in keywords if k.strip())
+    for keyword in keywords:
+        if not keyword.strip():
+            continue
+        for match in re.finditer(re.escape(keyword.strip().lower()), content):
+            prefix = content[max(0, match.start()-48):match.start()]
+            if re.search(r"(?:not|don't|no need to)\s+(?:\w+\s+){0,5}$", prefix):
+                continue
+            if not re.search(r"(?:不用|不要|不必|不想|无需|别|不|not|don't|no)(?:再|转|找|帮我|给我|要|需要|转接|\s)*$", prefix):
+                return True
+    return False
 
 
 def _is_english(language: str) -> bool:

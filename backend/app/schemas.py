@@ -701,18 +701,22 @@ class FlowPosition(BaseModel):
 
 class FlowNode(BaseModel):
     id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
-    type: str = Field(pattern=r"^(start|message|listen|handoff|hangup)$")
+    type: str = Field(pattern=r"^(start|message|listen|handoff|hangup|collect|set|branch)$")
     label: str = Field(min_length=1, max_length=200)
     prompt: str = Field(default="", max_length=20_000)
     position: FlowPosition
+    variable: str = Field(default='',max_length=40,pattern=r'^[a-zA-Z0-9_]*$')
+    value: str = Field(default='',max_length=500)
 
 
 class FlowEdge(BaseModel):
     id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     source: str = Field(min_length=1, max_length=128)
     target: str = Field(min_length=1, max_length=128)
-    condition: str = Field(default="always", pattern=r"^(always|keyword|silence)$")
+    condition: str = Field(default="always", pattern=r"^(always|keyword|silence|intent|equals|not_equals)$")
     keywords: List[str] = Field(default_factory=list, max_length=50)
+    variable: str = Field(default='',max_length=40,pattern=r'^[a-zA-Z0-9_]*$')
+    value: str = Field(default='',max_length=500)
 
 
 class ScriptFlowGraph(BaseModel):
@@ -750,6 +754,7 @@ class ScriptFlowSimulateRequest(BaseModel):
     current_node_id: Optional[str] = None
     transcript: str = Field(default="", max_length=20_000)
     silence: bool = False
+    variables: dict[str,str] = Field(default_factory=dict,max_length=50)
 
 
 class ScriptFlowSimulateOut(BaseModel):
@@ -758,6 +763,7 @@ class ScriptFlowSimulateOut(BaseModel):
     action: str
     prompt: str = ""
     matched_edge_id: Optional[str] = None
+    variables: dict[str,str] = Field(default_factory=dict)
 
 
 class AdminUserCreate(BaseModel):

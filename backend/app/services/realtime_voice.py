@@ -56,6 +56,18 @@ def ingest_speech_turn(
     realtime = get_or_create_realtime_session(session, call)
     if payload.is_final:
         realtime.turn_sequence += 1
+    from ..models import ConversationState
+    policy_state = session.exec(select(ConversationState).where(ConversationState.call_id == call.id,
+        ConversationState.attempt == call.attempts)).first()
+    if policy_state is not None:
+        policy_state.generation += 1
+        policy_state.deadline = None
+        policy_state.timer_kind = ''
+        data = json.loads(policy_state.data_json)
+        if payload.is_final:
+            data['speech_event_id'] = payload.event_id
+        policy_state.data_json = json.dumps(data, ensure_ascii=False)
+        session.add(policy_state)
     from .call_service import TERMINAL_STATUSES
     if call.status not in TERMINAL_STATUSES and realtime.state != RealtimeState.CLOSED:
         realtime.state = RealtimeState.THINKING if payload.is_final else RealtimeState.LISTENING
@@ -174,12 +186,14 @@ def apply_media_event(session: Session, call: CallSession, payload: MediaWebhook
             TaskOutbox.state == TaskState.PENDING).with_for_update()).all()
         for task in pending:
             continuation = json.loads(task.payload_json)
-            if (continuation.get("attempt") == attempt
+            if (not continuation.get('product_kind') and continuation.get("attempt") == attempt
                     and continuation.get("playback_id") == previous_playback_id
                     and realtime.playback_id != previous_playback_id):
                 task.available_at = utc_now()
                 session.add(task)
     session.add(realtime)
+    from .conversation_policy import on_media
+    on_media(session, call, payload)
     session.add(
         CallMetric(
             tenant_id=call.tenant_id,

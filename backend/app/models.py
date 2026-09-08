@@ -122,6 +122,67 @@ class Contact(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class ScenarioVersion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    campaign_id: Optional[int] = Field(default=None, index=True, foreign_key="campaign.id")
+    policy_json: str = "{}"
+    published_by: Optional[int] = None
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ConversationState(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("call_id", "attempt", name="uq_conversation_attempt"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    call_id: UUID = Field(index=True, foreign_key="callsession.id")
+    attempt: int = 0
+    policy_json: str = "{}"
+    policy_version_id: Optional[int] = None
+    data_json: str = "{}"
+    generation: int = 0
+    deadline: Optional[datetime] = Field(default=None,index=True)
+    timer_kind: str = ""
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PhoneSuppression(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "phone", name="uq_phone_suppression"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(index=True, foreign_key="tenant.id")
+    phone: str = Field(index=True)
+    reason: str = ""
+    source_call_id: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class CallbackAppointment(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4,primary_key=True)
+    tenant_id: int = Field(index=True,foreign_key="tenant.id")
+    source_call_id: UUID = Field(index=True,foreign_key="callsession.id")
+    request_key: str = Field(unique=True,max_length=200)
+    scheduled_at: datetime = Field(index=True)
+    state: str = Field(default="confirmed",index=True)
+    revision: int = 1
+    dial_call_id: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProductWorkItem(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4,primary_key=True)
+    tenant_id: int = Field(index=True,foreign_key="tenant.id")
+    event_key: str = Field(unique=True,max_length=250)
+    call_id: Optional[UUID] = Field(default=None,foreign_key="callsession.id")
+    kind: str = Field(index=True)
+    state: str = Field(default="open",index=True)
+    phone: str = ""
+    detail_json: str = "{}"
+    assigned_to: Optional[int] = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class ContactImportJob(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "request_key", name="uq_contact_import_tenant_key"),
@@ -389,6 +450,10 @@ class KnowledgeItem(SQLModel, table=True):
     content: str = Field(max_length=50_000)
     category: str = Field(default="default", index=True, max_length=100)
     keywords: str = Field(default="", max_length=2000)
+    source: str = Field(default="", max_length=2000)
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    campaign_id: Optional[int] = Field(default=None, index=True, foreign_key="campaign.id")
     is_active: bool = True
     version: int = 1
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")

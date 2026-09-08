@@ -694,7 +694,7 @@ function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTempl
   const [selectedId, setSelectedId] = useState<number>()
   const [graph, setGraph] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] }>({ nodes: [], edges: [] })
   const [selectedNodeId, setSelectedNodeId] = useState<string>()
-  const [edgeForm] = Form.useForm<{ source: string; target: string; condition: FlowEdge['condition']; keywords: string }>()
+  const [edgeForm] = Form.useForm<{ source: string; target: string; condition: FlowEdge['condition']; keywords: string; variable?: string; value?: string }>()
   const versions = useQuery({
     queryKey: ['script-flow', template?.id],
     queryFn: () => apiRequest<ScriptFlowVersion[]>(`/api/v1/script-templates/${template!.id}/flows`, {}, token),
@@ -727,7 +727,7 @@ function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTempl
   const selectedNode = graph.nodes.find((node) => node.id === selectedNodeId)
   const addNode = (type: FlowNodeType) => {
     const id = `${type}-${Date.now()}`
-    setGraph((current) => ({ ...current, nodes: [...current.nodes, { id, type, label: { message: '播报话术', listen: '等待回答', handoff: '转人工', hangup: '结束通话', start: '开始' }[type], prompt: '', position: { x: 260 + current.nodes.length * 34, y: 90 + (current.nodes.length % 4) * 110 } }] }))
+    setGraph((current) => ({ ...current, nodes: [...current.nodes, { id, type, label: { message: '播报话术', listen: '等待回答', handoff: '转人工', hangup: '结束通话', start: '开始', collect: '采集信息', set: '设置变量', branch: '条件分支' }[type], prompt: '', position: { x: 260 + current.nodes.length * 34, y: 90 + (current.nodes.length % 4) * 110 } }] }))
     setSelectedNodeId(id)
   }
   const patchNode = (patch: Partial<FlowNode>) => setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === selectedNodeId ? { ...node, ...patch } : node) }))
@@ -749,9 +749,9 @@ function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTempl
     const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up) }
     document.addEventListener('mousemove', move); document.addEventListener('mouseup', up)
   }
-  const addEdge = (values: { source: string; target: string; condition: FlowEdge['condition']; keywords: string }) => {
+  const addEdge = (values: { source: string; target: string; condition: FlowEdge['condition']; keywords: string; variable?: string; value?: string }) => {
     if (values.source === values.target) return message.error('起点和终点不能相同')
-    setGraph((current) => ({ ...current, edges: [...current.edges, { id: `edge-${Date.now()}`, source: values.source, target: values.target, condition: values.condition, keywords: values.keywords?.split(/[,，]/).map((word) => word.trim()).filter(Boolean) || [] }] }))
+    setGraph((current) => ({ ...current, edges: [...current.edges, { id: `edge-${Date.now()}`, source: values.source, target: values.target, condition: values.condition, variable: values.variable || '', value: values.value || '', keywords: values.keywords?.split(/[,，]/).map((word) => word.trim()).filter(Boolean) || [] }] }))
     edgeForm.resetFields()
   }
   return <Modal width="96vw" styles={{ body: { height: '76vh', padding: 0 } }} title={`${template?.name || ''} · 话术画布`} open={open} onCancel={onClose} footer={null} destroyOnHidden>
@@ -764,14 +764,14 @@ function ScriptFlowDesigner({ template, open, onClose }: { template: ScriptTempl
         {selected && <Tag color={selected.status === 'published' ? 'green' : 'blue'}>v{selected.version} {selected.status}</Tag>}
       </div>
       {!selected ? <Empty description="先创建一个画布版本" /> : <div className="flow-workspace">
-        <div className="flow-palette"><Text strong>节点</Text>{(['message', 'listen', 'handoff', 'hangup'] as FlowNodeType[]).map((type) => <Button key={type} disabled={selected.status !== 'draft'} onClick={() => addNode(type)}>{({ message: '播报', listen: '等待', handoff: '转人工', hangup: '挂机', start: '开始' } as Record<FlowNodeType, string>)[type]}</Button>)}</div>
+        <div className="flow-palette"><Text strong>节点</Text>{(['message', 'listen', 'collect', 'set', 'branch', 'handoff', 'hangup'] as FlowNodeType[]).map((type) => <Button key={type} disabled={selected.status !== 'draft'} onClick={() => addNode(type)}>{({ message: '播报', listen: '等待', handoff: '转人工', hangup: '挂机', start: '开始', collect: '采集信息', set: '设置变量', branch: '条件分支' } as Record<FlowNodeType, string>)[type]}</Button>)}</div>
         <div className="flow-canvas">
           <svg className="flow-lines">{graph.edges.map((edge) => { const source = graph.nodes.find((node) => node.id === edge.source); const target = graph.nodes.find((node) => node.id === edge.target); return source && target ? <g key={edge.id}><line x1={source.position.x + 76} y1={source.position.y + 30} x2={target.position.x + 76} y2={target.position.y + 30} /><text x={(source.position.x + target.position.x) / 2 + 76} y={(source.position.y + target.position.y) / 2 + 22}>{edge.condition === 'keyword' ? edge.keywords.join('/') : edge.condition}</text></g> : null })}</svg>
           {graph.nodes.map((node) => <button type="button" key={node.id} className={`flow-node flow-node-${node.type} ${selectedNodeId === node.id ? 'selected' : ''}`} style={{ left: node.position.x, top: node.position.y }} onMouseDown={(event) => { setSelectedNodeId(node.id); startDrag(event, node) }}><strong>{node.label}</strong><span>{node.type}</span></button>)}
         </div>
         <div className="flow-inspector">
-          {selectedNode ? <><Text strong>节点配置</Text><Input value={selectedNode.label} disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ label: event.target.value })} /><Input.TextArea rows={5} value={selectedNode.prompt} placeholder="播报内容" disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ prompt: event.target.value })} />{selectedNode.type !== 'start' && <Button danger disabled={selected.status !== 'draft'} onClick={deleteNode}>删除节点</Button>}</> : <Text type="secondary">点击节点进行配置</Text>}
-          <div className="flow-edge-form"><Text strong>添加连线</Text><Form form={edgeForm} layout="vertical" onFinish={addEdge} initialValues={{ condition: 'always' }}><Form.Item name="source" label="起点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="target" label="终点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="condition" label="条件"><Select options={[{ value: 'always', label: '默认' }, { value: 'keyword', label: '关键词' }, { value: 'silence', label: '静默' }]} /></Form.Item><Form.Item name="keywords" label="关键词（逗号分隔）"><Input /></Form.Item><Button htmlType="submit" disabled={selected.status !== 'draft'} block>添加连线</Button></Form></div>
+          {selectedNode ? <><Text strong>节点配置</Text><Input value={selectedNode.label} disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ label: event.target.value })} /><Input.TextArea rows={5} value={selectedNode.prompt} placeholder="播报内容" disabled={selected.status !== 'draft'} onChange={(event) => patchNode({ prompt: event.target.value })} />{['collect', 'set'].includes(selectedNode.type) && <Input aria-label="变量名称" placeholder="变量名称（字母、数字、下划线）" value={selectedNode.variable || ''} disabled={selected.status !== 'draft'} onChange={event => patchNode({ variable: event.target.value })} />}{selectedNode.type === 'set' && <Input aria-label="变量值" placeholder="变量值" value={selectedNode.value || ''} disabled={selected.status !== 'draft'} onChange={event => patchNode({ value: event.target.value })} />}{selectedNode.type !== 'start' && <Button danger disabled={selected.status !== 'draft'} onClick={deleteNode}>删除节点</Button>}</> : <Text type="secondary">点击节点进行配置</Text>}
+          <div className="flow-edge-form"><Text strong>添加连线</Text><Form form={edgeForm} layout="vertical" onFinish={addEdge} initialValues={{ condition: 'always' }}><Form.Item name="source" label="起点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="target" label="终点" rules={[{ required: true }]}><Select options={graph.nodes.map((node) => ({ value: node.id, label: node.label }))} /></Form.Item><Form.Item name="condition" label="条件"><Select options={[{ value: 'always', label: '默认' }, { value: 'keyword', label: '关键词' }, { value: 'silence', label: '静默' }, { value: 'intent', label: '意图' }, { value: 'equals', label: '变量等于' }, { value: 'not_equals', label: '变量不等于' }]} /></Form.Item><Form.Item name="keywords" label="关键词（逗号分隔）"><Input /></Form.Item><Form.Item name="variable" label="条件变量"><Input /></Form.Item><Form.Item name="value" label="比较值"><Input /></Form.Item><Button htmlType="submit" disabled={selected.status !== 'draft'} block>添加连线</Button></Form></div>
           <List size="small" header={<Text strong>现有连线</Text>} dataSource={graph.edges} renderItem={(edge) => <List.Item actions={[<Button key="remove" type="text" danger disabled={selected.status !== 'draft'} onClick={() => setGraph((current) => ({ ...current, edges: current.edges.filter((item) => item.id !== edge.id) }))}>删除</Button>]}><Text ellipsis>{edge.source} → {edge.target}<br /><Text type="secondary">{edge.condition}{edge.keywords.length ? ` · ${edge.keywords.join('/')}` : ''}</Text></Text></List.Item>} />
         </div>
       </div>}

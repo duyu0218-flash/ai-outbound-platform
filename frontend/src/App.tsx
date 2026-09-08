@@ -4,6 +4,7 @@ import enUS from 'antd/locale/en_US'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { AppShell, ProtectedRoute } from './layout'
+import { ProductOperationsPage } from './product-operations'
 import {
   AgentWorkspacePage,
   CallsPage,
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="lines" element={<LinesPage />} />
               <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="product" element={<ProductOperationsPage />} />
               <Route path="system" element={<SystemPage />} />
             </Route>
           </Route>
