@@ -40,6 +40,8 @@
 
 前端采用 React、TypeScript、Ant Design 与 TanStack Query，生产构建由控制服务同源托管。
 
+2026-09-08 图文手册：[安装教程](INSTALL.md) · [平台配置](docs/platform-configuration-guide.md) · [产品手册](docs/operator-manual.md) · [本次验证记录](docs/reviews/20260908-manual-refresh.md)
+
 系统使用说明（含管理员与座席页面截图）：[docs/operator-manual.md](docs/operator-manual.md)
 
 部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
@@ -47,9 +49,9 @@
 ## 2bis. 测试账号体系（新）
 
 - 以下演示账号仅在非生产环境且 `DEMO_USERS_ENABLED=true` 时创建并显示；生产环境登录页不会预填或公开演示凭据。
-- 管理端测试地址：[http://localhost:8000/admin](http://localhost:8000/admin)  
+- 管理端测试地址：[http://localhost:8000/admin](http://localhost:8000/admin)
   默认账号：`admin` / `12345678`
-- 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)  
+- 座席端测试地址：[http://localhost:8000/agent](http://localhost:8000/agent)
   默认账号：`1001@test` / `12345678`
 - 文档页：[http://localhost:8000/docs.html](http://localhost:8000/docs.html)（指向 `/docs`）
 
@@ -101,12 +103,13 @@ pnpm build
 完整安装与生产化部署请先看： [INSTALL.md](INSTALL.md)
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+if [ ! -e .env ]; then cp .env.example .env; fi
+chmod 600 .env
+APP_ENV_FILE=.env docker compose --env-file .env up -d --build
 ```
 
 - 控制面：http://localhost:8000/health
-- AI 服务：http://localhost:8001/health
+- AI 服务：容器内 `http://ai-agent:8001/health`，默认不开放宿主机 8001 端口
 
 需要同时启动第一批商用基础设施（SeaweedFS、录音适配器、Prometheus、Alertmanager、Grafana）：
 

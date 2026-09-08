@@ -1,0 +1,88 @@
+
+Running 19 tests using 1 worker
+
+(node:22089) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › frontend/e2e/architecture-hardening.spec.ts:3:1 › platform service destinations are read only and AI settings save and reload (1.5s)
+  ✓   2 [chromium] › frontend/e2e/functional-fixes.spec.ts:40:1 › campaign contact search and paging preserve selections and zero retries (5.8s)
+  ✓   3 [chromium] › frontend/e2e/functional-fixes.spec.ts:107:1 › call pagination requests a different server page and supports returning (845ms)
+  ✘   4 [chromium] › frontend/e2e/functional-fixes.spec.ts:127:1 › manual handoff requeues on no answer and can be accepted and ended (30.1s)
+(node:22143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › frontend/e2e/portal.spec.ts:11:1 › administrator can enter every management route and log out (2.9s)
+  ✓   6 [chromium] › frontend/e2e/portal.spec.ts:37:1 › agent is redirected away from the administrator portal (697ms)
+  ✓   7 [chromium] › frontend/e2e/portal.spec.ts:49:1 › recording notice text can be saved and is restored after reload (804ms)
+  ✓   8 [chromium] › frontend/e2e/portal.spec.ts:68:1 › all administrator menu entries are clickable and return to the dashboard (1.3s)
+  ✓   9 [chromium] › frontend/e2e/portal.spec.ts:83:1 › contacts can be saved, searched and restored after reload (1.3s)
+  ✓  10 [chromium] › frontend/e2e/portal.spec.ts:100:1 › invalid login stays unauthenticated and logout protects back navigation (1.3s)
+  ✓  11 [chromium] › frontend/e2e/portal.spec.ts:119:1 › SPA account switch never reuses the previous tenant cache (2.5s)
+  ✓  12 [chromium] › frontend/e2e/product-capabilities.spec.ts:10:1 › business policy saves fields and FAQ, simulates negation and rejects stale publishing (1.1s)
+  ✓  13 [chromium] › frontend/e2e/product-capabilities.spec.ts:45:1 › knowledge and incoming follow-up save, search and complete (1.3s)
+  ✓  14 [chromium] › frontend/e2e/product-capabilities.spec.ts:73:1 › agent and anonymous sessions cannot access product administration (567ms)
+  ✓  15 [chromium] › frontend/e2e/product-capabilities.spec.ts:82:1 › seeded appointment can be rescheduled and cancelled from its row (1.4s)
+  ✓  16 [chromium] › frontend/e2e/product-capabilities.spec.ts:109:1 › flow editor persists a collection variable and exposes new node types (2.8s)
+  ✓  17 [chromium] › frontend/e2e/review-fixes.spec.ts:9:1 › reviewed lists fetch later server pages and return (3.7s)
+  ✓  18 [chromium] › frontend/e2e/review-fixes.spec.ts:36:1 › prepared campaign supports edit start pause resume stop (2.8s)
+  ✓  19 [chromium] › frontend/e2e/review-fixes.spec.ts:67:1 › billing explains missing duration evidence (554ms)
+
+
+  1) [chromium] › frontend/e2e/functional-fixes.spec.ts:127:1 › manual handoff requeues on no answer and can be accepted and ended 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.waitForResponse: Test timeout of 30000ms exceeded.
+
+      142 |   const call = await response.json()
+      143 |   const row = page.getByRole('row').filter({ hasText: phone })
+    > 144 |   const transfer = page.waitForResponse(r => r.url().includes(`/calls/${call.id}/handover`) && r.request().method() === 'POST')
+          |                         ^
+      145 |   await row.getByRole('button', { name: '转人工', exact: true }).click(); await confirm(page)
+      146 |   expect((await transfer).ok()).toBeTruthy()
+      147 |   const unavailable = await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'human_unavailable', attempt: call.attempts, event_id: `e2e-unavailable-${call.id}` } })
+        at /Users/lixiaomei/Documents/ChatGPT/AI外呼系统/duyu0218-flash/ai-outbound-platform/frontend/e2e/functional-fixes.spec.ts:144:25
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('row').filter({ hasText: '13980194438' }).getByRole('button', { name: '转人工', exact: true })
+        - locator resolved to <button disabled type="button" aria-describedby="_r_j_" class="ant-btn css-4s9o5y ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        57 × waiting for element to be visible, enabled and stable
+           - element is not enabled
+         - retrying click action
+           - waiting 500ms
+
+
+      143 |   const row = page.getByRole('row').filter({ hasText: phone })
+      144 |   const transfer = page.waitForResponse(r => r.url().includes(`/calls/${call.id}/handover`) && r.request().method() === 'POST')
+    > 145 |   await row.getByRole('button', { name: '转人工', exact: true }).click(); await confirm(page)
+          |                                                               ^
+      146 |   expect((await transfer).ok()).toBeTruthy()
+      147 |   const unavailable = await postStatus(page, { call_id: call.id, kind: 'status', payload: { status: 'human_unavailable', attempt: call.attempts, event_id: `e2e-unavailable-${call.id}` } })
+      148 |   const receipt = await unavailable.json()
+        at /Users/lixiaomei/Documents/ChatGPT/AI外呼系统/duyu0218-flash/ai-outbound-platform/frontend/e2e/functional-fixes.spec.ts:145:63
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    frontend/test-results/functional-fixes-manual-ha-3992a-d-can-be-accepted-and-ended-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: frontend/test-results/functional-fixes-manual-ha-3992a-d-can-be-accepted-and-ended-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    frontend/test-results/functional-fixes-manual-ha-3992a-d-can-be-accepted-and-ended-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace frontend/test-results/functional-fixes-manual-ha-3992a-d-can-be-accepted-and-ended-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › frontend/e2e/functional-fixes.spec.ts:127:1 › manual handoff requeues on no answer and can be accepted and ended 
+  18 passed (1.1m)
