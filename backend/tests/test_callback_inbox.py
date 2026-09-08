@@ -293,19 +293,29 @@ input()
         assert len(s.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id == str(cid), TaskOutbox.task_type == 'ai_turn')).all()) == 1
 
 
-def test_postgres_migration_is_repeatable_and_matches_model_columns():
+@pytest.mark.parametrize('existing_model_tables', [False, True], ids=['empty-schema', 'model-created-schema'])
+def test_postgres_migration_is_repeatable_and_matches_model_columns(existing_model_tables):
     if db.engine.dialect.name != 'postgresql': pytest.skip('PostgreSQL migration')
     from pathlib import Path
     from sqlalchemy import text, inspect
     schema = 'inbox_migration_' + uuid4().hex
-    migration = (Path(__file__).resolve().parents[1] / 'migrations/postgresql/20260908_callback_inbox.sql').read_text()
+    migration_directory = Path(__file__).resolve().parents[1] / 'migrations/postgresql'
+    migrations = [path.read_text() for path in sorted(migration_directory.glob('20260908_callback_*.sql'))]
     with db.engine.connect() as conn:
         transaction = conn.begin()
         try:
             conn.execute(text(f'CREATE SCHEMA {schema}'))
             conn.execute(text(f'SET LOCAL search_path TO {schema}'))
-            conn.execute(text(migration)); conn.execute(text(migration))
+            if existing_model_tables:
+                for model in (CallbackInbox, CallbackInboxPartition, CallbackInboxWorker):
+                    model.__table__.create(conn)
+                conn.execute(CallbackInboxPartition.__table__.insert().values(id=0, pending_count=3, pending_bytes=42))
+            for _ in range(2):
+                for migration in migrations:
+                    conn.execute(text(migration))
             assert conn.execute(text('SELECT count(*) FROM callbackinboxpartition')).scalar_one() == 64
+            assert conn.execute(text('SELECT pending_count, pending_bytes FROM callbackinboxpartition WHERE id=0')).one() == ((3, 42) if existing_model_tables else (0, 0))
+            assert conn.execute(text('SELECT count(*) FROM callbackinboxpartition WHERE id > 0 AND pending_count=0 AND pending_bytes=0')).scalar_one() == 63
             for model in (CallbackInbox, CallbackInboxPartition, CallbackInboxWorker):
                 assert {c['name'] for c in inspect(conn).get_columns(model.__tablename__, schema=schema)} == set(model.__table__.columns.keys())
         finally: transaction.rollback()
