@@ -26,6 +26,7 @@ from .pipecat_pipeline import PipecatPipelineManager
 logger = logging.getLogger(__name__)
 
 EVENT_NAMES = (
+    "DTMF",
     "CHANNEL_CREATE",
     "CHANNEL_PROGRESS",
     "CHANNEL_PROGRESS_MEDIA",
@@ -339,6 +340,14 @@ class FreeswitchEslDriver:
     async def _speak(self, payload: dict[str, Any]) -> dict[str, Any]:
         request = SpeakRequest.model_validate(payload)
         binding = self._binding(request.call_id)
+        if request.provider == 'fallback-audio':
+            path = self.settings.freeswitch_fallback_audio_path
+            if not path.startswith('/') or not path.endswith('.wav') or '..' in Path(path).parts:
+                raise RuntimeError('FREESWITCH_FALLBACK_AUDIO_PATH must name the installed WAV prompt')
+            playback_id = str(uuid4())
+            await self._post_media(binding, 'speaking', playback_id=playback_id)
+            await self.client.api(f'uuid_broadcast {binding.fs_uuid} {_fs_argument(path)} aleg')
+            return {'result':'playing','provider_call_id':binding.fs_uuid,'playback_id':playback_id}
         if binding.voice_ai_pipeline == "pipecat":
             if self.pipecat_manager is None:
                 raise RuntimeError("Pipecat pipeline manager is unavailable")
@@ -527,7 +536,15 @@ class FreeswitchEslDriver:
             return
         if self.security_ledger is not None and name in {"CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA", "CHANNEL_ANSWER", "CHANNEL_HANGUP", "CHANNEL_HANGUP_COMPLETE"}:
             await asyncio.to_thread(self.security_ledger.mark_seen, binding.fs_uuid)
-        if name in {"CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA"}:
+        if name == 'DTMF':
+            url = binding.metadata.get('dtmf_webhook_url')
+            digit = _event_value(event, 'DTMF-Digit')
+            stamp = _event_value(event, 'Event-Date-Timestamp', 'Event-Sequence')
+            if url and stamp and digit in '0123456789*#' and len(digit)==1:
+                await self._post_json(url, {'call_id':binding.call_id,'kind':'dtmf','payload':{
+                    'digit':digit,'event_id':f'fs:{binding.fs_uuid}:dtmf:{stamp}',
+                    'attempt':binding.metadata.get('attempt')}})
+        elif name in {"CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA"}:
             await self._post_status(binding, "dialing", event)
         elif name == "CHANNEL_ANSWER":
             binding.answered_at = datetime.now(timezone.utc)

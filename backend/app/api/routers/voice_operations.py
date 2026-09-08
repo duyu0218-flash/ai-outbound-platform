@@ -176,8 +176,8 @@ def review_call_analysis(
     analysis.reviewed_by = current.id if current is not None else None
     analysis.reviewed_at = utc_now()
     analysis.updated_at = utc_now()
-    session.add(analysis)
-    session.commit()
+    from ...services.call_analysis import publish_analysis
+    publish_analysis(session, call, analysis)
     session.refresh(analysis)
     return analysis
 
@@ -234,6 +234,13 @@ def list_handoff_queue(
             )
             .order_by(SpeechTurn.turn_index.desc(), SpeechTurn.id.desc())
         ).first()
+        from ...models import ConversationState
+        state=session.exec(select(ConversationState).where(ConversationState.call_id==call.id,
+            ConversationState.attempt==call.attempts)).first()
+        context=json.loads(state.data_json) if state else {}
+        confirmed='；'.join(f"{key}：{value.get('value','')}" for key,value in context.get('slots',{}).items() if value.get('confirmed'))
+        context_summary=((analysis.summary if analysis else call.summary) or '')
+        if confirmed:context_summary += f" 已确认信息：{confirmed}"
         result.append(
             HandoffQueueItemOut(
                 **handoff.model_dump(),
@@ -243,7 +250,7 @@ def list_handoff_queue(
                 contact_name=contact.name if contact else None,
                 campaign_name=campaign.name if campaign else None,
                 intent=analysis.intent if analysis else None,
-                summary=(analysis.summary if analysis else call.summary) or "",
+                summary=context_summary,
                 last_customer_utterance=(last_customer_turn.transcript if last_customer_turn else call.last_transcript) or "",
                 wait_seconds=max(0, int((now - handoff.requested_at).total_seconds())),
             )

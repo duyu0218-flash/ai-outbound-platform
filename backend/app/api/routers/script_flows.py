@@ -128,6 +128,6 @@ def publish_version(version_id: int, template_id: int, tenant_id: int = Depends(
 def simulate_version(payload: ScriptFlowSimulateRequest, version_id: int, template_id: int, tenant_id: int = Depends(get_tenant_id_for_request), session: Session = Depends(get_session)):
     item = _version(session, tenant_id, template_id, version_id)
     try:
-        return simulate(load_graph(item.graph_json), payload.current_node_id, payload.transcript, payload.silence)
+        return simulate(load_graph(item.graph_json), payload.current_node_id, payload.transcript, payload.silence,payload.variables)
     except FlowValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

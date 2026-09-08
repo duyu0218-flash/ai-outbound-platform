@@ -176,9 +176,9 @@ export interface ScriptTemplate {
   updated_at: string
 }
 
-export type FlowNodeType = 'start' | 'message' | 'listen' | 'handoff' | 'hangup'
-export interface FlowNode { id: string; type: FlowNodeType; label: string; prompt: string; position: { x: number; y: number } }
-export interface FlowEdge { id: string; source: string; target: string; condition: 'always' | 'keyword' | 'silence'; keywords: string[] }
+export type FlowNodeType = 'start' | 'message' | 'listen' | 'handoff' | 'hangup' | 'collect' | 'set' | 'branch'
+export interface FlowNode { id: string; type: FlowNodeType; label: string; prompt: string; variable?: string; value?: string; position: { x: number; y: number } }
+export interface FlowEdge { id: string; source: string; target: string; condition: 'always' | 'keyword' | 'silence' | 'intent' | 'equals' | 'not_equals'; keywords: string[]; variable?: string; value?: string }
 export interface ScriptFlowVersion {
   id: number
   tenant_id: number

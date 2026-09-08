@@ -98,7 +98,9 @@ def test_review_survives_refresh_and_new_evidence(client):
         analysis = analyze_call(s, call)
         assert analysis.intent == 'manual' and analysis.summary == '人工结论'
         assert analysis.review_state == 'reviewed' and analysis.needs_review
-        assert 'not_interested' in analysis.automatic_result_json
+        # Unstructured legacy summaries are review evidence, not customer consent.
+        assert '客户拒绝' in analysis.automatic_result_json
+        assert '"intent": "unclear"' in analysis.automatic_result_json
 
 
 def test_historical_recording_is_saved_once_without_replacing_current(client):
