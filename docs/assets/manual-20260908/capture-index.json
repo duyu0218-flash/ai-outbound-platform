@@ -1,0 +1,264 @@
+{
+  "sourceCommit": "26f205b",
+  "environment": "isolated Docker Compose, mock telephony, synthetic data",
+  "screenshots": [
+    {
+      "name": "admin-login",
+      "url": "http://127.0.0.1:18080/admin/login",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:51.083Z"
+    },
+    {
+      "name": "dashboard",
+      "url": "http://127.0.0.1:18080/admin",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:51.764Z"
+    },
+    {
+      "name": "quality",
+      "url": "http://127.0.0.1:18080/admin/quality",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:52.165Z"
+    },
+    {
+      "name": "contacts",
+      "url": "http://127.0.0.1:18080/admin/contacts",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:52.569Z"
+    },
+    {
+      "name": "contacts-form",
+      "url": "http://127.0.0.1:18080/admin/contacts",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:52.991Z"
+    },
+    {
+      "name": "scripts",
+      "url": "http://127.0.0.1:18080/admin/scripts",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:53.678Z"
+    },
+    {
+      "name": "scripts-form",
+      "url": "http://127.0.0.1:18080/admin/scripts",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:54.109Z"
+    },
+    {
+      "name": "campaigns",
+      "url": "http://127.0.0.1:18080/admin/campaigns",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:54.798Z"
+    },
+    {
+      "name": "campaigns-form",
+      "url": "http://127.0.0.1:18080/admin/campaigns",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:55.241Z"
+    },
+    {
+      "name": "calls",
+      "url": "http://127.0.0.1:18080/admin/calls",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:55.944Z"
+    },
+    {
+      "name": "calls-form",
+      "url": "http://127.0.0.1:18080/admin/calls",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:56.369Z"
+    },
+    {
+      "name": "contacts-operations",
+      "url": "http://127.0.0.1:18080/admin/contacts-operations",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:57.077Z"
+    },
+    {
+      "name": "reports",
+      "url": "http://127.0.0.1:18080/admin/reports",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:57.477Z"
+    },
+    {
+      "name": "group-monitor",
+      "url": "http://127.0.0.1:18080/admin/group-monitor",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:57.875Z"
+    },
+    {
+      "name": "billing",
+      "url": "http://127.0.0.1:18080/admin/billing",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:58.282Z"
+    },
+    {
+      "name": "users",
+      "url": "http://127.0.0.1:18080/admin/users",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:58.676Z"
+    },
+    {
+      "name": "users-form",
+      "url": "http://127.0.0.1:18080/admin/users",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:59.112Z"
+    },
+    {
+      "name": "lines",
+      "url": "http://127.0.0.1:18080/admin/lines",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:57:59.811Z"
+    },
+    {
+      "name": "lines-form",
+      "url": "http://127.0.0.1:18080/admin/lines",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:00.238Z"
+    },
+    {
+      "name": "knowledge",
+      "url": "http://127.0.0.1:18080/admin/knowledge",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:00.925Z"
+    },
+    {
+      "name": "knowledge-form",
+      "url": "http://127.0.0.1:18080/admin/knowledge",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:01.338Z"
+    },
+    {
+      "name": "settings",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:02.039Z"
+    },
+    {
+      "name": "settings-tab-0",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:02.448Z"
+    },
+    {
+      "name": "settings-tab-1",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:02.882Z"
+    },
+    {
+      "name": "settings-tab-2",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:03.297Z"
+    },
+    {
+      "name": "settings-tab-3",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:03.727Z"
+    },
+    {
+      "name": "settings-tab-4",
+      "url": "http://127.0.0.1:18080/admin/settings",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:04.122Z"
+    },
+    {
+      "name": "product",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:04.562Z"
+    },
+    {
+      "name": "product-tab-0",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:04.994Z"
+    },
+    {
+      "name": "product-tab-1",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:05.399Z"
+    },
+    {
+      "name": "product-tab-2",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:05.849Z"
+    },
+    {
+      "name": "product-tab-3",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:06.281Z"
+    },
+    {
+      "name": "product-tab-4",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:06.709Z"
+    },
+    {
+      "name": "product-tab-5",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:07.143Z"
+    },
+    {
+      "name": "product-tab-6",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:07.568Z"
+    },
+    {
+      "name": "product-tab-7",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:08.000Z"
+    },
+    {
+      "name": "product-tab-8",
+      "url": "http://127.0.0.1:18080/admin/product",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:08.445Z"
+    },
+    {
+      "name": "system",
+      "url": "http://127.0.0.1:18080/admin/system",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:08.869Z"
+    },
+    {
+      "name": "logout-menu",
+      "url": "http://127.0.0.1:18080/admin",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:09.297Z"
+    },
+    {
+      "name": "logout-result",
+      "url": "http://127.0.0.1:18080/admin/login",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:09.804Z"
+    },
+    {
+      "name": "agent-login",
+      "url": "http://127.0.0.1:18080/agent/login",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:10.325Z"
+    },
+    {
+      "name": "agent-workspace",
+      "url": "http://127.0.0.1:18080/agent",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:10.843Z"
+    },
+    {
+      "name": "agent-calls",
+      "url": "http://127.0.0.1:18080/agent/calls",
+      "title": "AI 外呼平台",
+      "capturedAt": "2026-09-08T14:58:11.227Z"
+    }
+  ]
+}

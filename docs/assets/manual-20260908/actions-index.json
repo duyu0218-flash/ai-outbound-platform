@@ -1,0 +1,112 @@
+[
+  {
+    "name": "settings-saved-0",
+    "url": "http://127.0.0.1:18080/admin/settings",
+    "capturedAt": "2026-09-08T15:06:00.896Z"
+  },
+  {
+    "name": "settings-saved-1",
+    "url": "http://127.0.0.1:18080/admin/settings",
+    "capturedAt": "2026-09-08T15:06:02.015Z"
+  },
+  {
+    "name": "settings-saved-2",
+    "url": "http://127.0.0.1:18080/admin/settings",
+    "capturedAt": "2026-09-08T15:06:03.103Z"
+  },
+  {
+    "name": "settings-saved-3",
+    "url": "http://127.0.0.1:18080/admin/settings",
+    "capturedAt": "2026-09-08T15:06:04.306Z"
+  },
+  {
+    "name": "settings-saved-4",
+    "url": "http://127.0.0.1:18080/admin/settings",
+    "capturedAt": "2026-09-08T15:06:05.388Z"
+  },
+  {
+    "name": "contacts-filled",
+    "url": "http://127.0.0.1:18080/admin/contacts",
+    "capturedAt": "2026-09-08T15:06:06.759Z"
+  },
+  {
+    "name": "contacts-saved",
+    "url": "http://127.0.0.1:18080/admin/contacts",
+    "capturedAt": "2026-09-08T15:06:07.604Z"
+  },
+  {
+    "name": "knowledge-filled",
+    "url": "http://127.0.0.1:18080/admin/knowledge",
+    "capturedAt": "2026-09-08T15:06:08.615Z"
+  },
+  {
+    "name": "knowledge-saved",
+    "url": "http://127.0.0.1:18080/admin/knowledge",
+    "capturedAt": "2026-09-08T15:06:09.441Z"
+  },
+  {
+    "name": "scripts-filled",
+    "url": "http://127.0.0.1:18080/admin/scripts",
+    "capturedAt": "2026-09-08T15:06:10.460Z"
+  },
+  {
+    "name": "scripts-saved",
+    "url": "http://127.0.0.1:18080/admin/scripts",
+    "capturedAt": "2026-09-08T15:06:11.284Z"
+  },
+  {
+    "name": "script-flow",
+    "url": "http://127.0.0.1:18080/admin/scripts",
+    "capturedAt": "2026-09-08T15:06:11.682Z"
+  },
+  {
+    "name": "product-policy-filled",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:12.843Z"
+  },
+  {
+    "name": "product-slots-filled",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:13.310Z"
+  },
+  {
+    "name": "product-policy-saved",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:13.965Z"
+  },
+  {
+    "name": "product-simulation-result",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:14.521Z"
+  },
+  {
+    "name": "product-knowledge-filled",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:14.989Z"
+  },
+  {
+    "name": "product-knowledge-result",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:15.508Z"
+  },
+  {
+    "name": "followup-pending",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:16.136Z"
+  },
+  {
+    "name": "followup-completed",
+    "url": "http://127.0.0.1:18080/admin/product",
+    "capturedAt": "2026-09-08T15:06:16.732Z"
+  },
+  {
+    "name": "campaigns-filled",
+    "url": "http://127.0.0.1:18080/admin/campaigns",
+    "capturedAt": "2026-09-08T15:06:18.947Z"
+  },
+  {
+    "name": "campaigns-saved",
+    "url": "http://127.0.0.1:18080/admin/campaigns",
+    "capturedAt": "2026-09-08T15:06:19.796Z"
+  }
+]
