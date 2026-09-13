@@ -17,7 +17,7 @@ from ..config import get_settings
 from ..db import session_scope
 from ..models import TaskState
 from .leases import monitored_lease, assert_execution_permitted, ExecutionLease, _leases
-from .worker_runtime import WorkerRuntime, _resources
+from .worker_runtime import WorkerRuntime, _resources, http_client
 from .task_queue import claim_ready_tasks, _renew_task, _owned_task, _record_dead_task
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ class WorkPool:
     let loss/cancellation prohibit subsequent external actions in that thread.
     """
     def __init__(self, size, name='ai-db'):
+        self.size=size
         self.executor=ThreadPoolExecutor(max_workers=size, thread_name_prefix=name)
         self.slots=asyncio.Semaphore(size)
         self.local=threading.local()
@@ -70,6 +71,16 @@ class WorkPool:
         self.executor.shutdown(wait=True)
         for runtime in self.runtimes:
             await asyncio.to_thread(runtime.close)
+
+    async def prepare_http(self, **options):
+        # Create each thread's loop and HTTP/TLS pool before advertising ready.
+        # No network request or business action occurs during this preparation.
+        barrier=threading.Barrier(self.size)
+        async def prepare():
+            barrier.wait(timeout=15)
+            async with http_client(**options):
+                pass
+        await asyncio.gather(*(self.run(prepare) for _ in range(self.size)))
 
 
 def complete(task_id, token, error=None):
@@ -124,6 +135,13 @@ async def run_async_ai_lane(stop_event, *, concurrency):
     resources=OrderedDict()
     resource_token=_resources.set(resources)
     try:
+        from .callback_inbox import prepare_handlers
+        prepare_handlers()
+        await actions.prepare_http(timeout=settings.telephony_timeout_sec,
+                                   follow_redirects=False, trust_env=False)
+        async with http_client(max_connections=max(100,settings.task_ai_concurrency),
+                timeout=settings.ai_callback_timeout_sec,follow_redirects=False,trust_env=False):
+            pass
         while not stop_event.is_set():
             done={job for job in pending if job.done()}
             pending.difference_update(done)

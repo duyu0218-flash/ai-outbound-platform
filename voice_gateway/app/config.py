@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -31,6 +32,9 @@ class Settings(BaseSettings):
     voice_callback_failure_stop_sec: int = 30
     voice_callback_concurrency: int = 16
     voice_callback_poll_sec: float = 0.1
+    voice_callback_batch_enabled: bool = False
+    voice_callback_batch_size: int = Field(default=16, ge=1, le=16)
+    voice_callback_batch_delay_ms: float = Field(default=5, ge=0, le=5)
     voice_node_id: str = ""
     # Approved tenant:agent -> registrar host:port. Cluster handoff must have an
     # explicit route; HTTP call ownership alone cannot locate a SIP registration.

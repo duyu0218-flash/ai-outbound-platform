@@ -12,13 +12,17 @@ from sqlmodel import select
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, session_scope
 from .models import CallbackInboxPartition
-from .services.callback_inbox import PARTITIONS, consume_partition, maintenance, retry_receipt
+from .services.callback_inbox import PARTITIONS, consume_partition, maintenance, retry_receipt, prepare_handlers
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--retry')
+    parser.add_argument('--shards', type=int, default=1)
+    parser.add_argument('--shard-index', type=int, default=0)
     args = parser.parse_args()
+    if not 1 <= args.shards <= PARTITIONS or not 0 <= args.shard_index < args.shards:
+        parser.error('require 1 <= shards <= 64 and 0 <= shard-index < shards')
     settings = get_settings()
     if not settings.callback_inbox_enabled:
         raise RuntimeError('CALLBACK_INBOX_ENABLED=true is required')
@@ -27,12 +31,14 @@ def main():
     if args.retry:
         retry_receipt(args.retry)
         return
+    prepare_handlers()
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
     worker_id = uuid4().hex
     cursor = int(worker_id[:8], 16) % PARTITIONS
     last_maintenance = 0
+    rounds = 0
     while not stop.is_set():
         try:
             if time.monotonic() - last_maintenance >= 1:
@@ -43,7 +49,15 @@ def main():
                 partitions = session.exec(select(CallbackInboxPartition.id).where(
                     CallbackInboxPartition.pending_count > 0)).all()
             count = 0
-            for partition in sorted(partitions, key=lambda p: (p - cursor) % PARTITIONS):
+            # Prefer a stable stripe to avoid every consumer repeatedly probing
+            # the same advisory locks. Every 16 rounds use the global cursor;
+            # other workers' partitions remain serviceable after a crash, even
+            # while this worker's own stripe stays busy. Locks remain authoritative.
+            rounds += 1
+            def priority(partition):
+                foreign = partition % args.shards != args.shard_index
+                return (foreign if rounds % 16 else False, (partition - cursor) % PARTITIONS)
+            for partition in sorted(partitions, key=priority):
                 if stop.is_set():
                     break
                 count = consume_partition(partition, worker_id)

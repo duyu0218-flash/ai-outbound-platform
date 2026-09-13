@@ -68,7 +68,7 @@ def routes(settings) -> dict[str, RoutePolicy]:
     return {k: RoutePolicy.model_validate(v) for k, v in value.items()}
 
 
-CALLBACK_PATHS = {f"/api/v1/webhooks/telephony/{kind}" for kind in ("status", "speech", "media", "recording", "transcript")}
+CALLBACK_PATHS = {f"/api/v1/webhooks/telephony/{kind}" for kind in ("status", "speech", "media", "recording", "transcript", "dtmf", "batch")}
 
 
 def validate_callback_url(settings, url: str) -> None:
@@ -130,6 +130,27 @@ class Ledger:
         self.path = path
         self.initialized = False
         self._transaction_lock = threading.RLock()
+
+    def open_wal_anchor(self):
+        """Keep WAL open without holding a read snapshot or a write transaction.
+
+        Short-lived transaction connections otherwise become the last connection
+        and checkpoint/unlink WAL on every batch. FULL commits and SQLite's
+        default 1000-page automatic checkpoint remain enabled.
+        The caller owns this connection and must close it after draining writes.
+        """
+        with self._transaction_lock:
+            with self.transaction():
+                pass
+            db = sqlite3.connect(self.path, timeout=5, isolation_level=None,
+                                 check_same_thread=False)
+            try:
+                db.execute('PRAGMA synchronous=FULL')
+                db.execute('SELECT count(*) FROM sqlite_schema').fetchone()
+                return db
+            except BaseException:
+                db.close()
+                raise
 
     @contextmanager
     def transaction(self):
@@ -344,17 +365,41 @@ class CallbackSender:
         self.ledger = ledger or (Ledger(settings.voice_security_db_path) if settings.voice_security_db_path else None)
         self.task = None
         self.client = None
+        self._http_pools = []
+        self._http_active = []
+        self._http_limits = []
         self._claim_lock = asyncio.Lock()
         self._inflight: set[str] = set()
         self._wake = asyncio.Event()
         self.concurrency = max(1, min(128, getattr(settings, "voice_callback_concurrency", 16)))
         self.writer = DurableBatch(self._commit_batch)
+        self._wal_anchor = None
+        self._lifecycle_lock = asyncio.Lock()
+        self.batch_enabled = getattr(settings, 'voice_callback_batch_enabled', False)
+        self.batch_size = getattr(settings, 'voice_callback_batch_size', 16)
+        self.batch_delay = getattr(settings, 'voice_callback_batch_delay_ms', 5) / 1000
 
     async def start(self):
-        if self.ledger and self.task is None:
-            self.task = asyncio.create_task(self._run(), name="voice-callback-outbox")
+        async with self._lifecycle_lock:
+            if self.ledger and self.task is None:
+                opening = asyncio.create_task(asyncio.to_thread(self.ledger.open_wal_anchor))
+                try:
+                    self._wal_anchor = await asyncio.shield(opening)
+                except asyncio.CancelledError:
+                    # A cancelled startup must not leak a connection created by
+                    # an already accepted disk work unit.
+                    anchor = await opening
+                    await asyncio.to_thread(anchor.close)
+                    raise
+                if self.writer.closed:
+                    self.writer = DurableBatch(self._commit_batch)
+                self.task = asyncio.create_task(self._run(), name="voice-callback-outbox")
 
     async def stop(self):
+        async with self._lifecycle_lock:
+            await self._stop()
+
+    async def _stop(self):
         if self.task:
             self.task.cancel()
             try:
@@ -362,10 +407,20 @@ class CallbackSender:
             except asyncio.CancelledError:
                 pass
             self.task = None
-        await self.writer.close()
-        if self.client:
-            await self.client.aclose()
-            self.client = None
+        try:
+            await self.writer.close()
+            if self.client:
+                await self.client.aclose()
+                self.client = None
+            for client in self._http_pools:
+                await client.aclose()
+            self._http_pools.clear()
+            self._http_active.clear()
+            self._http_limits.clear()
+        finally:
+            if self._wal_anchor is not None:
+                anchor, self._wal_anchor = self._wal_anchor, None
+                await asyncio.to_thread(anchor.close)
 
     def _persist(self, url, body, stream_key):
         self._commit_batch([('persist', url, body, stream_key, time.time())])
@@ -402,14 +457,103 @@ class CallbackSender:
         headers = {"Content-Type": "application/json", "x-webhook-token": self.settings.webhook_token}
         if self.settings.webhook_secret:
             headers.update({"x-webhook-timestamp": stamp, "x-webhook-signature": hmac.new(self.settings.webhook_secret.encode(), stamp.encode() + b"." + body, hashlib.sha256).hexdigest()})
-        if self.client is None:
-            self.client = httpx.AsyncClient(timeout=self.settings.request_timeout_sec,
-                follow_redirects=False, trust_env=False,
-                limits=httpx.Limits(max_connections=self.concurrency, max_keepalive_connections=self.concurrency))
-        response = await self.client.post(url, content=body, headers=headers)
+        if self.client is not None:  # Explicit diagnostic/test transport override.
+            response = await self.client.post(url, content=body, headers=headers)
+        else:
+            if not self._http_pools:
+                # HTTPcore scans its connections on request assignment/release.
+                # Small independent pools bound that work without adding sockets
+                # or delivery slots. The durable claim still owns per-call FIFO.
+                for offset in range(0, self.concurrency, 8):
+                    limit = min(8, self.concurrency - offset)
+                    self._http_limits.append(limit)
+                    self._http_active.append(0)
+                    self._http_pools.append(httpx.AsyncClient(
+                        timeout=self.settings.request_timeout_sec,
+                        follow_redirects=False, trust_env=False,
+                        limits=httpx.Limits(max_connections=limit, max_keepalive_connections=limit)))
+            index = min(range(len(self._http_pools)),
+                        key=lambda i: self._http_active[i] / self._http_limits[i])
+            self._http_active[index] += 1
+            try:
+                response = await self._http_pools[index].post(url, content=body, headers=headers)
+            finally:
+                self._http_active[index] -= 1
         response.raise_for_status()
         if response.status_code != 200:
             raise httpx.HTTPStatusError("callback requires durable 200 acknowledgement", request=response.request, response=response)
+        return response
+
+    def _transport_batches(self, rows):
+        """Only our versioned telephony API can accept batching; others stay single.
+
+        Claim already limits total events and selects one head per call. A batch
+        never adds delivery slots or releases the head before durable completion.
+        """
+        batches, current, target = [], [], None
+        for row in rows:
+            parsed = urlsplit(row['url'])
+            prefix, _, kind = row['url'].rpartition('/')
+            eligible = (self.batch_enabled and not parsed.query and not parsed.fragment
+                and parsed.path.rsplit('/', 1)[0] == '/api/v1/webhooks/telephony'
+                and kind in {'status', 'transcript', 'speech', 'dtmf', 'media', 'recording'})
+            url = prefix + '/batch' if eligible else None
+            if current and (target != url or len(current) >= self.batch_size):
+                batches.append((target, current)); current = []
+            if url is None:
+                batches.append((None, [row]))
+                target = None
+                continue
+            candidate = current + [row]
+            if current and len(canonical(self._batch_body(candidate))) > 60000:
+                # Leave room for the receiver's schema defaults within 64 KiB.
+                batches.append((target, current)); current = []
+            current.append(row); target = url
+        if current:
+            batches.append((target, current))
+        return batches
+
+    @staticmethod
+    def _batch_body(rows):
+        return {'version': 1, 'events': [dict(id=r['id'], kind=r['url'].rsplit('/', 1)[-1],
+            payload=json.loads(r['body'])) for r in rows]}
+
+    async def _deliver_batch(self, url, rows):
+        if url is None or len(rows) == 1:
+            await asyncio.gather(*(self._deliver(row) for row in rows))
+            return
+        try:
+            try:
+                response = await self._send(url, canonical(self._batch_body(rows)))
+                try:
+                    ack = response.json()
+                    valid = (ack.get('result') == 'received' and ack.get('version') == 1
+                        and sorted(ack.get('accepted', [])) == sorted(r['id'] for r in rows))
+                except (ValueError, AttributeError, TypeError):
+                    valid = False
+                if not valid:
+                    raise httpx.HTTPError('batch lacks complete durable receipt acknowledgement')
+            except httpx.HTTPStatusError as exc:
+                if (exc.response.status_code in {400, 404, 405, 409, 413, 422}
+                        or exc.response.headers.get('x-callback-batch-split') == 'true'):
+                    # Compatibility / poison / full partition: isolate each head.
+                    # Each retry keeps its original identity and shares the same
+                    # total event slots, so unaffected calls can proceed.
+                    await asyncio.gather(*(self._deliver(row) for row in rows))
+                    return
+                raise
+            await asyncio.gather(*(self.writer.submit(('complete', r['id'], None)) for r in rows))
+        except (httpx.HTTPError, HTTPException) as exc:
+            after = 0
+            if isinstance(exc, httpx.HTTPStatusError):
+                try: after = min(300, float(exc.response.headers.get('Retry-After', '0')))
+                except ValueError: pass
+            await asyncio.gather(*(self.writer.submit(('complete', r['id'], time.time()
+                + max(after, min(60, 2 ** min(r['failures'], 6))) + random.uniform(0, .25))) for r in rows))
+            logger.warning('voice callback batch delivery deferred count=%s', len(rows))
+        finally:
+            self._inflight.difference_update(r['id'] for r in rows)
+            self._wake.set()
 
     def _ready_rows(self, limit, excluded):
         placeholders = ",".join("?" for _ in excluded)
@@ -455,7 +599,7 @@ class CallbackSender:
     async def flush(self):
         # Bounded one-shot API retained for diagnostics/tests.
         rows = await self._claim(self.concurrency)
-        await asyncio.gather(*(self._deliver(row) for row in rows))
+        await asyncio.gather(*(self._deliver_batch(url, group) for url, group in self._transport_batches(rows)))
         return len(rows)
 
     async def _run(self):
@@ -464,6 +608,8 @@ class CallbackSender:
         try:
             while True:
                 self._wake.clear()
+                if self.batch_enabled:
+                    await asyncio.sleep(self.batch_delay)
                 done = {task for task in pending if task.done()}
                 pending.difference_update(done)
                 for task in done:
@@ -473,7 +619,8 @@ class CallbackSender:
                         logger.error("voice callback ledger unavailable")
                 try:
                     rows = await self._claim(self.concurrency)
-                    pending.update(asyncio.create_task(self._deliver(row)) for row in rows)
+                    pending.update(asyncio.create_task(self._deliver_batch(url, group))
+                                   for url, group in self._transport_batches(rows))
                     if time.monotonic() >= next_purge:
                         await asyncio.to_thread(self.ledger.purge_sensitive_data,
                             retention_days=self.settings.voice_sensitive_retention_days,

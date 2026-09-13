@@ -213,11 +213,26 @@ async def request_ai_turn(
             if settings.ai_agent_service_token
             else {}
         )
-        response = await client.post(
-            f"{endpoint}/agent/turn",
-            json=payload.model_dump(mode="json"),
-            headers=headers,
-        )
+        # This endpoint only generates a proposal; business actions happen in
+        # _finish_ai_turn after the attempt/speech-generation checks. A broken
+        # keepalive connection must not immediately hang up a healthy call.
+        # Share the ORIGINAL timeout budget across at most two transport tries.
+        # HTTP errors, timeouts, validation and downstream actions are not retried.
+        async with asyncio.timeout(settings.ai_callback_timeout_sec):
+            for attempt in range(2):
+                assert_execution_permitted()
+                try:
+                    response = await client.post(
+                        f"{endpoint}/agent/turn",
+                        json=payload.model_dump(mode="json"),
+                        headers=headers,
+                    )
+                    break
+                except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError) as exc:
+                    if attempt:
+                        raise
+                    logger.warning('AI transport retry error_type=%s', type(exc).__name__)
+                    await asyncio.sleep(.05)
         if response.status_code != 200:
             raise RuntimeError(f"ai service error: {response.status_code} {response.text}")
         data = response.json()

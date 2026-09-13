@@ -9,6 +9,7 @@ import hashlib
 import json
 import sqlite3
 import time
+import threading
 from contextlib import contextmanager
 
 from fastapi import HTTPException
@@ -18,14 +19,59 @@ class AccountQuota:
     def __init__(self, settings):
         self.settings = settings
         self.inflight = 0
+        self._write_lock = threading.RLock()
+        self._wal_anchor = None
+
+    def start(self):
+        with self._write_lock:
+            self.initialize()
+            if self.settings.llm_quota_db_path and self._wal_anchor is None:
+                anchor = sqlite3.connect(self.settings.llm_quota_db_path, timeout=.5,
+                                         isolation_level=None, check_same_thread=False)
+                try:
+                    anchor.execute('PRAGMA synchronous=FULL')
+                    anchor.execute('SELECT count(*) FROM sqlite_schema').fetchone()
+                    self._wal_anchor = anchor
+                except BaseException:
+                    anchor.close()
+                    raise
+
+    def close(self):
+        with self._write_lock:
+            if self._wal_anchor is not None:
+                self._wal_anchor.close()
+                self._wal_anchor = None
 
     @contextmanager
     def db(self):
+        # Only one local writer competes for the cross-process SQLite lock.
+        # The idle anchor avoids last-connection checkpoint/unlink churn; it
+        # holds no transaction, and every reservation still commits with FULL.
+        with self._write_lock:
+            with self._transaction() as db:
+                yield db
+
+    @contextmanager
+    def _transaction(self):
         db = sqlite3.connect(self.settings.llm_quota_db_path, timeout=.5, isolation_level=None)
         try:
-            db.execute('PRAGMA journal_mode=WAL')
-            db.execute('PRAGMA synchronous=FULL')
-            db.execute('BEGIN IMMEDIATE')
+            deadline = time.monotonic() + .5
+            while True:
+                try:
+                    if db.execute('PRAGMA journal_mode').fetchone()[0].lower() != 'wal':
+                        db.execute('PRAGMA journal_mode=WAL')
+                    db.execute('PRAGMA synchronous=FULL')
+                    db.execute('BEGIN IMMEDIATE')
+                    break
+                except sqlite3.OperationalError as exc:
+                    # Simultaneous first starts can race the WAL transition;
+                    # SQLite does not always apply busy_timeout to that PRAGMA.
+                    # Retry only BEFORE transaction work, within the same .5s
+                    # bound. Never replay a reservation after a commit error.
+                    code = getattr(exc, 'sqlite_errorcode', 0) & 255
+                    if code not in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED} or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(.005)
             yield db
             db.execute('COMMIT')
         except BaseException:

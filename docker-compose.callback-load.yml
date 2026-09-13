@@ -40,6 +40,14 @@ services:
       SINGLE500_TEST_DB: node200single500linux
       SINGLE500_LOAD_LABEL: ${SINGLE500_LOAD_LABEL:?Fresh synthetic artifact label required}
       SINGLE500_NETWORK_LABEL: linux-loopback-nginx
+      SINGLE500_EVENT_LOOP: ${SINGLE500_EVENT_LOOP:-asyncio}
+      SINGLE500_BATCH_CALLBACKS: ${SINGLE500_BATCH_CALLBACKS:-false}
+      SINGLE500_TURN_RATE: ${SINGLE500_TURN_RATE:-200}
+      SINGLE500_LOAD_SECONDS: ${SINGLE500_LOAD_SECONDS:-30}
+      SINGLE500_REPORT_DIR: ${SINGLE500_REPORT_DIR:-docs/reviews/evidence/20260908-single-host-500}
+      SINGLE500_SCENARIO: ${SINGLE500_SCENARIO:-mixed}
+      SINGLE500_CONVERSATION_ROUNDS: ${SINGLE500_CONVERSATION_ROUNDS:-5}
+      SINGLE500_TURN_GAP_SEC: ${SINGLE500_TURN_GAP_SEC:-6.25}
       SINGLE500_LEDGER_DIR: /var/lib/callback-ledger
       PYTHONDONTWRITEBYTECODE: '1'
       PYTHONUNBUFFERED: '1'
@@ -47,6 +55,7 @@ services:
       - .:/workspace:ro
       - ./artifacts/single-host-500:/workspace/artifacts/single-host-500
       - ./docs/reviews/evidence/20260908-single-host-500:/workspace/docs/reviews/evidence/20260908-single-host-500
+      - ./docs/reviews/evidence/20260913-single-host-500-fixes:/workspace/docs/reviews/evidence/20260913-single-host-500-fixes
       - callback_ledger:/var/lib/callback-ledger
     depends_on:
       postgres: {condition: service_healthy}

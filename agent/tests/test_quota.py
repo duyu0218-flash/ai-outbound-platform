@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
+import multiprocessing
 from fastapi import HTTPException
 from app.config import Settings
 from app.quota import AccountQuota
@@ -32,6 +33,54 @@ def test_changed_account_budget_fails_closed(tmp_path):
     cfg = settings(tmp_path); AccountQuota(cfg).initialize()
     with pytest.raises(RuntimeError, match='identical'):
         AccountQuota(cfg.model_copy(update={'llm_quota_rpm':1000})).initialize()
+
+
+def _process_reservations(config, output):
+    quota = AccountQuota(Settings(_env_file=None, **config))
+    try:
+        quota.start()
+        with ThreadPoolExecutor(max_workers=32) as pool:
+            results = list(pool.map(lambda _: quota.reserve(1, now=100), range(400)))
+        output.put(('ok', results.count(0)))
+    except Exception as exc:
+        output.put(('error', type(exc).__name__))
+    finally:
+        quota.close()
+
+
+def test_two_process_burst_keeps_exact_budget_without_database_busy(tmp_path):
+    ctx = multiprocessing.get_context('spawn')
+    output = ctx.Queue()
+    cfg = settings(tmp_path).model_copy(update={'llm_quota_rpm':500, 'llm_quota_tpm':500,
+                                               'llm_quota_rps':500})
+    processes = [ctx.Process(target=_process_reservations, args=(cfg.model_dump(), output)) for _ in range(2)]
+    try:
+        for process in processes: process.start()
+        results = [output.get(timeout=20) for _ in processes]
+        for process in processes:
+            process.join(timeout=20)
+            assert process.exitcode == 0
+        assert all(kind == 'ok' for kind, _ in results), results
+        assert sum(value for _, value in results) == 500
+    finally:
+        for process in processes:
+            if process.is_alive(): process.terminate(); process.join(timeout=5)
+        output.close()
+
+
+def test_quota_anchor_has_no_transaction_and_restart_retains_reservation(tmp_path):
+    quota = AccountQuota(settings(tmp_path))
+    try:
+        quota.start()
+        assert not quota._wal_anchor.in_transaction
+        assert quota._wal_anchor.execute('PRAGMA synchronous').fetchone()[0] == 2
+        assert quota.reserve(200, now=100) == 0
+        quota.close()
+        assert quota._wal_anchor is None
+        quota.start()
+        assert quota.reserve(1, now=100) == 1
+    finally:
+        quota.close()
 
 
 def test_inflight_cancel_and_disk_failure_do_not_leak_slots(tmp_path):
