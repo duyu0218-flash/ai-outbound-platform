@@ -108,11 +108,11 @@ class ProbeManager(PipecatPipelineManager):
 
 
 class ProbeDriver(FreeswitchEslDriver):
-    def _binding_from_event(self, event):
+    def _binding_from_event(self, event, *, authorized=False):
         # Never adopt calls created by a different isolated test/controller.
         if event.get('Unique-ID') not in self.calls_by_uuid:
             return None
-        return super()._binding_from_event(event)
+        return super()._binding_from_event(event, authorized=authorized)
 
     async def _tts_media_uri(self, request):
         # Five seconds of silence stand in for the compliance announcement;

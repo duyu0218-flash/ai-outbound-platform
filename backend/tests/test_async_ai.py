@@ -13,6 +13,23 @@ from app.models import CallSession, CallStatus
 from app.schemas import AiTurnResult
 
 
+def test_action_pool_prepares_every_thread_without_network_and_closes_clients():
+    async def run():
+        pool = WorkPool(2, 'prepared-actions')
+        clients = []
+        try:
+            await pool.prepare_http(timeout=8, follow_redirects=False, trust_env=False)
+            assert len(pool.runtimes) == 2
+            for runtime in pool.runtimes:
+                assert len(runtime.resources) == 1
+                clients.extend(runtime.resources.values())
+            assert all(not client.is_closed for client in clients)
+        finally:
+            await pool.close()
+        assert all(client.is_closed for client in clients)
+    asyncio.run(run())
+
+
 def test_async_ai_wait_does_not_hold_db_or_threads(client, monkeypatch):
     async def run():
         pool=WorkPool(2)

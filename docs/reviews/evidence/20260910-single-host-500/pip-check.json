@@ -1,0 +1,18 @@
+{
+  ".venv-backend": {
+    "returncode": 0,
+    "output": "No broken requirements found."
+  },
+  ".venv-no-nltk": {
+    "returncode": 0,
+    "output": "No broken requirements found."
+  },
+  ".venv-agent": {
+    "returncode": 0,
+    "output": "No broken requirements found."
+  },
+  ".venv-recording-adapter": {
+    "returncode": 0,
+    "output": "No broken requirements found."
+  }
+}

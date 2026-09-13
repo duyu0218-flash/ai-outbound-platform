@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Literal
 from uuid import UUID
 from pydantic import Field
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
 from .models import CallMode, CallStatus, ConsentState, HandoffState, RealtimeState
 
 
@@ -487,6 +487,40 @@ class MediaWebhookEvent(BaseModel):
     duration_ms: Optional[int] = Field(default=None, ge=0)
     provider: str = Field(default="", max_length=100)
     error_code: Optional[str] = Field(default=None, max_length=100)
+
+
+TELEPHONY_BATCH_TYPES = {
+    'status': WebhookEvent, 'transcript': WebhookEvent,
+    'speech': SpeechWebhookEvent, 'dtmf': WebhookEvent,
+    'media': MediaWebhookEvent, 'recording': WebhookEvent,
+}
+
+
+class TelephonyBatchItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(pattern=r'^[a-f0-9]{64}$')
+    kind: Literal['status', 'transcript', 'speech', 'dtmf', 'media', 'recording']
+    payload: dict[str, Any]
+
+    @model_validator(mode='after')
+    def validate_event(self):
+        # Use exactly the single-event schema/defaults, including UUID parsing.
+        self.payload = TELEPHONY_BATCH_TYPES[self.kind].model_validate(self.payload).model_dump(mode='json')
+        return self
+
+
+class TelephonyBatch(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    version: Literal[1] = 1
+    events: list[TelephonyBatchItem] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode='after')
+    def unique_heads(self):
+        if len({e.id for e in self.events}) != len(self.events):
+            raise ValueError('duplicate transport identity in batch')
+        if len({e.payload['call_id'] for e in self.events}) != len(self.events):
+            raise ValueError('only one head per call is allowed in a batch')
+        return self
 
 
 class RealtimeSessionOut(BaseModel):

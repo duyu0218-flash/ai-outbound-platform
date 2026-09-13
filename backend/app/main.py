@@ -313,6 +313,7 @@ def _http_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
     request_id = getattr(request.state, "request_id", None)
     return JSONResponse(
         status_code=exc.status_code,
+        headers=exc.headers,
         content={
             "error": "http_error",
             "message": exc.detail,

@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:79910) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/review-fixes.spec.ts:36:1 › prepared campaign supports edit start pause resume stop (3.1s)
+
+  1 passed (3.5s)
