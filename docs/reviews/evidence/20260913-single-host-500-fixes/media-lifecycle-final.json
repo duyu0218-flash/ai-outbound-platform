@@ -1,0 +1,117 @@
+{
+  "synthetic_only": true,
+  "real_human_transfer": "unverified",
+  "peer_hangup_repetitions": 1,
+  "checks": [
+    {
+      "mode": "socket_disconnect",
+      "seconds": 0.17,
+      "failure_reasons": [
+        "MEDIA_DISCONNECTED"
+      ],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "module_stop",
+      "seconds": 0.22,
+      "failure_reasons": [
+        "MEDIA_DISCONNECTED"
+      ],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "no_connect",
+      "seconds": 15.06,
+      "failure_reasons": [
+        "MEDIA_CONNECT_TIMEOUT"
+      ],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "transfer",
+      "seconds": 0.45,
+      "failure_reasons": [],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "notice_transfer",
+      "seconds": 5.33,
+      "failure_reasons": [],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "notice_hangup",
+      "seconds": 0.12,
+      "failure_reasons": [],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "remote_hangup",
+      "seconds": 0.22,
+      "failure_reasons": [],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    },
+    {
+      "mode": "recovery",
+      "seconds": 0.23,
+      "failure_reasons": [],
+      "remaining": {
+        "active_sessions": 0,
+        "active_bindings": 0,
+        "active_tokens": 0,
+        "active_lifecycles": 0,
+        "active_sockets": 0,
+        "notice_waiters": 0
+      }
+    }
+  ]
+}

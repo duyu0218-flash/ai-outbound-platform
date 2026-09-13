@@ -16,14 +16,25 @@ quota = AccountQuota(settings)
 @asynccontextmanager
 async def llm_client_lifespan():
     global _client
-    await asyncio.to_thread(quota.initialize)
-    async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
-            follow_redirects=False, limits=httpx.Limits(max_connections=settings.llm_max_connections, max_keepalive_connections=settings.llm_max_keepalive_connections)) as client:
-        _client = client
+    opening = asyncio.create_task(asyncio.to_thread(quota.start))
+    try:
+        await asyncio.shield(opening)
+    except asyncio.CancelledError:
         try:
-            yield
+            await opening
         finally:
-            _client = None
+            await asyncio.to_thread(quota.close)
+        raise
+    try:
+        async with httpx.AsyncClient(timeout=settings.openai_timeout_sec, trust_env=False,
+                follow_redirects=False, limits=httpx.Limits(max_connections=settings.llm_max_connections, max_keepalive_connections=settings.llm_max_keepalive_connections)) as client:
+            _client = client
+            try:
+                yield
+            finally:
+                _client = None
+    finally:
+        await asyncio.to_thread(quota.close)
 
 
 @asynccontextmanager

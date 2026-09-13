@@ -1,0 +1,2954 @@
+{
+  "source_sha256": {
+    "backend/app/db.py": "59e05604da60f81bc9c244689d7b687fe5c17f398ae32e8f67935c063750c209",
+    "backend/app/models.py": "c33fd74daeb7982475b7d360875776a0bfb54a37e1776baf6ffa44f945fd93f6",
+    "backend/app/services/callback_inbox.py": "5c8fe2b0e870fe9e1c80d4bf6d4f424aadb86b3c91a1f47fbe28a1272aa10d86",
+    "backend/app/callback_inbox_worker.py": "49c0b7bf632f2fcab911702dc293e5fb48ebfb7170acafa80762e4e1065bc150",
+    "backend/app/services/realtime_voice.py": "cf09013c9a1808d9c8240c08b6b20f56b81636a10e281b60cf42847599f51d1a",
+    "backend/app/services/dispatcher.py": "97a25ad74bf8dfbe1af39cc8a9f26e14cea1f4dbc9bd745d9943c59e2863ed6c",
+    "voice_gateway/app/security.py": "8460cf0acd920aaed96b116f68a86cd5602cfee20574b12e29ea5140748417fe",
+    "voice_gateway/app/durable_batch.py": "89d1b76eaeb370138bd0a76ba9723b5a5db9b6ef8207958094d7c16a4a3cb7f9",
+    "scripts/load-single-host-dialogue.py": "5ecb2cf68e4eca34a7152e55a132021ab757a3f8d85e4894e2af2a4c3a8f0256",
+    "backend/pyproject.toml": "a2ff818226449cb5c4f124de5370c160b8e089e9239f1a26f129e8ec537c4516",
+    "voice_gateway/pyproject.toml": "488b27f8ff6ec5a9bcbf9a527d8329cc3132ee55b493a700a95044d5e574c30d",
+    "agent/pyproject.toml": "b0215f8bcf740d9fba281233e3c510c65611885ef98a704144db95e37baa2f37",
+    "recording_adapter/pyproject.toml": "79500cfe23e12e112599cb8e00f3534ab8f49f062f468384069a07315dba4fe7",
+    "backend/app/schemas.py": "2137fa1b851ac3477ee767a938b29a238f5998598712d9c27a29b1290cafb884",
+    "backend/app/api/routers/webhooks.py": "70e61bf0fc5034e883f11463abf8bdd75ef3272bc022138d68d8f9848e837b9a",
+    "backend/app/main.py": "0b26e15e3f2af2fff9ee93f4861cbbc6bacb9957d15c32f6f8d03800fa62d2a0",
+    "backend/app/config.py": "98644be804dc1e262cef9d5d8158348a2f61522e79c5b803b158cb9e7962b3c4",
+    "voice_gateway/app/config.py": "5cd7e50fb0107faacc6df5dc908a1a3274a0812f8846dea11f4d9ebac60e7443",
+    "backend/app/services/telephony.py": "8398d68a0622f4c2df9a6256dc8cc0e864c48aa82dc1d23d97e6111ad271a198",
+    "backend/app/services/async_ai.py": "43bba1d3383830c48a2765bddfd247422c82c0d31c46c4b2fb70923739b9039b",
+    "backend/app/services/worker_runtime.py": "48d62b7dd9d2c79abb06aba2fdbab838f8822c2dd1959acc47f48673ea12b9ba",
+    "backend/app/ai_worker.py": "df8e47758685702b5573e95d8f9238207ecc8a0b0760a6282958a0c9824dcfa0",
+    "scripts/fixtures/single500_instrumented_ai.py": "6daa79d7cbbc9ff1c92db2a66f85a8c14aa660f6fcd9a4c177420acdd5695083",
+    "agent/app/main.py": "530b2bfe869f1f180bf9bcfae189e6ee05149fb52d06f533b6b80cea5b2d1232",
+    "agent/app/llm.py": "58581c8c087e92c80d6be8018cb0c991fb37f297f4fd4cc9b63fcda83c0b9775",
+    "agent/app/quota.py": "45412514301e4622ebabd7e738ed442bc88ee1d1559d1b33db7c5a4ad3d6a2a9",
+    "scripts/fixtures/single500_cloud_and_playback.py": "5f378a29453db1f32f105bc506ddd7bfc69099b185859f49339cf125448886a8",
+    "scripts/fixtures/single500_real_agent.py": "c791ff12863b266bdc3b6ae50e69efbe19bfa74d1b5483ef66cb3dddf29c87d5"
+  },
+  "runtime_dependencies": {
+    "fastapi": "0.141.1",
+    "anyio": "4.14.2",
+    "httpx": "0.28.1",
+    "httpcore": "1.0.9",
+    "sniffio": "1.3.1",
+    "uvloop": "0.22.1",
+    "sqlmodel": "0.0.42",
+    "psycopg": "3.3.4"
+  },
+  "generator_event_loop": "uvloop",
+  "synthetic_active_calls": 500,
+  "final_transcripts_per_second": 200,
+  "media_events_per_second": 400,
+  "duration_seconds": 120,
+  "batch_callbacks_enabled": true,
+  "http_request_statuses": {
+    "200": 11148
+  },
+  "mean_events_per_http_request": 6.458557588805167,
+  "scenario": "mixed",
+  "effective_dialogue_capacity_verified": false,
+  "initial_speech_start_rate": 200,
+  "topology": {
+    "api_processes": 6,
+    "callback_workers": 6,
+    "ai_workers": 4,
+    "ai_slots": 640,
+    "ai_db_threads_per_worker": 2,
+    "ai_action_threads_per_worker": 8,
+    "real_agent_processes": 0,
+    "task_workers": 0,
+    "pbx_processes": 0,
+    "media_workers": 0,
+    "application_db_pool_budget": 56,
+    "test_observer_db_pool_budget": 5
+  },
+  "conversation_rounds": null,
+  "conversation_errors": [],
+  "committed_replies_observed": 0,
+  "synthetic_reply_p95_ms": 0,
+  "synthetic_reply_p99_ms": 0,
+  "production_agents": [],
+  "playback_is_simulated": true,
+  "network_path": "linux-loopback-nginx",
+  "callback_ledger_storage": "explicit-local-volume",
+  "all_delivery_statuses_including_retries": {
+    "200": 72000
+  },
+  "pending_callbacks": 0,
+  "oldest_callback_age_sec": 0,
+  "durable_commit_batches": 16325,
+  "durable_operations": 144000,
+  "delivery_http_p99_ms": 57.16562503948808,
+  "generator_lag_p99_ms": 19.031582050956786,
+  "queue_samples": [
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269328.2709908,
+      "delivery_inflight": 0,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 26,
+      "oldest_callback_age_sec": 0.05819392204284668,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269329.2906027,
+      "delivery_inflight": 13,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 21,
+      "oldest_callback_age_sec": 0.051160335540771484,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269330.2961483,
+      "delivery_inflight": 13,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 16,
+      "oldest_callback_age_sec": 0.03810691833496094,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269331.305085,
+      "delivery_inflight": 9,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.05664968490600586,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269332.3088226,
+      "delivery_inflight": 12,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 24,
+      "oldest_callback_age_sec": 0.056524038314819336,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269333.3144379,
+      "delivery_inflight": 13,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 39,
+      "oldest_callback_age_sec": 0.08875894546508789,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269334.3297129,
+      "delivery_inflight": 20,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 23,
+      "oldest_callback_age_sec": 0.05639958381652832,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269335.3427486,
+      "delivery_inflight": 17,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 44,
+      "oldest_callback_age_sec": 0.12728571891784668,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269336.3552196,
+      "delivery_inflight": 24,
+      "writer_queued": 13
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.05994582176208496,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269337.3661017,
+      "delivery_inflight": 12,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.056371450424194336,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269338.3728044,
+      "delivery_inflight": 15,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.08896946907043457,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269339.3857555,
+      "delivery_inflight": 17,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 33,
+      "oldest_callback_age_sec": 0.07853174209594727,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269340.3906188,
+      "delivery_inflight": 15,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.07540249824523926,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269341.4036536,
+      "delivery_inflight": 18,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 40,
+      "oldest_callback_age_sec": 0.09884476661682129,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269342.4152496,
+      "delivery_inflight": 21,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 26,
+      "oldest_callback_age_sec": 0.06839227676391602,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269343.4363005,
+      "delivery_inflight": 21,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.06913089752197266,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269344.4463408,
+      "delivery_inflight": 12,
+      "writer_queued": 7
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 34,
+      "oldest_callback_age_sec": 0.06836462020874023,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269345.4596164,
+      "delivery_inflight": 13,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 23,
+      "oldest_callback_age_sec": 0.06301617622375488,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269346.476847,
+      "delivery_inflight": 6,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 21,
+      "oldest_callback_age_sec": 0.0527651309967041,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269347.4873843,
+      "delivery_inflight": 12,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.06572723388671875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269348.495956,
+      "delivery_inflight": 14,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.06766057014465332,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269349.5167968,
+      "delivery_inflight": 13,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.05614757537841797,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269350.5277915,
+      "delivery_inflight": 13,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.06214141845703125,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269351.5367093,
+      "delivery_inflight": 6,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.0748591423034668,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269352.5477016,
+      "delivery_inflight": 14,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.0782017707824707,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269353.5654604,
+      "delivery_inflight": 19,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 38,
+      "oldest_callback_age_sec": 0.08687067031860352,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269354.572094,
+      "delivery_inflight": 17,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 19,
+      "oldest_callback_age_sec": 0.04996371269226074,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269355.5823412,
+      "delivery_inflight": 12,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 17,
+      "oldest_callback_age_sec": 0.03310370445251465,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269356.590537,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 35,
+      "oldest_callback_age_sec": 0.08415007591247559,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269357.5934896,
+      "delivery_inflight": 18,
+      "writer_queued": 14
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.07576274871826172,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269358.60949,
+      "delivery_inflight": 16,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 41,
+      "oldest_callback_age_sec": 0.0921180248260498,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269359.6166658,
+      "delivery_inflight": 20,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 32,
+      "oldest_callback_age_sec": 0.0861058235168457,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269360.6238947,
+      "delivery_inflight": 8,
+      "writer_queued": 13
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 39,
+      "oldest_callback_age_sec": 0.08313250541687012,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269361.6484952,
+      "delivery_inflight": 19,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 32,
+      "oldest_callback_age_sec": 0.06427764892578125,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269362.6670012,
+      "delivery_inflight": 11,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 21,
+      "oldest_callback_age_sec": 0.0497283935546875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269363.6744823,
+      "delivery_inflight": 13,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 37,
+      "oldest_callback_age_sec": 0.09351253509521484,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269364.6866536,
+      "delivery_inflight": 21,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.07787322998046875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269365.7016196,
+      "delivery_inflight": 18,
+      "writer_queued": 13
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 32,
+      "oldest_callback_age_sec": 0.09062600135803223,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269366.7060833,
+      "delivery_inflight": 9,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 27,
+      "oldest_callback_age_sec": 0.0715641975402832,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269367.7148411,
+      "delivery_inflight": 15,
+      "writer_queued": 8
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.058074235916137695,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269368.7275054,
+      "delivery_inflight": 14,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 39,
+      "oldest_callback_age_sec": 0.10926127433776855,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269369.7461321,
+      "delivery_inflight": 20,
+      "writer_queued": 24
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 40,
+      "oldest_callback_age_sec": 0.09462165832519531,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269370.7586763,
+      "delivery_inflight": 21,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 86,
+      "oldest_callback_age_sec": 0.1975245475769043,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269371.777541,
+      "delivery_inflight": 8,
+      "writer_queued": 19
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 39,
+      "oldest_callback_age_sec": 0.09338021278381348,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269372.8023572,
+      "delivery_inflight": 19,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 153,
+      "oldest_callback_age_sec": 0.3186073303222656,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269373.8164225,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 254,
+      "oldest_callback_age_sec": 0.5850262641906738,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269374.875611,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 546,
+      "oldest_callback_age_sec": 0.92765212059021,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269376.024371,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 523,
+      "oldest_callback_age_sec": 0.9156398773193359,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269377.0466719,
+      "delivery_inflight": 24,
+      "writer_queued": 10
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 653,
+      "oldest_callback_age_sec": 1.141815185546875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269378.065026,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 774,
+      "oldest_callback_age_sec": 1.3239448070526123,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269379.0763216,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 667,
+      "oldest_callback_age_sec": 1.1564016342163086,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269380.0955062,
+      "delivery_inflight": 24,
+      "writer_queued": 10
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 707,
+      "oldest_callback_age_sec": 1.2188832759857178,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269381.1120784,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 694,
+      "oldest_callback_age_sec": 1.1578423976898193,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269382.1600575,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 511,
+      "oldest_callback_age_sec": 1.0333735942840576,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269383.2830327,
+      "delivery_inflight": 8,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 456,
+      "oldest_callback_age_sec": 0.7948269844055176,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269384.291492,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 465,
+      "oldest_callback_age_sec": 0.8301465511322021,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269385.3005664,
+      "delivery_inflight": 24,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 288,
+      "oldest_callback_age_sec": 0.5106799602508545,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269386.3082705,
+      "delivery_inflight": 24,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 213,
+      "oldest_callback_age_sec": 0.3913424015045166,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269387.3203166,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 42,
+      "oldest_callback_age_sec": 0.11614799499511719,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269388.3308084,
+      "delivery_inflight": 16,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 37,
+      "oldest_callback_age_sec": 0.10540556907653809,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269389.3435361,
+      "delivery_inflight": 19,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 41,
+      "oldest_callback_age_sec": 0.10557389259338379,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269390.3621628,
+      "delivery_inflight": 10,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.06878399848937988,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269391.398874,
+      "delivery_inflight": 10,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 35,
+      "oldest_callback_age_sec": 0.08055448532104492,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269392.4082425,
+      "delivery_inflight": 12,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.06728863716125488,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269393.4132524,
+      "delivery_inflight": 14,
+      "writer_queued": 8
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 34,
+      "oldest_callback_age_sec": 0.08261561393737793,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269394.4219563,
+      "delivery_inflight": 17,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.07246708869934082,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269395.4269068,
+      "delivery_inflight": 15,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.06046247482299805,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269396.4522412,
+      "delivery_inflight": 14,
+      "writer_queued": 11
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 27,
+      "oldest_callback_age_sec": 0.07306528091430664,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269397.4635522,
+      "delivery_inflight": 16,
+      "writer_queued": 8
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 24,
+      "oldest_callback_age_sec": 0.05514121055603027,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269398.4752004,
+      "delivery_inflight": 12,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.0693063735961914,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269399.4944499,
+      "delivery_inflight": 15,
+      "writer_queued": 7
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.07204198837280273,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269400.5141382,
+      "delivery_inflight": 17,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 27,
+      "oldest_callback_age_sec": 0.06429791450500488,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269401.5330925,
+      "delivery_inflight": 18,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.06963396072387695,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269402.542625,
+      "delivery_inflight": 15,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.1508800983428955,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269403.545675,
+      "delivery_inflight": 17,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 21,
+      "oldest_callback_age_sec": 0.05433154106140137,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269404.5562797,
+      "delivery_inflight": 13,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 58,
+      "oldest_callback_age_sec": 0.15053153038024902,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269405.5761092,
+      "delivery_inflight": 8,
+      "writer_queued": 12
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 208,
+      "oldest_callback_age_sec": 0.35395336151123047,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269406.590505,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 140,
+      "oldest_callback_age_sec": 0.26784563064575195,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269407.6157744,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 36,
+      "oldest_callback_age_sec": 0.07482647895812988,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269408.6224756,
+      "delivery_inflight": 10,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 40,
+      "oldest_callback_age_sec": 0.0903012752532959,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269409.6302907,
+      "delivery_inflight": 18,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 82,
+      "oldest_callback_age_sec": 0.16907548904418945,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269410.6378565,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.050086259841918945,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269411.6541364,
+      "delivery_inflight": 12,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 24,
+      "oldest_callback_age_sec": 0.06380367279052734,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269412.6629488,
+      "delivery_inflight": 14,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 45,
+      "oldest_callback_age_sec": 0.11921405792236328,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269413.6685092,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 49,
+      "oldest_callback_age_sec": 0.11974310874938965,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269414.6732972,
+      "delivery_inflight": 24,
+      "writer_queued": 20
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 80,
+      "oldest_callback_age_sec": 0.15873003005981445,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269415.6923678,
+      "delivery_inflight": 24,
+      "writer_queued": 26
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 102,
+      "oldest_callback_age_sec": 0.19045066833496094,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269416.7012181,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 126,
+      "oldest_callback_age_sec": 0.2837841510772705,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269417.7123296,
+      "delivery_inflight": 16,
+      "writer_queued": 21
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 36,
+      "oldest_callback_age_sec": 0.0827181339263916,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269418.725251,
+      "delivery_inflight": 21,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 83,
+      "oldest_callback_age_sec": 0.1045229434967041,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269419.737338,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.06480288505554199,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269420.7493181,
+      "delivery_inflight": 9,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.08240103721618652,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269421.765579,
+      "delivery_inflight": 16,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 28,
+      "oldest_callback_age_sec": 0.0769963264465332,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269422.7708347,
+      "delivery_inflight": 7,
+      "writer_queued": 8
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 22,
+      "oldest_callback_age_sec": 0.05980062484741211,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269423.783783,
+      "delivery_inflight": 12,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 25,
+      "oldest_callback_age_sec": 0.05205082893371582,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269424.815255,
+      "delivery_inflight": 16,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 82,
+      "oldest_callback_age_sec": 0.17267155647277832,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269425.8284395,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 45,
+      "oldest_callback_age_sec": 0.08097386360168457,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269426.8418906,
+      "delivery_inflight": 16,
+      "writer_queued": 16
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.08519387245178223,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269427.8545487,
+      "delivery_inflight": 17,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 37,
+      "oldest_callback_age_sec": 0.08667898178100586,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269428.862421,
+      "delivery_inflight": 18,
+      "writer_queued": 7
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 41,
+      "oldest_callback_age_sec": 0.2592508792877197,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269429.925728,
+      "delivery_inflight": 22,
+      "writer_queued": 46
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 29,
+      "oldest_callback_age_sec": 0.08521056175231934,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269430.9340875,
+      "delivery_inflight": 17,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 55,
+      "oldest_callback_age_sec": 0.15830278396606445,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269431.9556785,
+      "delivery_inflight": 24,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 192,
+      "oldest_callback_age_sec": 0.34300971031188965,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269433.010116,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 123,
+      "oldest_callback_age_sec": 0.2403113842010498,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269434.0291266,
+      "delivery_inflight": 24,
+      "writer_queued": 29
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 34,
+      "oldest_callback_age_sec": 0.07898306846618652,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269435.0353513,
+      "delivery_inflight": 9,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 31,
+      "oldest_callback_age_sec": 0.08440446853637695,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269436.0454338,
+      "delivery_inflight": 11,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 42,
+      "oldest_callback_age_sec": 0.1082146167755127,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269437.05562,
+      "delivery_inflight": 18,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 89,
+      "oldest_callback_age_sec": 0.1912240982055664,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269438.062925,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 23,
+      "oldest_callback_age_sec": 0.05545663833618164,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269439.0847847,
+      "delivery_inflight": 12,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 237,
+      "oldest_callback_age_sec": 0.23614287376403809,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269440.094266,
+      "delivery_inflight": 24,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 218,
+      "oldest_callback_age_sec": 0.3867197036743164,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269441.144265,
+      "delivery_inflight": 8,
+      "writer_queued": 16
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 188,
+      "oldest_callback_age_sec": 0.3551011085510254,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269442.149911,
+      "delivery_inflight": 8,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 99,
+      "oldest_callback_age_sec": 0.19858074188232422,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269443.1647902,
+      "delivery_inflight": 24,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 96,
+      "oldest_callback_age_sec": 0.20067119598388672,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269444.17447,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 292,
+      "oldest_callback_age_sec": 0.49987339973449707,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269445.1862621,
+      "delivery_inflight": 24,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 627,
+      "oldest_callback_age_sec": 1.0954344272613525,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269446.232732,
+      "delivery_inflight": 24,
+      "writer_queued": 17
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 787,
+      "oldest_callback_age_sec": 1.3494377136230469,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269447.2651296,
+      "delivery_inflight": 24,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 825,
+      "oldest_callback_age_sec": 1.8173034191131592,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269448.6867282,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 340,
+      "oldest_callback_age_sec": 1.9986748695373535,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269449.6974258,
+      "delivery_inflight": 24,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269450.7029715,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269451.7069294,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269452.71103,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269453.7164974,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269454.7195504,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269455.7238142,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789269456.7270305,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    }
+  ],
+  "gateway_delivery_p99_ms": 1845.231584040448,
+  "gateway_delivery_max_ms": 2070.492835016921,
+  "model_transport_retries": 0,
+  "inbox_final": {
+    "pending": 0,
+    "pending_bytes": 0,
+    "dead": 0,
+    "oldest_age_sec": 0,
+    "live_workers": 6,
+    "processed": 72000,
+    "max_completion_latency_ms": 3516.61,
+    "ready": true
+  },
+  "inbox_samples": [
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 0,
+      "max_completion_latency_ms": 0.0,
+      "ready": true
+    },
+    {
+      "pending": 42,
+      "pending_bytes": 13603,
+      "dead": 0,
+      "oldest_age_sec": 0.131796,
+      "live_workers": 6,
+      "processed": 550,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 40,
+      "pending_bytes": 12964,
+      "dead": 0,
+      "oldest_age_sec": 0.226758,
+      "live_workers": 6,
+      "processed": 1155,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 16,
+      "pending_bytes": 5216,
+      "dead": 0,
+      "oldest_age_sec": 0.051902,
+      "live_workers": 6,
+      "processed": 1789,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 33,
+      "pending_bytes": 10770,
+      "dead": 0,
+      "oldest_age_sec": 0.122977,
+      "live_workers": 6,
+      "processed": 2368,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 26,
+      "pending_bytes": 8519,
+      "dead": 0,
+      "oldest_age_sec": 0.256829,
+      "live_workers": 6,
+      "processed": 2974,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 64,
+      "pending_bytes": 20864,
+      "dead": 0,
+      "oldest_age_sec": 0.343068,
+      "live_workers": 6,
+      "processed": 3531,
+      "max_completion_latency_ms": 290.62399999999997,
+      "ready": true
+    },
+    {
+      "pending": 55,
+      "pending_bytes": 18029,
+      "dead": 0,
+      "oldest_age_sec": 0.435314,
+      "live_workers": 6,
+      "processed": 4169,
+      "max_completion_latency_ms": 497.271,
+      "ready": true
+    },
+    {
+      "pending": 79,
+      "pending_bytes": 25829,
+      "dead": 0,
+      "oldest_age_sec": 0.275343,
+      "live_workers": 6,
+      "processed": 4721,
+      "max_completion_latency_ms": 510.72799999999995,
+      "ready": true
+    },
+    {
+      "pending": 40,
+      "pending_bytes": 13098,
+      "dead": 0,
+      "oldest_age_sec": 0.299118,
+      "live_workers": 6,
+      "processed": 5393,
+      "max_completion_latency_ms": 520.539,
+      "ready": true
+    },
+    {
+      "pending": 27,
+      "pending_bytes": 8843,
+      "dead": 0,
+      "oldest_age_sec": 0.087281,
+      "live_workers": 6,
+      "processed": 6013,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 21,
+      "pending_bytes": 6852,
+      "dead": 0,
+      "oldest_age_sec": 0.083648,
+      "live_workers": 6,
+      "processed": 6615,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 30,
+      "pending_bytes": 9754,
+      "dead": 0,
+      "oldest_age_sec": 0.118489,
+      "live_workers": 6,
+      "processed": 7210,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 30,
+      "pending_bytes": 9857,
+      "dead": 0,
+      "oldest_age_sec": 0.043493,
+      "live_workers": 6,
+      "processed": 7820,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 72,
+      "pending_bytes": 23498,
+      "dead": 0,
+      "oldest_age_sec": 0.333897,
+      "live_workers": 6,
+      "processed": 8383,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 53,
+      "pending_bytes": 17387,
+      "dead": 0,
+      "oldest_age_sec": 0.196575,
+      "live_workers": 6,
+      "processed": 9019,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 64,
+      "pending_bytes": 20863,
+      "dead": 0,
+      "oldest_age_sec": 0.324985,
+      "live_workers": 6,
+      "processed": 9619,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 87,
+      "pending_bytes": 28594,
+      "dead": 0,
+      "oldest_age_sec": 0.383298,
+      "live_workers": 6,
+      "processed": 10193,
+      "max_completion_latency_ms": 551.141,
+      "ready": true
+    },
+    {
+      "pending": 20,
+      "pending_bytes": 6581,
+      "dead": 0,
+      "oldest_age_sec": 0.075026,
+      "live_workers": 6,
+      "processed": 10873,
+      "max_completion_latency_ms": 700.966,
+      "ready": true
+    },
+    {
+      "pending": 21,
+      "pending_bytes": 6986,
+      "dead": 0,
+      "oldest_age_sec": 0.044844,
+      "live_workers": 6,
+      "processed": 11482,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 46,
+      "pending_bytes": 15023,
+      "dead": 0,
+      "oldest_age_sec": 0.279231,
+      "live_workers": 6,
+      "processed": 12066,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 20,
+      "pending_bytes": 6516,
+      "dead": 0,
+      "oldest_age_sec": 0.102573,
+      "live_workers": 6,
+      "processed": 12698,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 31,
+      "pending_bytes": 10060,
+      "dead": 0,
+      "oldest_age_sec": 0.141445,
+      "live_workers": 6,
+      "processed": 13298,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 28,
+      "pending_bytes": 9048,
+      "dead": 0,
+      "oldest_age_sec": 0.132124,
+      "live_workers": 6,
+      "processed": 13906,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 21,
+      "pending_bytes": 6885,
+      "dead": 0,
+      "oldest_age_sec": 0.071882,
+      "live_workers": 6,
+      "processed": 14522,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 51,
+      "pending_bytes": 16538,
+      "dead": 0,
+      "oldest_age_sec": 0.185917,
+      "live_workers": 6,
+      "processed": 15085,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 69,
+      "pending_bytes": 22739,
+      "dead": 0,
+      "oldest_age_sec": 0.385392,
+      "live_workers": 6,
+      "processed": 15679,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 31,
+      "pending_bytes": 10253,
+      "dead": 0,
+      "oldest_age_sec": 0.107793,
+      "live_workers": 6,
+      "processed": 16333,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 73,
+      "pending_bytes": 23849,
+      "dead": 0,
+      "oldest_age_sec": 0.478556,
+      "live_workers": 6,
+      "processed": 16896,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 58,
+      "pending_bytes": 19014,
+      "dead": 0,
+      "oldest_age_sec": 0.344024,
+      "live_workers": 6,
+      "processed": 17500,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 21,
+      "pending_bytes": 6833,
+      "dead": 0,
+      "oldest_age_sec": 0.132932,
+      "live_workers": 6,
+      "processed": 18147,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 26,
+      "pending_bytes": 8319,
+      "dead": 0,
+      "oldest_age_sec": 0.120655,
+      "live_workers": 6,
+      "processed": 18739,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 36,
+      "pending_bytes": 11808,
+      "dead": 0,
+      "oldest_age_sec": 0.158326,
+      "live_workers": 6,
+      "processed": 19344,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 45,
+      "pending_bytes": 14647,
+      "dead": 0,
+      "oldest_age_sec": 0.20788,
+      "live_workers": 6,
+      "processed": 19950,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 51,
+      "pending_bytes": 16675,
+      "dead": 0,
+      "oldest_age_sec": 0.163422,
+      "live_workers": 6,
+      "processed": 20555,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 67,
+      "pending_bytes": 21851,
+      "dead": 0,
+      "oldest_age_sec": 0.301245,
+      "live_workers": 6,
+      "processed": 21150,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 85,
+      "pending_bytes": 27843,
+      "dead": 0,
+      "oldest_age_sec": 0.374815,
+      "live_workers": 6,
+      "processed": 21745,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 46,
+      "pending_bytes": 15055,
+      "dead": 0,
+      "oldest_age_sec": 0.289961,
+      "live_workers": 6,
+      "processed": 22384,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 77,
+      "pending_bytes": 25132,
+      "dead": 0,
+      "oldest_age_sec": 0.219132,
+      "live_workers": 6,
+      "processed": 22941,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 41,
+      "pending_bytes": 13430,
+      "dead": 0,
+      "oldest_age_sec": 0.166156,
+      "live_workers": 6,
+      "processed": 23598,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 52,
+      "pending_bytes": 17153,
+      "dead": 0,
+      "oldest_age_sec": 0.143596,
+      "live_workers": 6,
+      "processed": 24213,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 53,
+      "pending_bytes": 17284,
+      "dead": 0,
+      "oldest_age_sec": 0.302711,
+      "live_workers": 6,
+      "processed": 24795,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 161,
+      "pending_bytes": 52707,
+      "dead": 0,
+      "oldest_age_sec": 0.652754,
+      "live_workers": 6,
+      "processed": 25317,
+      "max_completion_latency_ms": 737.9839999999999,
+      "ready": true
+    },
+    {
+      "pending": 155,
+      "pending_bytes": 50642,
+      "dead": 0,
+      "oldest_age_sec": 1.042951,
+      "live_workers": 6,
+      "processed": 25847,
+      "max_completion_latency_ms": 975.7869999999999,
+      "ready": false
+    },
+    {
+      "pending": 195,
+      "pending_bytes": 63904,
+      "dead": 0,
+      "oldest_age_sec": 1.262038,
+      "live_workers": 6,
+      "processed": 26503,
+      "max_completion_latency_ms": 1483.283,
+      "ready": false
+    },
+    {
+      "pending": 199,
+      "pending_bytes": 65017,
+      "dead": 0,
+      "oldest_age_sec": 1.124805,
+      "live_workers": 6,
+      "processed": 26988,
+      "max_completion_latency_ms": 1716.011,
+      "ready": false
+    },
+    {
+      "pending": 202,
+      "pending_bytes": 66346,
+      "dead": 0,
+      "oldest_age_sec": 1.590955,
+      "live_workers": 6,
+      "processed": 27447,
+      "max_completion_latency_ms": 1750.332,
+      "ready": false
+    },
+    {
+      "pending": 252,
+      "pending_bytes": 83031,
+      "dead": 0,
+      "oldest_age_sec": 2.053343,
+      "live_workers": 6,
+      "processed": 27871,
+      "max_completion_latency_ms": 2294.138,
+      "ready": false
+    },
+    {
+      "pending": 314,
+      "pending_bytes": 102740,
+      "dead": 0,
+      "oldest_age_sec": 2.826617,
+      "live_workers": 6,
+      "processed": 28425,
+      "max_completion_latency_ms": 2797.1020000000003,
+      "ready": false
+    },
+    {
+      "pending": 253,
+      "pending_bytes": 82953,
+      "dead": 0,
+      "oldest_age_sec": 3.482871,
+      "live_workers": 6,
+      "processed": 28950,
+      "max_completion_latency_ms": 3216.323,
+      "ready": false
+    },
+    {
+      "pending": 210,
+      "pending_bytes": 68778,
+      "dead": 0,
+      "oldest_age_sec": 2.689872,
+      "live_workers": 6,
+      "processed": 29513,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 215,
+      "pending_bytes": 70578,
+      "dead": 0,
+      "oldest_age_sec": 2.868992,
+      "live_workers": 6,
+      "processed": 30231,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 203,
+      "pending_bytes": 66706,
+      "dead": 0,
+      "oldest_age_sec": 2.076782,
+      "live_workers": 6,
+      "processed": 30809,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 215,
+      "pending_bytes": 70717,
+      "dead": 0,
+      "oldest_age_sec": 2.339224,
+      "live_workers": 6,
+      "processed": 31449,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 114,
+      "pending_bytes": 37431,
+      "dead": 0,
+      "oldest_age_sec": 1.831801,
+      "live_workers": 6,
+      "processed": 32282,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 190,
+      "pending_bytes": 62677,
+      "dead": 0,
+      "oldest_age_sec": 1.69568,
+      "live_workers": 6,
+      "processed": 32970,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 159,
+      "pending_bytes": 52250,
+      "dead": 0,
+      "oldest_age_sec": 1.000682,
+      "live_workers": 6,
+      "processed": 33588,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 195,
+      "pending_bytes": 64207,
+      "dead": 0,
+      "oldest_age_sec": 1.467121,
+      "live_workers": 6,
+      "processed": 34347,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 173,
+      "pending_bytes": 56837,
+      "dead": 0,
+      "oldest_age_sec": 0.816625,
+      "live_workers": 6,
+      "processed": 35063,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 143,
+      "pending_bytes": 47099,
+      "dead": 0,
+      "oldest_age_sec": 1.313059,
+      "live_workers": 6,
+      "processed": 35846,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 120,
+      "pending_bytes": 39254,
+      "dead": 0,
+      "oldest_age_sec": 0.560811,
+      "live_workers": 6,
+      "processed": 36482,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 176,
+      "pending_bytes": 57790,
+      "dead": 0,
+      "oldest_age_sec": 1.268857,
+      "live_workers": 6,
+      "processed": 37032,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 150,
+      "pending_bytes": 49304,
+      "dead": 0,
+      "oldest_age_sec": 0.538368,
+      "live_workers": 6,
+      "processed": 37703,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 35,
+      "pending_bytes": 11437,
+      "dead": 0,
+      "oldest_age_sec": 0.162572,
+      "live_workers": 6,
+      "processed": 38407,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 51,
+      "pending_bytes": 16763,
+      "dead": 0,
+      "oldest_age_sec": 0.199447,
+      "live_workers": 6,
+      "processed": 39007,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 26,
+      "pending_bytes": 8517,
+      "dead": 0,
+      "oldest_age_sec": 0.096915,
+      "live_workers": 6,
+      "processed": 39642,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 58,
+      "pending_bytes": 19070,
+      "dead": 0,
+      "oldest_age_sec": 0.208869,
+      "live_workers": 6,
+      "processed": 40202,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 41,
+      "pending_bytes": 13507,
+      "dead": 0,
+      "oldest_age_sec": 0.149487,
+      "live_workers": 6,
+      "processed": 40847,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 29,
+      "pending_bytes": 9604,
+      "dead": 0,
+      "oldest_age_sec": 0.161227,
+      "live_workers": 6,
+      "processed": 41455,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 27,
+      "pending_bytes": 8821,
+      "dead": 0,
+      "oldest_age_sec": 0.098561,
+      "live_workers": 6,
+      "processed": 42079,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 19,
+      "pending_bytes": 6209,
+      "dead": 0,
+      "oldest_age_sec": 0.137083,
+      "live_workers": 6,
+      "processed": 42691,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 121,
+      "pending_bytes": 39806,
+      "dead": 0,
+      "oldest_age_sec": 0.507683,
+      "live_workers": 6,
+      "processed": 43202,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 36,
+      "pending_bytes": 11842,
+      "dead": 0,
+      "oldest_age_sec": 0.144232,
+      "live_workers": 6,
+      "processed": 43898,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 32,
+      "pending_bytes": 10450,
+      "dead": 0,
+      "oldest_age_sec": 0.102631,
+      "live_workers": 6,
+      "processed": 44505,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 30,
+      "pending_bytes": 9977,
+      "dead": 0,
+      "oldest_age_sec": 0.13237,
+      "live_workers": 6,
+      "processed": 45107,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 28,
+      "pending_bytes": 9230,
+      "dead": 0,
+      "oldest_age_sec": 0.133076,
+      "live_workers": 6,
+      "processed": 45719,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 105,
+      "pending_bytes": 34474,
+      "dead": 0,
+      "oldest_age_sec": 0.440996,
+      "live_workers": 6,
+      "processed": 46235,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 81,
+      "pending_bytes": 26674,
+      "dead": 0,
+      "oldest_age_sec": 0.275674,
+      "live_workers": 6,
+      "processed": 46705,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 139,
+      "pending_bytes": 45468,
+      "dead": 0,
+      "oldest_age_sec": 0.497566,
+      "live_workers": 6,
+      "processed": 47331,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 126,
+      "pending_bytes": 41364,
+      "dead": 0,
+      "oldest_age_sec": 0.55287,
+      "live_workers": 6,
+      "processed": 48046,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 74,
+      "pending_bytes": 24295,
+      "dead": 0,
+      "oldest_age_sec": 0.984167,
+      "live_workers": 6,
+      "processed": 48710,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 162,
+      "pending_bytes": 53171,
+      "dead": 0,
+      "oldest_age_sec": 0.729435,
+      "live_workers": 6,
+      "processed": 49200,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 166,
+      "pending_bytes": 54563,
+      "dead": 0,
+      "oldest_age_sec": 0.545736,
+      "live_workers": 6,
+      "processed": 49839,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 29,
+      "pending_bytes": 9534,
+      "dead": 0,
+      "oldest_age_sec": 0.134483,
+      "live_workers": 6,
+      "processed": 50574,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 54,
+      "pending_bytes": 17679,
+      "dead": 0,
+      "oldest_age_sec": 0.150658,
+      "live_workers": 6,
+      "processed": 51150,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 138,
+      "pending_bytes": 45506,
+      "dead": 0,
+      "oldest_age_sec": 0.695155,
+      "live_workers": 6,
+      "processed": 51664,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 127,
+      "pending_bytes": 41805,
+      "dead": 0,
+      "oldest_age_sec": 0.696998,
+      "live_workers": 6,
+      "processed": 52268,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 146,
+      "pending_bytes": 48051,
+      "dead": 0,
+      "oldest_age_sec": 0.524494,
+      "live_workers": 6,
+      "processed": 52828,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 188,
+      "pending_bytes": 61690,
+      "dead": 0,
+      "oldest_age_sec": 1.412436,
+      "live_workers": 6,
+      "processed": 53360,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 110,
+      "pending_bytes": 36032,
+      "dead": 0,
+      "oldest_age_sec": 0.842332,
+      "live_workers": 6,
+      "processed": 54122,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 93,
+      "pending_bytes": 30537,
+      "dead": 0,
+      "oldest_age_sec": 0.312397,
+      "live_workers": 6,
+      "processed": 54718,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 79,
+      "pending_bytes": 25821,
+      "dead": 0,
+      "oldest_age_sec": 0.398771,
+      "live_workers": 6,
+      "processed": 55385,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 96,
+      "pending_bytes": 31560,
+      "dead": 0,
+      "oldest_age_sec": 0.369116,
+      "live_workers": 6,
+      "processed": 55972,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 134,
+      "pending_bytes": 44323,
+      "dead": 0,
+      "oldest_age_sec": 0.487971,
+      "live_workers": 6,
+      "processed": 56541,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 144,
+      "pending_bytes": 47370,
+      "dead": 0,
+      "oldest_age_sec": 0.439948,
+      "live_workers": 6,
+      "processed": 57167,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 85,
+      "pending_bytes": 28028,
+      "dead": 0,
+      "oldest_age_sec": 0.307742,
+      "live_workers": 6,
+      "processed": 57821,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 84,
+      "pending_bytes": 27586,
+      "dead": 0,
+      "oldest_age_sec": 0.315661,
+      "live_workers": 6,
+      "processed": 58378,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 102,
+      "pending_bytes": 33525,
+      "dead": 0,
+      "oldest_age_sec": 0.429013,
+      "live_workers": 6,
+      "processed": 58997,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 68,
+      "pending_bytes": 22293,
+      "dead": 0,
+      "oldest_age_sec": 0.372999,
+      "live_workers": 6,
+      "processed": 59663,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 28,
+      "pending_bytes": 9126,
+      "dead": 0,
+      "oldest_age_sec": 0.14491,
+      "live_workers": 6,
+      "processed": 60288,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 60861,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 82,
+      "pending_bytes": 26943,
+      "dead": 0,
+      "oldest_age_sec": 0.48986,
+      "live_workers": 6,
+      "processed": 61483,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 57,
+      "pending_bytes": 18698,
+      "dead": 0,
+      "oldest_age_sec": 0.402561,
+      "live_workers": 6,
+      "processed": 62066,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 164,
+      "pending_bytes": 53818,
+      "dead": 0,
+      "oldest_age_sec": 0.797163,
+      "live_workers": 6,
+      "processed": 62513,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 168,
+      "pending_bytes": 55101,
+      "dead": 0,
+      "oldest_age_sec": 0.470448,
+      "live_workers": 6,
+      "processed": 63176,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 168,
+      "pending_bytes": 55208,
+      "dead": 0,
+      "oldest_age_sec": 0.850376,
+      "live_workers": 6,
+      "processed": 63854,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 126,
+      "pending_bytes": 41503,
+      "dead": 0,
+      "oldest_age_sec": 0.438941,
+      "live_workers": 6,
+      "processed": 64505,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 123,
+      "pending_bytes": 40376,
+      "dead": 0,
+      "oldest_age_sec": 0.595496,
+      "live_workers": 6,
+      "processed": 65107,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 92,
+      "pending_bytes": 30337,
+      "dead": 0,
+      "oldest_age_sec": 0.399481,
+      "live_workers": 6,
+      "processed": 65708,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 87,
+      "pending_bytes": 28570,
+      "dead": 0,
+      "oldest_age_sec": 0.447358,
+      "live_workers": 6,
+      "processed": 66373,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 89,
+      "pending_bytes": 28622,
+      "dead": 0,
+      "oldest_age_sec": 0.26983,
+      "live_workers": 6,
+      "processed": 66769,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 96,
+      "pending_bytes": 31492,
+      "dead": 0,
+      "oldest_age_sec": 0.413228,
+      "live_workers": 6,
+      "processed": 67404,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 120,
+      "pending_bytes": 39324,
+      "dead": 0,
+      "oldest_age_sec": 0.419382,
+      "live_workers": 6,
+      "processed": 68013,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 171,
+      "pending_bytes": 56196,
+      "dead": 0,
+      "oldest_age_sec": 0.499578,
+      "live_workers": 6,
+      "processed": 68666,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 194,
+      "pending_bytes": 63865,
+      "dead": 0,
+      "oldest_age_sec": 1.066639,
+      "live_workers": 6,
+      "processed": 69266,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 165,
+      "pending_bytes": 54258,
+      "dead": 0,
+      "oldest_age_sec": 1.111343,
+      "live_workers": 6,
+      "processed": 69706,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 250,
+      "pending_bytes": 82257,
+      "dead": 0,
+      "oldest_age_sec": 2.102983,
+      "live_workers": 6,
+      "processed": 69914,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 334,
+      "pending_bytes": 109880,
+      "dead": 0,
+      "oldest_age_sec": 2.65227,
+      "live_workers": 6,
+      "processed": 70254,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 314,
+      "pending_bytes": 103501,
+      "dead": 0,
+      "oldest_age_sec": 2.478606,
+      "live_workers": 6,
+      "processed": 70878,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 255,
+      "pending_bytes": 83575,
+      "dead": 0,
+      "oldest_age_sec": 2.031923,
+      "live_workers": 6,
+      "processed": 71429,
+      "max_completion_latency_ms": 3516.61,
+      "ready": false
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 72000,
+      "max_completion_latency_ms": 3516.61,
+      "ready": true
+    }
+  ],
+  "capacity_slo_passed": false,
+  "task_states": {
+    "completed": 24000
+  },
+  "final_transcripts": 24000,
+  "successful_ai_metrics": 501,
+  "model": {
+    "active": 0,
+    "peak": 555,
+    "total": 14982,
+    "cancelled": 0
+  },
+  "ai_transcripts": 7,
+  "media_ingest_events": 48000,
+  "call_states": {
+    "in_ai": 500
+  },
+  "failed_metrics": 0,
+  "ai_max_attempts": 1,
+  "stage_timings": {
+    "tts.dispatch": {
+      "count": 7,
+      "p99_ms": 18,
+      "max_ms": 18
+    },
+    "ai.turn": {
+      "count": 501,
+      "p99_ms": 4339,
+      "max_ms": 4431
+    }
+  },
+  "reply_round_timings": {},
+  "ai_work_pool_timings": [
+    {
+      "prepare.queue_ms": {
+        "count": 8,
+        "p99": 0.6486669881269336,
+        "max": 0.6486669881269336
+      },
+      "prepare.execute_ms": {
+        "count": 8,
+        "p99": 51.77770892623812,
+        "max": 51.77770892623812
+      },
+      "claim_ready_tasks.queue_ms": {
+        "count": 319,
+        "p99": 981.0421669390053,
+        "max": 1264.78629198391
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 319,
+        "p99": 241.2705000024289,
+        "max": 563.1864171009511
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 5791,
+        "p99": 1631.4007509499788,
+        "max": 2303.44150098972
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 5791,
+        "p99": 101.58670891541988,
+        "max": 245.88358402252197
+      },
+      "_ai_snapshot_current.queue_ms": {
+        "count": 4070,
+        "p99": 1427.7649599825963,
+        "max": 2156.1888339929283
+      },
+      "_ai_snapshot_current.execute_ms": {
+        "count": 4070,
+        "p99": 22.492459043860435,
+        "max": 148.7897919723764
+      },
+      "complete.queue_ms": {
+        "count": 5791,
+        "p99": 1446.2109999731183,
+        "max": 1959.3121679499745
+      },
+      "complete.execute_ms": {
+        "count": 5791,
+        "p99": 22.798334015533328,
+        "max": 137.7351249102503
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 221,
+        "p99": 235.15712504740804,
+        "max": 255.0734169781208
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 221,
+        "p99": 155.63699998892844,
+        "max": 197.5618329597637
+      }
+    },
+    {
+      "prepare.queue_ms": {
+        "count": 8,
+        "p99": 1.0934999445453286,
+        "max": 1.0934999445453286
+      },
+      "prepare.execute_ms": {
+        "count": 8,
+        "p99": 54.84241701196879,
+        "max": 54.84241701196879
+      },
+      "claim_ready_tasks.queue_ms": {
+        "count": 346,
+        "p99": 981.6517509752885,
+        "max": 1268.0592510150746
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 346,
+        "p99": 307.4557500658557,
+        "max": 375.492000952363
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 5650,
+        "p99": 1403.585624997504,
+        "max": 1683.5856260731816
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 5650,
+        "p99": 100.9919160278514,
+        "max": 375.972667010501
+      },
+      "_ai_snapshot_current.queue_ms": {
+        "count": 4111,
+        "p99": 1360.440043034032,
+        "max": 1676.3301260070875
+      },
+      "_ai_snapshot_current.execute_ms": {
+        "count": 4111,
+        "p99": 24.188415962271392,
+        "max": 107.63037507422268
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 215,
+        "p99": 207.4378749821335,
+        "max": 236.7195839760825
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 215,
+        "p99": 175.3942919895053,
+        "max": 210.197624983266
+      },
+      "complete.queue_ms": {
+        "count": 5650,
+        "p99": 1381.8435008870438,
+        "max": 1676.4950839569792
+      },
+      "complete.execute_ms": {
+        "count": 5650,
+        "p99": 30.160041991621256,
+        "max": 93.95379200577736
+      }
+    },
+    {
+      "prepare.queue_ms": {
+        "count": 8,
+        "p99": 0.6123330676928163,
+        "max": 0.6123330676928163
+      },
+      "prepare.execute_ms": {
+        "count": 8,
+        "p99": 52.326750010252,
+        "max": 52.326750010252
+      },
+      "claim_ready_tasks.queue_ms": {
+        "count": 332,
+        "p99": 1107.2545000351965,
+        "max": 1257.9022510908544
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 332,
+        "p99": 240.16441695857793,
+        "max": 263.6085000121966
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 5864,
+        "p99": 1437.366793048568,
+        "max": 2406.0815430711955
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 5864,
+        "p99": 94.07254098914564,
+        "max": 237.88329202216119
+      },
+      "_ai_snapshot_current.queue_ms": {
+        "count": 4060,
+        "p99": 1471.0550419986248,
+        "max": 2357.7506680740044
+      },
+      "_ai_snapshot_current.execute_ms": {
+        "count": 4060,
+        "p99": 28.912167064845562,
+        "max": 255.63587504439056
+      },
+      "complete.queue_ms": {
+        "count": 5864,
+        "p99": 1395.1023749541491,
+        "max": 2184.001834015362
+      },
+      "complete.execute_ms": {
+        "count": 5864,
+        "p99": 20.609832950867712,
+        "max": 113.68262500036508
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 248,
+        "p99": 248.60695796087384,
+        "max": 262.2367909643799
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 248,
+        "p99": 168.57716592494398,
+        "max": 196.55208301264793
+      },
+      "_speak_wait_notice.queue_ms": {
+        "count": 7,
+        "p99": 3.1333330553025007,
+        "max": 3.1333330553025007
+      },
+      "_speak_wait_notice.execute_ms": {
+        "count": 7,
+        "p99": 126.53500004671514,
+        "max": 126.53500004671514
+      }
+    },
+    {
+      "prepare.queue_ms": {
+        "count": 8,
+        "p99": 0.7133750477805734,
+        "max": 0.7133750477805734
+      },
+      "prepare.execute_ms": {
+        "count": 8,
+        "p99": 48.31608396489173,
+        "max": 48.31608396489173
+      },
+      "claim_ready_tasks.queue_ms": {
+        "count": 318,
+        "p99": 1213.5383340064436,
+        "max": 1515.145375044085
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 318,
+        "p99": 235.63616699539125,
+        "max": 427.34983295667917
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 5718,
+        "p99": 1799.8441259842366,
+        "max": 2203.107209992595
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 5718,
+        "p99": 103.75095892231911,
+        "max": 289.23575091175735
+      },
+      "_ai_snapshot_current.queue_ms": {
+        "count": 4103,
+        "p99": 1638.729542028159,
+        "max": 2129.8475010553375
+      },
+      "_ai_snapshot_current.execute_ms": {
+        "count": 4103,
+        "p99": 21.73262496944517,
+        "max": 221.75050002988428
+      },
+      "complete.queue_ms": {
+        "count": 5718,
+        "p99": 1732.5380010297522,
+        "max": 2210.097293020226
+      },
+      "complete.execute_ms": {
+        "count": 5718,
+        "p99": 22.34625001437962,
+        "max": 145.68758406676352
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 202,
+        "p99": 58.99783305358142,
+        "max": 75.3957920242101
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 202,
+        "p99": 173.51270804647356,
+        "max": 222.70462499000132
+      }
+    }
+  ],
+  "sender_stage_ms": {
+    "commit": {
+      "count": 16325,
+      "sum": 67201.38568012044,
+      "p50": 3.274042042903602,
+      "p99": 16.194624942727387
+    },
+    "claim": {
+      "count": 11926,
+      "sum": 8022.603743360378,
+      "p50": 0.46062504407018423,
+      "p99": 3.3143750624731183
+    }
+  },
+  "elapsed_with_drain_seconds": 128.9963502670871,
+  "real_sip_rtp_asr_tts_llm": false,
+  "correctness_passed": true,
+  "runtime_source_unchanged_during_test": true
+}

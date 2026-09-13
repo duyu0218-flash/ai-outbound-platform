@@ -249,8 +249,11 @@ class HttpAdapter(TelephonyAdapter):
         stamp, nonce = str(int(time.time())), token_urlsafe(24)
         headers = {**self.headers, "Content-Type": "application/json", "x-voice-timestamp": stamp, "x-voice-nonce": nonce,
                    "x-voice-signature": hmac.new(settings.voice_command_secret.encode(), f"{stamp}.{nonce}.{path}.".encode() + body, hashlib.sha256).hexdigest()}
-        async with http_client(timeout=settings.telephony_timeout_sec, headers=headers, follow_redirects=False, trust_env=False) as client:
-            response = await client.post(f"{self.endpoint}{path}", content=body)
+        # Nonce/signature and credentials belong to this request. Including
+        # them in the client cache key recreated a connection pool per command.
+        # Never mutate shared client defaults when switching tenants.
+        async with http_client(timeout=settings.telephony_timeout_sec, follow_redirects=False, trust_env=False) as client:
+            response = await client.post(f"{self.endpoint}{path}", content=body, headers=headers)
         response.raise_for_status()
         return response.json()
 

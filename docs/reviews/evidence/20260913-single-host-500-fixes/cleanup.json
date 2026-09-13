@@ -1,0 +1,11 @@
+{
+  "containers": [],
+  "networks": [],
+  "volumes": [],
+  "docker": {
+    "NCPU": 12,
+    "MemTotal": 8319238144,
+    "ContainersRunning": 13
+  },
+  "native_test_listeners": []
+}
