@@ -35,6 +35,12 @@ def assess(config):
     for row in api + ai + callbacks + [services['task-worker']]:
         if str(row['environment'].get('CALLBACK_INBOX_ENABLED', '')).lower() != 'true':
             errors.append('all backend roles must enable durable callback reception')
+        if int(row['environment'].get('CALLBACK_INBOX_MIN_WORKERS', 1)) != len(callbacks):
+            errors.append('backend readiness must require every configured callback worker')
+    if (str(gateway.get('VOICE_CALLBACK_BATCH_ENABLED', '')).lower() != 'true'
+            or not 1 <= int(gateway.get('VOICE_CALLBACK_BATCH_SIZE', 0)) <= 16
+            or not 0 <= float(gateway.get('VOICE_CALLBACK_BATCH_DELAY_MS', -1)) <= 5):
+        errors.append('callback transport requires bounded batches of at most 16 events and 5ms')
     ai_slots = sum(int(row['environment']['TASK_AI_CONCURRENCY']) for row in ai)
     if ai_slots != 640:
         errors.append('AI lane budget must be 640')
@@ -43,6 +49,21 @@ def assess(config):
         if (int(env['REQUEST_ADMISSION_TOTAL_INFLIGHT']) > int(env['DATABASE_POOL_SIZE'])
                 or int(env['REQUEST_ADMISSION_WEBHOOK_INFLIGHT']) >= int(env['REQUEST_ADMISSION_TOTAL_INFLIGHT'])):
             errors.append('API must fit its DB pool and reserve management capacity')
+    callback_slots = int(gateway['VOICE_CALLBACK_CONCURRENCY'])
+    api_callback_slots = sum(int(row['environment']['REQUEST_ADMISSION_WEBHOOK_INFLIGHT']) for row in api)
+    if callback_slots > api_callback_slots:
+        errors.append('callback transport exceeds API webhook admission budget')
+    shard_ids = []
+    for row in callbacks:
+        command = row.get('command', [])
+        if '--shards' not in command or '--shard-index' not in command:
+            errors.append('callback worker requires explicit shard assignment')
+            continue
+        if int(command[command.index('--shards') + 1]) != len(callbacks):
+            errors.append('callback shard count differs from worker count')
+        shard_ids.append(int(command[command.index('--shard-index') + 1]))
+    if sorted(shard_ids) != list(range(len(callbacks))):
+        errors.append('callback shard assignments must cover each worker exactly once')
     quota_configs = {tuple(row['environment'].get(key) for key in
                           ('LLM_QUOTA_DB_PATH', 'LLM_QUOTA_SCOPE', 'LLM_QUOTA_RPM', 'LLM_QUOTA_TPM', 'LLM_QUOTA_RPS')) for row in agents}
     if len(quota_configs) != 1 or not all(next(iter(quota_configs), ())):
@@ -72,6 +93,7 @@ def assess(config):
     return {'static_config_passed': not errors, 'customer_inflight_limit': 500,
             'media_slots': sum(row['capacity'] for row in specs), 'ai_slots': ai_slots,
             'application_db_connections': db_connections, 'cpu_limits_total': cpu,
+            'callback_delivery_slots': callback_slots, 'api_callback_slots': api_callback_slots,
             'memory_limits_gib': memory, 'blockers': errors,
             'real_500_call_capacity_verified': False, 'whole_host_high_availability': False}
 

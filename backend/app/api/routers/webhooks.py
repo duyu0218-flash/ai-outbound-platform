@@ -2,7 +2,7 @@ import hashlib
 import json
 from datetime import timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
@@ -12,7 +12,7 @@ from ...db import get_webhook_session, webhook_transaction
 from ...clock import utc_now
 from ...config import get_settings
 from ...models import CallEvent, CallMode, CallSession, CallStatus, Campaign, HandoffRequest, HandoffState, RecordingAsset, SmsLog, User, WebhookEventIngest
-from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent
+from ...schemas import MediaWebhookEvent, SmsStatusWebhook, SpeechWebhookEvent, WebhookEvent, TelephonyBatch
 from ...services.call_service import complete_campaign_if_terminal, schedule_campaign_retry
 from ...services.call_analysis import analyze_call
 from ...services.admin_settings import get_admin_int_setting
@@ -182,6 +182,23 @@ def _get_duplicate_event(session: Session, call_id, provider_key: str) -> Webhoo
             WebhookEventIngest.provider_event_key == provider_key,
         )
     ).first()
+
+
+@router.post('/telephony/batch')
+@webhook_transaction
+def telephony_batch(
+    payload: TelephonyBatch,
+    _: None = Depends(check_webhook_token),
+    session: Session = Depends(get_webhook_session, scope='function'),
+):
+    if not settings.callback_inbox_enabled:
+        # Rolling deployment: sender may use the existing single-event routes.
+        raise HTTPException(409, 'durable callback batching is disabled')
+    from ...services.callback_inbox import receive_batch
+    session.join_transaction_mode = 'rollback_only'
+    receive_batch(session, payload)
+    # The decorator commits the whole batch before this response is sent.
+    return {'result': 'received', 'version': 1, 'accepted': [e.id for e in payload.events]}
 
 
 @router.post("/telephony/status")

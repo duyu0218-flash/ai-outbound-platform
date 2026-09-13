@@ -71,6 +71,22 @@ def test_http_ack_only_after_durable_receive_then_worker_updates_business(client
     assert inbox.consume_partition(receipt.partition_id) == 0
 
 
+def test_readiness_requires_full_worker_count_and_fresh_heartbeats(monkeypatch):
+    monkeypatch.setattr(get_settings(), 'callback_inbox_min_workers', 6)
+    with db.session_scope() as s:
+        for i in range(5):
+            s.add(CallbackInboxWorker(id=f'worker-{i}', heartbeat_at=utc_now()))
+        s.commit()
+        assert not inbox.snapshot(s)['ready']
+        s.add(CallbackInboxWorker(id='worker-5', heartbeat_at=utc_now()))
+        s.commit()
+        assert inbox.snapshot(s)['ready']
+        s.execute(update(CallbackInboxWorker).where(CallbackInboxWorker.id == 'worker-5').values(
+            heartbeat_at=utc_now()-timedelta(seconds=get_settings().callback_inbox_worker_ttl_sec+1)))
+        s.commit()
+        assert not inbox.snapshot(s)['ready']
+
+
 def test_commit_failure_has_no_ack_or_receipt(client, monkeypatch):
     def fail(conn):
         raise RuntimeError('synthetic disk failure')
@@ -156,6 +172,95 @@ def test_outer_rollback_reverts_handler_commits_and_completion(monkeypatch):
         assert s.get(CallSession, cid).last_transcript == original
         assert inbox.snapshot(s)['pending'] == 1
     assert rows()[0].state == 'pending' and rows()[0].attempts == 1
+
+
+@pytest.mark.parametrize('sqlstate', ['55P03', '40P01', '40001'])
+def test_database_contention_rolls_back_without_poisoning_receipt(monkeypatch, sqlstate):
+    from sqlalchemy.exc import OperationalError
+    import psycopg.errors
+    cid = _review_call(CallStatus.IN_AI)
+    receive(speech(cid))
+    before = rows()[0]
+    handler = inbox.apply_receipt
+    def contend_after_business_changes(s, r):
+        handler(s, r)
+        raise OperationalError('synthetic transaction conflict', {}, psycopg.errors.lookup(sqlstate)())
+    monkeypatch.setattr(inbox, 'apply_receipt', contend_after_business_changes)
+    for _ in range(get_settings().callback_inbox_max_attempts + 1):
+        assert inbox.consume_partition(before.partition_id) == 0
+    receipt = rows()[0]
+    assert (receipt.state, receipt.attempts, receipt.available_at) == ('pending', 0, before.available_at)
+    with db.session_scope() as s:
+        assert s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id == cid)).all() == []
+        assert inbox.snapshot(s)['pending'] == 1
+    monkeypatch.setattr(inbox, 'apply_receipt', handler)
+    assert inbox.consume_partition(before.partition_id) == 1
+    with db.session_scope() as s:
+        assert len(s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id == cid)).all()) == 1
+
+
+def test_real_postgres_counter_lock_can_retry_without_event_backoff():
+    from sqlalchemy import text
+    if db.engine.dialect.name != 'postgresql': pytest.skip('PostgreSQL row lock')
+    cid = _review_call(CallStatus.IN_AI)
+    receive(speech(cid))
+    receipt = rows()[0]
+    with db.engine.connect() as blocker:
+        transaction = blocker.begin()
+        try:
+            blocker.execute(text('SELECT id FROM callbackinboxpartition WHERE id=:p FOR UPDATE'),
+                            dict(p=receipt.partition_id)).all()
+            assert inbox.consume_partition(receipt.partition_id) == 0
+            assert rows()[0].attempts == 0
+        finally:
+            transaction.rollback()
+    assert inbox.consume_partition(receipt.partition_id) == 1
+    assert rows()[0].state == 'done'
+
+
+def test_sharded_worker_services_absent_neighbor_before_own_queue_drains():
+    """A missing shard owner must not starve while surviving owners stay busy."""
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    import time
+    if db.engine.dialect.name != 'postgresql': pytest.skip('PostgreSQL worker process')
+    calls = {}
+    while len(calls) < 2:
+        cid = _review_call(CallStatus.IN_AI)
+        partition = int.from_bytes(hashlib.sha256(str(cid).encode()).digest()[:4], 'big') % inbox.PARTITIONS
+        calls.setdefault(partition % 2, cid)
+    for index in range(240):
+        receive(MediaWebhookEvent(call_id=calls[0], event_id=f'own-{index}',
+                event_sequence=index+1, state='listening', attempt=1), 'telephony_media')
+    foreign = receive(MediaWebhookEvent(call_id=calls[1], event_id='orphan-owner',
+                event_sequence=1, state='listening', attempt=1), 'telephony_media')['receipt_id']
+    url = db.engine.url.render_as_string(hide_password=False)
+    env = dict(os.environ, DATABASE_URL=url, DATABASE_URL_API=url, DATABASE_URL_BOOTSTRAP=url,
+               CALLBACK_INBOX_ENABLED='true', CALLBACK_INBOX_BATCH_SIZE='1',
+               TASK_INLINE_EXECUTION_ENABLED='false', SCHEDULER_ENABLED='false',
+               PYTHONPATH=str(Path(__file__).resolve().parents[1]))
+    child = subprocess.Popen([sys.executable, '-m', 'app.callback_inbox_worker',
+                              '--shards', '2', '--shard-index', '0'], env=env,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            assert child.poll() is None
+            with db.session_scope() as s:
+                receipt = s.exec(select(CallbackInbox).where(CallbackInbox.receipt_key == foreign)).one()
+                if receipt.state == 'done':
+                    assert s.exec(select(CallbackInbox.id).where(CallbackInbox.call_id == calls[0],
+                                             CallbackInbox.state == 'pending').limit(1)).first() is not None
+                    break
+            time.sleep(.01)
+        else:
+            pytest.fail('surviving consumer starved absent shard owner')
+    finally:
+        child.terminate()
+        try: child.wait(timeout=10)
+        except subprocess.TimeoutExpired: child.kill(); child.wait(timeout=5)
 
 
 def test_dead_head_blocks_own_call_but_not_neighbor_and_can_retry(monkeypatch):

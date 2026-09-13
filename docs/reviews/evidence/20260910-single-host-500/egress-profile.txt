@@ -1,0 +1,45 @@
+Thu Sep 10 22:45:13 2026    /Users/lixiaomei/Documents/ChatGPT/AI外呼系统/duyu0218-flash/ai-outbound-platform/artifacts/single-host-500/review0910-egress.pstats
+
+         208274332 function calls (207778161 primitive calls) in 111.569 seconds
+
+   Ordered by: internal time
+   List reduced from 9525 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+  1438541    9.220    0.000    9.220    0.000 {built-in method posix.stat}
+   954459    6.143    0.000    6.143    0.000 {method 'poll' of 'select.poll' objects}
+  1436361    5.873    0.000   22.961    0.000 <frozen importlib._bootstrap_external>:1607(find_spec)
+   954612    4.283    0.000    7.342    0.000 _sockets.py:141(extra_attributes)
+ 18648811    3.450    0.000    5.898    0.000 connection.py:192(is_idle)
+  7182557    2.564    0.000    6.240    0.000 <frozen importlib._bootstrap_external>:126(_path_join)
+ 18633081    2.448    0.000    2.448    0.000 http11.py:288(is_idle)
+    72056    2.396    0.000    2.536    0.000 _asyncio.py:1364(send)
+  7182557    2.238    0.000    2.975    0.000 <frozen importlib._bootstrap_external>:128(<listcomp>)
+   954336    2.127    0.000    7.020    0.000 connection_pool.py:294(<listcomp>)
+   102339    1.906    0.000   48.112    0.000 connection_pool.py:270(_assign_requests_to_connections)
+   205869    1.538    0.000   25.265    0.000 <frozen importlib._bootstrap_external>:1467(_get_spec)
+     3911    1.376    0.000    1.858    0.000 connection.py:476(wait)
+  1360153    1.374    0.000    1.374    0.000 {built-in method _asyncio.get_running_loop}
+   954612    1.299    0.000   17.575    0.000 anyio.py:82(get_extra_info)
+   205873    1.238    0.000   28.265    0.000 <frozen importlib._bootstrap>:1054(_find_spec)
+   954459    1.156    0.000    7.711    0.000 _utils.py:8(is_socket_readable)
+  2863683    1.076    0.000    1.076    0.000 _asyncio.py:1322(_raw_socket)
+  1395559    1.012    0.000   18.739    0.000 http11.py:274(has_expired)
+  7182854    0.989    0.000    0.989    0.000 <frozen importlib._bootstrap>:244(_verbose_message)
+10987773/10626325    0.905    0.000    1.567    0.000 {built-in method builtins.isinstance}
+   222086    0.802    0.000   14.644    0.000 http11.py:65(handle_async_request)
+       36    0.788    0.022    0.788    0.022 {built-in method time.sleep}
+   954612    0.780    0.000    8.565    0.000 _typedattr.py:58(extra)
+205899/205005    0.759    0.000   33.119    0.000 <frozen importlib._bootstrap>:1165(_find_and_load)
+ 14421127    0.754    0.000    0.754    0.000 {method 'rstrip' of 'str' objects}
+7515627/7515002    0.730    0.000    0.743    0.000 {method 'join' of 'str' objects}
+   240801    0.692    0.000   74.047    0.000 connection_pool.py:199(handle_async_request)
+  1316789    0.646    0.000    0.736    0.000 _models.py:167(__eq__)
+    36056    0.600    0.000    1.146    0.000 _headers.py:152(normalize_and_validate)
+   218390    0.591    0.000    1.560    0.000 _asyncio.py:422(__enter__)
+   218390    0.587    0.000    1.133    0.000 _asyncio.py:453(__exit__)
+   372412    0.535    0.000    1.526    0.000 _asyncio.py:1883(acquire)
+   204988    0.535    0.000   32.074    0.000 _synchronization.py:22(current_async_library)
+   206988    0.509    0.000    0.813    0.000 <frozen importlib._bootstrap>:179(_get_module_lock)
+
+

@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     callback_inbox_max_attempts: int = Field(default=5, ge=1, le=20)
     callback_inbox_max_age_sec: float = Field(default=1, ge=0.1, le=30)
     callback_inbox_worker_ttl_sec: int = Field(default=10, ge=3, le=60)
+    callback_inbox_min_workers: int = Field(default=1, ge=1, le=64)
     callback_inbox_receipt_days: int = Field(default=7, ge=7, le=90)
     scheduler_enabled: bool = True
     scheduler_poll_interval_sec: float = 1.0

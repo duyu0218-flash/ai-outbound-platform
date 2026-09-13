@@ -1,0 +1,18 @@
+{
+  "syntax_files": 97,
+  "syntax_passed": true,
+  "single_host_profile": {
+    "static_config_passed": true,
+    "customer_inflight_limit": 500,
+    "media_slots": 600,
+    "ai_slots": 640,
+    "application_db_connections": 64,
+    "cpu_limits_total": 31.5,
+    "callback_delivery_slots": 24,
+    "api_callback_slots": 24,
+    "memory_limits_gib": 52.75,
+    "blockers": [],
+    "real_500_call_capacity_verified": false,
+    "whole_host_high_availability": false
+  }
+}

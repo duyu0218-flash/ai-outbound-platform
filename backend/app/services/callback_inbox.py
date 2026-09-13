@@ -9,11 +9,16 @@ from datetime import timedelta
 import hashlib
 import inspect
 import json
+import logging
 import time
 
 from fastapi import HTTPException
-from sqlalchemy import func, text, update, delete, or_
+from sqlalchemy import func, text, update, delete, or_, insert
+from collections import Counter
+from uuid import UUID
+from functools import lru_cache
 from sqlalchemy.orm import aliased
+from sqlalchemy.exc import DBAPIError
 from sqlmodel import select
 
 from ..clock import utc_now
@@ -24,6 +29,7 @@ PARTITIONS = 64
 LOCK_NAMESPACE = 19483921
 settings = get_settings()
 _committed_latency_ms = {}
+logger = logging.getLogger(__name__)
 
 
 def seed_partitions(connection):
@@ -96,6 +102,72 @@ def receive(session, kind, payload):
     return dict(result='received', receipt_id=key, duplicate=False, processing='pending')
 
 
+def receive_batch(session, batch):
+    """Atomic bounded receipt, with the same identities as individual routes.
+
+    Lock partitions in ascending order before checking identities/capacity.
+    This shares the single-event receiver's lock and permits one bulk insert
+    and one counter update without per-event transactions or provider I/O.
+    """
+    encoded_batch = json.dumps(batch.model_dump(mode='json'), ensure_ascii=False, separators=(',', ':'))
+    if len(encoded_batch.encode()) > 65536:
+        raise HTTPException(413, 'callback batch exceeds 64 KiB')
+    rows = []
+    now = utc_now()
+    for item in batch.events:
+        body = item.payload
+        encoded = json.dumps(body, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        size = len(encoded.encode())
+        if size > settings.callback_inbox_body_bytes:
+            raise HTTPException(413, 'callback body exceeds durable receipt limit')
+        digest = hashlib.sha256(encoded.encode()).hexdigest()
+        event_id = body.get('event_id') or (body.get('payload') or {}).get('event_id')
+        kind, call_id = 'telephony_' + item.kind, body['call_id']
+        key = hashlib.sha256(json.dumps([kind, call_id, event_id or digest], separators=(',', ':')).encode()).hexdigest()
+        partition_id = int.from_bytes(hashlib.sha256(call_id.encode()).digest()[:4], 'big') % PARTITIONS
+        rows.append(dict(receipt_key=key, partition_id=partition_id, call_id=UUID(call_id),
+            kind=kind, body_json=encoded, body_digest=digest, body_bytes=size,
+            state='pending', received_at=now, available_at=now, attempts=0, error_type=''))
+    partitions = session.exec(select(CallbackInboxPartition).where(
+        CallbackInboxPartition.id.in_(sorted({r['partition_id'] for r in rows})))
+        .order_by(CallbackInboxPartition.id).with_for_update()).all()
+    existing = {key: digest for key, digest in session.exec(select(
+        CallbackInbox.receipt_key, CallbackInbox.body_digest).where(
+        CallbackInbox.receipt_key.in_([r['receipt_key'] for r in rows]))).all()}
+    for row in rows:
+        if row['receipt_key'] in existing and existing[row['receipt_key']] != row['body_digest']:
+            raise HTTPException(409, 'event identity reused with different callback body')
+    new = [r for r in rows if r['receipt_key'] not in existing]
+    counts, sizes = Counter(), Counter()
+    for row in new:
+        counts[row['partition_id']] += 1
+        sizes[row['partition_id']] += row['body_bytes']
+    if len(partitions) != len({r['partition_id'] for r in rows}):
+        raise HTTPException(503, 'callback partitions are not initialized')
+    for part in partitions:
+        if (counts[part.id] and (part.pending_count + counts[part.id] > settings.callback_inbox_partition_limit
+                or part.pending_bytes + sizes[part.id] > settings.callback_inbox_partition_bytes)):
+            raise HTTPException(503, 'callback inbox partition is full; retry original identities',
+                headers={'Retry-After': '1', 'X-Callback-Batch-Split': 'true'})
+    if not new:
+        return
+    session.execute(insert(CallbackInbox), new)
+    if session.get_bind().dialect.name == 'postgresql':
+        params, values = {}, []
+        for i, part in enumerate(sorted(counts)):
+            values.append(f'(:p{i}, :c{i}, :b{i})')
+            params.update({f'p{i}': part, f'c{i}': counts[part], f'b{i}': sizes[part]})
+        session.execute(text('UPDATE callbackinboxpartition AS p SET '
+            'pending_count=p.pending_count+d.n, pending_bytes=p.pending_bytes+d.b '
+            'FROM (VALUES ' + ','.join(values) + ') AS d(id,n,b) WHERE p.id=d.id'), params)
+    else:
+        for part in partitions:
+            part.pending_count += counts[part.id]
+            part.pending_bytes += sizes[part.id]
+            session.add(part)
+        session.flush()
+
+
 class DurableBackground:
     def __init__(self, session, receipt):
         self.session, self.receipt = session, receipt
@@ -118,16 +190,33 @@ class DurableBackground:
                 speech_event_id=body.get('event_id') or (body.get('payload') or {}).get('event_id')))
 
 
-def apply_receipt(session, receipt):
+@lru_cache(maxsize=6)
+def _receipt_handler(kind):
     from ..api.routers import webhooks
-    handler = getattr(webhooks, receipt.kind).__wrapped__
+    if kind not in {'telephony_status', 'telephony_transcript', 'telephony_speech',
+                    'telephony_dtmf', 'telephony_media', 'telephony_recording'}:
+        raise ValueError('unknown callback receipt kind')
+    handler = getattr(webhooks, kind).__wrapped__
     annotation = inspect.signature(handler).parameters['payload'].annotation
     # Router annotations may be postponed strings.
     if isinstance(annotation, str):
         annotation = getattr(webhooks, annotation)
+    return handler, annotation, 'background_tasks' in inspect.signature(handler).parameters
+
+
+def prepare_handlers():
+    # A worker is not ready until its business modules and validators are loaded.
+    # Previously the first receipt held locks while importing this entire graph.
+    from . import conversation_policy, dialogue_rules  # noqa: F401
+    for kind in ('status', 'transcript', 'speech', 'dtmf', 'media', 'recording'):
+        _receipt_handler('telephony_' + kind)
+
+
+def apply_receipt(session, receipt):
+    handler, annotation, needs_background = _receipt_handler(receipt.kind)
     payload = annotation.model_validate_json(receipt.body_json)
     kwargs = dict(payload=payload, session=session, _=None)
-    if 'background_tasks' in inspect.signature(handler).parameters:
+    if needs_background:
         kwargs['background_tasks'] = DurableBackground(session, receipt)
     handler(**kwargs)
 
@@ -203,6 +292,14 @@ def consume_partition(partition_id, worker_id=None):
         return processed
     except Exception as exc:
         session.finish(success=False)
+        # Lock contention is a transaction scheduling failure, not evidence
+        # that this call's event is poisonous. Charging it to the last receipt
+        # caused healthy calls to back off for seconds and eventually go dead.
+        # Roll back the WHOLE batch and let the bounded worker poll retry it.
+        sqlstate = getattr(getattr(exc, 'orig', None), 'sqlstate', None)
+        if isinstance(exc, DBAPIError) and sqlstate in {'55P03', '40P01', '40001'}:
+            logger.warning('callback batch deferred for database contention sqlstate=%s', sqlstate)
+            return 0
         # No partially committed batch: replay all its events. Persist failure
         # separately, conditionally, so a concurrent successful replay wins.
         if failed_id is not None:
@@ -243,7 +340,7 @@ def snapshot(session):
     age = max(0, (utc_now() - oldest).total_seconds()) if oldest else 0
     return dict(pending=int(pending), pending_bytes=int(size), dead=int(dead), oldest_age_sec=age,
         live_workers=int(live), processed=int(processed), max_completion_latency_ms=float(latency),
-        ready=bool(live and not dead and age <= settings.callback_inbox_max_age_sec))
+        ready=bool(live >= settings.callback_inbox_min_workers and not dead and age <= settings.callback_inbox_max_age_sec))
 
 
 def ready(session):

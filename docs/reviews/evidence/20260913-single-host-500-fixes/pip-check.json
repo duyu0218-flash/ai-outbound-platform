@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-13",
+  "checks": [
+    {
+      "env": ".venv-backend",
+      "result": {
+        "chunk_id": "e56090",
+        "wall_time_seconds": 0.130022584,
+        "exit_code": 0,
+        "original_token_count": 77,
+        "output": "WARNING: The directory '/Users/lixiaomei/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\nNo broken requirements found.\n"
+      }
+    },
+    {
+      "env": ".venv-no-nltk",
+      "result": {
+        "chunk_id": "86d625",
+        "wall_time_seconds": 0.154568542,
+        "exit_code": 0,
+        "original_token_count": 77,
+        "output": "WARNING: The directory '/Users/lixiaomei/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\nNo broken requirements found.\n"
+      }
+    },
+    {
+      "env": ".venv-agent",
+      "result": {
+        "chunk_id": "ac422d",
+        "wall_time_seconds": 0.126832792,
+        "exit_code": 0,
+        "original_token_count": 77,
+        "output": "WARNING: The directory '/Users/lixiaomei/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\nNo broken requirements found.\n"
+      }
+    },
+    {
+      "env": ".venv-recording-adapter",
+      "result": {
+        "chunk_id": "b14d76",
+        "wall_time_seconds": 0.112225541,
+        "exit_code": 0,
+        "original_token_count": 77,
+        "output": "WARNING: The directory '/Users/lixiaomei/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.\nNo broken requirements found.\n"
+      }
+    }
+  ]
+}

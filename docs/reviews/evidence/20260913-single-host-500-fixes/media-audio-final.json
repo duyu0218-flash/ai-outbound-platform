@@ -1,0 +1,42 @@
+{
+  "synthetic_only": true,
+  "real_sip_rtp_cloud_speech": "unverified",
+  "checks": [
+    "unauthorized probe rejected; real-number dial route absent",
+    {
+      "mode": "drain",
+      "pcm_upstream_bytes": 24000,
+      "recorded_tone_hz": 1000,
+      "audible_seconds": 1.2,
+      "playback_id": "cfeaa612-cea2-4c6a-99f3-1d71b74562b0",
+      "recording": "/recordings/media-probe-b50a2644-2a08-470f-adc6-bb8b84cf9c5c.wav"
+    },
+    {
+      "mode": "interrupt",
+      "pcm_upstream_bytes": 10240,
+      "recorded_tone_hz": 1000,
+      "audible_seconds": 0.36,
+      "playback_id": "2cbabeba-88fe-4175-ade5-a8b87008efbd",
+      "recording": "/recordings/media-probe-3f70c3f8-7125-46e3-82c3-8acaedd070ac.wav"
+    },
+    {
+      "mode": "module_backlog_interrupt",
+      "pcm_upstream_bytes": 10240,
+      "recorded_tone_hz": 1000,
+      "audible_seconds": 0.36,
+      "playback_id": "7d977ba3-e34f-4664-8a72-f3affafb8481",
+      "recording": "/recordings/media-probe-646f3f80-36e0-4e2a-8a83-763f407aeed0.wav"
+    },
+    "hangup removes channel, session and token bindings",
+    {
+      "mode": "simultaneous_600hz_input_1000hz_output",
+      "bytes": 29440,
+      "nonzero_samples": 14040,
+      "tone_600_energy": 59740466323818.5,
+      "tone_1000_energy": 99519687.623556
+    }
+  ],
+  "generation_to_drain_ms": 1242.1,
+  "interrupt_ack_ms": 38.3,
+  "module_backlog_interrupt_ack_ms": 24.9
+}

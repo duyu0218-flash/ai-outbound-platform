@@ -8,6 +8,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -44,6 +45,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -80,6 +82,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -116,6 +119,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -152,6 +156,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -188,6 +193,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
@@ -237,6 +243,7 @@ services:
     environment:
       DATABASE_POOL_SIZE: '8'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       AI_AGENT_URL: http://127.0.0.1:8004
       OUTBOUND_REQUIRE_AGENT_READY: 'true'
       TASK_QUEUE_LANES: call_analysis:2,after_playback:8,dial_call:16
@@ -254,11 +261,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '0']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -277,11 +285,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '1']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -300,11 +309,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '2']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -323,11 +333,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '3']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -346,11 +357,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '4']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -369,11 +381,12 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       SCHEDULER_ENABLED: 'false'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker]
+    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '5']
     cpus: 0.5
     mem_limit: 256m
     healthcheck:
@@ -393,9 +406,10 @@ services:
     environment:
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
-      AI_ACTION_THREADS: '4'
+      AI_ACTION_THREADS: '8'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       AI_AGENT_URL: http://127.0.0.1:8004
     depends_on:
       db:
@@ -411,9 +425,10 @@ services:
     environment:
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
-      AI_ACTION_THREADS: '4'
+      AI_ACTION_THREADS: '8'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       AI_AGENT_URL: http://127.0.0.1:8004
     depends_on:
       db:
@@ -429,9 +444,10 @@ services:
     environment:
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
-      AI_ACTION_THREADS: '4'
+      AI_ACTION_THREADS: '8'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       AI_AGENT_URL: http://127.0.0.1:8004
     depends_on:
       db:
@@ -447,9 +463,10 @@ services:
     environment:
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
-      AI_ACTION_THREADS: '4'
+      AI_ACTION_THREADS: '8'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: '6'
       AI_AGENT_URL: http://127.0.0.1:8004
     depends_on:
       db:
@@ -540,6 +557,10 @@ services:
       service: voice-gateway
     environment:
       VOICE_MAX_CONCURRENT: '500'
+      VOICE_CALLBACK_CONCURRENCY: '24'
+      VOICE_CALLBACK_BATCH_ENABLED: 'true'
+      VOICE_CALLBACK_BATCH_SIZE: '16'
+      VOICE_CALLBACK_BATCH_DELAY_MS: '5'
       PIPECAT_MAX_ACTIVE_SESSIONS: '600'
       MEDIA_ALLOW_DEGRADED_ADMISSION: 'true'
       VOICE_RECORDING_SOURCE_BASE_URL: http://127.0.0.1:8002

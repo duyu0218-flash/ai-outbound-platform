@@ -56,3 +56,22 @@ def test_separate_account_quota_volumes_rejected(rendered):
     result = profile.assess(rendered)
     assert not result['static_config_passed']
     assert any('same writable' in error for error in result['blockers'])
+
+
+def test_callback_overload_and_missing_shard_coverage_rejected(rendered):
+    rendered['services']['voice-gateway']['environment']['VOICE_CALLBACK_CONCURRENCY'] = '32'
+    command = rendered['services']['callback-worker-2']['command']
+    command[command.index('--shard-index') + 1] = '0'
+    result = profile.assess(rendered)
+    assert not result['static_config_passed']
+    assert any('webhook admission budget' in e for e in result['blockers'])
+    assert any('cover each worker' in e for e in result['blockers'])
+
+
+def test_partial_readiness_and_unbounded_batch_rejected(rendered):
+    rendered['services']['control-api']['environment']['CALLBACK_INBOX_MIN_WORKERS'] = '1'
+    rendered['services']['voice-gateway']['environment']['VOICE_CALLBACK_BATCH_SIZE'] = '100'
+    result = profile.assess(rendered)
+    assert not result['static_config_passed']
+    assert any('every configured callback worker' in e for e in result['blockers'])
+    assert any('bounded batches' in e for e in result['blockers'])
