@@ -112,6 +112,9 @@ def health():
 async def ready():
     if draining:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="voice gateway is draining")
+    from .recording_source import disk_status
+    if not (await asyncio.to_thread(disk_status, settings))['safe']:
+        raise HTTPException(503, 'recording source disk below reserve')
     if not await driver.ready():
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PBX driver is not ready")
     manager = getattr(driver, 'pipecat_manager', None)
@@ -302,3 +305,102 @@ async def media_event(event: MediaEvent, authorization: str | None = Header(defa
     # Worker retries retain the original event_id; backend dedup remains final.
     await driver.sender.post(event.url, event.payload)
     return {'accepted': True}
+
+
+class RecordingCleanup(BaseModel):
+    checksum_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    size_bytes: int = Field(gt=0)
+
+
+@app.post('/v1/recording-cleanup/{filename}', include_in_schema=False)
+async def recording_cleanup(filename: str, payload: RecordingCleanup,
+                            authorization: str | None = Header(default=None)):
+    expected = settings.voice_recording_cleanup_token
+    if len(expected) < 32 or not secrets.compare_digest(authorization or '', 'Bearer ' + expected):
+        raise HTTPException(403, 'independent recording cleanup credential required')
+    from .recording_source import reclaim
+    return await asyncio.to_thread(reclaim, settings, filename, payload.checksum_sha256, payload.size_bytes)
+
+
+class VoicePermitRequest(BaseModel):
+    permit_id: str = Field(min_length=1, max_length=128)
+    action: str = Field(pattern='^(acquire|release)$')
+    kind: str = Field(pattern='^(asr|tts)$')
+    call_id: str = Field(max_length=128)
+    attempt: int = Field(ge=1)
+    worker_id: str = Field(max_length=128)
+    epoch: str = Field(max_length=128)
+    session_id: str = Field(max_length=128)
+    confirmed: bool = False
+
+
+@app.post('/v1/internal/voice-permits', include_in_schema=False)
+async def voice_permit(payload: VoicePermitRequest, authorization: str | None = Header(default=None)):
+    if not settings.voice_quota_enabled or len(settings.media_rpc_token) < 32:
+        raise HTTPException(503, 'shared voice budgets unavailable')
+    if not secrets.compare_digest(authorization or '', 'Bearer ' + settings.media_rpc_token):
+        raise HTTPException(401, 'media RPC credential required')
+    ledger = getattr(driver, 'ledger', None)
+    if ledger is None:
+        raise HTTPException(503, 'voice permit owner unavailable')
+    manager = getattr(driver, 'pipecat_manager', None)
+    if payload.action == 'acquire':
+        owner = getattr(manager, 'owners', {}).get(payload.call_id)
+        session = getattr(manager, 'sessions_by_call', {}).get(payload.call_id)
+        if (session is None or session.session_id != payload.session_id
+                or session.metadata.get('attempt') != payload.attempt):
+            raise HTTPException(409, 'stale media session')
+        if hasattr(manager, 'owners'):
+            if owner is None or owner.spec['id'] != payload.worker_id or owner.epoch != payload.epoch:
+                raise HTTPException(409, 'stale media worker epoch')
+        elif payload.worker_id or payload.epoch:
+            raise HTTPException(409, 'unexpected remote media owner')
+    import json
+    identity = json.dumps([payload.worker_id, payload.epoch, payload.session_id], separators=(',', ':'))
+    def transact():
+        from .voice_quota import acquire, release, initialize
+        with ledger.transaction() as db:
+            initialize(db)
+            if payload.action == 'acquire':
+                acquire(db, settings, payload.permit_id, payload.kind, payload.call_id, payload.attempt, identity)
+            else:
+                release(db, payload.permit_id, identity, payload.confirmed)
+    await asyncio.to_thread(transact)
+    return {'accepted': True}
+
+
+class VoicePermitReconcile(BaseModel):
+    permit_id: str = Field(min_length=1, max_length=128)
+    provider_close_evidence: str = Field(min_length=10, max_length=1000)
+
+
+@app.post('/v1/admin/voice-permits/reconcile', dependencies=[Depends(require_security_admin)])
+async def reconcile_voice_permit(payload: VoicePermitReconcile):
+    ledger = getattr(driver, 'ledger', None)
+    if ledger is None:
+        raise HTTPException(503, 'voice permit owner unavailable')
+    def transact():
+        from .voice_quota import initialize
+        import time
+        with ledger.transaction() as db:
+            initialize(db)
+            row = db.execute('SELECT state,kind FROM voice_permits WHERE id=?', (payload.permit_id,)).fetchone()
+            if row is None or row['kind'] == 'reserve':
+                raise HTTPException(409, 'physical voice permit required')
+            db.execute("UPDATE voice_permits SET state='closed' WHERE id=?", (payload.permit_id,))
+            db.execute('INSERT INTO audit(at,action,detail) VALUES (?,?,?)',
+                (time.time(), 'voice-permit-provider-confirmed', payload.permit_id + ': ' + payload.provider_close_evidence))
+    await asyncio.to_thread(transact)
+    return {'reconciled': True}
+
+
+@app.get('/v1/admin/voice-permits', dependencies=[Depends(require_security_admin)])
+async def voice_permit_status():
+    ledger = getattr(driver, 'ledger', None)
+    if ledger is None or not settings.voice_quota_enabled:
+        raise HTTPException(503, 'shared voice permits unavailable')
+    def read():
+        from .voice_quota import snapshot
+        with ledger.read() as db:
+            return snapshot(db, settings)
+    return await asyncio.to_thread(read)

@@ -352,7 +352,8 @@ class FreeswitchEslDriver:
             if self.pipecat_manager is None:
                 raise RuntimeError("Pipecat pipeline manager is unavailable")
             if self.settings.media_workers_json.strip() != "[]":
-                playback_id = await self.pipecat_manager.speak(binding.call_id, request.text, request.expected_speech_event_id)
+                options = {'command_id': request.command_id} if request.command_id else {}
+                playback_id = await self.pipecat_manager.speak(binding.call_id, request.text, request.expected_speech_event_id, **options)
             else:
                 playback_id = await self.pipecat_manager.speak(binding.call_id, request.text)
             return {
@@ -970,6 +971,9 @@ class FreeswitchEslDriver:
         if binding.answered_at is not None:
             duration_sec = max(0, int((datetime.now(timezone.utc) - binding.answered_at).total_seconds()))
         filename = Path(binding.recording_path).name
+        if self.settings.voice_recording_cleanup_token:
+            from .recording_source import mark_complete
+            await asyncio.to_thread(mark_complete, self.settings, filename)
         if self.settings.voice_recording_source_base_url:
             from .recording_source import recording_url
             source_url = recording_url(self.settings, filename)

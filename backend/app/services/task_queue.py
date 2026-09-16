@@ -9,7 +9,7 @@ import threading
 from datetime import timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, update, func
+from sqlalchemy import or_, update, func, case
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -442,6 +442,8 @@ async def notify_task(task_id):
 
 def claim_ready_tasks(task_types: tuple[str, ...], limit: int):
     """Claim only free execution slots in one short transaction, not a batch backlog."""
+    if limit <= 0:
+        return []
     from sqlalchemy import exists, and_
     from sqlalchemy.orm import aliased
     now = utc_now()
@@ -501,6 +503,21 @@ def claim_ready_tasks(task_types: tuple[str, ...], limit: int):
                     _claim_cursors.clear()
                 _claim_cursors[task_types] = tenant_ids[-1]
         claims = []
+        if rows and session.get_bind().dialect.name == 'postgresql':
+            # These rows remain locked by SELECT FOR UPDATE SKIP LOCKED above.
+            # One UPDATE replaces N round trips without weakening FIFO or
+            # tenant fairness. Each claim still receives its own fencing token.
+            tokens = {task.id: uuid4().hex for task in rows}
+            claimed_at = time.monotonic()
+            session.exec(update(TaskOutbox).where(TaskOutbox.id.in_(tokens)).values(
+                state=TaskState.PROCESSING, attempts=TaskOutbox.attempts + 1,
+                locked_at=now, updated_at=now,
+                lease_token=case(tokens, value=TaskOutbox.id),
+            ).execution_options(synchronize_session=False))
+            claims = [(task.id, (tokens[task.id], task.task_type, task.payload_json, claimed_at))
+                      for task in rows]
+            session.commit()
+            return claims
         for task in rows:
             token = uuid4().hex
             # Conditional update also protects SQLite, whose SELECT has no row lock.

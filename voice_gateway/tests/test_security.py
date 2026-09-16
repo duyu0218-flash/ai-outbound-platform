@@ -79,6 +79,63 @@ def test_hundred_retries_and_restart_only_originate_once(tmp_path):
     asyncio.run(run())
 
 
+def test_low_disk_rejects_only_new_intents_and_preserves_retries(tmp_path, monkeypatch):
+    async def run():
+        driver, fake = gateway(tmp_path)
+        first = await driver.post('dial', request())
+        monkeypatch.setattr('app.recording_source.disk_status', lambda _: {'safe': False})
+        assert await driver.post('dial', request()) == first
+        with pytest.raises(HTTPException) as rejected:
+            await driver.post('dial', request('new-call'))
+        assert rejected.value.status_code == 429
+        assert rejected.value.headers['X-Voice-Dial-Admitted'] == 'false'
+        assert driver.ledger.lookup('new-call', 1) is None
+        assert len(fake.bgapi_commands) == 1
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('failure', ['media_reply', 'result_write'])
+def test_playback_first_failure_is_unknown_and_recovery_does_not_replay(tmp_path, monkeypatch, failure):
+    from app import action_commands
+
+    async def run():
+        driver, _ = gateway(tmp_path)
+        await driver.post('dial', request())
+        played = []
+
+        async def play(action, payload):
+            played.append(payload['command_id'])
+            if failure == 'media_reply':
+                raise TimeoutError('accepted but response lost')
+            return {'result': 'queued', 'playback_id': 'original'}
+
+        original_finish = action_commands.finish
+        def lost_write(*args):
+            raise OSError('result persistence failed')
+
+        driver.driver.post = play
+        if failure == 'result_write':
+            monkeypatch.setattr(action_commands, 'finish', lost_write)
+        payload = dict(call_id='audit-1', tenant_id=1, expected_attempt=1,
+                       command_id='durable-speech', text='hello')
+        with pytest.raises(HTTPException) as unknown:
+            await driver.post('speak', payload)
+        assert unknown.value.headers['X-Voice-Outcome'] == 'unknown'
+        monkeypatch.setattr(action_commands, 'finish', original_finish)
+
+        async def lookup(call_id, command_id, text):
+            assert command_id == 'durable-speech'
+            return {'confirmed': True, 'playback_id': 'original'}
+
+        from types import SimpleNamespace
+        driver.driver.pipecat_manager = SimpleNamespace(lookup_playback=lookup)
+        recovered = await driver.post('speak', payload)
+        assert recovered['playback_id'] == 'original'
+        assert await driver.post('speak', payload) == recovered
+        assert played == ['durable-speech']
+    asyncio.run(run())
+
+
 def test_durable_intent_survives_crash_before_esl_response(tmp_path):
     async def run():
         driver, fake = gateway(tmp_path)

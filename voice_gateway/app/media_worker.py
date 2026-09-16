@@ -16,6 +16,7 @@ from .pipecat_pipeline import PipecatPipelineManager, PipecatCallSession, MediaP
 settings=get_settings()
 epoch=uuid4().hex
 manager=PipecatPipelineManager(settings.model_copy(update={'pipecat_max_active_sessions':settings.media_worker_capacity}))
+manager.quota_epoch = epoch
 registered={}
 closed=OrderedDict()
 create_lock=asyncio.Lock()
@@ -59,6 +60,7 @@ async def lifespan(_):
     if not manager.ready():raise RuntimeError('Pipecat distribution differs from configured version')
     http=httpx.AsyncClient(timeout=settings.media_rpc_timeout_sec,trust_env=False,
         headers={'Authorization':'Bearer '+settings.media_rpc_token},limits=httpx.Limits(max_connections=32,max_keepalive_connections=16))
+    manager.quota_http = http
     manager._post_json=post_event
     try:yield
     finally:
@@ -128,6 +130,11 @@ async def command(cmd:Command):
     if cmd.expected_speech_event_id is not None and session.latest_final_event_id!=cmd.expected_speech_event_id:
         raise HTTPException(409,'stale speech generation')
     try:
+        if cmd.action=='lookup-playback':
+            cached = session.rpc_results.get(cmd.operation_id)
+            if cached and cached[0] == hashlib.sha256(cmd.text.encode()).hexdigest():
+                return {'confirmed': True, **cached[1]}
+            return {'confirmed': False}
         if cmd.action=='fence':
             if cmd.closing:session.closing=True
         elif cmd.action=='speak':

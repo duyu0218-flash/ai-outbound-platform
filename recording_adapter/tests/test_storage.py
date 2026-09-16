@@ -180,3 +180,48 @@ def test_delete_cannot_race_upload_and_tombstone_survives_restart(tmp_path):
     restarted=RecordingObjectStorage(cfg,s3_client=s3,http_transport=transport)
     with pytest.raises(RecordingStorageError,match='tombstone'): restarted.ingest(request)
     assert not s3.uploads
+
+
+def test_verified_upload_retry_reclaims_without_redownloading_deleted_source(tmp_path):
+    import io
+    s3 = FakeS3()
+    s3.get_object = lambda **kw: {'Body': io.BytesIO(s3.uploads[(kw['Bucket'],kw['Key'])])}
+    cleanup = []
+    downloads = []
+    def request(req):
+        if req.method == 'GET':
+            downloads.append(True)
+            return httpx.Response(200, headers={'content-type':'audio/wav'}, content=b'RIFF-source')
+        cleanup.append(req)
+        if len(cleanup) == 1:
+            # Source cleanup happened, but response was lost.
+            raise httpx.ReadTimeout('lost ACK', request=req)
+        return httpx.Response(200, json={'deleted':True})
+    config = _settings(recording_spool_dir=str(tmp_path), recording_source_cleanup_token='x'*32,
+        recording_source_cleanup_origin='https://recordings.example.com')
+    item = RecordingIngestRequest(recording_asset_id=7, tenant_id=2, call_id='call',
+        provider_url='https://recordings.example.com/v1/recordings/attempt.wav')
+    storage = RecordingObjectStorage(config, s3_client=s3, http_transport=httpx.MockTransport(request))
+    with pytest.raises(httpx.ReadTimeout):
+        storage.ingest(item)
+    result = storage.ingest(item)
+    assert result['size_bytes'] == 11
+    assert len(downloads) == 1 and len(cleanup) == 2
+    assert cleanup[-1].headers['authorization'] == 'Bearer ' + 'x'*32
+
+
+def test_corrupt_remote_object_never_authorizes_source_deletion(tmp_path):
+    import io
+    s3 = FakeS3()
+    s3.get_object = lambda **kw: {'Body':io.BytesIO(b'corrupt')}
+    requests = []
+    def request(req):
+        requests.append(req.method)
+        return httpx.Response(200, headers={'content-type':'audio/wav'}, content=b'RIFF-source')
+    storage = RecordingObjectStorage(_settings(recording_spool_dir=str(tmp_path),
+        recording_source_cleanup_token='x'*32, recording_source_cleanup_origin='https://recordings.example.com'),
+        s3_client=s3, http_transport=httpx.MockTransport(request))
+    with pytest.raises(RecordingStorageError):
+        storage.ingest(RecordingIngestRequest(recording_asset_id=1, tenant_id=1, call_id='call',
+            provider_url='https://recordings.example.com/v1/recordings/a.wav'))
+    assert requests == ['GET']
