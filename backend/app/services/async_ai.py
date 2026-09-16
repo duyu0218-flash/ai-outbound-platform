@@ -1,6 +1,7 @@
 """Bounded async AI lane with short, thread-owned database work units."""
 import asyncio
 import inspect
+import hashlib
 import json
 import logging
 import threading
@@ -39,6 +40,7 @@ class WorkPool:
         self.histograms=defaultdict(Histogram)
         self.db_counts=defaultdict(Counter)
         self.queue_samples=deque(maxlen=2048)
+        self.recent_traces=deque(maxlen=512)
         self.local=threading.local()
         self.runtimes=[]
         self.timings = defaultdict(lambda: deque(maxlen=2048))
@@ -62,18 +64,20 @@ class WorkPool:
             values=sorted(value for at,value in self.queue_samples if time.monotonic()-at <= 10)
             histograms={name:h.snapshot() for name,h in self.histograms.items()}
             db_counts={name:dict(counts) for name,counts in self.db_counts.items()}
+            traces=list(self.recent_traces)
         return {**self.gate.snapshot(), 'queue_p95_ms': values[min(len(values)-1,int(len(values)*.95))] if values else 0,
-                'histograms':histograms, 'db_counts':db_counts}
+                'histograms':histograms, 'db_counts':db_counts, 'recent_traces':traces}
 
     async def run(self, function, *args):
         queued_at = time.monotonic()
+        queued_wall = time.time()
         await self.gate.acquire(work_priority(function.__name__))
         try:
             context=copy_context()
             cancelled=ExecutionLease(float('inf'))
             context.run(_leases.set, (*context.get(_leases, ()), cancelled))
             def execute():
-                observation=dict(sql_ms=0.,sql_count=0,flush_commit_ms=0.,commit_count=0,rollback_count=0)
+                observation=dict(sql_ms=0.,sql_count=0,sql_error_count=0,flush_commit_ms=0.,commit_count=0,rollback_count=0)
                 context.run(db_work_observation.current.set, observation)
                 executing_at = time.monotonic()
                 self.record_timing(function.__name__ + '.queue', (executing_at - queued_at) * 1000)
@@ -96,6 +100,15 @@ class WorkPool:
                         self.db_counts[function.__name__].update({k:v for k,v in observation.items() if k.endswith('_count')})
                     from .ai_claim_state import current_claim
                     claim=context.get(current_claim)
+                    sample_every=settings.stability_trace_sample_every
+                    if claim and sample_every and int.from_bytes(hashlib.sha256(str(claim[0]).encode()).digest()[:4], 'big') % sample_every == 0:
+                        call_id = args[0].get('call_id') if args and isinstance(args[0],dict) else args[0] if args and isinstance(args[0],UUID) else None
+                        trace=dict(task_id=str(claim[0]), call_id=str(call_id) if call_id else None,
+                            operation=function.__name__, queued_at=queued_wall,
+                            queue_ms=(executing_at-queued_at)*1000,
+                            execute_ms=(time.monotonic()-executing_at)*1000, **observation)
+                        with self.timing_lock:self.recent_traces.append(trace)
+
                     logger.debug('db work task=%s operation=%s observations=%s',
                         claim[0] if claim else None, function.__name__, observation)
             future=asyncio.get_running_loop().run_in_executor(self.executor, execute)
