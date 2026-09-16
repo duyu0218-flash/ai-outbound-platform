@@ -461,6 +461,24 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
             raise
 
 
+async def _load_and_prepare_ai_turn(call_id, transcript, expected_attempt):
+    # One scheduling admission; retain the existing separate transaction boundaries.
+    from .ai_claim_state import load_action
+    prepared = load_action()
+    if prepared is not None:
+        return prepared, None
+    return None, await _prepare_ai_turn(call_id, transcript, expected_attempt)
+
+
+async def _finish_and_prepare_ai_action(snapshot, result):
+    # Keep durable intent and authoritative action preparation transactions intact,
+    # but do not rejoin the DB queue between these adjacent operations.
+    from .ai_actions import prepare
+    result = await _finish_ai_turn(snapshot, result, True)
+    action = prepare(snapshot['call_id'], snapshot['attempt']) if result is not None else None
+    return result, action
+
+
 async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', expected_attempt=None,
                             expected_turn_sequence=None, expected_speech_event_id=None):
     """Model latency holds a coroutine, never a DB connection or lane thread."""
@@ -469,15 +487,13 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
     try:
         async with _ai_turn_lock(str(call_id)):
             try:
-                from .ai_claim_state import load_action
                 from .ai_actions import execute_action
-                prepared = await pool.run(load_action)
+                prepared, snapshot = await pool.run(_load_and_prepare_ai_turn, call_id, transcript, expected_attempt)
                 if prepared is not None:
                     result, committed = prepared
                     if not committed:
                         await execute_action(pool, call_id, expected_attempt, result)
                     return
-                snapshot = await pool.run(_prepare_ai_turn, call_id, transcript, expected_attempt)
                 if snapshot is None:
                     return
                 expected_attempt = snapshot['attempt']
@@ -486,9 +502,9 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
                     result = await _wait_for_ai(snapshot,pool=pool,action_pool=action_pool)
                     if result is None:return
                 from .ai_actions import execute_action
-                result = await pool.run(_finish_ai_turn, snapshot, result, True)
+                result, action = await pool.run(_finish_and_prepare_ai_action, snapshot, result)
                 if result is not None:
-                    await execute_action(pool, call_id, expected_attempt, result)
+                    await execute_action(pool, call_id, expected_attempt, result, prepared_snapshot=action)
             except (LeaseLost, DBAPIError):
                 raise
             except Exception as exc:
@@ -521,7 +537,17 @@ async def _wait_for_ai(snapshot,pool=None,action_pool=None):
                 from .ai_liveness import LivenessBatcher
                 if not hasattr(pool, 'liveness'):
                     pool.liveness = LivenessBatcher(pool)
-                current = await pool.liveness.current(snapshot, _expected_turn_sequence.get())
+                hint = asyncio.create_task(pool.liveness.current(snapshot, _expected_turn_sequence.get()))
+                try:
+                    # A periodic hint must not delay an already finished model.
+                    # Final decision/action writes still lock and verify live state.
+                    await asyncio.wait({request, hint}, return_when=asyncio.FIRST_COMPLETED)
+                    if request.done():
+                        break
+                    current = hint.result()
+                finally:
+                    if not hint.done():hint.cancel()
+                    await asyncio.gather(hint, return_exceptions=True)
             else:
                 current = _ai_snapshot_current(snapshot)
             if not current:return None

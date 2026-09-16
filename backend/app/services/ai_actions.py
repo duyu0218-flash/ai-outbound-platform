@@ -27,6 +27,7 @@ from .conversation_policy import state_for
 from .task_queue import enqueue_task, notify_task
 
 logger = logging.getLogger(__name__)
+_UNPREPARED = object()
 
 
 def prepare(call_id, attempt, fallback_audio=False):
@@ -165,8 +166,9 @@ async def finish(snapshot, result, hangup_confirmed, playback_complete, durable=
         session.finish(success=False)
 
 
-async def execute_action(pool, call_id, attempt, result, fallback_audio=False, durable=True):
-    snapshot = await pool.run(prepare, call_id, attempt, fallback_audio)
+async def execute_action(pool, call_id, attempt, result, fallback_audio=False, durable=True, *, prepared_snapshot=_UNPREPARED):
+    snapshot = (await pool.run(prepare, call_id, attempt, fallback_audio)
+                if prepared_snapshot is _UNPREPARED else prepared_snapshot)
     if snapshot is None:
         return
     adapter = snapshot['adapter']

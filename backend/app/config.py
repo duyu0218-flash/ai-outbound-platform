@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     task_poll_interval_sec: float = 0.1
     task_worker_role: str = "all"
     ai_worker_health_path: str = "/tmp/ai-worker-health.json"
+    stability_admission_enabled: bool = False
+    stability_redis_key: str = "ai-outbound:stability"
+    stability_min_ai_workers: int = Field(default=4, ge=1, le=64)
+    stability_signal_ttl_sec: int = Field(default=15, ge=5, le=60)
     ai_db_threads: int = 2
     outbound_require_agent_ready: bool = False
     ai_action_threads: int = 2
