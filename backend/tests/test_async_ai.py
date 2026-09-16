@@ -5,12 +5,33 @@ from unittest.mock import patch
 
 import pytest
 from test_production_hardening import client, reset_runtime_settings_after_test
-from test_review_fixes import make_call
+from test_review_fixes import make_call as _make_call
 from app.services.async_ai import WorkPool
 from app.services import dispatcher
 from app.db import engine, session_scope
-from app.models import CallSession, CallStatus
+from app.models import CallSession, CallStatus, TaskOutbox
 from app.schemas import AiTurnResult
+from sqlalchemy import delete
+
+
+@pytest.fixture(autouse=True)
+def cleanup_ai_test_tasks(client, monkeypatch):
+    """A later scheduler test must not consume this test's durable side effects."""
+    call_ids = []
+    def tracked_call(**kwargs):
+        call_id = _make_call(**kwargs)
+        call_ids.append(call_id)
+        return call_id
+    monkeypatch.setattr(__name__ + '.make_call', tracked_call)
+    yield
+    if call_ids:
+        with session_scope() as session:
+            session.execute(delete(TaskOutbox).where(
+                TaskOutbox.aggregate_id.in_([str(call_id) for call_id in call_ids])))
+            session.commit()
+
+
+make_call = _make_call
 
 
 def test_action_pool_prepares_every_thread_without_network_and_closes_clients(client):
