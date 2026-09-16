@@ -182,8 +182,9 @@ class RemoteMediaManager:
                     self.metrics[name] = self.metrics.get(name, 0) + value
 
     async def rpc(self, owner, action, **payload):
-        operation = uuid4().hex
-        if action == 'speak' and payload.get('expected_speech_event_id') is not None:
+        supplied_operation = payload.pop('command_id', None)
+        operation = supplied_operation or uuid4().hex
+        if not supplied_operation and action == 'speak' and payload.get('expected_speech_event_id') is not None:
             operation = hashlib.sha256((owner.session.session_id + ':speak:' + payload['expected_speech_event_id']).encode()).hexdigest()
         response = await self.client.post(owner.spec['endpoint']+'/internal/command',json={
             'action':action,'epoch':owner.epoch,'call_id':owner.session.call_id,
@@ -225,8 +226,11 @@ class RemoteMediaManager:
     def media_ws_url(self, session):
         return self.owners[session.call_id].spec['ws_base'].rstrip('/')+'/'+session.token
 
-    async def speak(self, call_id, text, expected_speech_event_id=None):
-        return (await self.rpc(self.owners[call_id],'speak',text=text,expected_speech_event_id=expected_speech_event_id))['playback_id']
+    async def speak(self, call_id, text, expected_speech_event_id=None, command_id=None):
+        return (await self.rpc(self.owners[call_id],'speak',text=text,expected_speech_event_id=expected_speech_event_id,command_id=command_id))['playback_id']
+
+    async def lookup_playback(self, call_id, command_id, text):
+        return await self.rpc(self.owners[call_id], 'lookup-playback', command_id=command_id, text=text)
 
     async def validate_generation(self, call_id, expected, action):
         await self.rpc(self.owners[call_id],'fence',expected_speech_event_id=expected,closing=action=='hangup')

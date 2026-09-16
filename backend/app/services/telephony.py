@@ -286,6 +286,7 @@ class HttpAdapter(TelephonyAdapter):
         voice: str = "",
         provider: str = "",
         expected_speech_event_id: str | None = None,
+        command_id: str | None = None,
     ) -> Dict[str, Any]:
         payload = {
             "call_id": call_id,
@@ -295,6 +296,8 @@ class HttpAdapter(TelephonyAdapter):
             "provider": provider,
             "expected_speech_event_id": expected_speech_event_id,
         }
+        if command_id is not None:
+            payload['command_id'] = command_id
         return await self._post("/v1/call/speak", payload)
 
     async def stop_speaking(self, *, call_id: str, expected_attempt: int | None = None,

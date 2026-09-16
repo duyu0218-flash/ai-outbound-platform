@@ -14,6 +14,7 @@ from typing import Any, Dict
 import httpx
 from .worker_runtime import http_client
 from sqlalchemy import update
+from sqlalchemy.exc import DBAPIError
 from sqlmodel import select
 
 from ..config import get_settings
@@ -360,7 +361,7 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
         return snapshot
 
 
-async def _finish_ai_turn(snapshot, result):
+async def _finish_ai_turn(snapshot, result, prepare_only=False):
     with session_scope() as session:
         call = session.get(CallSession, snapshot['call_id'])
         # Match webhook lock order: call -> conversation/realtime -> child rows.
@@ -377,12 +378,17 @@ async def _finish_ai_turn(snapshot, result):
             stage="ai.turn", provider=snapshot['provider'],
             duration_ms=int((perf_counter()-snapshot['started'])*1000), success=True,
             detail=f"knowledge_hits={snapshot['knowledge_count']}"))
+        if prepare_only:
+            from .ai_claim_state import save_action
+            save_action(session, result)
         session.commit()
+        if prepare_only:
+            return result
         await _apply_ai_action(session=session, call=call, result=result,
                                expected_attempt=snapshot['attempt'])
 
 
-async def _fail_ai_turn(call_id, expected_attempt, exc):
+async def _fail_ai_turn(call_id, expected_attempt, exc, prepare_only=False):
     with session_scope() as session:
         call = session.get(CallSession, call_id)
         if call is None or not _ai_call_is_current(session, call, expected_attempt):
@@ -406,8 +412,13 @@ async def _fail_ai_turn(call_id, expected_attempt, exc):
         data['outcome'] = 'service_failure'
         add_work(session, call, 'service_failure', f'failure:{call.id}:{call.attempts}', {'error':type(exc).__name__})
         save_state(session, state, data)
-        session.commit()
         fallback = reply(ScenarioPolicy.model_validate_json(state.policy_json).failure_prompt, 'hangup')
+        if prepare_only:
+            from .ai_claim_state import save_action
+            save_action(session, fallback)
+            session.commit()
+            return fallback
+        session.commit()
         try:
             await _apply_ai_action(session=session, call=call, result=fallback, expected_attempt=expected_attempt)
         except LeaseLost:
@@ -458,6 +469,14 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
     try:
         async with _ai_turn_lock(str(call_id)):
             try:
+                from .ai_claim_state import load_action
+                from .ai_actions import execute_action
+                prepared = await pool.run(load_action)
+                if prepared is not None:
+                    result, committed = prepared
+                    if not committed:
+                        await execute_action(pool, call_id, expected_attempt, result)
+                    return
                 snapshot = await pool.run(_prepare_ai_turn, call_id, transcript, expected_attempt)
                 if snapshot is None:
                     return
@@ -466,11 +485,17 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
                 if result is None:
                     result = await _wait_for_ai(snapshot,pool=pool,action_pool=action_pool)
                     if result is None:return
-                await (action_pool or pool).run(_finish_ai_turn, snapshot, result)
-            except LeaseLost:
+                from .ai_actions import execute_action
+                result = await pool.run(_finish_ai_turn, snapshot, result, True)
+                if result is not None:
+                    await execute_action(pool, call_id, expected_attempt, result)
+            except (LeaseLost, DBAPIError):
                 raise
             except Exception as exc:
-                await pool.run(_fail_ai_turn, call_id, expected_attempt, exc)
+                from .ai_actions import execute_failure
+                fallback = await pool.run(_fail_ai_turn, call_id, expected_attempt, exc, True)
+                if fallback is not None:
+                    await execute_failure(pool, call_id, expected_attempt, fallback)
                 raise
     finally:
         _expected_turn_sequence.reset(token)
@@ -492,11 +517,20 @@ async def _wait_for_ai(snapshot,pool=None,action_pool=None):
         while not request.done():
             done,_=await asyncio.wait({request},timeout=1)
             if done:break
-            current=await pool.run(_ai_snapshot_current,snapshot) if pool else _ai_snapshot_current(snapshot)
+            if pool:
+                from .ai_liveness import LivenessBatcher
+                if not hasattr(pool, 'liveness'):
+                    pool.liveness = LivenessBatcher(pool)
+                current = await pool.liveness.current(snapshot, _expected_turn_sequence.get())
+            else:
+                current = _ai_snapshot_current(snapshot)
             if not current:return None
             if not notice_sent and perf_counter()-started>=snapshot.get('model_wait_seconds',4):
                 notice_sent=True
-                if pool:await (action_pool or pool).run(_speak_wait_notice,snapshot)
+                if pool:
+                    from .ai_actions import execute_action
+                    await execute_action(pool, snapshot['call_id'], snapshot['attempt'],
+                        AiTurnResult(action='speak', tts_text=snapshot['model_wait_prompt']), durable=False)
                 else:await _speak_wait_notice(snapshot)
         return request.result()
     finally:
@@ -674,6 +708,14 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         sms_text = str(sms_config.get("hangup_template") or result.hangup_sms)
         await send_sms_text(session, call, sms_text)
 
+    callback_id = await _commit_ai_decision(session, call, result, attempt,
+        hangup_confirmed, playback_complete, hangup_sms_allowed)
+    if callback_id is not None:
+        await notify_task(callback_id)
+
+
+async def _commit_ai_decision(session, call, result, attempt, hangup_confirmed,
+                              playback_complete, hangup_sms_allowed):
     # Compare-and-set acquires the call row before any state/assignment writes.
     # No network awaits are allowed until the transaction is committed below.
     claimed = session.exec(update(CallSession).where(
@@ -784,8 +826,7 @@ async def _apply_ai_action(*, session, call: CallSession, result: AiTurnResult, 
         },
         idempotency_key=f"callback:ai-decision:{decision_event.id}",
     )
-    if callback_task is not None:
-        await notify_task(callback_task.id)
+    return callback_task.id if callback_task is not None else None
 
 
 async def send_sms_text(session, call: CallSession, text: str) -> None:

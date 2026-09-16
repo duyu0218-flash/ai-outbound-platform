@@ -27,7 +27,10 @@ def rendered(tmp_path):
             elif key.endswith('_IMAGE'):env[key]='example.invalid/synthetic@sha256:'+'a'*64
             else:env[key]='synthetic-'+'a'*40
     env.update(NODE_PRIVATE_IP='127.0.0.1',NODE_ID='single-500',LLM_APPROVED_RPM='10000',
-               LLM_APPROVED_TPM='13000000',LLM_APPROVED_RPS='500',LLM_MAX_OUTPUT_TOKENS='200')
+               LLM_APPROVED_TPM='13000000',LLM_APPROVED_RPS='500',LLM_MAX_OUTPUT_TOKENS='200',
+               VOICE_RECORDING_CLEANUP_TOKEN='cleanup-'+'c'*40, VOICE_RECORDING_RESERVE_BYTES='10000000000',
+               VOICE_QUOTA_BUDGETS_JSON=json.dumps({'asr':dict(provider='test',account='a',region='r',product='asr',concurrency=600),
+                   'tts':dict(provider='test',account='a',region='r',product='tts',concurrency=100,requests_per_minute=10000)}))
     result=subprocess.run(['docker','compose','-f','docker-compose.single-host-500.yml','config','--format','json'],
                           cwd=ROOT,env=env,text=True,capture_output=True,check=True)
     return json.loads(result.stdout)

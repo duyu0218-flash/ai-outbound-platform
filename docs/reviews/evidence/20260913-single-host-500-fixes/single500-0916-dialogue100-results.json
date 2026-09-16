@@ -1,0 +1,6155 @@
+{
+  "source_sha256": {
+    "backend/app/db.py": "59e05604da60f81bc9c244689d7b687fe5c17f398ae32e8f67935c063750c209",
+    "backend/app/models.py": "c33fd74daeb7982475b7d360875776a0bfb54a37e1776baf6ffa44f945fd93f6",
+    "backend/app/services/callback_inbox.py": "4f25a6d772669a491071c9858b1480970225650299d21ec3790e1476e3219d9f",
+    "backend/app/callback_inbox_worker.py": "b4777326f99e26fe69af7703222395643390a7d9cd76508f73889187fa5f7e38",
+    "backend/app/services/realtime_voice.py": "cf09013c9a1808d9c8240c08b6b20f56b81636a10e281b60cf42847599f51d1a",
+    "backend/app/services/dispatcher.py": "536336af1e0831a287d492a05c8b9a261643bb406df15ac6628be8d4daf2dcf3",
+    "voice_gateway/app/security.py": "556c3a06fb6a0aaae6c8379d037042d2811726a4a9a48077c0b012511a284006",
+    "voice_gateway/app/durable_batch.py": "89d1b76eaeb370138bd0a76ba9723b5a5db9b6ef8207958094d7c16a4a3cb7f9",
+    "scripts/load-single-host-dialogue.py": "cd36bcaaaeaff208777a87423020f5fba9497454556294d100f18755350f287c",
+    "backend/pyproject.toml": "a2ff818226449cb5c4f124de5370c160b8e089e9239f1a26f129e8ec537c4516",
+    "voice_gateway/pyproject.toml": "488b27f8ff6ec5a9bcbf9a527d8329cc3132ee55b493a700a95044d5e574c30d",
+    "agent/pyproject.toml": "b0215f8bcf740d9fba281233e3c510c65611885ef98a704144db95e37baa2f37",
+    "recording_adapter/pyproject.toml": "79500cfe23e12e112599cb8e00f3534ab8f49f062f468384069a07315dba4fe7",
+    "backend/app/schemas.py": "2137fa1b851ac3477ee767a938b29a238f5998598712d9c27a29b1290cafb884",
+    "backend/app/api/routers/webhooks.py": "70e61bf0fc5034e883f11463abf8bdd75ef3272bc022138d68d8f9848e837b9a",
+    "backend/app/main.py": "0b26e15e3f2af2fff9ee93f4861cbbc6bacb9957d15c32f6f8d03800fa62d2a0",
+    "backend/app/config.py": "98644be804dc1e262cef9d5d8158348a2f61522e79c5b803b158cb9e7962b3c4",
+    "voice_gateway/app/config.py": "f56223fe5276399455ab1eb68a1368468f2ba537965802eb0c5f637731dec694",
+    "backend/app/services/telephony.py": "5997a5ca699556444c61113a73e847ce709e75d44a8d80960edaebd6dcc42701",
+    "backend/app/services/async_ai.py": "6f70157b1c279dbf06ee45eb71ca6d8cc9db53be57d9a1c7d24c2795bef7ec28",
+    "backend/app/services/worker_runtime.py": "48d62b7dd9d2c79abb06aba2fdbab838f8822c2dd1959acc47f48673ea12b9ba",
+    "backend/app/ai_worker.py": "df8e47758685702b5573e95d8f9238207ecc8a0b0760a6282958a0c9824dcfa0",
+    "scripts/fixtures/single500_instrumented_ai.py": "6daa79d7cbbc9ff1c92db2a66f85a8c14aa660f6fcd9a4c177420acdd5695083",
+    "agent/app/main.py": "530b2bfe869f1f180bf9bcfae189e6ee05149fb52d06f533b6b80cea5b2d1232",
+    "agent/app/llm.py": "58581c8c087e92c80d6be8018cb0c991fb37f297f4fd4cc9b63fcda83c0b9775",
+    "agent/app/quota.py": "45412514301e4622ebabd7e738ed442bc88ee1d1559d1b33db7c5a4ad3d6a2a9",
+    "scripts/fixtures/single500_cloud_and_playback.py": "5f378a29453db1f32f105bc506ddd7bfc69099b185859f49339cf125448886a8",
+    "scripts/fixtures/single500_real_agent.py": "c791ff12863b266bdc3b6ae50e69efbe19bfa74d1b5483ef66cb3dddf29c87d5",
+    "backend/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "backend/app/ai_worker_health.py": "0357f1192eae1937ae1f7f2fc225987a51c91c7241e7ecd50324680b3e104800",
+    "backend/app/api/deps.py": "f7b2944918f2c71dfa077134c33fed3ed50cc29ce56b894c0f6d41da728feab5",
+    "backend/app/api/routers/__init__.py": "411705519a6361a87f0e07729202966a482931e946bc3d239c8b7728b36b189d",
+    "backend/app/api/routers/admin_management.py": "8888be63a5c1b58b50f487dd582d0180feca3ff949a58ff8cf144e8c2c7fa7c1",
+    "backend/app/api/routers/auth.py": "46b38b3011ce68695e5ed43bb30bfddabb2f19da717f90a9c5f9283329a90245",
+    "backend/app/api/routers/calls.py": "0f77da77af8bd82c306d5dedc949d4eb41866dfd0f0dd42de44e298766729ee5",
+    "backend/app/api/routers/campaigns.py": "8c13d96cc9ef4d12831946f425d1d666a4380ac8f8ecb02de18cee1d979a3c13",
+    "backend/app/api/routers/contacts.py": "6765d4e23f7be62e4ac0e6141fef086c3857c05eefdcc5d748a5af5983fff01d",
+    "backend/app/api/routers/pages.py": "cdddb309ce1b04155f5b61cab3fd97d2c6bb62474548190b78efff5e2766b494",
+    "backend/app/api/routers/portal.py": "fd56f1bfe26b62f695ce5d10d234560c9f276a7c63f752cd82084baa29fcb402",
+    "backend/app/api/routers/product.py": "57e131a801868fa43fb6f46f7248ac75d05797fc4495b032e5062af28044d18e",
+    "backend/app/api/routers/script_flows.py": "968461f2a0bf170428d747221d989e7193c28bdfeb1762043eddd44d6242d4f5",
+    "backend/app/api/routers/script_templates.py": "5481a3a9d099ff459f583f222dd7802fd3b3e5592531df9a682318895192637c",
+    "backend/app/api/routers/voice_operations.py": "a87f51c3786073a2ec030dae2e2669cea02882b12f9e5915085e98fa3e03c43a",
+    "backend/app/api/routers/webrtc.py": "2c80fb9035cebec2f2a023a5408fd61a7f57a7c87cd131e42d37025d5b8049d6",
+    "backend/app/clock.py": "f16a2c13ce13fbb1d84991bab350df11b5ce977393fd20ea9ebfe62fc88b6ed5",
+    "backend/app/middleware.py": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c",
+    "backend/app/migration_runner.py": "d546362f4e60e60433e0da0009ed158db74f43acf4c80323cb808b64c52334f9",
+    "backend/app/product_schemas.py": "63a4c1641937208fc3904cf36405a0d273f6a6c463f69d0b3f68dd476c355452",
+    "backend/app/schema_bootstrap.py": "abdcbc9f98e731f4e0bf52893b08ba2462ffbba70ee73540e404f6efcebd9574",
+    "backend/app/schema_migrations.py": "af9083c998337de84f3459b66fa53ea2d966ffa48d36fd9c30760bc25e38c4fb",
+    "backend/app/services/__init__.py": "12d04a636179220b49034c1454d2eacb3f02d8ae333ec594016f31ae6c8a5bc2",
+    "backend/app/services/admin_settings.py": "2c1d6897baa681a1c4f3aa3c6155e6589a045d1f8528b858c9ff4d0b7d92e053",
+    "backend/app/services/ai_actions.py": "97b786333b8ed99e555d67b532b8a3091ea422100e363e7602aa51d756842478",
+    "backend/app/services/ai_claim_state.py": "5242bc8c609f203f1e328e160a69d053e93f95c2ee7321ddc55157e09d54f81b",
+    "backend/app/services/ai_liveness.py": "c082cfc0d9fb835ea60aa1d35444e7baef079417774588242c07bdc5a0f34a13",
+    "backend/app/services/auth.py": "f0464db0f91d618e35b75d078d8d115e6ed77428466509020c3143ab4e53c444",
+    "backend/app/services/billing_usage.py": "1f8d5fc27544a547c3a86c73273913b193b3bff308d0da70909cf5dbfdd7b468",
+    "backend/app/services/business_callbacks.py": "f26a58219f8eb51b3316f1e51d022d0a5555a5f9f4bee24baa937d66af5cc2c0",
+    "backend/app/services/call_analysis.py": "325a1768bd3f1285aca9c5815fa087f5e98f7314678636d2f410a567fd63894a",
+    "backend/app/services/call_service.py": "2d1f64271fd41058486b9177ad40a42fd680291cfc2f9877543d39b5eca6d65d",
+    "backend/app/services/conversation_policy.py": "50485b7b2ab0a9e35d01dd750a053f3892c5de3e07d8edeba3bc54acedb8a72d",
+    "backend/app/services/dialogue_rules.py": "a48f17d932b3bf7539a0e90034168916691aab16de0fc437fd146bd031aff7fd",
+    "backend/app/services/gateway_cluster.py": "c895f331917f85955eab2dbffe7acb1647db9dcc699fcbb4578cbf43582de0da",
+    "backend/app/services/health.py": "94d829fa94892427e5da23e67cc8da1987f27a18797ca360f9c0668ae8c9045d",
+    "backend/app/services/knowledge.py": "000179e954a61451b57c9e3b37638f260a2b63017bf6b37ed4da72cc9e5cec05",
+    "backend/app/services/leases.py": "a9730ab8393dc4f5f19c44d99d9563fe3002d845dc94f5c2588a748a66a884c0",
+    "backend/app/services/metrics.py": "6d88d7b2c1e47490a278e761c4ed9abd84474ec542540d321e9779c8558b02c4",
+    "backend/app/services/outbound_policy.py": "9b68312fdff5d2aca9bbf8fc50d4cc398f33a54a432708a86b7745d6d542c2b3",
+    "backend/app/services/recording_storage.py": "6cabe16abd4c47a0b162e70036b0ad36482137e02d2f80da5c693e7d800816a7",
+    "backend/app/services/retention.py": "7b5a89b62b77012e6ade96b2323c7497c28f859778abfc7b3b3c90e320095909",
+    "backend/app/services/runtime_metrics.py": "109da24419d4246aaab736f807876188709e52b64e8e5ed80c474f067b3de84f",
+    "backend/app/services/script_flow.py": "787beafce160bc60f074d4416b8ca4fa17c9741edae3fedebff41f11d2019c26",
+    "backend/app/services/task_queue.py": "7156809617e489ef6845d4074466c8794e9ea7e695f37baf1c672d06809dcafe",
+    "backend/app/services/webrtc.py": "c867ff654fb01b9f1540ae1f01b8532c8364f877da799ef7235211ab98e540ca",
+    "backend/app/worker.py": "9bf9c6feccd9dc6734998ac29a0d01e5478ba087e29db31bab15417d8c87d783",
+    "backend/app/worker_health.py": "10db4b70a53f1303367f238cae92770f0e1fd5ccf7ff56e9e76da68dab19a844",
+    "voice_gateway/app/__init__.py": "376ccbb0735fecd092b0507516053f13a8e4fa5105292b91916363b516c80685",
+    "voice_gateway/app/action_commands.py": "3b525347a10a19151613637f12883daecb1dea65df97a4e80f19d01e394a478b",
+    "voice_gateway/app/aliyun_nls_stt.py": "24d7b09367555529d4c4d3c6266e5308f72f8f088689fdc3d09ae7b56d203127",
+    "voice_gateway/app/drivers.py": "caead8ffe82bbbaa5ebf4e96577c3017a86305dbcf880f8884f588cb31bb2dfb",
+    "voice_gateway/app/esl.py": "1de6b3a1cd7377cb8bb83c7efe4ba453cfe0bea242105fd025374e7abceec15c",
+    "voice_gateway/app/freeswitch.py": "a564da1b9f003ec1cda492a622f90179ea333073c887ac772bcd7963d151946e",
+    "voice_gateway/app/main.py": "d09543a62c2a0dab7240682cea879611375ddc3c31c7e47e2ddc07dd884ed45c",
+    "voice_gateway/app/media_cluster.py": "efa4a76e735252abcd744c5b79bed4bd89ccfd4aa9496c51a687bc5a0eca49f7",
+    "voice_gateway/app/media_worker.py": "f24809b58a24f474606a04bb69536a6ff36669fb0d1b1f57a1d0e9973c61de99",
+    "voice_gateway/app/models.py": "5a264df07a1d4bca6d2cc1ca2ae0c01a1eedf52234d5d7fa3c841e2efb21afd5",
+    "voice_gateway/app/pipecat_pipeline.py": "c196a73b81f6df565abf6531140147e655a194b4c6eef4d99304618aaa29e0c0",
+    "voice_gateway/app/recording_source.py": "0f2fa648a5b18eab172c81c7e0ebdd194238355f422fd69c6521a22d60034d78",
+    "voice_gateway/app/rtp.py": "c81d2b88fbb637cfb97f345dcc39dc3349908af6d363335ff2f9043f09957959",
+    "voice_gateway/app/voice_quota.py": "2cbef4951a29dfb2cf22f6229802afec465f69052b4dccb79a257812db18fa16",
+    "voice_gateway/app/voice_quota_client.py": "166c7d0dce3d1bd3e9f55a6e1f26c3113c3f0b00eefde1c7f1f05d610d0868b7",
+    "agent/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "agent/app/config.py": "1e74eec04ef9787f46f2b5ae13afe46cff38d948670f1127fe73969d706c0550",
+    "agent/app/policy.py": "1d1162ad799d0fa4a494abacb55f721db74bb54e63d5ed97e9debf3d47787aa4",
+    "recording_adapter/app/__init__.py": "4d19864a5494e8307723e34da0a3bf85a3702b1fe3f2bd46e427abebe945eebf",
+    "recording_adapter/app/config.py": "13f964109ff0729d94da4309c0de5a9d9dfa8580ef9b5598d8f99a6534f3b947",
+    "recording_adapter/app/main.py": "829a0f135b153224a29a66ee9b7eca4ecf9d7226151170727e60fe0ad000fc11",
+    "recording_adapter/app/models.py": "017727054fdf38bf0c8e1d8abb3adcf05dac6705e47c43231a9b88c7d79182f0",
+    "recording_adapter/app/storage.py": "3d5f67868ea86e888cc974a59122ff5199b4deedd544f85373b8c11f36c9d67d",
+    "scripts/fixtures/node200_agent_fixture.py": "be9c3b9f98d1b58c95d90c3b84a366a3b15591ef5b4bb2c44c407ee9fa445422",
+    "scripts/fixtures/single500_inbox_ui.py": "4620d1ac76a9b5a8a12864cc3b5cbecd159b860fcc6c2280b0fb9d4dc9c5e78b",
+    "scripts/fixtures/single500_instrumented_api.py": "4fae4f34a8a5235a68d2fe13fadc72cc326b83db4d7b0408922199b089294c6f",
+    "scripts/fixtures/single500_model_fixture.py": "d23f64727d662269d6eb94145adb0aa2d2df6dcb29d2e9e5aa246436b1203488",
+    "docker-compose.callback-load.yml": "871b58181b7c7e2be4e5d36325fa1cf1dd9d242c7b309540d12e3426fbeabb59",
+    "docker-compose.compact.yml": "8574c12ffde6b9dcca1350afee523657964a1010e84c5b83285b86bc69e16b69",
+    "docker-compose.media.yml": "a1c35cf8306b4828946358939b7de1bf5824a5501132aaeea1e2d6fb4014864b",
+    "docker-compose.observability.yml": "1d9c08f60c1bb8ca5c8256979316a00ca9b1c7077a665e85bdcca9676d8e6005",
+    "docker-compose.single-host-500.yml": "44911a3abf74a59d03764dccfea30d6017d3258a11c265794b32ef9f11af6da8",
+    "docker-compose.sipp.yml": "d3f0ffa70ccba8ca0e095cac0e8a3d94f0cd01581ceaeb38fd7bd730bba9d0a7",
+    "docker-compose.webrtc.yml": "3d7a0c9bff54b40468c1af1d816f889c0b10b923e77df1c870f9dfa917db62b9",
+    "docker-compose.yml": "a2d92a86f1d955ee411e139be3448b00d1e04150f7f94275c3354daaa505e56e"
+  },
+  "runtime_dependencies": {
+    "fastapi": "0.141.1",
+    "anyio": "4.14.2",
+    "httpx": "0.28.1",
+    "httpcore": "1.0.9",
+    "sniffio": "1.3.1",
+    "uvloop": "0.22.1",
+    "sqlmodel": "0.0.42",
+    "psycopg": "3.3.4"
+  },
+  "generator_event_loop": "uvloop",
+  "synthetic_active_calls": 500,
+  "final_transcripts_per_second": 100.0,
+  "media_events_per_second": 200.0,
+  "duration_seconds": null,
+  "batch_callbacks_enabled": true,
+  "http_request_statuses": {
+    "200": 2021
+  },
+  "mean_events_per_http_request": 3.711034141514102,
+  "scenario": "conversation",
+  "effective_dialogue_capacity_verified": false,
+  "observer_query": "outstanding-turn-time-window-v2",
+  "generation_duration_seconds": 29.567489680000023,
+  "emitted_final_transcripts": 2500,
+  "generated_transcripts_per_elapsed_second": 84.552325106282,
+  "initial_speech_start_rate": 100,
+  "topology": {
+    "api_processes": 6,
+    "callback_workers": 6,
+    "ai_workers": 4,
+    "ai_slots": 640,
+    "ai_db_threads_per_worker": 2,
+    "ai_action_threads_per_worker": 8,
+    "real_agent_processes": 2,
+    "task_workers": 0,
+    "pbx_processes": 0,
+    "media_workers": 0,
+    "application_db_pool_budget": 56,
+    "test_observer_db_pool_budget": 5
+  },
+  "conversation_rounds": 5,
+  "conversation_errors": [],
+  "committed_replies_observed": 2500,
+  "absolute_schedule": true,
+  "deadline_misses": [
+    {
+      "call_id": "27d8aa8b-e3f0-4d1d-a0c3-706123d12d44",
+      "round": 2,
+      "late_ms": 23.758172000043487
+    },
+    {
+      "call_id": "fd6da079-5eb0-4d8a-99bf-9b865755c906",
+      "round": 2,
+      "late_ms": 43.80342199999632
+    },
+    {
+      "call_id": "ae32e624-cd55-4ceb-bd81-fff55036311a",
+      "round": 2,
+      "late_ms": 63.8138379999873
+    },
+    {
+      "call_id": "c8b3d8a4-f336-404f-9a6f-59663bb173bb",
+      "round": 2,
+      "late_ms": 73.82421299996622
+    },
+    {
+      "call_id": "c9bbdea1-2d61-439c-b678-a767db1dbaa8",
+      "round": 2,
+      "late_ms": 53.83404700000938
+    },
+    {
+      "call_id": "869e9610-83b0-41f8-9f0e-8bc52956c33a",
+      "round": 2,
+      "late_ms": 2.585254999985409
+    },
+    {
+      "call_id": "f31ed184-f228-4d81-bcae-823bc77d390a",
+      "round": 2,
+      "late_ms": 64.14267200000268
+    },
+    {
+      "call_id": "3e676ee2-3fb2-468b-a72d-34fd6139106e",
+      "round": 2,
+      "late_ms": 84.15475499998593
+    },
+    {
+      "call_id": "2ba7a7de-0ebd-441c-a778-95775a0ef314",
+      "round": 2,
+      "late_ms": 44.16763000000401
+    },
+    {
+      "call_id": "edf8977c-d816-4c69-8f75-ec2b7ebd6d60",
+      "round": 2,
+      "late_ms": 54.17792200000804
+    },
+    {
+      "call_id": "9673995b-4935-492b-8f1b-47794f7e9d5a",
+      "round": 2,
+      "late_ms": 24.18825500001276
+    },
+    {
+      "call_id": "87a2acf6-5a89-4269-8116-0270cad0c016",
+      "round": 2,
+      "late_ms": 74.20779699998548
+    },
+    {
+      "call_id": "a0ef188b-2374-445e-b2a1-7b15ec7e5e0d",
+      "round": 2,
+      "late_ms": 34.21779699999661
+    },
+    {
+      "call_id": "f9916eba-d953-41a4-81a8-37ffecf1c7be",
+      "round": 2,
+      "late_ms": 2.2488800000246556
+    },
+    {
+      "call_id": "7ee0831d-c94f-49a6-8648-1ed046560355",
+      "round": 2,
+      "late_ms": 12.258964000011474
+    },
+    {
+      "call_id": "b8e47010-14c8-4959-a77f-9d6ffd094862",
+      "round": 2,
+      "late_ms": 42.26996399995642
+    },
+    {
+      "call_id": "58951db5-3542-4090-9806-293b334e5882",
+      "round": 2,
+      "late_ms": 102.2801720000075
+    },
+    {
+      "call_id": "936da780-a96c-4c61-82b9-1d8fafd031a6",
+      "round": 2,
+      "late_ms": 22.363255000016125
+    },
+    {
+      "call_id": "d6f991b2-e363-4190-856c-e33ea9336433",
+      "round": 2,
+      "late_ms": 32.3720469999671
+    },
+    {
+      "call_id": "615db384-59f2-4e39-ace2-4604e84681f5",
+      "round": 2,
+      "late_ms": 52.38188000004129
+    },
+    {
+      "call_id": "a3ffd07b-f208-4b57-bed5-7503b9c9a752",
+      "round": 2,
+      "late_ms": 62.39058900001737
+    },
+    {
+      "call_id": "c7ef2839-9f89-4404-acd4-875c49015d86",
+      "round": 2,
+      "late_ms": 72.39946400000008
+    },
+    {
+      "call_id": "d4969ba8-68f1-498e-838f-5d89da4a8a6f",
+      "round": 2,
+      "late_ms": 17.023588999961703
+    },
+    {
+      "call_id": "15940657-b1e4-4346-a819-2b02dabf8c0b",
+      "round": 2,
+      "late_ms": 187.03825500006133
+    },
+    {
+      "call_id": "f93f6ee2-f7d1-4710-849a-dd123d1a3d40",
+      "round": 2,
+      "late_ms": 197.050880000063
+    },
+    {
+      "call_id": "99f08ff7-5431-4dc7-a6a5-8f5d4abd5976",
+      "round": 2,
+      "late_ms": 8.155004999991888
+    },
+    {
+      "call_id": "27793069-913b-47dc-b2c7-0d7b84389381",
+      "round": 2,
+      "late_ms": 18.213254999977835
+    },
+    {
+      "call_id": "b02f7bf9-cd03-497c-b51d-329dc3e8018f",
+      "round": 2,
+      "late_ms": 82.09563000002618
+    },
+    {
+      "call_id": "d4bfa15a-28b9-4691-a2fe-18ca330042a5",
+      "round": 2,
+      "late_ms": 62.221922000048835
+    },
+    {
+      "call_id": "7b72601c-4a76-4510-99ae-aceed1910630",
+      "round": 2,
+      "late_ms": 32.23363000000745
+    },
+    {
+      "call_id": "be28ef29-71ac-442d-b348-792e55b9c00b",
+      "round": 2,
+      "late_ms": 22.286296999993738
+    },
+    {
+      "call_id": "b3b00cef-11ee-4f2c-b73c-13f86693bf8f",
+      "round": 2,
+      "late_ms": 31.780839000020933
+    },
+    {
+      "call_id": "cf9e685a-50b8-476c-8223-7a0d39f9b4bd",
+      "round": 2,
+      "late_ms": 37.970588999996835
+    },
+    {
+      "call_id": "66b8bd32-5f92-41d0-adaf-52a8c0ebb559",
+      "round": 2,
+      "late_ms": 63.12700600005883
+    },
+    {
+      "call_id": "d63a5d78-093e-4229-ab94-cb145263a271",
+      "round": 2,
+      "late_ms": 73.14558900003476
+    },
+    {
+      "call_id": "3b4bf43c-39bd-46d5-acf7-f93c0e92ea19",
+      "round": 2,
+      "late_ms": 133.1581309999592
+    },
+    {
+      "call_id": "6fab04b7-e275-4b9b-9366-bed7777a2b8e",
+      "round": 2,
+      "late_ms": 200.72254799998746
+    },
+    {
+      "call_id": "1ec66a88-6c80-43d5-ad0b-aecd87e6e9ea",
+      "round": 2,
+      "late_ms": 24.394214000039938
+    },
+    {
+      "call_id": "4edfc93c-f739-4fdb-a8d9-0be04cd32587",
+      "round": 2,
+      "late_ms": 4.482214000006479
+    },
+    {
+      "call_id": "5e95fa83-c4b1-4982-b72a-b773e8585e30",
+      "round": 2,
+      "late_ms": 294.51221400000804
+    },
+    {
+      "call_id": "c8c06417-2afe-4475-b786-69b1150875b8",
+      "round": 2,
+      "late_ms": 324.5234639999808
+    },
+    {
+      "call_id": "59f14060-9ae5-4ce2-ac55-26d107f99851",
+      "round": 2,
+      "late_ms": 334.53813099998797
+    },
+    {
+      "call_id": "ed62eceb-a578-47cf-913e-ad1000ab5d88",
+      "round": 2,
+      "late_ms": 314.5537980000199
+    },
+    {
+      "call_id": "3e66a8d6-18f6-4cbc-8e38-b3d9c997461d",
+      "round": 2,
+      "late_ms": 74.56429799998432
+    },
+    {
+      "call_id": "07f48cce-b998-4f4a-82ab-f3f0213dde01",
+      "round": 2,
+      "late_ms": 170.32892299999958
+    },
+    {
+      "call_id": "b32e2b0b-cc46-4b70-9a0f-100187a691e1",
+      "round": 2,
+      "late_ms": 160.33992300003774
+    },
+    {
+      "call_id": "8112a089-8f88-416f-ba2f-8d5e6eb37858",
+      "round": 2,
+      "late_ms": 150.34934000004796
+    },
+    {
+      "call_id": "bdbebb07-1e51-4ab3-a9ab-c2489ce9a22a",
+      "round": 2,
+      "late_ms": 140.35946500001728
+    },
+    {
+      "call_id": "076713db-a960-483a-8a30-5c6620160bfa",
+      "round": 2,
+      "late_ms": 40.36913100003403
+    },
+    {
+      "call_id": "879fbeb9-5f30-42b1-a185-ebcb68af9628",
+      "round": 2,
+      "late_ms": 197.6596730000324
+    },
+    {
+      "call_id": "dd1a6b78-d126-4ba5-8b89-e794e32a0c31",
+      "round": 2,
+      "late_ms": 167.67575599999418
+    },
+    {
+      "call_id": "afdb652d-d08f-4cea-b770-df3010292004",
+      "round": 2,
+      "late_ms": 187.6901309999539
+    },
+    {
+      "call_id": "1b81a587-fe9f-4224-aec6-730911cda7b7",
+      "round": 2,
+      "late_ms": 177.7020479999578
+    },
+    {
+      "call_id": "677cd520-8cfd-4fc8-9dab-b91ebeab9ee8",
+      "round": 2,
+      "late_ms": 157.71533999998155
+    },
+    {
+      "call_id": "66517574-7210-4b13-b5f7-3646709fc1c2",
+      "round": 2,
+      "late_ms": 39.47471499998301
+    },
+    {
+      "call_id": "31c5878b-d914-4843-8a62-e28b3027c3f7",
+      "round": 2,
+      "late_ms": 19.600089999983084
+    },
+    {
+      "call_id": "da584e0e-e368-4095-95ff-3ae4ad170ba8",
+      "round": 2,
+      "late_ms": 29.612005999979374
+    },
+    {
+      "call_id": "9b70055c-e686-4fea-b0c0-303b43c4b5bb",
+      "round": 2,
+      "late_ms": 64.81059000003597
+    },
+    {
+      "call_id": "55d83f8d-932a-4567-a252-07f70c860ea6",
+      "round": 2,
+      "late_ms": 114.87958999998682
+    },
+    {
+      "call_id": "713ee015-8ce7-4c25-9f91-9de2ec5bed15",
+      "round": 2,
+      "late_ms": 156.39596500005837
+    },
+    {
+      "call_id": "9b344c83-60c1-40f7-85cb-d6030a0c3636",
+      "round": 2,
+      "late_ms": 206.44096500001297
+    },
+    {
+      "call_id": "2300560d-c7da-4097-bf85-73ab4e67b602",
+      "round": 2,
+      "late_ms": 136.4549230000307
+    },
+    {
+      "call_id": "ac5c0d87-33a7-4b4c-948c-980a67f7a383",
+      "round": 2,
+      "late_ms": 81.21892299999445
+    },
+    {
+      "call_id": "d0200945-60c0-4f0a-b93f-408dba12ff25",
+      "round": 2,
+      "late_ms": 91.23283999997511
+    },
+    {
+      "call_id": "c3155dd3-bd6a-4487-ab8d-5658284152d1",
+      "round": 2,
+      "late_ms": 37.66929800002572
+    },
+    {
+      "call_id": "15ac83e0-95e4-4491-ad95-f3f47d718ab6",
+      "round": 2,
+      "late_ms": 412.19304800006284
+    },
+    {
+      "call_id": "d245aefb-e5e4-4165-bf60-fda29289fbc0",
+      "round": 2,
+      "late_ms": 392.2432150000077
+    },
+    {
+      "call_id": "8beee861-9fe7-4316-8d95-3acacedf2811",
+      "round": 2,
+      "late_ms": 402.25917300000447
+    },
+    {
+      "call_id": "37356418-ff02-46be-a273-698e767d7360",
+      "round": 2,
+      "late_ms": 382.27234000004273
+    },
+    {
+      "call_id": "98be27d8-ad8e-48a7-935d-0b1a60367ebc",
+      "round": 2,
+      "late_ms": 372.2860479999781
+    },
+    {
+      "call_id": "9eeebcff-e54f-4003-ad35-c4a1b3a3d3b5",
+      "round": 2,
+      "late_ms": 12.319714999989628
+    },
+    {
+      "call_id": "e9ebb2d2-61ab-4d49-be73-ba9e13877d26",
+      "round": 2,
+      "late_ms": 2.332423000041217
+    },
+    {
+      "call_id": "64fbe9ac-f11f-4de0-ac91-d4b2264df3a9",
+      "round": 2,
+      "late_ms": 22.364922999997816
+    },
+    {
+      "call_id": "6bf59f73-6142-4c1d-ad0e-7738bb2690ac",
+      "round": 2,
+      "late_ms": 25.77200700005733
+    },
+    {
+      "call_id": "7fed2721-6249-4347-9af5-de0669566e28",
+      "round": 2,
+      "late_ms": 15.794215000028089
+    },
+    {
+      "call_id": "8c2c8843-cc8f-4d60-9e10-fe47cf9d8f4e",
+      "round": 2,
+      "late_ms": 35.80488200003629
+    },
+    {
+      "call_id": "57fdd9b4-a6aa-4ef4-bc02-a0027502b830",
+      "round": 2,
+      "late_ms": 85.81542299998546
+    },
+    {
+      "call_id": "46bfd5f0-def3-47e9-a2a2-75676ebcad31",
+      "round": 2,
+      "late_ms": 11.272965000046042
+    },
+    {
+      "call_id": "c62a26ba-2d09-4a46-99f7-ba2d4e7a36db",
+      "round": 2,
+      "late_ms": 281.37967300000355
+    },
+    {
+      "call_id": "dece39a7-51ae-4664-82fe-e3e6464ab9d9",
+      "round": 2,
+      "late_ms": 321.39096499997777
+    },
+    {
+      "call_id": "57066dc2-589c-49d5-962a-c5e6a37cc6e2",
+      "round": 2,
+      "late_ms": 21.40200700000605
+    },
+    {
+      "call_id": "fc4f35b5-714b-4a6f-931b-76d8b9880421",
+      "round": 2,
+      "late_ms": 111.41258999998627
+    },
+    {
+      "call_id": "b9ff88ce-5a5d-4cb5-a3c3-13a8659877cb",
+      "round": 2,
+      "late_ms": 331.422922999991
+    },
+    {
+      "call_id": "565584fa-1759-492d-94ad-aa2b80fdcc5f",
+      "round": 2,
+      "late_ms": 311.43321499996546
+    },
+    {
+      "call_id": "a666c0f8-f801-4325-9029-3e7eb2dc19bc",
+      "round": 2,
+      "late_ms": 291.44409000002724
+    },
+    {
+      "call_id": "a464ad53-f6a6-49c5-9762-4d335c1d7acd",
+      "round": 2,
+      "late_ms": 41.45513200001005
+    },
+    {
+      "call_id": "50045b80-c842-4b08-a68b-32db9d567ef4",
+      "round": 2,
+      "late_ms": 91.46629800000028
+    },
+    {
+      "call_id": "7e88a526-67d8-4564-8318-8f2e13c96074",
+      "round": 2,
+      "late_ms": 1.47625700003573
+    },
+    {
+      "call_id": "99f5aeaa-b497-4fca-bc14-bfc775aa5146",
+      "round": 2,
+      "late_ms": 186.86813199997232
+    },
+    {
+      "call_id": "5fd99f1b-8472-488a-844c-ed15a02b9e00",
+      "round": 2,
+      "late_ms": 176.87958999999864
+    },
+    {
+      "call_id": "02bc91a9-a2cf-4fe3-a0d7-6c7b250262bd",
+      "round": 2,
+      "late_ms": 56.89100699999017
+    },
+    {
+      "call_id": "7978f3a1-1e8d-4da0-82f2-f85f1c979678",
+      "round": 2,
+      "late_ms": 96.90367300004255
+    },
+    {
+      "call_id": "23f95b4b-e2cb-4e30-bd78-bb6777730f72",
+      "round": 2,
+      "late_ms": 50.82304800004067
+    },
+    {
+      "call_id": "0a1074ba-8cde-4fe4-99c1-40aaa1d6b206",
+      "round": 2,
+      "late_ms": 70.83488199998556
+    },
+    {
+      "call_id": "edeec1bf-ee1e-4d92-adc1-8083c9b470e5",
+      "round": 2,
+      "late_ms": 60.84508999998661
+    },
+    {
+      "call_id": "e3733823-0457-48a3-9345-28d5f25cb2d0",
+      "round": 2,
+      "late_ms": 40.85604800002329
+    },
+    {
+      "call_id": "66c79fb8-87ad-4ca1-975e-3115be60f521",
+      "round": 2,
+      "late_ms": 170.86829800001624
+    },
+    {
+      "call_id": "9371328d-c22b-439b-bdb9-189bf0c7abff",
+      "round": 2,
+      "late_ms": 202.38392400005978
+    },
+    {
+      "call_id": "4380ada8-ec66-4d45-8382-29a74b001d74",
+      "round": 2,
+      "late_ms": 2.399798999988434
+    },
+    {
+      "call_id": "5eb189be-9747-4dc2-9c36-3c9b599f5398",
+      "round": 2,
+      "late_ms": 142.41346500006102
+    },
+    {
+      "call_id": "1f3e4994-f7d7-489f-9ea1-46d452f93e3c",
+      "round": 2,
+      "late_ms": 292.4247150000383
+    },
+    {
+      "call_id": "bf972a05-d7f9-4dd5-8840-6bab4693a194",
+      "round": 2,
+      "late_ms": 115.00450699998055
+    },
+    {
+      "call_id": "df99672f-cc61-4919-befd-47997848b440",
+      "round": 2,
+      "late_ms": 355.0786739999694
+    },
+    {
+      "call_id": "7bc80bf0-ee14-4e2f-a6ab-5f8042518edb",
+      "round": 2,
+      "late_ms": 35.09063199999218
+    },
+    {
+      "call_id": "265ab573-6994-41d9-9791-e6d37f6e2921",
+      "round": 2,
+      "late_ms": 29.015256999969097
+    },
+    {
+      "call_id": "6559e964-160e-4f41-ba65-21ae50972459",
+      "round": 2,
+      "late_ms": 167.692006999971
+    },
+    {
+      "call_id": "36e69f42-1333-4c09-a6fc-7074ad3e96c9",
+      "round": 2,
+      "late_ms": 107.86533999998937
+    },
+    {
+      "call_id": "3e08a76f-6f5a-4191-a765-add8ad9f1a18",
+      "round": 3,
+      "late_ms": 5.341882000038822
+    },
+    {
+      "call_id": "60d7e0f1-9046-4de3-bab4-f2b748296e8f",
+      "round": 3,
+      "late_ms": 61.659466000037355
+    },
+    {
+      "call_id": "320863bd-bcbd-46ce-b267-a84ef1a69ca3",
+      "round": 3,
+      "late_ms": 41.76204900005587
+    },
+    {
+      "call_id": "40a43749-a7df-4330-8da4-c29b54f6ff63",
+      "round": 3,
+      "late_ms": 153.555132000065
+    },
+    {
+      "call_id": "183e31ee-539f-4d83-9925-30e2efabb4c8",
+      "round": 3,
+      "late_ms": 3.566256999988582
+    },
+    {
+      "call_id": "9f8a8c36-aafc-4bac-8fe3-73b98527b097",
+      "round": 3,
+      "late_ms": 33.58821600005513
+    },
+    {
+      "call_id": "c8b3d8a4-f336-404f-9a6f-59663bb173bb",
+      "round": 3,
+      "late_ms": 67.78350700000146
+    },
+    {
+      "call_id": "c9bbdea1-2d61-439c-b678-a767db1dbaa8",
+      "round": 3,
+      "late_ms": 151.1512569999809
+    },
+    {
+      "call_id": "ab28ef8c-67ed-4ab6-91b5-cfa9557c703b",
+      "round": 3,
+      "late_ms": 111.20142400005761
+    },
+    {
+      "call_id": "73c770d5-5f65-4da4-8772-dca45f87b811",
+      "round": 3,
+      "late_ms": 41.23413199999959
+    },
+    {
+      "call_id": "489cc917-feb3-4711-825a-4e6776be3ed6",
+      "round": 3,
+      "late_ms": 23.540048999961982
+    },
+    {
+      "call_id": "c12fa22d-d5ec-4ac3-80da-8ed9628b3032",
+      "round": 3,
+      "late_ms": 116.50104900002134
+    },
+    {
+      "call_id": "c097906b-14c4-4976-9c67-39c64b806df5",
+      "round": 3,
+      "late_ms": 106.70054899998149
+    },
+    {
+      "call_id": "33ffbf90-bdf8-4bf0-b078-33d8034bdc99",
+      "round": 3,
+      "late_ms": 307.05904900003134
+    },
+    {
+      "call_id": "dca82b33-f0aa-4034-943b-623d907996b1",
+      "round": 3,
+      "late_ms": 147.07134100007124
+    },
+    {
+      "call_id": "09b24ea7-7e60-4460-b908-6fd8324f7544",
+      "round": 3,
+      "late_ms": 297.0823830000313
+    },
+    {
+      "call_id": "598976f2-957c-41ca-a8f6-e9d71d8b3c27",
+      "round": 3,
+      "late_ms": 167.09309100002656
+    },
+    {
+      "call_id": "6f3efcdd-88a9-41fb-aa30-839dc15c3585",
+      "round": 3,
+      "late_ms": 157.10467400003836
+    },
+    {
+      "call_id": "50d41845-5bfb-46f8-ad27-ce10ef4f86ec",
+      "round": 3,
+      "late_ms": 287.1167160000141
+    },
+    {
+      "call_id": "06b8bede-a597-49bf-b655-3b3f405757c4",
+      "round": 3,
+      "late_ms": 267.1282580000707
+    },
+    {
+      "call_id": "eded1820-2aeb-41d1-84e4-475c9d496774",
+      "round": 3,
+      "late_ms": 277.1383830000218
+    },
+    {
+      "call_id": "c8422d21-cf52-482b-8e9f-32d86d020b56",
+      "round": 3,
+      "late_ms": 247.1503830000188
+    },
+    {
+      "call_id": "6f1b44eb-a861-47d2-9e99-e990a92ef891",
+      "round": 3,
+      "late_ms": 257.16150800002424
+    },
+    {
+      "call_id": "2ba7a7de-0ebd-441c-a778-95775a0ef314",
+      "round": 3,
+      "late_ms": 43.90525799999523
+    },
+    {
+      "call_id": "7e6936d1-9135-4d6b-a246-a45d0f2f392f",
+      "round": 3,
+      "late_ms": 283.95646600000646
+    },
+    {
+      "call_id": "a0ef188b-2374-445e-b2a1-7b15ec7e5e0d",
+      "round": 3,
+      "late_ms": 33.97279900002559
+    },
+    {
+      "call_id": "3e676ee2-3fb2-468b-a72d-34fd6139106e",
+      "round": 3,
+      "late_ms": 83.99942399995552
+    },
+    {
+      "call_id": "9673995b-4935-492b-8f1b-47794f7e9d5a",
+      "round": 3,
+      "late_ms": 24.012049000020852
+    },
+    {
+      "call_id": "6083f9fd-d637-409e-87ad-384d1320e6c2",
+      "round": 3,
+      "late_ms": 318.3805909999933
+    },
+    {
+      "call_id": "fab8f62d-bb43-46dc-a99f-92854fccb134",
+      "round": 3,
+      "late_ms": 288.3936329999983
+    },
+    {
+      "call_id": "098abdb9-cf47-48ac-8953-736f97caa052",
+      "round": 3,
+      "late_ms": 38.40659100001176
+    },
+    {
+      "call_id": "35665d3f-ad9b-4393-a870-1503f416085d",
+      "round": 3,
+      "late_ms": 18.417008000028545
+    },
+    {
+      "call_id": "bf384f86-8372-49c3-8897-4793f7e3c316",
+      "round": 3,
+      "late_ms": 98.42750799998612
+    },
+    {
+      "call_id": "b02f5d22-3e54-4145-a84e-26c1abe37d35",
+      "round": 3,
+      "late_ms": 58.437048999962826
+    },
+    {
+      "call_id": "dd2bfec5-ca46-47a2-831b-836c09038973",
+      "round": 3,
+      "late_ms": 28.446758000029604
+    },
+    {
+      "call_id": "d7ef2848-db07-483c-9f6f-1fc867a7cfc7",
+      "round": 3,
+      "late_ms": 88.45696600002384
+    },
+    {
+      "call_id": "58951db5-3542-4090-9806-293b334e5882",
+      "round": 3,
+      "late_ms": 100.40638300000637
+    },
+    {
+      "call_id": "5e872486-42df-4331-b27c-c682f3a9a830",
+      "round": 3,
+      "late_ms": 210.41934100003346
+    },
+    {
+      "call_id": "d4969ba8-68f1-498e-838f-5d89da4a8a6f",
+      "round": 3,
+      "late_ms": 15.630840999961038
+    },
+    {
+      "call_id": "c7ef2839-9f89-4404-acd4-875c49015d86",
+      "round": 3,
+      "late_ms": 175.6817159999855
+    },
+    {
+      "call_id": "15940657-b1e4-4346-a819-2b02dabf8c0b",
+      "round": 3,
+      "late_ms": 185.6990080000287
+    },
+    {
+      "call_id": "b3f9cd24-869b-4ba5-8f93-9fb047949b0c",
+      "round": 3,
+      "late_ms": 391.91463299999896
+    },
+    {
+      "call_id": "f93f6ee2-f7d1-4710-849a-dd123d1a3d40",
+      "round": 3,
+      "late_ms": 408.15221600001905
+    },
+    {
+      "call_id": "e0304e2e-8dd2-4c38-95ad-e8363400db10",
+      "round": 3,
+      "late_ms": 468.16509100000303
+    },
+    {
+      "call_id": "dfa3c4db-e075-45aa-b94c-006709a0d254",
+      "round": 3,
+      "late_ms": 208.21304999998347
+    },
+    {
+      "call_id": "f31ed184-f228-4d81-bcae-823bc77d390a",
+      "round": 3,
+      "late_ms": 588.2844249999835
+    },
+    {
+      "call_id": "925b4f62-f698-4b25-96fb-77d5b4f09529",
+      "round": 3,
+      "late_ms": 218.34042500000805
+    },
+    {
+      "call_id": "a644162c-c404-43d4-99aa-bc72cc5f2dea",
+      "round": 3,
+      "late_ms": 188.356175000024
+    },
+    {
+      "call_id": "7a66e186-ba30-4662-949a-dcb38f7f4a2d",
+      "round": 3,
+      "late_ms": 198.37059100001397
+    },
+    {
+      "call_id": "afe5af88-f72a-4ea4-8eaf-b8d9fde7221d",
+      "round": 3,
+      "late_ms": 178.397675000042
+    },
+    {
+      "call_id": "4ea2b84a-7439-4022-8925-96fb7d95015e",
+      "round": 3,
+      "late_ms": 238.41134099995998
+    },
+    {
+      "call_id": "f0d8c041-02f0-41f0-a283-c62d108b50c4",
+      "round": 3,
+      "late_ms": 63.19917500002248
+    },
+    {
+      "call_id": "34ba3bc1-1527-498b-80ac-1b110eb78489",
+      "round": 3,
+      "late_ms": 253.21446600003128
+    },
+    {
+      "call_id": "6ccbe273-67aa-49dc-85cd-4efb0c4664b9",
+      "round": 3,
+      "late_ms": 93.2257999999706
+    },
+    {
+      "call_id": "fbeb33f1-987b-4a6a-b543-02119536f2ad",
+      "round": 3,
+      "late_ms": 103.2366750000051
+    },
+    {
+      "call_id": "26acf9c5-3f3e-4027-b375-e62e8bdac419",
+      "round": 3,
+      "late_ms": 155.67113299999846
+    },
+    {
+      "call_id": "7e4d2aa7-e4dc-4e31-a423-287efb18a3b2",
+      "round": 3,
+      "late_ms": 345.71342499998536
+    },
+    {
+      "call_id": "92289ea9-4de3-4b85-9c6b-d5f8e211f706",
+      "round": 3,
+      "late_ms": 375.73530000003075
+    },
+    {
+      "call_id": "e4742610-7fff-4332-8445-090ec4ef663f",
+      "round": 3,
+      "late_ms": 475.75500800002146
+    },
+    {
+      "call_id": "936da780-a96c-4c61-82b9-1d8fafd031a6",
+      "round": 3,
+      "late_ms": 545.7680499999924
+    },
+    {
+      "call_id": "b3f98272-4990-4892-9044-3440fefccbb0",
+      "round": 3,
+      "late_ms": 185.77971599995635
+    },
+    {
+      "call_id": "352e5e25-a9e7-4213-b3f0-4bfbc100374f",
+      "round": 3,
+      "late_ms": 335.7908830000156
+    },
+    {
+      "call_id": "bd5d3215-8980-48dd-88f6-c6338bdd9663",
+      "round": 3,
+      "late_ms": 365.80213300004516
+    },
+    {
+      "call_id": "892d7f88-de73-40c2-b6a0-d07d3cf685ee",
+      "round": 3,
+      "late_ms": 325.81267500000877
+    },
+    {
+      "call_id": "a3ffd07b-f208-4b57-bed5-7503b9c9a752",
+      "round": 3,
+      "late_ms": 585.8240080000314
+    },
+    {
+      "call_id": "f9916eba-d953-41a4-81a8-37ffecf1c7be",
+      "round": 3,
+      "late_ms": 525.8355500000107
+    },
+    {
+      "call_id": "e128e53a-1642-4248-93f8-d814685603b8",
+      "round": 3,
+      "late_ms": 90.41880000006586
+    },
+    {
+      "call_id": "bbe9c932-4dc3-4201-97b1-719c0c1631b9",
+      "round": 3,
+      "late_ms": 620.4323000000045
+    },
+    {
+      "call_id": "b813798e-e5f0-4b8a-8cdb-37596028ea6c",
+      "round": 3,
+      "late_ms": 590.4445910000504
+    },
+    {
+      "call_id": "4a2021f0-e1f6-4c8c-af29-7114f083de42",
+      "round": 3,
+      "late_ms": 570.455925000033
+    },
+    {
+      "call_id": "e34ca8cb-e05b-4aad-8816-6f5247a2bd16",
+      "round": 3,
+      "late_ms": 240.46763300003704
+    },
+    {
+      "call_id": "66769bf8-43c4-40f7-b0ca-798e1af8337f",
+      "round": 3,
+      "late_ms": 150.52109099997324
+    },
+    {
+      "call_id": "b9df374f-36c4-46f3-ae56-13b130ff73f0",
+      "round": 3,
+      "late_ms": 610.5424660000267
+    },
+    {
+      "call_id": "4695cb6e-97cc-4745-b122-f904ae41d27e",
+      "round": 3,
+      "late_ms": 184.50738299998193
+    },
+    {
+      "call_id": "957e31fe-9908-4904-a912-a2ef31de484a",
+      "round": 3,
+      "late_ms": 164.5465500000114
+    },
+    {
+      "call_id": "524e46bb-98eb-488a-82f4-f3bc11defcfd",
+      "round": 3,
+      "late_ms": 474.56088300003785
+    },
+    {
+      "call_id": "99f08ff7-5431-4dc7-a6a5-8f5d4abd5976",
+      "round": 3,
+      "late_ms": 514.5723829999724
+    },
+    {
+      "call_id": "6744adfe-e6f8-4df0-b151-07dea591e6b7",
+      "round": 3,
+      "late_ms": 324.5843830000581
+    },
+    {
+      "call_id": "7ee0831d-c94f-49a6-8648-1ed046560355",
+      "round": 3,
+      "late_ms": 744.5956750000278
+    },
+    {
+      "call_id": "6330f77c-e3bc-41e8-93d5-e8513873f035",
+      "round": 3,
+      "late_ms": 704.6088000000168
+    },
+    {
+      "call_id": "23bf09af-83b3-4c34-8423-24e17a4ad3f7",
+      "round": 3,
+      "late_ms": 4.6246750000022985
+    },
+    {
+      "call_id": "7392b5e6-c9b7-42d4-ae28-dc093ca3f348",
+      "round": 3,
+      "late_ms": 104.64321599999948
+    },
+    {
+      "call_id": "3c993da9-101e-4ebf-b735-d926a74a0903",
+      "round": 3,
+      "late_ms": 334.6583410000221
+    },
+    {
+      "call_id": "55949f02-3ca3-479a-b5f7-81169e757c1f",
+      "round": 3,
+      "late_ms": 314.6698410000681
+    },
+    {
+      "call_id": "3eab2e46-c04f-469f-b06a-278a74fbc05c",
+      "round": 3,
+      "late_ms": 603.2268409999801
+    },
+    {
+      "call_id": "27793069-913b-47dc-b2c7-0d7b84389381",
+      "round": 3,
+      "late_ms": 633.4138409999923
+    },
+    {
+      "call_id": "d6f991b2-e363-4190-856c-e33ea9336433",
+      "round": 3,
+      "late_ms": 873.452049999969
+    },
+    {
+      "call_id": "9ca53669-3083-45ea-bf29-97a13419556d",
+      "round": 3,
+      "late_ms": 253.48025799996776
+    },
+    {
+      "call_id": "d5f69701-fe57-479c-bda4-840cc74d6f02",
+      "round": 3,
+      "late_ms": 83.50388299999167
+    },
+    {
+      "call_id": "bbc0f8f8-0026-48d1-a107-a0b4ed393aa8",
+      "round": 3,
+      "late_ms": 93.51821600000676
+    },
+    {
+      "call_id": "ed952a1f-c3ac-413a-a3dd-7e8d53f3c7fe",
+      "round": 3,
+      "late_ms": 223.53334100000666
+    },
+    {
+      "call_id": "ce8b9d97-d4c7-4150-ada7-c5d09b82d0c1",
+      "round": 3,
+      "late_ms": 73.55484100003196
+    },
+    {
+      "call_id": "615db384-59f2-4e39-ace2-4604e84681f5",
+      "round": 3,
+      "late_ms": 893.5689660000321
+    },
+    {
+      "call_id": "18ee8cc9-e4e8-4f4d-9ea3-a63633b47985",
+      "round": 3,
+      "late_ms": 173.31700800002636
+    },
+    {
+      "call_id": "5d1e3aa6-03bb-40c3-8e43-5da725cff9ef",
+      "round": 3,
+      "late_ms": 153.37292499998512
+    },
+    {
+      "call_id": "7dc6a104-990f-436a-8b6e-fb74db3820a1",
+      "round": 3,
+      "late_ms": 23.39046600002348
+    },
+    {
+      "call_id": "88e9c818-e9ba-4c1e-bf41-96f5d9c892be",
+      "round": 3,
+      "late_ms": 163.41375800004698
+    },
+    {
+      "call_id": "f68cf79a-d338-44d2-9491-7e09c48ee236",
+      "round": 3,
+      "late_ms": 143.42600800000582
+    },
+    {
+      "call_id": "17328fd2-2e3e-4d67-89c8-6a47b9deb709",
+      "round": 3,
+      "late_ms": 293.4383830000229
+    },
+    {
+      "call_id": "09771b9d-509f-42c1-a242-74c7793da222",
+      "round": 3,
+      "late_ms": 283.4713000000306
+    },
+    {
+      "call_id": "6a493418-1615-4090-93ce-d0d585d3fa7a",
+      "round": 3,
+      "late_ms": 313.4832580000193
+    },
+    {
+      "call_id": "aed363a5-9ffb-4ba6-9a1d-78b613ee556f",
+      "round": 3,
+      "late_ms": 573.5169250000354
+    },
+    {
+      "call_id": "b8e47010-14c8-4959-a77f-9d6ffd094862",
+      "round": 3,
+      "late_ms": 993.5284659999866
+    },
+    {
+      "call_id": "e9eaf08f-444e-4558-b762-7c47c16bce9f",
+      "round": 3,
+      "late_ms": 158.82213300005787
+    },
+    {
+      "call_id": "731d6470-9e13-477b-a351-dff80af8442c",
+      "round": 3,
+      "late_ms": 211.44609200001696
+    },
+    {
+      "call_id": "aabef418-19d1-40c4-b3c7-62f506b8c33d",
+      "round": 3,
+      "late_ms": 11.52159200000824
+    },
+    {
+      "call_id": "87990b82-e20a-4ba1-8524-ace02b79052a",
+      "round": 3,
+      "late_ms": 111.5331330000231
+    },
+    {
+      "call_id": "c243da44-ad57-4dbe-a5b1-ca908432da42",
+      "round": 3,
+      "late_ms": 131.54350800004977
+    },
+    {
+      "call_id": "41d444d5-8a6f-432e-b0e8-b546bad7c1af",
+      "round": 3,
+      "late_ms": 141.554842000005
+    },
+    {
+      "call_id": "5227b980-f266-4844-aea6-24d19e2bdae3",
+      "round": 3,
+      "late_ms": 91.57646700003852
+    },
+    {
+      "call_id": "14fb4418-f914-4315-875e-6b6a6e45ce12",
+      "round": 3,
+      "late_ms": 321.5876329999787
+    },
+    {
+      "call_id": "c63166fc-fee9-47ec-b659-60ba52eae28b",
+      "round": 3,
+      "late_ms": 331.5990919999763
+    },
+    {
+      "call_id": "b18462a2-0e96-4776-af2f-daef22c144b9",
+      "round": 3,
+      "late_ms": 221.61175799999455
+    },
+    {
+      "call_id": "9b00f0a5-e2ad-4dda-9e43-cc60946ff3db",
+      "round": 3,
+      "late_ms": 121.62225800005899
+    },
+    {
+      "call_id": "407a4429-6975-4d1f-bc10-a28a4ab60ab2",
+      "round": 3,
+      "late_ms": 9.646508000002996
+    },
+    {
+      "call_id": "a1d1fd9e-8596-41a2-a043-7535b856d830",
+      "round": 3,
+      "late_ms": 29.775008000001435
+    },
+    {
+      "call_id": "f30e92b5-5279-4aad-9a8c-ebf5608b7866",
+      "round": 3,
+      "late_ms": 49.93675800000119
+    },
+    {
+      "call_id": "13a77094-5b72-46b4-af87-021a07e757d9",
+      "round": 3,
+      "late_ms": 40.2557580000007
+    },
+    {
+      "call_id": "883b7457-2eb1-4577-9144-748a5073d9b8",
+      "round": 3,
+      "late_ms": 103.26325800002678
+    },
+    {
+      "call_id": "1674a351-512c-4755-81ad-ae90830f991b",
+      "round": 3,
+      "late_ms": 123.33384200002229
+    },
+    {
+      "call_id": "9d2766b0-6850-4c0d-af2e-5baaee8c413b",
+      "round": 3,
+      "late_ms": 316.07809200005477
+    },
+    {
+      "call_id": "3300d3dc-f19f-4d83-8aa5-83218737943b",
+      "round": 3,
+      "late_ms": 56.161550000012994
+    },
+    {
+      "call_id": "3de6866f-04c9-4bb6-bd69-f6b608510599",
+      "round": 3,
+      "late_ms": 326.17355000002135
+    },
+    {
+      "call_id": "d1af5422-81f8-45c9-b94f-45ba97b5bb2c",
+      "round": 3,
+      "late_ms": 286.18434200001275
+    },
+    {
+      "call_id": "e6e9d7b7-d3fb-442c-a0ef-39a30e36b108",
+      "round": 3,
+      "late_ms": 46.20421700002453
+    },
+    {
+      "call_id": "e9f05135-d28f-4886-9b60-9978a561daa9",
+      "round": 3,
+      "late_ms": 266.21584200000825
+    },
+    {
+      "call_id": "c252d889-95b6-4961-bb4b-ddde3ddd87da",
+      "round": 3,
+      "late_ms": 209.9289669999962
+    },
+    {
+      "call_id": "f2c88908-8fab-49e2-8238-00b6101c79e5",
+      "round": 3,
+      "late_ms": 239.9840079999649
+    },
+    {
+      "call_id": "dcd7ced8-f805-4b8c-b8f4-65dfacba5c09",
+      "round": 3,
+      "late_ms": 260.00150799995936
+    },
+    {
+      "call_id": "8f80e813-f074-4a2b-9342-6affa6500ce5",
+      "round": 3,
+      "late_ms": 230.0131750000105
+    },
+    {
+      "call_id": "a46deffb-c7c2-46f4-ae8c-42ad9ee143cf",
+      "round": 3,
+      "late_ms": 20.107842000015808
+    },
+    {
+      "call_id": "9a07793e-cc0f-4c66-8287-2f0b4e2cb735",
+      "round": 3,
+      "late_ms": 385.8584669999914
+    },
+    {
+      "call_id": "0ddefadd-162b-4176-868d-5a1d478d5a8e",
+      "round": 3,
+      "late_ms": 405.92488300006835
+    },
+    {
+      "call_id": "e23f5708-35db-4c35-a68c-a0815c6cb696",
+      "round": 3,
+      "late_ms": 375.95375800003694
+    },
+    {
+      "call_id": "10d744a7-ca4f-4221-9183-f20805d7e130",
+      "round": 3,
+      "late_ms": 325.97663299998203
+    },
+    {
+      "call_id": "8d7f542e-d856-41b4-88a6-16ca24a0e971",
+      "round": 3,
+      "late_ms": 395.99259200002734
+    },
+    {
+      "call_id": "fb43c03d-9ecb-48d5-845f-0421b99c2f89",
+      "round": 3,
+      "late_ms": 356.0091329999864
+    },
+    {
+      "call_id": "d95f33aa-4f9d-4eda-a515-5543bc4606eb",
+      "round": 3,
+      "late_ms": 136.06634199999235
+    },
+    {
+      "call_id": "99ea9fb0-e7f7-44ee-bd96-68646fba7503",
+      "round": 3,
+      "late_ms": 106.09150799996314
+    },
+    {
+      "call_id": "cf9e685a-50b8-476c-8223-7a0d39f9b4bd",
+      "round": 3,
+      "late_ms": 246.11267500000622
+    },
+    {
+      "call_id": "136d96aa-46c4-49e7-9132-725ff36699f4",
+      "round": 3,
+      "late_ms": 258.7993840000422
+    },
+    {
+      "call_id": "4476e2a7-3169-4c0f-aeb5-2768601e4679",
+      "round": 3,
+      "late_ms": 78.81459199995788
+    },
+    {
+      "call_id": "529d6094-9f1b-4be7-9fc1-5ba02cd56465",
+      "round": 3,
+      "late_ms": 88.83259199996019
+    },
+    {
+      "call_id": "f4e1f5bf-c0a5-4250-a66d-f99170de95cc",
+      "round": 3,
+      "late_ms": 918.8450089999947
+    },
+    {
+      "call_id": "9acabecb-0a53-427b-9553-2542904e3127",
+      "round": 3,
+      "late_ms": 888.8617590000649
+    },
+    {
+      "call_id": "40133c63-72b6-419b-ba66-d646b977f50e",
+      "round": 3,
+      "late_ms": 658.8796340000158
+    },
+    {
+      "call_id": "6e31d4cb-7a9d-446a-8cd4-ea1e5c24babd",
+      "round": 3,
+      "late_ms": 908.9250500000503
+    },
+    {
+      "call_id": "b8f3097e-52cf-4f7f-bfc7-a0574895d90b",
+      "round": 3,
+      "late_ms": 978.9505090000148
+    },
+    {
+      "call_id": "717d96e3-23ce-4195-91bf-3d78734d9f1f",
+      "round": 3,
+      "late_ms": 878.9718000000448
+    },
+    {
+      "call_id": "36d22f26-1e74-42db-8fb4-1f0062e09735",
+      "round": 3,
+      "late_ms": 738.9915499999802
+    },
+    {
+      "call_id": "1c08c140-a718-4a9e-8c9d-f6d1a728c503",
+      "round": 3,
+      "late_ms": 669.0023840000094
+    },
+    {
+      "call_id": "91566a65-ac2c-4fc1-8b06-54d8bb5decf4",
+      "round": 3,
+      "late_ms": 272.58584200001224
+    },
+    {
+      "call_id": "7d3a7766-1126-4698-8e39-30a680c05034",
+      "round": 3,
+      "late_ms": 282.63492500002485
+    },
+    {
+      "call_id": "f60029f5-d201-4bec-9e56-6bab954489e3",
+      "round": 3,
+      "late_ms": 262.6528420000227
+    },
+    {
+      "call_id": "24b14743-c130-4bff-9f4b-a1bcce4defa8",
+      "round": 3,
+      "late_ms": 242.6741750000474
+    },
+    {
+      "call_id": "63e486d8-c1ee-4a43-9169-2d75a44ebf5b",
+      "round": 3,
+      "late_ms": 802.6912999999922
+    },
+    {
+      "call_id": "f2e238e3-111b-445e-ae91-f96041f2745f",
+      "round": 3,
+      "late_ms": 782.7017999999839
+    },
+    {
+      "call_id": "56263549-1f82-4667-bb69-fe12fc89a49b",
+      "round": 3,
+      "late_ms": 792.712009000013
+    },
+    {
+      "call_id": "91ef6134-4f25-4c27-9ad8-cd03dad1e9f4",
+      "round": 3,
+      "late_ms": 722.7227170000106
+    },
+    {
+      "call_id": "3b4bf43c-39bd-46d5-acf7-f93c0e92ea19",
+      "round": 3,
+      "late_ms": 442.7336749999995
+    },
+    {
+      "call_id": "501ad42a-009a-49dd-b18b-97c0c99d87d0",
+      "round": 3,
+      "late_ms": 812.7596339999741
+    },
+    {
+      "call_id": "7cb1d601-5164-4a95-83ed-bf059be91f02",
+      "round": 3,
+      "late_ms": 822.776049999959
+    },
+    {
+      "call_id": "a842287c-50b6-4d84-9724-ae7a4290b815",
+      "round": 3,
+      "late_ms": 712.7879249999864
+    },
+    {
+      "call_id": "eab5c249-94e2-4a1a-8be3-ed98fe8e30d4",
+      "round": 3,
+      "late_ms": 232.820342000025
+    },
+    {
+      "call_id": "66b8bd32-5f92-41d0-adaf-52a8c0ebb559",
+      "round": 3,
+      "late_ms": 477.80096700006425
+    },
+    {
+      "call_id": "d63a5d78-093e-4229-ab94-cb145263a271",
+      "round": 3,
+      "late_ms": 487.86767500001815
+    },
+    {
+      "call_id": "48b0fba3-6f1a-40d9-b3a5-4f6c2467b8ba",
+      "round": 3,
+      "late_ms": 117.88338400003795
+    },
+    {
+      "call_id": "7e6bb32d-ba3e-4176-95e2-e8a76f6fa952",
+      "round": 3,
+      "late_ms": 77.90021699997851
+    },
+    {
+      "call_id": "787360a6-8d78-4eda-a6e0-08bf8d820959",
+      "round": 3,
+      "late_ms": 67.92288400004054
+    },
+    {
+      "call_id": "7b644066-51cb-4812-9916-ff19926a75c3",
+      "round": 3,
+      "late_ms": 317.96759200000224
+    },
+    {
+      "call_id": "56c1ede3-a3b4-4ff6-84df-2e9ba1af7997",
+      "round": 3,
+      "late_ms": 307.98375900002384
+    },
+    {
+      "call_id": "7ab67d60-d38c-41d8-8a82-d17c83bd8969",
+      "round": 3,
+      "late_ms": 457.9950090000011
+    },
+    {
+      "call_id": "9a55a723-7397-4047-9d1b-a1f50adc69f6",
+      "round": 3,
+      "late_ms": 358.0066750000128
+    },
+    {
+      "call_id": "b3c0f899-c5d7-4bc3-823c-892fa6405ea4",
+      "round": 3,
+      "late_ms": 328.02192500003
+    },
+    {
+      "call_id": "ba4c3b37-ab33-48ca-83bb-6de50c9db35b",
+      "round": 3,
+      "late_ms": 81.5453840000373
+    },
+    {
+      "call_id": "758addad-aea1-4d04-8c06-4802c76abddc",
+      "round": 3,
+      "late_ms": 201.59884200006672
+    },
+    {
+      "call_id": "a5ad6153-9605-48e1-8d3f-2201db596549",
+      "round": 3,
+      "late_ms": 91.61967500000401
+    },
+    {
+      "call_id": "c6c0d810-e009-4cb2-ba4a-95d46e7d8fb5",
+      "round": 3,
+      "late_ms": 424.49009200004184
+    },
+    {
+      "call_id": "3a62caa8-cbfb-47eb-b88b-d124059578d0",
+      "round": 3,
+      "late_ms": 334.59355000002233
+    },
+    {
+      "call_id": "b7050816-1f2c-43a3-a0cb-ffd42d271e84",
+      "round": 3,
+      "late_ms": 77.67392499999914
+    },
+    {
+      "call_id": "b8d6f1fe-d4c9-420b-9e26-a216de9499d4",
+      "round": 3,
+      "late_ms": 67.722300000014
+    },
+    {
+      "call_id": "0ffd6974-2341-41cb-9a29-a25f8e21a238",
+      "round": 3,
+      "late_ms": 307.74205000000165
+    },
+    {
+      "call_id": "8112a089-8f88-416f-ba2f-8d5e6eb37858",
+      "round": 3,
+      "late_ms": 557.7617170000053
+    },
+    {
+      "call_id": "bdbebb07-1e51-4ab3-a9ab-c2489ce9a22a",
+      "round": 3,
+      "late_ms": 547.8932170000235
+    },
+    {
+      "call_id": "b557ac44-c957-4afc-a094-b5e8d9ec826e",
+      "round": 3,
+      "late_ms": 117.94238400000268
+    },
+    {
+      "call_id": "b32e2b0b-cc46-4b70-9a0f-100187a691e1",
+      "round": 3,
+      "late_ms": 567.9634670000269
+    },
+    {
+      "call_id": "076713db-a960-483a-8a30-5c6620160bfa",
+      "round": 3,
+      "late_ms": 447.97596699999076
+    },
+    {
+      "call_id": "879fbeb9-5f30-42b1-a185-ebcb68af9628",
+      "round": 3,
+      "late_ms": 498.0123000000276
+    },
+    {
+      "call_id": "11ca1ee8-fc54-4fd5-96f5-7a2211328655",
+      "round": 3,
+      "late_ms": 108.024008999962
+    },
+    {
+      "call_id": "1cce743b-cc85-4226-ade6-7f5cbecabc5d",
+      "round": 3,
+      "late_ms": 98.04017499999418
+    },
+    {
+      "call_id": "07f48cce-b998-4f4a-82ab-f3f0213dde01",
+      "round": 3,
+      "late_ms": 683.737882999992
+    },
+    {
+      "call_id": "c8c06417-2afe-4475-b786-69b1150875b8",
+      "round": 3,
+      "late_ms": 943.7765910000167
+    },
+    {
+      "call_id": "ba9dbdee-77fa-41d8-8ba0-f7fdce9823f2",
+      "round": 3,
+      "late_ms": 523.7915080000448
+    },
+    {
+      "call_id": "5e95fa83-c4b1-4982-b72a-b773e8585e30",
+      "round": 3,
+      "late_ms": 913.8041330000419
+    },
+    {
+      "call_id": "3e66a8d6-18f6-4cbc-8e38-b3d9c997461d",
+      "round": 3,
+      "late_ms": 693.8160500000095
+    },
+    {
+      "call_id": "59f14060-9ae5-4ce2-ac55-26d107f99851",
+      "round": 3,
+      "late_ms": 953.8267159999805
+    },
+    {
+      "call_id": "6fab04b7-e275-4b9b-9366-bed7777a2b8e",
+      "round": 3,
+      "late_ms": 923.8385500000277
+    },
+    {
+      "call_id": "ed62eceb-a578-47cf-913e-ad1000ab5d88",
+      "round": 3,
+      "late_ms": 933.8902160000089
+    },
+    {
+      "call_id": "83e8ce15-28f0-40c5-a898-bb7e4f865004",
+      "round": 3,
+      "late_ms": 96.726383000032
+    },
+    {
+      "call_id": "4d0ab57b-9acf-4f04-b623-c643dde73c1c",
+      "round": 3,
+      "late_ms": 66.77017499998783
+    },
+    {
+      "call_id": "c80cbcb4-c965-4abd-8515-fb2f1bad4091",
+      "round": 3,
+      "late_ms": 106.78463300007479
+    },
+    {
+      "call_id": "69d3a747-e566-4b0b-8299-ed11fd8debbd",
+      "round": 3,
+      "late_ms": 256.79663300002176
+    },
+    {
+      "call_id": "0d086d69-6beb-4f9c-b4ea-36a80b7083bf",
+      "round": 3,
+      "late_ms": 56.80938299997251
+    },
+    {
+      "call_id": "74c9abdb-ab37-4bda-8a16-5675d168debb",
+      "round": 3,
+      "late_ms": 36.82046599999467
+    },
+    {
+      "call_id": "6d2f5556-efb2-45ac-86e4-b647c3f7b028",
+      "round": 3,
+      "late_ms": 246.8313410000178
+    },
+    {
+      "call_id": "9b70055c-e686-4fea-b0c0-303b43c4b5bb",
+      "round": 3,
+      "late_ms": 469.64846600002375
+    },
+    {
+      "call_id": "713ee015-8ce7-4c25-9f91-9de2ec5bed15",
+      "round": 3,
+      "late_ms": 459.6927160000632
+    },
+    {
+      "call_id": "801b7a43-c509-44e2-a5fc-c8ccaa8b2a49",
+      "round": 3,
+      "late_ms": 269.7084659999973
+    },
+    {
+      "call_id": "d6f9aec9-e29c-40f0-af54-045efb7e0285",
+      "round": 3,
+      "late_ms": 369.7212160000163
+    },
+    {
+      "call_id": "676f5bfe-5c0f-4c38-9b83-1f0b04b50c3b",
+      "round": 3,
+      "late_ms": 229.7324250000088
+    },
+    {
+      "call_id": "4b62bffb-b10f-4cb6-9951-4b04465d88dc",
+      "round": 3,
+      "late_ms": 362.12092499999926
+    },
+    {
+      "call_id": "dd1a6b78-d126-4ba5-8b89-e794e32a0c31",
+      "round": 3,
+      "late_ms": 882.1832159999872
+    },
+    {
+      "call_id": "64fbe9ac-f11f-4de0-ac91-d4b2264df3a9",
+      "round": 3,
+      "late_ms": 154.2550909999818
+    },
+    {
+      "call_id": "1a818495-08be-4a6d-8344-9644af5baf72",
+      "round": 3,
+      "late_ms": 444.3384250000122
+    },
+    {
+      "call_id": "afdb652d-d08f-4cea-b770-df3010292004",
+      "round": 3,
+      "late_ms": 1004.3519659999447
+    },
+    {
+      "call_id": "46bfd5f0-def3-47e9-a2a2-75676ebcad31",
+      "round": 3,
+      "late_ms": 37.27834100004657
+    },
+    {
+      "call_id": "da584e0e-e368-4095-95ff-3ae4ad170ba8",
+      "round": 3,
+      "late_ms": 847.436757999958
+    },
+    {
+      "call_id": "66517574-7210-4b13-b5f7-3646709fc1c2",
+      "round": 3,
+      "late_ms": 857.447924999974
+    },
+    {
+      "call_id": "de207d1d-3f1c-4e1b-b550-bf71e6f58d82",
+      "round": 3,
+      "late_ms": 797.4598830000446
+    },
+    {
+      "call_id": "f9e0e8fa-267b-48d0-8bce-3cfe96e7a56e",
+      "round": 3,
+      "late_ms": 787.4704250000377
+    },
+    {
+      "call_id": "3a31bb5f-6553-4815-a444-a3e04a6bad72",
+      "round": 3,
+      "late_ms": 757.4819660000003
+    },
+    {
+      "call_id": "677cd520-8cfd-4fc8-9dab-b91ebeab9ee8",
+      "round": 3,
+      "late_ms": 1180.3503410000076
+    },
+    {
+      "call_id": "2300560d-c7da-4097-bf85-73ab4e67b602",
+      "round": 3,
+      "late_ms": 850.3616749999878
+    },
+    {
+      "call_id": "55d83f8d-932a-4567-a252-07f70c860ea6",
+      "round": 3,
+      "late_ms": 930.379132999974
+    },
+    {
+      "call_id": "509e5683-e642-4601-af1d-7e02765b5e6c",
+      "round": 3,
+      "late_ms": 50.395757999979196
+    },
+    {
+      "call_id": "31c5878b-d914-4843-8a62-e28b3027c3f7",
+      "round": 3,
+      "late_ms": 940.407590999996
+    },
+    {
+      "call_id": "1b81a587-fe9f-4224-aec6-730911cda7b7",
+      "round": 3,
+      "late_ms": 1200.4196329999672
+    },
+    {
+      "call_id": "9b344c83-60c1-40f7-85cb-d6030a0c3636",
+      "round": 3,
+      "late_ms": 920.4313000000184
+    },
+    {
+      "call_id": "1aa9a83b-69a3-4bcd-8873-a61c07416062",
+      "round": 3,
+      "late_ms": 470.4473410000105
+    },
+    {
+      "call_id": "7a4ab1d8-edae-4637-b0f2-abec7ab35664",
+      "round": 3,
+      "late_ms": 110.46542500002943
+    },
+    {
+      "call_id": "486d5d82-f7d2-401a-a1d9-dafbe04ea841",
+      "round": 3,
+      "late_ms": 910.4759250000143
+    },
+    {
+      "call_id": "7e88a526-67d8-4564-8318-8f2e13c96074",
+      "round": 3,
+      "late_ms": 130.4865080000468
+    },
+    {
+      "call_id": "7731c8d5-76cc-42a2-b2f8-392fd1ae7050",
+      "round": 3,
+      "late_ms": 48.309257999960664
+    },
+    {
+      "call_id": "e9ebb2d2-61ab-4d49-be73-ba9e13877d26",
+      "round": 3,
+      "late_ms": 448.3503000000155
+    },
+    {
+      "call_id": "ecfffb0d-7dd2-4822-8b05-f24327f5e34f",
+      "round": 3,
+      "late_ms": 178.36525799998526
+    },
+    {
+      "call_id": "52e5a475-5497-4d73-9867-8e0f116cca82",
+      "round": 3,
+      "late_ms": 338.3848419999822
+    },
+    {
+      "call_id": "8c6d5905-b027-4917-98d1-e7b90a4f41b8",
+      "round": 3,
+      "late_ms": 398.4035920000224
+    },
+    {
+      "call_id": "d748b207-05d0-4d94-be0e-e0545a7096d6",
+      "round": 3,
+      "late_ms": 388.4159250000039
+    },
+    {
+      "call_id": "0366892f-1503-47e4-bd0b-368c0d180373",
+      "round": 3,
+      "late_ms": 419.073007999998
+    },
+    {
+      "call_id": "c3155dd3-bd6a-4487-ab8d-5658284152d1",
+      "round": 3,
+      "late_ms": 589.0957170000206
+    },
+    {
+      "call_id": "eac25f00-a451-41ef-8bda-f307ae72715d",
+      "round": 3,
+      "late_ms": 580.1947170000403
+    },
+    {
+      "call_id": "15ac83e0-95e4-4491-ad95-f3f47d718ab6",
+      "round": 3,
+      "late_ms": 960.2124670000194
+    },
+    {
+      "call_id": "8beee861-9fe7-4316-8d95-3acacedf2811",
+      "round": 3,
+      "late_ms": 950.229424999975
+    },
+    {
+      "call_id": "98be27d8-ad8e-48a7-935d-0b1a60367ebc",
+      "round": 3,
+      "late_ms": 920.2402169999573
+    },
+    {
+      "call_id": "9eeebcff-e54f-4003-ad35-c4a1b3a3d3b5",
+      "round": 3,
+      "late_ms": 560.250050000036
+    },
+    {
+      "call_id": "2f87581a-847e-487a-86f6-0fffc6395f6d",
+      "round": 3,
+      "late_ms": 50.25996700004498
+    },
+    {
+      "call_id": "b5997732-44b9-498a-b7b7-762d3e817a1d",
+      "round": 3,
+      "late_ms": 540.2708829999483
+    },
+    {
+      "call_id": "d245aefb-e5e4-4165-bf60-fda29289fbc0",
+      "round": 3,
+      "late_ms": 940.2814670000339
+    },
+    {
+      "call_id": "37356418-ff02-46be-a273-698e767d7360",
+      "round": 3,
+      "late_ms": 930.2922580000086
+    },
+    {
+      "call_id": "27609e85-b21f-4f57-acc3-17979486800b",
+      "round": 3,
+      "late_ms": 510.32038300002114
+    },
+    {
+      "call_id": "77eb0f12-d0cb-4154-82ec-ffc36ddd08d5",
+      "round": 3,
+      "late_ms": 250.33204999999725
+    },
+    {
+      "call_id": "edd9442c-81e6-4b04-9837-3d85bd4057f2",
+      "round": 3,
+      "late_ms": 163.35867500004042
+    },
+    {
+      "call_id": "a2e1f622-119e-4df7-8cc5-57a739fcb471",
+      "round": 3,
+      "late_ms": 173.41192499998215
+    },
+    {
+      "call_id": "35cf72f1-b8da-455b-a339-18aa3b41c8fe",
+      "round": 3,
+      "late_ms": 343.4278420000396
+    },
+    {
+      "call_id": "ac5c0d87-33a7-4b4c-948c-980a67f7a383",
+      "round": 3,
+      "late_ms": 1003.4409250000067
+    },
+    {
+      "call_id": "d4ff1236-c5b8-4b80-b1eb-443d0cfd863d",
+      "round": 3,
+      "late_ms": 853.4540500000389
+    },
+    {
+      "call_id": "dda33da3-2afa-4355-9568-f18bd0db7c8c",
+      "round": 3,
+      "late_ms": 703.4662170000274
+    },
+    {
+      "call_id": "9409e351-8cc6-4e3e-8ca0-dbe04cf8cb75",
+      "round": 3,
+      "late_ms": 193.4768419999955
+    },
+    {
+      "call_id": "32dd968f-c24d-42b5-b844-4d7e6f2f28e1",
+      "round": 3,
+      "late_ms": 203.48734200001672
+    },
+    {
+      "call_id": "d0200945-60c0-4f0a-b93f-408dba12ff25",
+      "round": 3,
+      "late_ms": 1013.4978829999568
+    },
+    {
+      "call_id": "0aa7d739-ee07-48b8-aef1-4cea20dfb48b",
+      "round": 3,
+      "late_ms": 843.5091750000083
+    },
+    {
+      "call_id": "9bf1f254-2a12-4238-90bf-da61bf86bbcf",
+      "round": 3,
+      "late_ms": 693.5200080000641
+    },
+    {
+      "call_id": "a4b9c398-1d56-4c86-94f8-4c5bf234ab02",
+      "round": 3,
+      "late_ms": 846.4603420000003
+    },
+    {
+      "call_id": "bdb65e10-ffae-4bb5-8c03-a4f98a1e5696",
+      "round": 3,
+      "late_ms": 76.53646700003947
+    },
+    {
+      "call_id": "abde9206-6238-4361-a4cf-7cbabe689856",
+      "round": 3,
+      "late_ms": 816.5484250000077
+    },
+    {
+      "call_id": "f25be9c0-9f8a-4130-9b8d-653355a5a66f",
+      "round": 3,
+      "late_ms": 596.5695499999697
+    },
+    {
+      "call_id": "358404c6-28a3-47fa-a484-1238a2d659a9",
+      "round": 3,
+      "late_ms": 131.9946329999766
+    },
+    {
+      "call_id": "7bc80bf0-ee14-4e2f-a6ab-5f8042518edb",
+      "round": 3,
+      "late_ms": 262.01500799999167
+    },
+    {
+      "call_id": "ad9fb488-c4e7-472c-9400-14facf166a6e",
+      "round": 3,
+      "late_ms": 162.02884200004064
+    },
+    {
+      "call_id": "df99672f-cc61-4919-befd-47997848b440",
+      "round": 3,
+      "late_ms": 582.0402169999852
+    },
+    {
+      "call_id": "6a2cb441-e9ea-4e41-a0d8-8a70db27871f",
+      "round": 3,
+      "late_ms": 192.06504999999652
+    },
+    {
+      "call_id": "394aeb85-3845-4f40-a4f5-bb99636cac11",
+      "round": 3,
+      "late_ms": 142.075841999997
+    },
+    {
+      "call_id": "e4acf131-b6ee-49d2-841d-276a99bea8db",
+      "round": 3,
+      "late_ms": 172.08584200000132
+    },
+    {
+      "call_id": "89277e6d-d414-4bea-904c-93e2ac67ef22",
+      "round": 3,
+      "late_ms": 112.09650800003601
+    },
+    {
+      "call_id": "1f3e4994-f7d7-489f-9ea1-46d452f93e3c",
+      "round": 3,
+      "late_ms": 622.1077170000058
+    },
+    {
+      "call_id": "5eb189be-9747-4dc2-9c36-3c9b599f5398",
+      "round": 3,
+      "late_ms": 472.1223420000342
+    },
+    {
+      "call_id": "9371328d-c22b-439b-bdb9-189bf0c7abff",
+      "round": 3,
+      "late_ms": 532.1338000000537
+    },
+    {
+      "call_id": "4380ada8-ec66-4d45-8382-29a74b001d74",
+      "round": 3,
+      "late_ms": 332.14429999998174
+    },
+    {
+      "call_id": "6aed66ae-0114-47b1-97af-c536a7710c18",
+      "round": 3,
+      "late_ms": 202.1553419999691
+    },
+    {
+      "call_id": "7e55a049-a1f1-442a-9fcf-e27ff0fd4c00",
+      "round": 3,
+      "late_ms": 232.16680000001588
+    },
+    {
+      "call_id": "a1f37b7e-0cdd-4df5-a0b2-153d574a20f8",
+      "round": 3,
+      "late_ms": 102.18855000005078
+    },
+    {
+      "call_id": "c7d82297-044a-49e6-9e75-b67583685904",
+      "round": 3,
+      "late_ms": 232.02846700002056
+    },
+    {
+      "call_id": "bf972a05-d7f9-4dd5-8840-6bab4693a194",
+      "round": 3,
+      "late_ms": 452.07867499999566
+    },
+    {
+      "call_id": "2bbc1782-5b94-4521-b2b4-de5d9dc5c309",
+      "round": 3,
+      "late_ms": 172.09484200003544
+    },
+    {
+      "call_id": "797ffda0-4278-4cd7-882b-6528f8efdde9",
+      "round": 3,
+      "late_ms": 22.107467000012093
+    },
+    {
+      "call_id": "b2c72285-45f5-402b-97a4-05506cf959bb",
+      "round": 3,
+      "late_ms": 202.1191750000071
+    },
+    {
+      "call_id": "265ab573-6994-41d9-9791-e6d37f6e2921",
+      "round": 3,
+      "late_ms": 262.13054999999486
+    },
+    {
+      "call_id": "fe8548cc-627f-4616-bd7c-95cc1d112c92",
+      "round": 3,
+      "late_ms": 42.14121699999396
+    },
+    {
+      "call_id": "e3733823-0457-48a3-9345-28d5f25cb2d0",
+      "round": 3,
+      "late_ms": 592.1977170000332
+    },
+    {
+      "call_id": "99f5aeaa-b497-4fca-bc14-bfc775aa5146",
+      "round": 3,
+      "late_ms": 842.209132999983
+    },
+    {
+      "call_id": "23f95b4b-e2cb-4e30-bd78-bb6777730f72",
+      "round": 3,
+      "late_ms": 602.2205920000374
+    },
+    {
+      "call_id": "0a1074ba-8cde-4fe4-99c1-40aaa1d6b206",
+      "round": 3,
+      "late_ms": 622.2315080000271
+    },
+    {
+      "call_id": "52533c1d-5a5f-4b15-b313-05e067aeed96",
+      "round": 3,
+      "late_ms": 62.243050000006406
+    },
+    {
+      "call_id": "b9ff88ce-5a5d-4cb5-a3c3-13a8659877cb",
+      "round": 3,
+      "late_ms": 1198.9099669999632
+    },
+    {
+      "call_id": "dece39a7-51ae-4664-82fe-e3e6464ab9d9",
+      "round": 3,
+      "late_ms": 1188.9627169999812
+    },
+    {
+      "call_id": "a666c0f8-f801-4325-9029-3e7eb2dc19bc",
+      "round": 3,
+      "late_ms": 1158.9781750000157
+    },
+    {
+      "call_id": "a464ad53-f6a6-49c5-9762-4d335c1d7acd",
+      "round": 3,
+      "late_ms": 908.9897169999972
+    },
+    {
+      "call_id": "5fd99f1b-8472-488a-844c-ed15a02b9e00",
+      "round": 3,
+      "late_ms": 939.0013419999832
+    },
+    {
+      "call_id": "7978f3a1-1e8d-4da0-82f2-f85f1c979678",
+      "round": 3,
+      "late_ms": 859.0130090000798
+    },
+    {
+      "call_id": "36e69f42-1333-4c09-a6fc-7074ad3e96c9",
+      "round": 3,
+      "late_ms": 239.02434199999334
+    },
+    {
+      "call_id": "6559e964-160e-4f41-ba65-21ae50972459",
+      "round": 3,
+      "late_ms": 299.04621700001144
+    },
+    {
+      "call_id": "e9889d5e-714d-4b68-8353-d82c4c56af21",
+      "round": 3,
+      "late_ms": 139.08067500000243
+    },
+    {
+      "call_id": "fc4f35b5-714b-4a6f-931b-76d8b9880421",
+      "round": 3,
+      "late_ms": 979.1034250000052
+    },
+    {
+      "call_id": "565584fa-1759-492d-94ad-aa2b80fdcc5f",
+      "round": 3,
+      "late_ms": 1179.113884000003
+    },
+    {
+      "call_id": "02bc91a9-a2cf-4fe3-a0d7-6c7b250262bd",
+      "round": 3,
+      "late_ms": 819.1252589999749
+    },
+    {
+      "call_id": "57fdd9b4-a6aa-4ef4-bc02-a0027502b830",
+      "round": 3,
+      "late_ms": 1059.1362589999562
+    },
+    {
+      "call_id": "edeec1bf-ee1e-4d92-adc1-8083c9b470e5",
+      "round": 3,
+      "late_ms": 719.1463839999983
+    },
+    {
+      "call_id": "470e2336-c135-4207-83b0-36aa519a7a5f",
+      "round": 4,
+      "late_ms": 9.168259000034595
+    },
+    {
+      "call_id": "d2440c67-fb9d-4424-8afc-2b8c7f2b4408",
+      "round": 4,
+      "late_ms": 49.1905920000022
+    },
+    {
+      "call_id": "66c79fb8-87ad-4ca1-975e-3115be60f521",
+      "round": 3,
+      "late_ms": 829.201175000037
+    },
+    {
+      "call_id": "a07df8e0-fa6f-4ee0-bb8d-8ca1bd1b10a9",
+      "round": 3,
+      "late_ms": 429.2122999999606
+    },
+    {
+      "call_id": "eb836fcf-1439-4628-b035-6ba7ad0a43d8",
+      "round": 3,
+      "late_ms": 79.2445920000091
+    },
+    {
+      "call_id": "3e08a76f-6f5a-4191-a765-add8ad9f1a18",
+      "round": 4,
+      "late_ms": 154.8161339999865
+    },
+    {
+      "call_id": "e7ebe606-3cac-4b37-8b0e-548faae4168f",
+      "round": 4,
+      "late_ms": 104.82934200001637
+    },
+    {
+      "call_id": "788ab261-a91d-44a7-b372-be0e8bdf084a",
+      "round": 3,
+      "late_ms": 224.85192499999584
+    },
+    {
+      "call_id": "5ecf621c-4773-4644-ab49-45ae86f3c404",
+      "round": 4,
+      "late_ms": 144.86463400004368
+    },
+    {
+      "call_id": "7fed2721-6249-4347-9af5-de0669566e28",
+      "round": 3,
+      "late_ms": 1114.8887590000527
+    },
+    {
+      "call_id": "98936a71-8f23-4999-9aed-67174184921c",
+      "round": 3,
+      "late_ms": 1024.9001750000275
+    },
+    {
+      "call_id": "6bf59f73-6142-4c1d-ad0e-7738bb2690ac",
+      "round": 3,
+      "late_ms": 1124.9114670000608
+    },
+    {
+      "call_id": "aa28ed55-b587-4414-8e29-c7ea23d5962d",
+      "round": 3,
+      "late_ms": 284.92300900001055
+    },
+    {
+      "call_id": "1ba40a8c-3162-467b-aedd-800c2bb9d151",
+      "round": 3,
+      "late_ms": 234.94479999999385
+    },
+    {
+      "call_id": "32d1a325-56c7-45d3-a787-fc0aea1e09b2",
+      "round": 4,
+      "late_ms": 164.99567500000012
+    },
+    {
+      "call_id": "60d7e0f1-9046-4de3-bab4-f2b748296e8f",
+      "round": 4,
+      "late_ms": 5.038717000047654
+    },
+    {
+      "call_id": "8c2c8843-cc8f-4d60-9e10-fe47cf9d8f4e",
+      "round": 3,
+      "late_ms": 1240.839592000043
+    },
+    {
+      "call_id": "842f2149-693f-4b24-a489-99affb7b806a",
+      "round": 4,
+      "late_ms": 0.9093840000105047
+    },
+    {
+      "call_id": "3cfcac40-e68d-4692-99fd-e13a16cfc191",
+      "round": 4,
+      "late_ms": 80.92325900003061
+    },
+    {
+      "call_id": "c62a26ba-2d09-4a46-99f7-ba2d4e7a36db",
+      "round": 3,
+      "late_ms": 1483.5946750000062
+    },
+    {
+      "call_id": "da2aabfd-c5da-4bd5-be6c-6c8b88b85ec1",
+      "round": 4,
+      "late_ms": 113.6412999999834
+    },
+    {
+      "call_id": "57066dc2-589c-49d5-962a-c5e6a37cc6e2",
+      "round": 3,
+      "late_ms": 1223.6566750000293
+    },
+    {
+      "call_id": "50045b80-c842-4b08-a68b-32db9d567ef4",
+      "round": 3,
+      "late_ms": 1293.6688000000345
+    },
+    {
+      "call_id": "c04738a8-2a70-4d4c-a80b-0a78fbac27bb",
+      "round": 4,
+      "late_ms": 197.1398000000022
+    },
+    {
+      "call_id": "32a44d50-b841-408d-9756-12261cf7d6c9",
+      "round": 4,
+      "late_ms": 147.20592500003704
+    },
+    {
+      "call_id": "315d4375-8255-403a-b1ed-9aa4e85e08b1",
+      "round": 4,
+      "late_ms": 77.2186750000401
+    },
+    {
+      "call_id": "70bf9c61-2b07-4aee-8a55-e41e25712220",
+      "round": 4,
+      "late_ms": 149.4530920000443
+    },
+    {
+      "call_id": "2d28ccc0-4f7c-4e3a-b20c-5febe32fc8d2",
+      "round": 4,
+      "late_ms": 99.5510500000023
+    },
+    {
+      "call_id": "0c7b7a5b-e760-4e54-8c50-2744eb156c59",
+      "round": 4,
+      "late_ms": 119.56205000001319
+    },
+    {
+      "call_id": "978b7a7a-09a6-4915-aba9-dd726e2c9a27",
+      "round": 4,
+      "late_ms": 129.5735500000319
+    },
+    {
+      "call_id": "218dad9e-01d9-4328-845c-448d2dc41bb0",
+      "round": 4,
+      "late_ms": 69.59496700000045
+    },
+    {
+      "call_id": "4b15e32d-eff1-426d-8df2-41e6ac81f808",
+      "round": 4,
+      "late_ms": 489.606341999945
+    },
+    {
+      "call_id": "01d7e2d6-b00a-4bd2-8f4c-78e09dac34dc",
+      "round": 4,
+      "late_ms": 509.6176750000154
+    },
+    {
+      "call_id": "fe649b6b-35a6-467d-af52-ff853f84c590",
+      "round": 4,
+      "late_ms": 499.62892500002454
+    },
+    {
+      "call_id": "2a3872ac-425e-43d4-869b-bab38181542a",
+      "round": 4,
+      "late_ms": 339.63988400000744
+    },
+    {
+      "call_id": "24631d3e-dfc6-4f81-85e7-d1db41b4f09d",
+      "round": 4,
+      "late_ms": 214.95421699995632
+    },
+    {
+      "call_id": "5392492d-1cf1-4363-8428-e7e6d232e70f",
+      "round": 4,
+      "late_ms": 287.58763399997633
+    },
+    {
+      "call_id": "27d8aa8b-e3f0-4d1d-a0c3-706123d12d44",
+      "round": 4,
+      "late_ms": 377.6024260000099
+    },
+    {
+      "call_id": "c9bbdea1-2d61-439c-b678-a767db1dbaa8",
+      "round": 4,
+      "late_ms": 407.6143839999986
+    },
+    {
+      "call_id": "0636334f-fc46-482d-9860-ba6b027ed7ed",
+      "round": 4,
+      "late_ms": 57.625466999979835
+    },
+    {
+      "call_id": "785a2ca2-9465-46fc-a49a-93e2800a7386",
+      "round": 4,
+      "late_ms": 217.63613400003123
+    },
+    {
+      "call_id": "0bb4a239-d0b4-479f-9a63-7f42c618ebdb",
+      "round": 4,
+      "late_ms": 67.64642599995341
+    },
+    {
+      "call_id": "5ddbf9c4-cd80-4171-88c3-2ab4eff6e161",
+      "round": 4,
+      "late_ms": 47.656466999967506
+    },
+    {
+      "call_id": "23e54988-a6e7-48be-bd02-0fb6eacd90c0",
+      "round": 4,
+      "late_ms": 37.68788399997902
+    },
+    {
+      "call_id": "fd6da079-5eb0-4d8a-99bf-9b865755c906",
+      "round": 4,
+      "late_ms": 501.5730510000367
+    },
+    {
+      "call_id": "ae32e624-cd55-4ceb-bd81-fff55036311a",
+      "round": 4,
+      "late_ms": 521.618009000008
+    },
+    {
+      "call_id": "fe28828c-67a2-46e0-8558-2aa44d795b41",
+      "round": 4,
+      "late_ms": 291.64600899997595
+    },
+    {
+      "call_id": "c8b3d8a4-f336-404f-9a6f-59663bb173bb",
+      "round": 4,
+      "late_ms": 635.8625089999919
+    },
+    {
+      "call_id": "ca4a867c-ba49-4a54-9da9-038ed8fdeead",
+      "round": 4,
+      "late_ms": 85.91942600003222
+    },
+    {
+      "call_id": "cc35fbeb-1c52-4a7e-a5da-f24795fb2bbd",
+      "round": 4,
+      "late_ms": 445.9354260000623
+    },
+    {
+      "call_id": "ca7f42c1-e83f-42b1-8c91-6e2d8ec2c85a",
+      "round": 4,
+      "late_ms": 75.94746700004862
+    },
+    {
+      "call_id": "50d41845-5bfb-46f8-ad27-ce10ef4f86ec",
+      "round": 4,
+      "late_ms": 438.7454670000466
+    },
+    {
+      "call_id": "9fc1b3c0-a275-46cd-8964-b9293ffc0c88",
+      "round": 4,
+      "late_ms": 218.79038399998763
+    },
+    {
+      "call_id": "09b24ea7-7e60-4460-b908-6fd8324f7544",
+      "round": 4,
+      "late_ms": 448.8104670000439
+    },
+    {
+      "call_id": "06b8bede-a597-49bf-b655-3b3f405757c4",
+      "round": 4,
+      "late_ms": 418.8275920000706
+    },
+    {
+      "call_id": "eded1820-2aeb-41d1-84e4-475c9d496774",
+      "round": 4,
+      "late_ms": 428.84617600003594
+    },
+    {
+      "call_id": "bf384f86-8372-49c3-8897-4793f7e3c316",
+      "round": 4,
+      "late_ms": 38.86288400002513
+    },
+    {
+      "call_id": "73c770d5-5f65-4da4-8772-dca45f87b811",
+      "round": 4,
+      "late_ms": 711.5046760000041
+    },
+    {
+      "call_id": "e674ef1b-9160-4be8-b0ad-554631cc711f",
+      "round": 4,
+      "late_ms": 621.55392599999
+    },
+    {
+      "call_id": "29c06bf2-48e5-4244-834a-119f3b10d9b3",
+      "round": 4,
+      "late_ms": 611.5693839999494
+    },
+    {
+      "call_id": "ad9e8139-f2ce-4075-9913-6948239c9644",
+      "round": 4,
+      "late_ms": 491.582759000039
+    },
+    {
+      "call_id": "fab8f62d-bb43-46dc-a99f-92854fccb134",
+      "round": 4,
+      "late_ms": 331.59438399997043
+    },
+    {
+      "call_id": "c12fa22d-d5ec-4ac3-80da-8ed9628b3032",
+      "round": 4,
+      "late_ms": 581.6053419999889
+    },
+    {
+      "call_id": "c263d340-2926-4c11-92b1-7263120e257b",
+      "round": 4,
+      "late_ms": 441.616176000025
+    },
+    {
+      "call_id": "6083f9fd-d637-409e-87ad-384d1320e6c2",
+      "round": 4,
+      "late_ms": 361.62659199999325
+    },
+    {
+      "call_id": "33ffbf90-bdf8-4bf0-b078-33d8034bdc99",
+      "round": 4,
+      "late_ms": 664.9870919999898
+    },
+    {
+      "call_id": "d7ef2848-db07-483c-9f6f-1fc867a7cfc7",
+      "round": 4,
+      "late_ms": 235.03475900002968
+    },
+    {
+      "call_id": "3cec31f2-b80f-4ef6-bed7-d3ff985242af",
+      "round": 4,
+      "late_ms": 445.0496339999859
+    },
+    {
+      "call_id": "dd2bfec5-ca46-47a2-831b-836c09038973",
+      "round": 4,
+      "late_ms": 175.06134199999224
+    },
+    {
+      "call_id": "598976f2-957c-41ca-a8f6-e9d71d8b3c27",
+      "round": 4,
+      "late_ms": 525.0951760000362
+    },
+    {
+      "call_id": "e9a2f5d2-9c10-4377-abc3-08b63f018e62",
+      "round": 4,
+      "late_ms": 415.12809200003176
+    },
+    {
+      "call_id": "6f1b44eb-a861-47d2-9e99-e990a92ef891",
+      "round": 4,
+      "late_ms": 615.1400510000258
+    },
+    {
+      "call_id": "5e872486-42df-4331-b27c-c682f3a9a830",
+      "round": 4,
+      "late_ms": 255.15059200006363
+    },
+    {
+      "call_id": "35665d3f-ad9b-4393-a870-1503f416085d",
+      "round": 4,
+      "late_ms": 165.16117600002644
+    },
+    {
+      "call_id": "b02f5d22-3e54-4145-a84e-26c1abe37d35",
+      "round": 4,
+      "late_ms": 205.17121699998597
+    },
+    {
+      "call_id": "c8422d21-cf52-482b-8e9f-32d86d020b56",
+      "round": 4,
+      "late_ms": 605.1815920000081
+    },
+    {
+      "call_id": "dca82b33-f0aa-4034-943b-623d907996b1",
+      "round": 4,
+      "late_ms": 505.1912590000711
+    },
+    {
+      "call_id": "6f3efcdd-88a9-41fb-aa30-839dc15c3585",
+      "round": 4,
+      "late_ms": 515.2010920000407
+    },
+    {
+      "call_id": "e1bfa1d5-1f91-49a1-9a16-83d8afa7e0a9",
+      "round": 4,
+      "late_ms": 509.5820920000165
+    },
+    {
+      "call_id": "d826b0f8-5307-4ec8-9ff6-adb832c34ef6",
+      "round": 4,
+      "late_ms": 79.59342600003083
+    },
+    {
+      "call_id": "893394e3-9e6e-4cf1-b1ad-d184766347e6",
+      "round": 4,
+      "late_ms": 259.6052170000007
+    },
+    {
+      "call_id": "925b4f62-f698-4b25-96fb-77d5b4f09529",
+      "round": 4,
+      "late_ms": 155.57530099999894
+    },
+    {
+      "call_id": "b02f7bf9-cd03-497c-b51d-329dc3e8018f",
+      "round": 4,
+      "late_ms": 5.587009000009857
+    },
+    {
+      "call_id": "15940657-b1e4-4346-a819-2b02dabf8c0b",
+      "round": 4,
+      "late_ms": 335.5992590000483
+    },
+    {
+      "call_id": "a0ef188b-2374-445e-b2a1-7b15ec7e5e0d",
+      "round": 4,
+      "late_ms": 495.6104679999953
+    },
+    {
+      "call_id": "2ba7a7de-0ebd-441c-a778-95775a0ef314",
+      "round": 4,
+      "late_ms": 505.62192600000344
+    },
+    {
+      "call_id": "58951db5-3542-4090-9806-293b334e5882",
+      "round": 4,
+      "late_ms": 355.63271800003804
+    },
+    {
+      "call_id": "a644162c-c404-43d4-99aa-bc72cc5f2dea",
+      "round": 4,
+      "late_ms": 125.64438399999744
+    },
+    {
+      "call_id": "d4bfa15a-28b9-4691-a2fe-18ca330042a5",
+      "round": 4,
+      "late_ms": 88.84150900001941
+    },
+    {
+      "call_id": "7b72601c-4a76-4510-99ae-aceed1910630",
+      "round": 4,
+      "late_ms": 59.00463400001854
+    },
+    {
+      "call_id": "6e719aa1-1a65-48af-a90f-2dcad8eff392",
+      "round": 4,
+      "late_ms": 69.02000900004168
+    },
+    {
+      "call_id": "c7ef2839-9f89-4404-acd4-875c49015d86",
+      "round": 4,
+      "late_ms": 429.03209299998935
+    },
+    {
+      "call_id": "9673995b-4935-492b-8f1b-47794f7e9d5a",
+      "round": 4,
+      "late_ms": 691.9959260000041
+    },
+    {
+      "call_id": "3e676ee2-3fb2-468b-a72d-34fd6139106e",
+      "round": 4,
+      "late_ms": 752.042342999971
+    },
+    {
+      "call_id": "869e9610-83b0-41f8-9f0e-8bc52956c33a",
+      "round": 4,
+      "late_ms": 772.0587180000393
+    },
+    {
+      "call_id": "7e6936d1-9135-4d6b-a246-a45d0f2f392f",
+      "round": 4,
+      "late_ms": 952.0713840000212
+    },
+    {
+      "call_id": "dfa3c4db-e075-45aa-b94c-006709a0d254",
+      "round": 4,
+      "late_ms": 352.0829679999906
+    },
+    {
+      "call_id": "afe5af88-f72a-4ea4-8eaf-b8d9fde7221d",
+      "round": 4,
+      "late_ms": 322.0935510000231
+    },
+    {
+      "call_id": "f31ed184-f228-4d81-bcae-823bc77d390a",
+      "round": 4,
+      "late_ms": 732.1034259999806
+    },
+    {
+      "call_id": "edf8977c-d816-4c69-8f75-ec2b7ebd6d60",
+      "round": 4,
+      "late_ms": 722.1140089999949
+    },
+    {
+      "call_id": "87a2acf6-5a89-4269-8116-0270cad0c016",
+      "round": 4,
+      "late_ms": 742.1255929999688
+    },
+    {
+      "call_id": "7a66e186-ba30-4662-949a-dcb38f7f4a2d",
+      "round": 4,
+      "late_ms": 342.1360930000219
+    },
+    {
+      "call_id": "d4969ba8-68f1-498e-838f-5d89da4a8a6f",
+      "round": 4,
+      "late_ms": 372.1575929999972
+    },
+    {
+      "call_id": "427fc7e6-62b8-4b4f-8fc3-cfffe6142850",
+      "round": 4,
+      "late_ms": 632.1681759999933
+    },
+    {
+      "call_id": "936da780-a96c-4c61-82b9-1d8fafd031a6",
+      "round": 4,
+      "late_ms": 585.5710089999775
+    },
+    {
+      "call_id": "892d7f88-de73-40c2-b6a0-d07d3cf685ee",
+      "round": 4,
+      "late_ms": 365.6103010000038
+    },
+    {
+      "call_id": "bd5d3215-8980-48dd-88f6-c6338bdd9663",
+      "round": 4,
+      "late_ms": 405.62438400002065
+    },
+    {
+      "call_id": "6ccbe273-67aa-49dc-85cd-4efb0c4664b9",
+      "round": 4,
+      "late_ms": 235.6480509999983
+    },
+    {
+      "call_id": "f0d8c041-02f0-41f0-a283-c62d108b50c4",
+      "round": 4,
+      "late_ms": 205.65921799999387
+    },
+    {
+      "call_id": "fbeb33f1-987b-4a6a-b543-02119536f2ad",
+      "round": 4,
+      "late_ms": 349.16096800003515
+    },
+    {
+      "call_id": "b3f9cd24-869b-4ba5-8f93-9fb047949b0c",
+      "round": 4,
+      "late_ms": 849.252343000046
+    },
+    {
+      "call_id": "a3ffd07b-f208-4b57-bed5-7503b9c9a752",
+      "round": 4,
+      "late_ms": 729.2732590000242
+    },
+    {
+      "call_id": "e4742610-7fff-4332-8445-090ec4ef663f",
+      "round": 4,
+      "late_ms": 619.2870090000042
+    },
+    {
+      "call_id": "26acf9c5-3f3e-4027-b375-e62e8bdac419",
+      "round": 4,
+      "late_ms": 299.33738400001175
+    },
+    {
+      "call_id": "85a0bae4-5cd7-4433-a655-32c51c73458e",
+      "round": 4,
+      "late_ms": 169.34900900002958
+    },
+    {
+      "call_id": "5f509a9d-b458-4e89-ade5-ad4bc97b09db",
+      "round": 4,
+      "late_ms": 139.3825930000503
+    },
+    {
+      "call_id": "e128e53a-1642-4248-93f8-d814685603b8",
+      "round": 4,
+      "late_ms": 129.4044680000752
+    },
+    {
+      "call_id": "957e31fe-9908-4904-a912-a2ef31de484a",
+      "round": 4,
+      "late_ms": 99.41538399999672
+    },
+    {
+      "call_id": "013df10f-834f-45cf-a89b-0fad26925ab1",
+      "round": 4,
+      "late_ms": 219.42605100002766
+    },
+    {
+      "call_id": "1faabbf2-042b-4d8f-b425-4e6144712ee6",
+      "round": 4,
+      "late_ms": 239.43650900002922
+    },
+    {
+      "call_id": "c0b7de16-5307-4df6-ab1b-0d146c7f9751",
+      "round": 4,
+      "late_ms": 179.44667599999775
+    },
+    {
+      "call_id": "4695cb6e-97cc-4745-b122-f904ae41d27e",
+      "round": 4,
+      "late_ms": 119.45713400001523
+    },
+    {
+      "call_id": "524e46bb-98eb-488a-82f4-f3bc11defcfd",
+      "round": 4,
+      "late_ms": 409.47896800003036
+    },
+    {
+      "call_id": "99f08ff7-5431-4dc7-a6a5-8f5d4abd5976",
+      "round": 4,
+      "late_ms": 449.48984299998074
+    },
+    {
+      "call_id": "81ca3492-fc90-411a-9b70-61f3cc260ad2",
+      "round": 4,
+      "late_ms": 229.50059300001158
+    },
+    {
+      "call_id": "61ec56d2-0323-4d57-8e92-3e1ce6314c28",
+      "round": 4,
+      "late_ms": 89.51142599994455
+    },
+    {
+      "call_id": "77646f65-46ad-404a-afad-e25d6a686fc4",
+      "round": 4,
+      "late_ms": 69.52217599996402
+    },
+    {
+      "call_id": "e0304e2e-8dd2-4c38-95ad-e8363400db10",
+      "round": 4,
+      "late_ms": 983.7268839999638
+    },
+    {
+      "call_id": "7e4d2aa7-e4dc-4e31-a423-287efb18a3b2",
+      "round": 4,
+      "late_ms": 653.7563009999872
+    },
+    {
+      "call_id": "92289ea9-4de3-4b85-9c6b-d5f8e211f706",
+      "round": 4,
+      "late_ms": 683.7788840000485
+    },
+    {
+      "call_id": "b9df374f-36c4-46f3-ae56-13b130ff73f0",
+      "round": 4,
+      "late_ms": 813.7910930000203
+    },
+    {
+      "call_id": "b3f98272-4990-4892-9044-3440fefccbb0",
+      "round": 4,
+      "late_ms": 493.80325900000344
+    },
+    {
+      "call_id": "352e5e25-a9e7-4213-b3f0-4bfbc100374f",
+      "round": 4,
+      "late_ms": 643.8142179999886
+    },
+    {
+      "call_id": "f9916eba-d953-41a4-81a8-37ffecf1c7be",
+      "round": 4,
+      "late_ms": 833.8258840000208
+    },
+    {
+      "call_id": "53db921d-115e-4c76-b32f-867416ed4dbd",
+      "round": 4,
+      "late_ms": 313.8368430000469
+    },
+    {
+      "call_id": "e46a9bd9-9a30-483f-92ba-c3ad93983473",
+      "round": 4,
+      "late_ms": 323.84896799999296
+    },
+    {
+      "call_id": "4ea2b84a-7439-4022-8925-96fb7d95015e",
+      "round": 4,
+      "late_ms": 753.8599259999614
+    },
+    {
+      "call_id": "f93f6ee2-f7d1-4710-849a-dd123d1a3d40",
+      "round": 4,
+      "late_ms": 923.870968000017
+    },
+    {
+      "call_id": "01b054c0-2e88-450d-80c1-c95e5e49de35",
+      "round": 4,
+      "late_ms": 123.88142599996854
+    },
+    {
+      "call_id": "800590cf-a170-4999-878e-f7e9f5fb00b5",
+      "round": 4,
+      "late_ms": 483.8926759999822
+    },
+    {
+      "call_id": "34ba3bc1-1527-498b-80ac-1b110eb78489",
+      "round": 4,
+      "late_ms": 663.9033430000723
+    },
+    {
+      "call_id": "b813798e-e5f0-4b8a-8cdb-37596028ea6c",
+      "round": 4,
+      "late_ms": 897.0710930000223
+    },
+    {
+      "call_id": "4a2021f0-e1f6-4c8c-af29-7114f083de42",
+      "round": 4,
+      "late_ms": 877.1191760000079
+    },
+    {
+      "call_id": "bbe9c932-4dc3-4201-97b1-719c0c1631b9",
+      "round": 4,
+      "late_ms": 927.1358850000411
+    },
+    {
+      "call_id": "6330f77c-e3bc-41e8-93d5-e8513873f035",
+      "round": 4,
+      "late_ms": 907.1482180000316
+    },
+    {
+      "call_id": "e34ca8cb-e05b-4aad-8816-6f5247a2bd16",
+      "round": 4,
+      "late_ms": 547.1595510000498
+    },
+    {
+      "call_id": "6744adfe-e6f8-4df0-b151-07dea591e6b7",
+      "round": 4,
+      "late_ms": 527.1701760000269
+    },
+    {
+      "call_id": "3c993da9-101e-4ebf-b735-d926a74a0903",
+      "round": 4,
+      "late_ms": 537.1814680000284
+    },
+    {
+      "call_id": "55949f02-3ca3-479a-b5f7-81169e757c1f",
+      "round": 4,
+      "late_ms": 517.1924680000757
+    },
+    {
+      "call_id": "129b7e55-7e19-4432-a717-7e049bd293ed",
+      "round": 4,
+      "late_ms": 287.2033850000548
+    },
+    {
+      "call_id": "23bf09af-83b3-4c34-8423-24e17a4ad3f7",
+      "round": 4,
+      "late_ms": 207.21309300000712
+    },
+    {
+      "call_id": "14fb4418-f914-4315-875e-6b6a6e45ce12",
+      "round": 4,
+      "late_ms": 97.22371799995244
+    },
+    {
+      "call_id": "8aa3b9f4-95d9-40dc-884c-0807a7dfca4e",
+      "round": 4,
+      "late_ms": 257.3158010000043
+    },
+    {
+      "call_id": "2cff6ae8-ee1d-428e-829c-85ae06c3f999",
+      "round": 4,
+      "late_ms": 237.76034300004767
+    },
+    {
+      "call_id": "3030d6c1-528b-4f01-bcc2-8e3acf022e78",
+      "round": 4,
+      "late_ms": 477.8050099999973
+    },
+    {
+      "call_id": "9ca53669-3083-45ea-bf29-97a13419556d",
+      "round": 4,
+      "late_ms": 457.5333009999554
+    },
+    {
+      "call_id": "ed952a1f-c3ac-413a-a3dd-7e8d53f3c7fe",
+      "round": 4,
+      "late_ms": 427.56084299998065
+    },
+    {
+      "call_id": "7ee0831d-c94f-49a6-8648-1ed046560355",
+      "round": 4,
+      "late_ms": 1057.5758009999845
+    },
+    {
+      "call_id": "dcf48f25-5735-4a46-9a34-47c6d047d122",
+      "round": 4,
+      "late_ms": 357.6227600000266
+    },
+    {
+      "call_id": "aed363a5-9ffb-4ba6-9a1d-78b613ee556f",
+      "round": 4,
+      "late_ms": 667.6337179999905
+    },
+    {
+      "call_id": "bbc0f8f8-0026-48d1-a107-a0b4ed393aa8",
+      "round": 4,
+      "late_ms": 400.8926760000122
+    },
+    {
+      "call_id": "e9eaf08f-444e-4558-b762-7c47c16bce9f",
+      "round": 4,
+      "late_ms": 250.92846800004054
+    },
+    {
+      "call_id": "d5f69701-fe57-479c-bda4-840cc74d6f02",
+      "round": 4,
+      "late_ms": 390.94267600000876
+    },
+    {
+      "call_id": "7dc6a104-990f-436a-8b6e-fb74db3820a1",
+      "round": 4,
+      "late_ms": 220.95425999998497
+    },
+    {
+      "call_id": "b8e47010-14c8-4959-a77f-9d6ffd094862",
+      "round": 4,
+      "late_ms": 1191.0103009999489
+    },
+    {
+      "call_id": "f68cf79a-d338-44d2-9491-7e09c48ee236",
+      "round": 4,
+      "late_ms": 444.0287599999806
+    },
+    {
+      "call_id": "5d1e3aa6-03bb-40c3-8e43-5da725cff9ef",
+      "round": 4,
+      "late_ms": 454.07105099997125
+    },
+    {
+      "call_id": "40b2cbd9-9e9b-4263-be14-bfac6edaeb9d",
+      "round": 4,
+      "late_ms": 244.0869260000227
+    },
+    {
+      "call_id": "09771b9d-509f-42c1-a242-74c7793da222",
+      "round": 4,
+      "late_ms": 584.0993850000586
+    },
+    {
+      "call_id": "40133c63-72b6-419b-ba66-d646b977f50e",
+      "round": 4,
+      "late_ms": 114.17267600000969
+    },
+    {
+      "call_id": "36d22f26-1e74-42db-8fb4-1f0062e09735",
+      "round": 4,
+      "late_ms": 194.18246800000816
+    },
+    {
+      "call_id": "b8f3097e-52cf-4f7f-bfc7-a0574895d90b",
+      "round": 4,
+      "late_ms": 434.1923850000171
+    },
+    {
+      "call_id": "9acabecb-0a53-427b-9553-2542904e3127",
+      "round": 4,
+      "late_ms": 344.2025100000592
+    },
+    {
+      "call_id": "18ee8cc9-e4e8-4f4d-9ea3-a63633b47985",
+      "round": 4,
+      "late_ms": 474.21221800004787
+    },
+    {
+      "call_id": "a89ebec3-afac-441f-b2c3-5b46047e0a85",
+      "round": 4,
+      "late_ms": 254.22146800002565
+    },
+    {
+      "call_id": "e9439bca-c141-4ff3-a89b-1879e46e7ce5",
+      "round": 4,
+      "late_ms": 368.76609299997654
+    },
+    {
+      "call_id": "d6f991b2-e363-4190-856c-e33ea9336433",
+      "round": 4,
+      "late_ms": 1388.8049259999775
+    },
+    {
+      "call_id": "615db384-59f2-4e39-ace2-4604e84681f5",
+      "round": 4,
+      "late_ms": 1408.8623850000204
+    },
+    {
+      "call_id": "b18462a2-0e96-4776-af2f-daef22c144b9",
+      "round": 4,
+      "late_ms": 418.87334300002976
+    },
+    {
+      "call_id": "a1d1fd9e-8596-41a2-a043-7535b856d830",
+      "round": 4,
+      "late_ms": 108.88571800001046
+    },
+    {
+      "call_id": "501ad42a-009a-49dd-b18b-97c0c99d87d0",
+      "round": 4,
+      "late_ms": 268.89671799995085
+    },
+    {
+      "call_id": "91ef6134-4f25-4c27-9ad8-cd03dad1e9f4",
+      "round": 4,
+      "late_ms": 178.91838500003132
+    },
+    {
+      "call_id": "63e486d8-c1ee-4a43-9169-2d75a44ebf5b",
+      "round": 4,
+      "late_ms": 258.93967600001133
+    },
+    {
+      "call_id": "a842287c-50b6-4d84-9724-ae7a4290b815",
+      "round": 4,
+      "late_ms": 168.94971800002168
+    },
+    {
+      "call_id": "7cb1d601-5164-4a95-83ed-bf059be91f02",
+      "round": 4,
+      "late_ms": 278.95959299996775
+    },
+    {
+      "call_id": "f2e238e3-111b-445e-ae91-f96041f2745f",
+      "round": 4,
+      "late_ms": 238.96955100002515
+    },
+    {
+      "call_id": "88e9c818-e9ba-4c1e-bf41-96f5d9c892be",
+      "round": 4,
+      "late_ms": 568.9803850000317
+    },
+    {
+      "call_id": "ce8b9d97-d4c7-4150-ada7-c5d09b82d0c1",
+      "round": 4,
+      "late_ms": 588.9910510000504
+    },
+    {
+      "call_id": "17328fd2-2e3e-4d67-89c8-6a47b9deb709",
+      "round": 4,
+      "late_ms": 699.00113500006
+    },
+    {
+      "call_id": "731d6470-9e13-477b-a351-dff80af8442c",
+      "round": 4,
+      "late_ms": 409.0110930000037
+    },
+    {
+      "call_id": "13a77094-5b72-46b4-af87-021a07e757d9",
+      "round": 4,
+      "late_ms": 119.02138499999637
+    },
+    {
+      "call_id": "f30e92b5-5279-4aad-9a8c-ebf5608b7866",
+      "round": 4,
+      "late_ms": 129.0310100000056
+    },
+    {
+      "call_id": "407a4429-6975-4d1f-bc10-a28a4ab60ab2",
+      "round": 4,
+      "late_ms": 89.04034300002195
+    },
+    {
+      "call_id": "6a493418-1615-4090-93ce-d0d585d3fa7a",
+      "round": 4,
+      "late_ms": 719.0495930000225
+    },
+    {
+      "call_id": "56263549-1f82-4667-bb69-fe12fc89a49b",
+      "round": 4,
+      "late_ms": 353.5780930000101
+    },
+    {
+      "call_id": "f4e1f5bf-c0a5-4250-a66d-f99170de95cc",
+      "round": 4,
+      "late_ms": 583.5893850000389
+    },
+    {
+      "call_id": "1c08c140-a718-4a9e-8c9d-f6d1a728c503",
+      "round": 4,
+      "late_ms": 333.6015510000152
+    },
+    {
+      "call_id": "d647970f-2027-4150-a734-217b77d9e9e3",
+      "round": 4,
+      "late_ms": 253.61350999997967
+    },
+    {
+      "call_id": "e9f05135-d28f-4886-9b60-9978a561daa9",
+      "round": 4,
+      "late_ms": 348.98530199996003
+    },
+    {
+      "call_id": "717d96e3-23ce-4195-91bf-3d78734d9f1f",
+      "round": 4,
+      "late_ms": 649.0295520000586
+    },
+    {
+      "call_id": "6e31d4cb-7a9d-446a-8cd4-ea1e5c24babd",
+      "round": 4,
+      "late_ms": 679.044177000037
+    },
+    {
+      "call_id": "9d2766b0-6850-4c0d-af2e-5baaee8c413b",
+      "round": 4,
+      "late_ms": 399.0568430000394
+    },
+    {
+      "call_id": "d1af5422-81f8-45c9-b94f-45ba97b5bb2c",
+      "round": 4,
+      "late_ms": 369.06726000000845
+    },
+    {
+      "call_id": "3de6866f-04c9-4bb6-bd69-f6b608510599",
+      "round": 4,
+      "late_ms": 409.07751000003145
+    },
+    {
+      "call_id": "66b8bd32-5f92-41d0-adaf-52a8c0ebb559",
+      "round": 4,
+      "late_ms": 245.14638500005503
+    },
+    {
+      "call_id": "3b4bf43c-39bd-46d5-acf7-f93c0e92ea19",
+      "round": 4,
+      "late_ms": 417.4353849999761
+    },
+    {
+      "call_id": "c6c0d810-e009-4cb2-ba4a-95d46e7d8fb5",
+      "round": 4,
+      "late_ms": 87.5062180000441
+    },
+    {
+      "call_id": "8d7f542e-d856-41b4-88a6-16ca24a0e971",
+      "round": 4,
+      "late_ms": 577.5187180000216
+    },
+    {
+      "call_id": "fb43c03d-9ecb-48d5-845f-0421b99c2f89",
+      "round": 4,
+      "late_ms": 537.5296769999522
+    },
+    {
+      "call_id": "d63a5d78-093e-4229-ab94-cb145263a271",
+      "round": 4,
+      "late_ms": 357.55246800005125
+    },
+    {
+      "call_id": "24b14743-c130-4bff-9f4b-a1bcce4defa8",
+      "round": 4,
+      "late_ms": 323.31838500005006
+    },
+    {
+      "call_id": "9a07793e-cc0f-4c66-8287-2f0b4e2cb735",
+      "round": 4,
+      "late_ms": 673.3342599999901
+    },
+    {
+      "call_id": "7d3a7766-1126-4698-8e39-30a680c05034",
+      "round": 4,
+      "late_ms": 363.3464270000104
+    },
+    {
+      "call_id": "f60029f5-d201-4bec-9e56-6bab954489e3",
+      "round": 4,
+      "late_ms": 343.3697180000195
+    },
+    {
+      "call_id": "7ab67d60-d38c-41d8-8a82-d17c83bd8969",
+      "round": 4,
+      "late_ms": 535.9707599999979
+    },
+    {
+      "call_id": "dd1a6b78-d126-4ba5-8b89-e794e32a0c31",
+      "round": 4,
+      "late_ms": 339.0907599999764
+    },
+    {
+      "call_id": "758addad-aea1-4d04-8c06-4802c76abddc",
+      "round": 4,
+      "late_ms": 279.13446800005204
+    },
+    {
+      "call_id": "91566a65-ac2c-4fc1-8b06-54d8bb5decf4",
+      "round": 4,
+      "late_ms": 559.1500930000279
+    },
+    {
+      "call_id": "4476e2a7-3169-4c0f-aeb5-2768601e4679",
+      "round": 4,
+      "late_ms": 469.16225999996186
+    },
+    {
+      "call_id": "529d6094-9f1b-4be7-9fc1-5ba02cd56465",
+      "round": 4,
+      "late_ms": 479.1731769999501
+    },
+    {
+      "call_id": "9b70055c-e686-4fea-b0c0-303b43c4b5bb",
+      "round": 4,
+      "late_ms": 29.194385000039347
+    },
+    {
+      "call_id": "10d744a7-ca4f-4221-9183-f20805d7e130",
+      "round": 4,
+      "late_ms": 922.1527600000172
+    },
+    {
+      "call_id": "6fab04b7-e275-4b9b-9366-bed7777a2b8e",
+      "round": 4,
+      "late_ms": 792.1873440000127
+    },
+    {
+      "call_id": "0ddefadd-162b-4176-868d-5a1d478d5a8e",
+      "round": 4,
+      "late_ms": 1002.2018850000336
+    },
+    {
+      "call_id": "e23f5708-35db-4c35-a68c-a0815c6cb696",
+      "round": 4,
+      "late_ms": 972.2130520000292
+    },
+    {
+      "call_id": "ba9dbdee-77fa-41d8-8ba0-f7fdce9823f2",
+      "round": 4,
+      "late_ms": 392.2237190000146
+    },
+    {
+      "call_id": "3e66a8d6-18f6-4cbc-8e38-b3d9c997461d",
+      "round": 4,
+      "late_ms": 562.2335099999987
+    },
+    {
+      "call_id": "59f14060-9ae5-4ce2-ac55-26d107f99851",
+      "round": 4,
+      "late_ms": 822.2433849999788
+    },
+    {
+      "call_id": "5e95fa83-c4b1-4982-b72a-b773e8585e30",
+      "round": 4,
+      "late_ms": 782.2533440000257
+    },
+    {
+      "call_id": "ae4fde4d-7187-4677-8036-5edd11db1e44",
+      "round": 4,
+      "late_ms": 47.077302000047894
+    },
+    {
+      "call_id": "df8265ce-28d3-4206-a1e8-51a833b9313f",
+      "round": 4,
+      "late_ms": 17.117801999972926
+    },
+    {
+      "call_id": "07f48cce-b998-4f4a-82ab-f3f0213dde01",
+      "round": 4,
+      "late_ms": 757.1318849999784
+    },
+    {
+      "call_id": "c8c06417-2afe-4475-b786-69b1150875b8",
+      "round": 4,
+      "late_ms": 1017.1432600000117
+    },
+    {
+      "call_id": "076713db-a960-483a-8a30-5c6620160bfa",
+      "round": 4,
+      "late_ms": 627.1537190000345
+    },
+    {
+      "call_id": "b8d6f1fe-d4c9-420b-9e26-a216de9499d4",
+      "round": 4,
+      "late_ms": 247.16459400002577
+    },
+    {
+      "call_id": "0ffd6974-2341-41cb-9a29-a25f8e21a238",
+      "round": 4,
+      "late_ms": 487.17446900002415
+    },
+    {
+      "call_id": "db5cce21-78bc-4a48-93c3-5806c113e6c5",
+      "round": 4,
+      "late_ms": 117.18459400003667
+    },
+    {
+      "call_id": "ed62eceb-a578-47cf-913e-ad1000ab5d88",
+      "round": 4,
+      "late_ms": 1007.1938020000175
+    },
+    {
+      "call_id": "4d0ab57b-9acf-4f04-b623-c643dde73c1c",
+      "round": 4,
+      "late_ms": 37.203426999951716
+    },
+    {
+      "call_id": "0d086d69-6beb-4f9c-b4ea-36a80b7083bf",
+      "round": 4,
+      "late_ms": 27.214551999975356
+    },
+    {
+      "call_id": "bdbebb07-1e51-4ab3-a9ab-c2489ce9a22a",
+      "round": 4,
+      "late_ms": 727.2244690000207
+    },
+    {
+      "call_id": "b557ac44-c957-4afc-a094-b5e8d9ec826e",
+      "round": 4,
+      "late_ms": 297.2342190000177
+    },
+    {
+      "call_id": "8112a089-8f88-416f-ba2f-8d5e6eb37858",
+      "round": 4,
+      "late_ms": 737.2443020000219
+    },
+    {
+      "call_id": "b32e2b0b-cc46-4b70-9a0f-100187a691e1",
+      "round": 4,
+      "late_ms": 747.2536770000033
+    },
+    {
+      "call_id": "9a55a723-7397-4047-9d1b-a1f50adc69f6",
+      "round": 4,
+      "late_ms": 1053.1385940000177
+    },
+    {
+      "call_id": "7b644066-51cb-4812-9916-ff19926a75c3",
+      "round": 4,
+      "late_ms": 1013.189594000039
+    },
+    {
+      "call_id": "1a818495-08be-4a6d-8344-9644af5baf72",
+      "round": 4,
+      "late_ms": 313.20571900005234
+    },
+    {
+      "call_id": "afdb652d-d08f-4cea-b770-df3010292004",
+      "round": 4,
+      "late_ms": 873.2192189999637
+    },
+    {
+      "call_id": "da584e0e-e368-4095-95ff-3ae4ad170ba8",
+      "round": 4,
+      "late_ms": 613.2313019999742
+    },
+    {
+      "call_id": "31c5878b-d914-4843-8a62-e28b3027c3f7",
+      "round": 4,
+      "late_ms": 603.2426769999688
+    },
+    {
+      "call_id": "3a31bb5f-6553-4815-a444-a3e04a6bad72",
+      "round": 4,
+      "late_ms": 523.2657600000152
+    },
+    {
+      "call_id": "66517574-7210-4b13-b5f7-3646709fc1c2",
+      "round": 4,
+      "late_ms": 623.2773849999944
+    },
+    {
+      "call_id": "56c1ede3-a3b4-4ff6-84df-2e9ba1af7997",
+      "round": 4,
+      "late_ms": 1003.3093020000479
+    },
+    {
+      "call_id": "b3c0f899-c5d7-4bc3-823c-892fa6405ea4",
+      "round": 4,
+      "late_ms": 1023.3229269999811
+    },
+    {
+      "call_id": "eab5c249-94e2-4a1a-8be3-ed98fe8e30d4",
+      "round": 4,
+      "late_ms": 1033.334135000075
+    },
+    {
+      "call_id": "b5997732-44b9-498a-b7b7-762d3e817a1d",
+      "round": 4,
+      "late_ms": 97.14330199994947
+    },
+    {
+      "call_id": "37356418-ff02-46be-a273-698e767d7360",
+      "round": 4,
+      "late_ms": 487.18680199999653
+    },
+    {
+      "call_id": "8beee861-9fe7-4316-8d95-3acacedf2811",
+      "round": 4,
+      "late_ms": 507.20013500000505
+    },
+    {
+      "call_id": "ba4c3b37-ab33-48ca-83bb-6de50c9db35b",
+      "round": 4,
+      "late_ms": 777.2121350000134
+    },
+    {
+      "call_id": "879fbeb9-5f30-42b1-a185-ebcb68af9628",
+      "round": 4,
+      "late_ms": 987.2241770000301
+    },
+    {
+      "call_id": "a5ad6153-9605-48e1-8d3f-2201db596549",
+      "round": 4,
+      "late_ms": 787.2348020000572
+    },
+    {
+      "call_id": "eac25f00-a451-41ef-8bda-f307ae72715d",
+      "round": 4,
+      "late_ms": 137.2461350000549
+    },
+    {
+      "call_id": "dda33da3-2afa-4355-9568-f18bd0db7c8c",
+      "round": 4,
+      "late_ms": 259.5527190000553
+    },
+    {
+      "call_id": "9bf1f254-2a12-4238-90bf-da61bf86bbcf",
+      "round": 4,
+      "late_ms": 249.60146900002655
+    },
+    {
+      "call_id": "15ac83e0-95e4-4491-ad95-f3f47d718ab6",
+      "round": 4,
+      "late_ms": 619.6165940000355
+    },
+    {
+      "call_id": "52e5a475-5497-4d73-9867-8e0f116cca82",
+      "round": 4,
+      "late_ms": 99.62976000002755
+    },
+    {
+      "call_id": "8c6d5905-b027-4917-98d1-e7b90a4f41b8",
+      "round": 4,
+      "late_ms": 159.64121900003647
+    },
+    {
+      "call_id": "676f5bfe-5c0f-4c38-9b83-1f0b04b50c3b",
+      "round": 4,
+      "late_ms": 509.652635000009
+    },
+    {
+      "call_id": "3a62caa8-cbfb-47eb-b88b-d124059578d0",
+      "round": 4,
+      "late_ms": 1029.664926999999
+    },
+    {
+      "call_id": "69d3a747-e566-4b0b-8299-ed11fd8debbd",
+      "round": 4,
+      "late_ms": 639.6763020000549
+    },
+    {
+      "call_id": "d6f9aec9-e29c-40f0-af54-045efb7e0285",
+      "round": 4,
+      "late_ms": 649.6873440000286
+    },
+    {
+      "call_id": "d245aefb-e5e4-4165-bf60-fda29289fbc0",
+      "round": 4,
+      "late_ms": 599.6975099999986
+    },
+    {
+      "call_id": "e9ebb2d2-61ab-4d49-be73-ba9e13877d26",
+      "round": 4,
+      "late_ms": 209.71955200002412
+    },
+    {
+      "call_id": "b9ff88ce-5a5d-4cb5-a3c3-13a8659877cb",
+      "round": 4,
+      "late_ms": 435.77338599999393
+    },
+    {
+      "call_id": "ecfffb0d-7dd2-4822-8b05-f24327f5e34f",
+      "round": 4,
+      "late_ms": 45.78551099996275
+    },
+    {
+      "call_id": "1aa9a83b-69a3-4bcd-8873-a61c07416062",
+      "round": 4,
+      "late_ms": 445.8069690000457
+    },
+    {
+      "call_id": "55d83f8d-932a-4567-a252-07f70c860ea6",
+      "round": 4,
+      "late_ms": 905.8176359999948
+    },
+    {
+      "call_id": "9b344c83-60c1-40f7-85cb-d6030a0c3636",
+      "round": 4,
+      "late_ms": 895.8291360000317
+    },
+    {
+      "call_id": "46bfd5f0-def3-47e9-a2a2-75676ebcad31",
+      "round": 4,
+      "late_ms": 115.84021900000607
+    },
+    {
+      "call_id": "677cd520-8cfd-4fc8-9dab-b91ebeab9ee8",
+      "round": 4,
+      "late_ms": 1155.8511360000239
+    },
+    {
+      "call_id": "1b81a587-fe9f-4224-aec6-730911cda7b7",
+      "round": 4,
+      "late_ms": 1175.8624689999806
+    },
+    {
+      "call_id": "dece39a7-51ae-4664-82fe-e3e6464ab9d9",
+      "round": 4,
+      "late_ms": 425.88330199998836
+    },
+    {
+      "call_id": "f9e0e8fa-267b-48d0-8bce-3cfe96e7a56e",
+      "round": 4,
+      "late_ms": 865.8938860000376
+    },
+    {
+      "call_id": "e13ebe0b-8179-4e75-b3c8-83dfb29f023f",
+      "round": 4,
+      "late_ms": 165.90426099998012
+    },
+    {
+      "call_id": "64fbe9ac-f11f-4de0-ac91-d4b2264df3a9",
+      "round": 4,
+      "late_ms": 335.9321359999967
+    },
+    {
+      "call_id": "de207d1d-3f1c-4e1b-b550-bf71e6f58d82",
+      "round": 4,
+      "late_ms": 875.9436770000093
+    },
+    {
+      "call_id": "98be27d8-ad8e-48a7-935d-0b1a60367ebc",
+      "round": 4,
+      "late_ms": 685.9838019999529
+    },
+    {
+      "call_id": "d748b207-05d0-4d94-be0e-e0545a7096d6",
+      "round": 4,
+      "late_ms": 255.99501100003863
+    },
+    {
+      "call_id": "7e88a526-67d8-4564-8318-8f2e13c96074",
+      "round": 4,
+      "late_ms": 106.01496900005714
+    },
+    {
+      "call_id": "2300560d-c7da-4097-bf85-73ab4e67b602",
+      "round": 4,
+      "late_ms": 826.0255520000328
+    },
+    {
+      "call_id": "509e5683-e642-4601-af1d-7e02765b5e6c",
+      "round": 4,
+      "late_ms": 26.03571899999224
+    },
+    {
+      "call_id": "486d5d82-f7d2-401a-a1d9-dafbe04ea841",
+      "round": 4,
+      "late_ms": 886.045844000023
+    },
+    {
+      "call_id": "0366892f-1503-47e4-bd0b-368c0d180373",
+      "round": 4,
+      "late_ms": 392.23580200001606
+    },
+    {
+      "call_id": "c3155dd3-bd6a-4487-ab8d-5658284152d1",
+      "round": 4,
+      "late_ms": 562.2833859999901
+    },
+    {
+      "call_id": "7a4ab1d8-edae-4637-b0f2-abec7ab35664",
+      "round": 4,
+      "late_ms": 192.31063600000198
+    },
+    {
+      "call_id": "7731c8d5-76cc-42a2-b2f8-392fd1ae7050",
+      "round": 4,
+      "late_ms": 22.345260999998118
+    },
+    {
+      "call_id": "fc4f35b5-714b-4a6f-931b-76d8b9880421",
+      "round": 4,
+      "late_ms": 322.3673019999751
+    },
+    {
+      "call_id": "27609e85-b21f-4f57-acc3-17979486800b",
+      "round": 4,
+      "late_ms": 382.3905109999828
+    },
+    {
+      "call_id": "99f5aeaa-b497-4fca-bc14-bfc775aa5146",
+      "round": 4,
+      "late_ms": 399.0517189999423
+    },
+    {
+      "call_id": "23f95b4b-e2cb-4e30-bd78-bb6777730f72",
+      "round": 4,
+      "late_ms": 159.09413600002154
+    },
+    {
+      "call_id": "9eeebcff-e54f-4003-ad35-c4a1b3a3d3b5",
+      "round": 4,
+      "late_ms": 539.1104270000255
+    },
+    {
+      "call_id": "a4b9c398-1d56-4c86-94f8-4c5bf234ab02",
+      "round": 4,
+      "late_ms": 619.1228860000138
+    },
+    {
+      "call_id": "f25be9c0-9f8a-4130-9b8d-653355a5a66f",
+      "round": 4,
+      "late_ms": 369.14580199999136
+    },
+    {
+      "call_id": "abde9206-6238-4361-a4cf-7cbabe689856",
+      "round": 4,
+      "late_ms": 589.2214690000515
+    },
+    {
+      "call_id": "e3733823-0457-48a3-9345-28d5f25cb2d0",
+      "round": 4,
+      "late_ms": 149.25217700005078
+    },
+    {
+      "call_id": "0a1074ba-8cde-4fe4-99c1-40aaa1d6b206",
+      "round": 4,
+      "late_ms": 179.26242700002604
+    },
+    {
+      "call_id": "9409e351-8cc6-4e3e-8ca0-dbe04cf8cb75",
+      "round": 4,
+      "late_ms": 69.27230200000167
+    },
+    {
+      "call_id": "ac5c0d87-33a7-4b4c-948c-980a67f7a383",
+      "round": 4,
+      "late_ms": 879.2830109999841
+    },
+    {
+      "call_id": "32dd968f-c24d-42b5-b844-4d7e6f2f28e1",
+      "round": 4,
+      "late_ms": 79.3359270000451
+    },
+    {
+      "call_id": "d0200945-60c0-4f0a-b93f-408dba12ff25",
+      "round": 4,
+      "late_ms": 889.3483439999841
+    },
+    {
+      "call_id": "a2e1f622-119e-4df7-8cc5-57a739fcb471",
+      "round": 4,
+      "late_ms": 49.35830200003011
+    },
+    {
+      "call_id": "d4ff1236-c5b8-4b80-b1eb-443d0cfd863d",
+      "round": 4,
+      "late_ms": 729.3685519999826
+    },
+    {
+      "call_id": "35cf72f1-b8da-455b-a339-18aa3b41c8fe",
+      "round": 4,
+      "late_ms": 219.37905200002206
+    },
+    {
+      "call_id": "0aa7d739-ee07-48b8-aef1-4cea20dfb48b",
+      "round": 4,
+      "late_ms": 719.388886000047
+    },
+    {
+      "call_id": "edeec1bf-ee1e-4d92-adc1-8083c9b470e5",
+      "round": 4,
+      "late_ms": 272.2225109999954
+    },
+    {
+      "call_id": "66c79fb8-87ad-4ca1-975e-3115be60f521",
+      "round": 4,
+      "late_ms": 382.2765940000181
+    },
+    {
+      "call_id": "77eb0f12-d0cb-4154-82ec-ffc36ddd08d5",
+      "round": 4,
+      "late_ms": 332.32455199998867
+    },
+    {
+      "call_id": "28e45e97-1e4e-4a8f-8ecb-24f964e47329",
+      "round": 4,
+      "late_ms": 22.336301999985153
+    },
+    {
+      "call_id": "2f87581a-847e-487a-86f6-0fffc6395f6d",
+      "round": 4,
+      "late_ms": 132.34817700003987
+    },
+    {
+      "call_id": "fe76ed69-e08d-4ace-96ef-cd83e9537152",
+      "round": 4,
+      "late_ms": 52.36113600005865
+    },
+    {
+      "call_id": "b89ae9d8-7897-4e01-9b29-3a07839ade03",
+      "round": 4,
+      "late_ms": 62.372427000013886
+    },
+    {
+      "call_id": "1f3e4994-f7d7-489f-9ea1-46d452f93e3c",
+      "round": 4,
+      "late_ms": 392.38496900003383
+    },
+    {
+      "call_id": "df99672f-cc61-4919-befd-47997848b440",
+      "round": 4,
+      "late_ms": 352.3963019999883
+    },
+    {
+      "call_id": "bdb65e10-ffae-4bb5-8c03-a4f98a1e5696",
+      "round": 4,
+      "late_ms": 60.17805200002613
+    },
+    {
+      "call_id": "a666c0f8-f801-4325-9029-3e7eb2dc19bc",
+      "round": 4,
+      "late_ms": 820.2023019999842
+    },
+    {
+      "call_id": "a464ad53-f6a6-49c5-9762-4d335c1d7acd",
+      "round": 4,
+      "late_ms": 675.665969000022
+    },
+    {
+      "call_id": "89277e6d-d414-4bea-904c-93e2ac67ef22",
+      "round": 4,
+      "late_ms": 95.70505200002799
+    },
+    {
+      "call_id": "57fdd9b4-a6aa-4ef4-bc02-a0027502b830",
+      "round": 4,
+      "late_ms": 825.7199689999766
+    },
+    {
+      "call_id": "265ab573-6994-41d9-9791-e6d37f6e2921",
+      "round": 4,
+      "late_ms": 135.73313599999892
+    },
+    {
+      "call_id": "ad9fb488-c4e7-472c-9400-14facf166a6e",
+      "round": 4,
+      "late_ms": 145.74376100000563
+    },
+    {
+      "call_id": "5fd99f1b-8472-488a-844c-ed15a02b9e00",
+      "round": 4,
+      "late_ms": 705.7548020000013
+    },
+    {
+      "call_id": "7978f3a1-1e8d-4da0-82f2-f85f1c979678",
+      "round": 4,
+      "late_ms": 625.7660940000278
+    },
+    {
+      "call_id": "9371328d-c22b-439b-bdb9-189bf0c7abff",
+      "round": 4,
+      "late_ms": 515.7765110000128
+    },
+    {
+      "call_id": "02bc91a9-a2cf-4fe3-a0d7-6c7b250262bd",
+      "round": 4,
+      "late_ms": 585.7912189999865
+    },
+    {
+      "call_id": "565584fa-1759-492d-94ad-aa2b80fdcc5f",
+      "round": 4,
+      "late_ms": 945.8020519999764
+    },
+    {
+      "call_id": "6aed66ae-0114-47b1-97af-c536a7710c18",
+      "round": 4,
+      "late_ms": 185.81326100002116
+    },
+    {
+      "call_id": "2bbc1782-5b94-4521-b2b4-de5d9dc5c309",
+      "round": 4,
+      "late_ms": 45.83459399998446
+    },
+    {
+      "call_id": "98936a71-8f23-4999-9aed-67174184921c",
+      "round": 4,
+      "late_ms": 665.845427000022
+    },
+    {
+      "call_id": "a1f37b7e-0cdd-4df5-a0b2-153d574a20f8",
+      "round": 4,
+      "late_ms": 192.34455300005493
+    },
+    {
+      "call_id": "7bc80bf0-ee14-4e2f-a6ab-5f8042518edb",
+      "round": 4,
+      "late_ms": 352.61851100000285
+    },
+    {
+      "call_id": "6559e964-160e-4f41-ba65-21ae50972459",
+      "round": 4,
+      "late_ms": 172.65451100001883
+    },
+    {
+      "call_id": "7fed2721-6249-4347-9af5-de0669566e28",
+      "round": 4,
+      "late_ms": 862.6671780000379
+    },
+    {
+      "call_id": "36e69f42-1333-4c09-a6fc-7074ad3e96c9",
+      "round": 4,
+      "late_ms": 112.69084399998519
+    },
+    {
+      "call_id": "7e55a049-a1f1-442a-9fcf-e27ff0fd4c00",
+      "round": 4,
+      "late_ms": 322.7149690000033
+    },
+    {
+      "call_id": "50045b80-c842-4b08-a68b-32db9d567ef4",
+      "round": 4,
+      "late_ms": 833.2396780000408
+    },
+    {
+      "call_id": "f715f097-92d4-4ae4-a0e6-d4ebe1960943",
+      "round": 4,
+      "late_ms": 333.2610530000011
+    },
+    {
+      "call_id": "5eb189be-9747-4dc2-9c36-3c9b599f5398",
+      "round": 4,
+      "late_ms": 563.3149280000112
+    },
+    {
+      "call_id": "6a2cb441-e9ea-4e41-a0d8-8a70db27871f",
+      "round": 4,
+      "late_ms": 283.3396359999938
+    },
+    {
+      "call_id": "e4acf131-b6ee-49d2-841d-276a99bea8db",
+      "round": 4,
+      "late_ms": 263.35134400000015
+    },
+    {
+      "call_id": "aa28ed55-b587-4414-8e29-c7ea23d5962d",
+      "round": 4,
+      "late_ms": 135.86134400003402
+    },
+    {
+      "call_id": "c62a26ba-2d09-4a46-99f7-ba2d4e7a36db",
+      "round": 4,
+      "late_ms": 1125.8773440000027
+    },
+    {
+      "call_id": "1ba40a8c-3162-467b-aedd-800c2bb9d151",
+      "round": 4,
+      "late_ms": 85.89051100000233
+    },
+    {
+      "call_id": "57066dc2-589c-49d5-962a-c5e6a37cc6e2",
+      "round": 4,
+      "late_ms": 968.9055940000344
+    },
+    {
+      "call_id": "8c2c8843-cc8f-4d60-9e10-fe47cf9d8f4e",
+      "round": 4,
+      "late_ms": 1088.961553000047
+    },
+    {
+      "call_id": "6bf59f73-6142-4c1d-ad0e-7738bb2690ac",
+      "round": 4,
+      "late_ms": 1078.9761360000512
+    },
+    {
+      "call_id": "e9889d5e-714d-4b68-8353-d82c4c56af21",
+      "round": 4,
+      "late_ms": 218.9884690000099
+    },
+    {
+      "call_id": "fe8548cc-627f-4616-bd7c-95cc1d112c92",
+      "round": 4,
+      "late_ms": 229.07355300003474
+    },
+    {
+      "call_id": "4b15e32d-eff1-426d-8df2-41e6ac81f808",
+      "round": 5,
+      "late_ms": 235.00351099994532
+    },
+    {
+      "call_id": "01d7e2d6-b00a-4bd2-8f4c-78e09dac34dc",
+      "round": 5,
+      "late_ms": 255.02551099998527
+    },
+    {
+      "call_id": "fe649b6b-35a6-467d-af52-ff853f84c590",
+      "round": 5,
+      "late_ms": 245.03680300000497
+    },
+    {
+      "call_id": "ae32e624-cd55-4ceb-bd81-fff55036311a",
+      "round": 5,
+      "late_ms": 57.34521900001255
+    },
+    {
+      "call_id": "fd6da079-5eb0-4d8a-99bf-9b865755c906",
+      "round": 5,
+      "late_ms": 37.35926100000597
+    },
+    {
+      "call_id": "70bf9c61-2b07-4aee-8a55-e41e25712220",
+      "round": 5,
+      "late_ms": 99.07326100005776
+    },
+    {
+      "call_id": "27d8aa8b-e3f0-4d1d-a0c3-706123d12d44",
+      "round": 5,
+      "late_ms": 119.11509400005116
+    },
+    {
+      "call_id": "c9bbdea1-2d61-439c-b678-a767db1dbaa8",
+      "round": 5,
+      "late_ms": 149.12771900003463
+    },
+    {
+      "call_id": "5392492d-1cf1-4363-8428-e7e6d232e70f",
+      "round": 5,
+      "late_ms": 29.138885999998365
+    },
+    {
+      "call_id": "2a3872ac-425e-43d4-869b-bab38181542a",
+      "round": 5,
+      "late_ms": 289.14959399997997
+    },
+    {
+      "call_id": "842b4ea6-8a37-4dd3-a020-3720479c117a",
+      "round": 5,
+      "late_ms": 111.77784500000598
+    },
+    {
+      "call_id": "3e08a76f-6f5a-4191-a765-add8ad9f1a18",
+      "round": 5,
+      "late_ms": 621.8215110000074
+    },
+    {
+      "call_id": "5ae9f37f-cf3c-47e4-b5bf-a743b32d27a9",
+      "round": 5,
+      "late_ms": 421.8365110000377
+    },
+    {
+      "call_id": "b83a70df-5278-4006-a86a-87ea805ec0b2",
+      "round": 5,
+      "late_ms": 411.84821999996757
+    },
+    {
+      "call_id": "9cdc2004-6c4c-4f0c-822c-d97d5f3ac0ab",
+      "round": 5,
+      "late_ms": 401.86134499998616
+    },
+    {
+      "call_id": "5ecf621c-4773-4644-ab49-45ae86f3c404",
+      "round": 5,
+      "late_ms": 611.8731360000425
+    },
+    {
+      "call_id": "788ab261-a91d-44a7-b372-be0e8bdf084a",
+      "round": 4,
+      "late_ms": 691.8857200000161
+    },
+    {
+      "call_id": "28cf2f4d-8293-4e7c-9344-1e4449d23362",
+      "round": 5,
+      "late_ms": 381.89771999998356
+    },
+    {
+      "call_id": "32a44d50-b841-408d-9756-12261cf7d6c9",
+      "round": 5,
+      "late_ms": 301.90838600003644
+    },
+    {
+      "call_id": "315d4375-8255-403a-b1ed-9aa4e85e08b1",
+      "round": 5,
+      "late_ms": 231.91913600004455
+    },
+    {
+      "call_id": "c04738a8-2a70-4d4c-a80b-0a78fbac27bb",
+      "round": 5,
+      "late_ms": 351.92947000001595
+    },
+    {
+      "call_id": "3cfcac40-e68d-4692-99fd-e13a16cfc191",
+      "round": 5,
+      "late_ms": 441.94009500000675
+    },
+    {
+      "call_id": "e7ebe606-3cac-4b37-8b0e-548faae4168f",
+      "round": 5,
+      "late_ms": 571.950553000022
+    },
+    {
+      "call_id": "b524de79-c36e-4b4b-9b18-2b885c235d53",
+      "round": 5,
+      "late_ms": 431.9600950000222
+    },
+    {
+      "call_id": "3ad4b0a2-969a-4c1f-ba10-b80e3baaec0d",
+      "round": 5,
+      "late_ms": 91.97026100002859
+    },
+    {
+      "call_id": "c12fa22d-d5ec-4ac3-80da-8ed9628b3032",
+      "round": 5,
+      "late_ms": 115.80180300001075
+    },
+    {
+      "call_id": "09b24ea7-7e60-4460-b908-6fd8324f7544",
+      "round": 5,
+      "late_ms": 85.81547
+    },
+    {
+      "call_id": "50d41845-5bfb-46f8-ad27-ce10ef4f86ec",
+      "round": 5,
+      "late_ms": 75.82834500004765
+    },
+    {
+      "call_id": "0636334f-fc46-482d-9860-ba6b027ed7ed",
+      "round": 5,
+      "late_ms": 5.862802999956784
+    },
+    {
+      "call_id": "73c770d5-5f65-4da4-8772-dca45f87b811",
+      "round": 5,
+      "late_ms": 245.92821999999614
+    },
+    {
+      "call_id": "e674ef1b-9160-4be8-b0ad-554631cc711f",
+      "round": 5,
+      "late_ms": 155.93926100001454
+    },
+    {
+      "call_id": "33ffbf90-bdf8-4bf0-b078-33d8034bdc99",
+      "round": 5,
+      "late_ms": 198.71026100003064
+    },
+    {
+      "call_id": "c8422d21-cf52-482b-8e9f-32d86d020b56",
+      "round": 5,
+      "late_ms": 138.74996999999212
+    },
+    {
+      "call_id": "29c06bf2-48e5-4244-834a-119f3b10d9b3",
+      "round": 5,
+      "late_ms": 248.77430299994785
+    },
+    {
+      "call_id": "dca82b33-f0aa-4034-943b-623d907996b1",
+      "round": 5,
+      "late_ms": 38.7887200000705
+    },
+    {
+      "call_id": "ad9e8139-f2ce-4075-9913-6948239c9644",
+      "round": 5,
+      "late_ms": 128.80192800002987
+    },
+    {
+      "call_id": "6f3efcdd-88a9-41fb-aa30-839dc15c3585",
+      "round": 5,
+      "late_ms": 153.40901100006477
+    },
+    {
+      "call_id": "2ba7a7de-0ebd-441c-a778-95775a0ef314",
+      "round": 5,
+      "late_ms": 37.746386000037546
+    },
+    {
+      "call_id": "785a2ca2-9465-46fc-a49a-93e2800a7386",
+      "round": 5,
+      "late_ms": 580.6267610000191
+    },
+    {
+      "call_id": "d7ef2848-db07-483c-9f6f-1fc867a7cfc7",
+      "round": 5,
+      "late_ms": 80.67276100001664
+    },
+    {
+      "call_id": "869e9610-83b0-41f8-9f0e-8bc52956c33a",
+      "round": 5,
+      "late_ms": 305.3094699999974
+    },
+    {
+      "call_id": "edf8977c-d816-4c69-8f75-ec2b7ebd6d60",
+      "round": 5,
+      "late_ms": 255.35667799999828
+    },
+    {
+      "call_id": "7e6936d1-9135-4d6b-a246-a45d0f2f392f",
+      "round": 5,
+      "late_ms": 485.37222000004476
+    },
+    {
+      "call_id": "87a2acf6-5a89-4269-8116-0270cad0c016",
+      "round": 5,
+      "late_ms": 275.40580299995554
+    },
+    {
+      "call_id": "bbe9c932-4dc3-4201-97b1-719c0c1631b9",
+      "round": 5,
+      "late_ms": 87.65259500000866
+    },
+    {
+      "call_id": "15940657-b1e4-4346-a819-2b02dabf8c0b",
+      "round": 5,
+      "late_ms": 177.86938700004384
+    },
+    {
+      "call_id": "a0ef188b-2374-445e-b2a1-7b15ec7e5e0d",
+      "round": 5,
+      "late_ms": 337.987303000034
+    },
+    {
+      "call_id": "a3ffd07b-f208-4b57-bed5-7503b9c9a752",
+      "round": 5,
+      "late_ms": 158.03642800000262
+    },
+    {
+      "call_id": "d4969ba8-68f1-498e-838f-5d89da4a8a6f",
+      "round": 5,
+      "late_ms": 8.096011999953134
+    },
+    {
+      "call_id": "e1bfa1d5-1f91-49a1-9a16-83d8afa7e0a9",
+      "round": 5,
+      "late_ms": 458.15876200003913
+    },
+    {
+      "call_id": "893394e3-9e6e-4cf1-b1ad-d184766347e6",
+      "round": 5,
+      "late_ms": 208.17680300001484
+    },
+    {
+      "call_id": "d826b0f8-5307-4ec8-9ff6-adb832c34ef6",
+      "round": 5,
+      "late_ms": 28.187928000022566
+    },
+    {
+      "call_id": "598976f2-957c-41ca-a8f6-e9d71d8b3c27",
+      "round": 5,
+      "late_ms": 578.1984280000074
+    },
+    {
+      "call_id": "dd2bfec5-ca46-47a2-831b-836c09038973",
+      "round": 5,
+      "late_ms": 228.20997000002308
+    },
+    {
+      "call_id": "3e676ee2-3fb2-468b-a72d-34fd6139106e",
+      "round": 5,
+      "late_ms": 388.23138699996207
+    },
+    {
+      "call_id": "e9a2f5d2-9c10-4377-abc3-08b63f018e62",
+      "round": 5,
+      "late_ms": 468.2423450000215
+    },
+    {
+      "call_id": "5e872486-42df-4331-b27c-c682f3a9a830",
+      "round": 5,
+      "late_ms": 308.2532200000401
+    },
+    {
+      "call_id": "e0304e2e-8dd2-4c38-95ad-e8363400db10",
+      "round": 5,
+      "late_ms": 248.2645530000127
+    },
+    {
+      "call_id": "bd5d3215-8980-48dd-88f6-c6338bdd9663",
+      "round": 5,
+      "late_ms": 41.05559500004574
+    },
+    {
+      "call_id": "6f1b44eb-a861-47d2-9e99-e990a92ef891",
+      "round": 5,
+      "late_ms": 771.1336780000124
+    },
+    {
+      "call_id": "f31ed184-f228-4d81-bcae-823bc77d390a",
+      "round": 5,
+      "late_ms": 471.1818449999896
+    },
+    {
+      "call_id": "afe5af88-f72a-4ea4-8eaf-b8d9fde7221d",
+      "round": 5,
+      "late_ms": 61.19422000000441
+    },
+    {
+      "call_id": "e4742610-7fff-4332-8445-090ec4ef663f",
+      "round": 5,
+      "late_ms": 151.20776200001274
+    },
+    {
+      "call_id": "b3f9cd24-869b-4ba5-8f93-9fb047949b0c",
+      "round": 5,
+      "late_ms": 381.2203450000311
+    },
+    {
+      "call_id": "7a66e186-ba30-4662-949a-dcb38f7f4a2d",
+      "round": 5,
+      "late_ms": 81.28042800001367
+    },
+    {
+      "call_id": "92289ea9-4de3-4b85-9c6b-d5f8e211f706",
+      "round": 5,
+      "late_ms": 51.292137000018556
+    },
+    {
+      "call_id": "4ea2b84a-7439-4022-8925-96fb7d95015e",
+      "round": 5,
+      "late_ms": 224.71796999997196
+    },
+    {
+      "call_id": "892d7f88-de73-40c2-b6a0-d07d3cf685ee",
+      "round": 5,
+      "late_ms": 104.73967800004402
+    },
+    {
+      "call_id": "34ba3bc1-1527-498b-80ac-1b110eb78489",
+      "round": 5,
+      "late_ms": 134.7946780000484
+    },
+    {
+      "call_id": "3cec31f2-b80f-4ef6-bed7-d3ff985242af",
+      "round": 5,
+      "late_ms": 704.8328870000091
+    },
+    {
+      "call_id": "352e5e25-a9e7-4213-b3f0-4bfbc100374f",
+      "round": 5,
+      "late_ms": 114.84601199998679
+    },
+    {
+      "call_id": "7e4d2aa7-e4dc-4e31-a423-287efb18a3b2",
+      "round": 5,
+      "late_ms": 124.88580299998375
+    },
+    {
+      "call_id": "f93f6ee2-f7d1-4710-849a-dd123d1a3d40",
+      "round": 5,
+      "late_ms": 394.9273870000525
+    },
+    {
+      "call_id": "b9df374f-36c4-46f3-ae56-13b130ff73f0",
+      "round": 5,
+      "late_ms": 387.8469280000445
+    },
+    {
+      "call_id": "9673995b-4935-492b-8f1b-47794f7e9d5a",
+      "round": 5,
+      "late_ms": 637.897803000044
+    },
+    {
+      "call_id": "e34ca8cb-e05b-4aad-8816-6f5247a2bd16",
+      "round": 5,
+      "late_ms": 17.915095000034853
+    },
+    {
+      "call_id": "427fc7e6-62b8-4b4f-8fc3-cfffe6142850",
+      "round": 5,
+      "late_ms": 577.9407199999582
+    },
+    {
+      "call_id": "800590cf-a170-4999-878e-f7e9f5fb00b5",
+      "round": 5,
+      "late_ms": 57.952511999985745
+    },
+    {
+      "call_id": "c7ef2839-9f89-4404-acd4-875c49015d86",
+      "round": 5,
+      "late_ms": 477.96334499997783
+    },
+    {
+      "call_id": "d4bfa15a-28b9-4691-a2fe-18ca330042a5",
+      "round": 5,
+      "late_ms": 137.98647000004394
+    },
+    {
+      "call_id": "6e719aa1-1a65-48af-a90f-2dcad8eff392",
+      "round": 5,
+      "late_ms": 118.00830300006737
+    },
+    {
+      "call_id": "99f08ff7-5431-4dc7-a6a5-8f5d4abd5976",
+      "round": 5,
+      "late_ms": 188.02892799999427
+    },
+    {
+      "call_id": "4072ad6d-aacc-44e2-a764-00fc6f86d541",
+      "round": 5,
+      "late_ms": 230.96863700004633
+    },
+    {
+      "call_id": "6744adfe-e6f8-4df0-b151-07dea591e6b7",
+      "round": 5,
+      "late_ms": 101.03105300004245
+    },
+    {
+      "call_id": "5f509a9d-b458-4e89-ade5-ad4bc97b09db",
+      "round": 5,
+      "late_ms": 83.595803000037
+    },
+    {
+      "call_id": "524e46bb-98eb-488a-82f4-f3bc11defcfd",
+      "round": 5,
+      "late_ms": 353.63997000001746
+    },
+    {
+      "call_id": "6330f77c-e3bc-41e8-93d5-e8513873f035",
+      "round": 5,
+      "late_ms": 583.6586370000418
+    },
+    {
+      "call_id": "936da780-a96c-4c61-82b9-1d8fafd031a6",
+      "round": 5,
+      "late_ms": 633.6860949999732
+    },
+    {
+      "call_id": "6ccbe273-67aa-49dc-85cd-4efb0c4664b9",
+      "round": 5,
+      "late_ms": 283.6981369999876
+    },
+    {
+      "call_id": "d6f991b2-e363-4190-856c-e33ea9336433",
+      "round": 5,
+      "late_ms": 643.7100119999855
+    },
+    {
+      "call_id": "957e31fe-9908-4904-a912-a2ef31de484a",
+      "round": 5,
+      "late_ms": 146.5187200000173
+    },
+    {
+      "call_id": "aed363a5-9ffb-4ba6-9a1d-78b613ee556f",
+      "round": 5,
+      "late_ms": 336.56301199999916
+    },
+    {
+      "call_id": "b8e47010-14c8-4959-a77f-9d6ffd094862",
+      "round": 5,
+      "late_ms": 756.5750949999597
+    },
+    {
+      "call_id": "53db921d-115e-4c76-b32f-867416ed4dbd",
+      "round": 5,
+      "late_ms": 196.58638700002484
+    },
+    {
+      "call_id": "e46a9bd9-9a30-483f-92ba-c3ad93983473",
+      "round": 5,
+      "late_ms": 206.59784500003298
+    },
+    {
+      "call_id": "dcf48f25-5735-4a46-9a34-47c6d047d122",
+      "round": 5,
+      "late_ms": 26.619303000018135
+    },
+    {
+      "call_id": "55949f02-3ca3-479a-b5f7-81169e757c1f",
+      "round": 5,
+      "late_ms": 296.64084500006993
+    },
+    {
+      "call_id": "01b054c0-2e88-450d-80c1-c95e5e49de35",
+      "round": 5,
+      "late_ms": 6.650469999954112
+    },
+    {
+      "call_id": "7ee0831d-c94f-49a6-8648-1ed046560355",
+      "round": 5,
+      "late_ms": 726.6609280000011
+    },
+    {
+      "call_id": "9ca53669-3083-45ea-bf29-97a13419556d",
+      "round": 5,
+      "late_ms": 126.68096999999534
+    },
+    {
+      "call_id": "129b7e55-7e19-4432-a717-7e049bd293ed",
+      "round": 5,
+      "late_ms": 66.69947000006005
+    },
+    {
+      "call_id": "8aa3b9f4-95d9-40dc-884c-0807a7dfca4e",
+      "round": 5,
+      "late_ms": 36.728012000025956
+    },
+    {
+      "call_id": "2cff6ae8-ee1d-428e-829c-85ae06c3f999",
+      "round": 5,
+      "late_ms": 119.45288700002266
+    },
+    {
+      "call_id": "3c993da9-101e-4ebf-b735-d926a74a0903",
+      "round": 5,
+      "late_ms": 419.46655400005284
+    },
+    {
+      "call_id": "615db384-59f2-4e39-ace2-4604e84681f5",
+      "round": 5,
+      "late_ms": 869.4898870000429
+    },
+    {
+      "call_id": "f68cf79a-d338-44d2-9491-7e09c48ee236",
+      "round": 5,
+      "late_ms": 112.55317900003092
+    },
+    {
+      "call_id": "5d1e3aa6-03bb-40c3-8e43-5da725cff9ef",
+      "round": 5,
+      "late_ms": 122.57501200002707
+    },
+    {
+      "call_id": "09771b9d-509f-42c1-a242-74c7793da222",
+      "round": 5,
+      "late_ms": 355.5031790000385
+    },
+    {
+      "call_id": "18ee8cc9-e4e8-4f4d-9ea3-a63633b47985",
+      "round": 5,
+      "late_ms": 245.53759500003025
+    },
+    {
+      "call_id": "a89ebec3-afac-441f-b2c3-5b46047e0a85",
+      "round": 5,
+      "late_ms": 25.562554000032378
+    },
+    {
+      "call_id": "7dc6a104-990f-436a-8b6e-fb74db3820a1",
+      "round": 5,
+      "late_ms": 95.57392900001105
+    },
+    {
+      "call_id": "d5f69701-fe57-479c-bda4-840cc74d6f02",
+      "round": 5,
+      "late_ms": 265.59451200000694
+    },
+    {
+      "call_id": "17328fd2-2e3e-4d67-89c8-6a47b9deb709",
+      "round": 5,
+      "late_ms": 365.60551200005875
+    },
+    {
+      "call_id": "bbc0f8f8-0026-48d1-a107-a0b4ed393aa8",
+      "round": 5,
+      "late_ms": 275.6168040000375
+    },
+    {
+      "call_id": "6a493418-1615-4090-93ce-d0d585d3fa7a",
+      "round": 5,
+      "late_ms": 385.62759500001675
+    },
+    {
+      "call_id": "e9eaf08f-444e-4558-b762-7c47c16bce9f",
+      "round": 5,
+      "late_ms": 125.64105400002745
+    },
+    {
+      "call_id": "88e9c818-e9ba-4c1e-bf41-96f5d9c892be",
+      "round": 5,
+      "late_ms": 235.65747000003512
+    },
+    {
+      "call_id": "9acabecb-0a53-427b-9553-2542904e3127",
+      "round": 5,
+      "late_ms": 218.90297000004466
+    },
+    {
+      "call_id": "ce8b9d97-d4c7-4150-ada7-c5d09b82d0c1",
+      "round": 5,
+      "late_ms": 358.96697000003996
+    },
+    {
+      "call_id": "e9439bca-c141-4ff3-a89b-1879e46e7ce5",
+      "round": 5,
+      "late_ms": 138.99076199999172
+    },
+    {
+      "call_id": "b8f3097e-52cf-4f7f-bfc7-a0574895d90b",
+      "round": 5,
+      "late_ms": 309.0124700000274
+    },
+    {
+      "call_id": "501ad42a-009a-49dd-b18b-97c0c99d87d0",
+      "round": 5,
+      "late_ms": 141.2883869999746
+    },
+    {
+      "call_id": "40133c63-72b6-419b-ba66-d646b977f50e",
+      "round": 5,
+      "late_ms": 91.34313700002394
+    },
+    {
+      "call_id": "36d22f26-1e74-42db-8fb4-1f0062e09735",
+      "round": 5,
+      "late_ms": 171.35647000003473
+    },
+    {
+      "call_id": "63e486d8-c1ee-4a43-9169-2d75a44ebf5b",
+      "round": 5,
+      "late_ms": 232.78226200000063
+    },
+    {
+      "call_id": "91ef6134-4f25-4c27-9ad8-cd03dad1e9f4",
+      "round": 5,
+      "late_ms": 255.86334500002295
+    },
+    {
+      "call_id": "717d96e3-23ce-4195-91bf-3d78734d9f1f",
+      "round": 5,
+      "late_ms": 515.8740120000402
+    },
+    {
+      "call_id": "f2e238e3-111b-445e-ae91-f96041f2745f",
+      "round": 5,
+      "late_ms": 315.8942620000289
+    },
+    {
+      "call_id": "9a07793e-cc0f-4c66-8287-2f0b4e2cb735",
+      "round": 5,
+      "late_ms": 125.90576200000214
+    },
+    {
+      "call_id": "6e31d4cb-7a9d-446a-8cd4-ea1e5c24babd",
+      "round": 5,
+      "late_ms": 545.946554000011
+    },
+    {
+      "call_id": "1c08c140-a718-4a9e-8c9d-f6d1a728c503",
+      "round": 5,
+      "late_ms": 305.9950120000394
+    },
+    {
+      "call_id": "a842287c-50b6-4d84-9724-ae7a4290b815",
+      "round": 5,
+      "late_ms": 349.02342899999894
+    },
+    {
+      "call_id": "7cb1d601-5164-4a95-83ed-bf059be91f02",
+      "round": 5,
+      "late_ms": 459.0434289999621
+    },
+    {
+      "call_id": "f4e1f5bf-c0a5-4250-a66d-f99170de95cc",
+      "round": 5,
+      "late_ms": 659.058387000016
+    },
+    {
+      "call_id": "56263549-1f82-4667-bb69-fe12fc89a49b",
+      "round": 5,
+      "late_ms": 429.08288699999275
+    },
+    {
+      "call_id": "91566a65-ac2c-4fc1-8b06-54d8bb5decf4",
+      "round": 5,
+      "late_ms": 11.018054000032862
+    },
+    {
+      "call_id": "5e95fa83-c4b1-4982-b72a-b773e8585e30",
+      "round": 5,
+      "late_ms": 131.14201199999798
+    },
+    {
+      "call_id": "10d744a7-ca4f-4221-9183-f20805d7e130",
+      "round": 5,
+      "late_ms": 271.1635539999975
+    },
+    {
+      "call_id": "6fab04b7-e275-4b9b-9366-bed7777a2b8e",
+      "round": 5,
+      "late_ms": 141.19497100000444
+    },
+    {
+      "call_id": "fb43c03d-9ecb-48d5-845f-0421b99c2f89",
+      "round": 5,
+      "late_ms": 301.2084289999848
+    },
+    {
+      "call_id": "0ddefadd-162b-4176-868d-5a1d478d5a8e",
+      "round": 5,
+      "late_ms": 453.35147100001905
+    },
+    {
+      "call_id": "8d7f542e-d856-41b4-88a6-16ca24a0e971",
+      "round": 5,
+      "late_ms": 443.36705400002074
+    },
+    {
+      "call_id": "59f14060-9ae5-4ce2-ac55-26d107f99851",
+      "round": 5,
+      "late_ms": 273.378761999993
+    },
+    {
+      "call_id": "e23f5708-35db-4c35-a68c-a0815c6cb696",
+      "round": 5,
+      "late_ms": 423.41805400002386
+    },
+    {
+      "call_id": "8112a089-8f88-416f-ba2f-8d5e6eb37858",
+      "round": 5,
+      "late_ms": 292.0483460000014
+    },
+    {
+      "call_id": "56c1ede3-a3b4-4ff6-84df-2e9ba1af7997",
+      "round": 5,
+      "late_ms": 352.11067900002035
+    },
+    {
+      "call_id": "07f48cce-b998-4f4a-82ab-f3f0213dde01",
+      "round": 5,
+      "late_ms": 312.15905400000565
+    },
+    {
+      "call_id": "bdbebb07-1e51-4ab3-a9ab-c2489ce9a22a",
+      "round": 5,
+      "late_ms": 282.20847100004676
+    },
+    {
+      "call_id": "0ffd6974-2341-41cb-9a29-a25f8e21a238",
+      "round": 5,
+      "late_ms": 42.22834600000169
+    },
+    {
+      "call_id": "c8c06417-2afe-4475-b786-69b1150875b8",
+      "round": 5,
+      "late_ms": 674.2851789999804
+    },
+    {
+      "call_id": "b32e2b0b-cc46-4b70-9a0f-100187a691e1",
+      "round": 5,
+      "late_ms": 404.33047100003705
+    },
+    {
+      "call_id": "ed62eceb-a578-47cf-913e-ad1000ab5d88",
+      "round": 5,
+      "late_ms": 664.3960960000186
+    },
+    {
+      "call_id": "076713db-a960-483a-8a30-5c6620160bfa",
+      "round": 5,
+      "late_ms": 284.4068460000244
+    },
+    {
+      "call_id": "3a62caa8-cbfb-47eb-b88b-d124059578d0",
+      "round": 5,
+      "late_ms": 376.82938800003285
+    },
+    {
+      "call_id": "7b644066-51cb-4812-9916-ff19926a75c3",
+      "round": 5,
+      "late_ms": 566.8889710000258
+    },
+    {
+      "call_id": "9a55a723-7397-4047-9d1b-a1f50adc69f6",
+      "round": 5,
+      "late_ms": 606.9023880000373
+    },
+    {
+      "call_id": "879fbeb9-5f30-42b1-a185-ebcb68af9628",
+      "round": 5,
+      "late_ms": 436.9143460000373
+    },
+    {
+      "call_id": "a5ad6153-9605-48e1-8d3f-2201db596549",
+      "round": 5,
+      "late_ms": 236.93642900002487
+    },
+    {
+      "call_id": "ba4c3b37-ab33-48ca-83bb-6de50c9db35b",
+      "round": 5,
+      "late_ms": 226.94680400002198
+    },
+    {
+      "call_id": "b3c0f899-c5d7-4bc3-823c-892fa6405ea4",
+      "round": 5,
+      "late_ms": 576.9680129999983
+    },
+    {
+      "call_id": "f9e0e8fa-267b-48d0-8bce-3cfe96e7a56e",
+      "round": 5,
+      "late_ms": 208.82455400004574
+    },
+    {
+      "call_id": "de207d1d-3f1c-4e1b-b550-bf71e6f58d82",
+      "round": 5,
+      "late_ms": 218.89488800002255
+    },
+    {
+      "call_id": "eab5c249-94e2-4a1a-8be3-ed98fe8e30d4",
+      "round": 5,
+      "late_ms": 688.9181790000407
+    },
+    {
+      "call_id": "55d83f8d-932a-4567-a252-07f70c860ea6",
+      "round": 5,
+      "late_ms": 248.97013800000423
+    },
+    {
+      "call_id": "1a818495-08be-4a6d-8344-9644af5baf72",
+      "round": 5,
+      "late_ms": 71.93347100002256
+    },
+    {
+      "call_id": "677cd520-8cfd-4fc8-9dab-b91ebeab9ee8",
+      "round": 5,
+      "late_ms": 601.9635540000081
+    },
+    {
+      "call_id": "afdb652d-d08f-4cea-b770-df3010292004",
+      "round": 5,
+      "late_ms": 631.9860959999914
+    },
+    {
+      "call_id": "66517574-7210-4b13-b5f7-3646709fc1c2",
+      "round": 5,
+      "late_ms": 381.9966789999967
+    },
+    {
+      "call_id": "31c5878b-d914-4843-8a62-e28b3027c3f7",
+      "round": 5,
+      "late_ms": 362.0391789999644
+    },
+    {
+      "call_id": "3a31bb5f-6553-4815-a444-a3e04a6bad72",
+      "round": 5,
+      "late_ms": 384.55155399998375
+    },
+    {
+      "call_id": "da584e0e-e368-4095-95ff-3ae4ad170ba8",
+      "round": 5,
+      "late_ms": 474.70630399999436
+    },
+    {
+      "call_id": "d0200945-60c0-4f0a-b93f-408dba12ff25",
+      "round": 5,
+      "late_ms": 224.737054000002
+    },
+    {
+      "call_id": "2300560d-c7da-4097-bf85-73ab4e67b602",
+      "round": 5,
+      "late_ms": 477.05109600002515
+    },
+    {
+      "call_id": "a4b9c398-1d56-4c86-94f8-4c5bf234ab02",
+      "round": 5,
+      "late_ms": 57.08555400002524
+    },
+    {
+      "call_id": "0aa7d739-ee07-48b8-aef1-4cea20dfb48b",
+      "round": 5,
+      "late_ms": 259.22576300001765
+    },
+    {
+      "call_id": "486d5d82-f7d2-401a-a1d9-dafbe04ea841",
+      "round": 5,
+      "late_ms": 639.2634290000387
+    },
+    {
+      "call_id": "64fbe9ac-f11f-4de0-ac91-d4b2264df3a9",
+      "round": 5,
+      "late_ms": 89.3663460000198
+    },
+    {
+      "call_id": "d4ff1236-c5b8-4b80-b1eb-443d0cfd863d",
+      "round": 5,
+      "late_ms": 269.4055540000022
+    },
+    {
+      "call_id": "1b81a587-fe9f-4224-aec6-730911cda7b7",
+      "round": 5,
+      "late_ms": 929.4379289999597
+    },
+    {
+      "call_id": "98be27d8-ad8e-48a7-935d-0b1a60367ebc",
+      "round": 5,
+      "late_ms": 541.5741799999978
+    },
+    {
+      "call_id": "9b344c83-60c1-40f7-85cb-d6030a0c3636",
+      "round": 5,
+      "late_ms": 751.6196380000224
+    },
+    {
+      "call_id": "a666c0f8-f801-4325-9029-3e7eb2dc19bc",
+      "round": 5,
+      "late_ms": 251.6795550000097
+    },
+    {
+      "call_id": "57fdd9b4-a6aa-4ef4-bc02-a0027502b830",
+      "round": 5,
+      "late_ms": 151.70980499999587
+    },
+    {
+      "call_id": "565584fa-1759-492d-94ad-aa2b80fdcc5f",
+      "round": 5,
+      "late_ms": 271.73109599999634
+    },
+    {
+      "call_id": "7978f3a1-1e8d-4da0-82f2-f85f1c979678",
+      "round": 5,
+      "late_ms": 53.73513800003593
+    },
+    {
+      "call_id": "5fd99f1b-8472-488a-844c-ed15a02b9e00",
+      "round": 5,
+      "late_ms": 133.77392999996118
+    },
+    {
+      "call_id": "ac5c0d87-33a7-4b4c-948c-980a67f7a383",
+      "round": 5,
+      "late_ms": 623.8277630000084
+    },
+    {
+      "call_id": "7fed2721-6249-4347-9af5-de0669566e28",
+      "round": 5,
+      "late_ms": 183.83851300006882
+    },
+    {
+      "call_id": "1f3e4994-f7d7-489f-9ea1-46d452f93e3c",
+      "round": 5,
+      "late_ms": 33.91463799999883
+    },
+    {
+      "call_id": "f25be9c0-9f8a-4130-9b8d-653355a5a66f",
+      "round": 5,
+      "late_ms": 215.91963800000258
+    },
+    {
+      "call_id": "abde9206-6238-4361-a4cf-7cbabe689856",
+      "round": 5,
+      "late_ms": 435.93309600004204
+    },
+    {
+      "call_id": "6bf59f73-6142-4c1d-ad0e-7738bb2690ac",
+      "round": 5,
+      "late_ms": 295.9643880000158
+    },
+    {
+      "call_id": "5eb189be-9747-4dc2-9c36-3c9b599f5398",
+      "round": 5,
+      "late_ms": 88.69868000004999
+    },
+    {
+      "call_id": "c62a26ba-2d09-4a46-99f7-ba2d4e7a36db",
+      "round": 5,
+      "late_ms": 548.7696380000102
+    },
+    {
+      "call_id": "edeec1bf-ee1e-4d92-adc1-8083c9b470e5",
+      "round": 5,
+      "late_ms": 118.79151300001922
+    },
+    {
+      "call_id": "9371328d-c22b-439b-bdb9-189bf0c7abff",
+      "round": 5,
+      "late_ms": 148.80201300002227
+    },
+    {
+      "call_id": "8c2c8843-cc8f-4d60-9e10-fe47cf9d8f4e",
+      "round": 5,
+      "late_ms": 408.81276300001446
+    },
+    {
+      "call_id": "57066dc2-589c-49d5-962a-c5e6a37cc6e2",
+      "round": 5,
+      "late_ms": 288.85251300005166
+    },
+    {
+      "call_id": "02bc91a9-a2cf-4fe3-a0d7-6c7b250262bd",
+      "round": 5,
+      "late_ms": 218.8622629999486
+    },
+    {
+      "call_id": "a464ad53-f6a6-49c5-9762-4d335c1d7acd",
+      "round": 5,
+      "late_ms": 308.88163800000257
+    },
+    {
+      "call_id": "50045b80-c842-4b08-a68b-32db9d567ef4",
+      "round": 5,
+      "late_ms": 460.82122100000333
+    }
+  ],
+  "ten_second_windows": {
+    "0": {
+      "planned": 1000,
+      "emitted": 1000,
+      "completed": 540
+    },
+    "10": {
+      "planned": 1000,
+      "emitted": 973,
+      "completed": 938
+    },
+    "20": {
+      "planned": 500,
+      "emitted": 527,
+      "completed": 1022
+    }
+  },
+  "synthetic_reply_p95_ms": 5498.360834999971,
+  "synthetic_reply_p99_ms": 5854.462710000007,
+  "production_agents": [
+    {
+      "requests": 1250,
+      "production_agent_and_quota": true
+    },
+    {
+      "requests": 1250,
+      "production_agent_and_quota": true
+    }
+  ],
+  "playback_is_simulated": true,
+  "network_path": "linux-loopback-nginx",
+  "callback_ledger_storage": "explicit-local-volume",
+  "all_delivery_statuses_including_retries": {
+    "200": 7500
+  },
+  "pending_callbacks": 0,
+  "oldest_callback_age_sec": 0,
+  "durable_commit_batches": 3262,
+  "durable_operations": 15000,
+  "delivery_http_p99_ms": 28.82791700000098,
+  "generator_lag_p99_ms": 1041.6483020000555,
+  "queue_samples": [
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541133.2914345,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010310888290405273,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541134.3005571,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.004862308502197266,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541135.3048775,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010378360748291016,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541136.309911,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.015006542205810547,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541137.3143978,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.01262211799621582,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541138.322633,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00785970687866211,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541139.3288193,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 12,
+      "oldest_callback_age_sec": 0.01661372184753418,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541140.3345292,
+      "delivery_inflight": 6,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.017564773559570312,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541141.339406,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.014044761657714844,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541142.3454719,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10,
+      "oldest_callback_age_sec": 0.022197484970092773,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541143.357579,
+      "delivery_inflight": 9,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.014379262924194336,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541144.364428,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.02927255630493164,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541145.3695705,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 18,
+      "oldest_callback_age_sec": 0.004465341567993164,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541146.3777127,
+      "delivery_inflight": 0,
+      "writer_queued": 18
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10,
+      "oldest_callback_age_sec": 0.008726119995117188,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541147.3832474,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.020004987716674805,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541148.395669,
+      "delivery_inflight": 5,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11,
+      "oldest_callback_age_sec": 0.03446841239929199,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541149.404611,
+      "delivery_inflight": 6,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11,
+      "oldest_callback_age_sec": 0.08751201629638672,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541150.412668,
+      "delivery_inflight": 11,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11,
+      "oldest_callback_age_sec": 0.04774188995361328,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541151.4284847,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 4,
+      "oldest_callback_age_sec": 0.02633047103881836,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541152.437984,
+      "delivery_inflight": 4,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5,
+      "oldest_callback_age_sec": 0.07284164428710938,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541153.4444828,
+      "delivery_inflight": 5,
+      "writer_queued": 4
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7,
+      "oldest_callback_age_sec": 0.045760154724121094,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541154.4632285,
+      "delivery_inflight": 7,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 15,
+      "oldest_callback_age_sec": 0.05721712112426758,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541155.473485,
+      "delivery_inflight": 7,
+      "writer_queued": 7
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 14,
+      "oldest_callback_age_sec": 0.029114723205566406,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541156.4792898,
+      "delivery_inflight": 9,
+      "writer_queued": 9
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 24,
+      "oldest_callback_age_sec": 0.009998083114624023,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541157.4954305,
+      "delivery_inflight": 12,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541158.500874,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541159.5067823,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 15,
+      "oldest_callback_age_sec": 0.01878070831298828,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541160.5152001,
+      "delivery_inflight": 15,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541161.519265,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541162.5244267,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541163.5284271,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    }
+  ],
+  "gateway_delivery_p99_ms": 81.3223330000028,
+  "gateway_delivery_max_ms": 108.78637499996557,
+  "model_transport_retries": 0,
+  "inbox_final": {
+    "pending": 0,
+    "pending_bytes": 0,
+    "dead": 0,
+    "oldest_age_sec": 0,
+    "live_workers": 6,
+    "processed": 7500,
+    "max_completion_latency_ms": 177.05599999999998,
+    "ready": true
+  },
+  "inbox_samples": [
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 0,
+      "max_completion_latency_ms": 0.0,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.012302,
+      "live_workers": 6,
+      "processed": 99,
+      "max_completion_latency_ms": 103.181,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.008735,
+      "live_workers": 6,
+      "processed": 200,
+      "max_completion_latency_ms": 103.181,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 696,
+      "dead": 0,
+      "oldest_age_sec": 0.016878,
+      "live_workers": 6,
+      "processed": 300,
+      "max_completion_latency_ms": 103.181,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1069,
+      "dead": 0,
+      "oldest_age_sec": 0.040541,
+      "live_workers": 6,
+      "processed": 499,
+      "max_completion_latency_ms": 103.181,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.009804,
+      "live_workers": 6,
+      "processed": 752,
+      "max_completion_latency_ms": 136.435,
+      "ready": true
+    },
+    {
+      "pending": 22,
+      "pending_bytes": 8099,
+      "dead": 0,
+      "oldest_age_sec": 0.055527,
+      "live_workers": 6,
+      "processed": 993,
+      "max_completion_latency_ms": 139.96900000000002,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2208,
+      "dead": 0,
+      "oldest_age_sec": 0.007378,
+      "live_workers": 6,
+      "processed": 1281,
+      "max_completion_latency_ms": 139.96900000000002,
+      "ready": true
+    },
+    {
+      "pending": 4,
+      "pending_bytes": 1441,
+      "dead": 0,
+      "oldest_age_sec": 0.083582,
+      "live_workers": 6,
+      "processed": 1550,
+      "max_completion_latency_ms": 139.96900000000002,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3304,
+      "dead": 0,
+      "oldest_age_sec": 0.057464,
+      "live_workers": 6,
+      "processed": 1794,
+      "max_completion_latency_ms": 139.96900000000002,
+      "ready": true
+    },
+    {
+      "pending": 17,
+      "pending_bytes": 6284,
+      "dead": 0,
+      "oldest_age_sec": 0.024634,
+      "live_workers": 6,
+      "processed": 2087,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.007504,
+      "live_workers": 6,
+      "processed": 2343,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 12,
+      "pending_bytes": 4426,
+      "dead": 0,
+      "oldest_age_sec": 0.026063,
+      "live_workers": 6,
+      "processed": 2684,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.010843,
+      "live_workers": 6,
+      "processed": 2907,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2436,
+      "dead": 0,
+      "oldest_age_sec": 0.051347,
+      "live_workers": 6,
+      "processed": 3210,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3206,
+      "dead": 0,
+      "oldest_age_sec": 0.066811,
+      "live_workers": 6,
+      "processed": 3566,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 4,
+      "pending_bytes": 1488,
+      "dead": 0,
+      "oldest_age_sec": 0.021922,
+      "live_workers": 6,
+      "processed": 3801,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 20,
+      "pending_bytes": 7185,
+      "dead": 0,
+      "oldest_age_sec": 0.050512,
+      "live_workers": 6,
+      "processed": 4067,
+      "max_completion_latency_ms": 149.733,
+      "ready": true
+    },
+    {
+      "pending": 20,
+      "pending_bytes": 7454,
+      "dead": 0,
+      "oldest_age_sec": 0.053415,
+      "live_workers": 6,
+      "processed": 4324,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1864,
+      "dead": 0,
+      "oldest_age_sec": 0.034662,
+      "live_workers": 6,
+      "processed": 4590,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 47,
+      "pending_bytes": 16973,
+      "dead": 0,
+      "oldest_age_sec": 0.093379,
+      "live_workers": 6,
+      "processed": 4970,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 12,
+      "pending_bytes": 4299,
+      "dead": 0,
+      "oldest_age_sec": 0.035387,
+      "live_workers": 6,
+      "processed": 5241,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 29,
+      "pending_bytes": 10388,
+      "dead": 0,
+      "oldest_age_sec": 0.06152,
+      "live_workers": 6,
+      "processed": 5526,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 18,
+      "pending_bytes": 6681,
+      "dead": 0,
+      "oldest_age_sec": 0.023305,
+      "live_workers": 6,
+      "processed": 5863,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 6105,
+      "max_completion_latency_ms": 165.84199999999998,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1789,
+      "dead": 0,
+      "oldest_age_sec": 0.069041,
+      "live_workers": 6,
+      "processed": 6546,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1122,
+      "dead": 0,
+      "oldest_age_sec": 0.026586,
+      "live_workers": 6,
+      "processed": 6713,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    },
+    {
+      "pending": 14,
+      "pending_bytes": 5222,
+      "dead": 0,
+      "oldest_age_sec": 0.01774,
+      "live_workers": 6,
+      "processed": 6963,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 7170,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1868,
+      "dead": 0,
+      "oldest_age_sec": 0.074642,
+      "live_workers": 6,
+      "processed": 7400,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 7500,
+      "max_completion_latency_ms": 177.05599999999998,
+      "ready": true
+    }
+  ],
+  "capacity_slo_passed": true,
+  "task_states": {
+    "completed": 2500
+  },
+  "final_transcripts": 2500,
+  "successful_ai_metrics": 2500,
+  "model": {
+    "active": 0,
+    "peak": 367,
+    "total": 2500,
+    "cancelled": 0,
+    "playback_count": 2500,
+    "playback_calls": 500,
+    "notice_count": 0,
+    "model_delay_sec": 3.0,
+    "playback_delay_sec": 0.2,
+    "real_audio": false
+  },
+  "ai_transcripts": 2500,
+  "media_ingest_events": 5000,
+  "call_states": {
+    "in_ai": 500
+  },
+  "failed_metrics": 0,
+  "ai_max_attempts": 1,
+  "stage_timings": {
+    "tts.dispatch": {
+      "count": 2500,
+      "p99_ms": 225,
+      "max_ms": 299
+    },
+    "ai.turn": {
+      "count": 2500,
+      "p99_ms": 3617,
+      "max_ms": 3708
+    }
+  },
+  "reply_round_timings": {
+    "1": {
+      "count": 500,
+      "p99_ms": 4818.849085999972,
+      "max_ms": 4912.168043999998
+    },
+    "2": {
+      "count": 500,
+      "p99_ms": 5371.357003000014,
+      "max_ms": 5411.125794000043
+    },
+    "3": {
+      "count": 500,
+      "p99_ms": 6088.687169000024,
+      "max_ms": 6194.247377000011
+    },
+    "4": {
+      "count": 500,
+      "p99_ms": 5687.230627000019,
+      "max_ms": 5785.237001999974
+    },
+    "5": {
+      "count": 500,
+      "p99_ms": 5420.704210999986,
+      "max_ms": 5450.473794000004
+    }
+  },
+  "ai_work_pool_timings": [
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 255,
+        "p99": 366.4950840000074,
+        "max": 621.0344159999863
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 255,
+        "p99": 65.35716700000194,
+        "max": 86.28470799999377
+      },
+      "load_action.queue_ms": {
+        "count": 616,
+        "p99": 420.917750000001,
+        "max": 486.26874999996517
+      },
+      "load_action.execute_ms": {
+        "count": 616,
+        "p99": 6.6248749999999745,
+        "max": 13.498583000000508
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 616,
+        "p99": 578.2632069999636,
+        "max": 644.7612489999983
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 616,
+        "p99": 49.04400000003761,
+        "max": 73.65995800000746
+      },
+      "read_current.queue_ms": {
+        "count": 812,
+        "p99": 571.631707999984,
+        "max": 649.3115409999746
+      },
+      "read_current.execute_ms": {
+        "count": 812,
+        "p99": 6.92045800002461,
+        "max": 46.96008299998766
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 616,
+        "p99": 626.1530410000091,
+        "max": 657.5226250000128
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 616,
+        "p99": 25.792958000010913,
+        "max": 85.83995799995137
+      },
+      "prepare.queue_ms": {
+        "count": 616,
+        "p99": 445.4934579999872,
+        "max": 658.0847910000216
+      },
+      "prepare.execute_ms": {
+        "count": 616,
+        "p99": 17.57487599996921,
+        "max": 56.27195900001425
+      },
+      "record_speech.queue_ms": {
+        "count": 616,
+        "p99": 484.7001659999819,
+        "max": 574.9060829999735
+      },
+      "record_speech.execute_ms": {
+        "count": 616,
+        "p99": 20.914749999974447,
+        "max": 32.63104199999134
+      },
+      "finish.queue_ms": {
+        "count": 616,
+        "p99": 489.8649589999877,
+        "max": 653.7976660000027
+      },
+      "finish.execute_ms": {
+        "count": 616,
+        "p99": 40.01299999998764,
+        "max": 83.11841699998013
+      },
+      "complete.queue_ms": {
+        "count": 616,
+        "p99": 637.1986240000069,
+        "max": 663.5733749999986
+      },
+      "complete.execute_ms": {
+        "count": 616,
+        "p99": 10.168000000021493,
+        "max": 21.467500000028394
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 280,
+        "p99": 416.6033749999656,
+        "max": 546.9393330000116
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 280,
+        "p99": 76.92620799997485,
+        "max": 91.8767079999725
+      },
+      "load_action.queue_ms": {
+        "count": 640,
+        "p99": 489.26741700000775,
+        "max": 494.7541260000321
+      },
+      "load_action.execute_ms": {
+        "count": 640,
+        "p99": 6.980458999976236,
+        "max": 60.38791699995727
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 640,
+        "p99": 568.0263749999881,
+        "max": 606.6913340000042
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 640,
+        "p99": 41.40904199999795,
+        "max": 96.45025000003216
+      },
+      "read_current.queue_ms": {
+        "count": 830,
+        "p99": 529.9909160000311,
+        "max": 576.8449170000167
+      },
+      "read_current.execute_ms": {
+        "count": 830,
+        "p99": 7.03545800001848,
+        "max": 44.56383299998379
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 640,
+        "p99": 561.5639170000009,
+        "max": 576.2695419999773
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 640,
+        "p99": 22.551374999977725,
+        "max": 30.014999999991687
+      },
+      "prepare.queue_ms": {
+        "count": 640,
+        "p99": 494.91870800000015,
+        "max": 560.8803340000463
+      },
+      "prepare.execute_ms": {
+        "count": 640,
+        "p99": 15.535833000001276,
+        "max": 24.292708000018592
+      },
+      "record_speech.queue_ms": {
+        "count": 640,
+        "p99": 545.5055410000114,
+        "max": 569.8544589999983
+      },
+      "record_speech.execute_ms": {
+        "count": 640,
+        "p99": 22.88229099997352,
+        "max": 79.72708300002296
+      },
+      "finish.queue_ms": {
+        "count": 640,
+        "p99": 542.3287499999674,
+        "max": 628.5212089999845
+      },
+      "finish.execute_ms": {
+        "count": 640,
+        "p99": 35.33133299998781,
+        "max": 82.34283300004108
+      },
+      "complete.queue_ms": {
+        "count": 640,
+        "p99": 594.5121249999943,
+        "max": 624.0140419999989
+      },
+      "complete.execute_ms": {
+        "count": 640,
+        "p99": 10.998790999963148,
+        "max": 24.0624999999568
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 268,
+        "p99": 439.8147910000034,
+        "max": 546.9685000000482
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 268,
+        "p99": 58.437875000038275,
+        "max": 63.59583399995472
+      },
+      "load_action.queue_ms": {
+        "count": 608,
+        "p99": 627.9523329999961,
+        "max": 631.5322500000207
+      },
+      "load_action.execute_ms": {
+        "count": 608,
+        "p99": 7.269124999993437,
+        "max": 46.603624999988824
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 608,
+        "p99": 552.7309999999943,
+        "max": 631.0174579999739
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 608,
+        "p99": 57.15195799996309,
+        "max": 157.48591699997405
+      },
+      "read_current.queue_ms": {
+        "count": 823,
+        "p99": 557.8561259999901,
+        "max": 646.8254170000023
+      },
+      "read_current.execute_ms": {
+        "count": 823,
+        "p99": 7.361958999979379,
+        "max": 10.986542000011923
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 608,
+        "p99": 565.8920000000194,
+        "max": 651.8597500000283
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 608,
+        "p99": 21.727957999985392,
+        "max": 146.9268339999985
+      },
+      "prepare.queue_ms": {
+        "count": 608,
+        "p99": 566.7390419999947,
+        "max": 592.8412090000279
+      },
+      "prepare.execute_ms": {
+        "count": 608,
+        "p99": 18.22420799999236,
+        "max": 30.600583000023107
+      },
+      "record_speech.queue_ms": {
+        "count": 608,
+        "p99": 632.7569169999947,
+        "max": 649.4235829999866
+      },
+      "record_speech.execute_ms": {
+        "count": 608,
+        "p99": 25.088291999963985,
+        "max": 43.62708299998985
+      },
+      "finish.queue_ms": {
+        "count": 608,
+        "p99": 587.8756669999916,
+        "max": 639.9491669999975
+      },
+      "finish.execute_ms": {
+        "count": 608,
+        "p99": 40.21804199999224,
+        "max": 70.69087499999682
+      },
+      "complete.queue_ms": {
+        "count": 608,
+        "p99": 588.1239170000185,
+        "max": 639.7125000000301
+      },
+      "complete.execute_ms": {
+        "count": 608,
+        "p99": 10.389208999981747,
+        "max": 32.06887499999311
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 242,
+        "p99": 382.42687499996464,
+        "max": 426.10799999999927
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 242,
+        "p99": 85.20000100003244,
+        "max": 125.1399170000127
+      },
+      "load_action.queue_ms": {
+        "count": 636,
+        "p99": 418.4320829999706,
+        "max": 439.77012499999546
+      },
+      "load_action.execute_ms": {
+        "count": 636,
+        "p99": 6.243624999967778,
+        "max": 8.87858400000141
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 636,
+        "p99": 491.74004200000354,
+        "max": 526.4710420000256
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 636,
+        "p99": 45.91520800002513,
+        "max": 81.17179199999214
+      },
+      "read_current.queue_ms": {
+        "count": 795,
+        "p99": 475.523542000019,
+        "max": 514.3226669999876
+      },
+      "read_current.execute_ms": {
+        "count": 795,
+        "p99": 6.866459000036684,
+        "max": 20.16545800000813
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 636,
+        "p99": 486.8402509999896,
+        "max": 527.0955830000048
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 636,
+        "p99": 20.004042000039135,
+        "max": 130.77895899999703
+      },
+      "prepare.queue_ms": {
+        "count": 636,
+        "p99": 411.7379169999822,
+        "max": 493.729041999984
+      },
+      "prepare.execute_ms": {
+        "count": 636,
+        "p99": 15.312665999999808,
+        "max": 20.943499999987125
+      },
+      "record_speech.queue_ms": {
+        "count": 636,
+        "p99": 483.15541699997766,
+        "max": 505.0448339999889
+      },
+      "record_speech.execute_ms": {
+        "count": 636,
+        "p99": 23.20520799997894,
+        "max": 74.71391699999685
+      },
+      "finish.queue_ms": {
+        "count": 636,
+        "p99": 439.81925000002775,
+        "max": 475.7182920000105
+      },
+      "finish.execute_ms": {
+        "count": 636,
+        "p99": 38.724625000043034,
+        "max": 87.49470899999778
+      },
+      "complete.queue_ms": {
+        "count": 636,
+        "p99": 432.59187500001417,
+        "max": 460.03845799998544
+      },
+      "complete.execute_ms": {
+        "count": 636,
+        "p99": 11.209916999973757,
+        "max": 29.48795899999368
+      }
+    }
+  ],
+  "sender_stage_ms": {
+    "commit": {
+      "count": 3262,
+      "sum": 7692.927957998121,
+      "p50": 1.8952080000076421,
+      "p99": 9.575874999995904
+    },
+    "claim": {
+      "count": 3489,
+      "sum": 1663.634062999563,
+      "p50": 0.2892499999802567,
+      "p99": 2.542708000021321
+    }
+  },
+  "elapsed_with_drain_seconds": 30.809105472000027,
+  "real_sip_rtp_asr_tts_llm": false,
+  "correctness_passed": true,
+  "conversation_correctness_passed": true,
+  "synthetic_reply_control_budget_ms": 4200.0,
+  "conversation_control_slo_passed": false,
+  "runtime_source_unchanged_during_test": true
+}

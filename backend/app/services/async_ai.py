@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from datetime import timedelta
@@ -36,13 +36,28 @@ class WorkPool:
         self.slots=asyncio.Semaphore(size)
         self.local=threading.local()
         self.runtimes=[]
+        self.timings = defaultdict(lambda: deque(maxlen=2048))
+        self.timing_lock = threading.Lock()
+
+    def record_timing(self, name, milliseconds):
+        with self.timing_lock:
+            self.timings[name].append(milliseconds)
+
+    def timing_snapshot(self):
+        with self.timing_lock:
+            copied = {name: sorted(values) for name, values in self.timings.items()}
+        return {name: {'sample_count':len(values), 'p99_ms':values[min(len(values)-1,int(len(values)*.99))],
+                       'max_ms':values[-1]} for name,values in copied.items() if values}
 
     async def run(self, function, *args):
+        queued_at = time.monotonic()
         async with self.slots:
             context=copy_context()
             cancelled=ExecutionLease(float('inf'))
             context.run(_leases.set, (*context.get(_leases, ()), cancelled))
             def execute():
+                executing_at = time.monotonic()
+                self.record_timing(function.__name__ + '.queue', (executing_at - queued_at) * 1000)
                 if not hasattr(self.local,'runtime'):
                     self.local.runtime=WorkerRuntime()
                     self.runtimes.append(self.local.runtime)
@@ -52,7 +67,10 @@ class WorkPool:
                     assert_execution_permitted()
                     value=function(*args)
                     return await value if inspect.isawaitable(value) else value
-                return runtime.runner.run(invoke(), context=context)
+                try:
+                    return runtime.runner.run(invoke(), context=context)
+                finally:
+                    self.record_timing(function.__name__ + '.execute', (time.monotonic() - executing_at) * 1000)
             future=asyncio.get_running_loop().run_in_executor(self.executor, execute)
             try:
                 return await asyncio.shield(future)
@@ -106,6 +124,8 @@ async def process_ai_claim(task_id, claim, pool, action_pool):
     from .dispatcher import run_ai_turn_async
     token, task_type, raw, started=claim
     ttl=max(2,settings.task_lease_sec)
+    from .ai_claim_state import current_claim
+    claim_context = current_claim.set((task_id, token))
     try:
         async def renew():return await pool.run(_renew_task,task_id,token)
         async with monitored_lease(renew,ttl=ttl,initial_until=started+ttl):
@@ -123,22 +143,26 @@ async def process_ai_claim(task_id, claim, pool, action_pool):
         logger.warning('async AI task failed id=%s error_type=%s',task_id,type(exc).__name__)
         # Ownership check prevents a stale executor from overwriting recovery.
         return await pool.run(complete,task_id,token,exc)
+    finally:
+        current_claim.reset(claim_context)
 
 
 async def run_async_ai_lane(stop_event, *, concurrency):
     pool=WorkPool(settings.ai_db_threads)
-    actions=WorkPool(settings.ai_action_threads,'ai-action')
+    actions=None  # Network actions run as bounded coroutines in the AI claim lane.
     pending=set()
     last_health=0.0
     last_claim=0.0
+    last_poll=0.0
     health_path=Path(settings.ai_worker_health_path)
     resources=OrderedDict()
     resource_token=_resources.set(resources)
     try:
         from .callback_inbox import prepare_handlers
         prepare_handlers()
-        await actions.prepare_http(timeout=settings.telephony_timeout_sec,
-                                   follow_redirects=False, trust_env=False)
+        async with http_client(timeout=settings.telephony_timeout_sec,
+                               follow_redirects=False, trust_env=False):
+            pass
         async with http_client(max_connections=max(100,settings.task_ai_concurrency),
                 timeout=settings.ai_callback_timeout_sec,follow_redirects=False,trust_env=False):
             pass
@@ -149,29 +173,37 @@ async def run_async_ai_lane(stop_event, *, concurrency):
                 try:job.result()
                 except Exception:logger.exception('async AI claim failed')
             available=concurrency-len(pending)
-            if available:
+            poll_interval = max(.01, settings.task_poll_interval_sec)
+            if available and time.monotonic() - last_poll >= poll_interval:
                 try:
                     claims=await pool.run(claim_ready_tasks,('ai_turn',),available)
                     last_claim=time.monotonic()
                     for task_id,claim in claims:
                         pending.add(asyncio.create_task(process_ai_claim(task_id,claim,pool,actions)))
                 except Exception:logger.exception('async AI claim poll failed')
+                finally:
+                    # Completions can arrive one at a time under load. Coalesce
+                    # free slots rather than issuing a claim transaction for
+                    # every completion (including repeatedly empty polls).
+                    last_poll=time.monotonic()
             now=time.monotonic()
             if now-last_health>=5 and (not available or now-last_claim<15):
                 data={'updated_at':time.time(),'inflight':len(pending),'limit':concurrency,
-                      'db_threads':len(pool.runtimes),'action_threads':len(actions.runtimes)}
+                      'db_threads':len(pool.runtimes),'action_threads':0,
+                      'stage_timings':pool.timing_snapshot()}
                 temporary=health_path.with_suffix('.tmp')
                 temporary.write_text(json.dumps(data));temporary.replace(health_path)
                 last_health=now
+            poll_wait = max(.001, poll_interval - (time.monotonic() - last_poll)) if available else poll_interval
             if pending:
-                await asyncio.wait(pending,timeout=max(.01,settings.task_poll_interval_sec),
+                await asyncio.wait(pending,timeout=poll_wait,
                                    return_when=asyncio.FIRST_COMPLETED)
             else:
-                try:await asyncio.wait_for(stop_event.wait(),max(.01,settings.task_poll_interval_sec))
+                try:await asyncio.wait_for(stop_event.wait(),poll_wait)
                 except asyncio.TimeoutError:pass
     finally:
         await asyncio.gather(*pending,return_exceptions=True)
         for resource in resources.values():await resource.aclose()
         _resources.reset(resource_token)
-        await actions.close();await pool.close()
+        await pool.close()
         health_path.unlink(missing_ok=True)

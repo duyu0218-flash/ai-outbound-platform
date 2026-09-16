@@ -1,0 +1,118 @@
+{
+  "recorded_at": "2026-09-16T06:39:42.047079+00:00",
+  "git_base": "e88d9fb0f3fcda0b77270943b1590bbc90100b67",
+  "source_sha256": {
+    "backend/app/callback_inbox_worker.py": "b4777326f99e26fe69af7703222395643390a7d9cd76508f73889187fa5f7e38",
+    "backend/app/services/ai_actions.py": "97b786333b8ed99e555d67b532b8a3091ea422100e363e7602aa51d756842478",
+    "backend/app/services/ai_claim_state.py": "5242bc8c609f203f1e328e160a69d053e93f95c2ee7321ddc55157e09d54f81b",
+    "backend/app/services/ai_liveness.py": "c082cfc0d9fb835ea60aa1d35444e7baef079417774588242c07bdc5a0f34a13",
+    "backend/app/services/async_ai.py": "6f70157b1c279dbf06ee45eb71ca6d8cc9db53be57d9a1c7d24c2795bef7ec28",
+    "backend/app/services/callback_inbox.py": "4f25a6d772669a491071c9858b1480970225650299d21ec3790e1476e3219d9f",
+    "backend/app/services/dispatcher.py": "536336af1e0831a287d492a05c8b9a261643bb406df15ac6628be8d4daf2dcf3",
+    "backend/app/services/telephony.py": "5997a5ca699556444c61113a73e847ce709e75d44a8d80960edaebd6dcc42701",
+    "backend/tests/test_async_ai.py": "8f8668c8af97bee98e3bd342202f314ca16a768a49a39a3d206ea748d70b9a10",
+    "deploy/single-host-500/README.md": "5e1f8261930928bb174453375f862a0c89dc2d93499ef14ec06bd05b873bd5e1",
+    "deploy/single-host-500/host.env.example": "95d7a5701e174f58dbb91cbb2d746ed13a03d25b83f4939418f04fdc7ff9c117",
+    "docker-compose.single-host-500.yml": "44911a3abf74a59d03764dccfea30d6017d3258a11c265794b32ef9f11af6da8",
+    "docs/reviews/20260916-six-updates-delivery.md": "11ab8030d7c6c5b8a32748b7f9d5f695c5adddfd8a05f15a6c02809e555e7ced",
+    "recording_adapter/app/config.py": "13f964109ff0729d94da4309c0de5a9d9dfa8580ef9b5598d8f99a6534f3b947",
+    "recording_adapter/app/storage.py": "3d5f67868ea86e888cc974a59122ff5199b4deedd544f85373b8c11f36c9d67d",
+    "recording_adapter/tests/test_storage.py": "71e3019aa77693de7b7dc7db2e23ee8c696587134f2928bfe7b92cf29cf4c2b8",
+    "scripts/check-single-host-500.py": "dc0f882d1f7abafcf2e3c1c7903867b26b8756da2cacd177a280834110c43cd0",
+    "scripts/load-single-host-dialogue.py": "cd36bcaaaeaff208777a87423020f5fba9497454556294d100f18755350f287c",
+    "scripts/run-single-host-soak.py": "1bb4459eb56a9774bac9500d7b623690a2b29a6b29c099d66cf709c7ed14073f",
+    "scripts/test_single_host_profile.py": "983e9ea7f42ea5f6b925d2d5aa27a14e88e25a3e9972f93f1e8a2b0d377a803f",
+    "scripts/test_single_host_soak.py": "ecfe27f86a85322c8fef07f052cb65e6a49f9e507596dd8da25640818a362cdb",
+    "voice_gateway/app/action_commands.py": "3b525347a10a19151613637f12883daecb1dea65df97a4e80f19d01e394a478b",
+    "voice_gateway/app/config.py": "f56223fe5276399455ab1eb68a1368468f2ba537965802eb0c5f637731dec694",
+    "voice_gateway/app/freeswitch.py": "a564da1b9f003ec1cda492a622f90179ea333073c887ac772bcd7963d151946e",
+    "voice_gateway/app/main.py": "d09543a62c2a0dab7240682cea879611375ddc3c31c7e47e2ddc07dd884ed45c",
+    "voice_gateway/app/media_cluster.py": "efa4a76e735252abcd744c5b79bed4bd89ccfd4aa9496c51a687bc5a0eca49f7",
+    "voice_gateway/app/media_worker.py": "f24809b58a24f474606a04bb69536a6ff36669fb0d1b1f57a1d0e9973c61de99",
+    "voice_gateway/app/models.py": "5a264df07a1d4bca6d2cc1ca2ae0c01a1eedf52234d5d7fa3c841e2efb21afd5",
+    "voice_gateway/app/pipecat_pipeline.py": "c196a73b81f6df565abf6531140147e655a194b4c6eef4d99304618aaa29e0c0",
+    "voice_gateway/app/recording_source.py": "0f2fa648a5b18eab172c81c7e0ebdd194238355f422fd69c6521a22d60034d78",
+    "voice_gateway/app/security.py": "556c3a06fb6a0aaae6c8379d037042d2811726a4a9a48077c0b012511a284006",
+    "voice_gateway/app/voice_quota.py": "2cbef4951a29dfb2cf22f6229802afec465f69052b4dccb79a257812db18fa16",
+    "voice_gateway/app/voice_quota_client.py": "166c7d0dce3d1bd3e9f55a6e1f26c3113c3f0b00eefde1c7f1f05d610d0868b7",
+    "voice_gateway/tests/test_source_reclamation.py": "997beb968440c49eb2360d9bb6edb0906a2306d6d40f2c9242061fc0e8fd3c4a",
+    "voice_gateway/tests/test_voice_quota.py": "b45cbad9d66f498bae6c4bf39f52de70eca8c44902c458f1db585859e1b934a1",
+    "voice_gateway/tests/test_security.py": "1d0a0f7a1cc66df4b869f45d226b837812f6d57a03e89b7eab5ea94d737336c4"
+  },
+  "source_modified": true,
+  "static_checks": [
+    "Python compilation passed",
+    "git diff --check passed",
+    "Compose rendering and profile constraints passed"
+  ],
+  "tests": [
+    {
+      "suite": "backend",
+      "passed": 293,
+      "skipped": 14,
+      "log": "artifacts/single-host-500/20260916-six-updates/backend.log",
+      "sha256": "98b0f345bffcff2629eaf193a912c29bba42bb254f138352b981bef0bc995fa1"
+    },
+    {
+      "suite": "voice_gateway",
+      "passed": 250,
+      "skipped": 0,
+      "log": "artifacts/single-host-500/20260916-six-updates/voice_gateway.log",
+      "sha256": "49ebed93c5e721f1a0e55fc627e585c51385fb3debad91a83d28fa0569aba4a0"
+    },
+    {
+      "suite": "recording_adapter",
+      "passed": 14,
+      "skipped": 0,
+      "log": "artifacts/single-host-500/20260916-six-updates/recording_adapter.log",
+      "sha256": "3bc77bd119f497cbba110f0a4ba5029317084e2f74baf8cca7b8fe7fc669ec58"
+    },
+    {
+      "suite": "tooling",
+      "passed": 22,
+      "skipped": 0,
+      "log": "artifacts/single-host-500/20260916-six-updates/tooling.log",
+      "sha256": "bbdb34de1cbf5a3262edb5fc831b898703ba3a7e822983a380bcacb8ad9b866b"
+    },
+    {
+      "suite": "browser",
+      "passed": 19,
+      "skipped": 0,
+      "log": "artifacts/single-host-500/20260916-six-updates/browser.log",
+      "sha256": "eb3b60318fe80e72dd5d41e4880334d20b1772eefa9fe6bb8b3a87a9cd9660cc"
+    }
+  ],
+  "total_passed": 598,
+  "total_skipped": 14,
+  "test_environment_deployed": false,
+  "production_deployed": false,
+  "git_committed": false,
+  "git_pushed": false,
+  "ci_triggered": false,
+  "real_500_capacity_verified": false,
+  "real_sip_rtp_cloud_voice_verified": false,
+  "missing": [
+    "PostgreSQL and Redis integration (14 skips)",
+    "Linux full topology",
+    "50/80/100/125 turn-rate and 600/1200 callback load",
+    "500 real media sessions",
+    "customer first audio and interruption",
+    "8h/24h soak",
+    "real provider quota/release semantics",
+    "production recording permissions and storage recovery"
+  ],
+  "environment_limits": [
+    "macOS workstation",
+    "Docker daemon unreachable",
+    "no approved real-line/cloud load target configured"
+  ],
+  "browser": {
+    "passed": 19,
+    "skipped": 0,
+    "telephony": "mock",
+    "model": "rule",
+    "database": "isolated temporary SQLite",
+    "services_stopped": true
+  },
+  "delivery": "docs/reviews/20260916-six-updates-delivery.md"
+}

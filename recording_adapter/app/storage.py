@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 import re
 import shutil
@@ -193,6 +194,14 @@ class RecordingObjectStorage:
     def _ingest(self, request: RecordingIngestRequest, stem: Path) -> dict[str, object]:
         source_url = str(request.provider_url)
         self._validate_source_url(source_url)
+        verified_path = Path(str(stem) + '.uploaded.json')
+        if self.settings.recording_source_cleanup_origin and verified_path.exists():
+            saved = json.loads(verified_path.read_text())
+            if saved['source'] != source_url.split('?', 1)[0]:
+                raise RecordingSourceRejected('uploaded asset source identity changed')
+            result = saved['result']
+            self._verify_and_reclaim(source_url, result)
+            return result
         checksum = hashlib.sha256()
         size = 0
         content_type = "application/octet-stream"
@@ -256,11 +265,50 @@ class RecordingObjectStorage:
                 raise RecordingDownloadError(f"recording download failed: {exc}") from exc
             except (BotoCoreError, ClientError, S3UploadFailedError) as exc:
                 raise RecordingStorageError(f"recording upload failed: {exc}") from exc
-        return {
+        result = {
             "storage_uri": f"s3://{self.settings.s3_bucket}/{key}",
             "checksum_sha256": checksum.hexdigest(),
             "size_bytes": size,
         }
+        if self.settings.recording_source_cleanup_origin:
+            self._persist(verified_path, json.dumps({'source': source_url.split('?', 1)[0], 'result': result}))
+            self._verify_and_reclaim(source_url, result)
+        return result
+
+    def _verify_and_reclaim(self, source_url, result):
+        origin = self.settings.recording_source_cleanup_origin.rstrip('/')
+        source = urlparse(source_url)
+        expected = urlparse(origin)
+        if ((source.scheme, source.netloc) != (expected.scheme, expected.netloc)
+                or expected.path not in ('', '/')
+                or not source.path.startswith('/v1/recordings/')
+                or not re.fullmatch(r'[A-Za-z0-9_-][A-Za-z0-9_.-]{0,240}\.wav', source.path.rsplit('/', 1)[-1])):
+            raise RecordingSourceRejected('source is outside the configured cleanup owner')
+        token = self.settings.recording_source_cleanup_token
+        if len(token) < 32:
+            raise RecordingStorageError('independent cleanup credential is required')
+        key = urlparse(result['storage_uri']).path.lstrip('/')
+        body = self.s3.get_object(Bucket=self.settings.s3_bucket, Key=key)['Body']
+        digest, size = hashlib.sha256(), 0
+        try:
+            while chunk := body.read(64 * 1024):
+                digest.update(chunk)
+                size += len(chunk)
+                if size > result['size_bytes']:
+                    raise RecordingStorageError('remote recording size differs')
+        finally:
+            body.close()
+        if size != result['size_bytes'] or digest.hexdigest() != result['checksum_sha256']:
+            raise RecordingStorageError('remote recording checksum differs; source retained')
+        filename = source.path.rsplit('/', 1)[-1]
+        with httpx.Client(timeout=max(1, self.settings.recording_download_timeout_sec),
+                follow_redirects=False, transport=self._http_transport) as client:
+            response = client.post(origin + '/v1/recording-cleanup/' + filename,
+                headers={'Authorization': 'Bearer ' + token},
+                json={k: result[k] for k in ('checksum_sha256', 'size_bytes')})
+            response.raise_for_status()
+            if response.json().get('deleted') is not True:
+                raise RecordingStorageError('source cleanup was not confirmed')
 
     def delete(self, request: RecordingDeleteRequest) -> bool:
         with self._asset_operation(request) as stem:
