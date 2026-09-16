@@ -6,11 +6,11 @@ import logging
 import threading
 import time
 from pathlib import Path
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict, defaultdict, deque, Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from datetime import timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from ..clock import utc_now
 from ..config import get_settings
@@ -18,6 +18,8 @@ from ..db import session_scope
 from ..models import TaskState
 from .leases import monitored_lease, assert_execution_permitted, ExecutionLease, _leases
 from .worker_runtime import WorkerRuntime, _resources, http_client
+from .work_scheduling import WorkGate, work_priority, Histogram
+from . import db_work_observation
 from .task_queue import claim_ready_tasks, _renew_task, _owned_task, _record_dead_task
 
 logger = logging.getLogger(__name__)
@@ -30,10 +32,13 @@ class WorkPool:
     Threads own their ORM session and event loop. Shared execution lease objects
     let loss/cancellation prohibit subsequent external actions in that thread.
     """
-    def __init__(self, size, name='ai-db'):
+    def __init__(self, size, name='ai-db', queue_limit=512):
         self.size=size
         self.executor=ThreadPoolExecutor(max_workers=size, thread_name_prefix=name)
-        self.slots=asyncio.Semaphore(size)
+        self.gate=WorkGate(size, queue_limit)
+        self.histograms=defaultdict(Histogram)
+        self.db_counts=defaultdict(Counter)
+        self.queue_samples=deque(maxlen=2048)
         self.local=threading.local()
         self.runtimes=[]
         self.timings = defaultdict(lambda: deque(maxlen=2048))
@@ -42,6 +47,9 @@ class WorkPool:
     def record_timing(self, name, milliseconds):
         with self.timing_lock:
             self.timings[name].append(milliseconds)
+            self.histograms[name].observe(milliseconds)
+            if name.endswith('.queue'):
+                self.queue_samples.append((time.monotonic(), milliseconds))
 
     def timing_snapshot(self):
         with self.timing_lock:
@@ -49,13 +57,24 @@ class WorkPool:
         return {name: {'sample_count':len(values), 'p99_ms':values[min(len(values)-1,int(len(values)*.99))],
                        'max_ms':values[-1]} for name,values in copied.items() if values}
 
+    def pressure_snapshot(self):
+        with self.timing_lock:
+            values=sorted(value for at,value in self.queue_samples if time.monotonic()-at <= 10)
+            histograms={name:h.snapshot() for name,h in self.histograms.items()}
+            db_counts={name:dict(counts) for name,counts in self.db_counts.items()}
+        return {**self.gate.snapshot(), 'queue_p95_ms': values[min(len(values)-1,int(len(values)*.95))] if values else 0,
+                'histograms':histograms, 'db_counts':db_counts}
+
     async def run(self, function, *args):
         queued_at = time.monotonic()
-        async with self.slots:
+        await self.gate.acquire(work_priority(function.__name__))
+        try:
             context=copy_context()
             cancelled=ExecutionLease(float('inf'))
             context.run(_leases.set, (*context.get(_leases, ()), cancelled))
             def execute():
+                observation=dict(sql_ms=0.,sql_count=0,flush_commit_ms=0.,commit_count=0,rollback_count=0)
+                context.run(db_work_observation.current.set, observation)
                 executing_at = time.monotonic()
                 self.record_timing(function.__name__ + '.queue', (executing_at - queued_at) * 1000)
                 if not hasattr(self.local,'runtime'):
@@ -71,6 +90,14 @@ class WorkPool:
                     return runtime.runner.run(invoke(), context=context)
                 finally:
                     self.record_timing(function.__name__ + '.execute', (time.monotonic() - executing_at) * 1000)
+                    for stage in ('sql_ms','flush_commit_ms'):
+                        self.record_timing(function.__name__ + '.' + stage, observation[stage])
+                    with self.timing_lock:
+                        self.db_counts[function.__name__].update({k:v for k,v in observation.items() if k.endswith('_count')})
+                    from .ai_claim_state import current_claim
+                    claim=context.get(current_claim)
+                    logger.debug('db work task=%s operation=%s observations=%s',
+                        claim[0] if claim else None, function.__name__, observation)
             future=asyncio.get_running_loop().run_in_executor(self.executor, execute)
             try:
                 return await asyncio.shield(future)
@@ -84,6 +111,8 @@ class WorkPool:
                     except Exception:break
                 if future.done() and not future.cancelled():future.exception()
                 raise
+        finally:
+            self.gate.release()
 
     async def close(self):
         self.executor.shutdown(wait=True)
@@ -148,9 +177,10 @@ async def process_ai_claim(task_id, claim, pool, action_pool):
 
 
 async def run_async_ai_lane(stop_event, *, concurrency):
-    pool=WorkPool(settings.ai_db_threads)
+    pool=WorkPool(settings.ai_db_threads, queue_limit=concurrency*3+16)
     actions=None  # Network actions run as bounded coroutines in the AI claim lane.
     pending=set()
+    worker_identity=uuid4().hex
     last_health=0.0
     last_claim=0.0
     last_poll=0.0
@@ -174,7 +204,7 @@ async def run_async_ai_lane(stop_event, *, concurrency):
                 except Exception:logger.exception('async AI claim failed')
             available=concurrency-len(pending)
             poll_interval = max(.01, settings.task_poll_interval_sec)
-            if available and time.monotonic() - last_poll >= poll_interval:
+            if available and pool.gate.snapshot()['queued'] < max(2, settings.ai_db_threads*2) and time.monotonic() - last_poll >= poll_interval:
                 try:
                     claims=await pool.run(claim_ready_tasks,('ai_turn',),available)
                     last_claim=time.monotonic()
@@ -190,11 +220,16 @@ async def run_async_ai_lane(stop_event, *, concurrency):
             if now-last_health>=5 and (not available or now-last_claim<15):
                 data={'updated_at':time.time(),'inflight':len(pending),'limit':concurrency,
                       'db_threads':len(pool.runtimes),'action_threads':0,
-                      'stage_timings':pool.timing_snapshot()}
+                      'stage_timings':pool.timing_snapshot(), 'db_work':pool.pressure_snapshot()}
+                from .stability import publish
+                await asyncio.to_thread(publish, 'ai', worker_identity,
+                    {k:data['db_work'][k] for k in ('queue_p95_ms', 'oldest_wait_ms')})
                 temporary=health_path.with_suffix('.tmp')
                 temporary.write_text(json.dumps(data));temporary.replace(health_path)
                 last_health=now
             poll_wait = max(.001, poll_interval - (time.monotonic() - last_poll)) if available else poll_interval
+            if pool.gate.snapshot()['queued'] >= max(2, settings.ai_db_threads*2):
+                poll_wait = poll_interval
             if pending:
                 await asyncio.wait(pending,timeout=poll_wait,
                                    return_when=asyncio.FIRST_COMPLETED)

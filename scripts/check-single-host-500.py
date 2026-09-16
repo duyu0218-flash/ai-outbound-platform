@@ -63,6 +63,10 @@ def assess(config):
             errors.append('all backend roles must enable durable callback reception')
         if int(row['environment'].get('CALLBACK_INBOX_MIN_WORKERS', 1)) != len(callbacks):
             errors.append('backend readiness must require every configured callback worker')
+    for row in api + ai + [services['task-worker']]:
+        if (str(row['environment'].get('STABILITY_ADMISSION_ENABLED', '')).lower() != 'true'
+                or int(row['environment'].get('STABILITY_MIN_AI_WORKERS', 0)) != len(ai)):
+            errors.append('all dial/AI roles must enable stability admission with complete AI worker coverage')
     if (str(gateway.get('VOICE_CALLBACK_BATCH_ENABLED', '')).lower() != 'true'
             or not 1 <= int(gateway.get('VOICE_CALLBACK_BATCH_SIZE', 0)) <= 16
             or not 0 <= float(gateway.get('VOICE_CALLBACK_BATCH_DELAY_MS', -1)) <= 5):
