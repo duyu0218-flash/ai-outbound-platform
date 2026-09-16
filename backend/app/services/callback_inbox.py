@@ -35,6 +35,7 @@ _transaction_timings = {}
 _batch_limits = {}
 _batch_streaks = {}
 _attempt_outcomes = Counter()
+_receipt_traces = deque(maxlen=512)
 _attempt_histograms = defaultdict(Histogram)
 _transaction_samples = defaultdict(lambda: deque(maxlen=2048))
 logger = logging.getLogger(__name__)
@@ -246,6 +247,7 @@ def consume_partition(partition_id, worker_id=None):
     started = time.monotonic()
     timings = {}
     outcome = 'error'
+    receipt_traces = []
     try:
         if not _lock_partition(session, partition_id):
             outcome = 'partition_busy'
@@ -303,6 +305,7 @@ def consume_partition(partition_id, worker_id=None):
         for receipt in receipts:
             failed_id = receipt.id
             session.begin_event()
+            work_started = utc_now()
             apply_receipt(session, receipt)
             now = utc_now()
             receipt.state, receipt.completed_at = 'done', now
@@ -310,6 +313,13 @@ def consume_partition(partition_id, worker_id=None):
             receipt.body_json = ''  # Retain only the replay digest after consumption.
             max_latency = max(max_latency, (now - receipt.received_at).total_seconds() * 1000)
             released_bytes += receipt.body_bytes
+            every = settings.stability_trace_sample_every
+            if every and int.from_bytes(hashlib.sha256(str(receipt.call_id).encode()).digest()[:4], 'big') % every == 0:
+                receipt_traces.append(dict(receipt_id=receipt.id, call_id=str(receipt.call_id),
+                    partition_id=partition_id, received_at_utc=receipt.received_at.isoformat(),
+                    work_started_at_utc=work_started.isoformat(),
+                    receive_to_work_ms=(work_started-receipt.received_at).total_seconds()*1000,
+                    business_ms=(now-work_started).total_seconds()*1000))
             session.add(receipt)
             session.end_event()  # A later duplicate rollback cannot erase earlier receipts.
             processed += 1
@@ -350,6 +360,11 @@ def consume_partition(partition_id, worker_id=None):
             streak = 0
         _batch_streaks[partition_id] = streak
         outcome = 'committed'
+        for trace in receipt_traces:
+            trace.update(committed_at_utc=utc_now().isoformat(), batch_total_ms=timings['total_ms'],
+                         batch_commit_ms=timings['commit_ms'], batch_select_ms=timings['select_ms'],
+                         batch_call_lock_ms=timings['call_lock_ms'])
+            _receipt_traces.append(trace)
         logger.info("callback transaction partition=%s timings=%s", partition_id, timings)
         if worker_id:
             # Include outer commit and its fsync/lock wait in observed latency.
@@ -477,4 +492,4 @@ def transaction_timing_snapshot():
             result[name] = dict(sample_count=len(values), p99_ms=values[min(len(values)-1,int(len(values)*.99))], max_ms=values[-1])
     return dict(attempt_outcomes=dict(_attempt_outcomes),
                 attempt_histograms={k:v.snapshot() for k,v in _attempt_histograms.items()}, rolling_stages=result, last_partition_transactions=dict(_transaction_timings),
-                next_partition_batch_limits=dict(_batch_limits))
+                next_partition_batch_limits=dict(_batch_limits), recent_receipt_traces=list(_receipt_traces))

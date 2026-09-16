@@ -12,6 +12,7 @@ QUERIES = {
     'wal': 'SELECT * FROM pg_stat_wal',
     'checkpoints': 'SELECT * FROM pg_stat_bgwriter',
     'io': 'SELECT * FROM pg_stat_io',
+    'blocking': 'SELECT count(*) AS blocked_sessions FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) > 0',
     'database': 'SELECT numbackends, xact_commit, xact_rollback, deadlocks, temp_bytes, blk_read_time, blk_write_time FROM pg_stat_database WHERE datname=current_database()',
 }
 
@@ -37,7 +38,7 @@ def main():
                         sample[name] = db.execute(sql).fetchall()
             except Exception as exc:
                 sample['error_type'] = type(exc).__name__  # Do not print credentials/SQL error details.
-            for name in ('cpu.stat', 'memory.current', 'memory.events', 'io.stat'):
+            for name in ('cpu.stat', 'cpu.max', 'cpuset.cpus.effective', 'memory.current', 'memory.max', 'memory.events', 'io.stat'):
                 path = Path('/sys/fs/cgroup')/name
                 if path.is_file():sample[name] = path.read_text()[:16384]
             output.write(json.dumps(sample, default=str)+'\n');output.flush()

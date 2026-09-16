@@ -35,7 +35,7 @@ DEST=OUT/LABEL;DEST.mkdir(parents=True,exist_ok=True)
 SOURCE_HASHES={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'backend/app/db.py', ROOT/'backend/app/models.py', ROOT/'backend/app/services/callback_inbox.py', ROOT/'backend/app/callback_inbox_worker.py', ROOT/'backend/app/services/realtime_voice.py', ROOT/'backend/app/services/dispatcher.py', ROOT/'voice_gateway/app/security.py', ROOT/'voice_gateway/app/durable_batch.py', ROOT/'scripts/load-single-host-dialogue.py')}
 for service in ('backend','voice_gateway','agent','recording_adapter'):
     p=ROOT/service/'pyproject.toml';SOURCE_HASHES[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
-for name in ('scripts/load_statistics.py','backend/app/schemas.py','backend/app/api/routers/webhooks.py','backend/app/main.py','backend/app/config.py','voice_gateway/app/config.py',
+for name in ('scripts/stability-db-snapshot.py','scripts/load_statistics.py','backend/app/schemas.py','backend/app/api/routers/webhooks.py','backend/app/main.py','backend/app/config.py','voice_gateway/app/config.py',
              'backend/app/services/telephony.py','backend/app/services/async_ai.py','backend/app/services/worker_runtime.py',
              'backend/app/ai_worker.py',
              'scripts/fixtures/single500_instrumented_ai.py',
@@ -59,7 +59,7 @@ env=dict(os.environ,ENV='test',DATABASE_URL=DSN,DATABASE_URL_API=DSN,DATABASE_UR
  TELEPHONY_WEBHOOK_TOKEN='node200-synthetic-token',TELEPHONY_WEBHOOK_SECRET='node200-synthetic-secret',
  AI_AGENT_URL='http://127.0.0.1:18941',AI_CALLBACK_TIMEOUT_SEC='30',TASK_TIMEOUT_SEC='60',
  TASK_LEASE_SEC='30',AI_TURN_LOCK_TTL_SEC='30',SCHEDULER_ENABLED='false',TASK_INLINE_EXECUTION_ENABLED='false',
- STABILITY_ADMISSION_ENABLED='false',DEMO_USERS_ENABLED='true',TRUSTED_HOSTS='*',RATE_LIMIT_ENABLED='false',CALLBACK_INBOX_ENABLED='true',DATABASE_POOL_SIZE='5',DATABASE_MAX_OVERFLOW='0',
+ STABILITY_ADMISSION_ENABLED='false',STABILITY_TRACE_SAMPLE_EVERY='16',DEMO_USERS_ENABLED='true',TRUSTED_HOSTS='*',RATE_LIMIT_ENABLED='false',CALLBACK_INBOX_ENABLED='true',DATABASE_POOL_SIZE='5',DATABASE_MAX_OVERFLOW='0',
  REQUEST_ADMISSION_TOTAL_INFLIGHT='5',REQUEST_ADMISSION_WEBHOOK_INFLIGHT='4',REQUEST_ADMISSION_DEFAULT_INFLIGHT='1',
  REQUEST_ADMISSION_MAX_WAITERS='8',REQUEST_ADMISSION_TIMEOUT_SEC='.05',LOG_LEVEL='WARNING',CALLBACK_INBOX_MIN_WORKERS='6',
  PYTHONPATH=str(ROOT/'backend')+':'+str(ROOT/'scripts/fixtures'),LOAD_ARTIFACT_DIR=str(DEST),TASK_POLL_INTERVAL_SEC='.05')
@@ -95,6 +95,11 @@ def launch(args,extra={},role='support',cwd=None):
     p=subprocess.Popen(args,cwd=cwd or ROOT/'backend',env=dict(env,**extra),stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     log.attach(p.stdout);processes.append(p);roles[role].append(p);return p
 async def main():
+    # Same read-only observer in every comparison arm; no customer SQL/text.
+    launch([sys.executable, str(ROOT/'scripts/stability-db-snapshot.py'),
+            '--output', str(DEST/'db-host.jsonl'), '--seconds',
+            str(min(86400, int(max(SECONDS, DURATION, ROUNDS*TURN_GAP+500/RATE)+180))), '--interval', '2'],
+           extra={'STABILITY_PG_DSN':env['DATABASE_URL'].replace('postgresql+psycopg://','postgresql://')})
     for port in (18910,18911,18912,18913,18914,18915):launch([sys.executable,'-m','uvicorn','single500_instrumented_api:app','--host','127.0.0.1','--port',str(port),'--no-access-log'],role='api')
     model_port=18942 if SCENARIO=='conversation' else 18941
     launch([sys.executable,'-m','uvicorn','single500_cloud_and_playback:app' if SCENARIO=='conversation' else 'single500_model_fixture:app','--host','127.0.0.1','--port',str(model_port),'--no-access-log'])

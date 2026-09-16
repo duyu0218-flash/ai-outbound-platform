@@ -51,20 +51,39 @@ _expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
 _expected_speech_event = ContextVar("expected_speech_event", default=None)
 
 
-def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
-    from .leases import assert_execution_permitted
-    assert_execution_permitted()
-    session.refresh(call, with_for_update=True if lock else None)
+def _ai_state_matches(session, call, attempt):
     if call.attempts != attempt or call.status not in AI_ACTIVE_STATUSES:
         return False
     sequence = _expected_turn_sequence.get()
     if sequence is not None:
-        realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
-        if realtime is not None:
-            session.refresh(realtime)
-            if realtime.turn_sequence != sequence:
-                return False
+        # Refresh identity-map state in the SELECT itself; a second refresh
+        # repeats the same read without adding a state or lock guarantee.
+        realtime = session.exec(select(RealtimeSession).where(
+            RealtimeSession.call_session_id == call.id
+        ).execution_options(populate_existing=True)).first()
+        if realtime is not None and realtime.turn_sequence != sequence:
+            return False
     return True
+
+
+def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    session.refresh(call, with_for_update=True if lock else None)
+    return _ai_state_matches(session, call, attempt)
+
+
+def _load_current_ai_call(session, call_id, attempt, *, lock=False):
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    query = select(CallSession).where(CallSession.id == call_id).execution_options(populate_existing=True)
+    if lock:
+        query = query.with_for_update()
+    with session.no_autoflush:
+        call = session.exec(query).first()
+    if call is None or not _ai_state_matches(session, call, call.attempts if attempt is None else attempt):
+        return None
+    return call
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -281,11 +300,8 @@ async def run_ai_turn(
 
 async def _prepare_ai_turn(call_id, transcript, expected_attempt):
     with session_scope() as session:
-        call = session.get(CallSession, call_id)
+        call = _load_current_ai_call(session, call_id, expected_attempt)
         if call is None:
-            return None
-        expected_attempt = call.attempts if expected_attempt is None else expected_attempt
-        if not _ai_call_is_current(session, call, expected_attempt):
             return None
         expected_attempt = call.attempts
         await append_event(session=session, call_id=call.id, event_type="ai_start",
@@ -295,8 +311,7 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
         campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
         language = str(ai_config.get("language") or "zh-CN")
         from .conversation_policy import prepare_turn, state_for
-        session.refresh(call, with_for_update=True)
-        if not _ai_call_is_current(session, call, expected_attempt):
+        if not _ai_call_is_current(session, call, expected_attempt, lock=True):
             return None
         original_flow_node = call.flow_node_key
         result = prepare_turn(session, call, transcript)
@@ -363,11 +378,9 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
 
 async def _finish_ai_turn(snapshot, result, prepare_only=False):
     with session_scope() as session:
-        call = session.get(CallSession, snapshot['call_id'])
         # Match webhook lock order: call -> conversation/realtime -> child rows.
-        # Locking conversation first can deadlock when metric FK checks wait on
-        # a callback's call lock while that callback waits on conversation state.
-        if call is None or not _ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = _load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return
         call.flow_node_key = snapshot['flow_node_key']
         from .conversation_policy import state_for,save_state
