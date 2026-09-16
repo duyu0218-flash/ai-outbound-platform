@@ -32,6 +32,11 @@ for name in ('backend/app/schemas.py','backend/app/api/routers/webhooks.py','bac
              'scripts/fixtures/single500_instrumented_ai.py',
              'agent/app/main.py','agent/app/llm.py','agent/app/quota.py','scripts/fixtures/single500_cloud_and_playback.py','scripts/fixtures/single500_real_agent.py'):
     SOURCE_HASHES[name]=hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
+for folder in ('backend/app','voice_gateway/app','agent/app','recording_adapter/app','scripts/fixtures'):
+    for p in sorted((ROOT/folder).rglob('*.py')):
+        SOURCE_HASHES[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
+for p in sorted(ROOT.glob('docker-compose*.yml')):
+    SOURCE_HASHES[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
 RUNTIME_DEPENDENCIES={}
 for name in ('fastapi','anyio','httpx','httpcore','sniffio','uvloop','sqlmodel','psycopg'):
     try:RUNTIME_DEPENDENCIES[name]=importlib.metadata.version(name)
@@ -182,11 +187,20 @@ async def main():
         start=time.monotonic()
         reply_latencies=[];reply_events={};dialogue_errors=[];round_latencies={i:[] for i in range(1,ROUNDS+1)}
         awaiting_replies={}
+        deadline_misses=[]
+        rate_windows={}
+        def count_window(kind, stamp):
+            bucket=int(max(0,stamp-start)//10)*10
+            counters=rate_windows.setdefault(bucket,dict(planned=0,emitted=0,completed=0))
+            counters[kind]+=1
         async def conversation(index):
             cid=ids[index]
-            await asyncio.sleep(max(0,start+index/RATE-time.monotonic()))
             for round_index in range(1,ROUNDS+1):
-                begin=time.monotonic();event_id=f'conversation-{cid}-{round_index}'
+                scheduled=start+index/RATE+(round_index-1)*TURN_GAP
+                await asyncio.sleep(max(0,scheduled-time.monotonic()))
+                begin=time.monotonic();lags.append((begin-scheduled)*1000)
+                count_window('emitted',begin)
+                event_id=f'conversation-{cid}-{round_index}'
                 completed=reply_events.setdefault((cid,round_index),asyncio.Event())
                 awaiting_replies[(cid,round_index)]=utc_now()
                 response=await http.post('http://127.0.0.1:18942/fixture/head',json=dict(call_id=cid,event_id=event_id))
@@ -197,12 +211,15 @@ async def main():
                 except asyncio.TimeoutError:
                     dialogue_errors.append(dict(call_id=cid,round=round_index,error='no committed AI reply'));return
                 finally:awaiting_replies.pop((cid,round_index),None)
+                if time.monotonic()>scheduled+TURN_GAP:
+                    deadline_misses.append(dict(call_id=cid,round=round_index,late_ms=(time.monotonic()-scheduled-TURN_GAP)*1000))
+                count_window('completed',time.monotonic())
                 reply_latencies.append((time.monotonic()-begin)*1000)
                 round_latencies[round_index].append(reply_latencies[-1])
                 for step,state in enumerate(('speaking','listening')):
                     await post('media',dict(call_id=cid,event_id=f'{event_id}-media-{step}',attempt=1,
                         event_sequence=round_index*2+step,state=state,provider_session_id='synthetic-'+cid))
-                if round_index<ROUNDS:await asyncio.sleep(max(0,TURN_GAP-(time.monotonic()-begin)))
+
         async def observe_replies():
             # Only a committed AI SpeechTurn can advance the customer. The HTTP
             # playback fixture has already completed before that row is written.
@@ -231,6 +248,9 @@ async def main():
                 for step,state in enumerate(('speaking','listening')):
                     await post('media',dict(call_id=cid,event_id=f'{event}-media-{step}',attempt=1,event_sequence=index*2+step+1,state=state,provider_session_id='synthetic-'+cid))
         if SCENARIO=='conversation':
+            for index in range(500):
+                for round_index in range(ROUNDS):
+                    count_window('planned',start+index/RATE+round_index*TURN_GAP)
             replies_observer=asyncio.create_task(observe_replies())
             try:await asyncio.gather(*(conversation(i) for i in range(500)))
             finally:replies_observer.cancel();await asyncio.gather(replies_observer,return_exceptions=True)
@@ -282,6 +302,7 @@ async def main():
                       'application_db_pool_budget':56,'test_observer_db_pool_budget':5},
             conversation_rounds=ROUNDS if SCENARIO=='conversation' else None,
             conversation_errors=dialogue_errors,committed_replies_observed=len(reply_latencies),
+            absolute_schedule=True,deadline_misses=deadline_misses,ten_second_windows=rate_windows,
             synthetic_reply_p95_ms=q(reply_latencies,.95),synthetic_reply_p99_ms=q(reply_latencies,.99),
             production_agents=agents,playback_is_simulated=True,
             network_path='loopback-direct-round-robin' if direct else os.environ.get('SINGLE500_NETWORK_LABEL','docker-desktop-nginx-to-host'),
@@ -307,7 +328,7 @@ async def main():
                 and stats['playback_count']==TOTAL and stats['playback_calls']==500
                 and sum(a['requests'] for a in agents)==TOTAL and all(a['requests']>0 for a in agents))
             result['synthetic_reply_control_budget_ms']=(stats['model_delay_sec']+stats['playback_delay_sec']+1)*1000
-            result['conversation_control_slo_passed']=(result['conversation_correctness_passed']
+            result['conversation_control_slo_passed']=(result['conversation_correctness_passed'] and not deadline_misses
                 and result['synthetic_reply_p99_ms']<=result['synthetic_reply_control_budget_ms'])
             result['correctness_passed'] &= result['conversation_correctness_passed']
         result['runtime_source_unchanged_during_test']=all(hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==value

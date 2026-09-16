@@ -14,7 +14,7 @@ import time
 
 from fastapi import HTTPException
 from sqlalchemy import func, text, update, delete, or_, insert
-from collections import Counter
+from collections import Counter, defaultdict, deque
 from uuid import UUID
 from functools import lru_cache
 from sqlalchemy.orm import aliased
@@ -29,6 +29,10 @@ PARTITIONS = 64
 LOCK_NAMESPACE = 19483921
 settings = get_settings()
 _committed_latency_ms = {}
+# Last completed transaction per partition; bounded to the fixed partition count.
+_transaction_timings = {}
+_batch_limits = {}
+_transaction_samples = defaultdict(lambda: deque(maxlen=2048))
 logger = logging.getLogger(__name__)
 
 
@@ -235,10 +239,14 @@ def consume_partition(partition_id, worker_id=None):
     session = InboxBatchSession()
     failed_id = None
     processed = 0
+    started = time.monotonic()
+    timings = {}
     try:
         if not _lock_partition(session, partition_id):
             session.finish(success=False)
             return 0
+        timings["partition_lock_ms"] = (time.monotonic() - started) * 1000
+        selection_started = time.monotonic()
         older = aliased(CallbackInbox)
         # Include consecutive ready events of the same call in one batch.
         # Global id order + the partition lock prevent overtaking. A dead or
@@ -250,14 +258,28 @@ def consume_partition(partition_id, worker_id=None):
         receipts = session.exec(select(CallbackInbox).where(
             CallbackInbox.partition_id == partition_id, CallbackInbox.state == 'pending',
             CallbackInbox.available_at <= now, unblocked).order_by(CallbackInbox.id)
-            .limit(settings.callback_inbox_batch_size)).all()
+            .limit(min(settings.callback_inbox_batch_size, _batch_limits.get(partition_id, settings.callback_inbox_batch_size)))).all()
         if not receipts:
             session.finish(success=False)
             return 0
+        timings["select_ms"] = (time.monotonic() - selection_started) * 1000
+        lock_started = time.monotonic()
         # Every business path observes the same lock order across calls.
-        session.exec(select(CallSession).where(CallSession.id.in_([r.call_id for r in receipts]))
-            .order_by(CallSession.id).with_for_update()).all()
-        started = time.monotonic()
+        call_ids = {r.call_id for r in receipts}
+        locked_calls = select(CallSession.id).where(CallSession.id.in_(call_ids))\
+            .order_by(CallSession.id).with_for_update(skip_locked=True).subquery()
+        call_locks = session.exec(select(CallSession.id, locked_calls.c.id)
+            .outerjoin(locked_calls, locked_calls.c.id == CallSession.id)
+            .where(CallSession.id.in_(call_ids))).all()
+        # Defer ALL events of a busy call, preserving its FIFO while unrelated
+        # calls can commit. Missing calls still reach the normal handler.
+        busy_ids = {call_id for call_id, locked_id in call_locks if locked_id is None}
+        receipts = [receipt for receipt in receipts if receipt.call_id not in busy_ids]
+        if not receipts:
+            session.finish(success=False)
+            return 0
+        timings["call_lock_ms"] = (time.monotonic() - lock_started) * 1000
+        business_started = time.monotonic()
         released_bytes = 0
         max_latency = 0
         for receipt in receipts:
@@ -275,6 +297,8 @@ def consume_partition(partition_id, worker_id=None):
             processed += 1
             if (time.monotonic() - started) * 1000 >= settings.callback_inbox_batch_budget_ms:
                 break
+        timings["business_ms"] = (time.monotonic() - business_started) * 1000
+        accounting_started = time.monotonic()
         session.execute(update(CallbackInboxPartition).where(CallbackInboxPartition.id == partition_id).values(
             pending_count=CallbackInboxPartition.pending_count - processed,
             pending_bytes=CallbackInboxPartition.pending_bytes - released_bytes))
@@ -284,7 +308,21 @@ def consume_partition(partition_id, worker_id=None):
                 heartbeat_at=utc_now(), max_latency_ms=func.max(CallbackInboxWorker.max_latency_ms, max_latency)
                 if session.get_bind().dialect.name == 'sqlite' else func.greatest(CallbackInboxWorker.max_latency_ms, max_latency)))
         received_times = [r.received_at for r in receipts[:processed]]
+        timings["accounting_ms"] = (time.monotonic() - accounting_started) * 1000
+        commit_started = time.monotonic()
         session.finish(success=True)
+        timings["commit_ms"] = (time.monotonic() - commit_started) * 1000
+        timings.update(total_ms=(time.monotonic() - started) * 1000, processed=processed)
+        _transaction_timings[partition_id] = timings
+        for name, value in timings.items():
+            if name.endswith('_ms'):
+                _transaction_samples[name].append(value)
+        previous_limit = min(settings.callback_inbox_batch_size, _batch_limits.get(partition_id, settings.callback_inbox_batch_size))
+        if timings['total_ms'] > settings.callback_inbox_batch_budget_ms:
+            _batch_limits[partition_id] = max(1, min(processed, previous_limit // 2))
+        elif timings['total_ms'] < settings.callback_inbox_batch_budget_ms / 2:
+            _batch_limits[partition_id] = min(settings.callback_inbox_batch_size, previous_limit + 1)
+        logger.info("callback transaction partition=%s timings=%s", partition_id, timings)
         if worker_id:
             # Include outer commit and its fsync/lock wait in observed latency.
             latency = (utc_now() - min(received_times)).total_seconds() * 1000
@@ -398,3 +436,13 @@ def verify_mode():
                 raise RuntimeError('callback Inbox partition migration required')
         elif session.exec(select(CallbackInbox.id).where(CallbackInbox.state != 'done').limit(1)).first() is not None:
             raise RuntimeError('drain callback Inbox before disabling async reception')
+
+
+def transaction_timing_snapshot():
+    result = {}
+    for name, samples in _transaction_samples.items():
+        values = sorted(samples)
+        if values:
+            result[name] = dict(sample_count=len(values), p99_ms=values[min(len(values)-1,int(len(values)*.99))], max_ms=values[-1])
+    return dict(rolling_stages=result, last_partition_transactions=dict(_transaction_timings),
+                next_partition_batch_limits=dict(_batch_limits))
