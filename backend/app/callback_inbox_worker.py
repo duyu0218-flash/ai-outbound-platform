@@ -12,7 +12,7 @@ from sqlmodel import select
 from .config import get_settings, setup_logging
 from .db import create_db_and_tables, session_scope
 from .models import CallbackInboxPartition
-from .services.callback_inbox import PARTITIONS, consume_partition, maintenance, retry_receipt, prepare_handlers
+from .services.callback_inbox import PARTITIONS, consume_partition, maintenance, retry_receipt, prepare_handlers, transaction_timing_snapshot
 
 
 def main():
@@ -43,7 +43,11 @@ def main():
         try:
             if time.monotonic() - last_maintenance >= 1:
                 maintenance(worker_id)
-                Path(settings.callback_inbox_health_path).write_text(json.dumps(dict(worker_id=worker_id, at=time.time())))
+                health_path = Path(settings.callback_inbox_health_path)
+                temporary = health_path.with_suffix('.tmp')
+                temporary.write_text(json.dumps(dict(worker_id=worker_id, at=time.time(),
+                    transaction_timings=transaction_timing_snapshot())))
+                temporary.replace(health_path)
                 last_maintenance = time.monotonic()
             with session_scope() as session:
                 partitions = session.exec(select(CallbackInboxPartition.id).where(

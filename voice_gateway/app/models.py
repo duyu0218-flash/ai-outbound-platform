@@ -11,6 +11,7 @@ class DialRequest(BaseModel):
 
 
 class SpeakRequest(BaseModel):
+    command_id: str | None = Field(default=None, min_length=1, max_length=128)
     call_id: str
     expected_attempt: int | None = Field(default=None, ge=0)
     provider_call_id: str | None = None

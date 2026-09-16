@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     s3_auto_create_bucket: bool = True
 
     recording_source_allowed_hosts: str = ""
+    recording_source_cleanup_token: str = ""
+    recording_source_cleanup_origin: str = ""
     recording_source_require_https: bool = False
     recording_download_timeout_sec: int = 60
     recording_max_bytes: int = 512 * 1024 * 1024

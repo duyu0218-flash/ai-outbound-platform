@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # explicit route; HTTP call ownership alone cannot locate a SIP registration.
     voice_agent_registrars_json: str = "{}"
     voice_recording_source_base_url: str = ""
+    voice_quota_enabled: bool = False
+    voice_quota_budgets_json: str = "{}"
+    voice_quota_normal_close_releases: bool = False
+    voice_recording_cleanup_token: str = ""
+    voice_recording_reserve_bytes: int = Field(default=0, ge=0)
+    voice_recording_retention_sec: int = Field(default=0, ge=0)
     voice_max_concurrent: int = 20
     voice_cps: int = 2
     voice_daily_call_limit: int = 1000
