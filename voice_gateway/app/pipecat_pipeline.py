@@ -347,6 +347,9 @@ class PipecatPipelineManager:
             ),
         )
         stt, tts = self.make_services(session)
+        if self.settings.voice_quota_enabled:
+            from .voice_quota_client import VoicePermitClient, protect_services
+            protect_services(stt, tts, VoicePermitClient(self.settings, session, getattr(self, 'quota_epoch', ''), getattr(self, 'quota_http', None)))
 
         @stt.event_handler("on_connected")
         async def on_stt_connected(_service):

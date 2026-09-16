@@ -1,0 +1,104 @@
+{
+  "review_date": "2026-09-16",
+  "reviewed_head": "e88d9fb0f3fcda0b77270943b1590bbc90100b67",
+  "evidence_is_historical": true,
+  "new_capacity_test_executed": false,
+  "real_500_call_capacity_verified": false,
+  "new_tests": {
+    "command": ".venv-backend/bin/python -m pytest -q -p no:cacheprovider scripts/test_single_host_profile.py scripts/test_capacity_preflight.py",
+    "passed": 9,
+    "duration_seconds": 1.73,
+    "scope": "synthetic Compose rendering and capacity arithmetic; no calls or deployment"
+  },
+  "historical_runs": [
+    {
+      "file": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0913-final-50rps-results.json",
+      "evidence_sha256": "6dc02384eef2ec3b0cbf15bfd5d65c2bf130a59dac157164db0e0f3c6492bad4",
+      "synthetic_active_calls": 500,
+      "scenario": "conversation",
+      "duration_seconds": null,
+      "final_transcripts_per_second": 50.0,
+      "media_events_per_second": 100.0,
+      "generation_duration_seconds": 103.33877138106618,
+      "emitted_final_transcripts": 5000,
+      "generated_transcripts_per_elapsed_second": 48.384550475854645,
+      "committed_replies_observed": 5000,
+      "synthetic_reply_p99_ms": 3996.7785850167274,
+      "gateway_delivery_max_ms": 275.7218339247629,
+      "capacity_slo_passed": true,
+      "conversation_control_slo_passed": true,
+      "correctness_passed": true,
+      "real_sip_rtp_asr_tts_llm": false,
+      "playback_is_simulated": true,
+      "source_files_checked": 28,
+      "source_files_changed_since_historical_run": []
+    },
+    {
+      "file": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0913-final-80rps-results.json",
+      "evidence_sha256": "7108d779502739f600b0e36c9711a83baa3274232188ec96dc796f70f5becdcd",
+      "synthetic_active_calls": 500,
+      "scenario": "conversation",
+      "duration_seconds": null,
+      "final_transcripts_per_second": 80.0,
+      "media_events_per_second": 160.0,
+      "generation_duration_seconds": 35.55540864204522,
+      "emitted_final_transcripts": 2500,
+      "generated_transcripts_per_elapsed_second": 70.31279052840594,
+      "committed_replies_observed": 2500,
+      "synthetic_reply_p99_ms": 6162.115502986126,
+      "gateway_delivery_max_ms": 346.2127080420032,
+      "capacity_slo_passed": true,
+      "conversation_control_slo_passed": false,
+      "correctness_passed": true,
+      "real_sip_rtp_asr_tts_llm": false,
+      "playback_is_simulated": true,
+      "source_files_checked": 28,
+      "source_files_changed_since_historical_run": []
+    },
+    {
+      "file": "docs/reviews/evidence/20260913-single-host-500-fixes/fix0913-batch05-long-results.json",
+      "evidence_sha256": "83810d659e7b9a5e97001031ffd81694cd7c33b83b3db3e618df3bce2ce0c12f",
+      "synthetic_active_calls": 500,
+      "scenario": "mixed",
+      "duration_seconds": 120,
+      "final_transcripts_per_second": 200,
+      "media_events_per_second": 400,
+      "committed_replies_observed": 0,
+      "synthetic_reply_p99_ms": 0,
+      "gateway_delivery_max_ms": 2070.492835016921,
+      "capacity_slo_passed": false,
+      "correctness_passed": true,
+      "real_sip_rtp_asr_tts_llm": false,
+      "playback_is_simulated": true,
+      "source_files_checked": 28,
+      "source_files_changed_since_historical_run": [
+        "scripts/load-single-host-dialogue.py"
+      ]
+    },
+    {
+      "file": "docs/reviews/evidence/20260913-single-host-500-fixes/fix0913-burst01-results.json",
+      "evidence_sha256": "d4390a4f9b73aca8eba7c772e78d60d12a1b62e900f592ca6ab53f9b8041387c",
+      "synthetic_active_calls": 500,
+      "scenario": "mixed",
+      "duration_seconds": 30,
+      "final_transcripts_per_second": 400,
+      "media_events_per_second": 800,
+      "committed_replies_observed": 0,
+      "synthetic_reply_p99_ms": 0,
+      "gateway_delivery_max_ms": 30415.933681069873,
+      "capacity_slo_passed": false,
+      "correctness_passed": true,
+      "real_sip_rtp_asr_tts_llm": false,
+      "playback_is_simulated": true,
+      "source_files_checked": 28,
+      "source_files_changed_since_historical_run": [
+        "scripts/load-single-host-dialogue.py"
+      ]
+    }
+  ],
+  "measurement_caveats": [
+    "Nominal conversation rate is configured; elapsed-window mean includes ramp-up and final drain. Neither proves steady-state offered throughput.",
+    "Conversation generator waits for prior reply; schedule lag is not measured in conversation scenario.",
+    "Mixed model fixture returns no TTS text; mixed correctness is not effective dialogue capacity."
+  ]
+}

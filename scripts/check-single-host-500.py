@@ -17,6 +17,32 @@ def assess(config):
         if len(rows) != required:
             errors.append(f'{label}: expected {required} processes')
     gateway = services['voice-gateway']['environment']
+    if str(gateway.get('VOICE_QUOTA_ENABLED', '')).lower() != 'true' or any(
+            str(row['environment'].get('VOICE_QUOTA_ENABLED', '')).lower() != 'true' for row in media):
+        errors.append('controller and all media processes must enable shared voice permits')
+    try:
+        budgets = json.loads(gateway.get('VOICE_QUOTA_BUDGETS_JSON', '{}'))
+        for kind in ('asr','tts'):
+            budget = budgets[kind]
+            if not all(isinstance(budget.get(key),str) and budget[key].strip() for key in ('provider','account','region','product')):
+                raise ValueError()
+            if type(budget['concurrency']) is not int or budget['concurrency'] < (500 if kind == 'asr' else 1):
+                raise ValueError()
+            if kind == 'tts' and (type(budget.get('requests_per_minute')) is not int or budget['requests_per_minute'] < 1):
+                raise ValueError()
+    except (KeyError,ValueError,TypeError):
+        errors.append('approved voice budgets must include at least 500 ASR streams and positive TTS budgets')
+    recording = services['recording-adapter']['environment']
+    cleanup = gateway.get('VOICE_RECORDING_CLEANUP_TOKEN','')
+    if len(cleanup) < 32 or cleanup != recording.get('RECORDING_SOURCE_CLEANUP_TOKEN'):
+        errors.append('source cleanup requires a matching independent 32+ character credential')
+    if cleanup in {gateway.get(key) for key in ('MEDIA_RPC_TOKEN','SERVICE_TOKEN','VOICE_COMMAND_SECRET','VOICE_SECURITY_ADMIN_TOKEN')}:
+        errors.append('recording cleanup credential must be independent')
+    if int(gateway.get('VOICE_RECORDING_RESERVE_BYTES',0)) <= 0:
+        errors.append('recording source disk needs a positive reserve')
+    mounts = [v for v in services['voice-gateway'].get('volumes',[]) if v.get('target') == '/var/lib/freeswitch/recordings']
+    if len(mounts) != 1 or mounts[0].get('read_only'):
+        errors.append('source cleanup requires writable owner-node recording mount')
     specs = json.loads(gateway['MEDIA_WORKERS_JSON'])
     if int(gateway['VOICE_MAX_CONCURRENT']) != 500 or int(gateway['PIPECAT_MAX_ACTIVE_SESSIONS']) != 600:
         errors.append('gateway must admit 500 calls with 600 media resource slots')

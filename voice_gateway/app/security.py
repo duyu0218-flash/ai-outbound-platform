@@ -202,6 +202,10 @@ class Ledger:
                 # Find the oldest ready stream heads without sorting every
                 # queued event on each free HTTP slot (large burst backlogs).
                 db.execute("CREATE INDEX IF NOT EXISTS outbox_created_order ON outbox(created)")
+                from .voice_quota import initialize as initialize_voice_permits
+                from .action_commands import initialize as initialize_action_commands
+                initialize_voice_permits(db)
+                initialize_action_commands(db)
                 self.initialized = True
             db.execute("BEGIN" if readonly else "BEGIN IMMEDIATE")
             yield db
@@ -261,7 +265,7 @@ class Ledger:
         with self.transaction() as db:
             db.execute("INSERT INTO audit(at,action,detail) VALUES (?, 'reject', ?)", (time.time(), reason[:200]))
 
-    def admit(self, payload: dict, route: RoutePolicy, settings, capacity_limit=None) -> tuple[dict, bool]:
+    def admit(self, payload: dict, route: RoutePolicy, settings, capacity_limit=None, disk_safe=True) -> tuple[dict, bool]:
         metadata = payload["metadata"]
         tenant, attempt = int(metadata["tenant_id"]), int(metadata["attempt"])
         line = str(metadata.get("telephony_line_id") or 0)
@@ -275,6 +279,9 @@ class Ledger:
                 if prior["tenant"] != tenant or prior["digest"] != digest:
                     raise HTTPException(409, "idempotency key has different payload")
                 return dict(prior), False
+            if not disk_safe:
+                raise HTTPException(429, 'recording source disk below reserve; new dialing stopped',
+                    headers={'X-Voice-Dial-Admitted': 'false', 'Retry-After': '5'})
             if db.execute("SELECT 1 FROM attempts WHERE call_id=? AND (state != 'ended' OR tenant != ?)", (payload["call_id"], tenant)).fetchone():
                 raise HTTPException(409, "previous call attempt is still active or belongs to another tenant")
             flag = db.execute("SELECT value FROM flags WHERE key='stopped'").fetchone()
@@ -303,6 +310,9 @@ class Ledger:
                     spent = db.execute(f"SELECT COALESCE(SUM(cost),0) FROM attempts WHERE {where} AND (created >= ? OR ended >= ? OR state != 'ended')", (*args, start, start)).fetchone()[0]
                     if spent + cost > budget:
                         raise HTTPException(429, "voice budget hard limit reached")
+            if settings.voice_quota_enabled:
+                from .voice_quota import reserve
+                reserve(db, settings, payload['call_id'], attempt)
             provider_id = str(uuid4())
             # Persist the intent BEFORE writing anything to ESL. A crash may
             # conservatively lose availability, but never authorizes a redial.
@@ -336,6 +346,11 @@ class Ledger:
         with self.transaction() as db:
             row = db.execute("SELECT * FROM attempts WHERE uuid=?", (uuid,)).fetchone()
             if row and row["state"] != "ended":
+                from .voice_quota import call_ended
+                call_ended(db, row['call_id'], row['attempt'])
+                # The authenticated attempt is now terminal; no later command
+                # may pass the attempt/state fence and replay these intents.
+                db.execute('DELETE FROM voice_action_commands WHERE call_id=? AND attempt=?', (row['call_id'], row['attempt']))
                 # Missing CDR: retain FULL reserved charge, never assume free.
                 charge = row["cost"] if billsec is None else max(1, math.ceil(billsec / 60)) * row["rate"] * row["multiplier"]
                 db.execute("UPDATE attempts SET state='ended',cost=?,ended=? WHERE uuid=?", (charge, time.time(), uuid))
@@ -660,6 +675,8 @@ class SecureDriver:
         try:
             fcntl.flock(self.lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
             await asyncio.to_thread(self.ledger.summary)
+            from .voice_quota import validate_start
+            await asyncio.to_thread(validate_start, self.ledger, self.settings)
             await self.driver.start()
             await self.sender.start()
             self.reconcile_task = asyncio.create_task(self._reconcile(), name="voice-pbx-reconciliation")
@@ -737,6 +754,8 @@ class SecureDriver:
 
     async def _post(self, action, payload):
         if action == "dial":
+            from .recording_source import disk_status
+            disk_safe = (await asyncio.to_thread(disk_status, self.settings))['safe']
             route = self.policy(payload)
             manager = self.driver.pipecat_manager
             capacity_limit = None
@@ -744,7 +763,7 @@ class SecureDriver:
                 capacity_limit = manager.admission_capacity() if manager.ready() else 0
             # The controller rechecks its fresh local media budget, even when
             # the backend's periodic node probe has not seen a failure yet.
-            row, fresh = await asyncio.to_thread(self.ledger.admit, payload, route, self.settings, capacity_limit)
+            row, fresh = await asyncio.to_thread(self.ledger.admit, payload, route, self.settings, capacity_limit, disk_safe)
             if not fresh:
                 return json.loads(row["result"]) if row["result"] else {"result": "pending_reconciliation", "provider_call_id": row["uuid"]}
             outgoing = json.loads(row["payload"])
@@ -804,8 +823,37 @@ class SecureDriver:
             raise HTTPException(403, "transfer requires an authorized agent ID")
         # After restart control is kept fail-closed unless a genuine PBX event
         # has reconstructed the binding. Hangup/status never need that binding.
-        return await self.driver.post(action, {**payload, "expected_attempt": row["attempt"],
-                                               "provider_call_id": row["uuid"]})
+        outgoing = {**payload, "expected_attempt": row["attempt"], "provider_call_id": row["uuid"]}
+        command_id = payload.get('command_id') if action == 'speak' else None
+        if command_id:
+            from .action_commands import begin, finish
+            try:
+                previous = await asyncio.to_thread(begin, self.ledger, command_id, action, outgoing)
+            except HTTPException as exc:
+                manager = self.driver.pipecat_manager
+                if (exc.headers or {}).get('X-Voice-Outcome') != 'unknown' or not hasattr(manager, 'lookup_playback'):
+                    raise
+                try:
+                    observed = await manager.lookup_playback(payload['call_id'], command_id, payload['text'])
+                except Exception:
+                    raise exc from None
+                if not observed.get('confirmed'):
+                    raise exc
+                previous = {'result':'queued', 'provider_call_id':row['uuid'],
+                            'playback_id':observed['playback_id'], 'pipeline':'pipecat'}
+                await asyncio.to_thread(finish, self.ledger, command_id, previous)
+            if previous is not None:
+                return previous
+            try:
+                result = await self.driver.post(action, outgoing)
+                await asyncio.to_thread(finish, self.ledger, command_id, result)
+            except Exception as exc:
+                # Intent already exists. The media worker may have accepted
+                # playback even if its reply or our result write was lost.
+                raise HTTPException(503, 'business command outcome unknown; reconcile before retry',
+                    headers={'X-Voice-Outcome': 'unknown'}) from exc
+            return result
+        return await self.driver.post(action, outgoing)
 
     async def _reconcile(self):
         while True:
