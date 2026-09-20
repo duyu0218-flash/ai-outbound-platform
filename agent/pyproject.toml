@@ -18,4 +18,4 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "httpx2==2.12.0"]
+dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "httpx2==2.13.0"]
