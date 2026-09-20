@@ -9,7 +9,7 @@ description = "Managed S3-compatible recording ingestion and deletion service"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi==0.141.1",
-  "uvicorn[standard]==0.52.4",
+  "uvicorn[standard]==0.53.0",
   "pydantic-settings==2.15.0",
   "anyio==4.14.2",
   "httpx==0.28.1",
