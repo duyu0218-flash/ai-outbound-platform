@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.1.1", "httpx2==2.12.0"]
+dev = ["pytest==9.1.1", "httpx2==2.13.0"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
