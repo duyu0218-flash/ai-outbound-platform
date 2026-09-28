@@ -21,6 +21,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.exc import DBAPIError
 from sqlmodel import select
 
+from .work_scheduling import Histogram
 from ..clock import utc_now
 from ..config import get_settings
 from ..models import CallbackInbox, CallbackInboxPartition, CallbackInboxWorker, CallSession, RealtimeSession
@@ -32,6 +33,10 @@ _committed_latency_ms = {}
 # Last completed transaction per partition; bounded to the fixed partition count.
 _transaction_timings = {}
 _batch_limits = {}
+_batch_streaks = {}
+_attempt_outcomes = Counter()
+_receipt_traces = deque(maxlen=512)
+_attempt_histograms = defaultdict(Histogram)
 _transaction_samples = defaultdict(lambda: deque(maxlen=2048))
 logger = logging.getLogger(__name__)
 
@@ -241,8 +246,11 @@ def consume_partition(partition_id, worker_id=None):
     processed = 0
     started = time.monotonic()
     timings = {}
+    outcome = 'error'
+    receipt_traces = []
     try:
         if not _lock_partition(session, partition_id):
+            outcome = 'partition_busy'
             session.finish(success=False)
             return 0
         timings["partition_lock_ms"] = (time.monotonic() - started) * 1000
@@ -255,36 +263,49 @@ def consume_partition(partition_id, worker_id=None):
         unblocked = ~select(older.id).where(older.call_id == CallbackInbox.call_id,
             older.id < CallbackInbox.id, older.state != 'done',
             or_(older.state == 'dead', older.available_at > now)).exists()
-        receipts = session.exec(select(CallbackInbox).where(
-            CallbackInbox.partition_id == partition_id, CallbackInbox.state == 'pending',
-            CallbackInbox.available_at <= now, unblocked).order_by(CallbackInbox.id)
-            .limit(min(settings.callback_inbox_batch_size, _batch_limits.get(partition_id, settings.callback_inbox_batch_size)))).all()
+        limit = min(settings.callback_inbox_batch_size, _batch_limits.get(partition_id, settings.callback_inbox_batch_size))
+        excluded = set()
+        receipts = []
+        timings['select_ms'] = timings['call_lock_ms'] = 0
+        # Retry a full busy candidate window with those calls excluded. Bound both
+        # scans and time; never move a same-call successor ahead of its head.
+        for page in range(4):
+            selected_at = time.monotonic()
+            query = select(CallbackInbox).where(
+                CallbackInbox.partition_id == partition_id, CallbackInbox.state == 'pending',
+                CallbackInbox.available_at <= now, unblocked)
+            if excluded:
+                query = query.where(CallbackInbox.call_id.not_in(excluded))
+            candidates = session.exec(query.order_by(CallbackInbox.id).limit(limit)).all()
+            timings['select_ms'] += (time.monotonic()-selected_at)*1000
+            timings['candidate_pages'] = page+1
+            if not candidates:
+                break
+            locked_at = time.monotonic()
+            call_ids = {r.call_id for r in candidates}
+            locked_calls = select(CallSession.id).where(CallSession.id.in_(call_ids))\
+                .order_by(CallSession.id).with_for_update(skip_locked=True).subquery()
+            call_locks = session.exec(select(CallSession.id, locked_calls.c.id)
+                .outerjoin(locked_calls, locked_calls.c.id == CallSession.id)
+                .where(CallSession.id.in_(call_ids))).all()
+            busy_ids = {call_id for call_id, locked_id in call_locks if locked_id is None}
+            excluded.update(busy_ids)
+            receipts = [r for r in candidates if r.call_id not in busy_ids]
+            timings['call_lock_ms'] += (time.monotonic()-locked_at)*1000
+            if receipts or (time.monotonic()-started)*1000 >= settings.callback_inbox_batch_budget_ms:
+                break
+        timings['busy_calls'] = len(excluded)
         if not receipts:
+            outcome = 'busy' if excluded else 'empty'
             session.finish(success=False)
             return 0
-        timings["select_ms"] = (time.monotonic() - selection_started) * 1000
-        lock_started = time.monotonic()
-        # Every business path observes the same lock order across calls.
-        call_ids = {r.call_id for r in receipts}
-        locked_calls = select(CallSession.id).where(CallSession.id.in_(call_ids))\
-            .order_by(CallSession.id).with_for_update(skip_locked=True).subquery()
-        call_locks = session.exec(select(CallSession.id, locked_calls.c.id)
-            .outerjoin(locked_calls, locked_calls.c.id == CallSession.id)
-            .where(CallSession.id.in_(call_ids))).all()
-        # Defer ALL events of a busy call, preserving its FIFO while unrelated
-        # calls can commit. Missing calls still reach the normal handler.
-        busy_ids = {call_id for call_id, locked_id in call_locks if locked_id is None}
-        receipts = [receipt for receipt in receipts if receipt.call_id not in busy_ids]
-        if not receipts:
-            session.finish(success=False)
-            return 0
-        timings["call_lock_ms"] = (time.monotonic() - lock_started) * 1000
         business_started = time.monotonic()
         released_bytes = 0
         max_latency = 0
         for receipt in receipts:
             failed_id = receipt.id
             session.begin_event()
+            work_started = utc_now()
             apply_receipt(session, receipt)
             now = utc_now()
             receipt.state, receipt.completed_at = 'done', now
@@ -292,6 +313,13 @@ def consume_partition(partition_id, worker_id=None):
             receipt.body_json = ''  # Retain only the replay digest after consumption.
             max_latency = max(max_latency, (now - receipt.received_at).total_seconds() * 1000)
             released_bytes += receipt.body_bytes
+            every = settings.stability_trace_sample_every
+            if every and int.from_bytes(hashlib.sha256(str(receipt.call_id).encode()).digest()[:4], 'big') % every == 0:
+                receipt_traces.append(dict(receipt_id=receipt.id, call_id=str(receipt.call_id),
+                    partition_id=partition_id, received_at_utc=receipt.received_at.isoformat(),
+                    work_started_at_utc=work_started.isoformat(),
+                    receive_to_work_ms=(work_started-receipt.received_at).total_seconds()*1000,
+                    business_ms=(now-work_started).total_seconds()*1000))
             session.add(receipt)
             session.end_event()  # A later duplicate rollback cannot erase earlier receipts.
             processed += 1
@@ -318,10 +346,25 @@ def consume_partition(partition_id, worker_id=None):
             if name.endswith('_ms'):
                 _transaction_samples[name].append(value)
         previous_limit = min(settings.callback_inbox_batch_size, _batch_limits.get(partition_id, settings.callback_inbox_batch_size))
-        if timings['total_ms'] > settings.callback_inbox_batch_budget_ms:
+        # Hysteresis avoids collapsing batches after one slow commit. Severe
+        # overruns shrink immediately; recovery requires three cheap batches.
+        over = timings['total_ms'] > settings.callback_inbox_batch_budget_ms
+        cheap = timings['total_ms'] < settings.callback_inbox_batch_budget_ms / 2
+        streak = _batch_streaks.get(partition_id, 0)
+        streak = max(0, streak)+1 if over else min(0, streak)-1 if cheap else 0
+        if streak >= 2 or timings['total_ms'] > settings.callback_inbox_batch_budget_ms*4:
             _batch_limits[partition_id] = max(1, min(processed, previous_limit // 2))
-        elif timings['total_ms'] < settings.callback_inbox_batch_budget_ms / 2:
+            streak = 0
+        elif streak <= -3:
             _batch_limits[partition_id] = min(settings.callback_inbox_batch_size, previous_limit + 1)
+            streak = 0
+        _batch_streaks[partition_id] = streak
+        outcome = 'committed'
+        for trace in receipt_traces:
+            trace.update(committed_at_utc=utc_now().isoformat(), batch_total_ms=timings['total_ms'],
+                         batch_commit_ms=timings['commit_ms'], batch_select_ms=timings['select_ms'],
+                         batch_call_lock_ms=timings['call_lock_ms'])
+            _receipt_traces.append(trace)
         logger.info("callback transaction partition=%s timings=%s", partition_id, timings)
         if worker_id:
             # Include outer commit and its fsync/lock wait in observed latency.
@@ -336,6 +379,7 @@ def consume_partition(partition_id, worker_id=None):
         # Roll back the WHOLE batch and let the bounded worker poll retry it.
         sqlstate = getattr(getattr(exc, 'orig', None), 'sqlstate', None)
         if isinstance(exc, DBAPIError) and sqlstate in {'55P03', '40P01', '40001'}:
+            outcome = 'contention'
             logger.warning('callback batch deferred for database contention sqlstate=%s', sqlstate)
             return 0
         # No partially committed batch: replay all its events. Persist failure
@@ -344,6 +388,8 @@ def consume_partition(partition_id, worker_id=None):
             mark_failure(partition_id, failed_id, type(exc).__name__)
         raise
     finally:
+        _attempt_outcomes[outcome] += 1
+        _attempt_histograms[outcome].observe((time.monotonic()-started)*1000)
         session.finish(success=False)
 
 
@@ -444,5 +490,6 @@ def transaction_timing_snapshot():
         values = sorted(samples)
         if values:
             result[name] = dict(sample_count=len(values), p99_ms=values[min(len(values)-1,int(len(values)*.99))], max_ms=values[-1])
-    return dict(rolling_stages=result, last_partition_transactions=dict(_transaction_timings),
-                next_partition_batch_limits=dict(_batch_limits))
+    return dict(attempt_outcomes=dict(_attempt_outcomes),
+                attempt_histograms={k:v.snapshot() for k,v in _attempt_histograms.items()}, rolling_stages=result, last_partition_transactions=dict(_transaction_timings),
+                next_partition_batch_limits=dict(_batch_limits), recent_receipt_traces=list(_receipt_traces))

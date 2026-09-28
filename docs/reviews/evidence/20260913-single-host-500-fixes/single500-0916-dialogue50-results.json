@@ -1,0 +1,2819 @@
+{
+  "source_sha256": {
+    "backend/app/db.py": "59e05604da60f81bc9c244689d7b687fe5c17f398ae32e8f67935c063750c209",
+    "backend/app/models.py": "c33fd74daeb7982475b7d360875776a0bfb54a37e1776baf6ffa44f945fd93f6",
+    "backend/app/services/callback_inbox.py": "4f25a6d772669a491071c9858b1480970225650299d21ec3790e1476e3219d9f",
+    "backend/app/callback_inbox_worker.py": "b4777326f99e26fe69af7703222395643390a7d9cd76508f73889187fa5f7e38",
+    "backend/app/services/realtime_voice.py": "cf09013c9a1808d9c8240c08b6b20f56b81636a10e281b60cf42847599f51d1a",
+    "backend/app/services/dispatcher.py": "536336af1e0831a287d492a05c8b9a261643bb406df15ac6628be8d4daf2dcf3",
+    "voice_gateway/app/security.py": "556c3a06fb6a0aaae6c8379d037042d2811726a4a9a48077c0b012511a284006",
+    "voice_gateway/app/durable_batch.py": "89d1b76eaeb370138bd0a76ba9723b5a5db9b6ef8207958094d7c16a4a3cb7f9",
+    "scripts/load-single-host-dialogue.py": "cd36bcaaaeaff208777a87423020f5fba9497454556294d100f18755350f287c",
+    "backend/pyproject.toml": "a2ff818226449cb5c4f124de5370c160b8e089e9239f1a26f129e8ec537c4516",
+    "voice_gateway/pyproject.toml": "488b27f8ff6ec5a9bcbf9a527d8329cc3132ee55b493a700a95044d5e574c30d",
+    "agent/pyproject.toml": "b0215f8bcf740d9fba281233e3c510c65611885ef98a704144db95e37baa2f37",
+    "recording_adapter/pyproject.toml": "79500cfe23e12e112599cb8e00f3534ab8f49f062f468384069a07315dba4fe7",
+    "backend/app/schemas.py": "2137fa1b851ac3477ee767a938b29a238f5998598712d9c27a29b1290cafb884",
+    "backend/app/api/routers/webhooks.py": "70e61bf0fc5034e883f11463abf8bdd75ef3272bc022138d68d8f9848e837b9a",
+    "backend/app/main.py": "0b26e15e3f2af2fff9ee93f4861cbbc6bacb9957d15c32f6f8d03800fa62d2a0",
+    "backend/app/config.py": "98644be804dc1e262cef9d5d8158348a2f61522e79c5b803b158cb9e7962b3c4",
+    "voice_gateway/app/config.py": "f56223fe5276399455ab1eb68a1368468f2ba537965802eb0c5f637731dec694",
+    "backend/app/services/telephony.py": "5997a5ca699556444c61113a73e847ce709e75d44a8d80960edaebd6dcc42701",
+    "backend/app/services/async_ai.py": "6f70157b1c279dbf06ee45eb71ca6d8cc9db53be57d9a1c7d24c2795bef7ec28",
+    "backend/app/services/worker_runtime.py": "48d62b7dd9d2c79abb06aba2fdbab838f8822c2dd1959acc47f48673ea12b9ba",
+    "backend/app/ai_worker.py": "df8e47758685702b5573e95d8f9238207ecc8a0b0760a6282958a0c9824dcfa0",
+    "scripts/fixtures/single500_instrumented_ai.py": "6daa79d7cbbc9ff1c92db2a66f85a8c14aa660f6fcd9a4c177420acdd5695083",
+    "agent/app/main.py": "530b2bfe869f1f180bf9bcfae189e6ee05149fb52d06f533b6b80cea5b2d1232",
+    "agent/app/llm.py": "58581c8c087e92c80d6be8018cb0c991fb37f297f4fd4cc9b63fcda83c0b9775",
+    "agent/app/quota.py": "45412514301e4622ebabd7e738ed442bc88ee1d1559d1b33db7c5a4ad3d6a2a9",
+    "scripts/fixtures/single500_cloud_and_playback.py": "5f378a29453db1f32f105bc506ddd7bfc69099b185859f49339cf125448886a8",
+    "scripts/fixtures/single500_real_agent.py": "c791ff12863b266bdc3b6ae50e69efbe19bfa74d1b5483ef66cb3dddf29c87d5",
+    "backend/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "backend/app/ai_worker_health.py": "0357f1192eae1937ae1f7f2fc225987a51c91c7241e7ecd50324680b3e104800",
+    "backend/app/api/deps.py": "f7b2944918f2c71dfa077134c33fed3ed50cc29ce56b894c0f6d41da728feab5",
+    "backend/app/api/routers/__init__.py": "411705519a6361a87f0e07729202966a482931e946bc3d239c8b7728b36b189d",
+    "backend/app/api/routers/admin_management.py": "8888be63a5c1b58b50f487dd582d0180feca3ff949a58ff8cf144e8c2c7fa7c1",
+    "backend/app/api/routers/auth.py": "46b38b3011ce68695e5ed43bb30bfddabb2f19da717f90a9c5f9283329a90245",
+    "backend/app/api/routers/calls.py": "0f77da77af8bd82c306d5dedc949d4eb41866dfd0f0dd42de44e298766729ee5",
+    "backend/app/api/routers/campaigns.py": "8c13d96cc9ef4d12831946f425d1d666a4380ac8f8ecb02de18cee1d979a3c13",
+    "backend/app/api/routers/contacts.py": "6765d4e23f7be62e4ac0e6141fef086c3857c05eefdcc5d748a5af5983fff01d",
+    "backend/app/api/routers/pages.py": "cdddb309ce1b04155f5b61cab3fd97d2c6bb62474548190b78efff5e2766b494",
+    "backend/app/api/routers/portal.py": "fd56f1bfe26b62f695ce5d10d234560c9f276a7c63f752cd82084baa29fcb402",
+    "backend/app/api/routers/product.py": "57e131a801868fa43fb6f46f7248ac75d05797fc4495b032e5062af28044d18e",
+    "backend/app/api/routers/script_flows.py": "968461f2a0bf170428d747221d989e7193c28bdfeb1762043eddd44d6242d4f5",
+    "backend/app/api/routers/script_templates.py": "5481a3a9d099ff459f583f222dd7802fd3b3e5592531df9a682318895192637c",
+    "backend/app/api/routers/voice_operations.py": "a87f51c3786073a2ec030dae2e2669cea02882b12f9e5915085e98fa3e03c43a",
+    "backend/app/api/routers/webrtc.py": "2c80fb9035cebec2f2a023a5408fd61a7f57a7c87cd131e42d37025d5b8049d6",
+    "backend/app/clock.py": "f16a2c13ce13fbb1d84991bab350df11b5ce977393fd20ea9ebfe62fc88b6ed5",
+    "backend/app/middleware.py": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c",
+    "backend/app/migration_runner.py": "d546362f4e60e60433e0da0009ed158db74f43acf4c80323cb808b64c52334f9",
+    "backend/app/product_schemas.py": "63a4c1641937208fc3904cf36405a0d273f6a6c463f69d0b3f68dd476c355452",
+    "backend/app/schema_bootstrap.py": "abdcbc9f98e731f4e0bf52893b08ba2462ffbba70ee73540e404f6efcebd9574",
+    "backend/app/schema_migrations.py": "af9083c998337de84f3459b66fa53ea2d966ffa48d36fd9c30760bc25e38c4fb",
+    "backend/app/services/__init__.py": "12d04a636179220b49034c1454d2eacb3f02d8ae333ec594016f31ae6c8a5bc2",
+    "backend/app/services/admin_settings.py": "2c1d6897baa681a1c4f3aa3c6155e6589a045d1f8528b858c9ff4d0b7d92e053",
+    "backend/app/services/ai_actions.py": "97b786333b8ed99e555d67b532b8a3091ea422100e363e7602aa51d756842478",
+    "backend/app/services/ai_claim_state.py": "5242bc8c609f203f1e328e160a69d053e93f95c2ee7321ddc55157e09d54f81b",
+    "backend/app/services/ai_liveness.py": "c082cfc0d9fb835ea60aa1d35444e7baef079417774588242c07bdc5a0f34a13",
+    "backend/app/services/auth.py": "f0464db0f91d618e35b75d078d8d115e6ed77428466509020c3143ab4e53c444",
+    "backend/app/services/billing_usage.py": "1f8d5fc27544a547c3a86c73273913b193b3bff308d0da70909cf5dbfdd7b468",
+    "backend/app/services/business_callbacks.py": "f26a58219f8eb51b3316f1e51d022d0a5555a5f9f4bee24baa937d66af5cc2c0",
+    "backend/app/services/call_analysis.py": "325a1768bd3f1285aca9c5815fa087f5e98f7314678636d2f410a567fd63894a",
+    "backend/app/services/call_service.py": "2d1f64271fd41058486b9177ad40a42fd680291cfc2f9877543d39b5eca6d65d",
+    "backend/app/services/conversation_policy.py": "50485b7b2ab0a9e35d01dd750a053f3892c5de3e07d8edeba3bc54acedb8a72d",
+    "backend/app/services/dialogue_rules.py": "a48f17d932b3bf7539a0e90034168916691aab16de0fc437fd146bd031aff7fd",
+    "backend/app/services/gateway_cluster.py": "c895f331917f85955eab2dbffe7acb1647db9dcc699fcbb4578cbf43582de0da",
+    "backend/app/services/health.py": "94d829fa94892427e5da23e67cc8da1987f27a18797ca360f9c0668ae8c9045d",
+    "backend/app/services/knowledge.py": "000179e954a61451b57c9e3b37638f260a2b63017bf6b37ed4da72cc9e5cec05",
+    "backend/app/services/leases.py": "a9730ab8393dc4f5f19c44d99d9563fe3002d845dc94f5c2588a748a66a884c0",
+    "backend/app/services/metrics.py": "6d88d7b2c1e47490a278e761c4ed9abd84474ec542540d321e9779c8558b02c4",
+    "backend/app/services/outbound_policy.py": "9b68312fdff5d2aca9bbf8fc50d4cc398f33a54a432708a86b7745d6d542c2b3",
+    "backend/app/services/recording_storage.py": "6cabe16abd4c47a0b162e70036b0ad36482137e02d2f80da5c693e7d800816a7",
+    "backend/app/services/retention.py": "7b5a89b62b77012e6ade96b2323c7497c28f859778abfc7b3b3c90e320095909",
+    "backend/app/services/runtime_metrics.py": "109da24419d4246aaab736f807876188709e52b64e8e5ed80c474f067b3de84f",
+    "backend/app/services/script_flow.py": "787beafce160bc60f074d4416b8ca4fa17c9741edae3fedebff41f11d2019c26",
+    "backend/app/services/task_queue.py": "7156809617e489ef6845d4074466c8794e9ea7e695f37baf1c672d06809dcafe",
+    "backend/app/services/webrtc.py": "c867ff654fb01b9f1540ae1f01b8532c8364f877da799ef7235211ab98e540ca",
+    "backend/app/worker.py": "9bf9c6feccd9dc6734998ac29a0d01e5478ba087e29db31bab15417d8c87d783",
+    "backend/app/worker_health.py": "10db4b70a53f1303367f238cae92770f0e1fd5ccf7ff56e9e76da68dab19a844",
+    "voice_gateway/app/__init__.py": "376ccbb0735fecd092b0507516053f13a8e4fa5105292b91916363b516c80685",
+    "voice_gateway/app/action_commands.py": "3b525347a10a19151613637f12883daecb1dea65df97a4e80f19d01e394a478b",
+    "voice_gateway/app/aliyun_nls_stt.py": "24d7b09367555529d4c4d3c6266e5308f72f8f088689fdc3d09ae7b56d203127",
+    "voice_gateway/app/drivers.py": "caead8ffe82bbbaa5ebf4e96577c3017a86305dbcf880f8884f588cb31bb2dfb",
+    "voice_gateway/app/esl.py": "1de6b3a1cd7377cb8bb83c7efe4ba453cfe0bea242105fd025374e7abceec15c",
+    "voice_gateway/app/freeswitch.py": "a564da1b9f003ec1cda492a622f90179ea333073c887ac772bcd7963d151946e",
+    "voice_gateway/app/main.py": "d09543a62c2a0dab7240682cea879611375ddc3c31c7e47e2ddc07dd884ed45c",
+    "voice_gateway/app/media_cluster.py": "efa4a76e735252abcd744c5b79bed4bd89ccfd4aa9496c51a687bc5a0eca49f7",
+    "voice_gateway/app/media_worker.py": "f24809b58a24f474606a04bb69536a6ff36669fb0d1b1f57a1d0e9973c61de99",
+    "voice_gateway/app/models.py": "5a264df07a1d4bca6d2cc1ca2ae0c01a1eedf52234d5d7fa3c841e2efb21afd5",
+    "voice_gateway/app/pipecat_pipeline.py": "c196a73b81f6df565abf6531140147e655a194b4c6eef4d99304618aaa29e0c0",
+    "voice_gateway/app/recording_source.py": "0f2fa648a5b18eab172c81c7e0ebdd194238355f422fd69c6521a22d60034d78",
+    "voice_gateway/app/rtp.py": "c81d2b88fbb637cfb97f345dcc39dc3349908af6d363335ff2f9043f09957959",
+    "voice_gateway/app/voice_quota.py": "2cbef4951a29dfb2cf22f6229802afec465f69052b4dccb79a257812db18fa16",
+    "voice_gateway/app/voice_quota_client.py": "166c7d0dce3d1bd3e9f55a6e1f26c3113c3f0b00eefde1c7f1f05d610d0868b7",
+    "agent/app/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "agent/app/config.py": "1e74eec04ef9787f46f2b5ae13afe46cff38d948670f1127fe73969d706c0550",
+    "agent/app/policy.py": "1d1162ad799d0fa4a494abacb55f721db74bb54e63d5ed97e9debf3d47787aa4",
+    "recording_adapter/app/__init__.py": "4d19864a5494e8307723e34da0a3bf85a3702b1fe3f2bd46e427abebe945eebf",
+    "recording_adapter/app/config.py": "13f964109ff0729d94da4309c0de5a9d9dfa8580ef9b5598d8f99a6534f3b947",
+    "recording_adapter/app/main.py": "829a0f135b153224a29a66ee9b7eca4ecf9d7226151170727e60fe0ad000fc11",
+    "recording_adapter/app/models.py": "017727054fdf38bf0c8e1d8abb3adcf05dac6705e47c43231a9b88c7d79182f0",
+    "recording_adapter/app/storage.py": "3d5f67868ea86e888cc974a59122ff5199b4deedd544f85373b8c11f36c9d67d",
+    "scripts/fixtures/node200_agent_fixture.py": "be9c3b9f98d1b58c95d90c3b84a366a3b15591ef5b4bb2c44c407ee9fa445422",
+    "scripts/fixtures/single500_inbox_ui.py": "4620d1ac76a9b5a8a12864cc3b5cbecd159b860fcc6c2280b0fb9d4dc9c5e78b",
+    "scripts/fixtures/single500_instrumented_api.py": "4fae4f34a8a5235a68d2fe13fadc72cc326b83db4d7b0408922199b089294c6f",
+    "scripts/fixtures/single500_model_fixture.py": "d23f64727d662269d6eb94145adb0aa2d2df6dcb29d2e9e5aa246436b1203488",
+    "docker-compose.callback-load.yml": "871b58181b7c7e2be4e5d36325fa1cf1dd9d242c7b309540d12e3426fbeabb59",
+    "docker-compose.compact.yml": "8574c12ffde6b9dcca1350afee523657964a1010e84c5b83285b86bc69e16b69",
+    "docker-compose.media.yml": "a1c35cf8306b4828946358939b7de1bf5824a5501132aaeea1e2d6fb4014864b",
+    "docker-compose.observability.yml": "1d9c08f60c1bb8ca5c8256979316a00ca9b1c7077a665e85bdcca9676d8e6005",
+    "docker-compose.single-host-500.yml": "44911a3abf74a59d03764dccfea30d6017d3258a11c265794b32ef9f11af6da8",
+    "docker-compose.sipp.yml": "d3f0ffa70ccba8ca0e095cac0e8a3d94f0cd01581ceaeb38fd7bd730bba9d0a7",
+    "docker-compose.webrtc.yml": "3d7a0c9bff54b40468c1af1d816f889c0b10b923e77df1c870f9dfa917db62b9",
+    "docker-compose.yml": "a2d92a86f1d955ee411e139be3448b00d1e04150f7f94275c3354daaa505e56e"
+  },
+  "runtime_dependencies": {
+    "fastapi": "0.141.1",
+    "anyio": "4.14.2",
+    "httpx": "0.28.1",
+    "httpcore": "1.0.9",
+    "sniffio": "1.3.1",
+    "uvloop": "0.22.1",
+    "sqlmodel": "0.0.42",
+    "psycopg": "3.3.4"
+  },
+  "generator_event_loop": "uvloop",
+  "synthetic_active_calls": 500,
+  "final_transcripts_per_second": 50.0,
+  "media_events_per_second": 100.0,
+  "duration_seconds": null,
+  "batch_callbacks_enabled": true,
+  "http_request_statuses": {
+    "200": 6098
+  },
+  "mean_events_per_http_request": 2.459822892751722,
+  "scenario": "conversation",
+  "effective_dialogue_capacity_verified": false,
+  "observer_query": "outstanding-turn-time-window-v2",
+  "generation_duration_seconds": 103.54447508800001,
+  "emitted_final_transcripts": 5000,
+  "generated_transcripts_per_elapsed_second": 48.28842867522017,
+  "initial_speech_start_rate": 50,
+  "topology": {
+    "api_processes": 6,
+    "callback_workers": 6,
+    "ai_workers": 4,
+    "ai_slots": 640,
+    "ai_db_threads_per_worker": 2,
+    "ai_action_threads_per_worker": 8,
+    "real_agent_processes": 2,
+    "task_workers": 0,
+    "pbx_processes": 0,
+    "media_workers": 0,
+    "application_db_pool_budget": 56,
+    "test_observer_db_pool_budget": 5
+  },
+  "conversation_rounds": 10,
+  "conversation_errors": [],
+  "committed_replies_observed": 5000,
+  "absolute_schedule": true,
+  "deadline_misses": [],
+  "ten_second_windows": {
+    "0": {
+      "planned": 500,
+      "emitted": 501,
+      "completed": 331
+    },
+    "10": {
+      "planned": 500,
+      "emitted": 499,
+      "completed": 499
+    },
+    "20": {
+      "planned": 500,
+      "emitted": 501,
+      "completed": 499
+    },
+    "30": {
+      "planned": 500,
+      "emitted": 500,
+      "completed": 503
+    },
+    "40": {
+      "planned": 500,
+      "emitted": 499,
+      "completed": 499
+    },
+    "50": {
+      "planned": 500,
+      "emitted": 501,
+      "completed": 502
+    },
+    "60": {
+      "planned": 500,
+      "emitted": 499,
+      "completed": 497
+    },
+    "70": {
+      "planned": 500,
+      "emitted": 500,
+      "completed": 503
+    },
+    "80": {
+      "planned": 500,
+      "emitted": 501,
+      "completed": 502
+    },
+    "90": {
+      "planned": 500,
+      "emitted": 499,
+      "completed": 468
+    },
+    "100": {
+      "planned": 0,
+      "emitted": 0,
+      "completed": 197
+    }
+  },
+  "synthetic_reply_p95_ms": 3633.9125850000046,
+  "synthetic_reply_p99_ms": 3885.4100439999966,
+  "production_agents": [
+    {
+      "requests": 2500,
+      "production_agent_and_quota": true
+    },
+    {
+      "requests": 2500,
+      "production_agent_and_quota": true
+    }
+  ],
+  "playback_is_simulated": true,
+  "network_path": "linux-loopback-nginx",
+  "callback_ledger_storage": "explicit-local-volume",
+  "all_delivery_statuses_including_retries": {
+    "200": 15000
+  },
+  "pending_callbacks": 0,
+  "oldest_callback_age_sec": 0,
+  "durable_commit_batches": 11339,
+  "durable_operations": 30000,
+  "delivery_http_p99_ms": 33.19379099998798,
+  "generator_lag_p99_ms": 9.745835000003922,
+  "queue_samples": [
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540935.4752953,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.0119781494140625,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540936.48466,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.014673471450805664,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540937.4878764,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.12584424018859863,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540938.601696,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 24,
+      "oldest_callback_age_sec": 0.01987743377685547,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540939.7161126,
+      "delivery_inflight": 12,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010317802429199219,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540940.723761,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540941.7292962,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.018735170364379883,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540942.7326357,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.024493932723999023,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540943.738623,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.013993978500366211,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540944.7476153,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5,
+      "oldest_callback_age_sec": 0.013620376586914062,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540945.754969,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6,
+      "oldest_callback_age_sec": 0.011183023452758789,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540946.7628007,
+      "delivery_inflight": 1,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 2,
+      "oldest_callback_age_sec": 0.035713911056518555,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540947.768454,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.008629322052001953,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540948.7815871,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.026580810546875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540949.7861326,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9,
+      "oldest_callback_age_sec": 0.024207592010498047,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540950.7932303,
+      "delivery_inflight": 9,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.007562398910522461,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540951.8005872,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.013875007629394531,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540952.8058176,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 16,
+      "oldest_callback_age_sec": 0.0499422550201416,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540953.8209183,
+      "delivery_inflight": 17,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.030724763870239258,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540954.8644593,
+      "delivery_inflight": 3,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540955.8750732,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00722050666809082,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540956.8799915,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 4,
+      "oldest_callback_age_sec": 0.009215354919433594,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540957.8849795,
+      "delivery_inflight": 4,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540958.8902636,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7,
+      "oldest_callback_age_sec": 0.026883840560913086,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540959.894571,
+      "delivery_inflight": 7,
+      "writer_queued": 2
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.011417388916015625,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540960.9039965,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5,
+      "oldest_callback_age_sec": 0.020436763763427734,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540961.912096,
+      "delivery_inflight": 5,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 11,
+      "oldest_callback_age_sec": 0.006226539611816406,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540962.9176888,
+      "delivery_inflight": 6,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010698318481445312,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540963.922214,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.013241767883300781,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540964.9260666,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.029783248901367188,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540965.9286995,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 14,
+      "oldest_callback_age_sec": 0.009310722351074219,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540966.935822,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.007815361022949219,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540967.9415326,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540968.950464,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.023047685623168945,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540969.9546044,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.008231401443481445,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540970.9610486,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010986089706420898,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540971.963961,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6,
+      "oldest_callback_age_sec": 0.02368927001953125,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540972.9686232,
+      "delivery_inflight": 6,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 10,
+      "oldest_callback_age_sec": 0.015385150909423828,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540973.973271,
+      "delivery_inflight": 5,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00493621826171875,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540974.97771,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00857090950012207,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540975.980195,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540976.9924083,
+      "delivery_inflight": 0,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.003888845443725586,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540977.9951966,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00753474235534668,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540978.9989998,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.01155996322631836,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540980.0025766,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.014455318450927734,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540981.0080402,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13,
+      "oldest_callback_age_sec": 0.01672220230102539,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540982.0164697,
+      "delivery_inflight": 6,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.007632255554199219,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540983.0197144,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540984.0292687,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540985.033205,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.022710800170898438,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540986.0362737,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010783910751342773,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540987.0419028,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 3,
+      "oldest_callback_age_sec": 0.014538288116455078,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540988.0473223,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5,
+      "oldest_callback_age_sec": 0.0046842098236083984,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540989.0507367,
+      "delivery_inflight": 0,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.02280116081237793,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540990.0550733,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.008905172348022461,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540991.060772,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.012184381484985352,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540992.0650384,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8,
+      "oldest_callback_age_sec": 0.028270483016967773,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540993.071668,
+      "delivery_inflight": 8,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 8,
+      "oldest_callback_age_sec": 0.015347003936767578,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540994.076885,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.009658098220825195,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540995.0811858,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7,
+      "oldest_callback_age_sec": 0.0291140079498291,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540996.0857918,
+      "delivery_inflight": 7,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9,
+      "oldest_callback_age_sec": 0.012045145034790039,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540997.104301,
+      "delivery_inflight": 9,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540998.1071377,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789540999.109783,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541000.1136637,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 13,
+      "oldest_callback_age_sec": 0.012982845306396484,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541001.117141,
+      "delivery_inflight": 6,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.008107900619506836,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541002.1200273,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.01239466667175293,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541003.1242878,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.016421794891357422,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541004.1286054,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541005.134247,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7,
+      "oldest_callback_age_sec": 0.019202470779418945,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541006.1421475,
+      "delivery_inflight": 6,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.014046669006347656,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541007.1462166,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541008.1514237,
+      "delivery_inflight": 0,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541009.154041,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 15,
+      "oldest_callback_age_sec": 0.01674509048461914,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541010.1575766,
+      "delivery_inflight": 8,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.009737968444824219,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541011.161222,
+      "delivery_inflight": 1,
+      "writer_queued": 5
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.011973857879638672,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541012.1647367,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541013.168807,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541014.1737847,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00577545166015625,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541015.1777759,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 7,
+      "oldest_callback_age_sec": 0.017455339431762695,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541016.1832616,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.013090372085571289,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541017.186867,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541018.1903389,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.004265546798706055,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541019.1955163,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 2,
+      "oldest_callback_age_sec": 0.028753042221069336,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541020.2033029,
+      "delivery_inflight": 2,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541021.2166235,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.009984016418457031,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541022.222905,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 5,
+      "oldest_callback_age_sec": 0.017847061157226562,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541023.2275014,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541024.230336,
+      "delivery_inflight": 0,
+      "writer_queued": 6
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.019138813018798828,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541025.234031,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010278701782226562,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541026.2434547,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 9,
+      "oldest_callback_age_sec": 0.02454853057861328,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541027.247187,
+      "delivery_inflight": 9,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 2,
+      "oldest_callback_age_sec": 0.003441333770751953,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541028.2526715,
+      "delivery_inflight": 2,
+      "writer_queued": 3
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.0038013458251953125,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541029.2550266,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.005443096160888672,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541030.257182,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.00969839096069336,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541031.2617426,
+      "delivery_inflight": 1,
+      "writer_queued": 1
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.01578497886657715,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541032.2667778,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.019972801208496094,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541033.2718344,
+      "delivery_inflight": 1,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 4,
+      "oldest_callback_age_sec": 0.015480279922485352,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541034.277142,
+      "delivery_inflight": 4,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 1,
+      "oldest_callback_age_sec": 0.010863304138183594,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541035.2833605,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541036.2973669,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541037.3015158,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 6,
+      "oldest_callback_age_sec": 0.014214754104614258,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541038.3058393,
+      "delivery_inflight": 3,
+      "writer_queued": 0
+    },
+    {
+      "stopped": false,
+      "pending_callbacks": 0,
+      "oldest_callback_age_sec": 0,
+      "active_attempts": 0,
+      "rejected_commands": 0,
+      "at": 1789541039.3099246,
+      "delivery_inflight": 0,
+      "writer_queued": 0
+    }
+  ],
+  "gateway_delivery_p99_ms": 81.59666699999946,
+  "gateway_delivery_max_ms": 365.3739579999922,
+  "model_transport_retries": 0,
+  "inbox_final": {
+    "pending": 0,
+    "pending_bytes": 0,
+    "dead": 0,
+    "oldest_age_sec": 0,
+    "live_workers": 6,
+    "processed": 15000,
+    "max_completion_latency_ms": 389.073,
+    "ready": true
+  },
+  "inbox_samples": [
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 0,
+      "max_completion_latency_ms": 0.0,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.003909,
+      "live_workers": 6,
+      "processed": 50,
+      "max_completion_latency_ms": 84.5,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.008484,
+      "live_workers": 6,
+      "processed": 100,
+      "max_completion_latency_ms": 84.5,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.242311,
+      "live_workers": 6,
+      "processed": 149,
+      "max_completion_latency_ms": 135.88500000000002,
+      "ready": true
+    },
+    {
+      "pending": 13,
+      "pending_bytes": 4812,
+      "dead": 0,
+      "oldest_age_sec": 0.018265,
+      "live_workers": 6,
+      "processed": 267,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 440,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 696,
+      "dead": 0,
+      "oldest_age_sec": 0.027537,
+      "live_workers": 6,
+      "processed": 598,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1838,
+      "dead": 0,
+      "oldest_age_sec": 0.059146,
+      "live_workers": 6,
+      "processed": 728,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2583,
+      "dead": 0,
+      "oldest_age_sec": 0.055409,
+      "live_workers": 6,
+      "processed": 891,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1839,
+      "dead": 0,
+      "oldest_age_sec": 0.029909,
+      "live_workers": 6,
+      "processed": 1054,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2208,
+      "dead": 0,
+      "oldest_age_sec": 0.016548,
+      "live_workers": 6,
+      "processed": 1193,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.024095,
+      "live_workers": 6,
+      "processed": 1349,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3305,
+      "dead": 0,
+      "oldest_age_sec": 0.070024,
+      "live_workers": 6,
+      "processed": 1491,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 696,
+      "dead": 0,
+      "oldest_age_sec": 0.021604,
+      "live_workers": 6,
+      "processed": 1651,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1092,
+      "dead": 0,
+      "oldest_age_sec": 0.023158,
+      "live_workers": 6,
+      "processed": 1802,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 18,
+      "pending_bytes": 6681,
+      "dead": 0,
+      "oldest_age_sec": 0.024296,
+      "live_workers": 6,
+      "processed": 1932,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.016702,
+      "live_workers": 6,
+      "processed": 2094,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2957,
+      "dead": 0,
+      "oldest_age_sec": 0.04227,
+      "live_workers": 6,
+      "processed": 2263,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 17,
+      "pending_bytes": 6300,
+      "dead": 0,
+      "oldest_age_sec": 0.072238,
+      "live_workers": 6,
+      "processed": 2373,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2186,
+      "dead": 0,
+      "oldest_age_sec": 0.02867,
+      "live_workers": 6,
+      "processed": 2547,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.016068,
+      "live_workers": 6,
+      "processed": 2700,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.018335,
+      "live_workers": 6,
+      "processed": 2867,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2586,
+      "dead": 0,
+      "oldest_age_sec": 0.058655,
+      "live_workers": 6,
+      "processed": 2998,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.012184,
+      "live_workers": 6,
+      "processed": 3160,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2580,
+      "dead": 0,
+      "oldest_age_sec": 0.023752,
+      "live_workers": 6,
+      "processed": 3302,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 11,
+      "pending_bytes": 4052,
+      "dead": 0,
+      "oldest_age_sec": 0.038017,
+      "live_workers": 6,
+      "processed": 3456,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3329,
+      "dead": 0,
+      "oldest_age_sec": 0.020353,
+      "live_workers": 6,
+      "processed": 3619,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.016903,
+      "live_workers": 6,
+      "processed": 3759,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 3926,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.005685,
+      "live_workers": 6,
+      "processed": 4078,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1094,
+      "dead": 0,
+      "oldest_age_sec": 0.017034,
+      "live_workers": 6,
+      "processed": 4224,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 4373,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 4507,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 4680,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 4,
+      "pending_bytes": 1442,
+      "dead": 0,
+      "oldest_age_sec": 0.047275,
+      "live_workers": 6,
+      "processed": 4833,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 4962,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1119,
+      "dead": 0,
+      "oldest_age_sec": 0.022045,
+      "live_workers": 6,
+      "processed": 5135,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1860,
+      "dead": 0,
+      "oldest_age_sec": 0.018037,
+      "live_workers": 6,
+      "processed": 5282,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2208,
+      "dead": 0,
+      "oldest_age_sec": 0.014268,
+      "live_workers": 6,
+      "processed": 5436,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 5587,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 696,
+      "dead": 0,
+      "oldest_age_sec": 0.044579,
+      "live_workers": 6,
+      "processed": 5733,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.01407,
+      "live_workers": 6,
+      "processed": 5889,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 6038,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.002635,
+      "live_workers": 6,
+      "processed": 6190,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2217,
+      "dead": 0,
+      "oldest_age_sec": 0.032021,
+      "live_workers": 6,
+      "processed": 6340,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1870,
+      "dead": 0,
+      "oldest_age_sec": 0.027059,
+      "live_workers": 6,
+      "processed": 6490,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2586,
+      "dead": 0,
+      "oldest_age_sec": 0.016947,
+      "live_workers": 6,
+      "processed": 6636,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.004917,
+      "live_workers": 6,
+      "processed": 6793,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.009638,
+      "live_workers": 6,
+      "processed": 6945,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 7098,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1843,
+      "dead": 0,
+      "oldest_age_sec": 0.050517,
+      "live_workers": 6,
+      "processed": 7247,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2939,
+      "dead": 0,
+      "oldest_age_sec": 0.031513,
+      "live_workers": 6,
+      "processed": 7400,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.008045,
+      "live_workers": 6,
+      "processed": 7546,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.01273,
+      "live_workers": 6,
+      "processed": 7696,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 7848,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 7999,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 374,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 8139,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 12,
+      "pending_bytes": 4458,
+      "dead": 0,
+      "oldest_age_sec": 0.030312,
+      "live_workers": 6,
+      "processed": 8297,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2611,
+      "dead": 0,
+      "oldest_age_sec": 0.012469,
+      "live_workers": 6,
+      "processed": 8447,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 696,
+      "dead": 0,
+      "oldest_age_sec": 0.019817,
+      "live_workers": 6,
+      "processed": 8591,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1865,
+      "dead": 0,
+      "oldest_age_sec": 0.038711,
+      "live_workers": 6,
+      "processed": 8753,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 8891,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.010841,
+      "live_workers": 6,
+      "processed": 9057,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.01035,
+      "live_workers": 6,
+      "processed": 9207,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2589,
+      "dead": 0,
+      "oldest_age_sec": 0.032494,
+      "live_workers": 6,
+      "processed": 9339,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.015518,
+      "live_workers": 6,
+      "processed": 9499,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 9658,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 9806,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.011759,
+      "live_workers": 6,
+      "processed": 9960,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 11,
+      "pending_bytes": 4059,
+      "dead": 0,
+      "oldest_age_sec": 0.031533,
+      "live_workers": 6,
+      "processed": 10106,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 13,
+      "pending_bytes": 4830,
+      "dead": 0,
+      "oldest_age_sec": 0.02091,
+      "live_workers": 6,
+      "processed": 10256,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.006122,
+      "live_workers": 6,
+      "processed": 10413,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.015148,
+      "live_workers": 6,
+      "processed": 10565,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1096,
+      "dead": 0,
+      "oldest_age_sec": 0.02994,
+      "live_workers": 6,
+      "processed": 10715,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 7,
+      "pending_bytes": 2611,
+      "dead": 0,
+      "oldest_age_sec": 0.00973,
+      "live_workers": 6,
+      "processed": 10852,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 11006,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.003241,
+      "live_workers": 6,
+      "processed": 11166,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.011847,
+      "live_workers": 6,
+      "processed": 11308,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 4,
+      "pending_bytes": 1470,
+      "dead": 0,
+      "oldest_age_sec": 0.027707,
+      "live_workers": 6,
+      "processed": 11467,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3337,
+      "dead": 0,
+      "oldest_age_sec": 0.031642,
+      "live_workers": 6,
+      "processed": 11610,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2934,
+      "dead": 0,
+      "oldest_age_sec": 0.024206,
+      "live_workers": 6,
+      "processed": 11763,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.020809,
+      "live_workers": 6,
+      "processed": 11911,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2216,
+      "dead": 0,
+      "oldest_age_sec": 0.041723,
+      "live_workers": 6,
+      "processed": 12064,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2964,
+      "dead": 0,
+      "oldest_age_sec": 0.02797,
+      "live_workers": 6,
+      "processed": 12217,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 14,
+      "pending_bytes": 5206,
+      "dead": 0,
+      "oldest_age_sec": 0.073682,
+      "live_workers": 6,
+      "processed": 12348,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 9,
+      "pending_bytes": 3336,
+      "dead": 0,
+      "oldest_age_sec": 0.048619,
+      "live_workers": 6,
+      "processed": 12510,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2964,
+      "dead": 0,
+      "oldest_age_sec": 0.03043,
+      "live_workers": 6,
+      "processed": 12670,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 6,
+      "pending_bytes": 2213,
+      "dead": 0,
+      "oldest_age_sec": 0.012371,
+      "live_workers": 6,
+      "processed": 12809,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.010683,
+      "live_workers": 6,
+      "processed": 12973,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 348,
+      "dead": 0,
+      "oldest_age_sec": 0.013088,
+      "live_workers": 6,
+      "processed": 13121,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 349,
+      "dead": 0,
+      "oldest_age_sec": 0.004424,
+      "live_workers": 6,
+      "processed": 13280,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 8,
+      "pending_bytes": 2984,
+      "dead": 0,
+      "oldest_age_sec": 0.020351,
+      "live_workers": 6,
+      "processed": 13412,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 349,
+      "dead": 0,
+      "oldest_age_sec": 0.013051,
+      "live_workers": 6,
+      "processed": 13571,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 13729,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 349,
+      "dead": 0,
+      "oldest_age_sec": 0.012228,
+      "live_workers": 6,
+      "processed": 13866,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 2,
+      "pending_bytes": 698,
+      "dead": 0,
+      "oldest_age_sec": 0.020527,
+      "live_workers": 6,
+      "processed": 14022,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 5,
+      "pending_bytes": 1847,
+      "dead": 0,
+      "oldest_age_sec": 0.053734,
+      "live_workers": 6,
+      "processed": 14183,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 12,
+      "pending_bytes": 4469,
+      "dead": 0,
+      "oldest_age_sec": 0.03189,
+      "live_workers": 6,
+      "processed": 14326,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 4,
+      "pending_bytes": 1496,
+      "dead": 0,
+      "oldest_age_sec": 0.01731,
+      "live_workers": 6,
+      "processed": 14476,
+      "max_completion_latency_ms": 263.102,
+      "ready": true
+    },
+    {
+      "pending": 1,
+      "pending_bytes": 349,
+      "dead": 0,
+      "oldest_age_sec": 0.03042,
+      "live_workers": 6,
+      "processed": 14567,
+      "max_completion_latency_ms": 333.31300000000005,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 14744,
+      "max_completion_latency_ms": 389.073,
+      "ready": true
+    },
+    {
+      "pending": 3,
+      "pending_bytes": 1125,
+      "dead": 0,
+      "oldest_age_sec": 0.034747,
+      "live_workers": 6,
+      "processed": 14841,
+      "max_completion_latency_ms": 389.073,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 14880,
+      "max_completion_latency_ms": 389.073,
+      "ready": true
+    },
+    {
+      "pending": 0,
+      "pending_bytes": 0,
+      "dead": 0,
+      "oldest_age_sec": 0,
+      "live_workers": 6,
+      "processed": 15000,
+      "max_completion_latency_ms": 389.073,
+      "ready": true
+    }
+  ],
+  "capacity_slo_passed": true,
+  "task_states": {
+    "completed": 5000
+  },
+  "final_transcripts": 5000,
+  "successful_ai_metrics": 5000,
+  "model": {
+    "active": 0,
+    "peak": 176,
+    "total": 5000,
+    "cancelled": 0,
+    "playback_count": 5000,
+    "playback_calls": 500,
+    "notice_count": 0,
+    "model_delay_sec": 3.0,
+    "playback_delay_sec": 0.2,
+    "real_audio": false
+  },
+  "ai_transcripts": 5000,
+  "media_ingest_events": 10000,
+  "call_states": {
+    "in_ai": 500
+  },
+  "failed_metrics": 0,
+  "ai_max_attempts": 1,
+  "stage_timings": {
+    "tts.dispatch": {
+      "count": 5000,
+      "p99_ms": 225,
+      "max_ms": 306
+    },
+    "ai.turn": {
+      "count": 5000,
+      "p99_ms": 3207,
+      "max_ms": 3580
+    }
+  },
+  "reply_round_timings": {
+    "1": {
+      "count": 500,
+      "p99_ms": 3900.8079999999977,
+      "max_ms": 4066.5149179999958
+    },
+    "2": {
+      "count": 500,
+      "p99_ms": 3773.464834999999,
+      "max_ms": 3797.228086000004
+    },
+    "3": {
+      "count": 500,
+      "p99_ms": 3756.5542509999973,
+      "max_ms": 3922.6016690000024
+    },
+    "4": {
+      "count": 500,
+      "p99_ms": 3653.817919000005,
+      "max_ms": 3714.3407099999877
+    },
+    "5": {
+      "count": 500,
+      "p99_ms": 3480.952710000011,
+      "max_ms": 3540.2098769999952
+    },
+    "6": {
+      "count": 500,
+      "p99_ms": 3542.9088349999915,
+      "max_ms": 3586.9247520000017
+    },
+    "7": {
+      "count": 500,
+      "p99_ms": 3544.0611270000063,
+      "max_ms": 3587.7571259999995
+    },
+    "8": {
+      "count": 500,
+      "p99_ms": 3623.915793000009,
+      "max_ms": 3788.2811679999977
+    },
+    "9": {
+      "count": 500,
+      "p99_ms": 3655.8780020000086,
+      "max_ms": 3746.37637699999
+    },
+    "10": {
+      "count": 500,
+      "p99_ms": 4137.815167999975,
+      "max_ms": 4256.005501999994
+    }
+  },
+  "ai_work_pool_timings": [
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 2125,
+        "p99": 61.93608300000619,
+        "max": 287.78304200000093
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 2125,
+        "p99": 45.75175000000797,
+        "max": 132.94116699999847
+      },
+      "load_action.queue_ms": {
+        "count": 1179,
+        "p99": 96.89879199999041,
+        "max": 128.27737499999614
+      },
+      "load_action.execute_ms": {
+        "count": 1179,
+        "p99": 6.974041999995961,
+        "max": 66.00175000000519
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 1179,
+        "p99": 84.29058300001202,
+        "max": 248.46325000000036
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 1179,
+        "p99": 57.00870799999791,
+        "max": 164.96608400001378
+      },
+      "read_current.queue_ms": {
+        "count": 1921,
+        "p99": 109.42683400000419,
+        "max": 409.58533299999544
+      },
+      "read_current.execute_ms": {
+        "count": 1921,
+        "p99": 10.46124999999165,
+        "max": 62.436916999985215
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 1179,
+        "p99": 95.37512500000389,
+        "max": 208.04295800002137
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 1179,
+        "p99": 30.95049999998878,
+        "max": 179.23308299999974
+      },
+      "prepare.queue_ms": {
+        "count": 1179,
+        "p99": 93.11179200000197,
+        "max": 314.6227080000017
+      },
+      "prepare.execute_ms": {
+        "count": 1179,
+        "p99": 20.20437499999872,
+        "max": 39.88504200000165
+      },
+      "record_speech.queue_ms": {
+        "count": 1179,
+        "p99": 108.89162499998406,
+        "max": 392.5981249999779
+      },
+      "record_speech.execute_ms": {
+        "count": 1179,
+        "p99": 36.71304200000236,
+        "max": 129.43716699999186
+      },
+      "finish.queue_ms": {
+        "count": 1179,
+        "p99": 87.40420799999526,
+        "max": 190.10145900000452
+      },
+      "finish.execute_ms": {
+        "count": 1179,
+        "p99": 59.288625000021966,
+        "max": 189.71845799998732
+      },
+      "complete.queue_ms": {
+        "count": 1179,
+        "p99": 103.07075000000054,
+        "max": 384.5771670000033
+      },
+      "complete.execute_ms": {
+        "count": 1179,
+        "p99": 15.019791000000282,
+        "max": 48.0976670000004
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 2158,
+        "p99": 60.017874999999776,
+        "max": 217.2901249999768
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 2158,
+        "p99": 48.59495799999536,
+        "max": 240.65054100000793
+      },
+      "load_action.queue_ms": {
+        "count": 1241,
+        "p99": 100.7223750000037,
+        "max": 296.00229199999717
+      },
+      "load_action.execute_ms": {
+        "count": 1241,
+        "p99": 6.534874999999829,
+        "max": 55.600584000004005
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 1241,
+        "p99": 100.23125000000732,
+        "max": 223.01541699999916
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 1241,
+        "p99": 53.89566700000614,
+        "max": 154.38708399999967
+      },
+      "read_current.queue_ms": {
+        "count": 1992,
+        "p99": 113.42216700001018,
+        "max": 264.8402499999918
+      },
+      "read_current.execute_ms": {
+        "count": 1992,
+        "p99": 11.655207999993422,
+        "max": 85.00824999999423
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 1241,
+        "p99": 137.8967920000207,
+        "max": 217.28079199999684
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 1241,
+        "p99": 28.712041000005684,
+        "max": 113.72333399998524
+      },
+      "prepare.queue_ms": {
+        "count": 1241,
+        "p99": 136.04470900000365,
+        "max": 232.70054200000345
+      },
+      "prepare.execute_ms": {
+        "count": 1241,
+        "p99": 19.959625000012693,
+        "max": 60.80270800001131
+      },
+      "record_speech.queue_ms": {
+        "count": 1241,
+        "p99": 156.90929200002302,
+        "max": 253.0317920000016
+      },
+      "record_speech.execute_ms": {
+        "count": 1241,
+        "p99": 33.752333000002466,
+        "max": 107.53112500000839
+      },
+      "finish.queue_ms": {
+        "count": 1241,
+        "p99": 94.0877920000105,
+        "max": 188.1668750000074
+      },
+      "finish.execute_ms": {
+        "count": 1241,
+        "p99": 59.853416999999354,
+        "max": 139.09837500000322
+      },
+      "complete.queue_ms": {
+        "count": 1241,
+        "p99": 92.65083399999696,
+        "max": 180.97504200000003
+      },
+      "complete.execute_ms": {
+        "count": 1241,
+        "p99": 12.072957999997413,
+        "max": 22.457291999998574
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 2172,
+        "p99": 60.712832999996635,
+        "max": 214.27574999999877
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 2172,
+        "p99": 47.0925830000084,
+        "max": 137.67291700000328
+      },
+      "load_action.queue_ms": {
+        "count": 1297,
+        "p99": 92.12662499999169,
+        "max": 180.08200000002716
+      },
+      "load_action.execute_ms": {
+        "count": 1297,
+        "p99": 7.25883399999816,
+        "max": 54.7672499999976
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 1297,
+        "p99": 134.1474590000047,
+        "max": 249.54433399999942
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 1297,
+        "p99": 74.19887500000755,
+        "max": 258.9716250000009
+      },
+      "read_current.queue_ms": {
+        "count": 2087,
+        "p99": 122.04124999999522,
+        "max": 212.72066700001346
+      },
+      "read_current.execute_ms": {
+        "count": 2087,
+        "p99": 10.395625000001019,
+        "max": 68.6703749999964
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 1297,
+        "p99": 120.78479199999492,
+        "max": 177.78087499999629
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 1297,
+        "p99": 30.803209000005438,
+        "max": 61.14995900000508
+      },
+      "prepare.queue_ms": {
+        "count": 1297,
+        "p99": 96.13416700000244,
+        "max": 166.4781249999976
+      },
+      "prepare.execute_ms": {
+        "count": 1297,
+        "p99": 16.078790999998205,
+        "max": 30.400207999988993
+      },
+      "record_speech.queue_ms": {
+        "count": 1297,
+        "p99": 100.161583000002,
+        "max": 175.88954100000365
+      },
+      "record_speech.execute_ms": {
+        "count": 1297,
+        "p99": 35.25058299999273,
+        "max": 147.36070799997947
+      },
+      "finish.queue_ms": {
+        "count": 1297,
+        "p99": 95.82866700000636,
+        "max": 165.782207999996
+      },
+      "finish.execute_ms": {
+        "count": 1297,
+        "p99": 63.83862500000248,
+        "max": 116.41720900000507
+      },
+      "complete.queue_ms": {
+        "count": 1297,
+        "p99": 112.14095799999768,
+        "max": 175.83591599998272
+      },
+      "complete.execute_ms": {
+        "count": 1297,
+        "p99": 11.810709000002362,
+        "max": 61.903915999977244
+      }
+    },
+    {
+      "claim_ready_tasks.queue_ms": {
+        "count": 2181,
+        "p99": 62.93304099999375,
+        "max": 178.41016700000978
+      },
+      "claim_ready_tasks.execute_ms": {
+        "count": 2181,
+        "p99": 46.900084000000675,
+        "max": 204.14375000001428
+      },
+      "load_action.queue_ms": {
+        "count": 1283,
+        "p99": 66.1372089999901,
+        "max": 195.58366600000454
+      },
+      "load_action.execute_ms": {
+        "count": 1283,
+        "p99": 7.116249999995716,
+        "max": 16.32508399999466
+      },
+      "_prepare_ai_turn.queue_ms": {
+        "count": 1283,
+        "p99": 119.90475000000345,
+        "max": 191.40362499999242
+      },
+      "_prepare_ai_turn.execute_ms": {
+        "count": 1283,
+        "p99": 66.17645899999047,
+        "max": 166.13608400000146
+      },
+      "read_current.queue_ms": {
+        "count": 2080,
+        "p99": 98.69062499998904,
+        "max": 288.3235409999827
+      },
+      "read_current.execute_ms": {
+        "count": 2080,
+        "p99": 8.71466699999246,
+        "max": 82.43137499999875
+      },
+      "_finish_ai_turn.queue_ms": {
+        "count": 1283,
+        "p99": 123.99783399999365,
+        "max": 311.4724170000045
+      },
+      "_finish_ai_turn.execute_ms": {
+        "count": 1283,
+        "p99": 34.23854099999346,
+        "max": 103.25558399998158
+      },
+      "prepare.queue_ms": {
+        "count": 1283,
+        "p99": 99.38383300000453,
+        "max": 199.92858399999136
+      },
+      "prepare.execute_ms": {
+        "count": 1283,
+        "p99": 20.255084000012857,
+        "max": 62.93408399999123
+      },
+      "record_speech.queue_ms": {
+        "count": 1283,
+        "p99": 144.637000000003,
+        "max": 271.0670839999807
+      },
+      "record_speech.execute_ms": {
+        "count": 1283,
+        "p99": 30.2893750000095,
+        "max": 259.2751669999984
+      },
+      "finish.queue_ms": {
+        "count": 1283,
+        "p99": 102.76654199999768,
+        "max": 196.5242910000029
+      },
+      "finish.execute_ms": {
+        "count": 1283,
+        "p99": 51.052791000017805,
+        "max": 115.27224999999675
+      },
+      "complete.queue_ms": {
+        "count": 1283,
+        "p99": 95.20516699998893,
+        "max": 142.76058400000124
+      },
+      "complete.execute_ms": {
+        "count": 1283,
+        "p99": 12.542791999990754,
+        "max": 97.7976669999947
+      }
+    }
+  ],
+  "sender_stage_ms": {
+    "commit": {
+      "count": 11339,
+      "sum": 23847.994180999212,
+      "p50": 1.4862079999886646,
+      "p99": 11.24525000000176
+    },
+    "claim": {
+      "count": 11744,
+      "sum": 4990.622963999798,
+      "p50": 0.2840410000146676,
+      "p99": 1.7407079999998132
+    }
+  },
+  "elapsed_with_drain_seconds": 104.83268142200001,
+  "real_sip_rtp_asr_tts_llm": false,
+  "correctness_passed": true,
+  "conversation_correctness_passed": true,
+  "synthetic_reply_control_budget_ms": 4200.0,
+  "conversation_control_slo_passed": true,
+  "runtime_source_unchanged_during_test": true
+}

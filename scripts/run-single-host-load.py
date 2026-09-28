@@ -22,14 +22,20 @@ def main():
     parser.add_argument('--scenario', choices=('mixed','conversation'), default='mixed')
     parser.add_argument('--rate', type=int, default=200)
     parser.add_argument('--seconds', type=int, default=30)
+    parser.add_argument('--ai-db-threads', type=int, choices=(2,3,4), default=2)
+    parser.add_argument('--duration', type=int, default=0, help='continuous conversation seconds, up to 24h')
     parser.add_argument('--rounds', type=int, default=5)
-    parser.add_argument('--turn-gap', type=float, default=6.25)
+    parser.add_argument('--turn-gap', type=float, default=None, help='conversation interval; defaults to 500/rate seconds')
     args = parser.parse_args()
+    if args.turn_gap is None:
+        args.turn_gap = 500 / args.rate if args.scenario == 'conversation' and args.rate > 0 else 6.25
     if not re.fullmatch(r'single500-[a-z0-9-]+', args.label):
         parser.error('use a fresh single500- prefixed project label')
     if not (1 <= args.rate <= 400 and 10 <= args.seconds <= 3600
             and 1 <= args.rounds <= 100 and 1 <= args.turn_gap <= 60):
         parser.error('invalid bounded load parameters')
+    if args.duration and (args.scenario != 'conversation' or not 10 <= args.duration <= 86400):
+        parser.error('--duration requires conversation and 10..86400 seconds')
     output = ROOT/'artifacts/single-host-500'
     reports = ROOT/'docs/reviews/evidence/20260913-single-host-500-fixes'
     output.mkdir(parents=True, exist_ok=True); reports.mkdir(parents=True, exist_ok=True)
@@ -46,14 +52,14 @@ def main():
         SINGLE500_LOAD_LABEL=args.label, SINGLE500_EVENT_LOOP='uvloop',
         SINGLE500_BATCH_CALLBACKS='true', SINGLE500_SCENARIO=args.scenario,
         SINGLE500_TURN_RATE=str(args.rate), SINGLE500_LOAD_SECONDS=str(args.seconds),
-        SINGLE500_CONVERSATION_ROUNDS=str(args.rounds), SINGLE500_TURN_GAP_SEC=str(args.turn_gap),
+        SINGLE500_CONVERSATION_ROUNDS=str(args.rounds), SINGLE500_CONVERSATION_DURATION=str(args.duration), SINGLE500_AI_DB_THREADS=str(args.ai_db_threads), SINGLE500_TURN_GAP_SEC=str(args.turn_gap),
         SINGLE500_REPORT_DIR=str(reports.relative_to(ROOT)))
     compose = ['docker','compose','-p',args.label,'-f','docker-compose.callback-load.yml']
     with log_path.open('x') as log:
         try:
             completed = subprocess.run(compose + ['up','--abort-on-container-exit','--exit-code-from','load'],
                 cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
-                timeout=max(args.seconds, args.rounds*args.turn_gap + 500/args.rate) + 180)
+                timeout=max(args.seconds, args.duration, args.rounds*args.turn_gap + 500/args.rate) + 180)
         finally:
             cleanup = subprocess.run(compose + ['down','--volumes','--remove-orphans'],
                 cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=120)
@@ -62,7 +68,9 @@ def main():
         cleanup_exit=cleanup.returncode, report=str(report) if report.exists() else None,
         **{key:data.get(key) for key in ('correctness_passed','capacity_slo_passed',
             'conversation_control_slo_passed','synthetic_reply_p99_ms','gateway_delivery_max_ms')})))
-    return completed.returncode or cleanup.returncode or (0 if report.exists() else 1)
+    passed = (data.get('correctness_passed') is True and data.get('capacity_slo_passed') is True
+              and (args.scenario != 'conversation' or data.get('conversation_control_slo_passed') is True))
+    return completed.returncode or cleanup.returncode or (0 if passed else 1)
 
 
 if __name__ == '__main__':

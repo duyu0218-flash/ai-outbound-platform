@@ -109,4 +109,10 @@ def render_prometheus_metrics(session: Session, *, now: datetime | None = None) 
         for name, value in snapshot(session).items():
             metric = 'ai_outbound_callback_inbox_' + name
             lines.extend([f'# TYPE {metric} gauge', f'{metric} {float(value)}'])
+    from .stability import status as stability_status
+    control = stability_status()
+    lines.extend(['# TYPE ai_outbound_stability_dial_fraction gauge',
+                  f"ai_outbound_stability_dial_fraction {float(control['fraction'])}",
+                  '# TYPE ai_outbound_stability_state gauge',
+                  f'ai_outbound_stability_state{{state="{_label(control["mode"])}"}} 1'])
     return "\n".join(lines) + "\n"

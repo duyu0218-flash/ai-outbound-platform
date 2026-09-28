@@ -24,6 +24,7 @@ async def measured(self, function, *args):
             return await value if inspect.isawaitable(value) else value
         finally:
             measurements[function.__name__ + '.execute_ms'].append((time.monotonic()-executing)*1000)
+    invoke.__name__ = function.__name__  # Preserve production scheduling classification.
     return await original(self, invoke, *args)
 
 

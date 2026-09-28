@@ -119,7 +119,10 @@ async def ready():
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PBX driver is not ready")
     manager = getattr(driver, 'pipecat_manager', None)
     media_capacity = manager.admission_capacity() if hasattr(manager, 'admission_capacity') else settings.pipecat_max_active_sessions
+    ledger = getattr(driver, "ledger", None)
+    callback_state = await asyncio.to_thread(ledger.summary) if ledger else {}
     return {
+        "callback_oldest_age_sec": callback_state.get("oldest_callback_age_sec"),
         "status": "ready",
         "node_id": settings.voice_node_id,
         "call_capacity": min(settings.voice_max_concurrent, media_capacity)

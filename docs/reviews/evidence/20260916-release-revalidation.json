@@ -1,0 +1,194 @@
+{
+  "recorded_at": "2026-09-16T08:01:06.970745+00:00",
+  "runs": [
+    {
+      "name": "dialogue50",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-dialogue50-results.json",
+      "events": 15000,
+      "ai_tasks": 5000,
+      "reply_p99_ms": 3583.641334999811,
+      "delivery_max_ms": 207.03020800010563,
+      "inbox_max_ms": 203.982,
+      "deadline_misses": 0,
+      "correctness": true,
+      "slo": true,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    },
+    {
+      "name": "dialogue80",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-dialogue80-results.json",
+      "events": 7500,
+      "ai_tasks": 2500,
+      "reply_p99_ms": 5793.312419000358,
+      "delivery_max_ms": 202.1208750002188,
+      "inbox_max_ms": 288.68100000000004,
+      "deadline_misses": 1,
+      "correctness": true,
+      "slo": false,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    },
+    {
+      "name": "dialogue100",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-dialogue100-results.json",
+      "events": 7500,
+      "ai_tasks": 2500,
+      "reply_p99_ms": 6281.428876999598,
+      "delivery_max_ms": 181.27895799989346,
+      "inbox_max_ms": 237.463,
+      "deadline_misses": 1977,
+      "correctness": true,
+      "slo": false,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    },
+    {
+      "name": "dialogue125",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-dialogue125-results.json",
+      "events": 7500,
+      "ai_tasks": 2500,
+      "reply_p99_ms": 5279.479501999958,
+      "delivery_max_ms": 104.20666600020922,
+      "inbox_max_ms": 199.40099999999998,
+      "deadline_misses": 2278,
+      "correctness": true,
+      "slo": false,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    },
+    {
+      "name": "callback600",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-callback600-results.json",
+      "events": 72000,
+      "ai_tasks": 24000,
+      "reply_p99_ms": 0,
+      "delivery_max_ms": 331.0302090003461,
+      "inbox_max_ms": 1242.6589999999999,
+      "deadline_misses": 0,
+      "correctness": true,
+      "slo": false,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    },
+    {
+      "name": "callback1200",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-release-callback1200-results.json",
+      "events": 36000,
+      "ai_tasks": 12000,
+      "reply_p99_ms": 0,
+      "delivery_max_ms": 18583.811759000127,
+      "inbox_max_ms": 6511.467,
+      "deadline_misses": 0,
+      "correctness": true,
+      "slo": false,
+      "pending": 0,
+      "dead": 0,
+      "source_unchanged": true,
+      "source_matches_final": true
+    }
+  ],
+  "total_events": 145500,
+  "total_ai_tasks": 48500,
+  "all_correctness_passed": true,
+  "all_latency_passed": false,
+  "all_application_sources_match_final": true,
+  "environment": {
+    "platform": "macOS Docker Desktop Linux VM",
+    "cpus": 12,
+    "memory_bytes": 8319238144,
+    "load_generator_colocated": true,
+    "production_instances_unchanged": true
+  },
+  "test_resources_removed": true,
+  "local_tests": {
+    "backend": {
+      "passed": 297,
+      "skipped": 16
+    },
+    "voice_gateway": {
+      "passed": 250,
+      "skipped": 0
+    },
+    "agent": {
+      "passed": 15,
+      "skipped": 0
+    },
+    "recording_adapter": {
+      "passed": 14,
+      "skipped": 0
+    },
+    "tooling": {
+      "passed": 24,
+      "skipped": 0
+    },
+    "delayed_isolation_recheck": {
+      "passed": 122,
+      "skipped": 2,
+      "injected_wait_sec": 35
+    }
+  },
+  "git": {
+    "local_source_commit": "d623d12",
+    "public_code_head": "c6591be01fbd136c9ff8a36f57b577b8ce0b5179",
+    "pr": "https://github.com/duyu0218-flash/ai-outbound-platform/pull/37",
+    "public_docs_and_evidence_uploaded": false,
+    "ci_run_id": 35071376475,
+    "ci_status": "success",
+    "merged": true,
+    "merge_commit": "9fcb9f27490b2b8db9b8b3d060b085623fbd6b82",
+    "post_merge_ci_run_id": 35071826089,
+    "post_merge_ci_status": "success",
+    "local_main_matches_remote": true,
+    "published_file_count": 36,
+    "public_candidate_matches_local_sources": true,
+    "post_merge_ci_jobs": {
+      "compose-e2e": "success",
+      "test (backend)": "success",
+      "test (recording_adapter)": "success",
+      "test (agent)": "success",
+      "deployable-assets": "success",
+      "version-constraints": "success",
+      "test (voice_gateway)": "success",
+      "postgres-redis-integration": "success",
+      "security-supply-chain": "success"
+    }
+  },
+  "production": {
+    "deployed": false,
+    "target_provided": false,
+    "real_media_verified": false,
+    "soak_8h_24h_verified": false
+  },
+  "remote_tests": {
+    "backend": {
+      "passed": 297,
+      "skipped": 16
+    },
+    "postgres_redis": {
+      "passed": 311,
+      "skipped": 2
+    },
+    "browser": {
+      "passed": 15,
+      "skipped": 4
+    },
+    "frontend_unit": {
+      "passed": 11
+    },
+    "tooling": {
+      "passed": 34
+    },
+    "all_nine_pr_jobs": "success"
+  }
+}

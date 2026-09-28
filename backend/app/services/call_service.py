@@ -273,8 +273,11 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
 
     from .gateway_cluster import lock_platform_admission, choose_gateway
     lock_platform_admission(session)
-    from .callback_inbox import ready as callback_inbox_ready
-    if not callback_inbox_ready(session):
+    from .callback_inbox import ready as callback_inbox_ready, snapshot as inbox_snapshot
+    from .stability import check as stability_check
+    admission_ready = (stability_check(session, inbox_snapshot(session)) if settings.stability_admission_enabled
+                       else callback_inbox_ready(session))
+    if not admission_ready:
         session.rollback()
         return False
     # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.

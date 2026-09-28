@@ -51,20 +51,39 @@ _expected_turn_sequence = ContextVar("expected_turn_sequence", default=None)
 _expected_speech_event = ContextVar("expected_speech_event", default=None)
 
 
-def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
-    from .leases import assert_execution_permitted
-    assert_execution_permitted()
-    session.refresh(call, with_for_update=True if lock else None)
+def _ai_state_matches(session, call, attempt):
     if call.attempts != attempt or call.status not in AI_ACTIVE_STATUSES:
         return False
     sequence = _expected_turn_sequence.get()
     if sequence is not None:
-        realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
-        if realtime is not None:
-            session.refresh(realtime)
-            if realtime.turn_sequence != sequence:
-                return False
+        # Refresh identity-map state in the SELECT itself; a second refresh
+        # repeats the same read without adding a state or lock guarantee.
+        realtime = session.exec(select(RealtimeSession).where(
+            RealtimeSession.call_session_id == call.id
+        ).execution_options(populate_existing=True)).first()
+        if realtime is not None and realtime.turn_sequence != sequence:
+            return False
     return True
+
+
+def _ai_call_is_current(session, call: CallSession, attempt: int, *, lock: bool = False) -> bool:
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    session.refresh(call, with_for_update=True if lock else None)
+    return _ai_state_matches(session, call, attempt)
+
+
+def _load_current_ai_call(session, call_id, attempt, *, lock=False):
+    from .leases import assert_execution_permitted
+    assert_execution_permitted()
+    query = select(CallSession).where(CallSession.id == call_id).execution_options(populate_existing=True)
+    if lock:
+        query = query.with_for_update()
+    with session.no_autoflush:
+        call = session.exec(query).first()
+    if call is None or not _ai_state_matches(session, call, call.attempts if attempt is None else attempt):
+        return None
+    return call
 
 
 def _conversation_history(session, call: CallSession, limit: int) -> list[dict[str, str]]:
@@ -281,11 +300,8 @@ async def run_ai_turn(
 
 async def _prepare_ai_turn(call_id, transcript, expected_attempt):
     with session_scope() as session:
-        call = session.get(CallSession, call_id)
+        call = _load_current_ai_call(session, call_id, expected_attempt)
         if call is None:
-            return None
-        expected_attempt = call.attempts if expected_attempt is None else expected_attempt
-        if not _ai_call_is_current(session, call, expected_attempt):
             return None
         expected_attempt = call.attempts
         await append_event(session=session, call_id=call.id, event_type="ai_start",
@@ -295,8 +311,7 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
         campaign = session.get(Campaign, call.campaign_id) if call.campaign_id is not None else None
         language = str(ai_config.get("language") or "zh-CN")
         from .conversation_policy import prepare_turn, state_for
-        session.refresh(call, with_for_update=True)
-        if not _ai_call_is_current(session, call, expected_attempt):
+        if not _ai_call_is_current(session, call, expected_attempt, lock=True):
             return None
         original_flow_node = call.flow_node_key
         result = prepare_turn(session, call, transcript)
@@ -363,11 +378,9 @@ async def _prepare_ai_turn(call_id, transcript, expected_attempt):
 
 async def _finish_ai_turn(snapshot, result, prepare_only=False):
     with session_scope() as session:
-        call = session.get(CallSession, snapshot['call_id'])
         # Match webhook lock order: call -> conversation/realtime -> child rows.
-        # Locking conversation first can deadlock when metric FK checks wait on
-        # a callback's call lock while that callback waits on conversation state.
-        if call is None or not _ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = _load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return
         call.flow_node_key = snapshot['flow_node_key']
         from .conversation_policy import state_for,save_state
@@ -461,6 +474,24 @@ async def _run_ai_turn_locked(*, call_id, transcript: str = "", durable: bool = 
             raise
 
 
+async def _load_and_prepare_ai_turn(call_id, transcript, expected_attempt):
+    # One scheduling admission; retain the existing separate transaction boundaries.
+    from .ai_claim_state import load_action
+    prepared = load_action()
+    if prepared is not None:
+        return prepared, None
+    return None, await _prepare_ai_turn(call_id, transcript, expected_attempt)
+
+
+async def _finish_and_prepare_ai_action(snapshot, result):
+    # Keep durable intent and authoritative action preparation transactions intact,
+    # but do not rejoin the DB queue between these adjacent operations.
+    from .ai_actions import prepare
+    result = await _finish_ai_turn(snapshot, result, True)
+    action = prepare(snapshot['call_id'], snapshot['attempt']) if result is not None else None
+    return result, action
+
+
 async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', expected_attempt=None,
                             expected_turn_sequence=None, expected_speech_event_id=None):
     """Model latency holds a coroutine, never a DB connection or lane thread."""
@@ -469,15 +500,13 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
     try:
         async with _ai_turn_lock(str(call_id)):
             try:
-                from .ai_claim_state import load_action
                 from .ai_actions import execute_action
-                prepared = await pool.run(load_action)
+                prepared, snapshot = await pool.run(_load_and_prepare_ai_turn, call_id, transcript, expected_attempt)
                 if prepared is not None:
                     result, committed = prepared
                     if not committed:
                         await execute_action(pool, call_id, expected_attempt, result)
                     return
-                snapshot = await pool.run(_prepare_ai_turn, call_id, transcript, expected_attempt)
                 if snapshot is None:
                     return
                 expected_attempt = snapshot['attempt']
@@ -486,9 +515,9 @@ async def run_ai_turn_async(*, pool, action_pool=None, call_id, transcript='', e
                     result = await _wait_for_ai(snapshot,pool=pool,action_pool=action_pool)
                     if result is None:return
                 from .ai_actions import execute_action
-                result = await pool.run(_finish_ai_turn, snapshot, result, True)
+                result, action = await pool.run(_finish_and_prepare_ai_action, snapshot, result)
                 if result is not None:
-                    await execute_action(pool, call_id, expected_attempt, result)
+                    await execute_action(pool, call_id, expected_attempt, result, prepared_snapshot=action)
             except (LeaseLost, DBAPIError):
                 raise
             except Exception as exc:
@@ -521,7 +550,17 @@ async def _wait_for_ai(snapshot,pool=None,action_pool=None):
                 from .ai_liveness import LivenessBatcher
                 if not hasattr(pool, 'liveness'):
                     pool.liveness = LivenessBatcher(pool)
-                current = await pool.liveness.current(snapshot, _expected_turn_sequence.get())
+                hint = asyncio.create_task(pool.liveness.current(snapshot, _expected_turn_sequence.get()))
+                try:
+                    # A periodic hint must not delay an already finished model.
+                    # Final decision/action writes still lock and verify live state.
+                    await asyncio.wait({request, hint}, return_when=asyncio.FIRST_COMPLETED)
+                    if request.done():
+                        break
+                    current = hint.result()
+                finally:
+                    if not hint.done():hint.cancel()
+                    await asyncio.gather(hint, return_exceptions=True)
             else:
                 current = _ai_snapshot_current(snapshot)
             if not current:return None
