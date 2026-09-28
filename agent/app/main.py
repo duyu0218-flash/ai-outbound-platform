@@ -8,11 +8,12 @@ from pydantic import Field
 from .config import settings
 from .llm import generate_reply, llm_client_lifespan, quota
 from .policy import get_default_keywords, resolve_action, ai_reply
+from .observability import observation, tracing_lifespan, tracing_status, update
 
 settings.validate_runtime()
 @asynccontextmanager
 async def lifespan(_):
-    async with llm_client_lifespan():
+    async with tracing_lifespan(), llm_client_lifespan():
         yield
 
 
@@ -55,11 +56,18 @@ async def ready():
     if not await quota.ready():
         raise HTTPException(503, 'model account budget unavailable')
     return {'status': 'ready', 'inflight': quota.inflight,
-            'model_connectivity_verified': False}
+            'model_connectivity_verified': False, 'observability': tracing_status()}
 
 
 @app.post("/agent/turn", dependencies=[Depends(require_service_token)])
 async def turn(payload: TurnRequest):
+    with observation("agent.turn", call_id=payload.call_id):
+        result = await _turn(payload)
+        update(metadata={"action": result.action, "handoff": result.handoff_to_human})
+        return result
+
+
+async def _turn(payload: TurnRequest):
     language = str(payload.context.get("language") or "zh-CN")
     keywords = get_default_keywords(language)
     handoff, hangup_sms, tts, escalate_priority = resolve_action(
@@ -100,6 +108,11 @@ async def turn(payload: TurnRequest):
 
 @app.post("/agent/start", dependencies=[Depends(require_service_token)])
 def start(payload: TurnRequest):
+    with observation("agent.start", call_id=payload.call_id):
+        return _start(payload)
+
+
+def _start(payload: TurnRequest):
     language = str(payload.context.get("language") or "zh-CN")
     tts = ai_reply(payload.mode, payload.script, "", language)
     return TurnResult(

@@ -111,6 +111,8 @@ APP_ENV_FILE=.env docker compose --env-file .env up -d --build
 - 控制面：http://localhost:8000/health
 - AI 服务：容器内 `http://ai-agent:8001/health`，默认不开放宿主机 8001 端口
 
+AI 对话的逐轮追踪、模型 Token 用量与错误分析可按 [Langfuse 接入指南](docs/langfuse.md) 启用；默认关闭，仅记录元数据。
+
 需要同时启动第一批商用基础设施（SeaweedFS、录音适配器、Prometheus、Alertmanager、Grafana）：
 
 ```bash
