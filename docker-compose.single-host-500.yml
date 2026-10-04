@@ -1,11 +1,18 @@
 # Standalone Linux single-host qualification profile; 500 total in-flight calls, NOT measured capacity.
 # Use this file alone; extends imports individual compact services.
+x-ai-execution-health: &ai-execution-health
+  AI_WORKER_REQUIREMENTS_JSON: '{"ai-worker-1":160,"ai-worker-2":160,"ai-worker-3":160,"ai-worker-4":160}'
+  AI_WORKER_HEALTH_PREFIX: ${SINGLE500_AI_HEALTH_PREFIX:-ai-outbound:single500:ai}
+  AI_WORKER_HEALTH_TTL_SEC: '20'
+  AI_TASK_MAX_READY_AGE_SEC: '1'
+
 services:
   control-api:
     extends:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -43,6 +50,7 @@ services:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -80,6 +88,7 @@ services:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -117,6 +126,7 @@ services:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -154,6 +164,7 @@ services:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -191,6 +202,7 @@ services:
       file: docker-compose.compact.yml
       service: control-api
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -241,6 +253,7 @@ services:
       file: docker-compose.compact.yml
       service: task-worker
     environment:
+      <<: *ai-execution-health
       DATABASE_POOL_SIZE: '8'
       CALLBACK_INBOX_ENABLED: 'true'
       CALLBACK_INBOX_MIN_WORKERS: '6'
@@ -404,6 +417,8 @@ services:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
+      <<: *ai-execution-health
+      AI_WORKER_ID: ai-worker-1
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
@@ -422,6 +437,8 @@ services:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
+      <<: *ai-execution-health
+      AI_WORKER_ID: ai-worker-2
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
@@ -440,6 +457,8 @@ services:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
+      <<: *ai-execution-health
+      AI_WORKER_ID: ai-worker-3
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
@@ -458,6 +477,8 @@ services:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
+      <<: *ai-execution-health
+      AI_WORKER_ID: ai-worker-4
       TASK_AI_CONCURRENCY: '160'
       AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'

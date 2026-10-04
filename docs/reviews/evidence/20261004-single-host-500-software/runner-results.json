@@ -1,0 +1,72 @@
+[
+  {
+    "label": "single500-20261004-soft-fixed3",
+    "process_exit": 0,
+    "acceptance_mode": "software",
+    "cleanup_exit": 0,
+    "report": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed3-results.json",
+    "software_acceptance_passed": true,
+    "correctness_passed": true,
+    "capacity_slo_passed": false,
+    "load_validity_passed": false,
+    "conversation_control_slo_passed": false,
+    "synthetic_reply_p99_ms": 26183.281051999074,
+    "gateway_delivery_max_ms": 1389.2075600015232
+  },
+  {
+    "label": "single500-20261004-soft-fixed4",
+    "process_exit": 0,
+    "acceptance_mode": "software",
+    "cleanup_exit": 0,
+    "report": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed4-results.json",
+    "software_acceptance_passed": true,
+    "correctness_passed": true,
+    "capacity_slo_passed": false,
+    "load_validity_passed": false,
+    "conversation_control_slo_passed": false,
+    "synthetic_reply_p99_ms": 29071.24719300191,
+    "gateway_delivery_max_ms": 2416.372562001925
+  },
+  {
+    "label": "single500-20261004-soft-fixed5",
+    "process_exit": 0,
+    "acceptance_mode": "software",
+    "cleanup_exit": 0,
+    "report": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed5-results.json",
+    "software_acceptance_passed": true,
+    "correctness_passed": true,
+    "capacity_slo_passed": false,
+    "load_validity_passed": false,
+    "conversation_control_slo_passed": false,
+    "synthetic_reply_p99_ms": 29659.540705004474,
+    "gateway_delivery_max_ms": 3371.885396001744
+  },
+  {
+    "label": "single500-20261004-soft-fixed6",
+    "process_exit": 0,
+    "acceptance_mode": "software",
+    "cleanup_exit": 0,
+    "report": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed6-results.json",
+    "software_acceptance_passed": true,
+    "correctness_passed": true,
+    "capacity_slo_passed": false,
+    "load_validity_passed": false,
+    "conversation_control_slo_passed": false,
+    "synthetic_reply_p99_ms": 27571.340793998388,
+    "gateway_delivery_max_ms": 1523.7345079949591
+  },
+  {
+    "label": "single500-20261004-soft-fault7",
+    "process_exit": 0,
+    "acceptance_mode": "software",
+    "cleanup_exit": 0,
+    "report": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fault7-results.json",
+    "software_acceptance_passed": true,
+    "correctness_passed": true,
+    "capacity_slo_passed": false,
+    "load_validity_passed": false,
+    "conversation_control_slo_passed": false,
+    "synthetic_reply_p99_ms": 30936.027158000797,
+    "gateway_delivery_max_ms": 2347.945579000225
+  }
+]

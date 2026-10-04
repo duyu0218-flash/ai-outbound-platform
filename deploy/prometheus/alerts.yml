@@ -1,6 +1,13 @@
 groups:
   - name: ai-outbound-commercial-readiness
     rules:
+      - alert: AiOutboundAIExecutionUnavailable
+        expr: ai_outbound_ai_execution_ready == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: AI execution pool or ready queue is blocking new calls
       - alert: AiOutboundVoiceGatewayUnavailable
         expr: ai_outbound_voice_gateway_ready == 0
         for: 1m

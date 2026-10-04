@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Run one isolated synthetic qualification and remove its own temporary stack.
 
-No carrier/cloud requests. Reports and logs survive cleanup. A nonzero result
-must not be described as a capacity pass. The supplied image must contain the
+No carrier/cloud requests. Reports and logs survive cleanup. Software acceptance
+never qualifies hardware capacity; capacity mode retains all original gates.
+The supplied image must contain the
 project's qualified runtime dependencies; source is mounted read-only.
 """
 import argparse
@@ -20,10 +21,13 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--image', required=True)
     parser.add_argument('--scenario', choices=('mixed','conversation'), default='mixed')
+    parser.add_argument('--acceptance', choices=('capacity','software'), default='capacity',
+                        help='software validates correctness without qualifying machine capacity')
     parser.add_argument('--rate', type=int, default=200)
     parser.add_argument('--seconds', type=int, default=30)
     parser.add_argument('--rounds', type=int, default=5)
     parser.add_argument('--turn-gap', type=float, default=6.25)
+    parser.add_argument('--report-dir', type=Path, default=Path('docs/reviews/evidence/20261003-single-host-500'))
     args = parser.parse_args()
     if not re.fullmatch(r'single500-[a-z0-9-]+', args.label):
         parser.error('use a fresh single500- prefixed project label')
@@ -31,7 +35,9 @@ def main():
             and 1 <= args.rounds <= 100 and 1 <= args.turn_gap <= 60):
         parser.error('invalid bounded load parameters')
     output = ROOT/'artifacts/single-host-500'
-    reports = ROOT/'docs/reviews/evidence/20260913-single-host-500-fixes'
+    reports = (ROOT/args.report_dir).resolve()
+    if not reports.is_relative_to(ROOT/'docs/reviews/evidence'):
+        parser.error('report-dir must be inside docs/reviews/evidence')
     output.mkdir(parents=True, exist_ok=True); reports.mkdir(parents=True, exist_ok=True)
     report = reports/f'{args.label}-results.json'
     log_path = output/f'{args.label}-compose.log'
@@ -44,6 +50,7 @@ def main():
             parser.error('project already exists; choose a fresh label')
     env = dict(os.environ, SINGLE500_TEST_IMAGE=args.image, SINGLE500_ISOLATED_MOCK='true',
         SINGLE500_LOAD_LABEL=args.label, SINGLE500_EVENT_LOOP='uvloop',
+        SINGLE500_ACCEPTANCE=args.acceptance,
         SINGLE500_BATCH_CALLBACKS='true', SINGLE500_SCENARIO=args.scenario,
         SINGLE500_TURN_RATE=str(args.rate), SINGLE500_LOAD_SECONDS=str(args.seconds),
         SINGLE500_CONVERSATION_ROUNDS=str(args.rounds), SINGLE500_TURN_GAP_SEC=str(args.turn_gap),
@@ -59,10 +66,14 @@ def main():
                 cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=120)
     data = json.loads(report.read_text()) if report.exists() else {}
     print(json.dumps(dict(label=args.label, process_exit=completed.returncode,
+        acceptance_mode=args.acceptance,
         cleanup_exit=cleanup.returncode, report=str(report) if report.exists() else None,
-        **{key:data.get(key) for key in ('correctness_passed','capacity_slo_passed',
+        **{key:data.get(key) for key in ('software_acceptance_passed','correctness_passed','capacity_slo_passed','load_validity_passed',
             'conversation_control_slo_passed','synthetic_reply_p99_ms','gateway_delivery_max_ms')})))
-    return completed.returncode or cleanup.returncode or (0 if report.exists() else 1)
+    required = (['software_acceptance_passed','correctness_passed'] if args.acceptance=='software'
+                else ['correctness_passed','capacity_slo_passed','load_validity_passed'])
+    if args.scenario == 'conversation' and args.acceptance=='capacity':required.append('conversation_control_slo_passed')
+    return completed.returncode or cleanup.returncode or (0 if all(data.get(key) is True for key in required) else 1)
 
 
 if __name__ == '__main__':

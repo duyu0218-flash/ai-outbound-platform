@@ -1,0 +1,74 @@
+.....................................s.................................. [ 21%]
+........................................................................ [ 42%]
+............................................ss.......................... [ 64%]
+.....................F..........F..................F.................... [ 85%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+_________________ test_pages_login_and_server_key_not_exposed __________________
+
+client = <starlette.testclient.TestClient object at 0x7fcb97751310>
+
+    def test_pages_login_and_server_key_not_exposed(client: TestClient):
+        for path in ("/admin", "/admin/contacts", "/admin/knowledge", "/agent", "/agent/calls"):
+            response = client.get(path)
+>           assert response.status_code == 200, response.text
+E           AssertionError: <!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><title>AI 外呼平台</title></head><body><h1>前端资源尚未构建</h1><p>请进入 frontend 目录执行 pnpm install && pnpm build。</p></body></html>
+E           assert 503 == 200
+E            +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests/test_production_hardening.py:1613: AssertionError
+______________ test_dispatch_respects_effective_line_concurrency _______________
+
+client = <starlette.testclient.TestClient object at 0x7fcb97751310>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fcb96ca1c10>
+
+    @pytest.mark.asyncio
+    async def test_dispatch_respects_effective_line_concurrency(client: TestClient, monkeypatch):
+        active = 0
+        max_active = 0
+    
+        class SlowAdapter:
+            async def dial(self, *, call_id, phone, webhook_url, metadata):
+                nonlocal active, max_active
+                active += 1
+                max_active = max(max_active, active)
+                await asyncio.sleep(0.02)
+                active -= 1
+                return {"provider_call_id": f"slow-{call_id}"}
+    
+        monkeypatch.setattr("app.services.call_service.get_telephony_adapter", lambda **_: SlowAdapter())
+        monkeypatch.setattr("app.services.call_service.get_telephony_concurrency_limit", lambda **_: 1)
+        call_ids: list[str] = []
+        with session_scope() as session:
+            for suffix in range(3):
+                call = create_call(
+                    session,
+                    tenant_id=1,
+                    phone=f"138001381{suffix:02d}",
+                    mode=CallMode.HUMAN_ONLY,
+                    campaign_id=None,
+                    contact_id=None,
+                )
+                call_ids.append(str(call.id))
+    
+        result = await dispatch_call_ids(call_ids, max_concurrency=10)
+>       assert result["succeeded"] == 3
+E       assert 0 == 3
+
+tests/test_production_hardening.py:2009: AssertionError
+______________ test_microphone_is_allowed_for_same_origin_browser ______________
+
+client = <starlette.testclient.TestClient object at 0x7fcb97751310>
+
+    def test_microphone_is_allowed_for_same_origin_browser(client: TestClient):
+        response = client.get("/agent/login")
+>       assert response.status_code == 200
+E       assert 503 == 200
+E        +  where 503 = <Response [503 Service Unavailable]>.status_code
+
+tests/test_production_hardening.py:2935: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_production_hardening.py::test_pages_login_and_server_key_not_exposed
+FAILED tests/test_production_hardening.py::test_dispatch_respects_effective_line_concurrency
+FAILED tests/test_production_hardening.py::test_microphone_is_allowed_for_same_origin_browser
+3 failed, 331 passed, 3 skipped in 49.29s

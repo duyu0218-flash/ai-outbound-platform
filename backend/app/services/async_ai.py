@@ -154,6 +154,9 @@ async def run_async_ai_lane(stop_event, *, concurrency):
     last_health=0.0
     last_claim=0.0
     last_poll=0.0
+    claim_healthy=False
+    from .ai_capacity import WorkerHeartbeat
+    heartbeat=WorkerHeartbeat(settings, concurrency)
     health_path=Path(settings.ai_worker_health_path)
     resources=OrderedDict()
     resource_token=_resources.set(resources)
@@ -166,6 +169,7 @@ async def run_async_ai_lane(stop_event, *, concurrency):
         async with http_client(max_connections=max(100,settings.task_ai_concurrency),
                 timeout=settings.ai_callback_timeout_sec,follow_redirects=False,trust_env=False):
             pass
+        await heartbeat.start()
         while not stop_event.is_set():
             done={job for job in pending if job.done()}
             pending.difference_update(done)
@@ -178,21 +182,30 @@ async def run_async_ai_lane(stop_event, *, concurrency):
                 try:
                     claims=await pool.run(claim_ready_tasks,('ai_turn',),available)
                     last_claim=time.monotonic()
+                    claim_healthy=True
                     for task_id,claim in claims:
                         pending.add(asyncio.create_task(process_ai_claim(task_id,claim,pool,actions)))
-                except Exception:logger.exception('async AI claim poll failed')
+                except Exception:
+                    claim_healthy=False
+                    last_health=0.0
+                    logger.exception('async AI claim poll failed')
                 finally:
                     # Completions can arrive one at a time under load. Coalesce
                     # free slots rather than issuing a claim transaction for
                     # every completion (including repeatedly empty polls).
                     last_poll=time.monotonic()
             now=time.monotonic()
-            if now-last_health>=5 and (not available or now-last_claim<15):
+            if now-last_health>=5:
+                healthy=claim_healthy and (not available or now-last_claim<15)
+                await heartbeat.publish(inflight=len(pending), ready=healthy)
                 data={'updated_at':time.time(),'inflight':len(pending),'limit':concurrency,
                       'db_threads':len(pool.runtimes),'action_threads':0,
                       'stage_timings':pool.timing_snapshot()}
-                temporary=health_path.with_suffix('.tmp')
-                temporary.write_text(json.dumps(data));temporary.replace(health_path)
+                if healthy:
+                    temporary=health_path.with_suffix('.tmp')
+                    temporary.write_text(json.dumps(data));temporary.replace(health_path)
+                else:
+                    health_path.unlink(missing_ok=True)
                 last_health=now
             poll_wait = max(.001, poll_interval - (time.monotonic() - last_poll)) if available else poll_interval
             if pending:
@@ -202,8 +215,12 @@ async def run_async_ai_lane(stop_event, *, concurrency):
                 try:await asyncio.wait_for(stop_event.wait(),poll_wait)
                 except asyncio.TimeoutError:pass
     finally:
+        # Stop new admission before draining accepted claims. Only this epoch
+        # can withdraw its Redis state; a replacement generation is protected.
+        await heartbeat.withdraw()
         await asyncio.gather(*pending,return_exceptions=True)
         for resource in resources.values():await resource.aclose()
         _resources.reset(resource_token)
         await pool.close()
+        await heartbeat.withdraw(close=True)
         health_path.unlink(missing_ok=True)

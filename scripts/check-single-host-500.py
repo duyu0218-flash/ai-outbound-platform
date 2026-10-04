@@ -70,6 +70,28 @@ def assess(config):
     ai_slots = sum(int(row['environment']['TASK_AI_CONCURRENCY']) for row in ai)
     if ai_slots != 640:
         errors.append('AI lane budget must be 640')
+    expected_workers = {name: int(row['environment']['TASK_AI_CONCURRENCY'])
+                        for name, row in services.items() if name.startswith('ai-worker-')}
+    prefixes = set()
+    for row in api + ai + [services['task-worker']]:
+        env = row['environment']
+        try:
+            if json.loads(env.get('AI_WORKER_REQUIREMENTS_JSON', '{}')) != expected_workers:
+                raise ValueError()
+            if not 10 <= int(env.get('AI_WORKER_HEALTH_TTL_SEC', 0)) <= 60:
+                raise ValueError()
+            if not 0 < float(env.get('AI_TASK_MAX_READY_AGE_SEC', 0)) <= 1:
+                raise ValueError()
+        except (ValueError, TypeError):
+            errors.append('dial admission must require all four AI workers and bound ready queue age')
+        prefix = env.get('AI_WORKER_HEALTH_PREFIX', '')
+        if not prefix:
+            errors.append('AI execution health namespace must be explicit')
+        prefixes.add(prefix)
+    if len(prefixes) != 1:
+        errors.append('all AI workers and dial roles must share one health namespace')
+    if {row['environment'].get('AI_WORKER_ID') for row in ai} != set(expected_workers):
+        errors.append('AI worker identities must match the required roster exactly')
     for row in api:
         env = row['environment']
         if (int(env['REQUEST_ADMISSION_TOTAL_INFLIGHT']) > int(env['DATABASE_POOL_SIZE'])

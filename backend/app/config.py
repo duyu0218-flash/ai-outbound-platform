@@ -106,6 +106,13 @@ class Settings(BaseSettings):
     task_poll_interval_sec: float = 0.1
     task_worker_role: str = "all"
     ai_worker_health_path: str = "/tmp/ai-worker-health.json"
+    # Empty requirements preserve the smaller development profiles. The 500-call
+    # profile requires exact worker identities and slot budgets at dial admission.
+    ai_worker_requirements_json: str = "{}"
+    ai_worker_id: str = ""
+    ai_worker_health_prefix: str = Field(default="ai-outbound:single500:ai", pattern=r"^[a-zA-Z0-9:_-]{1,128}$")
+    ai_worker_health_ttl_sec: int = Field(default=20, ge=10, le=60)
+    ai_task_max_ready_age_sec: float = Field(default=1.0, gt=0, le=60, allow_inf_nan=False)
     ai_db_threads: int = 2
     outbound_require_agent_ready: bool = False
     ai_action_threads: int = 2

@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 import asyncio
 import re
+import logging
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
@@ -11,6 +12,34 @@ from .quota import AccountQuota, estimated_tokens
 
 _client = None
 quota = AccountQuota(settings)
+logger = logging.getLogger(__name__)
+
+
+async def _request_completion(url, headers, payload, token_budget):
+    # Only a model proposal is retried. Each wire attempt reserves its own
+    # account budget; cancellation and the original deadline bound both tries.
+    async with asyncio.timeout(settings.openai_timeout_sec):
+        for attempt in range(2):
+            try:
+                await quota.acquire(token_budget)
+                try:
+                    async with get_llm_client() as client:
+                        response = await client.post(url, headers=headers, json=payload)
+                    if response.status_code in {429, 503} and settings.llm_quota_db_path:
+                        try:
+                            seconds = max(1, min(300, float(response.headers.get('Retry-After', '5'))))
+                        except ValueError:
+                            seconds = 5
+                        await asyncio.to_thread(quota.block, seconds)
+                    response.raise_for_status()
+                    return response.json()
+                finally:
+                    quota.release()
+            except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError) as exc:
+                if attempt:
+                    raise
+                logger.warning('LLM transport retry error_type=%s', type(exc).__name__)
+                await asyncio.sleep(.05)
 
 
 @asynccontextmanager
@@ -144,24 +173,8 @@ async def generate_reply(
         "max_tokens": settings.max_output_tokens,
         "temperature": 0.3,
     }
-    await quota.acquire(estimated_tokens(messages, settings.max_output_tokens))
-    try:
-        async with get_llm_client() as client:
-            response = await client.post(
-                f"{base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            if response.status_code in {429, 503} and settings.llm_quota_db_path:
-                try:
-                    seconds = max(1, min(300, float(response.headers.get('Retry-After', '5'))))
-                except ValueError:
-                    seconds = 5
-                await asyncio.to_thread(quota.block, seconds)
-            response.raise_for_status()
-            data = response.json()
-    finally:
-        quota.release()
+    data = await _request_completion(f"{base_url}/chat/completions", headers, payload,
+        estimated_tokens(messages, settings.max_output_tokens))
     try:
         content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:

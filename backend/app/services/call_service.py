@@ -271,10 +271,17 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     if call.attempts >= call.max_attempts:
         return False
 
+    from .ai_capacity import workers_valid_until, queue_ready
+    # Redis I/O happens before the global admission lock. Never gate callbacks
+    # or reclaim an existing call because an AI execution process is unhealthy.
+    ai_valid_until = workers_valid_until(settings)
+    if time.monotonic() >= ai_valid_until:
+        session.rollback()
+        return False
     from .gateway_cluster import lock_platform_admission, choose_gateway
     lock_platform_admission(session)
     from .callback_inbox import ready as callback_inbox_ready
-    if not callback_inbox_ready(session):
+    if not callback_inbox_ready(session) or not queue_ready(session, settings):
         session.rollback()
         return False
     # Serialize BEFORE checking phone frequency/consent. SQLite has no row locks.
@@ -402,6 +409,10 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
     except RuntimeError:
         session.rollback()
         return False
+    # Global/tenant/call locks may have waited past the captured heartbeat TTL.
+    if time.monotonic() >= ai_valid_until:
+        session.rollback()
+        return False
     now = _now()
     next_attempt = int(call.attempts) + 1
     stmt = (
@@ -439,6 +450,9 @@ def _claim_dispatch_slot(session: Session, call: CallSession) -> bool:
             created_at=now,
         )
     )
+    if time.monotonic() >= ai_valid_until:
+        session.rollback()
+        return False
     session.commit()
     session.refresh(call)
     return True

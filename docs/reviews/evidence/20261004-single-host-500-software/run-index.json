@@ -1,0 +1,66 @@
+{
+  "parameters": {
+    "synthetic_calls": 500,
+    "rounds": 2,
+    "rate": 125,
+    "turn_gap_sec": 4,
+    "acceptance": "software",
+    "model_delay_sec": 3,
+    "playback_delay_sec": 0.2
+  },
+  "common_fixture_files": [
+    "scripts/load-single-host-dialogue.py",
+    "scripts/run-single-host-load.py",
+    "scripts/single_host_reply_observer.py",
+    "scripts/fixtures/single500_instrumented_ai.py",
+    "scripts/fixtures/single500_real_agent.py",
+    "docker-compose.callback-load.yml"
+  ],
+  "runs": [
+    {
+      "label": "single500-20261004-soft-baseline1",
+      "phase": "initial_baseline",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed1",
+      "phase": "before_agent_retry",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed2",
+      "phase": "failed_before_agent_retry",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-baseline2",
+      "phase": "comparison_baseline",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed3",
+      "phase": "before_post_prepare_guard",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed4",
+      "phase": "before_post_prepare_guard",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed5",
+      "phase": "final_normal",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fixed6",
+      "phase": "final_repeat",
+      "injection_enabled": false
+    },
+    {
+      "label": "single500-20261004-soft-fault7",
+      "phase": "final_fault",
+      "injection_enabled": true
+    }
+  ]
+}

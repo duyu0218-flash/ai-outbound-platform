@@ -19,10 +19,20 @@ def render_prometheus_metrics(session: Session, *, now: datetime | None = None) 
     """Render low-cardinality, database-backed operational metrics."""
 
     current = now or utc_now()
+    from ..config import get_settings
+    from .ai_capacity import workers_ready, queue_ready
+    config = get_settings()
+    try:
+        ai_ready = workers_ready(config) and queue_ready(session, config)
+    except ValueError:
+        ai_ready = False
     lines = [
         "# HELP ai_outbound_up Control API metrics query succeeded.",
         "# TYPE ai_outbound_up gauge",
         "ai_outbound_up 1",
+        "# HELP ai_outbound_ai_execution_ready AI execution pool permits new call admission.",
+        "# TYPE ai_outbound_ai_execution_ready gauge",
+        f"ai_outbound_ai_execution_ready {int(ai_ready)}",
         "# HELP ai_outbound_calls Calls by terminal or active status.",
         "# TYPE ai_outbound_calls gauge",
     ]
