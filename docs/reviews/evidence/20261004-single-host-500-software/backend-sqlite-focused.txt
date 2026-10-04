@@ -1,0 +1,44 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- /workspace/ai-outbound-platform-single500-20261003/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/ai-outbound-platform-single500-fixes-20261004/backend
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.14.2
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 33 items
+
+tests/test_async_ai.py::test_action_pool_prepares_every_thread_without_network_and_closes_clients PASSED [  3%]
+tests/test_async_ai.py::test_async_ai_wait_does_not_hold_db_or_threads PASSED [  6%]
+tests/test_async_ai.py::test_async_ai_cancels_model_after_hangup PASSED  [  9%]
+tests/test_async_ai.py::test_cancelled_work_unit_drains_and_cannot_apply_side_effect PASSED [ 12%]
+tests/test_async_ai.py::test_dedicated_ai_role_cannot_be_reenabled_through_aliases PASSED [ 15%]
+tests/test_async_ai.py::test_network_actions_leave_db_pool_available PASSED [ 18%]
+tests/test_async_ai.py::test_prepared_action_survives_retry_without_model_or_duplicate_decision PASSED [ 21%]
+tests/test_async_ai.py::test_liveness_queries_are_batched_and_detect_ended_calls PASSED [ 24%]
+tests/test_async_ai.py::test_model_failure_fallback_does_not_block_db_or_overwrite_hangup PASSED [ 27%]
+tests/test_async_ai.py::test_fresh_ai_lookup_rejects_cached_call_and_realtime_state PASSED [ 30%]
+tests/test_async_ai.py::test_ai_lookup_rechecks_lease_after_database_read PASSED [ 33%]
+tests/test_async_ai.py::test_combined_speak_units_preserve_durable_replay PASSED [ 36%]
+tests/test_async_ai.py::test_combined_speech_stops_between_commits_after_execution_loss[cancel] PASSED [ 39%]
+tests/test_async_ai.py::test_combined_speech_stops_between_commits_after_execution_loss[lease] PASSED [ 42%]
+tests/test_async_ai.py::test_prepared_http_unknown_outcome_reuses_command_without_model_or_decision PASSED [ 45%]
+tests/test_ai_wait_completion.py::test_model_finishing_during_liveness_never_sends_wait_notice[True-False] PASSED [ 48%]
+tests/test_ai_wait_completion.py::test_model_finishing_during_liveness_never_sends_wait_notice[False-False] PASSED [ 51%]
+tests/test_ai_wait_completion.py::test_model_finishing_during_liveness_never_sends_wait_notice[True-True] PASSED [ 54%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[missing] PASSED [ 57%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[wrong_epoch] PASSED [ 60%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[wrong_slots] PASSED [ 63%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[future] PASSED [ 66%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[stale] PASSED [ 69%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[nan] PASSED [ 72%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[not_ready] PASSED [ 75%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[inflight] PASSED [ 78%]
+tests/test_ai_capacity.py::test_invalid_worker_state_stops_admission[wrong_id] PASSED [ 81%]
+tests/test_ai_capacity.py::test_redis_unavailability_and_invalid_roster_fail_closed PASSED [ 84%]
+tests/test_ai_capacity.py::test_actual_claim_stops_on_worker_loss_and_recovers PASSED [ 87%]
+tests/test_ai_capacity.py::test_heartbeat_expiring_during_admission_lock_cannot_dial PASSED [ 90%]
+tests/test_ai_capacity.py::test_only_executable_ai_backlog_blocks_dialing PASSED [ 93%]
+tests/test_ai_capacity.py::test_failed_claim_withdraws_shared_readiness PASSED [ 96%]
+tests/test_ai_capacity.py::test_real_redis_generation_fencing_withdrawal_and_ttl SKIPPED [100%]
+
+======================== 32 passed, 1 skipped in 6.32s =========================

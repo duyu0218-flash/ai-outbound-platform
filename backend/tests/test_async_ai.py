@@ -26,6 +26,11 @@ def cleanup_ai_test_tasks(client, monkeypatch):
     yield
     if call_ids:
         with session_scope() as session:
+            for call_id in call_ids:
+                call=session.get(CallSession,call_id)
+                if call is not None:
+                    call.status=CallStatus.COMPLETED
+                    session.add(call)
             session.execute(delete(TaskOutbox).where(
                 TaskOutbox.aggregate_id.in_([str(call_id) for call_id in call_ids])))
             session.commit()
@@ -264,3 +269,159 @@ def test_model_failure_fallback_does_not_block_db_or_overwrite_hangup(client, mo
         assert isinstance(result[0],RuntimeError)
         with session_scope() as session:assert session.get(CallSession,cid).status==CallStatus.COMPLETED
     asyncio.run(run())
+
+
+def test_fresh_ai_lookup_rejects_cached_call_and_realtime_state(client):
+    from app.models import RealtimeSession
+    cid=make_call()
+    with session_scope() as s:
+        s.add(RealtimeSession(tenant_id=1,call_session_id=cid,turn_sequence=1));s.commit()
+    with session_scope() as stale:
+        cached=stale.get(CallSession,cid)
+        with session_scope() as changed:
+            call=changed.get(CallSession,cid);call.status=CallStatus.COMPLETED;changed.add(call);changed.commit()
+        assert cached.status!=CallStatus.COMPLETED
+        assert dispatcher._load_current_ai_call(stale,cid,1,lock=True) is None
+    cid=make_call()
+    with session_scope() as s:
+        rt=RealtimeSession(tenant_id=1,call_session_id=cid,turn_sequence=1);s.add(rt);s.commit();rid=rt.id
+    token=dispatcher._expected_turn_sequence.set(1)
+    try:
+        with session_scope() as stale:
+            cached=stale.get(RealtimeSession,rid)
+            with session_scope() as changed:
+                rt=changed.get(RealtimeSession,rid);rt.turn_sequence=2;changed.add(rt);changed.commit()
+            assert cached.turn_sequence==1
+            assert dispatcher._load_current_ai_call(stale,cid,1,lock=True) is None
+    finally:dispatcher._expected_turn_sequence.reset(token)
+
+
+def test_ai_lookup_rechecks_lease_after_database_read(client):
+    from sqlalchemy import event
+    from app.services.leases import _leases,ExecutionLease,LeaseLost
+    cid=make_call();lease=ExecutionLease(float('inf'))
+    def after_read(connection,cursor,statement,parameters,context,executemany):
+        if statement.lstrip().upper().startswith('SELECT') and 'callsession' in statement:
+            lease.lost=True
+    token=_leases.set((lease,));event.listen(engine,'after_cursor_execute',after_read)
+    try:
+        with session_scope() as s:
+            with pytest.raises(LeaseLost):dispatcher._load_current_ai_call(s,cid,1,lock=True)
+    finally:
+        event.remove(engine,'after_cursor_execute',after_read);_leases.reset(token)
+
+
+def test_combined_speak_units_preserve_durable_replay(client,monkeypatch):
+    import json
+    from uuid import uuid4
+    from sqlmodel import select
+    from app.models import TaskState,SpeechTurn,CallEvent
+    from app.services import ai_actions
+    from app.services.ai_claim_state import current_claim
+    from app.services.telephony import MockAdapter
+    cid=make_call();tid=uuid4();spoken=[];models=[]
+    with session_scope() as s:
+        s.add(TaskOutbox(id=tid,tenant_id=1,task_type='ai_turn',aggregate_id=str(cid),
+            idempotency_key='combined:'+str(tid),state=TaskState.PROCESSING,lease_token='owner',
+            payload_json=json.dumps(dict(call_id=str(cid),attempt=1))))
+        s.commit()
+    class Adapter(MockAdapter):
+        async def speak(self,**kwargs):
+            spoken.append(kwargs['text']);return dict(playback_complete=True)
+    async def model(**kwargs):
+        models.append(True);return AiTurnResult(action='continue',tts_text='组合工作单元回复')
+    monkeypatch.setattr(dispatcher,'request_ai_turn',model)
+    monkeypatch.setattr(ai_actions,'get_telephony_adapter',lambda **kwargs:Adapter())
+    async def run():
+        pool=WorkPool(1);token=current_claim.set((tid,'owner'))
+        try:
+            await dispatcher.run_ai_turn_async(pool=pool,call_id=cid,expected_attempt=1)
+            await dispatcher.run_ai_turn_async(pool=pool,call_id=cid,expected_attempt=1)
+        finally:current_claim.reset(token);await pool.close()
+    asyncio.run(run())
+    assert models==[True] and spoken==['组合工作单元回复']
+    with session_scope() as s:
+        assert json.loads(s.get(TaskOutbox,tid).payload_json)['action_committed'] is True
+        assert len(s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id==cid,SpeechTurn.speaker_role=='ai')).all())==1
+        assert len(s.exec(select(CallEvent).where(CallEvent.call_session_id==cid,CallEvent.event_type=='ai_decision')).all())==1
+
+
+@pytest.mark.parametrize('loss', ['cancel', 'lease'])
+def test_combined_speech_stops_between_commits_after_execution_loss(client,monkeypatch,loss):
+    from sqlmodel import select
+    from app.models import SpeechTurn,CallEvent
+    from app.services import ai_actions
+    from app.services.leases import ExecutionLease,LeaseLost,_leases
+    cid=make_call();recorded=threading.Event();release=threading.Event()
+    original=ai_actions.record_speech;lease=ExecutionLease(float('inf'))
+    def record_then_lose(*args,**kwargs):
+        result=original(*args,**kwargs)
+        recorded.set()
+        if loss=='lease':lease.lost=True
+        else:release.wait(3)
+        return result
+    monkeypatch.setattr(ai_actions,'record_speech',record_then_lose)
+    async def run():
+        pool=WorkPool(1)
+        snapshot=await pool.run(ai_actions.prepare,cid,1)
+        token=_leases.set((lease,))
+        job=asyncio.create_task(pool.run(ai_actions._record_and_finish_speech,snapshot,
+            AiTurnResult(action='continue',tts_text='事务间中止验证'),dict(playback_complete=True),1,False))
+        try:
+            if loss=='cancel':
+                while not recorded.is_set():await asyncio.sleep(.01)
+                job.cancel();await asyncio.sleep(.02)
+                assert not job.done()
+                release.set()
+                with pytest.raises(asyncio.CancelledError):await job
+            else:
+                with pytest.raises(LeaseLost):await job
+        finally:
+            release.set();_leases.reset(token);await asyncio.gather(job,return_exceptions=True);await pool.close()
+    asyncio.run(run())
+    with session_scope() as s:
+        assert len(s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id==cid,SpeechTurn.speaker_role=='ai')).all())==1
+        assert not s.exec(select(CallEvent).where(CallEvent.call_session_id==cid,CallEvent.event_type=='ai_decision')).all()
+        assert s.get(CallSession,cid).status==CallStatus.IN_AI
+
+
+def test_prepared_http_unknown_outcome_reuses_command_without_model_or_decision(client,monkeypatch):
+    import httpx,json
+    from uuid import uuid4
+    from sqlmodel import select
+    from app.models import TaskState,SpeechTurn,CallEvent
+    from app.services import ai_actions
+    from app.services.ai_claim_state import current_claim
+    from app.services.leases import LeaseLost
+    from app.services.telephony import HttpAdapter
+    cid=make_call();tid=uuid4();commands=[];models=[]
+    with session_scope() as s:
+        s.add(TaskOutbox(id=tid,tenant_id=1,task_type='ai_turn',aggregate_id=str(cid),
+            idempotency_key='unknown:'+str(tid),state=TaskState.PROCESSING,lease_token='owner',
+            payload_json=json.dumps(dict(call_id=str(cid),attempt=1))))
+        s.commit()
+    class Adapter(HttpAdapter):
+        async def speak(self,**kwargs):
+            commands.append(kwargs['command_id'])
+            if len(commands)==1:raise httpx.ReadTimeout('playback response was lost')
+            response=httpx.Response(409,headers={'X-Voice-Outcome':'unknown'},
+                request=httpx.Request('POST','http://127.0.0.1/playback'))
+            raise httpx.HTTPStatusError('gateway retains unknown command',request=response.request,response=response)
+    async def model(**kwargs):
+        models.append(True);return AiTurnResult(action='continue',tts_text='保留未知播放结果')
+    adapter=Adapter('http://127.0.0.1')
+    monkeypatch.setattr(dispatcher,'request_ai_turn',model)
+    monkeypatch.setattr(ai_actions,'get_telephony_adapter',lambda **kwargs:adapter)
+    async def run():
+        pool=WorkPool(1);token=current_claim.set((tid,'owner'))
+        try:
+            for _ in range(2):
+                with pytest.raises(LeaseLost,match='outcome unknown'):
+                    await dispatcher.run_ai_turn_async(pool=pool,call_id=cid,expected_attempt=1)
+        finally:current_claim.reset(token);await pool.close()
+    asyncio.run(run())
+    assert models==[True] and len(commands)==2 and commands[0]==commands[1]
+    with session_scope() as s:
+        assert json.loads(s.get(TaskOutbox,tid).payload_json)['action_committed'] is False
+        assert not s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id==cid,SpeechTurn.speaker_role=='ai')).all()
+        assert not s.exec(select(CallEvent).where(CallEvent.call_session_id==cid,CallEvent.event_type=='ai_decision')).all()

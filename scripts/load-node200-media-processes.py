@@ -3,10 +3,12 @@
 Run with the gateway Python environment. All credentials are public test values.
 """
 import asyncio
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tempfile
 import time
@@ -47,16 +49,27 @@ async def run(output, *, workers=4, calls=200, worker_capacity=50):
         cfg=Settings(_env_file=None,media_workers_json=json.dumps(specs),media_rpc_token=token,
             voice_security_db_path=str(work/'controller.db'),pipecat_max_active_sessions=resource_limit,media_allow_degraded_admission=True)
         manager=RemoteMediaManager(cfg)
+        stage='startup'
+        def diagnostics():
+            return {'owners':len(manager.owners),
+                'failed_owners':sum(o.session.terminated.is_set() for o in manager.owners.values()),
+                'workers':{spec['id']:{'healthy':manager._healthy(spec),
+                    'epoch':manager.health.get(spec['id'],{}).get('epoch'),
+                    'remote_sessions':len(manager.health.get(spec['id'],{}).get('sessions',{})),
+                    'owners':sum(o.spec['id']==spec['id'] for o in manager.owners.values())}
+                    for spec in specs}}
         try:
             processes=[launch(i) for i in range(1,workers+1)]
             await manager.start()
             for _ in range(300):
                 await manager.refresh()
-                if manager.ready():break
+                if all(manager._healthy(spec) for spec in specs):break
                 if any(p.poll() is not None for p in processes):
                     raise RuntimeError('\n'.join(p.read_text()[-4000:] for p in work.glob('worker-*.log')))
                 await asyncio.sleep(.1)
-            assert manager.ready(),'media processes did not become ready'
+            assert all(manager._healthy(spec) for spec in specs),'full media roster did not become ready'
+            startup=diagnostics()
+            stage='create_control_sessions'
             started=time.monotonic()
             async def create(i):return await manager.create_session(call_id=str(i),speech_webhook_url=env['VOICE_CALLBACK_BASE_URL']+'/api/v1/webhooks/telephony/speech',
                 media_webhook_url=env['VOICE_CALLBACK_BASE_URL']+'/api/v1/webhooks/telephony/media',metadata={'attempt':1})
@@ -64,7 +77,11 @@ async def run(output, *, workers=4, calls=200, worker_capacity=50):
             elapsed=time.monotonic()-started
             await manager.refresh()
             distribution={key:len(value['sessions']) for key,value in manager.health.items()}
+            stage='verify_control_sessions'
+            snapshot=diagnostics()
+            assert snapshot['owners']==calls and snapshot['failed_owners']==0
             assert sum(distribution.values())==calls and max(distribution.values())-min(distribution.values())<=1
+            stage='resource_limit'
             await asyncio.gather(*(create(i) for i in range(calls,resource_limit)))
             rejected=False
             try:await create(resource_limit)
@@ -72,10 +89,12 @@ async def run(output, *, workers=4, calls=200, worker_capacity=50):
             assert rejected
             await asyncio.gather(*(manager.close(str(i),notify=False) for i in range(calls,resource_limit)))
             original={cid:(o.spec['id'],o.epoch,o.session.session_id) for cid,o in manager.owners.items()}
+            stage='journal_recovery'
             await manager.stop()
             manager=RemoteMediaManager(cfg);await manager.start()
             assert {cid:(o.spec['id'],o.epoch,o.session.session_id) for cid,o in manager.owners.items()}==original
             processes[0].kill();processes[0].wait(timeout=10)
+            stage='worker_restart'
             processes[0]=launch(1)
             old_epoch=original['0'][1]
             for _ in range(300):
@@ -90,10 +109,24 @@ async def run(output, *, workers=4, calls=200, worker_capacity=50):
             await manager.refresh()
             assert sum(len(v['sessions']) for v in manager.health.values())==calls
             result={'media_processes':workers,'synthetic_control_sessions':calls,'distribution':distribution,
+                'startup':startup,'control_snapshot':snapshot,
+                'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'resource_session_limit':resource_limit,'create_seconds':elapsed,'over_resource_limit_rejected':rejected,'journal_recovery_preserved':True,
                 'worker_restart_affected_sessions':len(affected),'replacement_sessions':len(affected),
                 'real_sip_audio_asr_tts':False,'passed':True}
             output.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)
+        except Exception as exc:
+            log_dir=output.with_name(output.stem+'-worker-logs')
+            log_dir.mkdir(parents=True,exist_ok=True)
+            for path in work.glob('worker-*.log'):shutil.copyfile(path,log_dir/path.name)
+            failure={'passed':False,'stage':stage,'error_type':type(exc).__name__,
+                'error':str(exc),'media_processes':workers,'requested_control_sessions':calls,
+                'real_sip_audio_asr_tts':False,'diagnostics':diagnostics(),
+                'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                'worker_logs':str(log_dir)}
+            output.write_text(json.dumps(failure,indent=2)+'\n')
+            print(json.dumps(failure),flush=True)
+            raise
         finally:
             if manager.client:
                 await asyncio.gather(*(manager.close(cid,notify=False) for cid in list(manager.owners)),return_exceptions=True)

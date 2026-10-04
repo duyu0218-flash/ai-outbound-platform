@@ -1,0 +1,14 @@
+{
+  "frontend_source_files_identical_to_previous_validated_build": 33,
+  "build_source_worktree": "/workspace/ai-outbound-platform-single500-20261003",
+  "static_files": {
+    "backend/app/static/index.html": "c950da6ec0057a5a08dc6c30053e342efa836e5c64facb756b45f04a0b6e22e3",
+    "backend/app/static/assets/i18n-DSrGkO-R.js": "a9ccdbafc80c01bdbd14272af0fef901daee1be4df67e679afed069cf1f6b9e4",
+    "backend/app/static/assets/react-DcdzuIYl.js": "26768bcc49e7eab498533b91f8cd83fa87e03c16a3bc4cd786798a6b4e092068",
+    "backend/app/static/assets/antd-BUxF70Z9.js": "de07044e69c084d49770d7a33f42408942c827041ffdb84ecacac7e92673b113",
+    "backend/app/static/assets/query-DLN6vZyO.js": "71ebe4e4c56ed89495e3d8dd953ba6a2973278a30491b43dc689f9907da2be05",
+    "backend/app/static/assets/index-CZjmRZf7.css": "b13c7b551e470c24f62d6e455b63b8c7b00fe9c568a9605b835733d251fffb92",
+    "backend/app/static/assets/index-pn5Jfv7b.js": "17da203bcb903a4c5c19ebeacc8d0e57ee614ba63b918774a8229a71ff78bf94"
+  },
+  "note": "Unchanged frontend; copied previously validated generated build for backend page regression. Generated assets remain gitignored."
+}

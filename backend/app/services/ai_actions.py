@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 def prepare(call_id, attempt, fallback_audio=False):
     with session_scope() as session:
-        call = session.get(CallSession, call_id)
-        if call is None or not d._ai_call_is_current(session, call, attempt, lock=True):
+        call = d._load_current_ai_call(session, call_id, attempt, lock=True)
+        if call is None:
             return None
         campaign = session.get(Campaign, call.campaign_id) if call.campaign_id else None
         policy = json.loads(state_for(session, call).policy_json)
@@ -55,8 +55,8 @@ def prepare(call_id, attempt, fallback_audio=False):
 
 def record_speech(snapshot, result, response, duration_ms, error=None):
     with session_scope() as session:
-        call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not d._ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = d._load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return False
         session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
             stage='tts.dispatch', provider=snapshot['provider'] or 'gateway', duration_ms=duration_ms,
@@ -152,8 +152,8 @@ async def finish(snapshot, result, hangup_confirmed, playback_complete, durable=
     from .ai_claim_state import mark_committed
     session = WebhookSession()
     try:
-        call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not d._ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = d._load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return None
         callback_id = await d._commit_ai_decision(session, call, result, snapshot['attempt'],
             hangup_confirmed, playback_complete, snapshot['sms_allowed'])
@@ -165,10 +165,21 @@ async def finish(snapshot, result, hangup_confirmed, playback_complete, durable=
         session.finish(success=False)
 
 
+async def _record_and_finish_speech(snapshot, result, response, duration_ms, durable):
+    if not record_speech(snapshot, result, response, duration_ms):
+        return None
+    return await finish(snapshot, result, False, bool(response.get('playback_complete', False)), durable)
+
+
 async def execute_action(pool, call_id, attempt, result, fallback_audio=False, durable=True):
     snapshot = await pool.run(prepare, call_id, attempt, fallback_audio)
     if snapshot is None:
         return
+    return await execute_prepared_action(pool, snapshot, result, durable=durable)
+
+
+async def execute_prepared_action(pool, snapshot, result, *, durable=True):
+    call_id, attempt = snapshot['call_id'], snapshot['attempt']
     adapter = snapshot['adapter']
     response = {}
     if result.tts_text:
@@ -192,6 +203,14 @@ async def execute_action(pool, call_id, attempt, result, fallback_audio=False, d
             await pool.run(record_speech, snapshot, result, {}, int((perf_counter()-started)*1000), exc)
             raise
         pool.record_timing('network.speak', (perf_counter()-started)*1000)
+        if result.action != 'hangup' and not result.hangup_sms:
+            # The common speak path needs no intervening network action.
+            # Keep both commit fences while avoiding another pool queue hop.
+            callback_id = await pool.run(_record_and_finish_speech, snapshot, result, response,
+                int((perf_counter()-started)*1000), durable)
+            if callback_id is not None:
+                await notify_task(callback_id)
+            return
         current = await pool.run(record_speech, snapshot, result, response, int((perf_counter()-started)*1000))
         if not current:
             return

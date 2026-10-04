@@ -78,3 +78,12 @@ def test_partial_readiness_and_unbounded_batch_rejected(rendered):
     assert not result['static_config_passed']
     assert any('every configured callback worker' in e for e in result['blockers'])
     assert any('bounded batches' in e for e in result['blockers'])
+
+
+def test_missing_ai_guard_and_duplicated_worker_identity_rejected(rendered):
+    rendered['services']['task-worker']['environment']['AI_WORKER_REQUIREMENTS_JSON'] = '{}'
+    rendered['services']['ai-worker-4']['environment']['AI_WORKER_ID'] = 'ai-worker-1'
+    result = profile.assess(rendered)
+    assert not result['static_config_passed']
+    assert any('require all four AI workers' in e for e in result['blockers'])
+    assert any('identities' in e for e in result['blockers'])

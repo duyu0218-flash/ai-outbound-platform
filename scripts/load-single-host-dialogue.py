@@ -15,6 +15,8 @@ TEST_DB=os.environ.get('SINGLE500_TEST_DB','node200single500dialogue')
 RATE=int(os.environ.get('SINGLE500_TURN_RATE','200'));SECONDS=int(os.environ.get('SINGLE500_LOAD_SECONDS','30'));TOTAL=RATE*SECONDS
 BATCH_CALLBACKS=os.environ.get('SINGLE500_BATCH_CALLBACKS','false')=='true'
 SCENARIO=os.environ.get('SINGLE500_SCENARIO','mixed')
+ACCEPTANCE=os.environ.get('SINGLE500_ACCEPTANCE','capacity')
+assert ACCEPTANCE in {'capacity','software'}
 ROUNDS=int(os.environ.get('SINGLE500_CONVERSATION_ROUNDS','5'))
 TURN_GAP=float(os.environ.get('SINGLE500_TURN_GAP_SEC','6.25'))
 assert SCENARIO in {'mixed','conversation'} and 1<=ROUNDS<=100 and 1<=TURN_GAP<=60
@@ -35,6 +37,8 @@ for name in ('backend/app/schemas.py','backend/app/api/routers/webhooks.py','bac
 for folder in ('backend/app','voice_gateway/app','agent/app','recording_adapter/app','scripts/fixtures'):
     for p in sorted((ROOT/folder).rglob('*.py')):
         SOURCE_HASHES[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
+for name in ('scripts/single_host_load_validity.py','scripts/run-single-host-load.py'):
+    SOURCE_HASHES[name]=hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
 for p in sorted(ROOT.glob('docker-compose*.yml')):
     SOURCE_HASHES[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
 RUNTIME_DEPENDENCIES={}
@@ -53,6 +57,8 @@ env=dict(os.environ,ENV='test',DATABASE_URL=DSN,DATABASE_URL_API=DSN,DATABASE_UR
  DEMO_USERS_ENABLED='true',TRUSTED_HOSTS='*',RATE_LIMIT_ENABLED='false',CALLBACK_INBOX_ENABLED='true',DATABASE_POOL_SIZE='5',DATABASE_MAX_OVERFLOW='0',
  REQUEST_ADMISSION_TOTAL_INFLIGHT='5',REQUEST_ADMISSION_WEBHOOK_INFLIGHT='4',REQUEST_ADMISSION_DEFAULT_INFLIGHT='1',
  REQUEST_ADMISSION_MAX_WAITERS='8',REQUEST_ADMISSION_TIMEOUT_SEC='.05',LOG_LEVEL='WARNING',CALLBACK_INBOX_MIN_WORKERS='6',
+ AI_WORKER_REQUIREMENTS_JSON=json.dumps({f'ai-worker-{i}':160 for i in range(1,5)}),
+ AI_WORKER_HEALTH_PREFIX='single500-synthetic:'+LABEL,
  PYTHONPATH=str(ROOT/'backend')+':'+str(ROOT/'scripts/fixtures'),LOAD_ARTIFACT_DIR=str(DEST),TASK_POLL_INTERVAL_SEC='.05')
 if SCENARIO=='conversation':
     env.update(AI_AGENT_URL='http://127.0.0.1:18940',TELEPHONY_PROVIDER='http',
@@ -70,6 +76,9 @@ import httpx
 sys.path.insert(0,str(ROOT))
 from voice_gateway.app.security import CallbackSender, canonical
 from voice_gateway.app.config import Settings as VoiceSettings
+from scripts.single_host_load_validity import assess_load
+from scripts.single_host_reply_observer import ReplyObserver, ReplyObservationError
+SOURCE_HASHES['scripts/single_host_reply_observer.py']=hashlib.sha256((ROOT/'scripts/single_host_reply_observer.py').read_bytes()).hexdigest()
 create_db_and_tables();_bootstrap_default_tenant()
 with session_scope() as s:
     assert s.exec(select(CallSession.id).limit(1)).first() is None, 'requires fresh dedicated test database'
@@ -97,8 +106,9 @@ async def main():
                     OPENAI_MODEL='synthetic-model',LLM_ALLOWED_HOSTS='127.0.0.1',LLM_REQUIRE_HTTPS='false',
                     LLM_QUOTA_DB_PATH=str(account_dir/'model-account.db'),LLM_QUOTA_SCOPE='synthetic-shared-account',
                     LLM_QUOTA_RPM='20000',LLM_QUOTA_TPM='100000000',LLM_QUOTA_RPS='1000',
-                    LLM_MAX_CONNECTIONS='320',LLM_MAX_KEEPALIVE_CONNECTIONS='160',MAX_OUTPUT_TOKENS='200',OPENAI_TIMEOUT_SEC='15'),cwd=ROOT/'agent')
-    for i in range(4):launch([sys.executable,'-m','single500_instrumented_ai'],dict(TASK_WORKER_ROLE='ai',TASK_AI_CONCURRENCY='160',DATABASE_POOL_SIZE='5',AI_DB_THREADS='2',AI_ACTION_THREADS='8',AI_WORKER_HEALTH_PATH=str(DEST/f'health-{i}.json')),role='ai')
+                    LLM_MAX_CONNECTIONS='320',LLM_MAX_KEEPALIVE_CONNECTIONS='160',MAX_OUTPUT_TOKENS='200',OPENAI_TIMEOUT_SEC='15',
+                    SINGLE500_AGENT_INJECT_READ_ERROR='true' if port==18941 and os.environ.get('SINGLE500_AGENT_INJECT_READ_ERROR')=='true' else 'false'),cwd=ROOT/'agent')
+    for i in range(4):launch([sys.executable,'-m','single500_instrumented_ai'],dict(TASK_WORKER_ROLE='ai',TASK_AI_CONCURRENCY='160',DATABASE_POOL_SIZE='5',AI_DB_THREADS='2',AI_ACTION_THREADS='8',AI_WORKER_ID=f'ai-worker-{i+1}',AI_WORKER_HEALTH_PATH=str(DEST/f'health-{i}.json')),role='ai')
     for i in range(6):launch([sys.executable,'-m','app.callback_inbox_worker','--shards','6','--shard-index',str(i)],dict(DATABASE_POOL_SIZE='1',CALLBACK_INBOX_HEALTH_PATH=str(DEST/f'inbox-health-{i}.json')),role='inbox')
     statuses=Counter();http_statuses=Counter();batch_sizes=[];retries=Counter();latencies=[];lags=[];pids=Counter();failed=[];jobs=set();sem=asyncio.Semaphore(64)
     async with httpx.AsyncClient(trust_env=False,timeout=10,limits=httpx.Limits(max_connections=100)) as http:
@@ -145,7 +155,7 @@ async def main():
             setattr(sender, attribute, timed)
         sender.writer.commit = sender._commit_batch
         original_send=sender._send
-        enqueued_at={};delivery_ages=[]
+        enqueued_at={};delivery_ages=[];scheduled_speech={};acknowledged_speech=[]
         async def observe(url,body):
             begin=time.monotonic()
             wire=json.loads(body)
@@ -157,6 +167,8 @@ async def main():
                 for key in events:
                     enqueued=enqueued_at.pop(key,None)
                     if enqueued is not None:delivery_ages.append((time.monotonic()-enqueued)*1000)
+                    scheduled=scheduled_speech.pop(key,None)
+                    if scheduled is not None:acknowledged_speech.append((scheduled-start,time.monotonic()-start))
                 return response
             except httpx.HTTPStatusError as exc:
                 statuses[str(exc.response.status_code)]+=len(events);http_statuses[str(exc.response.status_code)]+=1;raise
@@ -178,39 +190,73 @@ async def main():
                 await asyncio.sleep(1)
         observer=asyncio.create_task(sample_queue())
         sent_speech=0
-        async def post(kind,body):
+        async def post(kind,body,scheduled=None):
             nonlocal sent_speech
             url='http://127.0.0.1:18900/api/v1/webhooks/telephony/'+kind
             enqueued_at[(url,canonical(body))]=time.monotonic()
+            if kind=='speech':scheduled_speech[(url,canonical(body))]=scheduled
             await sender.post(url,body)
             if kind=='speech':sent_speech+=1
         start=time.monotonic()
-        reply_latencies=[];reply_events={};dialogue_errors=[];round_latencies={i:[] for i in range(1,ROUNDS+1)}
-        awaiting_replies={}
+        reply_latencies=[];dialogue_errors=[];round_latencies={i:[] for i in range(1,ROUNDS+1)}
+        reply_observer=ReplyObserver()
+        timeout_snapshots=[]
+        def inspect_timeout(cid, round_index):
+            from app.models import RealtimeSession
+            from uuid import UUID
+            call_uuid=UUID(cid)
+            with session_scope() as s:
+                speech=s.exec(select(SpeechTurn).where(SpeechTurn.call_session_id==call_uuid,
+                    SpeechTurn.attempt==1).order_by(SpeechTurn.created_at)).all()
+                tasks=s.exec(select(TaskOutbox).where(TaskOutbox.aggregate_id==cid,
+                    TaskOutbox.task_type=='ai_turn').order_by(TaskOutbox.created_at)).all()
+                realtime=s.exec(select(RealtimeSession).where(RealtimeSession.call_session_id==call_uuid)).first()
+                return dict(call_id=cid,round=round_index,at_monotonic=time.monotonic(),observer=reply_observer.snapshot(),
+                    realtime_sequence=realtime.turn_sequence if realtime else None,
+                    speech=[dict(role=t.speaker_role,turn_index=t.turn_index,created_at=t.created_at.isoformat(),
+                        event_key=t.provider_event_key,transcript=t.transcript) for t in speech],
+                    tasks=[dict(task_id=str(t.id),state=t.state.value,created_at=t.created_at.isoformat(),
+                        available_at=t.available_at.isoformat(),locked_at=t.locked_at.isoformat() if t.locked_at else None,
+                        attempts=t.attempts,payload=json.loads(t.payload_json)) for t in tasks])
         deadline_misses=[]
         rate_windows={}
         def count_window(kind, stamp):
             bucket=int(max(0,stamp-start)//10)*10
             counters=rate_windows.setdefault(bucket,dict(planned=0,emitted=0,completed=0))
             counters[kind]+=1
+        async def wait_for_schedule(scheduled):
+            # uvloop timers can wake just before their requested instant.
+            # Preserve the absolute schedule without negative lag samples.
+            while time.monotonic() < scheduled:
+                await asyncio.sleep(max(.001,scheduled-time.monotonic()))
         async def conversation(index):
             cid=ids[index]
             for round_index in range(1,ROUNDS+1):
                 scheduled=start+index/RATE+(round_index-1)*TURN_GAP
-                await asyncio.sleep(max(0,scheduled-time.monotonic()))
+                await wait_for_schedule(scheduled)
                 begin=time.monotonic();lags.append((begin-scheduled)*1000)
                 count_window('emitted',begin)
                 event_id=f'conversation-{cid}-{round_index}'
-                completed=reply_events.setdefault((cid,round_index),asyncio.Event())
-                awaiting_replies[(cid,round_index)]=utc_now()
-                response=await http.post('http://127.0.0.1:18942/fixture/head',json=dict(call_id=cid,event_id=event_id))
-                response.raise_for_status()
-                await post('speech',dict(call_id=cid,event_id=event_id,attempt=1,
-                    transcript='我想了解这项服务的具体安排',is_final=True,confidence=.99))
-                try:await asyncio.wait_for(completed.wait(),45)
+                try:completed=reply_observer.register(cid,1,round_index,utc_now())
+                except ReplyObservationError as exc:
+                    dialogue_errors.append(dict(call_id=cid,round=round_index,error='reply observer failed',error_type=str(exc)));return
+                try:
+                    response=await http.post('http://127.0.0.1:18942/fixture/head',json=dict(call_id=cid,event_id=event_id))
+                    response.raise_for_status()
+                    await post('speech',dict(call_id=cid,event_id=event_id,attempt=1,
+                        transcript='我想了解这项服务的具体安排',is_final=True,confidence=.99),scheduled)
+                    await asyncio.wait_for(completed,45)
                 except asyncio.TimeoutError:
-                    dialogue_errors.append(dict(call_id=cid,round=round_index,error='no committed AI reply'));return
-                finally:awaiting_replies.pop((cid,round_index),None)
+                    dialogue_errors.append(dict(call_id=cid,round=round_index,error='no committed AI reply'))
+                    try:timeout_snapshots.append(await asyncio.to_thread(inspect_timeout,cid,round_index))
+                    except Exception as exc:timeout_snapshots.append(dict(call_id=cid,round=round_index,snapshot_error_type=type(exc).__name__))
+                    return
+                except ReplyObservationError as exc:
+                    dialogue_errors.append(dict(call_id=cid,round=round_index,error='reply observer failed',error_type=str(exc)));return
+                finally:
+                    reply_observer.unregister(cid,1,round_index)
+                    if not completed.done():completed.cancel()
+                    elif not completed.cancelled():completed.exception()
                 if time.monotonic()>scheduled+TURN_GAP:
                     deadline_misses.append(dict(call_id=cid,round=round_index,late_ms=(time.monotonic()-scheduled-TURN_GAP)*1000))
                 count_window('completed',time.monotonic())
@@ -220,43 +266,33 @@ async def main():
                     await post('media',dict(call_id=cid,event_id=f'{event_id}-media-{step}',attempt=1,
                         event_sequence=round_index*2+step,state=state,provider_session_id='synthetic-'+cid))
 
-        async def observe_replies():
+        def read_replies(since):
             # Only a committed AI SpeechTurn can advance the customer. The HTTP
             # playback fixture has already completed before that row is written.
-            while True:
-                # Only inspect the time window of outstanding customer turns.
-                # Scanning every historical reply each 100ms made the load
-                # observer itself increasingly expensive in long conversations.
-                # A turn's reply cannot predate its input; no ID watermark is
-                # used because concurrent transactions can commit out of order.
-                since=min(awaiting_replies.values()) if awaiting_replies else None
-                def read():
-                    if since is None:return []
-                    with session_scope() as s:
-                        return s.exec(select(SpeechTurn.call_session_id,SpeechTurn.turn_index).where(
-                            SpeechTurn.speaker_role=='ai',SpeechTurn.is_final.is_(True),
-                            SpeechTurn.created_at>=since,
-                            SpeechTurn.transcript=='这项服务支持按需求设置，下面为您介绍具体安排。')).all()
-                for cid,sequence in await asyncio.to_thread(read):
-                    reply_events.setdefault((str(cid),sequence),asyncio.Event()).set()
-                await asyncio.sleep(.1)
+            # Inspect only outstanding turns' time window, without an ID
+            # watermark: concurrent transactions can commit out of order.
+            with session_scope() as s:
+                return s.exec(select(SpeechTurn.call_session_id,SpeechTurn.attempt,SpeechTurn.turn_index).where(
+                    SpeechTurn.speaker_role=='ai',SpeechTurn.is_final.is_(True),
+                    SpeechTurn.created_at>=since,
+                    SpeechTurn.transcript=='这项服务支持按需求设置，下面为您介绍具体安排。')).all()
         async def turn(index,scheduled):
             async with sem:
                 lags.append((time.monotonic()-scheduled)*1000)
                 cid=ids[index%500];event=f'dialogue-{index}'
-                await post('speech',dict(call_id=cid,event_id=event,attempt=1,transcript='您好，我想了解服务内容',is_final=True,confidence=.99))
+                await post('speech',dict(call_id=cid,event_id=event,attempt=1,transcript='您好，我想了解服务内容',is_final=True,confidence=.99),scheduled)
                 for step,state in enumerate(('speaking','listening')):
                     await post('media',dict(call_id=cid,event_id=f'{event}-media-{step}',attempt=1,event_sequence=index*2+step+1,state=state,provider_session_id='synthetic-'+cid))
         if SCENARIO=='conversation':
             for index in range(500):
                 for round_index in range(ROUNDS):
                     count_window('planned',start+index/RATE+round_index*TURN_GAP)
-            replies_observer=asyncio.create_task(observe_replies())
+            replies_observer=asyncio.create_task(reply_observer.run(read_replies))
             try:await asyncio.gather(*(conversation(i) for i in range(500)))
             finally:replies_observer.cancel();await asyncio.gather(replies_observer,return_exceptions=True)
         else:
             for index in range(TOTAL):
-                scheduled=start+index/RATE;await asyncio.sleep(max(0,scheduled-time.monotonic()))
+                scheduled=start+index/RATE;await wait_for_schedule(scheduled)
                 job=asyncio.create_task(turn(index,scheduled));jobs.add(job)
             await asyncio.gather(*jobs)
         generation_seconds=time.monotonic()-start
@@ -280,9 +316,18 @@ async def main():
             attempts=s.exec(select(func.max(TaskOutbox.attempts)).where(TaskOutbox.task_type=='ai_turn')).one()
             metrics=s.exec(select(func.count()).select_from(CallMetric).where(CallMetric.stage=='ai.turn',CallMetric.success.is_(True))).one()
             durations=s.exec(select(CallMetric.stage,CallMetric.duration_ms).where(CallMetric.success.is_(True),CallMetric.duration_ms.is_not(None))).all()
+            timeline=s.exec(select(TaskOutbox).where(TaskOutbox.task_type=='ai_turn')).all()
+            task_timeline=[dict(task_id=str(t.id),call_id=t.aggregate_id,created_at=t.created_at.isoformat(),
+                available_at=t.available_at.isoformat(),updated_at=t.updated_at.isoformat(),state=t.state.value,
+                attempts=t.attempts,sequence=json.loads(t.payload_json).get('turn_sequence'),
+                speech_event_id=json.loads(t.payload_json).get('speech_event_id'),
+                action_committed=json.loads(t.payload_json).get('action_committed')) for t in timeline]
         inbox_final=await asyncio.to_thread(read_inbox)
-        model_transport_retries=sum(p.read_text().count('AI transport retry error_type=')
-                                    for p in DEST.glob('process-*.log'))
+        backend_model_transport_retries=sum(p.read_text().count('AI transport retry error_type=')
+                                            for p in DEST.glob('process-*.log'))
+        agent_model_transport_retries=sum(p.read_text().count('LLM transport retry error_type=')
+                                          for p in DEST.glob('process-*.log'))
+        model_transport_retries=backend_model_transport_retries+agent_model_transport_retries
         q=lambda a,p:sorted(a)[min(len(a)-1,int(len(a)*p))] if a else 0
         stage_timings={stage:{'count':len(values),'p99_ms':q(values,.99),'max_ms':max(values)}
                        for stage in {stage for stage,_ in durations}
@@ -290,13 +335,16 @@ async def main():
         result=dict(source_sha256=SOURCE_HASHES,runtime_dependencies=RUNTIME_DEPENDENCIES,generator_event_loop=EVENT_LOOP,synthetic_active_calls=500,final_transcripts_per_second=RATE if SCENARIO=='mixed' else 500/TURN_GAP,media_events_per_second=RATE*2 if SCENARIO=='mixed' else 1000/TURN_GAP,duration_seconds=SECONDS if SCENARIO=='mixed' else None,
             batch_callbacks_enabled=BATCH_CALLBACKS,http_request_statuses=dict(http_statuses),mean_events_per_http_request=sum(batch_sizes)/len(batch_sizes) if batch_sizes else 0,
             scenario=SCENARIO,effective_dialogue_capacity_verified=False,
-            observer_query='outstanding-turn-time-window-v2',
+            acceptance_mode=ACCEPTANCE,
+            observer_query='registered-call-attempt-turn-v3',
+            reply_observer=reply_observer.snapshot() if SCENARIO=='conversation' else None,
+            timeout_snapshots=timeout_snapshots,
             generation_duration_seconds=generation_seconds,
             emitted_final_transcripts=sent_speech,
             generated_transcripts_per_elapsed_second=sent_speech/generation_seconds,
             initial_speech_start_rate=RATE,
             topology={'api_processes':6,'callback_workers':6,'ai_workers':4,'ai_slots':640,
-                      'ai_db_threads_per_worker':2,'ai_action_threads_per_worker':8,
+                      'ai_db_threads_per_worker':2,'ai_action_threads_per_worker':0,
                       'real_agent_processes':2 if SCENARIO=='conversation' else 0,
                       'task_workers':0,'pbx_processes':0,'media_workers':0,
                       'application_db_pool_budget':56,'test_observer_db_pool_budget':5},
@@ -311,9 +359,12 @@ async def main():
             delivery_http_p99_ms=q(latencies,.99),generator_lag_p99_ms=q(lags,.99),queue_samples=queue_samples,
             gateway_delivery_p99_ms=q(delivery_ages,.99),gateway_delivery_max_ms=max(delivery_ages,default=0),
             model_transport_retries=model_transport_retries,
+            backend_model_transport_retries=backend_model_transport_retries,
+            agent_model_transport_retries=agent_model_transport_retries,
             inbox_final=inbox_final,inbox_samples=inbox_samples,
             capacity_slo_passed=inbox_final['pending']==0 and inbox_final['max_completion_latency_ms']<=1000 and queue['pending_callbacks']==0 and sum(v for k,v in statuses.items() if k!='200')==0 and max((r['oldest_callback_age_sec'] for r in queue_samples),default=0)<=1 and max(delivery_ages,default=0)<=1000 and model_transport_retries==0,
             task_states=states,final_transcripts=turns,successful_ai_metrics=metrics,model=stats,
+            task_timeline=task_timeline,
             ai_transcripts=ai_turns,media_ingest_events=media,call_states=call_states,failed_metrics=failures,ai_max_attempts=attempts,
             stage_timings=stage_timings,
             reply_round_timings={k:{'count':len(v),'p99_ms':q(v,.99),'max_ms':max(v,default=0)} for k,v in round_latencies.items()} if SCENARIO=='conversation' else {},
@@ -334,8 +385,24 @@ async def main():
         result['runtime_source_unchanged_during_test']=all(hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==value
                                                          for name,value in SOURCE_HASHES.items())
         result['correctness_passed'] &= result['runtime_source_unchanged_during_test']
+        result['software_acceptance_passed']=(result['correctness_passed'] and (
+            SCENARIO!='conversation' or reply_observer.failure is None))
+        result['load_validity']=assess_load(planned_count=TOTAL,
+            planned_duration_sec=SECONDS if SCENARIO=='mixed' else 500/RATE+(ROUNDS-1)*TURN_GAP,
+            generator_lags_ms=lags,acknowledged=acknowledged_speech)
+        result['load_validity_passed']=result['load_validity']['load_validity_passed']
+        samples_path=REPORT.with_name(f'{LABEL}-timing-samples.json')
+        samples_path.write_text(json.dumps(dict(generator_lags_ms=lags,
+            scheduled_and_first_ack_seconds=acknowledged_speech,
+            successful_reply_latencies_ms=reply_latencies,
+            reply_round_latencies_ms=round_latencies if SCENARIO=='conversation' else {}))+'\n')
+        result['load_timing_samples']=dict(path=str(samples_path.relative_to(ROOT)),
+            sha256=hashlib.sha256(samples_path.read_bytes()).hexdigest())
         REPORT.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)
-        if (not result['correctness_passed'] or not result['capacity_slo_passed']
+        if ACCEPTANCE=='software':
+            if not result['software_acceptance_passed']:
+                raise SystemExit('software correctness or reply observation failed')
+        elif (not result['correctness_passed'] or not result['capacity_slo_passed'] or not result['load_validity_passed']
                 or (SCENARIO=='conversation' and not result['conversation_control_slo_passed'])):
             raise SystemExit('mixed callback correctness or capacity SLO failed')
 try:

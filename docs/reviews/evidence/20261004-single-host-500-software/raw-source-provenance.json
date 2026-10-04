@@ -1,0 +1,290 @@
+{
+  "single500-20261004-soft-baseline1": [
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-baseline1-results.json",
+      "sha256": "e2ab729840cab306a2a6808e276f0cee8d87da354adf35843fcc4d9ab5df6699",
+      "bytes": 638508
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-baseline1-timing-samples.json",
+      "sha256": "808c3c562b491b2229274474670a034a7fdaa5cd0f1877c2fbdf8a0099ea9451",
+      "bytes": 99445
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline1/ai-events-16.jsonl",
+      "sha256": "62e80bc1d3f52c2cc68f3f38755435ef34ada5f0466ae65a02589e635a24b71d",
+      "bytes": 731504
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline1/ai-events-17.jsonl",
+      "sha256": "12f7fb5cd507a3dd3bd510c6fd1521c1938b910c2d82d9b60f8449b04d0441a9",
+      "bytes": 759882
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline1/ai-events-18.jsonl",
+      "sha256": "7df75f4a5b928932f130f0ae17f7a11d340c974e790be6d91c99294449859784",
+      "bytes": 703024
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline1/ai-events-19.jsonl",
+      "sha256": "892265570e872bea2d4d9bef123bf9762f840be42c37e1b88edfb8b5624a4e19",
+      "bytes": 657060
+    }
+  ],
+  "single500-20261004-soft-fixed1": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed1-results.json",
+      "sha256": "ea7c98266f8efd08db8cf2535a544c32caca5f224e9a2c506bcc99ce8e94f611",
+      "bytes": 632298
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed1-timing-samples.json",
+      "sha256": "d65320289f93cc4ea66c6194e7bc751fd3e8939520042c8fb819220bbdc5135a",
+      "bytes": 99768
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed1/ai-events-16.jsonl",
+      "sha256": "7109e9e3a2b2266898669e007f3ba997b9ee465c0691f7db2ec761a40ed5e808",
+      "bytes": 423078
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed1/ai-events-17.jsonl",
+      "sha256": "25a1da891c23aefa017080b78fbaa2e1058ffe0ac9b31a52e514bfb42642a930",
+      "bytes": 565813
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed1/ai-events-18.jsonl",
+      "sha256": "c76aef58efe68a44ecefaa9ac8dd694902c572e5601673b43cc8274884ad95a9",
+      "bytes": 516282
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed1/ai-events-19.jsonl",
+      "sha256": "91137c395bd73bba4910674e4acbfa0564423ddd9c034d5de253f65c7f41d02a",
+      "bytes": 562350
+    }
+  ],
+  "single500-20261004-soft-fixed2": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed2-results.json",
+      "sha256": "47ec83e35fae3c33a72bbe1055f44954ba4165dd64bc4b8a39ed0d0471c326dc",
+      "bytes": 668058
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed2-timing-samples.json",
+      "sha256": "69b08913eb498033c3a40b09edd4638396901922f866c1c278e6866ba8dbc132",
+      "bytes": 99460
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed2/ai-events-16.jsonl",
+      "sha256": "6af92cc888fa41de04e05bd8a6ac474e5486423f4bd754f82ce861bb35e9138c",
+      "bytes": 749510
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed2/ai-events-17.jsonl",
+      "sha256": "3d86bade318eed4abe4a8ac21b5f6795228322a183211583b2eeaaa606cae054",
+      "bytes": 700287
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed2/ai-events-18.jsonl",
+      "sha256": "df0beded4a86dbdd1fa31c191cf5226411e8c00de2f365d6184e71efecf1aea0",
+      "bytes": 637929
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed2/ai-events-19.jsonl",
+      "sha256": "28bbfc742027f17066e503758a4dbd1658fc1ecc6af2f0ea631c49745436d6fb",
+      "bytes": 686064
+    }
+  ],
+  "single500-20261004-soft-baseline2": [
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-baseline2-results.json",
+      "sha256": "9820d095cfd5e803d0231c2a5d4d3b695aaea49753f6a29cf6901d531d0dddcc",
+      "bytes": 637794
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-baseline2-timing-samples.json",
+      "sha256": "78279c0ac51bd11a184d63aa328aeca0281047ce9e2eef94ed905df179dc8bcb",
+      "bytes": 99733
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline2/ai-events-16.jsonl",
+      "sha256": "1e7f45d6d06680422cc0c04bd56809a1598959430512b600806686d962adaf71",
+      "bytes": 669988
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline2/ai-events-17.jsonl",
+      "sha256": "8b218a768de813d2e66d7e7b7afc98983eac4301f1ebcc25cac4b0607d0215dc",
+      "bytes": 648321
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline2/ai-events-18.jsonl",
+      "sha256": "8f7bb421a3ae831686edf9fea8e2b18ad12e59df8b0fc29e93bc71536ffc2ee8",
+      "bytes": 775282
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-soft-baseline-20261004/artifacts/single-host-500/single500-20261004-soft-baseline2/ai-events-19.jsonl",
+      "sha256": "0cfbcc51aa3231b012e96e635c5e1509325daf3e616ffaee75530cbfd1d58192",
+      "bytes": 751934
+    }
+  ],
+  "single500-20261004-soft-fixed3": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed3-results.json",
+      "sha256": "6c6ebfbd0904a3b423cc81ed64331e94fdc29046e6a765c80140747ec428aede",
+      "bytes": 632143
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed3-timing-samples.json",
+      "sha256": "09f616eeea1d2823668831234ee3ee8c763419f2ec30f554caf4bdc5b0e30fd3",
+      "bytes": 99747
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed3/ai-events-16.jsonl",
+      "sha256": "6e53e7f749fb3672401a38a87eb4b523be008dc215bcec6529fba7f27a5c5f77",
+      "bytes": 582863
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed3/ai-events-17.jsonl",
+      "sha256": "91ff8bd61ba87cc5996b31ca25178d875c7f30c53b2aee2046fe30b8b437cddb",
+      "bytes": 423976
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed3/ai-events-18.jsonl",
+      "sha256": "8fb113b056b0e37b95cd936c2d70b2017f85d8648a91a4cccab006aaf183a82c",
+      "bytes": 495675
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed3/ai-events-19.jsonl",
+      "sha256": "194549f7cef41744d0bb86adc190de4fed73f105c5c29ddb218a48062154befb",
+      "bytes": 556473
+    }
+  ],
+  "single500-20261004-soft-fixed4": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed4-results.json",
+      "sha256": "68205d0113ae1cad4f621daa009c5c303c8db1f76f335e19c6b973d4b2b62227",
+      "bytes": 633892
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed4-timing-samples.json",
+      "sha256": "29fd3e5cbaf0215247b72c1a8864f98ad0fdfd963b6d73240b58b136d69be53e",
+      "bytes": 99455
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed4/ai-events-16.jsonl",
+      "sha256": "16b05ceabf327a856f30286dae6a1a552459b991df364abdb40ec9c508a4fd98",
+      "bytes": 625882
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed4/ai-events-17.jsonl",
+      "sha256": "91d26207b29240d1ac558f524bd0ce2ba241cb5e4449325882a336ac492b8943",
+      "bytes": 480415
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed4/ai-events-18.jsonl",
+      "sha256": "fd3f63779eca524e613b1df3e9e05484b58b873f95cee507b1b6f1a2e1afb56f",
+      "bytes": 504300
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed4/ai-events-19.jsonl",
+      "sha256": "48841a2910ff997d60a0e3b1d8932a44c72e76e15e1b57d27996e34f6b74a9b6",
+      "bytes": 468188
+    }
+  ],
+  "single500-20261004-soft-fixed5": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed5-results.json",
+      "sha256": "bcd59f89aab1800cd9aac828fffbc875ddffed3d512272412bb4dd9c222f807d",
+      "bytes": 632510
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed5-timing-samples.json",
+      "sha256": "a5bde6a83d347f0289b311807017042ff0574f4a450d563500a3706cf8bdcae5",
+      "bytes": 99395
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed5/ai-events-16.jsonl",
+      "sha256": "a7d1a2cb5b3650c3ad72d7cfcef38d332e8155249bc807a8b2a2e019ea7100cd",
+      "bytes": 548190
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed5/ai-events-17.jsonl",
+      "sha256": "7e945f0b48527dd9a8faa79475c3e749dea5ec3a3080abe55909174cbd7d6e75",
+      "bytes": 487565
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed5/ai-events-18.jsonl",
+      "sha256": "3116f0260525af1045e1f4ed6456409771a355d3693a9e1ad2c11d56822fd44d",
+      "bytes": 484650
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed5/ai-events-19.jsonl",
+      "sha256": "edeaa10365b408831f2ee8108fc884a11d76508c6c270c3679d566bf5a8cb04c",
+      "bytes": 527708
+    }
+  ],
+  "single500-20261004-soft-fixed6": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed6-results.json",
+      "sha256": "8559bf76d673a067699668142396d04d84fa1007493433dbef1557165cc73878",
+      "bytes": 632651
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fixed6-timing-samples.json",
+      "sha256": "a76b6a0f3e8d8353b162b1123535c7c25168014c03c3f9c81bb6d464c6f79134",
+      "bytes": 99646
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed6/ai-events-16.jsonl",
+      "sha256": "ee74ec8a55a337f459470faa7a2d33dbebe0e59b4993328b38eecb02cd5268ce",
+      "bytes": 469457
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed6/ai-events-17.jsonl",
+      "sha256": "f90c3ae847f1e9b08ccac2acb8ea2bcebecae735476a6d8c4caa718afbee8181",
+      "bytes": 535085
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed6/ai-events-18.jsonl",
+      "sha256": "f13c1e13a061e243aec7910e214663b8137c6da70bb3d37cfc85fb075516c5f2",
+      "bytes": 503463
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fixed6/ai-events-19.jsonl",
+      "sha256": "302fbcefa41a468e88862e83799bf7d60131189da0dc5e78da1eafe57249a359",
+      "bytes": 560037
+    }
+  ],
+  "single500-20261004-soft-fault7": [
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fault7-results.json",
+      "sha256": "ea991678c06911b053f60f5757c80b09a508b6b10f041545385816ab180645a6",
+      "bytes": 633960
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/docs/reviews/evidence/20261004-single-host-500-software/single500-20261004-soft-fault7-timing-samples.json",
+      "sha256": "780048d824c868cd68ef66a58a0844732fea267b4be0a1be221d711276da8e11",
+      "bytes": 99470
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fault7/ai-events-16.jsonl",
+      "sha256": "d44e63a711a689ba78f893c5ec0bbebf2beeabbffcdda3a99da2a954eea63ba3",
+      "bytes": 560504
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fault7/ai-events-17.jsonl",
+      "sha256": "025eff1933d5d42b34d1a1ec14aa0d0f412f73becd512cb496c0dfc0670233d5",
+      "bytes": 467544
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fault7/ai-events-18.jsonl",
+      "sha256": "992d542284687669edafcb89907ea6ec28d16276def3745682474b71fd4aec2f",
+      "bytes": 463972
+    },
+    {
+      "path": "/workspace/ai-outbound-platform-single500-fixes-20261004/artifacts/single-host-500/single500-20261004-soft-fault7/ai-events-19.jsonl",
+      "sha256": "ae61042e6c69cbd809b7f1a4f73baf2f6c27e60bdfcb9d99c615d19c688c34e1",
+      "bytes": 598607
+    }
+  ]
+}

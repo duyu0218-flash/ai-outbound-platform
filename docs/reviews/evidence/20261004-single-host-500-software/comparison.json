@@ -1,0 +1,930 @@
+{
+  "comparison_baseline": "single500-20261004-soft-baseline2",
+  "comparison_fixture_hashes_equal": true,
+  "final_run_source_hashes_equal": true,
+  "real_500_call_capacity_verified": false,
+  "reply_p99_improvement_percent": {
+    "single500-20261004-soft-fixed5": 7.170362104074945,
+    "single500-20261004-soft-fixed6": 13.706095193167922
+  },
+  "runs": [
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 402.9414850010653,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 53.85617530700256,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 52.33896835199994,
+      "label": "single500-20261004-soft-baseline1",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 377,
+        "peak": 144,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 8131,
+      "phase": "initial_baseline",
+      "pool": {
+        "_finish_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 99.07406100683147,
+          "queue_p99_ms": 3482.2450900028343
+        },
+        "_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 265.5296289958642,
+          "queue_p99_ms": 4933.735659993545
+        },
+        "_renew_task": {
+          "count": 1116,
+          "execute_p99_ms": 33.86334000242641,
+          "queue_p99_ms": 3832.1879279974382
+        },
+        "claim_ready_tasks": {
+          "count": 646,
+          "execute_p99_ms": 121.88007299846504,
+          "queue_p99_ms": 2835.6510439989506
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 39.492454001447186,
+          "queue_p99_ms": 4537.497297002119
+        },
+        "finish": {
+          "count": 1377,
+          "execute_p99_ms": 159.8550169946975,
+          "queue_p99_ms": 3438.7081710010534
+        },
+        "load_action": {
+          "count": 1000,
+          "execute_p99_ms": 41.183964000083506,
+          "queue_p99_ms": 3380.2693120014737
+        },
+        "prepare": {
+          "count": 1377,
+          "execute_p99_ms": 73.56536700535798,
+          "queue_p99_ms": 3423.9731910056435
+        },
+        "read_current": {
+          "count": 195,
+          "execute_p99_ms": 43.19738900085213,
+          "queue_p99_ms": 3400.2862419947633
+        },
+        "record_speech": {
+          "count": 1377,
+          "execute_p99_ms": 93.69345199957024,
+          "queue_p99_ms": 3551.9997979936306
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 42307.376260904,
+        "pending": 0,
+        "scans": 417,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 36781.166906999715,
+          "p99_ms": 35448.03908299946
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 34472.64451599767,
+          "p99_ms": 32032.41318599612
+        }
+      },
+      "results_sha256": "d22c960b9c9f3ddd550efeaecc5b3057970b9ba37d804687b84c82e201d529df",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 34306.90570000297,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 584.5267440017778,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 46.91050566600461,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 45.510706829998526,
+      "label": "single500-20261004-soft-fixed1",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 0,
+        "peak": 154,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 4000,
+      "phase": "before_agent_retry",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 134.4160090011428,
+          "queue_p99_ms": 5807.279852997453
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 269.2083290021401,
+          "queue_p99_ms": 5767.377247000695
+        },
+        "_record_and_finish_speech": {
+          "count": 1000,
+          "execute_p99_ms": 255.50608400226338,
+          "queue_p99_ms": 6098.271132999798
+        },
+        "_renew_task": {
+          "count": 888,
+          "execute_p99_ms": 38.39123999932781,
+          "queue_p99_ms": 5081.790648997412
+        },
+        "claim_ready_tasks": {
+          "count": 555,
+          "execute_p99_ms": 118.93045499891741,
+          "queue_p99_ms": 4496.19430200255
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 40.09733100247104,
+          "queue_p99_ms": 5977.97349600296
+        },
+        "read_current": {
+          "count": 83,
+          "execute_p99_ms": 62.7957519973279,
+          "queue_p99_ms": 6078.588174001197
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 42404.182630758,
+        "pending": 0,
+        "scans": 369,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 29268.434703997627,
+          "p99_ms": 27033.831435001048
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 24968.01004900044,
+          "p99_ms": 24461.864005003008
+        }
+      },
+      "results_sha256": "d549ca95ce4beb8df97952d0f5fdf2f6ed499a9a9a2298dd1fa196b2f021c4a3",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 26388.190091995057,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 5,
+      "call_lock_wait_p99_ms": 745.8348359941738,
+      "calls_with_task_sequences_1_2": 499,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1003,
+      "committed_replies_observed": 998,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [
+        {
+          "call_id": "cdf6a571-b9aa-4964-9c26-0fceae6c7076",
+          "error": "no committed AI reply",
+          "round": 1
+        }
+      ],
+      "correctness_passed": false,
+      "elapsed_with_drain_seconds": 116.11585386400111,
+      "failed_metrics": 5,
+      "generation_duration_seconds": 49.58560106000368,
+      "label": "single500-20261004-soft-fixed2",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 1,
+        "peak": 173,
+        "playback_calls": 499,
+        "playback_count": 998,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 998
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 4015,
+      "phase": "failed_before_agent_retry",
+      "pool": {
+        "_ai_snapshot_current": {
+          "count": 7,
+          "execute_p99_ms": 8.99992699851282,
+          "queue_p99_ms": 5388.69801400142
+        },
+        "_fail_ai_turn": {
+          "count": 5,
+          "execute_p99_ms": 135.61805399513105,
+          "queue_p99_ms": 4121.7032200001995
+        },
+        "_finish_and_prepare_ai_action": {
+          "count": 998,
+          "execute_p99_ms": 138.30753399815876,
+          "queue_p99_ms": 6058.517679004581
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1003,
+          "execute_p99_ms": 259.036814000865,
+          "queue_p99_ms": 7112.854284001514
+        },
+        "_record_and_finish_speech": {
+          "count": 998,
+          "execute_p99_ms": 281.6131099971244,
+          "queue_p99_ms": 6172.334779002995
+        },
+        "_renew_task": {
+          "count": 884,
+          "execute_p99_ms": 38.204640994081274,
+          "queue_p99_ms": 5893.690174998483
+        },
+        "claim_ready_tasks": {
+          "count": 5089,
+          "execute_p99_ms": 60.59308399562724,
+          "queue_p99_ms": 1017.1646020025946
+        },
+        "complete": {
+          "count": 1003,
+          "execute_p99_ms": 39.06203900260152,
+          "queue_p99_ms": 6104.100923999795
+        },
+        "prepare": {
+          "count": 7,
+          "execute_p99_ms": 21.640446997480467,
+          "queue_p99_ms": 2335.0576239972725
+        },
+        "read_current": {
+          "count": 77,
+          "execute_p99_ms": 28.13593299651984,
+          "queue_p99_ms": 5741.259934002301
+        },
+        "record_speech": {
+          "count": 6,
+          "execute_p99_ms": 43.04863499419298,
+          "queue_p99_ms": 5107.2977270014235
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 42572.844438838,
+        "pending": 0,
+        "scans": 390,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 499,
+          "max_ms": 29174.604099003773,
+          "p99_ms": 28319.13942000392
+        },
+        "2": {
+          "count": 499,
+          "max_ms": 26322.86454900168,
+          "p99_ms": 25482.824764003453
+        }
+      },
+      "results_sha256": "7c1acd9772b853ea8ddd573a409a0d30cd40415e3578691dcabb93f79f24dabd",
+      "software_acceptance_passed": false,
+      "synthetic_reply_p99_ms": 27134.067054001207,
+      "task_states": {
+        "completed": 998,
+        "dead": 1
+      },
+      "unique_tasks": 999
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 956.6753219987731,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 52.30474401500396,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 50.7682913259996,
+      "label": "single500-20261004-soft-baseline2",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 412,
+        "peak": 170,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 8236,
+      "phase": "comparison_baseline",
+      "pool": {
+        "_finish_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 107.44555700512137,
+          "queue_p99_ms": 4747.734589000174
+        },
+        "_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 246.86489300074754,
+          "queue_p99_ms": 3877.8923510035384
+        },
+        "_renew_task": {
+          "count": 1126,
+          "execute_p99_ms": 39.79521700239275,
+          "queue_p99_ms": 3603.0742619986995
+        },
+        "claim_ready_tasks": {
+          "count": 578,
+          "execute_p99_ms": 109.08610100159422,
+          "queue_p99_ms": 2734.173652002937
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 40.34015200159047,
+          "queue_p99_ms": 3611.633412001538
+        },
+        "finish": {
+          "count": 1412,
+          "execute_p99_ms": 140.02739600255154,
+          "queue_p99_ms": 3207.6618279970717
+        },
+        "load_action": {
+          "count": 1000,
+          "execute_p99_ms": 39.39690900006099,
+          "queue_p99_ms": 3454.3391469997005
+        },
+        "prepare": {
+          "count": 1412,
+          "execute_p99_ms": 80.54673299920978,
+          "queue_p99_ms": 4357.969138000044
+        },
+        "read_current": {
+          "count": 107,
+          "execute_p99_ms": 42.70933399675414,
+          "queue_p99_ms": 3644.3065150015173
+        },
+        "record_speech": {
+          "count": 1412,
+          "execute_p99_ms": 97.39154200360645,
+          "queue_p99_ms": 3696.4285610010847
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 43237.911409908,
+        "pending": 0,
+        "scans": 413,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 33057.89513000491,
+          "p99_ms": 32264.570747996913
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 29794.357452999975,
+          "p99_ms": 28762.56425500469
+        }
+      },
+      "results_sha256": "2ec3c74660200d39e3c5051ae323ee87b3bc5571b12bbb842d0cc66498ab18bf",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 31950.507809000555,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 964.5087710014195,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 47.5530105910002,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 46.15142213999934,
+      "label": "single500-20261004-soft-fixed3",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 0,
+        "peak": 144,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 1,
+      "normal_and_notice_db_dispatches": 4000,
+      "phase": "before_post_prepare_guard",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 130.12360399443423,
+          "queue_p99_ms": 6347.414450996439
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 294.09429699444445,
+          "queue_p99_ms": 5924.373973000911
+        },
+        "_record_and_finish_speech": {
+          "count": 1000,
+          "execute_p99_ms": 255.25825200020336,
+          "queue_p99_ms": 6456.035101000452
+        },
+        "_renew_task": {
+          "count": 882,
+          "execute_p99_ms": 49.92980299721239,
+          "queue_p99_ms": 5240.252909003175
+        },
+        "claim_ready_tasks": {
+          "count": 520,
+          "execute_p99_ms": 169.56449700228404,
+          "queue_p99_ms": 4740.719187997456
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 45.02838099870132,
+          "queue_p99_ms": 6117.135462001897
+        },
+        "read_current": {
+          "count": 72,
+          "execute_p99_ms": 41.36440499860328,
+          "queue_p99_ms": 6623.117823997745
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 43378.527904288,
+        "pending": 0,
+        "scans": 378,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 27240.87639699428,
+          "p99_ms": 26325.440512999194
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 25283.93136300292,
+          "p99_ms": 24686.343998000666
+        }
+      },
+      "results_sha256": "913550be632f8584160f1f3fe10d0177dda6909c3b9a780162d035ead19f2e96",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 26183.281051999074,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 606.6458100031014,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 49.270479058999626,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 47.87655898799858,
+      "label": "single500-20261004-soft-fixed4",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 30,
+        "peak": 172,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 4060,
+      "phase": "before_post_prepare_guard",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 141.26434399804566,
+          "queue_p99_ms": 6129.208902995742
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 283.71443200012436,
+          "queue_p99_ms": 7122.962186003861
+        },
+        "_record_and_finish_speech": {
+          "count": 1030,
+          "execute_p99_ms": 252.1402760030469,
+          "queue_p99_ms": 5892.265545000555
+        },
+        "_renew_task": {
+          "count": 860,
+          "execute_p99_ms": 36.69649399671471,
+          "queue_p99_ms": 5750.374590003048
+        },
+        "claim_ready_tasks": {
+          "count": 572,
+          "execute_p99_ms": 122.30465400352841,
+          "queue_p99_ms": 4760.980964994815
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 41.2620959978085,
+          "queue_p99_ms": 6655.534509001882
+        },
+        "prepare": {
+          "count": 30,
+          "execute_p99_ms": 57.492550993629266,
+          "queue_p99_ms": 3381.926598995051
+        },
+        "read_current": {
+          "count": 96,
+          "execute_p99_ms": 57.81771699548699,
+          "queue_p99_ms": 6418.700654001441
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 43508.240094595,
+        "pending": 0,
+        "scans": 377,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 31233.30741999962,
+          "p99_ms": 29985.25660100131
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 28135.540098999627,
+          "p99_ms": 26958.17029799946
+        }
+      },
+      "results_sha256": "31cfa402dd4d2c9d719f6a4d9fe3d4ef7a1bb528c4a9007443e1498e0dfdad3b",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 29071.24719300191,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 480.514981005399,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 47.53146563600603,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 46.08964915300021,
+      "label": "single500-20261004-soft-fixed5",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 0,
+        "peak": 167,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 4000,
+      "phase": "final_normal",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 141.19810499687446,
+          "queue_p99_ms": 5127.267259995278
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 263.9699989958899,
+          "queue_p99_ms": 5914.022687000397
+        },
+        "_record_and_finish_speech": {
+          "count": 1000,
+          "execute_p99_ms": 252.3612930017407,
+          "queue_p99_ms": 5278.8317519953125
+        },
+        "_renew_task": {
+          "count": 807,
+          "execute_p99_ms": 36.45004300051369,
+          "queue_p99_ms": 5607.947479002178
+        },
+        "claim_ready_tasks": {
+          "count": 476,
+          "execute_p99_ms": 159.6312819965533,
+          "queue_p99_ms": 4616.449974993884
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 43.61558700475143,
+          "queue_p99_ms": 5430.164440003864
+        },
+        "read_current": {
+          "count": 124,
+          "execute_p99_ms": 41.73207900021225,
+          "queue_p99_ms": 5195.245110000542
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 44106.894736209,
+        "pending": 0,
+        "scans": 352,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 32782.19040600379,
+          "p99_ms": 31659.56367400213
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 28736.115943996992,
+          "p99_ms": 27912.82014799799
+        }
+      },
+      "results_sha256": "23b67f794c843e92c773c9d4448657ee88dc87750f854f6eb99ef879243285a8",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 29659.540705004474,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 497.28796800627606,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 47.86976565900113,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 46.314987767000275,
+      "label": "single500-20261004-soft-fixed6",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 0,
+        "peak": 165,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 0,
+      "model_transport_retries": 0,
+      "normal_and_notice_db_dispatches": 4000,
+      "phase": "final_repeat",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 120.0592359964503,
+          "queue_p99_ms": 6319.309283993789
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 266.710668001906,
+          "queue_p99_ms": 7192.143262000172
+        },
+        "_record_and_finish_speech": {
+          "count": 1000,
+          "execute_p99_ms": 259.95868899917696,
+          "queue_p99_ms": 6545.483511996281
+        },
+        "_renew_task": {
+          "count": 911,
+          "execute_p99_ms": 36.79056600230979,
+          "queue_p99_ms": 6107.7738419990055
+        },
+        "claim_ready_tasks": {
+          "count": 550,
+          "execute_p99_ms": 203.5013560016523,
+          "queue_p99_ms": 4936.405901004036
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 42.377392994239926,
+          "queue_p99_ms": 6689.736066000478
+        },
+        "read_current": {
+          "count": 67,
+          "execute_p99_ms": 35.796673997538164,
+          "queue_p99_ms": 6550.730392002151
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 44218.836933881,
+        "pending": 0,
+        "scans": 375,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 29481.162600997777,
+          "p99_ms": 27844.66780799994
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 27230.756643999484,
+          "p99_ms": 26735.208879996208
+        }
+      },
+      "results_sha256": "05bd42dc6336c0548f2e5acae62b5eed3e3f96597c191545b6cf092d8e505e0d",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 27571.340793998388,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    },
+    {
+      "ai_max_attempts": 1,
+      "call_lock_wait_p99_ms": 647.4021169997286,
+      "calls_with_task_sequences_1_2": 500,
+      "capacity_slo_passed": false,
+      "claim_attempts": 1000,
+      "committed_replies_observed": 1000,
+      "conversation_control_slo_passed": false,
+      "conversation_errors": [],
+      "correctness_passed": true,
+      "elapsed_with_drain_seconds": 50.56120835299953,
+      "failed_metrics": 0,
+      "generation_duration_seconds": 49.06772749899392,
+      "label": "single500-20261004-soft-fault7",
+      "load_validity_passed": false,
+      "model": {
+        "active": 0,
+        "cancelled": 0,
+        "model_delay_sec": 3.0,
+        "notice_count": 0,
+        "peak": 148,
+        "playback_calls": 500,
+        "playback_count": 1000,
+        "playback_delay_sec": 0.2,
+        "real_audio": false,
+        "total": 1000
+      },
+      "model_errors_injected": 1,
+      "model_transport_retries": 3,
+      "normal_and_notice_db_dispatches": 4000,
+      "phase": "final_fault",
+      "pool": {
+        "_finish_and_prepare_ai_action": {
+          "count": 1000,
+          "execute_p99_ms": 149.07424300326966,
+          "queue_p99_ms": 5824.527504999423
+        },
+        "_load_and_prepare_ai_turn": {
+          "count": 1000,
+          "execute_p99_ms": 290.76855199673446,
+          "queue_p99_ms": 6641.400344997237
+        },
+        "_record_and_finish_speech": {
+          "count": 1000,
+          "execute_p99_ms": 271.9835640018573,
+          "queue_p99_ms": 6157.440189999761
+        },
+        "_renew_task": {
+          "count": 888,
+          "execute_p99_ms": 36.48877600062406,
+          "queue_p99_ms": 6998.361245001433
+        },
+        "claim_ready_tasks": {
+          "count": 628,
+          "execute_p99_ms": 145.97575700463494,
+          "queue_p99_ms": 4425.247792998562
+        },
+        "complete": {
+          "count": 1000,
+          "execute_p99_ms": 43.68971800431609,
+          "queue_p99_ms": 6204.890184002579
+        },
+        "read_current": {
+          "count": 147,
+          "execute_p99_ms": 39.048546001140494,
+          "queue_p99_ms": 5584.06720199855
+        }
+      },
+      "reply_observer": {
+        "failure": null,
+        "last_success_monotonic": 44370.718964301,
+        "pending": 0,
+        "scans": 391,
+        "state": "stopped"
+      },
+      "reply_round_timings": {
+        "1": {
+          "count": 500,
+          "max_ms": 32422.598337005184,
+          "p99_ms": 31960.282708001614
+        },
+        "2": {
+          "count": 500,
+          "max_ms": 30560.436200998083,
+          "p99_ms": 28872.84102600097
+        }
+      },
+      "results_sha256": "46f43771c4c01e9a2a1e0f5948bf8ab24b79fc43f6d3aa6fa38eab18cf923682",
+      "software_acceptance_passed": true,
+      "synthetic_reply_p99_ms": 30936.027158000797,
+      "task_states": {
+        "completed": 1000
+      },
+      "unique_tasks": 1000
+    }
+  ],
+  "software_delivery_passed": true
+}
