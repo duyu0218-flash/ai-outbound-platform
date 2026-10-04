@@ -1,0 +1,55 @@
+{
+  "documents_sha256": {
+    "docs/reviews/20261004-single-host-500-publication-ci-followup.md": "4530884664d8ddc19c8359defbb4648a98e5b4b97a4721cd63006b9481642144",
+    "docs/reviews/20261004-single-host-500-publication-ci-independent-review.md": "eaa34bdd3cbcba9e6e21a66afedb7633a4d8aa311600101128a5c3857c67cc0c"
+  },
+  "evidence_sha256": {
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/backend-full-dependency-audit.txt": "6686cd3264fcf52537b76c17ae9505979a59be5e7613bcc4ae682f23891df2a3",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/backend-pip-check.txt": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/backend-sqlite-final.txt": "daf264d353f8ad1d58ac7d5501b9abb397b68e6fe10679f4a8a3f7209e2f0437",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/backend-sqlite-initial-failure.txt": "c4da4fe596b7053ba50b1d02b6a803a308def6b6ca4c9d9598e74cb76fd779e8",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/environment.json": "af61514743b43687229cc35eb49b9a1f296cc7828d526355f6708e45bf33c34e",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/initial-github-ci-jobs.json": "59817f61af71f2e0f1396e2bcb8b9fc3b9b63b02018968fbb243013dd73bd5e1",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/initial-github-supply-chain-failure.txt": "dd434da5aacb75104eea7954ea649b84ef7b0a0ea75e45340e5509a875db0de8",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/initial-local-audit-cache-failure.txt": "408fa5e2388ba948824bf8580b77c9ae3437158a5bc8adca3a6f1b7ef4d666d8",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/initial-test-design-failure.json": "f132fea5840b45d7d865a0b137950d3a8b6752c04619076b7ac16d46a547b850",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/jwt-2.13.0-2.15.1-interoperability.txt": "72d61ed8c30f6da41386984a7b275c01bc72c6df4fd4868aab67b73acadedb04",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/local-runner-results.json": "7b828a7e540effc929a9aada86963ee05f5435ca2386aca7babfa6536a659a01",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/pyjwt-2.15.1-targeted-audit.txt": "79d30422388543b2563e1dde76bb7e7857d7ef0c6fdf05c8c71598633ca07e1e",
+    "docs/reviews/evidence/20261004-single-host-500-publication-ci/version-constraints.txt": "3f030075382672b58efc0d74f1e67e7e945bdd94cc795ac6b343eebff8beb976"
+  },
+  "hardware_limits_block_software_delivery": false,
+  "historical_performance_manifest_sha256": "23004b0868b47d69e200be655cc0286b701b319e726c561e100009ea61b57156",
+  "independent_code_review": "passed_no_p0_p1",
+  "initial_github_ci": {
+    "failed_jobs": 1,
+    "reason": "PyJWT 2.13.0 known vulnerabilities",
+    "run_id": 37171320186,
+    "success_jobs": 8
+  },
+  "local_final_results": {
+    "full_dependency_audit_exit": 0,
+    "jwt_hs256_bidirectional_interoperability": "passed",
+    "new_jwt_security_cases_passed": 15,
+    "pip_check": "passed",
+    "sqlite_backend_passed": 337,
+    "sqlite_environment_skipped": 17,
+    "targeted_pyjwt_audit_exit": 0,
+    "version_constraints": "passed"
+  },
+  "new_500_call_load_tests_executed": false,
+  "new_dependency": "PyJWT[crypto]==2.15.1",
+  "performance_evidence_dependency": "PyJWT 2.13.0",
+  "performance_evidence_source_commit": "291844648b8b3480965a1769b8e62517818bfdb7",
+  "real_500_call_capacity_verified": false,
+  "runtime_changed_files": [
+    "backend/pyproject.toml"
+  ],
+  "runtime_unchanged_files": 114,
+  "schema_version": 1,
+  "scope": "publication_ci_security_followup",
+  "source_sha256": {
+    "backend/pyproject.toml": "dd6e223fe907c763522eaef42909c084c64d7720bea8e5530ae5ec8c1f8552a2",
+    "backend/tests/test_auth_jwt_security.py": "45b36fd62c6d58c4e85c056ff81953a2fc07c160ef9b9506456cb01eae660c5a"
+  }
+}

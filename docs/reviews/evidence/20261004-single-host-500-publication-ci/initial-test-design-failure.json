@@ -1,0 +1,13 @@
+{
+  "failure": "deeply_nested_payload expectation",
+  "first_test_module_sha256": "b21b60afd636dccbbdcaf3a8d2860b371b7689c0cb30f13d8e9d448efbfa1f58",
+  "observed_default_parser_accepts_depth": 2000,
+  "observed_default_parser_recursion_error_depth": 10000,
+  "corrected_test_module_sha256": "45b36fd62c6d58c4e85c056ff81953a2fc07c160ef9b9506456cb01eae660c5a",
+  "business_source_modified": false,
+  "initial_test_result": {
+    "failed": 1,
+    "passed": 336,
+    "skipped": 17
+  }
+}
