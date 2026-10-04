@@ -1,0 +1,33 @@
+..............s........................ss............................... [ 20%]
+.........F.........................ss....s..sss...............s......... [ 40%]
+.............................................................ss......... [ 61%]
+.......s..............s................................................. [ 81%]
+......................................ss....................s.....       [100%]
+=================================== FAILURES ===================================
+__________________ test_deeply_nested_payload_is_unauthorized __________________
+
+    def test_deeply_nested_payload_is_unauthorized():
+        def segment(value):
+            return base64.urlsafe_b64encode(value).rstrip(b"=")
+    
+        # Sign valid JSON without using a recursive Python object encoder. Decoding
+        # exceeds the parser recursion limit and must produce 401 instead of 500.
+        payload = b'{"sub":"synthetic-user","nested":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
+        signing_input = segment(b'{"alg":"HS256","typ":"JWT"}') + b"." + segment(payload)
+        signature = hmac.new(TEST_KEY.encode(), signing_input, hashlib.sha256).digest()
+>       assert_invalid((signing_input + b"." + segment(signature)).decode())
+
+tests/test_auth_jwt_security.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzeW50aGV0aWMtdXNlciIsIm5lc3RlZCI6W1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tb...1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV19.XCA-KD3-bNDHvLMOOqOTbpBre4pl4oNtgR5ePm-pHbg'
+
+    def assert_invalid(token):
+>       with pytest.raises(HTTPException) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE HTTPException
+
+tests/test_auth_jwt_security.py:25: Failed
+=========================== short test summary info ============================
+FAILED tests/test_auth_jwt_security.py::test_deeply_nested_payload_is_unauthorized
+1 failed, 336 passed, 17 skipped in 34.94s

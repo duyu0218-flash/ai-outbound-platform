@@ -1,0 +1,1 @@
+{"old_version": "2.13.0", "new_version": "2.15.1", "old_signed_new_verifies": true, "new_signed_old_verifies": true, "algorithm": "HS256", "synthetic_payload": true}

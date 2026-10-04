@@ -1,0 +1,41 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/pip_audit/__main__.py", line 8, in <module>
+    audit()
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/pip_audit/_cli.py", line 452, in audit
+    service = PyPIService(cache_dir=args.cache_dir, timeout=args.timeout)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/pip_audit/_service/pypi.py", line 48, in __init__
+    self.session = caching_session(cache_dir)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/pip_audit/_cache.py", line 177, in caching_session
+    cache=_SafeFileCache(_get_cache_dir(cache_dir, use_pip=use_pip)),
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/pip_audit/_cache.py", line 66, in _get_cache_dir
+    pip_audit_cache_dir = user_cache_path("pip-audit", appauthor=False, ensure_exists=True)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/__init__.py", line 690, in user_cache_path
+    ).user_cache_path
+      ^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/api.py", line 354, in user_cache_path
+    return Path(self.user_cache_dir)
+                ^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/unix.py", line 241, in user_cache_dir
+    return self.site_cache_dir if self._use_site else super().user_cache_dir
+                                                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/_xdg.py", line 58, in user_cache_dir
+    return super().user_cache_dir
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/unix.py", line 60, in user_cache_dir
+    return self._append_app_name_and_version(_expand_user("~/.cache"), private=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/api.py", line 136, in _append_app_name_and_version
+    self._optionally_create_directory(path, private=private)
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/api.py", line 152, in _optionally_create_directory
+    _make_private_directories(Path(path))
+  File "/tmp/single500-jwt-audit-20261004/lib/python3.12/site-packages/platformdirs/api.py", line 711, in _make_private_directories
+    path.mkdir(mode=0o700, exist_ok=True)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1311, in mkdir
+    os.mkdir(self, mode)
+OSError: [Errno 30] Read-only file system: '/home/agent/.cache/pip-audit'
