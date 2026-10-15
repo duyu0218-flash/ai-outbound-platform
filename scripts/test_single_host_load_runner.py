@@ -45,3 +45,28 @@ def test_missing_report_cannot_exit_as_a_success(invocation, monkeypatch):
     monkeypatch.setattr(subprocess, 'check_output', lambda *a, **kw: '')
     monkeypatch.setattr(subprocess, 'run', lambda command, **kw: subprocess.CompletedProcess(command, 0))
     assert runner.main()==1
+
+
+def test_zero_process_exit_does_not_override_failed_slo(invocation, monkeypatch):
+    import json
+    monkeypatch.setattr(subprocess, 'check_output', lambda *a, **kw: '')
+    def run(command, **kw):
+        if 'up' in command:
+            path=invocation/'docs/reviews/evidence/20260913-single-host-500-fixes/single500-unit-test-results.json'
+            path.write_text(json.dumps(dict(correctness_passed=True, capacity_slo_passed=False)))
+        return subprocess.CompletedProcess(command, 0)
+    monkeypatch.setattr(subprocess, 'run', run)
+    assert runner.main()==1
+
+
+@pytest.mark.parametrize('rate,gap', [(50,10.),(80,6.25),(100,5.),(125,4.)])
+def test_conversation_rate_sets_sustained_round_interval(invocation, monkeypatch, rate, gap):
+    monkeypatch.setattr(sys,'argv',sys.argv+['--scenario','conversation','--rate',str(rate)])
+    monkeypatch.setattr(subprocess,'check_output',lambda *a,**kw:'')
+    captured=[]
+    def run(command,**kw):
+        captured.append(kw['env']['SINGLE500_TURN_GAP_SEC'])
+        return subprocess.CompletedProcess(command,0)
+    monkeypatch.setattr(subprocess,'run',run)
+    assert runner.main()==1
+    assert all(float(value)==gap for value in captured)
