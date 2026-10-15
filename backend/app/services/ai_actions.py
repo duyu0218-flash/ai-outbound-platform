@@ -27,12 +27,13 @@ from .conversation_policy import state_for
 from .task_queue import enqueue_task, notify_task
 
 logger = logging.getLogger(__name__)
+_UNPREPARED = object()
 
 
 def prepare(call_id, attempt, fallback_audio=False):
     with session_scope() as session:
-        call = session.get(CallSession, call_id)
-        if call is None or not d._ai_call_is_current(session, call, attempt, lock=True):
+        call = d._load_current_ai_call(session, call_id, attempt, lock=True)
+        if call is None:
             return None
         campaign = session.get(Campaign, call.campaign_id) if call.campaign_id else None
         policy = json.loads(state_for(session, call).policy_json)
@@ -55,8 +56,8 @@ def prepare(call_id, attempt, fallback_audio=False):
 
 def record_speech(snapshot, result, response, duration_ms, error=None):
     with session_scope() as session:
-        call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not d._ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = d._load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return False
         session.add(CallMetric(tenant_id=call.tenant_id, call_session_id=call.id,
             stage='tts.dispatch', provider=snapshot['provider'] or 'gateway', duration_ms=duration_ms,
@@ -84,8 +85,8 @@ def record_speech(snapshot, result, response, duration_ms, error=None):
 
 def defer_hangup(snapshot, result, playback_id):
     with session_scope() as session:
-        call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not d._ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = d._load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return
         realtime = session.exec(select(RealtimeSession).where(RealtimeSession.call_session_id == call.id)).first()
         task = enqueue_task(session, tenant_id=call.tenant_id, task_type='after_playback',
@@ -152,8 +153,8 @@ async def finish(snapshot, result, hangup_confirmed, playback_complete, durable=
     from .ai_claim_state import mark_committed
     session = WebhookSession()
     try:
-        call = session.get(CallSession, snapshot['call_id'])
-        if call is None or not d._ai_call_is_current(session, call, snapshot['attempt'], lock=True):
+        call = d._load_current_ai_call(session, snapshot['call_id'], snapshot['attempt'], lock=True)
+        if call is None:
             return None
         callback_id = await d._commit_ai_decision(session, call, result, snapshot['attempt'],
             hangup_confirmed, playback_complete, snapshot['sms_allowed'])
@@ -165,8 +166,9 @@ async def finish(snapshot, result, hangup_confirmed, playback_complete, durable=
         session.finish(success=False)
 
 
-async def execute_action(pool, call_id, attempt, result, fallback_audio=False, durable=True):
-    snapshot = await pool.run(prepare, call_id, attempt, fallback_audio)
+async def execute_action(pool, call_id, attempt, result, fallback_audio=False, durable=True, *, prepared_snapshot=_UNPREPARED):
+    snapshot = (await pool.run(prepare, call_id, attempt, fallback_audio)
+                if prepared_snapshot is _UNPREPARED else prepared_snapshot)
     if snapshot is None:
         return
     adapter = snapshot['adapter']

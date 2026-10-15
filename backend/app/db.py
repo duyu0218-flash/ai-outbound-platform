@@ -78,6 +78,15 @@ engine = create_engine_for_url(get_database_url_for_api())
 event.listen(engine, "checkout", lambda *args: record_db_checkout())
 event.listen(engine, "checkin", lambda *args: record_db_checkin())
 event.listen(engine, "commit", lambda *args: record_late_commit())
+from .services import db_work_observation as _work_observation
+from sqlmodel import Session as _ObservedSession
+event.listen(engine, 'before_cursor_execute', _work_observation.before_cursor)
+event.listen(engine, 'after_cursor_execute', _work_observation.after_cursor)
+event.listen(engine, 'handle_error', _work_observation.sql_error)
+event.listen(_ObservedSession, 'before_commit', _work_observation.before_commit)
+event.listen(_ObservedSession, 'after_commit', _work_observation.after_commit)
+event.listen(_ObservedSession, 'after_rollback', _work_observation.after_rollback)
+
 
 
 REQUIRED_PRODUCTION_TABLES = {

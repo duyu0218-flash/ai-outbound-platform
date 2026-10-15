@@ -14,6 +14,10 @@ assert os.environ.get('SINGLE500_ISOLATED_MOCK') == 'true'
 app = FastAPI()
 active = peak = total = cancelled = 0
 playbacks = {}
+playbacks_by_call = {}
+playback_locks = {}
+playback_count = notice_count = 0
+playback_calls = set()
 heads = {}
 model_delay = float(os.environ.get('SINGLE500_MODEL_DELAY_SEC', '3'))
 playback_delay = .2
@@ -28,16 +32,19 @@ async def ready():
 @app.get('/stats')
 async def stats():
     return dict(active=active, peak=peak, total=total, cancelled=cancelled,
-        playback_count=sum(v['text']==REPLY for v in playbacks.values()),
-        playback_calls=len({k[0] for k,v in playbacks.items() if v['text']==REPLY}),
-        notice_count=sum(v['text']!=REPLY for v in playbacks.values()),
+        playback_count=playback_count, playback_calls=len(playback_calls),
+        notice_count=notice_count, retained_playbacks=len(playbacks),
         model_delay_sec=model_delay, playback_delay_sec=playback_delay,
         real_audio=False)
 
 
 @app.post('/fixture/head')
 async def head(body: dict):
-    heads[body['call_id']] = body['event_id']
+    cid=body['call_id']
+    if heads.get(cid) != body['event_id']:
+        for key in playbacks_by_call.pop(cid, set()):
+            playbacks.pop(key, None)
+    heads[cid] = body['event_id']
     return {'ok': True}
 
 
@@ -59,6 +66,12 @@ async def completion(body: dict):
 
 @app.post('/v1/call/speak')
 async def speak(body: dict):
+    async with playback_locks.setdefault(body['call_id'], asyncio.Lock()):
+        return await _speak(body)
+
+
+async def _speak(body):
+    global playback_count, notice_count
     key = (body['call_id'], body.get('expected_speech_event_id'), body.get('text'))
     if heads.get(key[0]) != key[1] or not body.get('text', '').strip():
         raise HTTPException(409, 'stale or empty simulated playback')
@@ -71,6 +84,11 @@ async def speak(body: dict):
         raise HTTPException(409, 'turn changed during simulated playback')
     response = {'playback_id': 'synthetic-' + uuid4().hex, 'playback_complete': True}
     playbacks[key] = {'text': body['text'], 'response': response, 'at': time.monotonic()}
+    playbacks_by_call.setdefault(key[0], set()).add(key)
+    if body['text'] == REPLY:
+        playback_count += 1; playback_calls.add(key[0])
+    else:
+        notice_count += 1
     return response
 
 

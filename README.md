@@ -46,6 +46,51 @@
 
 部署参数、第三方接口、管理中心配置顺序与验收方法：[docs/platform-configuration-guide.md](docs/platform-configuration-guide.md)
 
+## 2026-09-28 更新记录：Langfuse AI 对话观测
+
+本次更新的是 AI 外呼平台的 `agent` 服务。代码提交为 [`6d57524`](https://github.com/duyu0218-flash/ai-outbound-platform/commit/6d57524a4500e2fe7cc0fb6cbadfb4e29fa59645)，提交记录和合并状态见 [PR #47](https://github.com/duyu0218-flash/ai-outbound-platform/pull/47)。接入基于当前最新本地代码，保留已有稳定性和数据库排队优化。
+
+### 能力与用途
+
+- 为开场、每轮回复及转人工请求记录 trace，以 HMAC 后的通话标识关联同一通电话的多轮请求。
+- 为模型调用记录模型名称、参数、耗时、供应商返回的 Token 用量和异常类型，用于定位慢回复、失败调用及分析模型消耗。
+- 观测故障不改变业务结果；采用独立采样配置和后台批量导出，避免逐次请求等待上报。
+- 默认关闭，且不采集手机号、原始通话 ID、话术、转写、知识库正文、模型回复或音频；本次不包含对话内容质检、自动话术优化或租户专用查询页面。
+
+该能力提供排查和优化依据，不直接提升接通率、话术质量或并发容量。模型调用耗时包含配额等待和响应校验，不能当作纯推理耗时；采样及队列拥塞可能造成 trace 缺失，不能用来替代完整呼叫统计或客户账单。
+
+### 启用前需要准备什么
+
+平台代码是数据发送端，还需要一个实际运行的 Langfuse 服务接收、保存和展示数据。可部署自有 Langfuse 实例，或使用已批准的云端项目；本次没有部署该服务、配置真实项目密钥或启用生产上报。
+
+在 Agent 实际使用的环境文件中配置以下变量，再重建并重启目标环境的 Agent：
+
+```dotenv
+LANGFUSE_ENABLED=true
+LANGFUSE_BASE_URL=https://langfuse.example.com
+LANGFUSE_PUBLIC_KEY=pk-lf-your-project
+LANGFUSE_SECRET_KEY=sk-lf-your-project
+LANGFUSE_SAMPLE_RATE=0.1
+```
+
+以上地址和密钥都是占位示例。真实密钥只放服务端，不提交 Git；生产地址必须使用 HTTPS。启用后用合成资料执行测试对话，确认 Langfuse 控制台收到 trace、generation 和 Token 数据。Agent `/readyz` 的 `initialized=true` 仅表示 SDK 已创建，不代表远端接收成功。完整步骤见 [Langfuse 接入指南](docs/langfuse.md)。
+
+### 验证与发布记录
+
+| 层级 | 已确认结果 |
+| --- | --- |
+| 源代码 | Langfuse 接入已提交并推送 PR #47；主干合并状态以 PR 为准 |
+| 静态检查 | compileall、pip check、版本约束和 diff 检查通过 |
+| 开发环境 | Agent 35 项、后端 310 项、验收工具 53 项、前端 11 项测试通过；前端构建及 16 个不同浏览器用例通过 |
+| GitHub CI | 代码提交 `6d57524` 的 [9 项 CI](https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/36393443129) 全部通过，包含 PostgreSQL/Redis 集成、供应链审计和 Compose 浏览器验收；后续提交须看各自 CI |
+| 测试环境发布 | 未发布；CI 临时容器验收不等于持续测试环境已发布 |
+| 真机测试 | 未验证 |
+| 生产环境发布 | 未发布，现有运行服务未重启或替换 |
+
+本机后端另有 18 个条件用例跳过；浏览器仍有转人工全过程、预置双租户切换、预置预约改期取消三个条件用例未执行。真实 SDK 和本机 HTTP collector 已验证，但真实 Langfuse 项目的持久化/UI、真实模型/电话、实际负载性能影响仍未验证。
+
+正式上线前须完成目标实例及权限配置、真实接收/UI 验收、故障恢复测试、启用前后的性能对比、真实线路验收和受控发布。完整已验证项、未验证项、已知限制及环境说明见 [2026-09-28 验收报告](docs/reviews/20260928-langfuse-acceptance.md)。
+
 ## 2bis. 测试账号体系（新）
 
 - 以下演示账号仅在非生产环境且 `DEMO_USERS_ENABLED=true` 时创建并显示；生产环境登录页不会预填或公开演示凭据。
@@ -111,6 +156,8 @@ APP_ENV_FILE=.env docker compose --env-file .env up -d --build
 - 控制面：http://localhost:8000/health
 - AI 服务：容器内 `http://ai-agent:8001/health`，默认不开放宿主机 8001 端口
 
+AI 对话的逐轮追踪、模型 Token 用量与错误分析可按 [Langfuse 接入指南](docs/langfuse.md) 启用；默认关闭，仅记录元数据。
+
 需要同时启动第一批商用基础设施（SeaweedFS、录音适配器、Prometheus、Alertmanager、Grafana）：
 
 ```bash
@@ -160,6 +207,10 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d -
 | `FREESWITCH_GATEWAY` | FreeSWITCH 中已配置的 SIP Trunk gateway 名称 |
 | `AI_AGENT_URL` | AI 服务地址 |
 | `AI_AGENT_SERVICE_TOKEN` | 控制服务调用 AI Agent 的内部 Bearer Token |
+| `LANGFUSE_ENABLED` | Agent 观测开关，默认 `false`；启用前先准备真实 Langfuse 项目 |
+| `LANGFUSE_BASE_URL` | 明确指定 Langfuse 服务地址；生产环境要求 HTTPS |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Langfuse 项目凭证，仅服务端配置，不提交 Git |
+| `LANGFUSE_SAMPLE_RATE` | Trace 采样比例，默认 `0.1`，范围 `0` 到 `1` |
 | `SMS_PROVIDER_ENDPOINT` | 短信服务 API 地址 |
 | `SMS_API_KEY` | 短信服务鉴权 |
 | `REQUEST_TIMEOUT_MS` | 单请求超时（毫秒），用于后端防止长耗时请求 |

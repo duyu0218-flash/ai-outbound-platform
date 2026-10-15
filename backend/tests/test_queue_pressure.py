@@ -142,7 +142,8 @@ def test_claim_batch_uses_one_update_and_unique_tokens(client):
             session.commit()
 
 
-def test_busy_call_does_not_block_neighbor_and_keeps_its_fifo(client, monkeypatch):
+@pytest.mark.parametrize('batch_size', [1, 32])
+def test_busy_call_does_not_block_neighbor_and_keeps_its_fifo(client, monkeypatch, batch_size):
     if engine.dialect.name != 'postgresql':
         pytest.skip('requires real PostgreSQL SKIP LOCKED')
     busy, free = [_review_call(CallStatus.IN_AI) for _ in range(2)]
@@ -164,7 +165,7 @@ def test_busy_call_does_not_block_neighbor_and_keeps_its_fifo(client, monkeypatc
         session.add(call)
     monkeypatch.setattr(callback_inbox, 'apply_receipt', apply)
     monkeypatch.setattr(callback_inbox.settings, 'callback_inbox_batch_budget_ms', 1000)
-    monkeypatch.setattr(callback_inbox.settings, 'callback_inbox_batch_size', 32)
+    monkeypatch.setattr(callback_inbox.settings, 'callback_inbox_batch_size', batch_size)
     monkeypatch.setattr(callback_inbox, '_batch_limits', {})
     try:
         with session_scope() as blocker:
@@ -177,7 +178,9 @@ def test_busy_call_does_not_block_neighbor_and_keeps_its_fifo(client, monkeypatc
                 assert observer.get(CallbackInbox, ids[0]).attempts == 0
                 assert observer.get(CallbackInbox, ids[2]).state == 'pending'
             blocker.rollback()
-        assert callback_inbox.consume_partition(partition) == 2
+        processed = callback_inbox.consume_partition(partition)
+        if batch_size == 1:processed += callback_inbox.consume_partition(partition)
+        assert processed == 2
         assert seen == [ids[1], ids[0], ids[2]]
         with session_scope() as session:
             part = session.get(CallbackInboxPartition, partition)

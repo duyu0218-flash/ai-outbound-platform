@@ -1,0 +1,68 @@
+{
+  "load_results": [
+    {
+      "label": "single500-0916-queueopt-v2-dialogue80",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-queueopt-v2-dialogue80-results.json",
+      "correctness_passed": true,
+      "capacity_slo_passed": true,
+      "conversation_control_slo_passed": true,
+      "synthetic_reply_p99_ms": 3941.829961000167,
+      "gateway_delivery_max_ms": 103.73216700008925,
+      "inbox_final": {
+        "pending": 0,
+        "pending_bytes": 0,
+        "dead": 0,
+        "oldest_age_sec": 0,
+        "live_workers": 6,
+        "processed": 7500,
+        "max_completion_latency_ms": 228.113,
+        "ready": true
+      },
+      "source_unchanged_during_run": true,
+      "measured_async_ai_sha256": "8ce83ac22510d717a046003fc7c1ab2bf2cccce3c8540f93755cccd1d4f8df97"
+    },
+    {
+      "label": "single500-0916-queueopt-v2-callback600",
+      "report": "docs/reviews/evidence/20260913-single-host-500-fixes/single500-0916-queueopt-v2-callback600-results.json",
+      "correctness_passed": true,
+      "capacity_slo_passed": true,
+      "conversation_control_slo_passed": null,
+      "synthetic_reply_p99_ms": 0,
+      "gateway_delivery_max_ms": 267.3859579999771,
+      "inbox_final": {
+        "pending": 0,
+        "pending_bytes": 0,
+        "dead": 0,
+        "oldest_age_sec": 0,
+        "live_workers": 6,
+        "processed": 72000,
+        "max_completion_latency_ms": 757.3149999999999,
+        "ready": true
+      },
+      "source_unchanged_during_run": true,
+      "measured_async_ai_sha256": "8ce83ac22510d717a046003fc7c1ab2bf2cccce3c8540f93755cccd1d4f8df97"
+    }
+  ],
+  "final_source_sha256": {
+    "backend/app/services/async_ai.py": "c142c819758754f1061a2038f9d0b83b2cd8650cb6ce874a106b06a14e223c09",
+    "backend/app/services/ai_liveness.py": "3cf839b20eb5d354c2f71fd0b0b965e4a21b749f8bbf1e92703a2f93bf581eb6",
+    "backend/app/services/task_queue.py": "1d055c3ddc400a0fb8c1d4b44b626f8fee0fb53841380ded86288f9fa36585a2",
+    "backend/app/services/callback_inbox.py": "6b14baa9cab5107e5fdb84a1d0ff80402be2b6e98e565ded8a803b9f5f2f58c0",
+    "backend/tests/test_queue_pressure.py": "2d9c54e3250a7be800a7aeddbe44a6e363a70178b3ab50c8e3fe8b4c6b69eb05"
+  },
+  "post_load_change": "Separated failed poll attempts from successful claim timestamps to preserve readiness semantics; added focused regression and reran full SQLite suite. Full pressure not rerun after this health-only change.",
+  "postgres_tests": {
+    "passed": 91,
+    "note": "Database code unchanged after this run"
+  },
+  "browser_tests": {
+    "passed": 15,
+    "skipped": 4
+  },
+  "deployed_to_production": false,
+  "final_sqlite_tests": {
+    "passed": 297,
+    "skipped": 16
+  },
+  "test_resources_removed": true
+}

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from .config import settings
 from .quota import AccountQuota, estimated_tokens
+from .observability import record_usage, trace_generation
 
 _client = None
 quota = AccountQuota(settings)
@@ -78,6 +79,7 @@ def _validated_llm_endpoint() -> str:
     return base_url
 
 
+@trace_generation
 async def generate_reply(
     *,
     script: str,
@@ -160,6 +162,7 @@ async def generate_reply(
                 await asyncio.to_thread(quota.block, seconds)
             response.raise_for_status()
             data = response.json()
+            record_usage(data)
     finally:
         quota.release()
     try:

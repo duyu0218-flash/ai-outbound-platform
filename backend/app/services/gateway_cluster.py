@@ -80,6 +80,8 @@ def lock_platform_admission(session):
 def choose_gateway(session, tenant_id, line_id):
     specs = node_specs()
     if not specs:
+        if settings.stability_admission_enabled:
+            raise RuntimeError('stability admission requires paced gateway roster')
         return None
     scope = f'{tenant_id}:{line_id or 0}'
     eligible = {n.id: n for n in specs if n.enabled and scope in n.routes}
@@ -101,8 +103,11 @@ def choose_gateway(session, tenant_id, line_id):
         raise RuntimeError('no ready gateway has an authorized capacity slot')
     selected = min(candidates, key=lambda item: item[:2])[2]
     spec = eligible[selected.id]
+    fraction = session.info.get('stability_fraction', 0) if settings.stability_admission_enabled else 1
+    if fraction <= 0:
+        raise RuntimeError('stability admission paused')
     if spec.cps:
-        selected.next_dial_at = utc_now() + timedelta(seconds=1 / spec.cps)
+        selected.next_dial_at = utc_now() + timedelta(seconds=1 / (spec.cps*fraction))
         session.add(selected)
     return selected
 
@@ -160,15 +165,20 @@ async def probe_gateways():
         async def probe(spec):
             started = utc_now()
             ready, capacity = False, 0
+            callback_age = None
             try:
                 response = await client.get(spec.endpoint + '/readyz')
                 response.raise_for_status()
                 data = response.json()
                 ready = dependency_ready and data.get('status') == 'ready' and data.get('node_id') == spec.id
                 capacity = min(spec.capacity, int(data.get('call_capacity', 0)))
+                callback_age = data.get('callback_oldest_age_sec')
             except (httpx.HTTPError, ValueError, TypeError):
                 pass
             await asyncio.to_thread(_store_probe, spec, started, ready, capacity)
+            from .stability import publish
+            await asyncio.to_thread(publish, 'gateway', spec.id,
+                dict(ready=ready and callback_age is not None, age_sec=callback_age if callback_age is not None else 1))
         await asyncio.gather(*(probe(spec) for spec in specs))
 
 

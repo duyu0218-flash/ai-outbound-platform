@@ -1,0 +1,48 @@
+{
+  "cleanup": {
+    "single500-0916-dialogue50": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "single500-0916-dialogue80": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "single500-0916-dialogue100": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "single500-0916-dialogue125": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "single500-0916-callback600": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    },
+    "single500-0916-callback1200": {
+      "containers": [],
+      "networks": [],
+      "volumes": []
+    }
+  },
+  "all_test_resources_removed": true,
+  "docker_info": {
+    "NCPU": 12,
+    "MemTotal": 8319238144,
+    "ServerVersion": "29.7.2",
+    "OperatingSystem": "Docker Desktop",
+    "Architecture": "aarch64"
+  },
+  "images": {
+    "review0910-backend:sniffio": "sha256:ca41a633aea2de84671ed13582538f6dbda7067adb040a347193a8167d7b38df",
+    "postgres:16-alpine": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+    "redis:7-alpine": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+    "nginx:stable-alpine": "sha256:dc5069ad14f19660b141b21236140b91656bf89bbc3e2417c70ae650cd66104c"
+  }
+}

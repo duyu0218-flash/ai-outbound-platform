@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from urllib.parse import urlparse
 
 
 class Settings(BaseSettings):
@@ -14,6 +15,11 @@ class Settings(BaseSettings):
     llm_allowed_hosts: str = ""
     llm_send_pii: bool = False
     llm_require_https: bool = True
+    langfuse_enabled: bool = False
+    langfuse_base_url: str = ""
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_sample_rate: float = 0.1
     default_handoff_keywords: str = "人工,转人工,坐席,客服"
     default_handoff_keywords_en: str = "human,agent,representative,operator,customer service"
     default_hangup_sms: str = "感谢来电，如有需要请回复我们"
@@ -31,6 +37,17 @@ class Settings(BaseSettings):
     llm_quota_rps: int = 500
 
     def validate_runtime(self) -> None:
+        if self.langfuse_enabled:
+            endpoint = urlparse(self.langfuse_base_url)
+            if (endpoint.scheme not in {"http", "https"} or not endpoint.hostname
+                    or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment):
+                raise RuntimeError('LANGFUSE_BASE_URL must be an explicit HTTP(S) URL without credentials, query or fragment')
+            if self.env.lower() in {"prod", "production"} and endpoint.scheme != "https":
+                raise RuntimeError('LANGFUSE_BASE_URL must use HTTPS in production')
+            if not self.langfuse_public_key.strip() or not self.langfuse_secret_key.strip():
+                raise RuntimeError('Langfuse project keys are required when enabled')
+            if not 0 <= self.langfuse_sample_rate <= 1:
+                raise RuntimeError('LANGFUSE_SAMPLE_RATE must be between 0 and 1')
         if not 1 <= self.max_output_tokens <= 4096:
             raise RuntimeError('MAX_OUTPUT_TOKENS must be between 1 and 4096')
         if self.llm_quota_db_path:
