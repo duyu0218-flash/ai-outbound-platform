@@ -10,6 +10,7 @@ venv/
 .venv/
 .venv-*/
 node_modules/
+/frontend/node_modules
 .pnpm-store/
 *.tsbuildinfo
 dist/
@@ -23,3 +24,6 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 *.egg-info/
+.tools/
+backend-java/target/
+backend-java/.local/
