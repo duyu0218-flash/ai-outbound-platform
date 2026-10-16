@@ -6,9 +6,9 @@ async function login(page: Page) {
   await page.locator('button[type="submit"]').click()
   await expect(page).toHaveURL(/\/admin\/?$/)
 }
-test('reviewed lists fetch later server pages and return', async ({ page }) => {
-  await login(page)
-  for (const [route, resource] of [['contacts', 'contacts'], ['contacts-operations', 'contacts'], ['scripts', 'script-templates'], ['campaigns', 'campaigns']]) {
+for (const [route, resource] of [['contacts', 'contacts'], ['contacts-operations', 'contacts'], ['scripts', 'script-templates'], ['campaigns', 'campaigns']]) {
+  test(`reviewed ${route} list fetches later server pages and returns`, async ({ page }) => {
+    await login(page)
     const requested: number[] = []
     await page.route(`**/api/v1/${resource}?*`, async (request) => {
       const number = Number(new URL(request.request().url()).searchParams.get('page'))
@@ -31,8 +31,8 @@ test('reviewed lists fetch later server pages and return', async ({ page }) => {
     await expect(page.getByText(`Server-${route}-5-0`, { exact: true })).toBeVisible()
     expect(requested).toContain(6)
     await page.unroute(`**/api/v1/${resource}?*`)
-  }
-})
+  })
+}
 test('prepared campaign supports edit start pause resume stop', async ({ page }) => {
   test.skip(!process.env.E2E_FIX7_ISOLATED, 'isolated mock only')
   const auth = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password: '12345678' } })

@@ -41,3 +41,25 @@ jobs:
         with:
           name: java8-${{ matrix.database }}-tests
           path: backend-java/target/surefire-reports/
+  java-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build Java runtime image and frontend
+        run: docker build -f backend-java/Dockerfile -t java-core-ci .
+      - name: Start disposable Java container
+        run: |
+          docker run -d --name java-core-ci -p 127.0.0.1:18823:8000 \
+            --read-only --tmpfs /tmp:rw,nosuid,size=128m \
+            -e ENV=test -e JAVA_DATABASE_URL=jdbc:sqlite:/tmp/core.db \
+            -e JAVA_INITIALIZE_SCHEMA=true -e DEMO_USERS_ENABLED=true \
+            -e JWT_SECRET=isolated-container-ci-secret-never-production \
+            -e TELEPHONY_PROVIDER=mock -e JAVA_DISPATCH_ENABLED=true \
+            -e JAVA_WORKERS_ENABLED=true java-core-ci
+          python3 backend-java/scripts/container_smoke.py
+      - name: Capture container diagnostics
+        if: failure()
+        run: docker logs java-core-ci
+      - name: Stop disposable container
+        if: always()
+        run: docker rm -f java-core-ci || true
