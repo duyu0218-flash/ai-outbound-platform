@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "readiness verifies actual Python agent and gateway",
+    "Java HTTP dial and signed Python gateway callbacks reach in_ai",
+    "Java calls actual Python rule agent and sends reply to Python gateway",
+    "signed terminal callback generates durable analysis"
+  ],
+  "passed": true,
+  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7",
+  "boundary": "Actual Python processes, rule agent and mock gateway only. No SIP/RTP, cloud model, SMS or recording object storage."
+}

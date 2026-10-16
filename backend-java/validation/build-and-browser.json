@@ -1,0 +1,35 @@
+{
+  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7",
+  "jdk": "Zulu 1.8.0_504",
+  "spring_boot": "2.7.18",
+  "classes": 80,
+  "class_major_versions": [
+    52
+  ],
+  "browser": {
+    "management_passed": 13,
+    "management_seconds": 34.3,
+    "mock_dispatch_passed": 1,
+    "mock_dispatch_seconds": 8.1,
+    "skipped": 0
+  },
+  "compose_configuration": "passed",
+  "docker_image": "passed: GitHub Linux x86_64 image build and read-only noexec container smoke",
+  "production_deployed": false,
+  "real_device": "not verified",
+  "real_sip_rtp": "not verified",
+  "source_baseline": "96d9bef44173612d85399792bf54c6399059b1e7",
+  "docker_ci": {
+    "source_commit": "ee9dc9f1a625deb5ba0bfb68cd21c170c11ce595",
+    "job_url": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/38896193114/job/116957119735",
+    "verified": [
+      "login",
+      "frontend",
+      "default_release_gate",
+      "contact",
+      "mock_dial",
+      "callback",
+      "analysis"
+    ]
+  }
+}

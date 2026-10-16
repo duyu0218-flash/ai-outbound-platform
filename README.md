@@ -432,3 +432,7 @@ bash scripts/test-campaign-start.sh
 ## 8. 开源许可证
 
 本项目采用 [GNU General Public License v3.0](LICENSE) 许可，SPDX 标识符为 `GPL-3.0-only`。使用、修改或分发本项目时，请遵守 `LICENSE` 中的完整条款。
+
+## Java 核心后端迁移
+
+`backend-java/` 基于 Spring Boot 2.7.18、JDK 1.8，保留 React 前端和 Python AI Agent、语音网关、录音适配服务。108 项基线接口、核心执行流程、旧库迁移工具和运行入口已有 Java 实现；271 项行为对照及隔离环境功能测试通过，生产尚未切换。构建和运行见 [Java README](backend-java/README.md)，旧库升级与回退见 [迁移手册](backend-java/MIGRATION.md)，实测结果与未验证范围见 [验收记录](backend-java/ACCEPTANCE.md)。

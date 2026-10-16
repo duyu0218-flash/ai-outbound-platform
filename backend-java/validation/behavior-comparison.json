@@ -1,0 +1,3000 @@
+{
+  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7",
+  "authenticated_cases": 167,
+  "successful_body_cases": 98,
+  "baseline": "96d9bef44173612d85399792bf54c6399059b1e7",
+  "cases": 271,
+  "matched": 271,
+  "differences": 0,
+  "route_boundaries": 108,
+  "normalization": "Generated timestamps/tokens and UUID identities normalized; error details are framework-specific, status boundaries compared. Selected fields explicitly recorded.",
+  "exclusions": [
+    "readiness stays blocked until release acceptance",
+    "system-overview live dependency/latency probes",
+    "audit event text implementation details",
+    "successful long-lived agent stream tested separately"
+  ],
+  "records": [
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/product/appointments",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PATCH",
+      "route": "/api/v1/product/appointments/{appointment_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/product/work-items",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PATCH",
+      "route": "/api/v1/product/work-items/{item_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/product/incoming",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/product/outcomes",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/import",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/search",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/product/funnel",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handover",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/hangup",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/events",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-events",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-stats",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/retry",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/start",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/pause",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/resume",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/stop",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/contacts/import",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/contacts/export",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PATCH",
+      "route": "/api/v1/contacts/batch-dnc",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PATCH",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/batch",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/status",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/transcript",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/speech",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/dtmf",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/media",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/recording",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/webhooks/sms/status",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/auth/login",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/auth/me",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/auth/presence",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/auth/logout",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/tasks/{task_id}/retry",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/admin/users/{user_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/admin/users/{user_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/reset-password",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/unlock",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/lines",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/lines",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/sms-logs",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/calls/export",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/audit-logs",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/call-reports",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/contact-groups",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/system-overview",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/realtime",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/speech-turns",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/metrics",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/recordings",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/interrupt",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/handoffs",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/handoffs",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/quality/reviews",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/knowledge",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/knowledge",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/knowledge/{item_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "DELETE",
+      "route": "/api/v1/knowledge/{item_id}",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "POST",
+      "route": "/api/v1/agent/webrtc/session",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/agent/media/status",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "PUT",
+      "route": "/api/v1/agent/media/status",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/agent/events/stream",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/admin/dashboard",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "unauthenticated",
+      "method": "GET",
+      "route": "/api/v1/agent/dashboard",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/product/appointments",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/product/work-items",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/product/outcomes",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/product/funnel",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/events",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-events",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-stats",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        404,
+        404
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/contacts/export",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/auth/me",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        404,
+        404
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "matched": true,
+      "statuses": [
+        404,
+        404
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        404,
+        404
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/lines",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/sms-logs",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/calls/export",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/call-reports",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/contact-groups",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/realtime",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/speech-turns",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/metrics",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/recordings",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/handoffs",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/handoffs",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/quality/reviews",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/knowledge",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/agent/media/status",
+      "matched": true,
+      "statuses": [
+        403,
+        403
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/runtime",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/admin/dashboard",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "historical-read",
+      "method": "GET",
+      "route": "/api/v1/agent/dashboard",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/product/appointments",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PATCH",
+      "route": "/api/v1/product/appointments/{appointment_id}",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/product/work-items",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PATCH",
+      "route": "/api/v1/product/work-items/{item_id}",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/product/incoming",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/product/outcomes",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/import",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/search",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/product/funnel",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/calls",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/calls",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/events",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/events",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-events",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-events",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PUT",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PATCH",
+      "route": "/api/v1/contacts/batch-dnc",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/auth/login",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PUT",
+      "route": "/api/v1/auth/presence",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/reset-password",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/admin/lines",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/admin/sms-logs",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/admin/sms-logs",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/admin/calls/export",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/admin/audit-logs",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/admin/audit-logs",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/admin/call-reports",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/admin/contact-groups",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:ai_unit_price_per_minute",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:telephony_unit_price_per_minute",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:sms_unit_price",
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:page",
+      "method": "GET",
+      "route": "/api/v1/quality/reviews",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:size",
+      "method": "GET",
+      "route": "/api/v1/quality/reviews",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "POST",
+      "route": "/api/v1/knowledge",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "missing-required-body",
+      "method": "PUT",
+      "route": "/api/v1/agent/media/status",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "query-minimum:days",
+      "method": "GET",
+      "route": "/api/v1/admin/dashboard",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "liveness",
+      "method": "GET",
+      "route": "/healthz",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "health",
+      "method": "GET",
+      "route": "/health",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "readiness-status",
+      "method": "GET",
+      "route": "/readyz",
+      "matched": true,
+      "statuses": [
+        503,
+        503
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "foreign-contact",
+      "method": "GET",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        404,
+        404
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "invalid-phone",
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "create-contact",
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "duplicate-contact",
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "edit-contact",
+      "method": "PATCH",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "read-contact",
+      "method": "GET",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "batch-dnc",
+      "method": "PATCH",
+      "route": "/api/v1/contacts/batch-dnc",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "import-contact",
+      "method": "POST",
+      "route": "/api/v1/contacts/import",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "create-template",
+      "method": "POST",
+      "route": "/api/v1/script-templates",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "update-template",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "create-campaign",
+      "method": "POST",
+      "route": "/api/v1/campaigns",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "campaign-read",
+      "method": "GET",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "campaign-prepare",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/start",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "campaign-stop",
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/stop",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "referenced-contact-delete",
+      "method": "DELETE",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "create-knowledge",
+      "method": "POST",
+      "route": "/api/v1/knowledge",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "knowledge-search",
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/search",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:不用转人工",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:我需要你们别再打",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:可以听一下",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:我不需要，不对，我现在需要",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:谢谢，再见",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:不是本人",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "policy-simulate:请在滴声后留言",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "terminal-callback:answered",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/status",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "terminal-callback:completed",
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/status",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "terminal-read",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "exhausted-retry",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/retry",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "terminal-hangup",
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/hangup",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "review-analysis",
+      "method": "PUT",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "review-persisted",
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "create-user",
+      "method": "POST",
+      "route": "/api/v1/admin/users",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "update-user",
+      "method": "PUT",
+      "route": "/api/v1/admin/users/{user_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "reset-password",
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/reset-password",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "unlock-user",
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/unlock",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "disable-user",
+      "method": "DELETE",
+      "route": "/api/v1/admin/users/{user_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "create-line",
+      "method": "POST",
+      "route": "/api/v1/admin/lines",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "update-line",
+      "method": "PUT",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "delete-line",
+      "method": "DELETE",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "update-knowledge",
+      "method": "PUT",
+      "route": "/api/v1/knowledge/{item_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "deactivate-knowledge",
+      "method": "DELETE",
+      "route": "/api/v1/knowledge/{item_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "save-policy",
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "stale-policy",
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "policy-history",
+      "method": "GET",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "invalid-calendar",
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "matched": true,
+      "statuses": [
+        400,
+        400
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "incoming",
+      "method": "POST",
+      "route": "/api/v1/product/incoming",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "incoming-replay",
+      "method": "POST",
+      "route": "/api/v1/product/incoming",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "work-complete",
+      "method": "PATCH",
+      "route": "/api/v1/product/work-items/{item_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "flow-create",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "flow-edit",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "flow-publish",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "flow-simulate",
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "published-immutable",
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "matched": true,
+      "statuses": [
+        409,
+        409
+      ],
+      "comparison": "status/error-boundary"
+    },
+    {
+      "case": "setting-read:ai",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-save:ai",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-read:compliance",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-save:compliance",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-read:sms",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-save:sms",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-read:capacity",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-save:capacity",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-read:integration",
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "setting-save:integration",
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "delete-unreferenced-contact",
+      "method": "DELETE",
+      "route": "/api/v1/contacts/{contact_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "delete-campaign",
+      "method": "DELETE",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "deactivate-template",
+      "method": "DELETE",
+      "route": "/api/v1/script-templates/{template_id}",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "multi-turn-policy",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "multi-turn-policy",
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "logout",
+      "method": "POST",
+      "route": "/api/v1/auth/logout",
+      "matched": true,
+      "statuses": [
+        200,
+        200
+      ],
+      "comparison": "body"
+    },
+    {
+      "case": "revoked-token",
+      "method": "GET",
+      "route": "/api/v1/auth/me",
+      "matched": true,
+      "statuses": [
+        401,
+        401
+      ],
+      "comparison": "status/error-boundary"
+    }
+  ]
+}
