@@ -24,17 +24,17 @@ class AccountQuota:
 
     def start(self):
         with self._write_lock:
-            self.initialize()
-            if self.settings.llm_quota_db_path and self._wal_anchor is None:
-                anchor = sqlite3.connect(self.settings.llm_quota_db_path, timeout=.5,
-                                         isolation_level=None, check_same_thread=False)
-                try:
-                    anchor.execute('PRAGMA synchronous=FULL')
-                    anchor.execute('SELECT count(*) FROM sqlite_schema').fetchone()
-                    self._wal_anchor = anchor
-                except BaseException:
-                    anchor.close()
-                    raise
+            if not self.settings.llm_quota_db_path:
+                return
+            if self._wal_anchor is not None:
+                self.initialize()
+                return
+            # Keep the already-initialized WAL connection. Closing it and then
+            # reopening an idle anchor leaves a last-connection cleanup/recovery
+            # window outside the bounded pre-transaction retry loop.
+            with self._transaction(keep_open=True) as anchor:
+                self._initialize(anchor)
+            self._wal_anchor = anchor
 
     def close(self):
         with self._write_lock:
@@ -52,8 +52,10 @@ class AccountQuota:
                 yield db
 
     @contextmanager
-    def _transaction(self):
-        db = sqlite3.connect(self.settings.llm_quota_db_path, timeout=.5, isolation_level=None)
+    def _transaction(self, *, keep_open=False):
+        db = sqlite3.connect(self.settings.llm_quota_db_path, timeout=.5,
+                             isolation_level=None, check_same_thread=not keep_open)
+        committed = False
         try:
             deadline = time.monotonic() + .5
             while True:
@@ -74,25 +76,30 @@ class AccountQuota:
                     time.sleep(.005)
             yield db
             db.execute('COMMIT')
+            committed = True
         except BaseException:
             if db.in_transaction:
                 db.execute('ROLLBACK')
             raise
         finally:
-            db.close()
+            if not keep_open or not committed:
+                db.close()
 
     def initialize(self):
         if not self.settings.llm_quota_db_path:
             return
         with self.db() as db:
-            db.execute('CREATE TABLE IF NOT EXISTS budgets (scope TEXT PRIMARY KEY, config TEXT NOT NULL, blocked_until REAL NOT NULL DEFAULT 0)')
-            db.execute('CREATE TABLE IF NOT EXISTS usage (scope TEXT NOT NULL, second INTEGER NOT NULL, requests INTEGER NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY(scope,second))')
-            cfg = hashlib.sha256(json.dumps([self.settings.llm_quota_rpm, self.settings.llm_quota_tpm,
-                                            self.settings.llm_quota_rps]).encode()).hexdigest()
-            scope = self.settings.llm_quota_scope
-            db.execute('INSERT OR IGNORE INTO budgets(scope,config) VALUES (?,?)', (scope, cfg))
-            if db.execute('SELECT config FROM budgets WHERE scope=?', (scope,)).fetchone()[0] != cfg:
-                raise RuntimeError('Agent processes must share identical account quotas; drain before changing quota configuration')
+            self._initialize(db)
+
+    def _initialize(self, db):
+        db.execute('CREATE TABLE IF NOT EXISTS budgets (scope TEXT PRIMARY KEY, config TEXT NOT NULL, blocked_until REAL NOT NULL DEFAULT 0)')
+        db.execute('CREATE TABLE IF NOT EXISTS usage (scope TEXT NOT NULL, second INTEGER NOT NULL, requests INTEGER NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY(scope,second))')
+        cfg = hashlib.sha256(json.dumps([self.settings.llm_quota_rpm, self.settings.llm_quota_tpm,
+                                        self.settings.llm_quota_rps]).encode()).hexdigest()
+        scope = self.settings.llm_quota_scope
+        db.execute('INSERT OR IGNORE INTO budgets(scope,config) VALUES (?,?)', (scope, cfg))
+        if db.execute('SELECT config FROM budgets WHERE scope=?', (scope,)).fetchone()[0] != cfg:
+            raise RuntimeError('Agent processes must share identical account quotas; drain before changing quota configuration')
 
     def reserve(self, tokens, *, now=None, write=True):
         now = time.time() if now is None else now
