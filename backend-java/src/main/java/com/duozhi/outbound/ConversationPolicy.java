@@ -13,10 +13,10 @@ public class ConversationPolicy {
     private final Settings settings;
     private final Outbox outbox;
     private final Map<String,Object> defaults;
-    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,com.fasterxml.jackson.databind.ObjectMapper mapper) throws java.io.IOException {
+    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,tools.jackson.databind.ObjectMapper mapper) throws java.io.IOException {
         this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;
         try(java.io.InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
-            defaults=mapper.readValue(in,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+            defaults=mapper.readValue(in,new tools.jackson.core.type.TypeReference<Map<String,Object>>(){});
         }
     }
     public Map<String,Object> current(long tenant,Object campaign) {

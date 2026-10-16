@@ -3,7 +3,7 @@ package com.duozhi.outbound;
 import java.util.*;
 import java.time.*;
 import java.nio.charset.StandardCharsets;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 /** Coordinates the retained Python agent; all business state stays in Java. */

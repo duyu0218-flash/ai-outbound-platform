@@ -1,7 +1,7 @@
 package com.duozhi.outbound;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
@@ -46,7 +46,7 @@ public class Settings {
             if(!same)throw new ApiError(400,"invalid setting type: "+entry.getKey());
             if(value instanceof String&&((String)value).length()>4000)throw new ApiError(400,"setting value too large: "+entry.getKey());data.put(entry.getKey(),value);
         }
-        try{if(mapper.writeValueAsString(data).length()>20000)throw new ApiError(400,"setting payload too large");}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new ApiError(400,"invalid settings");}
+        try{if(mapper.writeValueAsString(data).length()>20000)throw new ApiError(400,"setting payload too large");}catch(tools.jackson.core.JacksonException e){throw new ApiError(400,"invalid settings");}
         if(section.equals("capacity"))range(data,"max_concurrent_calls",1,10000);
         if(section.equals("compliance")){
             range(data,"allowed_start_hour",0,23);range(data,"allowed_end_hour",0,23);range(data,"max_attempts_per_day",1,20);range(data,"min_attempt_interval_sec",0,604800);range(data,"max_calls_per_day",1,10000000);
