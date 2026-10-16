@@ -50,7 +50,7 @@ public class Calls {
         if (restricted(identity)) { where += " AND human_agent_id=?"; args.add(identity.userId()); }
         if (campaign_id != null) { where += " AND campaign_id=?"; args.add(campaign_id); }
         if (status != null && !status.isEmpty()) {
-            try { args.add(store.encode("callsession", "status", status.toLowerCase(Locale.ROOT))); }
+            try { args.add(store.encode("callsession", "status", status.transform(Ascii::lower))); }
             catch (ApiError e) { throw new ApiError(400, "invalid status filter"); }
             where += " AND status=?";
         }

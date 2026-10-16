@@ -1,10 +1,10 @@
 {
-  "tests": 89,
+  "tests": 111,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
-  "environment": "JDK17 PostgreSQL16 plus isolated Redis7",
-  "jar_sha256": "8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8",
+  "environment": "JDK17 PostgreSQL16 plus isolated Redis7 and real loopback TLS fixtures",
+  "jar_sha256": "94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc",
   "suites": [
     {
       "name": "com.duozhi.outbound.AdminIntegrationTest",
@@ -63,6 +63,13 @@
       "skipped": "0"
     },
     {
+      "name": "com.duozhi.outbound.HealthcheckProcessTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
       "name": "com.duozhi.outbound.HttpBoundaryTest",
       "tests": "6",
       "failures": "0",
@@ -91,8 +98,22 @@
       "skipped": "0"
     },
     {
+      "name": "com.duozhi.outbound.RedisTlsSecurityTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
       "name": "com.duozhi.outbound.RetentionIntegrationTest",
       "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.duozhi.outbound.SecurityAttackIntegrationTest",
+      "tests": "5",
       "failures": "0",
       "errors": "0",
       "skipped": "0"
@@ -107,6 +128,13 @@
     {
       "name": "com.duozhi.outbound.StabilityIntegrationTest",
       "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.duozhi.outbound.StaticSecurityBoundaryTest",
+      "tests": "11",
       "failures": "0",
       "errors": "0",
       "skipped": "0"

@@ -18,7 +18,7 @@ public class SystemOverview {
         Map<String, Object> result = new LinkedHashMap<>();
         // Only constants from this controller may select SQL identifiers.
         for (Map<String, Object> row : store.jdbc().queryForList("SELECT " + column + ",COUNT(*) AS n FROM " + table + " WHERE tenant_id=? GROUP BY " + column, tenant))
-            result.put(row.get(column).toString().toLowerCase(Locale.ROOT), row.get("n"));
+            result.put(row.get(column).toString().transform(Ascii::lower), row.get("n"));
         return result;
     }
 
@@ -37,7 +37,7 @@ public class SystemOverview {
         capacity.put("configured_max_concurrent_calls", configured); capacity.put("line_max_concurrency", lineCapacity);
         capacity.put("effective_max_concurrent_calls", effective); capacity.put("active_calls", active); capacity.put("available_slots", Math.max(0, effective - active));
         capacity.put("limiting_source", lineCapacity == null || lineCapacity > configured ? "tenant_capacity" : lineCapacity == configured ? "tenant_and_line" : "telephony_line");
-        capacity.put("telephony_provider", config.get("TELEPHONY_PROVIDER", "mock").trim().toLowerCase(Locale.ROOT));
+        capacity.put("telephony_provider", config.get("TELEPHONY_PROVIDER", "mock").trim().transform(Ascii::lower));
         capacity.put("environment_default", Math.max(1, config.number("MAX_CONCURRENT_CALLS", 20)));
         Map<String, Object> operations = new LinkedHashMap<>();
         operations.put("durable_tasks", counts("taskoutbox", "state", tenant));

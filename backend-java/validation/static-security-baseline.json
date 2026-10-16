@@ -1,0 +1,17 @@
+{
+  "baseline_commit": "eb2b099bbd4be5c338fd92884410c3426d991c52",
+  "before": {
+    "tests": 4,
+    "failures": 4,
+    "errors": 0
+  },
+  "cases": [
+    "unicodeCaseMappingCannotBypassTrustedHosts",
+    "duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "credentialedCorsCannotUseWildcardEvenInDevelopment",
+    "productionRejectsPlaintextRedisConfiguration"
+  ],
+  "after": "all four pass as part of 111-test suites on both databases",
+  "jar_sha256": "94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc",
+  "baseline_log_sha256": "b3298739fba4b22fe7d1b0175265003219dca4823a2a6875432f8726a0ebc6a6"
+}

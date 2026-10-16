@@ -19,9 +19,6 @@ public class Authentication extends OncePerRequestFilter {
     }
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        response.setHeader("X-Content-Type-Options", "nosniff");
-        response.setHeader("X-Frame-Options", "DENY");
-        response.setHeader("Referrer-Policy", "same-origin");
         String path = request.getRequestURI();
         if (!path.startsWith("/api/") || Values.set("/api/v1/runtime", "/api/v1/auth/login", "/api/v1/webhooks/telephony/status", "/api/v1/webhooks/telephony/speech", "/api/v1/webhooks/telephony/transcript", "/api/v1/webhooks/telephony/media", "/api/v1/webhooks/telephony/recording", "/api/v1/webhooks/sms/status", "/api/v1/webhooks/telephony/dtmf", "/api/v1/webhooks/telephony/batch").contains(path)) {
             chain.doFilter(request, response); return;

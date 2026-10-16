@@ -24,6 +24,25 @@ for attempt in range(60):
 with urllib.request.urlopen(BASE+'/admin/login') as page:
     assert b'<html' in page.read().lower()
 assert request('/healthz')['status']=='ok'
+# Real Tomcat HTTP parsing must reject duplicate credentials too, not only MockMvc.
+for header in ['Authorization','X-API-Key','X-Tenant-ID','X-Security-Approval','X-Webhook-Token','X-Webhook-Timestamp','X-Webhook-Signature','Origin']:
+    connection=http.client.HTTPConnection('127.0.0.1',18823,timeout=5)
+    try:
+        connection.putrequest('GET','/api/v1/auth/me')
+        if header!='Authorization': connection.putheader('Authorization','Bearer '+token)
+        connection.putheader(header,'Bearer '+token if header=='Authorization' else 'first')
+        connection.putheader(header,'second')
+        connection.endheaders()
+        response=connection.getresponse()
+        assert response.status==400, header
+        assert response.getheader('X-Content-Type-Options')=='nosniff'
+        response.read()
+    finally: connection.close()
+for origin in ['https://trusted.example','https://trusted.example.evil']:
+    r=urllib.request.Request(BASE+'/api/v1/auth/me',headers={'Authorization':'Bearer '+token,'Origin':origin})
+    with urllib.request.urlopen(r,timeout=5) as response:
+        assert response.getheader('Access-Control-Allow-Origin')==(origin if origin=='https://trusted.example' else None)
+        assert response.getheader('Access-Control-Allow-Credentials') is None
 try:
     request('/readyz')
     raise AssertionError('release acceptance must default to disabled')
@@ -42,4 +61,4 @@ for attempt in range(30):
     if request('/api/v1/calls/'+call['id']+'/analysis') is not None: break
     if attempt==29: raise AssertionError('analysis did not persist')
     time.sleep(.5)
-print('Java image: login, frontend, release gate, contact, mock dial, callback and analysis passed')
+print('Java image: login, frontend, duplicate credential headers, strict CORS, release gate, contact, mock dial, callback and analysis passed')

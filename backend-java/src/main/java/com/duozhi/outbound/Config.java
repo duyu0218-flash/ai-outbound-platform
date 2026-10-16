@@ -10,5 +10,5 @@ public class Config {
     public String get(String name, String fallback) { return environment.getProperty(name, fallback); }
     public boolean flag(String name, boolean fallback) { return Boolean.parseBoolean(get(name, "" + fallback)); }
     public int number(String name, int fallback) { return Integer.parseInt(get(name, "" + fallback)); }
-    public boolean production() { return Values.set("prod", "production").contains(get("ENV", "dev").toLowerCase()); }
+    public boolean production() { return Values.set("prod", "production").contains(get("ENV", "dev").transform(Ascii::lower)); }
 }
