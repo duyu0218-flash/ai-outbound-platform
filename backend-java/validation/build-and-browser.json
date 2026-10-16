@@ -14,9 +14,22 @@
     "skipped": 0
   },
   "compose_configuration": "passed",
-  "docker_image": "GitHub image build passed; container startup smoke retry fix awaiting CI",
+  "docker_image": "passed: GitHub Linux x86_64 image build and read-only noexec container smoke",
   "production_deployed": false,
   "real_device": "not verified",
   "real_sip_rtp": "not verified",
-  "source_baseline": "96d9bef44173612d85399792bf54c6399059b1e7"
+  "source_baseline": "96d9bef44173612d85399792bf54c6399059b1e7",
+  "docker_ci": {
+    "source_commit": "ee9dc9f1a625deb5ba0bfb68cd21c170c11ce595",
+    "job_url": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/38896193114/job/116957119735",
+    "verified": [
+      "login",
+      "frontend",
+      "default_release_gate",
+      "contact",
+      "mock_dial",
+      "callback",
+      "analysis"
+    ]
+  }
 }
