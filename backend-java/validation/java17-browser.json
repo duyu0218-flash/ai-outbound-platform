@@ -1,13 +1,13 @@
 {
   "environment": "JDK17 isolated SQLite, synthetic fixtures and mock dispatch",
-  "jar_sha256": "8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8",
+  "jar_sha256": "94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc",
   "suites": [
     {
       "suite": "management",
       "exit_code": 0,
       "stats": {
-        "startTime": "2026-10-16T14:11:22.874Z",
-        "duration": 34030.661,
+        "startTime": "2026-10-16T15:17:50.132Z",
+        "duration": 32613.007999999998,
         "expected": 13,
         "skipped": 0,
         "unexpected": 0,
@@ -18,8 +18,8 @@
       "suite": "dispatch",
       "exit_code": 0,
       "stats": {
-        "startTime": "2026-10-16T14:12:24.116Z",
-        "duration": 7869.891,
+        "startTime": "2026-10-16T15:18:50.099Z",
+        "duration": 7817.463000000001,
         "expected": 1,
         "skipped": 0,
         "unexpected": 0,

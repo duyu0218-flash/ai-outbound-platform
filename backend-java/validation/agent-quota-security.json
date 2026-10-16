@@ -1,0 +1,15 @@
+{
+  "tests": 38,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "two_process_burst_repetitions": 10,
+  "exact_approved_budget_each_repetition": 500,
+  "startup_wal_continuity_before": "failed: last WAL connection closed before anchor retention",
+  "startup_wal_continuity_after": "passed",
+  "ambiguous_commit": "reservation remains charged and commit is not replayed",
+  "failed_start": "connection closed and no anchor retained",
+  "quota_source_sha256": "a39100d77bb040393483d582d25c2220d4de076b2c9458053ed7c0a0e2287155",
+  "baseline_log_sha256": "56c456a8ffd3e0002afcb31e807212e0d7f6856300aa620a6e03adab77b8b07f",
+  "ci_failure_boundary": "Original CI recorded OperationalError without stage; the exact original stage cannot be recovered. The independently reproduced startup WAL gap is now fixed; stage/error-code diagnostics added."
+}

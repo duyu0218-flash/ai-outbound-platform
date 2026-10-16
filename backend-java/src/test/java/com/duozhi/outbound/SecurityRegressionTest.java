@@ -29,8 +29,8 @@ class SecurityRegressionTest {
         assertEquals("org.apache.logging.slf4j.Log4jLoggerFactory",org.slf4j.LoggerFactory.getILoggerFactory().getClass().getName());
         assertThrows(ClassNotFoundException.class,()->Class.forName("ch.qos.logback.classic.LoggerContext"));
     }
-    @Test void malformedOriginsCannotReachResponseHeadersEvenInDevelopment() throws Exception {
-        HttpBoundary boundary=new HttpBoundary(new Config(new MockEnvironment().withProperty("CORS_ALLOW_ORIGINS","*")));
+    @Test void malformedOriginsCannotReachResponseHeaders() throws Exception {
+        HttpBoundary boundary=new HttpBoundary(new Config(new MockEnvironment().withProperty("CORS_ALLOW_ORIGINS","https://ok.test")));
         for(String origin:Arrays.asList("https://ok.test\r\nX-Injected: yes","https://ok.test/path","https://user@ok.test","null","https://ok.test:99999")){
             MockHttpServletRequest request=new MockHttpServletRequest("OPTIONS","/api/v1/contacts");request.addHeader("Origin",origin);
             MockHttpServletResponse response=new MockHttpServletResponse();boundary.doFilter(request,response,(a,b)->{});

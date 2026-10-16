@@ -148,7 +148,7 @@ public class VoiceCallbacks {
         Map<String,Object> row=body.get("sms_log_id")==null?null:store.one("smslog","WHERE id=?"+store.lock(),body.get("sms_log_id"));
         if(row==null&&body.get("provider_message_id")!=null)row=store.one("smslog","WHERE provider_message_id=? ORDER BY created_at DESC LIMIT 1"+store.lock(),body.get("provider_message_id"));
         if(row==null)return JsonSupport.map("result","ignore");
-        String state=body.get("state").toString().trim().toLowerCase(Locale.ROOT);
+        String state=body.get("state").toString().trim().transform(Ascii::lower);
         if(Values.set("delivered","failed","rejected","expired").contains(row.get("state"))&&!state.equals(row.get("state")))return ignored("terminal_state");
         Map<String,Object> change=JsonSupport.map("state",state,"provider_error",body.get("error"));
         if(body.get("provider_message_id")!=null&&Objects.toString(row.get("provider_message_id"),"").isEmpty())change.put("provider_message_id",body.get("provider_message_id"));

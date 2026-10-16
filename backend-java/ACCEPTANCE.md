@@ -1,12 +1,12 @@
-# JDK 17 核心后端安全升级验收
+# Java 核心后端静态安全加固与回归验收
 
-日期：2026-10-16。基线为 PR #51 合并后的 main `1bba0fb79761a9f91109c2d943a8b79716e86d39`。用户已批准从 JDK 8 升级至 JDK 17 和受支持的 Spring。此记录不代表生产切换批准。
+日期：2026-10-16。本轮基线为 PR #52 合并后的 main `eb2b099bbd4be5c338fd92884410c3426d991c52`。用户已批准从 JDK 8 升级至 JDK 17 和受支持的 Spring。此记录不代表生产切换批准。
 
 ## 环境与制品
 
 - Spring Boot 4.1.1、Spring Framework 7.0.9、Jackson 3.1.7、Tomcat 11.0.27。
-- 本机实际构建/测试使用 Zulu JDK 17.0.20.1、Maven 3.9.11；80 个应用 class 的 major version 均为 61。
-- 最终本机制品 SHA-256：`8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8`。Linux CI 会独立构建镜像，不用本机 JAR 摘要冒充镜像摘要。
+- 本机实际构建/测试使用 Zulu JDK 17.0.20.1、Maven 3.9.11；83 个应用 class 的 major version 均为 61。
+- 最终本机制品 SHA-256：`94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc`。Linux CI 会独立构建镜像，不用本机 JAR 摘要冒充镜像摘要。
 - SQLite、专用 PostgreSQL 16、Redis 7、Chromium；合成历史数据与 mock 外呼。未连接业务数据库或真实电话线路。
 
 ## 页面、入口和状态清单
@@ -28,22 +28,35 @@
 
 本项目没有门店、购物车、支付页面。适用链路为：登录 → 客户 → 话术 → 外呼任务 → 拨号 → 回调 → 通话记录 → 分析/报表 → 返回首页。
 
+## 本轮涉及入口和异常状态
+
+| 入口 | 已执行验证 | 范围 |
+| --- | --- | --- |
+| 登录、API 鉴权、租户头、Webhook | 8 类安全头重复/异常拒绝；有效用户正常登录；请求未写入业务事件 | 单测、MockMvc；实际 Tomcat HTTP 另见 security-http-smoke.json 与 java-image CI |
+| Host、CORS、错误响应 | Unicode Host 拒绝、明确 origin、禁止 Cookie 跨域凭据、错误 JSON 及 nosniff | 定向回归和实际 HTTP；真实反向代理未验证 |
+| 线路及安全审批 | 非法凭据引用/URL 不落库；管理员伪造独立审批不能启用真实线路 | API 及服务测试；真实线路表单所有操作未验证 |
+| Redis、业务回调、健康 CLI | 生产明文 pre-connect 拒绝；真实 TLS 正常/负例；RESP 深度/总量；健康进程不跟随跳转 | 本机合成证书和独立子进程；目标环境 CA 未验证 |
+| 网关文件及指标令牌 | 规则文件、大小上限、缺失文件/目录拒绝、Secret 符号链接 | 文件单测；部署 Secret 挂载仍需现场验收 |
+| 安全 CI | 全部提示及 112 个路由登记、83 个 class 名称覆盖、96 个源码资源摘要 | 15 项门禁故障测试；新增调用方改动也阻断 |
+
 ## 本次修改与检查
 
-- Jakarta Servlet/Validation/Annotation 与 Jackson 3 适配；保持现有 API、日期格式、数据库结构及 Python 服务协议。构建脚本和容器统一为 JDK 17。
+- 修复 Unicode 主机名折叠、重复安全请求头、CORS 通配符/跨域 Cookie 凭据、生产 Redis 明文；四项均保留修复前失败与修复后通过证据。
+- 协议 ASCII 大小写、凭据引用、出站头、JSON 错误、配置文件读取和 Redis 响应边界加固；健康检查只访问有界数字端口的 loopback，禁止代理/跳转。
 - 修复前端 4 条 moderate 告警（2 个独立公告），Vitest 4.1.11、brace-expansion 2.1.7/5.0.12；前端业务代码未改变，单测类型适配已更新。
 - 回调摘要使用常量时间比较；HTTP 传输拒绝非 HTTP(S)、URL 凭据及异常地址；CORS Origin 增加 URI 校验。
 - 完整安全范围、原始提示复核、CI 门禁及限制见 [SECURITY-REVIEW.md](SECURITY-REVIEW.md)。历史 JDK 8 结果见 [历史快照](ACCEPTANCE-JAVA8.md)，不能代替当前版本验证。
 
 ## 当前制品实测结果
 
-- SQLite 和 PostgreSQL 各 89/89，0 失败、0 错误、0 跳过，包含真实隔离 Redis 测试。
+- SQLite 和 PostgreSQL 各 111/111，0 失败、0 错误、0 跳过，包含真实隔离 Redis 测试。
 - Chromium 管理端 13/13、模拟外呼 1/1，全通过无跳过；覆盖菜单点击、表单填写、保存刷新、返回、登录退出和权限异常。
 - 前端 11 项单测、覆盖率门槛、TypeScript/Vite 构建通过；audit 各严重级别为 0。
-- Java 91/91 依赖包 OSV 扫描无公告；80/80 应用 class 完成 SAST，28 项高/中提示复核后门禁通过，143 项低优先级保留；详见安全报告。
+- Java 91/91 依赖包 OSV 扫描无公告；83/83 应用 class 完成 SAST；原始提示 171 → 149，37 项安全观察和 112 项路由信息全部复核登记，未复核项 0；详见安全报告。
 - 最终制品 Python/Java 行为对照 271/271、108 项路由边界和 98 项成功响应内容匹配；真实 Python 规则 Agent/mock 网关跨进程联调 4/4。
 - PostgreSQL 22 个版本升级、重复执行、8 类业务数据摘要、pg_dump/pg_restore 恢复验证通过；全部使用合成历史副本。
-- 门禁本身 9 项故障注入测试通过。所有结果仅覆盖本记录描述的开发环境和用例。
+- CI 暴露的保留 Python Agent 额度检查另补 WAL 启动窗口修复；本机 38/38，双进程精确额度连续 10 轮通过；提交不确定不重放。原 CI 未记录具体阶段，补充诊断后按最新远端结果复核。
+- 门禁本身 15 项故障注入测试通过。所有结果仅覆盖本记录描述的开发环境和用例。
 
 ## 复现
 
@@ -61,7 +74,7 @@ python3 -m unittest discover -s backend-java/scripts -p 'test_security_check.py'
 - 真实旧库和现场自定义结构未验证；必须用真实脱敏副本演练迁移和恢复。
 - 真实 SIP/RTP/WebRTC、录音适配器/对象存储、云模型、短信渠道及真实账单对账未验证。
 - 500 总在途、长稳/突发、跨租户公平性、跨进程接管和进程崩溃恢复未验证。
-- Redis 的 redis:// 明文仅能用于可信隔离网络；跨信任边界应使用 rediss:// 或经验证的加密网络。TLS 目标端点未实测。依赖与静态扫描不等同于渗透测试。
+- 生产 Java 拒绝明文 Redis，须先提供 rediss:// 和 JVM 信任证书。本机可信 TLS、错误主机名、未信任证书、凭据发送前拒绝已实测；真实部署 TLS 端点未验证。依赖与静态扫描不等同于渗透测试。
 - `/readyz` 默认因 `JAVA_RELEASE_ACCEPTED=false` 保持 503；验收标记不能代替实际验收。无部署或生产切换。
 - 正式上线前完成真实数据迁移恢复、目标环境发布、真机与真实通话链路、渠道对账、容量及故障恢复；切换时停止旧核心和 worker，防止双重消费。
 
@@ -69,7 +82,7 @@ python3 -m unittest discover -s backend-java/scripts -p 'test_security_check.py'
 
 | 状态 | 结果 |
 | --- | --- |
-| 源代码已修改 | 是，JDK 17 升级与安全修复 |
+| 源代码已修改 | 是，协议/请求头/CORS/Redis/TLS/配置文件及安全门禁加固 |
 | 静态检查通过 | 本机编译、Git 空白检查、依赖扫描及已说明范围的 SAST 门禁通过 |
 | 开发环境功能测试通过 | 仅实际通过并保存在 validation 的用例范围 |
 | 测试环境已发布 | 否；隔离测试容器不算发布 |
