@@ -29,7 +29,7 @@ public class TelephonyClient {
     private Map<String, Object> route(Map<String, Object> call) {
         Map<String, Object> line = call.get("telephony_line_id") == null ? store.one("telephonyline", "WHERE tenant_id=? AND enabled=? ORDER BY priority,created_at,id LIMIT 1", CallLifecycle.tenant(call), true)
                 : store.require("telephonyline", CallLifecycle.tenant(call), call.get("telephony_line_id"));
-        String provider = line == null ? config.get("TELEPHONY_PROVIDER", "mock").trim().toLowerCase(Locale.ROOT) : line.get("provider").toString().trim().toLowerCase(Locale.ROOT);
+        String provider = line == null ? config.get("TELEPHONY_PROVIDER", "mock").trim().transform(Ascii::lower) : line.get("provider").toString().trim().transform(Ascii::lower);
         String endpoint = line == null ? config.get("TELEPHONY_PROVIDER_ENDPOINT", config.get("SIP_PROVIDER_ENDPOINT", "")) : Objects.toString(line.get("gateway_url"), "");
         String credential = line == null ? "" : Objects.toString(line.get("credential_ref"), "");
         String bearer = line == null || call.get("gateway_node_id") != null ? config.get("TELEPHONY_SERVICE_TOKEN", "") : "";
@@ -37,7 +37,8 @@ public class TelephonyClient {
         if (provider.equals("tenant")) throw new ApiError(503, "no enabled telephony line configured for tenant");
         if (!provider.equals("mock")) Settings.endpoint(endpoint, false);
         if (!credential.trim().isEmpty()) {
-            String ref = credential.trim().replaceAll("[^A-Za-z0-9_]", "_").toUpperCase(Locale.ROOT);
+            if(!credential.trim().matches("[A-Za-z0-9_]{1,128}"))throw new ApiError(422,"invalid credential reference");
+            String ref = Ascii.upper(credential.trim());
             bearer = config.get("TELEPHONY_SECRET_" + ref, "");
             if (bearer.isEmpty()) throw new ApiError(503, "telephony credential reference unavailable");
         }
@@ -77,6 +78,7 @@ public class TelephonyClient {
     private Map<String, Object> request(String endpoint, byte[] body, Map<String, String> headers, int timeoutMs, boolean allowEmpty) {
         HttpURLConnection connection = null;
         try {
+            SecurityHeaders.outbound(headers);
             Settings.endpoint(endpoint, false); // Reject non-HTTP schemes and URL credentials at the transport boundary.
             connection = (HttpURLConnection)new URL(endpoint).openConnection(Proxy.NO_PROXY);
             connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(timeoutMs); connection.setReadTimeout(timeoutMs);

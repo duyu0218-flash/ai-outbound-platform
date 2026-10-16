@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "environment": "local JAR HTTP smoke; Linux container result is a separate CI check",
+  "duplicate_header_cases": 8,
+  "cors_cases": 2,
+  "jar_sha256": "94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc"
+}

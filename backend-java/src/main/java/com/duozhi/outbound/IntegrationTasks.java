@@ -55,7 +55,9 @@ public class IntegrationTasks {
     }
     /** Connect to a resolved address once; preserve original host for TLS checks. */
     int pinnedPost(String endpoint,byte[] body,Map<String,String> headers,int timeout){
-        URI uri=URI.create(endpoint);String origin=Settings.endpoint(endpoint,true);boolean privateAllowed=Arrays.stream(config.get("BUSINESS_CALLBACK_PRIVATE_ORIGINS","").split(",")).filter(v->!v.trim().isEmpty()).map(v->Settings.endpoint(v.trim(),false)).anyMatch(origin::equals);
+        SecurityHeaders.outbound(headers);
+        URI uri=URI.create(endpoint);if(config.production()&&!"https".equals(uri.getScheme()))throw new ApiError(422,"production callbacks require HTTPS");
+        String origin=Settings.endpoint(endpoint,true);boolean privateAllowed=Arrays.stream(config.get("BUSINESS_CALLBACK_PRIVATE_ORIGINS","").split(",")).filter(v->!v.trim().isEmpty()).map(v->Settings.endpoint(v.trim(),false)).anyMatch(origin::equals);
         String host=uri.getHost();int port=uri.getPort()<0?("https".equals(uri.getScheme())?443:80):uri.getPort();
         java.util.concurrent.ExecutorService resolver=java.util.concurrent.Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"callback-dns");t.setDaemon(true);return t;});
         Socket socket=null;
@@ -79,7 +81,7 @@ public class IntegrationTasks {
         Map<String,String> headers=new LinkedHashMap<>();String token=config.get(prefix+"_SERVICE_TOKEN","");if(!token.isEmpty())headers.put("Authorization","Bearer "+token);headers.put("Idempotency-Key",task.get("id").toString());
         TaskWorker.permitted();Map<String,Object> result=client.post(endpoint,json.json(body).getBytes(StandardCharsets.UTF_8),headers,Math.max(1,config.number(prefix+"_TIMEOUT_SEC",30))*1000,delete);
         String uri=Objects.toString(result.get("storage_uri"),""),checksum=Objects.toString(result.get("checksum_sha256"),"");if(delete&&Boolean.FALSE.equals(result.get("deleted"))||!delete&&(uri.isEmpty()||!checksum.isEmpty()&&!checksum.matches("[0-9a-fA-F]{64}")))throw new ApiError(502,"recording adapter did not confirm operation");
-        tx.run(()->{TaskWorker.permitted();Map<String,Object> latest=store.require("recordingasset",tenant,asset.get("id"));if(latest.get("deleted_at")==null)store.update("recordingasset",tenant,asset.get("id"),delete?JsonSupport.map("provider_url","","storage_uri","","provider_recording_id",null,"state","deleted","deleted_at",Store.now()):JsonSupport.map("storage_uri",uri,"checksum_sha256",checksum.toLowerCase(Locale.ROOT),"state","available"));return null;});
+        tx.run(()->{TaskWorker.permitted();Map<String,Object> latest=store.require("recordingasset",tenant,asset.get("id"));if(latest.get("deleted_at")==null)store.update("recordingasset",tenant,asset.get("id"),delete?JsonSupport.map("provider_url","","storage_uri","","provider_recording_id",null,"state","deleted","deleted_at",Store.now()):JsonSupport.map("storage_uri",uri,"checksum_sha256",checksum.transform(Ascii::lower),"state","available"));return null;});
     }
     public Map<String,Object> send(long tenant,String phone,String text){
         return send(tenant,phone,text,null);

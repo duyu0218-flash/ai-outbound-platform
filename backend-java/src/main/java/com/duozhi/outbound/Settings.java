@@ -18,7 +18,7 @@ public class Settings {
         override("capacity","max_concurrent_calls","MAX_CONCURRENT_CALLS");
         for(java.util.Map.Entry<java.lang.String,java.lang.String> entry:Values.<String,String>map("agent_url","AI_AGENT_URL","llm_provider","LLM_PROVIDER","llm_model","OPENAI_MODEL").entrySet())override("ai",entry.getKey(),entry.getValue());
         for(java.util.Map.Entry<java.lang.String,java.lang.String> entry:Values.<String,String>map("provider","SMS_PROVIDER","endpoint","SMS_PROVIDER_ENDPOINT","sender_id","SMS_SENDER_ID").entrySet())override("sms",entry.getKey(),entry.getValue());
-        for(String key:Values.list("recording_retention_days","partial_transcript_retention_hours","final_transcript_retention_days","call_sensitive_data_retention_days"))override("compliance",key,key.toUpperCase());
+        for(String key:Values.list("recording_retention_days","partial_transcript_retention_hours","final_transcript_retention_days","call_sensitive_data_retention_days"))override("compliance",key,key.transform(Ascii::upper));
         override("compliance","allowed_phone_prefixes","OUTBOUND_ALLOWED_PHONE_PREFIXES");override("compliance","max_calls_per_day","OUTBOUND_DAILY_CALL_LIMIT");
     }
     private void override(String section,String key,String env){Object old=defaults.get(section).get(key);defaults.get(section).put(key,old instanceof Number?config.number(env,((Number)old).intValue()):config.get(env,old.toString()));}
@@ -34,7 +34,7 @@ public class Settings {
             if(value.chars().anyMatch(c->c<33||c==127))throw new IllegalArgumentException();
             URI uri=URI.create(value);if(!Values.set("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getFragment()!=null||(!origin&&uri.getQuery()!=null))throw new IllegalArgumentException();
             int port=uri.getPort()<0?(uri.getScheme().equals("https")?443:80):uri.getPort();if(port<1||port>65535)throw new IllegalArgumentException();
-            String host=uri.getHost().toLowerCase().replaceAll("\\.$","");return uri.getScheme()+"://"+host+":"+port+(origin?"":Objects.toString(uri.getPath(),"").replaceAll("/+$",""));
+            String host=uri.getHost().transform(Ascii::lower).replaceAll("\\.$","");return uri.getScheme()+"://"+host+":"+port+(origin?"":Objects.toString(uri.getPath(),"").replaceAll("/+$",""));
         }catch(IllegalArgumentException e){throw new ApiError(422,"invalid service endpoint");}
     }
     public Map<String,Object> validate(String section,Map<String,Object> input){

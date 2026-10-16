@@ -1,12 +1,62 @@
 {
-  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/ControlApplication.java:com.duozhi.outbound.ControlApplication:main:([Ljava/lang/String;)V:11:11:2": {
+  "SERVLET_HEADER:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:approval:(Ljakarta/servlet/http/HttpServletRequest;Z)V:27:27:3": {
+    "source": "com/duozhi/outbound/AdminLines.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "The approval header is not trusted as identity. A bounded singleton ASCII value must match an independent configured secret with constant-time comparison; admin route also requires an authenticated admin user.",
+    "evidence": "SecurityAttackIntegrationTest administratorCannotEnableRealGatewayWithoutIndependentApproval; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/AdminLines.java": "75ffe7b4791d479f9109faeedf96270406a789e3116751c9af944262dd97c33c"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:update:(Ljava/lang/String;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:26:26:3": {
+    "source": "com/duozhi/outbound/AdminSettings.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Capacity/compliance changes on real or production configurations require an independent secret with constant-time comparison. Singleton header validation runs before authentication.",
+    "evidence": "SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; HttpBoundary security filter and existing settings integration",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/AdminSettings.java": "90315f1019c34e7d3eaac7fe2b7b894d353c4b289d6eb5712e0903adb02583a9"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:42:42:3": {
+    "source": "com/duozhi/outbound/Authentication.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Bearer claims are signature/expiry/revocation checked against current user; API keys use constant-time comparison and production scope checks. Duplicate or oversized/non-ASCII credential headers fail before this method.",
+    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:53:53:3": {
+    "source": "com/duozhi/outbound/Authentication.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Bearer claims are signature/expiry/revocation checked against current user; API keys use constant-time comparison and production scope checks. Duplicate or oversized/non-ASCII credential headers fail before this method.",
+    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:29:29:3": {
+    "source": "com/duozhi/outbound/Authentication.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Requested tenant header is only compared to the already authenticated identity; it cannot select a tenant. Singleton validation rejects ambiguity before this filter.",
+    "evidence": "AuthIntegrationTest loginTenantScopeLogoutAndRevocation; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+    }
+  },
+  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/ControlApplication.java:com.duozhi.outbound.ControlApplication:main:([Ljava/lang/String;)V:12:12:2": {
     "source": "com/duozhi/outbound/ControlApplication.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "Healthcheck URL is loopback /readyz; PORT is deployment configuration, not request input. This CLI branch never handles an HTTP request.",
-    "evidence": "java-image container health/readiness smoke",
+    "disposition": "fixed_loopback_destination",
+    "reason": "Health CLI constructs a URI with the literal host 127.0.0.1, a numeric port bounded 1..65535, fixed /readyz path, no proxy and no redirects. Neither args nor PORT can change the destination host/path.",
+    "evidence": "HealthcheckProcessTest actual child JVM numeric-port and redirect rejection",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ControlApplication.java": "5f556656063bf495e5643313fd62e28700ff188b580df4dff72dd3e572e893ec"
+      "src/main/java/com/duozhi/outbound/ControlApplication.java": "0d0aeb28a182e15fd412af30c680392fb309c57e1dc5ab68409cc40a84d882ab"
     }
   },
   "WEAK_MESSAGE_DIGEST_SHA1:com/duozhi/outbound/ConversationPolicy.java:com.duozhi.outbound.ConversationPolicy:uuid5:(Ljava/lang/String;)Ljava/util/UUID;:237:237:2": {
@@ -14,7 +64,7 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "SHA-1 implements deterministic UUID v5 for legacy appointment identities. It is not used for signatures, passwords, authorization or cryptographic integrity. Changing it would break legacy identity compatibility.",
-    "evidence": "ConversationIntegrationTest and Python/Java appointment behavior comparison",
+    "evidence": "ConversationIntegrationTest and Python/Java appointment behavior comparison; StaticSecurityBoundaryTest uuid5RemainsCompatibleWithIndependentPythonReference",
     "sha256": {
       "src/main/java/com/duozhi/outbound/ConversationPolicy.java": "6be16ef928187db6462838452ce6a1d7b2b2c4cd6b1e32988ba3a7edb40423e4"
     }
@@ -56,9 +106,7 @@
     "reason": "Table/column identifiers come from packaged schema SQL, never database row values or HTTP input. The maintenance CLI verifies migration checksums.",
     "evidence": "DatabaseMigrationTest conflicts/rollback plus PostgreSQL backup/restore rehearsal",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2",
-      "src/main/resources/contracts/schema-postgresql.sql": "2c0fa6b467d1d47c9bf904bc635ecd631ce7826c764f7b113becd4221f927170",
-      "src/main/resources/contracts/schema-sqlite.sql": "fc4a51183d74ea06cd323b39f43a65ea1cd7f587d08f47ddc57c1322b6687157"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
     }
   },
   "SQL_INJECTION_JDBC:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:execute:(Ljava/lang/String;)V:53:53:2": {
@@ -68,9 +116,7 @@
     "reason": "Only bundled schema/runtime/versioned migrations reach this private executor. No HTTP or SQL-text command input exists; checksums reject changed migration history.",
     "evidence": "DatabaseMigrationTest and PostgreSQL backup/restore rehearsal",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2",
-      "src/main/resources/migrations/manifest.json": "c57bf2db05f535375f59896410d16ea8be89d8096470b9ebc346cecd4bdd0357",
-      "src/main/resources/migrations/runtime-additions.json": "be90b2752417d02da15a694cf68bb9fb95deed949680e97b19e3f36e3ed3a01b"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
     }
   },
   "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:additive:()V:130:130:2": {
@@ -80,94 +126,117 @@
     "reason": "Dynamic ALTER/INDEX identifiers originate in bundled schema definitions, not request data. Atomic version transactions and conflict detection protect existing data.",
     "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2",
-      "src/main/resources/contracts/schema-postgresql.sql": "2c0fa6b467d1d47c9bf904bc635ecd631ce7826c764f7b113becd4221f927170",
-      "src/main/resources/contracts/schema-sqlite.sql": "fc4a51183d74ea06cd323b39f43a65ea1cd7f587d08f47ddc57c1322b6687157",
-      "src/main/resources/migrations/runtime-additions.json": "be90b2752417d02da15a694cf68bb9fb95deed949680e97b19e3f36e3ed3a01b"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
     }
   },
-  "UNENCRYPTED_SOCKET:com/duozhi/outbound/ExpiringValues.java:com.duozhi.outbound.ExpiringValues:command:(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Object;:28:28:2": {
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:additive:()V:121:121:3": {
+    "source": "com/duozhi/outbound/DatabaseMigration.java",
+    "count": 1,
+    "disposition": "reviewed_not_exploitable_in_current_call_path",
+    "reason": "Dynamic ALTER/INDEX identifiers originate in bundled schema definitions, not request data. Atomic version transactions and conflict detection protect existing data.",
+    "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+    }
+  },
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:apply:()Ljava/util/List;:148:148:3": {
+    "source": "com/duozhi/outbound/DatabaseMigration.java",
+    "count": 1,
+    "disposition": "packaged_sql",
+    "reason": "SQL comes only from bundled schema/runtime/versioned migrations; the maintenance CLI never accepts SQL text or HTTP input. Packaged migration history checksums are verified and versions apply transactionally. The complete runtime source/resource scope is digest-bound.",
+    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+    }
+  },
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:bootstrap:()V:116:116:3": {
+    "source": "com/duozhi/outbound/DatabaseMigration.java",
+    "count": 1,
+    "disposition": "packaged_sql",
+    "reason": "SQL comes only from bundled schema/runtime/versioned migrations; the maintenance CLI never accepts SQL text or HTTP input. Packaged migration history checksums are verified and versions apply transactionally. The complete runtime source/resource scope is digest-bound.",
+    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+    }
+  },
+  "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:names:(Ljava/lang/String;)Ljava/util/Set;:58:58:3": {
+    "source": "com/duozhi/outbound/DatabaseMigration.java",
+    "count": 1,
+    "disposition": "packaged_sql",
+    "reason": "This method selects only one of four literal SQL statements based on dialect and whether table is null. Table lookup data is bound with setString; it cannot become SQL text.",
+    "evidence": "DatabaseMigrationTest on SQLite and PostgreSQL plus backup/migrate/restore rehearsal",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+    }
+  },
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/ExpiringValues.java:com.duozhi.outbound.ExpiringValues:command:(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Object;:35:35:2": {
     "source": "com/duozhi/outbound/ExpiringValues.java",
     "count": 1,
-    "disposition": "accepted_deployment_constraint",
-    "reason": "Deployment-controlled redis:// remains supported for a private trusted network; rediss:// wraps the socket with TLS and HTTPS hostname verification before credentials/data. Accepted deployment constraint: use rediss or an isolated encrypted network across trust boundaries.",
-    "evidence": "StabilityIntegrationTest/OperationsIntegrationTest real isolated Redis; TLS production endpoint not exercised",
+    "disposition": "development_only_plaintext",
+    "reason": "Production rejects redis:// before opening a socket, both at startup and transport entry. rediss:// completes certificate/hostname-verified TLS before AUTH/SELECT/commands. Plaintext exists only for explicitly non-production fixtures. RESP nesting and aggregate bytes are bounded.",
+    "evidence": "RedisTlsSecurityTest trusted TLS, hostname mismatch, untrusted issuer, plaintext pre-connect rejection and malformed response limits; HttpBoundaryTest production configuration",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ExpiringValues.java": "6a17c5951e770ee3fa706fee4c379706f70675d51a33b167c0754f44cef061ab"
+      "src/main/java/com/duozhi/outbound/ExpiringValues.java": "711f692c9a5cbe41508a875f24b7879d377f5cf246b71e5483a5f70bb2032cff"
     }
   },
-  "PATH_TRAVERSAL_IN:com/duozhi/outbound/GatewayCluster.java:com.duozhi.outbound.GatewayCluster:specs:()Ljava/util/List;:27:27:2": {
-    "source": "com/duozhi/outbound/GatewayCluster.java",
-    "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "File path comes only from deployment environment VOICE_GATEWAY_NODES_FILE; request bodies cannot choose this path.",
-    "evidence": "GatewayIntegrationTest node approval and address changes",
-    "sha256": {
-      "src/main/java/com/duozhi/outbound/GatewayCluster.java": "4141ed51d53ad0aa3937de30f3794f606775db4c743e67a644578d0f4d00e13e"
-    }
-  },
-  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:38:38:2": {
+  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:40:40:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "X-Request-ID must match a bounded ASCII regex. Origins pass URI validation and exact configured allowlist; development wildcard is disabled and rejected in production.",
-    "evidence": "HttpBoundaryTest and SecurityRegressionTest malformedOriginsCannotReachResponseHeadersEvenInDevelopment",
+    "disposition": "validated_header",
+    "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "518c62a440e3778e7fd86fbd0956cebc1dbdad15abe242331a98b30564c24e2e",
-      "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
     }
   },
-  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:35:35:2": {
+  "PERMISSIVE_CORS:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:43:43:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "X-Request-ID must match a bounded ASCII regex. Origins pass URI validation and exact configured allowlist; development wildcard is disabled and rejected in production.",
-    "evidence": "HttpBoundaryTest and SecurityRegressionTest malformedOriginsCannotReachResponseHeadersEvenInDevelopment",
+    "disposition": "validated_header",
+    "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "518c62a440e3778e7fd86fbd0956cebc1dbdad15abe242331a98b30564c24e2e",
-      "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
     }
   },
-  "PERMISSIVE_CORS:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:38:38:2": {
+  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:40:40:3": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "X-Request-ID must match a bounded ASCII regex. Origins pass URI validation and exact configured allowlist; development wildcard is disabled and rejected in production.",
-    "evidence": "HttpBoundaryTest and SecurityRegressionTest malformedOriginsCannotReachResponseHeadersEvenInDevelopment",
+    "disposition": "validated_header",
+    "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "518c62a440e3778e7fd86fbd0956cebc1dbdad15abe242331a98b30564c24e2e",
-      "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
     }
   },
-  "XSS_SERVLET:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:reject:(Ljakarta/servlet/http/HttpServletResponse;ILjava/lang/String;)V:25:25:2": {
+  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:42:42:3": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "All callers pass fixed literal messages; response content type is application/json, never HTML, and no request text is concatenated.",
-    "evidence": "HttpBoundaryTest host/rate/concurrency rejection",
+    "disposition": "validated_header",
+    "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "518c62a440e3778e7fd86fbd0956cebc1dbdad15abe242331a98b30564c24e2e"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
     }
   },
-  "UNENCRYPTED_SOCKET:com/duozhi/outbound/IntegrationTasks.java:com.duozhi.outbound.IntegrationTasks:pinnedPost:(Ljava/lang/String;[BLjava/util/Map;I)I:65:65:2": {
+  "SERVLET_SERVER_NAME:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:41:41:3": {
+    "source": "com/duozhi/outbound/HttpBoundary.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+    }
+  },
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/IntegrationTasks.java:com.duozhi.outbound.IntegrationTasks:pinnedPost:(Ljava/lang/String;[BLjava/util/Map;I)I:67:67:2": {
     "source": "com/duozhi/outbound/IntegrationTasks.java",
     "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "Business callback destination must match a platform origin, resolved addresses are filtered and pinned; HTTPS wraps the socket and verifies hostname before payload. Production requires HTTPS. Cleartext HTTP is a non-production test option.",
-    "evidence": "CallbackTransportTest DNS/address and transport boundaries",
+    "disposition": "verified_tls_transport",
+    "reason": "Production transport itself rejects HTTP, even if its caller bypasses settings validation. DNS addresses are pinned and filtered unless the exact private origin was registered; TLS validates the original host before headers/body. HTTP is development-only. Header names/values/framing overrides are validated before DNS/connect.",
+    "evidence": "CallbackTransportTest; StaticSecurityBoundaryTest productionCallbackTransportRejectsHttpEvenIfValidationWasBypassed and outboundHeaderInjectionAndFramingOverridesAreRejectedBeforeConnecting; RedisTlsSecurityTest httpsCallbackRejectsUntrustedCertificateBeforeSendingPayload",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/IntegrationTasks.java": "9c2431a5892039a7d9cacc3eb114624c28b1543226f91f1388c752af546ffa7d",
-      "src/main/java/com/duozhi/outbound/Settings.java": "841de1bc69381136d70b2092e620ff3201a1510d660af93a945cbbebc9b57854"
-    }
-  },
-  "PATH_TRAVERSAL_IN:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:authorize:(Ljava/lang/String;)V:14:14:2": {
-    "source": "com/duozhi/outbound/OperationalMetrics.java",
-    "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "Metrics token file path is deployment-only METRICS_TOKEN_FILE, not a request parameter; token comparison is constant-time.",
-    "evidence": "OperationsIntegrationTest metrics unauthorized/authorized boundary",
-    "sha256": {
-      "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "bb2c990de66f9a415080f80b71066ffd99bf4b8ea7932262029807e62ddc76b9"
+      "src/main/java/com/duozhi/outbound/IntegrationTasks.java": "c39a4bf09af888eb3c7d7ae217441958390dbf8c74e71c754593f9904837d783"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:23:23:2": {
@@ -177,7 +246,7 @@
     "reason": "Identifier pairs come from a literal table/column array. No request-controlled SQL fragments reach JDBC.",
     "evidence": "OperationsIntegrationTest metrics contents and authorization",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "bb2c990de66f9a415080f80b71066ffd99bf4b8ea7932262029807e62ddc76b9"
+      "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "777d90f3e6d9f103fb7e38ea7879c1341562c9beb6948145c16c6b68ab5be8b6"
     }
   },
   "PATH_TRAVERSAL_IN:com/duozhi/outbound/Pages.java:com.duozhi.outbound.Pages:index:()Lorg/springframework/http/ResponseEntity;:16:16:2": {
@@ -200,16 +269,6 @@
       "src/main/java/com/duozhi/outbound/ProductOperations.java": "c792e292aa7b9206a80fbe8e4772a5c484f7a1a0da50dbd4ed8e195988d4b65f"
     }
   },
-  "PATH_TRAVERSAL_IN:com/duozhi/outbound/ProductionConfiguration.java:com.duozhi.outbound.ProductionConfiguration:validate:(Lcom/duozhi/outbound/Config;)V:34:34:2": {
-    "source": "com/duozhi/outbound/ProductionConfiguration.java",
-    "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "Metrics token file path comes from deployment configuration only. Invalid/read failures reject startup; HTTP clients cannot set it.",
-    "evidence": "HttpBoundaryTest production configuration requirements",
-    "sha256": {
-      "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
-    }
-  },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:count:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)J:56:56:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
@@ -217,8 +276,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:delete:(Ljava/lang/String;JLjava/lang/Object;)V:81:81:2": {
@@ -228,8 +286,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:insert:(Ljava/lang/String;Ljava/util/Map;)Ljava/util/Map;:64:64:2": {
@@ -239,8 +296,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:list:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:43:43:2": {
@@ -250,8 +306,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:update:(Ljava/lang/String;JLjava/lang/Object;Ljava/util/Map;)Ljava/util/Map;:77:77:2": {
@@ -261,8 +316,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:updateInternal:(Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)V:90:90:2": {
@@ -272,8 +326,7 @@
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
     "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
-      "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
+      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/SystemOverview.java:com.duozhi.outbound.SystemOverview:counts:(Ljava/lang/String;Ljava/lang/String;J)Ljava/util/Map;:20:20:2": {
@@ -283,20 +336,37 @@
     "reason": "Private helper receives only literal table/column pairs from overview; tenant is bound and cannot change identifiers.",
     "evidence": "OperationsIntegrationTest system overview and tenant isolation",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/SystemOverview.java": "48952795407c94f2da3dd94db27971acb93562fc7d1edb24aa1c3b97f6ac0a37"
+      "src/main/java/com/duozhi/outbound/SystemOverview.java": "0eea2e77224b4859550a1ffa664cd758ade91383fcdfa72edf457ec2b660768b"
     }
   },
-  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/TelephonyClient.java:com.duozhi.outbound.TelephonyClient:request:(Ljava/lang/String;[BLjava/util/Map;IZ)Ljava/util/Map;:81:81:2": {
+  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/TelephonyClient.java:com.duozhi.outbound.TelephonyClient:request:(Ljava/lang/String;[BLjava/util/Map;IZ)Ljava/util/Map;:83:83:2": {
     "source": "com/duozhi/outbound/TelephonyClient.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Shared transport accepts HTTP(S), rejects credentials/control characters/fragments/query and disables redirects. Callers use platform-controlled AI/SMS/recording endpoints or separately security-approved gateway endpoints. User-configurable business callbacks use pinnedPost instead. Internal private addresses are intentional, not a general-purpose URL fetch feature.",
     "evidence": "SecurityRegressionTest transport schemes; GatewayIntegrationTest approval; retained Python service smoke",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/TelephonyClient.java": "e59a168041c500334c9245bf659a47dafbb08fc6700fa47bb90be534d77d07a0",
-      "src/main/java/com/duozhi/outbound/Settings.java": "841de1bc69381136d70b2092e620ff3201a1510d660af93a945cbbebc9b57854",
-      "src/main/java/com/duozhi/outbound/AdminLines.java": "7d57381c649ef46891ed5cfc15c31dec7252922e9278348a9042466ebdafb496",
-      "src/main/java/com/duozhi/outbound/GatewayCluster.java": "4141ed51d53ad0aa3937de30f3794f606775db4c743e67a644578d0f4d00e13e"
+      "src/main/java/com/duozhi/outbound/TelephonyClient.java": "f47998458829411fcc1f333bfe710d20ba94e08e4950475403256c13ca138598"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:verify:([BLjakarta/servlet/http/HttpServletRequest;Z)V:26:26:3": {
+    "source": "com/duozhi/outbound/Webhooks.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Header values alone cannot authenticate callbacks. Production requires configured token and HMAC secret; timestamp age and HMAC over the exact body are checked with constant-time comparison. Singleton header validation blocks duplicate credentials. Unsigned mode is development-only.",
+    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Webhooks.java": "b92c306c069393d15e5cfdb6a0d12180d4c681374282665401d52277d44a7593"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:verify:([BLjakarta/servlet/http/HttpServletRequest;Z)V:28:28:3": {
+    "source": "com/duozhi/outbound/Webhooks.java",
+    "count": 1,
+    "disposition": "validated_header",
+    "reason": "Header values alone cannot authenticate callbacks. Production requires configured token and HMAC secret; timestamp age and HMAC over the exact body are checked with constant-time comparison. Singleton header validation blocks duplicate credentials. Unsigned mode is development-only.",
+    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Webhooks.java": "b92c306c069393d15e5cfdb6a0d12180d4c681374282665401d52277d44a7593"
     }
   }
 }
