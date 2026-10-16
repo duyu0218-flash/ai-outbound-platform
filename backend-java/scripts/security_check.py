@@ -12,6 +12,18 @@ import sys
 import xml.etree.ElementTree as ET
 
 
+def finding_key(finding):
+    # SpotBugs instanceHash includes taint-source ordering, which differs between
+    # macOS and Linux JDKs. Bind the exact method/source location instead, plus
+    # full source SHA-256 and occurrence count below; never just the detector type.
+    source = finding.find('SourceLine')
+    method = finding.find('Method')
+    return ':'.join([finding.get('type'), source.attrib['sourcepath'],
+                     method.attrib['classname'], method.attrib['name'],
+                     method.attrib['signature'], source.attrib['start'],
+                     source.attrib['end'], finding.attrib['priority']])
+
+
 def evaluate(module):
     target = module / 'target'
     bom = json.loads((target / 'java-dependencies.cdx.json').read_text())
@@ -45,7 +57,7 @@ def evaluate(module):
     for finding in findings:
         if int(finding.get('priority')) > 2:
             continue
-        key = finding.get('type') + ':' + finding.get('instanceHash')
+        key = finding_key(finding)
         counts[key] += 1
         review = reviews.get(key)
         if not review or not review.get('reason') or not review.get('evidence'):

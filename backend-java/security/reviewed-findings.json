@@ -1,5 +1,5 @@
 {
-  "URLCONNECTION_SSRF_FD:f987be67e697beb6ac9f38d2a5bd7279": {
+  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/ControlApplication.java:com.duozhi.outbound.ControlApplication:main:([Ljava/lang/String;)V:11:11:2": {
     "source": "com/duozhi/outbound/ControlApplication.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -9,7 +9,7 @@
       "src/main/java/com/duozhi/outbound/ControlApplication.java": "5f556656063bf495e5643313fd62e28700ff188b580df4dff72dd3e572e893ec"
     }
   },
-  "WEAK_MESSAGE_DIGEST_SHA1:439aa88993ad9c6d47e9b8fbfaad72d5": {
+  "WEAK_MESSAGE_DIGEST_SHA1:com/duozhi/outbound/ConversationPolicy.java:com.duozhi.outbound.ConversationPolicy:uuid5:(Ljava/lang/String;)Ljava/util/UUID;:237:237:2": {
     "source": "com/duozhi/outbound/ConversationPolicy.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -19,7 +19,7 @@
       "src/main/java/com/duozhi/outbound/ConversationPolicy.java": "6be16ef928187db6462838452ce6a1d7b2b2c4cd6b1e32988ba3a7edb40423e4"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:7a01e665e68548875d822f7af58db222": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:21:21:2": {
     "source": "com/duozhi/outbound/Dashboard.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -29,7 +29,7 @@
       "src/main/java/com/duozhi/outbound/Dashboard.java": "3b3dce92908c8ce3d5588a7d161bc31e8282dc37d113ea5746ced39e9443291b"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:fceacbf2af8373eb360dccda03bacf91": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:27:27:2": {
     "source": "com/duozhi/outbound/Dashboard.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -39,7 +39,7 @@
       "src/main/java/com/duozhi/outbound/Dashboard.java": "3b3dce92908c8ce3d5588a7d161bc31e8282dc37d113ea5746ced39e9443291b"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:f46086a21bd352d7c1d8ad210eb4f7b7": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/DataRetention.java:com.duozhi.outbound.DataRetention:archive:(I)I:74:74:2": {
     "source": "com/duozhi/outbound/DataRetention.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -49,7 +49,7 @@
       "src/main/java/com/duozhi/outbound/DataRetention.java": "554f44913e4cf74e34dc7f878a6308c6dd6cedaf8cf2530c5369c6fe33b2c5df"
     }
   },
-  "SQL_INJECTION_JDBC:9a2a0b43d05277a81ed9c1a07e48ae12": {
+  "SQL_INJECTION_JDBC:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:conflicts:()Ljava/util/List;:89:89:2": {
     "source": "com/duozhi/outbound/DatabaseMigration.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -61,7 +61,7 @@
       "src/main/resources/contracts/schema-sqlite.sql": "fc4a51183d74ea06cd323b39f43a65ea1cd7f587d08f47ddc57c1322b6687157"
     }
   },
-  "SQL_INJECTION_JDBC:c975ab1026cfe82aaac489ba4453fbf4": {
+  "SQL_INJECTION_JDBC:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:execute:(Ljava/lang/String;)V:53:53:2": {
     "source": "com/duozhi/outbound/DatabaseMigration.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -73,7 +73,7 @@
       "src/main/resources/migrations/runtime-additions.json": "be90b2752417d02da15a694cf68bb9fb95deed949680e97b19e3f36e3ed3a01b"
     }
   },
-  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:58b72e0bd136a57b48b13f3e6d5e0f5a": {
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:additive:()V:130:130:2": {
     "source": "com/duozhi/outbound/DatabaseMigration.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -86,7 +86,7 @@
       "src/main/resources/migrations/runtime-additions.json": "be90b2752417d02da15a694cf68bb9fb95deed949680e97b19e3f36e3ed3a01b"
     }
   },
-  "UNENCRYPTED_SOCKET:4d18b4f4e0d36ca201cbf0aee6d1ddfe": {
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/ExpiringValues.java:com.duozhi.outbound.ExpiringValues:command:(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Object;:28:28:2": {
     "source": "com/duozhi/outbound/ExpiringValues.java",
     "count": 1,
     "disposition": "accepted_deployment_constraint",
@@ -96,7 +96,7 @@
       "src/main/java/com/duozhi/outbound/ExpiringValues.java": "6a17c5951e770ee3fa706fee4c379706f70675d51a33b167c0754f44cef061ab"
     }
   },
-  "PATH_TRAVERSAL_IN:52de06fd85259601c2de9665566f7acd": {
+  "PATH_TRAVERSAL_IN:com/duozhi/outbound/GatewayCluster.java:com.duozhi.outbound.GatewayCluster:specs:()Ljava/util/List;:27:27:2": {
     "source": "com/duozhi/outbound/GatewayCluster.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -106,7 +106,7 @@
       "src/main/java/com/duozhi/outbound/GatewayCluster.java": "4141ed51d53ad0aa3937de30f3794f606775db4c743e67a644578d0f4d00e13e"
     }
   },
-  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:acd3bfae12559b330191e9b88b87b85f": {
+  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:38:38:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -117,7 +117,7 @@
       "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
     }
   },
-  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:c221380c730e9a95e483dbde201e96b6": {
+  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:35:35:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -128,7 +128,7 @@
       "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
     }
   },
-  "PERMISSIVE_CORS:67d944cac72092b9c08766149a96dac7": {
+  "PERMISSIVE_CORS:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:38:38:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -139,7 +139,7 @@
       "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
     }
   },
-  "XSS_SERVLET:68d2bc9ebd261ffba70f6e63debc9669": {
+  "XSS_SERVLET:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:reject:(Ljakarta/servlet/http/HttpServletResponse;ILjava/lang/String;)V:25:25:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -149,7 +149,7 @@
       "src/main/java/com/duozhi/outbound/HttpBoundary.java": "518c62a440e3778e7fd86fbd0956cebc1dbdad15abe242331a98b30564c24e2e"
     }
   },
-  "UNENCRYPTED_SOCKET:bab02366ee6c2e3a0285387d1cac5be1": {
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/IntegrationTasks.java:com.duozhi.outbound.IntegrationTasks:pinnedPost:(Ljava/lang/String;[BLjava/util/Map;I)I:65:65:2": {
     "source": "com/duozhi/outbound/IntegrationTasks.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -160,7 +160,7 @@
       "src/main/java/com/duozhi/outbound/Settings.java": "841de1bc69381136d70b2092e620ff3201a1510d660af93a945cbbebc9b57854"
     }
   },
-  "PATH_TRAVERSAL_IN:c678d0f9e60a4aeeaa0634e60a6c6d1e": {
+  "PATH_TRAVERSAL_IN:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:authorize:(Ljava/lang/String;)V:14:14:2": {
     "source": "com/duozhi/outbound/OperationalMetrics.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -170,7 +170,7 @@
       "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "bb2c990de66f9a415080f80b71066ffd99bf4b8ea7932262029807e62ddc76b9"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:fd3d28a16e4f199d6f4e9c3d14afc904": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:23:23:2": {
     "source": "com/duozhi/outbound/OperationalMetrics.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -180,7 +180,7 @@
       "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "bb2c990de66f9a415080f80b71066ffd99bf4b8ea7932262029807e62ddc76b9"
     }
   },
-  "PATH_TRAVERSAL_IN:9f0abff1f6c329aafb54898de5074125": {
+  "PATH_TRAVERSAL_IN:com/duozhi/outbound/Pages.java:com.duozhi.outbound.Pages:index:()Lorg/springframework/http/ResponseEntity;:16:16:2": {
     "source": "com/duozhi/outbound/Pages.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -190,7 +190,7 @@
       "src/main/java/com/duozhi/outbound/Pages.java": "2030f58c4ac1e6560acf98c0d94045f2f99f581a4472fe63c819c2f628fdac1f"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:205342120729186331d6cfe07770f412": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:funnel:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:61:61:2": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -200,7 +200,7 @@
       "src/main/java/com/duozhi/outbound/ProductOperations.java": "c792e292aa7b9206a80fbe8e4772a5c484f7a1a0da50dbd4ed8e195988d4b65f"
     }
   },
-  "PATH_TRAVERSAL_IN:4eb8b126bac659669db437dfb0aeea73": {
+  "PATH_TRAVERSAL_IN:com/duozhi/outbound/ProductionConfiguration.java:com.duozhi.outbound.ProductionConfiguration:validate:(Lcom/duozhi/outbound/Config;)V:34:34:2": {
     "source": "com/duozhi/outbound/ProductionConfiguration.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -210,7 +210,7 @@
       "src/main/java/com/duozhi/outbound/ProductionConfiguration.java": "0d0216fc3ed93f2a9df91d4eeffbb5c77399eed3016be09c0b4d4d1360785359"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:8c66d8fc81f25da101b7b57b79277535": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:count:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)J:56:56:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -221,7 +221,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:83b2156cd9720addb5543dcf9c6ca075": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:delete:(Ljava/lang/String;JLjava/lang/Object;)V:81:81:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -232,7 +232,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:2c08291ad96cb6994adc3d6b27a2cbd2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:insert:(Ljava/lang/String;Ljava/util/Map;)Ljava/util/Map;:64:64:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -243,7 +243,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:486197d507645dd48349d392966b664e": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:list:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:43:43:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -254,7 +254,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:c59cf28e4e5bab2aa0a9165bfefd5029": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:update:(Ljava/lang/String;JLjava/lang/Object;Ljava/util/Map;)Ljava/util/Map;:77:77:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -265,7 +265,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:b8356ad50e157a936bd66a80100549b1": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:updateInternal:(Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)V:90:90:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -276,7 +276,7 @@
       "src/main/resources/contracts/tables.json": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:368722bba9cf740e545d9ff6a97b47a6": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/SystemOverview.java:com.duozhi.outbound.SystemOverview:counts:(Ljava/lang/String;Ljava/lang/String;J)Ljava/util/Map;:20:20:2": {
     "source": "com/duozhi/outbound/SystemOverview.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
@@ -286,7 +286,7 @@
       "src/main/java/com/duozhi/outbound/SystemOverview.java": "48952795407c94f2da3dd94db27971acb93562fc7d1edb24aa1c3b97f6ac0a37"
     }
   },
-  "URLCONNECTION_SSRF_FD:8c801272e7229a73f967f0afc27326f0": {
+  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/TelephonyClient.java:com.duozhi.outbound.TelephonyClient:request:(Ljava/lang/String;[BLjava/util/Map;IZ)Ljava/util/Map;:81:81:2": {
     "source": "com/duozhi/outbound/TelephonyClient.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",

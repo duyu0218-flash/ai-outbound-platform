@@ -36,6 +36,7 @@
   "osv_scanner": "2.7.0",
   "spotbugs_plugin": "4.10.5.0",
   "findsecbugs": "1.14.0",
-  "security_gate_tests": 8,
-  "jar_sha256": "8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8"
+  "security_gate_tests": 9,
+  "jar_sha256": "8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8",
+  "cross_platform_gate": "passed against original macOS and Linux reports; exact source location, digest and count bound"
 }

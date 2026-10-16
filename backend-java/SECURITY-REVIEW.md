@@ -23,7 +23,7 @@ Java 曾尝试保留 JDK 8 更新兼容依赖，公告从 104 降到 28，剩余
 
 工具固定为 CycloneDX Maven 2.9.3、OSV Scanner 2.7.0、SpotBugs Maven 4.10.5.0、FindSecBugs 1.14.0。OSV 可执行文件下载后校验官方 SHA-256。SBOM 包含运行和测试依赖；不含 JDK/操作系统镜像的完整供应链扫描。
 
-FindSecBugs 实际分析 80/80 个应用 class，无分析错误或缺失类。原始结果 171 条：高优先级 0，中优先级 28，低优先级 143。**这不是 171 个已确认漏洞，也不声明静态分析零提示。** 28 条高/中优先级提示逐项记录在 `security/reviewed-findings.json`，保存检测器指纹、出现次数、源文件 SHA-256、判断依据和验证证据。
+FindSecBugs 实际分析 80/80 个应用 class，无分析错误或缺失类。原始结果 171 条：高优先级 0，中优先级 28，低优先级 143。**这不是 171 个已确认漏洞，也不声明静态分析零提示。** 28 条高/中优先级提示逐项记录在 `security/reviewed-findings.json`，保存检测器/方法/源码位置指纹、出现次数、源文件 SHA-256、判断依据和验证证据。
 
 | 提示类型 | 复核结果与边界 |
 | --- | --- |
@@ -38,7 +38,7 @@ FindSecBugs 实际分析 80/80 个应用 class，无分析错误或缺失类。�
 
 ## CI 和证据
 
-`java-security` 执行 `scripts/security-check.sh`。任何依赖漏洞、包扫描覆盖不全、静态分析缺类/错误、未复核高/中提示或过期复核都会失败；网络或解析失败不能变成绿灯。8 项门禁测试实际验证漏洞、遗漏包、遗漏 class、未知提示、源代码变更、数量变化、过期复核和坏报告的阻断行为。
+`java-security` 执行 `scripts/security-check.sh`。任何依赖漏洞、包扫描覆盖不全、静态分析缺类/错误、未复核高/中提示或过期复核都会失败；网络或解析失败不能变成绿灯。9 项门禁测试实际验证漏洞、遗漏包、遗漏 class、未知提示、源代码变更、数量变化、过期复核和坏报告的阻断行为，并验证跨平台污点来源排序变化不会影响同一源码位置的复核。
 
 CI 无论成功失败都会上传 `java-dependencies.cdx.json`、`osv.json`、`spotbugsXml.xml`、`security-summary.json`。前端审计门槛从 high 收紧到 low。双库 JDK 17 测试和 Java 容器烟测为独立检查。当前本地摘要见 `validation/java-security.json`、`validation/frontend-security.json`、双库测试和行为对照 JSON；远端是否通过必须以对应提交的运行记录为准。
 
