@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import { renewRegistration } from './renew-registration'
 import type { WebRtcSessionConfig } from './types'
 
@@ -23,7 +23,7 @@ describe('SIP credential renewal', () => {
     expect(phone.disconnect).not.toHaveBeenCalled()
   })
   it('does not revive a phone removed while renewal was in flight', async () => {
-    let current: { config: WebRtcSessionConfig; phone: { register: ReturnType<typeof vi.fn> } | null } = { config, phone: { register: vi.fn() } }
+    let current: { config: WebRtcSessionConfig; phone: { register: Mock<() => Promise<void>> } | null } = { config, phone: { register: vi.fn<() => Promise<void>>() } }
     const oldPhone = current.phone!
     await renewRegistration(async () => { current = { config, phone: null }; return config }, () => current)
     expect(oldPhone.register).not.toHaveBeenCalled()

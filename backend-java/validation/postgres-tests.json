@@ -1,10 +1,10 @@
 {
-  "tests": 82,
+  "tests": 89,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
-  "environment": "JDK8 PostgreSQL16 plus isolated Redis7",
-  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7",
+  "environment": "JDK17 PostgreSQL16 plus isolated Redis7",
+  "jar_sha256": "8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8",
   "suites": [
     {
       "name": "com.duozhi.outbound.AdminIntegrationTest",
@@ -93,6 +93,13 @@
     {
       "name": "com.duozhi.outbound.RetentionIntegrationTest",
       "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.duozhi.outbound.SecurityRegressionTest",
+      "tests": "7",
       "failures": "0",
       "errors": "0",
       "skipped": "0"

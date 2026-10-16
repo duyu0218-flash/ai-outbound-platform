@@ -1,6 +1,6 @@
 ARG NODE_BASE_IMAGE=node:22-alpine
-ARG JAVA_BUILD_IMAGE=maven:3.9.11-eclipse-temurin-8
-ARG JAVA_RUNTIME_IMAGE=eclipse-temurin:8-jre-jammy
+ARG JAVA_BUILD_IMAGE=maven:3.9.11-eclipse-temurin-17
+ARG JAVA_RUNTIME_IMAGE=eclipse-temurin:17-jre-jammy
 FROM ${NODE_BASE_IMAGE} AS frontend-builder
 WORKDIR /workspace
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml /workspace/frontend/

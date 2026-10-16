@@ -1,9 +1,32 @@
 {
+  "date": "2026-10-16",
   "unit_tests_passed": 11,
   "coverage_gate": "passed",
   "build": "passed",
-  "audit_high_critical": 0,
-  "audit_moderate": 4,
-  "browser_recheck": "12 management and 1 dispatch passed; appointment fixture rerun passed separately (1/1)",
-  "business_source_changed": false
+  "before": {
+    "info": 0,
+    "low": 0,
+    "moderate": 4,
+    "high": 0,
+    "critical": 0
+  },
+  "after": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0
+  },
+  "fixed_advisories": [
+    "GHSA-82fw-gwwq-j7x9",
+    "GHSA-q2hr-2g5m-vwhr"
+  ],
+  "vitest": "4.1.11",
+  "brace_expansion_overrides": [
+    "2.1.7",
+    "5.0.12"
+  ],
+  "business_source_changed": false,
+  "browser_recheck": "14/14 passed, 0 skipped against final JDK17 artifact",
+  "java_browser_report": "java17-browser.json"
 }

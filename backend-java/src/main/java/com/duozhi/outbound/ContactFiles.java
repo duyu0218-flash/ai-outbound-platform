@@ -4,7 +4,7 @@ import java.util.*;
 import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.ResponseEntity;

@@ -21,7 +21,7 @@ try:
  before=snap(db)
  backup=command(base+['pg_dump','-U','postgres','-Fc',db]);sha=hashlib.sha256(backup).hexdigest()
  env=dict(os.environ,JAVA_DATABASE_URL='jdbc:postgresql://127.0.0.1:18545/'+db,DATABASE_USER='postgres',DATABASE_PASSWORD='isolated-java-test-password')
- java=str(root/'.tools/zulu8.96.0.205-ca-jdk8.0.504-macosx_aarch64/Contents/Home/bin/java');jar=str(root/'backend-java/target/outbound-control-0.1.0-SNAPSHOT.jar')
+ java=str(Path(os.environ['JAVA_HOME'])/'bin/java');jar=str(root/'backend-java/target/outbound-control-0.1.0-SNAPSHOT.jar')
  def migrate(mode):return json.loads(command([java,'-jar',jar,'--database-migration='+mode],env=env))
  plan=migrate('plan');assert plan['writes'] is False;assert before==snap(db)
  applied=migrate('apply');assert len(applied['applied'])==22;assert before==snap(db)
