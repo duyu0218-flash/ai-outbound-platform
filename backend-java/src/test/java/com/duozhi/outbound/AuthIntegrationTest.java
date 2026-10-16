@@ -26,6 +26,8 @@ class AuthIntegrationTest {
     }
     @Test void loginTenantScopeLogoutAndRevocation() throws Exception {
         String token=login("admin","12345678");
+        long remaining=((Number)crypto.claims(token).get("exp")).longValue()-java.time.Instant.now().getEpochSecond();
+        assertTrue(remaining>=43195&&remaining<=43200,"baseline JWT lifetime is twelve hours");
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin")).andExpect(jsonPath("$.password_hash").doesNotExist());
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token).header("x-tenant-id","2")).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/auth/logout").header("Authorization","Bearer "+token)).andExpect(status().isOk());
@@ -37,6 +39,8 @@ class AuthIntegrationTest {
         java.util.Map<java.lang.String,java.lang.Object> user=store.one("user","WHERE username=?","lockout");
         assertEquals(5,((Number)user.get("failed_login_attempts")).intValue());
         assertNotNull(user.get("locked_until"));
+        long lockSeconds=java.time.Duration.between(Store.now(),java.time.LocalDateTime.parse(user.get("locked_until").toString())).getSeconds();
+        assertTrue(lockSeconds>=895&&lockSeconds<=900,"baseline lockout is fifteen minutes");
         mvc.perform(post("/api/v1/auth/login").contentType("application/json").content("{\"username\":\"lockout\",\"password\":\"test-pass\"}")).andExpect(status().isUnauthorized());
     }
     @Test void roleAndPresenceAndInvalidToken() throws Exception {

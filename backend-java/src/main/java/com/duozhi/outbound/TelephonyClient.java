@@ -63,7 +63,7 @@ public class TelephonyClient {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("x-voice-timestamp", stamp); headers.put("x-voice-nonce", nonce); headers.put("x-voice-signature", signature);
         if (!route.get("bearer").toString().isEmpty()) headers.put("Authorization", "Bearer " + route.get("bearer"));
-        return post(route.get("endpoint") + path, body, headers, Math.max(1, config.number("TELEPHONY_TIMEOUT_SEC", 10)) * 1000);
+        return post(route.get("endpoint") + path, body, headers, Math.max(1, config.number("TELEPHONY_TIMEOUT_SEC", 8)) * 1000);
     }
     public Map<String, Object> post(String endpoint, byte[] body, Map<String, String> headers, int timeoutMs) {
         return post(endpoint, body, headers, timeoutMs, false);

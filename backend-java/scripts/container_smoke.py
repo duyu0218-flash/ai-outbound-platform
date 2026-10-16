@@ -1,5 +1,6 @@
 """CI-only loopback smoke against a disposable Java mock container."""
 import json
+import http.client
 import time
 import urllib.request
 import urllib.error
@@ -17,7 +18,7 @@ for attempt in range(60):
     try:
         token = request('/api/v1/auth/login', {'username':'admin','password':'12345678'})['access_token']
         break
-    except (urllib.error.URLError, KeyError):
+    except (OSError, http.client.HTTPException, KeyError):
         if attempt == 59: raise
         time.sleep(1)
 with urllib.request.urlopen(BASE+'/admin/login') as page:

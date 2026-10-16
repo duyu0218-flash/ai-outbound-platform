@@ -66,7 +66,7 @@ public class Crypto {
     public String token(Map<String, Object> user) {
         try {
             java.util.Map<java.lang.String,java.lang.Object> claims = Values.map("sub", user.get("username"), "uid", user.get("id"), "tenant_id", user.get("tenant_id"),
-                    "role", user.get("role"), "tv", user.get("token_version"), "exp", Instant.now().getEpochSecond() + config.number("JWT_TTL_SECONDS", 3600));
+                    "role", user.get("role"), "tv", user.get("token_version"), "exp", Instant.now().getEpochSecond() + config.number("JWT_TTL_SECONDS", 43200));
             String body = URL.encodeToString(mapper.writeValueAsBytes(Values.map("alg", "HS256", "typ", "JWT"))) + "." + URL.encodeToString(mapper.writeValueAsBytes(claims));
             return body + "." + URL.encodeToString(sign(body));
         } catch (Exception e) { throw new IllegalStateException("token signing failed", e); }

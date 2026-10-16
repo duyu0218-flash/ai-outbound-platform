@@ -89,7 +89,7 @@ public class IntegrationTasks {
         if("mock".equals(sms.get("provider")))return JsonSupport.map("state","sent_mock");
         String endpoint=config.get("SMS_PROVIDER_ENDPOINT","");Settings.endpoint(endpoint,false);TaskWorker.permitted();
         Map<String,String> headers=new LinkedHashMap<>(Values.map("Authorization","Bearer "+config.get("SMS_API_KEY","")));if(deliveryId!=null)headers.put("Idempotency-Key",deliveryId);
-        return client.post(endpoint.replaceAll("/+$","")+"/v1/sms/send",json.json(JsonSupport.map("to",phone,"text",text,"from",sms.get("sender_id"),"sender_id",sms.get("sender_id"),"callback_url",config.get("SMS_CALLBACK_URL",""))).getBytes(StandardCharsets.UTF_8),headers,config.number("TELEPHONY_TIMEOUT_SEC",10)*1000);
+        return client.post(endpoint.replaceAll("/+$","")+"/v1/sms/send",json.json(JsonSupport.map("to",phone,"text",text,"from",sms.get("sender_id"),"sender_id",sms.get("sender_id"),"callback_url",config.get("SMS_CALLBACK_URL",""))).getBytes(StandardCharsets.UTF_8),headers,config.number("TELEPHONY_TIMEOUT_SEC", 8)*1000);
     }
     private void sms(Map<String,Object> task,Map<String,Object> payload){
         Map<String,Object> call=store.one("callsession","WHERE id=?",store.encode("callsession","id",payload.get("call_id")));if(call==null||CallLifecycle.number(call,"attempts")!=JsonSupport.integer(payload.get("attempt"),-1))return;
