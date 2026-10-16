@@ -77,6 +77,7 @@ public class TelephonyClient {
     private Map<String, Object> request(String endpoint, byte[] body, Map<String, String> headers, int timeoutMs, boolean allowEmpty) {
         HttpURLConnection connection = null;
         try {
+            Settings.endpoint(endpoint, false); // Reject non-HTTP schemes and URL credentials at the transport boundary.
             connection = (HttpURLConnection)new URL(endpoint).openConnection(Proxy.NO_PROXY);
             connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(timeoutMs); connection.setReadTimeout(timeoutMs);
             connection.setRequestMethod(body == null ? "GET" : "POST");

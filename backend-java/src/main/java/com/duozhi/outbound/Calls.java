@@ -1,6 +1,6 @@
 package com.duozhi.outbound;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.*;

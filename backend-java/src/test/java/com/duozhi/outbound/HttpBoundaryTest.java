@@ -29,7 +29,7 @@ class HttpBoundaryTest {
         HttpBoundary filter=new HttpBoundary(new Config(new MockEnvironment().withProperty("API_MAX_CONCURRENT_REQUESTS","1")));
         CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);ExecutorService pool=Executors.newSingleThreadExecutor();
         try {
-            Future<?> first=pool.submit(()->{try{filter.doFilter(request("localhost"),new MockHttpServletResponse(),(a,b)->{entered.countDown();try{release.await(3,TimeUnit.SECONDS);}catch(InterruptedException e){Thread.currentThread().interrupt();}throw new javax.servlet.ServletException("test failure");});}catch(Exception ignored){}});
+            Future<?> first=pool.submit(()->{try{filter.doFilter(request("localhost"),new MockHttpServletResponse(),(a,b)->{entered.countDown();try{release.await(3,TimeUnit.SECONDS);}catch(InterruptedException e){Thread.currentThread().interrupt();}throw new jakarta.servlet.ServletException("test failure");});}catch(Exception ignored){}});
             assertTrue(entered.await(2,TimeUnit.SECONDS));MockHttpServletResponse busy=new MockHttpServletResponse();filter.doFilter(request("localhost"),busy,(a,b)->fail("must be bounded"));assertEquals(503,busy.getStatus());release.countDown();first.get(3,TimeUnit.SECONDS);
             MockHttpServletResponse after=new MockHttpServletResponse();filter.doFilter(request("localhost"),after,(a,b)->{});assertEquals(200,after.getStatus());
         }finally{release.countDown();pool.shutdownNow();}

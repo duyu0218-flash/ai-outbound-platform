@@ -5,9 +5,9 @@ on:
   pull_request:
     branches: [main]
 jobs:
-  java8:
+  java17:
     runs-on: ubuntu-latest
-    container: maven:3.9.11-eclipse-temurin-8
+    container: maven:3.9.11-eclipse-temurin-17
     strategy:
       fail-fast: false
       matrix:
@@ -34,13 +34,36 @@ jobs:
       JAVA_TEST_REDIS_URL: redis://redis:6379/0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Compile and test with JDK 8
-        run: bash backend-java/scripts/build-java8.sh -B verify
+      - name: Compile and test with JDK 17
+        run: bash backend-java/scripts/build-java17.sh -B verify
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: java8-${{ matrix.database }}-tests
+          name: java17-${{ matrix.database }}-tests
           path: backend-java/target/surefire-reports/
+  java-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Test fail-closed security report validation
+        run: python3 -m unittest discover -s backend-java/scripts -p 'test_security_check.py'
+      - name: SBOM, OSV dependencies and FindSecBugs analysis
+        run: bash backend-java/scripts/security-check.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: java17-security-reports
+          if-no-files-found: error
+          path: |
+            backend-java/target/java-dependencies.cdx.json
+            backend-java/target/osv.json
+            backend-java/target/spotbugsXml.xml
+            backend-java/target/security-summary.json
   java-image:
     runs-on: ubuntu-latest
     steps:

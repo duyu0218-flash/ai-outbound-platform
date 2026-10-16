@@ -1,13 +1,13 @@
-# Java 8 核心后端迁移开发验收
+# JDK 17 核心后端安全升级验收
 
-日期：2026-10-16。基线 `96d9bef44173612d85399792bf54c6399059b1e7`，分支 `feat/java-core-backend-20261015`。本记录不能作为生产替换批准。
+日期：2026-10-16。基线为 PR #51 合并后的 main `1bba0fb79761a9f91109c2d943a8b79716e86d39`。用户已批准从 JDK 8 升级至 JDK 17 和受支持的 Spring。此记录不代表生产切换批准。
 
 ## 环境与制品
 
-- Spring Boot 2.7.18；实际构建、测试和浏览器服务使用 Zulu JDK 1.8.0_504；Maven 3.9.11。
-- 80 个应用 class 的 major version 均为 52。制品 `target/outbound-control-0.1.0-SNAPSHOT.jar` 的 SHA-256 为 `6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7`。
-- 内存 SQLite、专用 PostgreSQL 16、独立 Redis 7；浏览器使用本机隔离 SQLite 合成数据。未连接业务数据库或真实电话线路。
-- 108 项基线接口均有 Java 实现：108 mapped、0 partial、0 pending。路由存在不等于所有行为组合完全一致；271 项对照用例、独立集成测试和浏览器链路分别验证。
+- Spring Boot 4.1.1、Spring Framework 7.0.9、Jackson 3.1.7、Tomcat 11.0.27。
+- 本机实际构建/测试使用 Zulu JDK 17.0.20.1、Maven 3.9.11；80 个应用 class 的 major version 均为 61。
+- 最终本机制品 SHA-256：`8ab6222033ac38c4e0c9c4bdf31e26c6cfc91862ec6adfa76128c1328d9a57b8`。Linux CI 会独立构建镜像，不用本机 JAR 摘要冒充镜像摘要。
+- SQLite、专用 PostgreSQL 16、Redis 7、Chromium；合成历史数据与 mock 外呼。未连接业务数据库或真实电话线路。
 
 ## 页面、入口和状态清单
 
@@ -28,81 +28,50 @@
 
 本项目没有门店、购物车、支付页面。适用链路为：登录 → 客户 → 话术 → 外呼任务 → 拨号 → 回调 → 通话记录 → 分析/报表 → 返回首页。
 
-## 已验证项
+## 本次修改与检查
 
-- Java 8 编译、打包和字节码检查通过。
-- Java 测试共 82 项，两组均 0 失败、0 错误、0 跳过。新增数据库迁移 7、HTTP/生产配置 6、回调传输 3，以及指标/就绪、短信稳定幂等、慢 AI 与控制通道隔离、流式令牌到期、CSV 回导。隔离 Redis 显式启用。各套件计数保存在 `validation/sqlite-tests.json`、`validation/postgres-tests.json`。
-- Python/Java 对照 271/271 匹配，覆盖 108 项基线接口的访问边界；98 项成功响应内容比较。包括历史读取、CRUD、策略/流程发布、参数缺失、查询范围、权限和终态回调。生成时间/令牌/UUID 归一化，固定历史时间仍比较；错误只比较状态，不强求框架错误文本相同。并非 108 个接口的全部组合穷举。
-- 旧 PostgreSQL 21 个原版本加 Java 兼容版本共 22 个版本迁移成功；只读计划不改数据、重复执行无新增版本、实际 pg_dump/pg_restore 后旧结构可恢复。8 类业务表行数/内容摘要一致，见 `validation/postgres-migration-rehearsal.json`。全部数据为合成历史夹具。
-- 实际 Python 规则 Agent、mock 驱动语音网关与 Java 跨进程 HTTP 联调通过：拨号、签名状态回调、AI 请求、播报指令、终态回调、结果分析。见 `validation/retained-services.json`。没有使用真实 PBX、云模型或外部号码。
-- 最新制品模拟外呼浏览器场景通过，覆盖启动、后台拨号、状态完成、事件查询、分析、报表/账单/分组页和返回首页；回调心跳准入开启。
-- 浏览器发现并修复：流程边缺少 `keywords` 默认数组导致编辑页异常；消费者首次心跳缺少 `processed` 字段导致调度停滞。后者补充首次注册、重复心跳和消费计数断言。
-- 播放结束回调早于 speak 响应时仍可安排挂断；旧轮次回调失效；转人工无人接听后释放座席并重新启动等待计时。
-- Git 空白检查通过；前端业务源码未修改。新增 Java Dockerfile、Compose 覆盖文件、JDK 8 的 SQLite/PostgreSQL/Redis CI 配置。
+- Jakarta Servlet/Validation/Annotation 与 Jackson 3 适配；保持现有 API、日期格式、数据库结构及 Python 服务协议。构建脚本和容器统一为 JDK 17。
+- 修复前端 4 条 moderate 告警（2 个独立公告），Vitest 4.1.11、brace-expansion 2.1.7/5.0.12；前端业务代码未改变，单测类型适配已更新。
+- 回调摘要使用常量时间比较；HTTP 传输拒绝非 HTTP(S)、URL 凭据及异常地址；CORS Origin 增加 URI 校验。
+- 完整安全范围、原始提示复核、CI 门禁及限制见 [SECURITY-REVIEW.md](SECURITY-REVIEW.md)。历史 JDK 8 结果见 [历史快照](ACCEPTANCE-JAVA8.md)，不能代替当前版本验证。
 
-## 复现方式与证据
+## 当前制品实测结果
 
-设置真实 JDK 8 的 `JAVA_HOME` 及 Maven 路径后，在仓库根目录执行：
+- SQLite 和 PostgreSQL 各 89/89，0 失败、0 错误、0 跳过，包含真实隔离 Redis 测试。
+- Chromium 管理端 13/13、模拟外呼 1/1，全通过无跳过；覆盖菜单点击、表单填写、保存刷新、返回、登录退出和权限异常。
+- 前端 11 项单测、覆盖率门槛、TypeScript/Vite 构建通过；audit 各严重级别为 0。
+- Java 91/91 依赖包 OSV 扫描无公告；80/80 应用 class 完成 SAST，28 项高/中提示复核后门禁通过，143 项低优先级保留；详见安全报告。
+- 最终制品 Python/Java 行为对照 271/271、108 项路由边界和 98 项成功响应内容匹配；真实 Python 规则 Agent/mock 网关跨进程联调 4/4。
+- PostgreSQL 22 个版本升级、重复执行、8 类业务数据摘要、pg_dump/pg_restore 恢复验证通过；全部使用合成历史副本。
+- 门禁本身 8 项故障注入测试通过。所有结果仅覆盖本记录描述的开发环境和用例。
 
-```sh
-JAVA_TEST_REDIS_URL='<isolated-redis-url>' bash backend-java/scripts/build-java8.sh package
-JAVA_TEST_DATABASE_URL='<isolated-postgres-jdbc-url>' DATABASE_USER='<test-user>' DATABASE_PASSWORD='<test-password>' JAVA_TEST_REDIS_URL='<isolated-redis-url>' bash backend-java/scripts/build-java8.sh test
-```
-
-PostgreSQL 必须是可重建的专用空库。报告在 `target/surefire-reports`，后一次会覆盖前一次。
-
-在 `frontend` 目录，对独立夹具分别执行：
+## 复现
 
 ```sh
-E2E_JAVA_CORE=1 E2E_REVIEW_TENANTS=1 E2E_BASE_URL=http://127.0.0.1:18820 node node_modules/@playwright/test/cli.js test e2e/java-core.spec.ts e2e/portal.spec.ts e2e/product-capabilities.spec.ts
-E2E_JAVA_DISPATCH=1 E2E_BASE_URL=http://127.0.0.1:18822 node node_modules/@playwright/test/cli.js test e2e/java-dispatch.spec.ts
+JAVA_TEST_REDIS_URL='<isolated-redis-url>' bash backend-java/scripts/build-java17.sh package
+JAVA_TEST_DATABASE_URL='<isolated-postgres-jdbc-url>' DATABASE_USER='<test-user>' DATABASE_PASSWORD='<test-password>' JAVA_TEST_REDIS_URL='<isolated-redis-url>' bash backend-java/scripts/build-java17.sh test
+bash backend-java/scripts/security-check.sh
+python3 -m unittest discover -s backend-java/scripts -p 'test_security_check.py'
 ```
 
-18820 夹具关闭调度，包含第二租户及 `browser-appointment` 预约；18822 开启 mock、调度、执行器和收件箱。不得指向真实环境。
+设置真实 JDK 17 的 `JAVA_HOME`；可用 `MAVEN_BIN` 指定 Maven。PostgreSQL 使用可重建的专用空库。浏览器与 Python 联调复现方式见 Java README 和 `scripts/`；不得指向生产。当前复测摘要见 `validation/`，完整 CI 报告以实际远端运行结果为准。
 
-本轮本机日志：`/private/tmp/java-current-build.log`、`/private/tmp/java-current-pg.log`、`/private/tmp/java-browser-current-tests.log`、`/private/tmp/java-dispatch-current-tests.log`、`/private/tmp/java-python-parity.log`。长期摘要位于 `validation/`；临时日志不是长期归档。
+## 未验证、已知约束及上线条件
 
-## 未验证项、已知问题与环境限制
+- 真实旧库和现场自定义结构未验证；必须用真实脱敏副本演练迁移和恢复。
+- 真实 SIP/RTP/WebRTC、录音适配器/对象存储、云模型、短信渠道及真实账单对账未验证。
+- 500 总在途、长稳/突发、跨租户公平性、跨进程接管和进程崩溃恢复未验证。
+- Redis 的 redis:// 明文仅能用于可信隔离网络；跨信任边界应使用 rediss:// 或经验证的加密网络。TLS 目标端点未实测。依赖与静态扫描不等同于渗透测试。
+- `/readyz` 默认因 `JAVA_RELEASE_ACCEPTED=false` 保持 503；验收标记不能代替实际验收。无部署或生产切换。
+- 正式上线前完成真实数据迁移恢复、目标环境发布、真机与真实通话链路、渠道对账、容量及故障恢复；切换时停止旧核心和 worker，防止双重消费。
 
-- 真实历史数据副本和现场自定义数据库结构未验证；现有迁移覆盖基线原版本及合成旧结构，不保证所有现场定制。
-- 真实 SIP/RTP/WebRTC、Python 录音适配器与对象存储的完整联调、云模型和短信渠道未验证。实际规则 Agent/mock 网关联调不等同于上述链路。
-- 500 总在途、长稳/突发流量、跨租户公平性、跨进程租约接管和进程崩溃恢复未验证。已验证慢 AI 不阻塞控制通道，但不是容量结论。
-- 短信使用稳定幂等键和持久记录；渠道不支持幂等或响应不确定时，仍需渠道级核对，不能承诺绝不重复发送。回调 DNS 地址过滤与 HTTP 响应解析有本地测试，公网网络行为未验证。
-- Spring Boot/JDK 8 按指定版本构建，专项依赖漏洞扫描及安全加固评审尚未执行。
-- Compose 配置解析通过；本机 Docker Hub 拉取超时，GitHub Linux x86_64 镜像构建与容器烟测已通过。SQLite 本地库在构建期提取至只读目录，保留只读根目录及 noexec 临时目录。容器验证登录、前端、默认发布门槛、客户、模拟拨号、回调和分析；不是目标环境发布。
-- `/readyz` 默认因 `JAVA_RELEASE_ACCEPTED=false` 返回 503；验收标记开启仍须初始化、依赖和消费者健康。生产配置检查已实现；未批准或执行生产切换。
-- 测试环境发布、真机测试、生产发布均未进行；GitHub CI 和 main 合并状态须以实际远端结果为准，本记录不代表已发布。
-
-## 交付状态和上线前置条件
+## 六项交付状态
 
 | 状态 | 结果 |
 | --- | --- |
-| 源代码已修改 | 是，核心后端迁移范围的 Java 实现、旧库工具与部署入口已补齐 |
-| 静态检查通过 | Java 8 编译/打包/字节码及 Git 空白检查通过；专项静态安全分析未执行 |
-| 开发环境功能测试通过 | 仅本记录中实际通过的范围 |
-| 测试环境已发布 | 否，本机隔离服务不算发布 |
+| 源代码已修改 | 是，JDK 17 升级与安全修复 |
+| 静态检查通过 | 本机编译、Git 空白检查、依赖扫描及已说明范围的 SAST 门禁通过 |
+| 开发环境功能测试通过 | 仅实际通过并保存在 validation 的用例范围 |
+| 测试环境已发布 | 否；隔离测试容器不算发布 |
 | 真机测试通过 | 未验证 |
 | 生产环境已发布 | 否 |
-
-上线前须在真实数据库副本复验升级与恢复，完成测试环境部署、关键页面与真实外呼/转人工/录音/短信链路验收、渠道对账、容量及故障恢复验证。停止旧核心和 worker，确认无双重消费后才能切换。发布验收标记只是配置门槛，不能代替以上证据。
-
-## 最终复测结果
-
-- SQLite：82 项，0 失败、0 错误、0 跳过；打包退出码 0。
-- PostgreSQL：82 项，0 失败、0 错误、0 跳过；测试退出码 0。两组均包含隔离 Redis 验证。
-- Java 制品管理端浏览器：13/13 通过，0 跳过。
-- 最新 Java 制品模拟外呼浏览器：1/1 通过（8.1 秒）。总计 14 个浏览器场景通过。
-- Python/Java 行为对照：271/271 匹配；实 Python 服务 mock 驱动联调：4/4；PostgreSQL 备份迁移恢复演练通过。
-- 以上为开发环境验证，不代表真实线路、目标部署容量或生产验收完成。
-
-## GitHub 合并检查补充
-
-PR #51 的首次检查中，Java 8 两组检查及原服务单测通过，旧 Python 后端的 PyJWT 2.13.0 被安全扫描拦截；四个列表分页场景共用一个 30 秒用例导致 Compose E2E 超时。已将 PyJWT 固定为 2.15.1，并将分页场景拆为四个独立测试，保留翻到第六页、下一页禁用及返回第五页的断言。修复版依据 [PyJWT 官方变更记录](https://pyjwt.readthedocs.io/en/stable/changelog.html)。
-
-本地补验：Python 后端 310 项通过、18 项环境条件跳过；PyJWT 升级后的双后端对照仍为 271/271；四个分页浏览器用例 4/4 通过（8.8 秒）。这四项使用拦截的分页响应，单独作为前端分页回归，不替代真实后端验证。新增 `java-image` CI 构建并启动一次性 Java 容器，验证前端、登录、默认发布门槛、模拟拨号与结果读取；远端结果以最新 CI 为准。
-
-进一步补齐 Python 默认配置兼容：登录有效期 12 小时、锁定 15 分钟、导入 20 MiB / 20 万行 / 1000 条错误、录音保留 90 天、TURN 1 小时及 HTTP 超时/清理批次；登录和锁定增加断言，82 项双库测试及 271 项对照重新通过。前端间接依赖 tinypool、brace-expansion、source-map-js 固定到安全修复版本；单测 11/11、覆盖率门槛和构建通过，pnpm audit 高危门槛通过，仍报告 4 项 moderate，未声明零漏洞。
-
-依赖更新后重建前端并复验：12 个管理场景和 1 个模拟外呼场景通过；预约夹具状态未及时重置导致该场景跳过，重置后单独复跑 1/1 通过，全部 14 个场景均有通过证据。见 `validation/frontend-security.json`。
-
-Linux 容器证据：源提交 `ee9dc9f1a625deb5ba0bfb68cd21c170c11ce595` 的 [java-image CI](https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/38896193114/job/116957119735) 通过。该镜像在 CI 重新构建，不能用本机 JAR SHA-256 代替镜像摘要；其他架构镜像运行未验证。

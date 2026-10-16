@@ -57,7 +57,7 @@ public class CallbackInbox {
             if (partition == null) throw new ApiError(503, "callback inbox partitions not initialized");
             Map<String, Object> existing = store.one("callbackinbox", "WHERE receipt_key=?", key);
             if (existing != null) {
-                if (!digest.equals(existing.get("body_digest"))) throw new ApiError(409, "event identity reused with different callback body");
+                if (!Crypto.equal(digest, Objects.toString(existing.get("body_digest"), ""))) throw new ApiError(409, "event identity reused with different callback body");
                 return JsonSupport.map("result", "received", "receipt_id", key, "duplicate", true, "processing", existing.get("state"));
             }
             if (((Number)partition.get("pending_count")).longValue() >= config.number("CALLBACK_INBOX_PARTITION_LIMIT", 256)
