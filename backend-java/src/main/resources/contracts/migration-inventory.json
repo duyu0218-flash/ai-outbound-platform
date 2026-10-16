@@ -4,62 +4,74 @@
     {
       "method": "GET",
       "path": "/api/v1/product/policy",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/product/policy",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/product/simulate",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/product/appointments",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "PATCH",
       "path": "/api/v1/product/appointments/{appointment_id}",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/product/work-items",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "PATCH",
       "path": "/api/v1/product/work-items/{item_id}",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/product/incoming",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/product/outcomes",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/product/knowledge/import",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/product/knowledge/search",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/product/funnel",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
     },
     {
       "method": "GET",
@@ -82,7 +94,8 @@
     {
       "method": "POST",
       "path": "/api/v1/calls",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Calls.java"
     },
     {
       "method": "GET",
@@ -99,12 +112,14 @@
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/handover",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/hangup",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Calls.java"
     },
     {
       "method": "GET",
@@ -127,7 +142,8 @@
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/retry",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Calls.java"
     },
     {
       "method": "POST",
@@ -164,7 +180,7 @@
       "path": "/api/v1/campaigns/{campaign_id}/start",
       "java_status": "partial",
       "java_source": "Campaigns.java",
-      "limitation": "仅支持 auto_dial=false；实际拨号返回 503，且不写入待拨数据"
+      "limitation": "已实现模拟/HTTP 拨号、网关选择及稳定性准入；默认关闭 JAVA_DISPATCH_ENABLED，真实线路和容量验收未完成"
     },
     {
       "method": "POST",
@@ -177,7 +193,7 @@
       "path": "/api/v1/campaigns/{campaign_id}/resume",
       "java_status": "partial",
       "java_source": "Campaigns.java",
-      "limitation": "尚未接入执行器，合法恢复请求返回 503，不修改状态"
+      "limitation": "已实现恢复与持久化执行器；默认关闭 JAVA_DISPATCH_ENABLED，生产验收未完成"
     },
     {
       "method": "POST",
@@ -188,12 +204,14 @@
     {
       "method": "POST",
       "path": "/api/v1/contacts/import",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ContactFiles.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/contacts/export",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ContactFiles.java"
     },
     {
       "method": "PATCH",
@@ -234,42 +252,50 @@
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/batch",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/status",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/transcript",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/speech",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/dtmf",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/media",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/telephony/recording",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/webhooks/sms/status",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
     },
     {
       "method": "POST",
@@ -328,37 +354,44 @@
     {
       "method": "GET",
       "path": "/api/v1/script-templates/{template_id}/flows",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/script-templates/{template_id}/flows",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "PUT",
       "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/admin/tasks/{task_id}/retry",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
     },
     {
       "method": "GET",
@@ -423,12 +456,14 @@
     {
       "method": "GET",
       "path": "/api/v1/admin/sms-logs",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
     },
     {
       "method": "GET",
@@ -445,34 +480,39 @@
     {
       "method": "GET",
       "path": "/api/v1/admin/calls/export",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Reports.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/admin/audit-logs",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/admin/call-reports",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Reports.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/admin/contact-groups",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Reports.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/admin/billing",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Reports.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/admin/system-overview",
       "java_status": "partial",
       "java_source": "SystemOverview.java",
-      "limitation": "容量与数据库统计已迁移；Redis、AI、电话服务探针标记 unverified"
+      "limitation": "已实现数据库、Redis、AI 和电话服务探针；目标环境依赖故障及恢复完整验收未完成"
     },
     {
       "method": "GET",
@@ -501,42 +541,50 @@
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/interrupt",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AiRuntime.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/calls/{call_id}/analysis",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "CallAnalysis.java"
     },
     {
       "method": "PUT",
       "path": "/api/v1/calls/{call_id}/analysis",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "CallAnalysis.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/calls/{call_id}/handoffs",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/handoffs",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/quality/reviews",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Reports.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
     },
     {
       "method": "POST",
       "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
     },
     {
       "method": "GET",
@@ -565,22 +613,26 @@
     {
       "method": "POST",
       "path": "/api/v1/agent/webrtc/session",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/agent/media/status",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
     },
     {
       "method": "PUT",
       "path": "/api/v1/agent/media/status",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
     },
     {
       "method": "GET",
       "path": "/api/v1/agent/events/stream",
-      "java_status": "pending"
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
     },
     {
       "method": "GET",

@@ -24,9 +24,9 @@ def update_inventory():
             for suffix in re.findall(r'"([^"]*)"', arguments) or [""]:
                 mappings[key(method.upper(), prefix + suffix)] = path.name
     partial = {
-        key("POST", "/api/v1/campaigns/{id}/start"): "仅支持 auto_dial=false；实际拨号返回 503，且不写入待拨数据",
-        key("POST", "/api/v1/campaigns/{id}/resume"): "尚未接入执行器，合法恢复请求返回 503，不修改状态",
-        key("GET", "/api/v1/admin/system-overview"): "容量与数据库统计已迁移；Redis、AI、电话服务探针标记 unverified",
+        key("POST", "/api/v1/campaigns/{id}/start"): "已实现模拟/HTTP 拨号、网关选择及稳定性准入；默认关闭 JAVA_DISPATCH_ENABLED，真实线路和容量验收未完成",
+        key("POST", "/api/v1/campaigns/{id}/resume"): "已实现恢复与持久化执行器；默认关闭 JAVA_DISPATCH_ENABLED，生产验收未完成",
+        key("GET", "/api/v1/admin/system-overview"): "已实现数据库、Redis、AI 和电话服务探针；目标环境依赖故障及恢复完整验收未完成",
     }
     output = MODULE / "src/main/resources/contracts/migration-inventory.json"
     inventory = json.loads(output.read_text())

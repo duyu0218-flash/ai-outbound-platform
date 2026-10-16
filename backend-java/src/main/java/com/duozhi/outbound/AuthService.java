@@ -7,8 +7,8 @@ import java.util.*;
 
 @Service
 public class AuthService {
-    private final Store store; private final Crypto crypto; private final Config config;
-    public AuthService(Store store, Crypto crypto, Config config) { this.store=store; this.crypto=crypto; this.config=config; }
+    private final Store store; private final Crypto crypto; private final Config config; private final AgentMedia media;
+    public AuthService(Store store, Crypto crypto, Config config, AgentMedia media) { this.store=store; this.crypto=crypto; this.config=config; this.media=media; }
     @Transactional
     public Map<String,Object> login(String username, String password) {
         java.util.Map<java.lang.String,java.lang.Object> user = store.one("user", "WHERE username=?" + store.lock(), username);
@@ -35,6 +35,7 @@ public class AuthService {
     @Transactional
     public void logout(Identity identity) {
         java.util.Map<java.lang.String,java.lang.Object> user = identity.requireUser();
+        media.clear(identity.tenant(), user.get("id"));
         // Atomic increment prevents concurrent logouts from losing revocations.
         store.jdbc().update("UPDATE \"user\" SET token_version=token_version+1,agent_status='offline',updated_at=? WHERE id=? AND tenant_id=?", Store.now(), user.get("id"), identity.tenant());
     }

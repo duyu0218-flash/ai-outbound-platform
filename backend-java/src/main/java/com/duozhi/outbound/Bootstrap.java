@@ -10,8 +10,8 @@ import java.util.Map;
 
 @Component
 public class Bootstrap implements ApplicationRunner {
-    private final Config config; private final Store store; private final Crypto crypto; private final DataSource source;
-    public Bootstrap(Config config,Store store,Crypto crypto,DataSource source) { this.config=config;this.store=store;this.crypto=crypto;this.source=source; }
+    private final Config config; private final Store store; private final Crypto crypto; private final DataSource source; private final CallbackInbox inbox;
+    public Bootstrap(Config config,Store store,Crypto crypto,DataSource source,CallbackInbox inbox) { this.config=config;this.store=store;this.crypto=crypto;this.source=source;this.inbox=inbox; }
     @Override public void run(ApplicationArguments args) {
         if(config.production()) throw new IllegalStateException("Java migration is incomplete and has not passed production acceptance");
         if(config.get("JWT_SECRET", "").length()<32) throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");
@@ -22,6 +22,7 @@ public class Bootstrap implements ApplicationRunner {
         }
         // Existing schemas are read as-is. Runtime startup never alters existing tables.
         store.jdbc().queryForObject("SELECT COUNT(*) FROM tenant",Long.class);
+        inbox.initialize();
         if(config.flag("DEMO_USERS_ENABLED",false)) {
             int tenant=config.number("DEMO_TENANT_ID",1);
             if(store.one("tenant","WHERE id=?",tenant)==null) store.insert("tenant",Values.map("id",tenant,"name","Java development fixture","code","java-dev-"+tenant));

@@ -193,7 +193,7 @@ class CampaignIntegrationTest {
         assertEquals(2, overview.path("capacity").path("effective_max_concurrent_calls").asInt());
         assertEquals(1, overview.path("capacity").path("available_slots").asInt());
         assertEquals(123, overview.path("operations").path("average_ai_turn_ms").asInt());
-        assertEquals("unverified", overview.path("services").path("telephony").asText());
+        assertEquals("mock", overview.path("services").path("telephony").asText());
         String path = "/api/v1/calls/" + call.get("id");
         assertEquals(2, send(get(path + "/speech-turns"), auth, null).size());
         assertEquals(1, send(get(path + "/speech-turns?final_only=true"), auth, null).size());
