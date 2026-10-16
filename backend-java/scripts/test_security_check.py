@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from security_check import evaluate
+from security_check import evaluate, finding_key
+import xml.etree.ElementTree as ET
 
 
 class SecurityGateTest(unittest.TestCase):
@@ -34,9 +35,9 @@ class SecurityGateTest(unittest.TestCase):
             f'<Errors errors="0" missingClasses="{missing}"/>{bug}</BugCollection>')
 
     def finding(self, count=1):
-        bug = '<BugInstance type="TEST_SQL" priority="2" instanceHash="fixture"><SourceLine sourcepath="com/duozhi/outbound/Example.java"/></BugInstance>'
+        bug = '<BugInstance type="TEST_SQL" priority="2" instanceHash="fixture"><Method classname="com.duozhi.outbound.Example" name="query" signature="()V"/><SourceLine sourcepath="com/duozhi/outbound/Example.java" start="12" end="12"/></BugInstance>'
         self.xml(bug * count)
-        self.write_json('security/reviewed-findings.json', {'TEST_SQL:fixture': {
+        self.write_json('security/reviewed-findings.json', {finding_key(ET.fromstring(bug)): {
             'source': 'com/duozhi/outbound/Example.java', 'count': 1,
             'reason': 'Test fixture review', 'evidence': 'Test fixture evidence',
             'sha256': {self.source: hashlib.sha256((self.module / self.source).read_bytes()).hexdigest()}}})
@@ -74,6 +75,14 @@ class SecurityGateTest(unittest.TestCase):
     def test_stale_review_blocks(self):
         self.finding()
         self.xml()
+        self.assertFalse(evaluate(self.module)['passed'])
+
+    def test_cross_platform_taint_order_is_stable_but_changed_location_blocks(self):
+        self.finding()
+        report = self.module / 'target/spotbugsXml.xml'
+        report.write_text(report.read_text().replace('instanceHash="fixture"', 'instanceHash="linux-taint-order"'))
+        self.assertTrue(evaluate(self.module)['passed'])
+        report.write_text(report.read_text().replace('start="12"', 'start="13"'))
         self.assertFalse(evaluate(self.module)['passed'])
 
     def test_missing_or_malformed_report_never_passes(self):
