@@ -145,7 +145,7 @@ public class Store {
                 if (id.length() == 32) id = id.substring(0,8) + "-" + id.substring(8,12) + "-" + id.substring(12,16) + "-" + id.substring(16,20) + "-" + id.substring(20);
                 row.put(key, id);
             } else if (value instanceof Timestamp) row.put(key, ((Timestamp)value).toLocalDateTime().toString());
-            else if (type.startsWith("DATETIME") || type.startsWith("TIMESTAMP")) row.put(key, value.toString().replace(' ', 'T'));
+            else if (type.startsWith("DATETIME") || type.startsWith("TIMESTAMP")) row.put(key, LocalDateTime.parse(value.toString().replace(' ', 'T')).toString());
         });
         return row;
     }

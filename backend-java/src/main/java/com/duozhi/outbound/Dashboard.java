@@ -16,7 +16,7 @@ public class Dashboard {
     public Map<String,String> agent(HttpServletRequest request){Identity.from(request).requireUser();return Values.map("scope","agent","message","座席工作台");}
     @GetMapping("/api/v1/admin/dashboard")
     public Map<String,Object> admin(HttpServletRequest request,@RequestParam(defaultValue="30")int days){
-        if(days<1||days>365)throw new ApiError(422,"invalid days");long tenant=Identity.from(request).tenant();java.time.LocalDateTime since=Store.now().minusDays(days);Object sqlSince=store.encode("callsession","created_at",since);
+        if(days<1||days>365)throw new ApiError(400,"invalid days");long tenant=Identity.from(request).tenant();java.time.LocalDateTime since=Store.now().minusDays(days);Object sqlSince=store.encode("callsession","created_at",since);
         String join=" FROM callsession c LEFT JOIN callanalysis a ON a.call_session_id=c.id AND a.tenant_id=c.tenant_id WHERE c.tenant_id=? AND c.created_at>=?";
         java.util.Map<java.lang.String,java.lang.Object> counts=store.jdbc().queryForMap("SELECT COUNT(c.id) AS calls,SUM(CASE WHEN "+REACHED+" THEN 1 ELSE 0 END) AS reached,SUM(CASE WHEN c.status='COMPLETED' THEN 1 ELSE 0 END) AS completed,SUM(CASE WHEN c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL') THEN 1 ELSE 0 END) AS failed,COUNT(a.id) AS analyzed,SUM(CASE WHEN a.result_code IN "+INTERESTED+" THEN 1 ELSE 0 END) AS interested,SUM(CASE WHEN a.review_state<>'reviewed' THEN 1 ELSE 0 END) AS pending_reviews,AVG(a.qa_score) AS average_qa_score"+join,tenant,sqlSince);
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> period=new LinkedHashMap<String,Object>();period.put("days",days);period.put("since",since.toString());

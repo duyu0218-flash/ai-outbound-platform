@@ -4,7 +4,7 @@
 技术栈：Spring Boot **2.7.18**、**JDK 1.8**、Maven。
 前端沿用 React；AI Agent、语音网关和录音适配服务保留 Python。
 
-当前是开发中的部分迁移，尚不能替换完整 Python 核心后端。未迁移接口不会转发到 Python。生产模式暂时禁止启动，`/readyz` 返回 503，避免将部分实现误认为已完成迁移。
+核心后端的接口、后台执行流程、旧库迁移和运行入口已实现 Java 版本，未通过转发 Python 核心接口代替迁移。开发环境验收见 [ACCEPTANCE.md](ACCEPTANCE.md)；生产替换尚未验收。`JAVA_RELEASE_ACCEPTED` 默认关闭，只有完成独立发布验收后才可开启就绪门槛；生产配置仍须通过完整检查。
 
 ## 构建与测试
 
@@ -43,7 +43,7 @@ export DEMO_USERS_ENABLED=true
 
 ## 当前迁移范围
 
-108 个基线接口均已有 Java 路由（105 mapped、3 partial），但仍处于开发验收阶段，不能据此判定整体迁移完成。
+108 个基线接口均有 Java 实现（108 mapped、0 partial、0 pending）。271 个双后端行为对照用例通过，其中 98 项比较成功响应内容，其余包含权限、参数和状态边界；这不代表每个业务组合都已穷举。
 
 已实现：账户/权限/租户隔离、客户与 CSV 导入导出、任务准备/启动/暂停/恢复/停止、拨号尝试及重试、Webhook 持久化收件箱、Outbox 执行器、话术版本与流程、对话策略/预约/待办、AI Agent 协调、人工接管、录音适配和短信任务、分析质检、报表分组与时长账单、浏览器坐席媒体状态及 SIP 凭证。
 
@@ -63,10 +63,36 @@ export CALLBACK_INBOX_ENABLED=true
 
 新增后台能力：网关节点授权、容量/CPS 准入及健康探测；Redis 共享压力信号和降速、暂停、恢复控制；数据库、Redis、AI、电话服务探针；回调消费者心跳及过期回执清理；文本脱敏、录音到期删除和已完成任务压缩为幂等凭据。拨号、AI、通话控制、外部集成分别使用独立执行通道，回调消费单独运行。拨号会固定本轮策略快照并发送给 Python 网关。
 
-仍待完成：原库增量迁移与完整行为差异核对、执行通道并发公平性和容量压力验收、崩溃恢复及真实依赖故障演练。WebRTC/SIP、真实线路与云模型完整链路未验收；Redis 共享状态已在隔离实例测试，但生产拓扑未验证。生产启动禁用与 `/readyz` 503 保留。
+旧库迁移已支持原 21 个 PostgreSQL 版本与 49 条运行时补列语句，另有 Java 兼容性版本；支持只读计划、历史校验和、重复执行、完整性冲突阻断、单版本事务和备份恢复演练。操作方法见 [MIGRATION.md](MIGRATION.md)。Java 启动只校验已有库，不自动修改旧表。
+
+运行入口包括 `/healthz` 存活、`/health` 数据库/Redis、`/readyz` 初始化/依赖/回调消费者/发布验收门槛，以及令牌保护的 `/metrics`、`/metrics/runtime`。运行时指标使用 JVM 指标，不沿用 Python 线程池指标。HTTP 主机名/CORS、进程内限流和并发上限、流式 JWT 到期关闭已实现；限流不代表分布式容量承诺。
+
+仍待正式环境验收：真实历史数据库副本、目标 Linux 容器、SIP/RTP/WebRTC、云模型、短信和对象存储渠道、500 总在途及长稳负载、跨进程崩溃接管。实际 Python 规则 Agent 与 mock 驱动语音网关已和 Java 实进程联调通过；不代表真实线路通过。短信重试使用稳定幂等键，但渠道必须支持幂等，不能据此保证未知结果下绝不重复发送。
 
 运行 Redis 集成测试时设置 `JAVA_TEST_REDIS_URL` 指向专用测试实例；未设置时该项会跳过，不能记为通过。生产准入使用 `REDIS_URL`，共享控制失败时暂停新拨号，不使用进程内缓存放行。
 
 接口清单位于 `src/main/resources/contracts/migration-inventory.json`。`mapped` 仅表示已注册 Java 路由，`partial` 表示功能受限，`pending` 表示尚未迁移；这些状态不等于验收结论。新增控制器后执行 `python3 backend-java/scripts/sync_inventory.py` 更新清单。
 
 `scripts/export_contract.py` 从基线 Python 代码导出 OpenAPI、表结构及配置默认值，保存在 `src/main/resources/contracts`。该导出工具需要原后端 Python 依赖，但 Java 服务运行不需要 Python 解释器。
+
+## 回归与部署入口
+
+在仓库根目录，用安装了原后端开发依赖的 Python 执行：
+
+```sh
+python backend-java/scripts/compare_behavior.py
+# 实际 Python 服务进程联调；仅规则模型、mock 网关和临时数据库。
+PYTHON_AGENT=/path/to/agent-venv/bin/python PYTHON_VOICE=/path/to/voice-venv/bin/python \
+  python backend-java/scripts/retained_services_smoke.py
+```
+
+脚本要求 `JAVA_HOME` 和已打包的 Java 制品，自动使用临时库与 loopback 端口，报告写入 `validation/`。行为对照归一化生成时间/令牌/UUID；固定历史时间保留比较，错误信息只比较状态边界。GitHub 配置新增 `java-core.yml`，覆盖 JDK 8 的 SQLite/PostgreSQL/Redis 测试；本机通过不等于远端 CI 通过。
+
+`backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。本次只验证 Compose 配置，基础镜像下载超时，镜像构建与容器运行未通过验收。
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.java.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.java.yml build control-api
+```
+
+生产使用 PostgreSQL，配置 JDBC 的 `JAVA_DATABASE_URL`、`DATABASE_USER`、`DATABASE_PASSWORD`，保留原 JWT/服务签名密钥以兼容已有账号及回调；关闭演示账户、自动迁移及 inline 任务。`TRUSTED_HOSTS` 须包含业务域名和容器健康探针使用的 `127.0.0.1`。完整发布前置条件见验收记录。

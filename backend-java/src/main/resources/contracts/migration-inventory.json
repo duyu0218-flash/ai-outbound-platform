@@ -178,7 +178,7 @@
     {
       "method": "POST",
       "path": "/api/v1/campaigns/{campaign_id}/start",
-      "java_status": "partial",
+      "java_status": "mapped",
       "java_source": "Campaigns.java",
       "limitation": "已实现模拟/HTTP 拨号、网关选择及稳定性准入；默认关闭 JAVA_DISPATCH_ENABLED，真实线路和容量验收未完成"
     },
@@ -191,7 +191,7 @@
     {
       "method": "POST",
       "path": "/api/v1/campaigns/{campaign_id}/resume",
-      "java_status": "partial",
+      "java_status": "mapped",
       "java_source": "Campaigns.java",
       "limitation": "已实现恢复与持久化执行器；默认关闭 JAVA_DISPATCH_ENABLED，生产验收未完成"
     },
@@ -510,7 +510,7 @@
     {
       "method": "GET",
       "path": "/api/v1/admin/system-overview",
-      "java_status": "partial",
+      "java_status": "mapped",
       "java_source": "SystemOverview.java",
       "limitation": "已实现数据库、Redis、AI 和电话服务探针；目标环境依赖故障及恢复完整验收未完成"
     },

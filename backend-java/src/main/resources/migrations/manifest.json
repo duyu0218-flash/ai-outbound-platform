@@ -1,0 +1,89 @@
+{
+  "postgresql": [
+    {
+      "version": "20260828_admin_management.sql",
+      "sha256": "868fb6e43c16556d040ab9a8d366578de1ca3a85d43e2a267a441a683f0c5ea4"
+    },
+    {
+      "version": "20260828_call_retry_schedule.sql",
+      "sha256": "50f19b52e99cc96a7169fd3179db52895b7e5171ff04207c5cce2c8414fb38e6"
+    },
+    {
+      "version": "20260828_contact_integrity.sql",
+      "sha256": "9721c185eef5afc301869b65dc2e0b58552b9775d46fc6a5e0fa880ae9ac28c1"
+    },
+    {
+      "version": "20260828_event_audit_indexes.sql",
+      "sha256": "11c45d3310f37247653f94c0d9e129af03c12d7ec148b2ff33ad107e75aa1f54"
+    },
+    {
+      "version": "20260829_agent_presence_sms_receipts.sql",
+      "sha256": "a073de52fb9aaa0f0bf248b5790aa5d1b3c1cf919a9bafa7d2ce2c2e9e588f0e"
+    },
+    {
+      "version": "20260829_durable_tasks.sql",
+      "sha256": "c640ec53b58d85cbe054f06983a9a4e526941f0107b7116a114608421d3dba98"
+    },
+    {
+      "version": "20260829_realtime_voice_p0_p1.sql",
+      "sha256": "56cefa9d4175ef52e9830df3ec7fc3b78878a5d5cefd7be572d0133052872c7f"
+    },
+    {
+      "version": "20260829_runtime_configuration_linkage.sql",
+      "sha256": "bec18c7e27943529cb52e5d697781d38e6903ddcac4956a0fa4b29cffbf6df66"
+    },
+    {
+      "version": "20260829_script_flow.sql",
+      "sha256": "47127b9e3251a2405ab91d3e46c4273a8a74501aa82529cb52247c0d8b6cba77"
+    },
+    {
+      "version": "20260830_handoff_accepting_state.sql",
+      "sha256": "7d20fee7d1c4ca87468094922e60cc1d032e03172bf474349b69003638fc9786"
+    },
+    {
+      "version": "20260831_browser_webrtc.sql",
+      "sha256": "1361241391a610b6b3211a353c1735f91ef847ecff56fe17033bd3871c42764b"
+    },
+    {
+      "version": "20260831_commercial_readiness.sql",
+      "sha256": "b41674e294b8ad011c88642e06650f60b81c940bc58f22c4931f5856cb2bca0c"
+    },
+    {
+      "version": "20260901_contact_import_idempotency.sql",
+      "sha256": "7a70950aaec408f1b5f9a1962914623fff371e6e576855cafbac9c3c29d80566"
+    },
+    {
+      "version": "20260901_runtime_migrations_parity.sql",
+      "sha256": "ebc8fb62dd72cf3777d33d6651c3aac2c1188a045e1d916fe6e8b4a36852029e"
+    },
+    {
+      "version": "20260906_execution_leases.sql",
+      "sha256": "5ba3148174625ff2635976ae761768dad4c1986e18b5c5286d76263e5305c2d0"
+    },
+    {
+      "version": "20260907_capacity_bottlenecks.sql",
+      "sha256": "0395e9e1c52b32b09484613bda0dc0aa7c7032fa32597b33ef2fc8f4f399ee16"
+    },
+    {
+      "version": "20260907_compact_cluster.sql",
+      "sha256": "223f0db0796201a43bcf09e563111ee5384a3dd3781c283ee93e5ffd3dfe1c0c"
+    },
+    {
+      "version": "20260907_review_fixes.sql",
+      "sha256": "4a805a62ea945b974a5d798eba93bce40a2873977ee9654b448f4ca2aa61ba17"
+    },
+    {
+      "version": "20260908_callback_00_partition_defaults.sql",
+      "sha256": "96d9c8bddd1a574ee04b393e84c6037385df6558a74ac1d39f0334b12212a28b"
+    },
+    {
+      "version": "20260908_callback_inbox.sql",
+      "sha256": "a27149433fe523682235c1de04da08a6c2068b7b670dba83c3a3eb303a2f8faf"
+    },
+    {
+      "version": "20260908_product_delivery.sql",
+      "sha256": "df825514ec8291a5cc1ef73506f3d36b68cff3c20620f88b1f65d9d957827560"
+    }
+  ],
+  "runtime_source_sha256": "af9083c998337de84f3459b66fa53ea2d966ffa48d36fd9c30760bc25e38c4fb"
+}

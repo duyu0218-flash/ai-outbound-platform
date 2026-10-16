@@ -13,7 +13,7 @@ public class Bootstrap implements ApplicationRunner {
     private final Config config; private final Store store; private final Crypto crypto; private final DataSource source; private final CallbackInbox inbox;
     public Bootstrap(Config config,Store store,Crypto crypto,DataSource source,CallbackInbox inbox) { this.config=config;this.store=store;this.crypto=crypto;this.source=source;this.inbox=inbox; }
     @Override public void run(ApplicationArguments args) {
-        if(config.production()) throw new IllegalStateException("Java migration is incomplete and has not passed production acceptance");
+        ProductionConfiguration.validate(config);
         if(config.get("JWT_SECRET", "").length()<32) throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");
         if(!"HS256".equals(config.get("JWT_ALGORITHM","HS256"))) throw new IllegalStateException("Only HS256 compatibility is implemented");
         if(config.flag("JAVA_INITIALIZE_SCHEMA",false)) {
@@ -21,7 +21,8 @@ public class Bootstrap implements ApplicationRunner {
             new ResourceDatabasePopulator(new ClassPathResource("contracts/schema-"+dialect+".sql")).execute(source);
         }
         // Existing schemas are read as-is. Runtime startup never alters existing tables.
-        store.jdbc().queryForObject("SELECT COUNT(*) FROM tenant",Long.class);
+        try(java.sql.Connection connection=source.getConnection()) {new DatabaseMigration(connection).verify();}
+        catch(Exception incompatible){throw new IllegalStateException("Database compatibility check failed; run the explicit database migration plan before starting",incompatible);}
         inbox.initialize();
         if(config.flag("DEMO_USERS_ENABLED",false)) {
             int tenant=config.number("DEMO_TENANT_ID",1);

@@ -32,7 +32,7 @@ public class Contract {
             if(raw.containsKey(key)) { validate(entry.getValue(),mapper.valueToTree(raw.get(key)),key);output.put(key,raw.get(key)); }
             else if(defaults&&entry.getValue().has("default")) output.put(key,mapper.convertValue(entry.getValue().get("default"),Object.class));
         });
-        for(com.fasterxml.jackson.databind.JsonNode required:schema.path("required")) if(!raw.containsKey(required.asText())) throw new ApiError(422,required.asText()+" is required");
+        for(com.fasterxml.jackson.databind.JsonNode required:schema.path("required")) if(!raw.containsKey(required.asText())) throw new ApiError(400,required.asText()+" is required");
         return output;
     }
     public Map<String,Object> output(String type,Map<String,Object> row) {
@@ -49,7 +49,7 @@ public class Contract {
         JsonNode schema=resolve(unresolved);
         if(schema.has("anyOf")) {
             for(com.fasterxml.jackson.databind.JsonNode candidate:schema.get("anyOf")) try { validate(candidate,value,key);return; } catch(ApiError ignored) { }
-            throw new ApiError(422,"invalid "+key);
+            throw new ApiError(400,"invalid "+key);
         }
         String type=schema.path("type").asText();
         boolean valid;
@@ -63,31 +63,31 @@ public class Contract {
             case "object":valid=value.isObject();break;
             default:valid=true;
         }
-        if(!valid) throw new ApiError(422,"invalid "+key);
-        if(schema.has("const")&&!schema.get("const").equals(value)) throw new ApiError(422,"invalid "+key);
+        if(!valid) throw new ApiError(400,"invalid "+key);
+        if(schema.has("const")&&!schema.get("const").equals(value)) throw new ApiError(400,"invalid "+key);
         if(schema.has("enum")) {
             boolean found=false;for(com.fasterxml.jackson.databind.JsonNode option:schema.get("enum")) if(option.equals(value)) found=true;
-            if(!found) throw new ApiError(422,"invalid "+key);
+            if(!found) throw new ApiError(400,"invalid "+key);
         }
         if(value.isTextual()) {
             String text=value.asText();int length=text.codePointCount(0,text.length());
-            if(length<schema.path("minLength").asInt(0)||length>schema.path("maxLength").asInt(Integer.MAX_VALUE)) throw new ApiError(422,"invalid length: "+key);
-            if(schema.has("pattern")&&!java.util.regex.Pattern.compile(schema.get("pattern").asText()).matcher(text).find()) throw new ApiError(422,"invalid "+key);
-            if("uuid".equals(schema.path("format").asText())) try {UUID.fromString(text);} catch(IllegalArgumentException e){throw new ApiError(422,"invalid "+key);}
+            if(length<schema.path("minLength").asInt(0)||length>schema.path("maxLength").asInt(Integer.MAX_VALUE)) throw new ApiError(400,"invalid length: "+key);
+            if(schema.has("pattern")&&!java.util.regex.Pattern.compile(schema.get("pattern").asText()).matcher(text).find()) throw new ApiError(400,"invalid "+key);
+            if("uuid".equals(schema.path("format").asText())) try {UUID.fromString(text);} catch(IllegalArgumentException e){throw new ApiError(400,"invalid "+key);}
         }
-        if(value.isNumber()&&(value.asDouble()<schema.path("minimum").asDouble(-Double.MAX_VALUE)||value.asDouble()>schema.path("maximum").asDouble(Double.MAX_VALUE))) throw new ApiError(422,"out of range: "+key);
+        if(value.isNumber()&&(value.asDouble()<schema.path("minimum").asDouble(-Double.MAX_VALUE)||value.asDouble()>schema.path("maximum").asDouble(Double.MAX_VALUE))) throw new ApiError(400,"out of range: "+key);
         if(value.isObject()) {
-            for(JsonNode required:schema.path("required")) if(!value.has(required.asText())) throw new ApiError(422,key+"."+required.asText()+" is required");
+            for(JsonNode required:schema.path("required")) if(!value.has(required.asText())) throw new ApiError(400,key+"."+required.asText()+" is required");
             schema.path("properties").fields().forEachRemaining(entry->{if(value.has(entry.getKey()))validate(entry.getValue(),value.get(entry.getKey()),key+"."+entry.getKey());});
-            if(schema.has("additionalProperties")&&schema.get("additionalProperties").isBoolean()&&!schema.get("additionalProperties").asBoolean())value.fieldNames().forEachRemaining(name->{if(!schema.path("properties").has(name))throw new ApiError(422,"unsupported field: "+key+"."+name);});
+            if(schema.has("additionalProperties")&&schema.get("additionalProperties").isBoolean()&&!schema.get("additionalProperties").asBoolean())value.fieldNames().forEachRemaining(name->{if(!schema.path("properties").has(name))throw new ApiError(400,"unsupported field: "+key+"."+name);});
         }
         if(value.isArray()) {
-            if(value.size()<schema.path("minItems").asInt(0)||value.size()>schema.path("maxItems").asInt(Integer.MAX_VALUE)) throw new ApiError(422,"invalid count: "+key);
+            if(value.size()<schema.path("minItems").asInt(0)||value.size()>schema.path("maxItems").asInt(Integer.MAX_VALUE)) throw new ApiError(400,"invalid count: "+key);
             for(com.fasterxml.jackson.databind.JsonNode item:value) validate(schema.path("items"),item,key);
         }
     }
     public static int page(int page,int size) {
-        if(page<1||size<1||size>200||page>Integer.MAX_VALUE/size) throw new ApiError(422,"invalid pagination");
+        if(page<1||size<1||size>200||page>Integer.MAX_VALUE/size) throw new ApiError(400,"invalid pagination");
         return (page-1)*size;
     }
 }

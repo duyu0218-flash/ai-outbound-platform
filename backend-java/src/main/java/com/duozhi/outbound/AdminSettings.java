@@ -18,7 +18,7 @@ public class AdminSettings {
     }
     @PutMapping("/{section}") @Transactional
     public Map<String,Object> update(@PathVariable String section,@RequestBody Map<String,Object> body,HttpServletRequest request)throws com.fasterxml.jackson.core.JsonProcessingException{
-        com.duozhi.outbound.Identity actor=Identity.from(request);if(!(body.get("data") instanceof Map))throw new ApiError(422,"data is required");Map<?,?> input=(Map<?,?>)body.get("data");
+        com.duozhi.outbound.Identity actor=Identity.from(request);if(!(body.get("data") instanceof Map))throw new ApiError(400,"data is required");Map<?,?> input=(Map<?,?>)body.get("data");
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> values=new LinkedHashMap<String,Object>();for(java.util.Map.Entry<?,?> entry:input.entrySet())values.put(entry.getKey().toString(),entry.getValue());java.util.Map<java.lang.String,java.lang.Object> data=settings.validate(section,values);
         if(Values.set("capacity","compliance").contains(section)){
             boolean real=store.count("telephonyline","WHERE tenant_id=? AND enabled=? AND provider<>'mock'",actor.tenant(),true)>0;

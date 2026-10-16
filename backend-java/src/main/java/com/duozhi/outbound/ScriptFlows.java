@@ -94,7 +94,7 @@ public class ScriptFlows {
     @PostMapping("/{version_id}/simulate") @SuppressWarnings("unchecked") public Map<String,Object> probe(@PathVariable long template_id,@PathVariable long version_id,@RequestBody Map<String,Object> body,HttpServletRequest request){Map<String,Object> row=version(tenant(request),template_id,version_id),input=contract.input("ScriptFlowSimulateRequest",body,true);return simulate(json.object(row.get("graph_json").toString()),input.get("current_node_id"),Objects.toString(input.get("transcript"),""),Boolean.TRUE.equals(input.get("silence")),(Map<String,Object>)input.get("variables"));}
     private Map<String,Object> defaults(String opening) {
         List<Map<String,Object>> nodes=new ArrayList<>(),edges=new ArrayList<>();String[] ids={"start","opening","listen","hangup"},types={"start","message","listen","hangup"},labels={"开始","开场白","等待客户回答","结束通话"};
-        for(int i=0;i<ids.length;i++){nodes.add(JsonSupport.map("id",ids[i],"type",types[i],"label",labels[i],"prompt",i==1?opening:"","position",JsonSupport.map("x",80+i*250,"y",180)));if(i>0)edges.add(JsonSupport.map("id","e-"+ids[i-1]+"-"+ids[i],"source",ids[i-1],"target",ids[i],"condition","always"));}
+        for(int i=0;i<ids.length;i++){nodes.add(JsonSupport.map("id",ids[i],"type",types[i],"label",labels[i],"prompt",i==1?opening:"","position",JsonSupport.map("x",new int[]{80,320,580,840}[i],"y",180)));if(i>0)edges.add(JsonSupport.map("id","e-"+ids[i-1]+"-"+ids[i],"source",ids[i-1],"target",ids[i],"condition","always"));}
         return JsonSupport.map("nodes",nodes,"edges",edges);
     }
 }

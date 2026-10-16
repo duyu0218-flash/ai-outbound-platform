@@ -14,7 +14,7 @@ public class AdminUsers {
     public List<Map<String,Object>> list(HttpServletRequest request,@RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="100")int size,@RequestParam(required=false)String keyword){
         com.duozhi.outbound.Identity actor=Identity.from(request);int offset=Contract.page(page,size);java.util.ArrayList<java.lang.Object> args=new ArrayList<Object>();args.add(actor.tenant());String where="WHERE tenant_id=?";
         if(keyword!=null){if(keyword.length()>200)throw new ApiError(422,"keyword too long");where+=" AND (username LIKE ? OR full_name LIKE ?)";args.add("%"+keyword+"%");args.add("%"+keyword+"%");}
-        args.add(size);args.add(offset);return store.list("user",where+" ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?",args.toArray()).stream().map(row->contract.output("AdminUserOut",row)).collect(java.util.stream.Collectors.toList());
+        args.add(size);args.add(offset);return store.list("user",where+" ORDER BY created_at DESC,id ASC LIMIT ? OFFSET ?",args.toArray()).stream().map(row->contract.output("AdminUserOut",row)).collect(java.util.stream.Collectors.toList());
     }
     @PostMapping @Transactional
     public Map<String,Object> create(@RequestBody Map<String,Object> body,HttpServletRequest request){

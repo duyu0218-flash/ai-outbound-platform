@@ -39,7 +39,7 @@ class ManagementIntegrationTest {
             int status=mvc.perform(post("/api/v1/contacts").header("Authorization",auth).contentType("application/json").content(body)).andReturn().getResponse().getStatus();assertTrue(status==400||status==422);
         }
         assertEquals(before,store.count("contact",""));
-        mvc.perform(get("/api/v1/contacts?page=0").header("Authorization",auth)).andExpect(status().isUnprocessableEntity());
+        mvc.perform(get("/api/v1/contacts?page=0").header("Authorization",auth)).andExpect(status().isBadRequest());
     }
     @Test void referencedContactsCannotBeDeleted()throws Exception{
         String auth=token();java.util.Map<java.lang.String,java.lang.Object> row=store.insert("contact",Values.map("tenant_id",1,"phone","13000000003"));

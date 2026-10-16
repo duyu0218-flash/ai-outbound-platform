@@ -86,6 +86,7 @@ public class TaskWorker {
     public static class Deferred extends RuntimeException { }
     public boolean processOne() { return processOne(null); }
     boolean processOne(Long tenant) { return processOne(tenant, TYPES); }
+    boolean processLane(Long tenant,int lane) { return processOne(tenant,LANE_TYPES[lane]); }
     private boolean processOne(Long tenant, String types) {
         Map<String, Object> task = claim(tenant, types); if (task == null) return false;
         AtomicBoolean lost = new AtomicBoolean();
