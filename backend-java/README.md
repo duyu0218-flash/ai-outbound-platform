@@ -11,7 +11,7 @@
 安装 JDK 17 和 Maven 3.9，设置 `JAVA_HOME`。以下命令在仓库根目录执行：
 
 ```sh
-export JAVA_HOME=/path/to/jdk8
+export JAVA_HOME=/path/to/jdk17
 bash backend-java/scripts/build-java17.sh clean verify
 ```
 
@@ -88,7 +88,7 @@ PYTHON_AGENT=/path/to/agent-venv/bin/python PYTHON_VOICE=/path/to/voice-venv/bin
 
 脚本要求 `JAVA_HOME` 和已打包的 Java 制品，自动使用临时库与 loopback 端口，报告写入 `validation/`。行为对照归一化生成时间/令牌/UUID；固定历史时间保留比较，错误信息只比较状态边界。GitHub 配置新增 `java-core.yml`，覆盖 JDK 17 的 SQLite/PostgreSQL/Redis 测试；本机通过不等于远端 CI 通过。
 
-`backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。本次只验证 Compose 配置，基础镜像下载超时，镜像构建与容器运行未通过验收。
+`backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。Compose 配置可单独校验；`java-image` CI 负责 Linux 镜像构建及一次性容器烟测，运行结果以对应提交为准。目标环境发布仍需单独验收。
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.java.yml config --quiet
