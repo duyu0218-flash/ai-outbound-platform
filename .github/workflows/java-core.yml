@@ -1,0 +1,43 @@
+name: java-core
+on:
+  push:
+    branches: [main, feat/java-core-backend-20261015]
+  pull_request:
+    branches: [main]
+jobs:
+  java8:
+    runs-on: ubuntu-latest
+    container: maven:3.9.11-eclipse-temurin-8
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgresql]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: java_core_test
+          POSTGRES_USER: java_test
+          POSTGRES_PASSWORD: isolated-ci-test-password
+        options: >-
+          --health-cmd "pg_isready -U java_test -d java_core_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      JAVA_TEST_DATABASE_URL: ${{ matrix.database == 'postgresql' && 'jdbc:postgresql://postgres:5432/java_core_test' || 'jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared' }}
+      DATABASE_USER: java_test
+      DATABASE_PASSWORD: isolated-ci-test-password
+      JAVA_TEST_REDIS_URL: redis://redis:6379/0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compile and test with JDK 8
+        run: bash backend-java/scripts/build-java8.sh -B verify
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: java8-${{ matrix.database }}-tests
+          path: backend-java/target/surefire-reports/

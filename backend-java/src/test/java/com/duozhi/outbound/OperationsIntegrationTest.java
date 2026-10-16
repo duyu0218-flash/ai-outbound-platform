@@ -73,7 +73,7 @@ class OperationsIntegrationTest {
         MockMultipartFile file=new MockMultipartFile("file","test.csv","text/csv",csv.getBytes(StandardCharsets.UTF_8));
         Map<String,Object> result=files.importCsv(file,true,"csv-1",r);assertEquals(1,result.get("created"));assertEquals(1,result.get("skipped"));assertEquals(1,result.get("failed"));
         assertEquals(result,files.importCsv(file,true,"csv-1",r));assertEquals(1,store.count("contact","WHERE tenant_id=?",i.tenant()));
-        ByteArrayOutputStream output=new ByteArrayOutputStream();files.export(null,null,null,r).getBody().writeTo(output);String data=output.toString("UTF-8");assertTrue(data.contains("'=SUM(1)"));assertTrue(data.contains("consented"));assertFalse(data.contains("invalid"));
+        ByteArrayOutputStream output=new ByteArrayOutputStream();files.export(null,null,null,r).getBody().writeTo(output);String data=output.toString("UTF-8");assertTrue(data.contains("'=SUM(1)"));assertTrue(data.contains("ConsentState.CONSENTED"));assertFalse(data.contains("invalid"));
         assertEquals("'\t=1\n+1",ContactFiles.safe("\t=1\n+1"));
     }
     @Test void billingCountsAttemptLedgerMissingDataAndAllSmsStates() {
@@ -84,7 +84,7 @@ class OperationsIntegrationTest {
         Map<String,Object> bill=reports.billing("campaign",30,2,1,0.5,request(i)),summary=object(bill.get("summary"));
         assertEquals(1L,summary.get("calls"));assertEquals(2.0,summary.get("telephony_minutes"));assertEquals(1.0,summary.get("ai_minutes"));assertEquals(2L,summary.get("missing_duration_count"));assertEquals(2L,summary.get("missing_ai_duration_count"));assertEquals(4.5,summary.get("estimated_cost"));assertEquals(1L,summary.get("sms_count"));
         assertEquals("未绑定任务",rows(bill.get("rows")).get(0).get("label"));
-        assertEquals(422,assertThrows(ApiError.class,()->reports.billing("campaign",30,Double.NaN,0,0,request(i))).status);
+        assertEquals(400,assertThrows(ApiError.class,()->reports.billing("campaign",30,Double.NaN,0,0,request(i))).status);
     }
     @Test void reportsReviewsAndEvidenceExportRespectTenantAndFilters() throws Exception {
         Identity i=fixture("admin"),other=fixture("admin");MockHttpServletRequest r=request(i);
@@ -112,7 +112,7 @@ class OperationsIntegrationTest {
         mvc.perform(get("/api/v1/admin/billing").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("summary.calls").value(0));
         mvc.perform(get("/api/v1/admin/call-reports").header("Authorization","Bearer "+agentToken)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/quality/reviews").header("Authorization","Bearer "+agentToken)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/admin/contact-groups").header("Authorization","Bearer "+token).param("days","0")).andExpect(status().isUnprocessableEntity());
+        mvc.perform(get("/api/v1/admin/contact-groups").header("Authorization","Bearer "+token).param("days","0")).andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/agent/media/status").header("Authorization","Bearer "+agentToken)).andExpect(status().isOk()).andExpect(jsonPath("registration_state").value("disabled"));
     }
     @Test void recordingDeleteRequiresAcknowledgementAndAcceptsEmpty204() throws Exception {
@@ -137,4 +137,58 @@ class OperationsIntegrationTest {
         assertTrue(worker.processOne(i.tenant()));assertEquals("completed",store.require("taskoutbox",i.tenant(),ready.get("id")).get("state"));assertEquals("pending",store.require("taskoutbox",i.tenant(),future.get("id")).get("state"));
     }
 
+
+    @Test void runtimeReadinessAndMetricsHaveExplicitAuthenticationAndDependencyStates() throws Exception {
+        mvc.perform(get("/readyz")).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("checks.java_release").value("acceptance_required"));
+        mvc.perform(get("/healthz")).andExpect(status().isOk());
+        mvc.perform(get("/metrics")).andExpect(status().isUnauthorized());
+        Config cfg=new Config(new MockEnvironment().withProperty("METRICS_TOKEN","isolated-metric-test"));
+        OperationalMetrics metrics=new OperationalMetrics(store,cfg,null,new StabilityAdmission(cfg,null,json,null));
+        assertThrows(ApiError.class,()->metrics.runtime("Bearer wrong"));
+        assertTrue(metrics.runtime("Bearer isolated-metric-test").getBody().contains("ai_outbound_jvm_heap_used_bytes"));
+        assertTrue(metrics.metrics("Bearer isolated-metric-test").getBody().contains("ai_outbound_task_oldest_ready_seconds"));
+    }
+    @Test void smsRetryUsesSamePersistedRecordAndDeliveryKey() {
+        Identity i=fixture("admin");Map<String,Object> c=call(i,"completed",1);
+        store.insert("adminsetting",JsonSupport.map("tenant_id",i.tenant(),"section","sms","data_json",json.json(JsonSupport.map("enabled",true,"provider","http"))));
+        Config cfg=new Config(new MockEnvironment().withProperty("SMS_PROVIDER_ENDPOINT","https://sms.invalid"));
+        TelephonyClient client=org.mockito.Mockito.mock(TelephonyClient.class);
+        org.mockito.Mockito.when(client.post(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any(byte[].class),org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.anyInt()))
+            .thenThrow(new ApiError(502,"uncertain delivery")).thenReturn(JsonSupport.map("state","sent","message_id","sms-test"));
+        IntegrationTasks tasks=new IntegrationTasks(store,tx,cfg,settings,json,client);
+        Map<String,Object> payload=JsonSupport.map("call_id",c.get("id"),"attempt",1,"text","synthetic sms");
+        Map<String,Object> task=store.insert("taskoutbox",JsonSupport.map("tenant_id",i.tenant(),"task_type","send_sms","aggregate_id",c.get("id"),"idempotency_key",UUID.randomUUID().toString(),"payload_json",json.json(payload)));
+        assertThrows(ApiError.class,()->tasks.execute("send_sms",task,payload));tasks.execute("send_sms",task,payload);tasks.execute("send_sms",task,payload);
+        assertEquals(1,store.count("smslog","WHERE tenant_id=?",i.tenant()));assertEquals("sent",store.one("smslog","WHERE tenant_id=?",i.tenant()).get("state"));
+        org.mockito.Mockito.verify(client,org.mockito.Mockito.times(2)).post(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.any(byte[].class),org.mockito.ArgumentMatchers.argThat(h->("sms:"+task.get("id")).equals(h.get("Idempotency-Key"))),org.mockito.ArgumentMatchers.anyInt());
+    }
+    @Test void slowAiDoesNotBlockReadyControlLane() throws Exception {
+        Identity i=fixture("admin");java.util.concurrent.CountDownLatch entered=new java.util.concurrent.CountDownLatch(1),release=new java.util.concurrent.CountDownLatch(1);
+        AiRuntime fake=org.mockito.Mockito.mock(AiRuntime.class);
+        org.mockito.Mockito.doAnswer(invocation->{entered.countDown();assertTrue(release.await(5,java.util.concurrent.TimeUnit.SECONDS));return null;}).when(fake).turn(org.mockito.ArgumentMatchers.anyMap());
+        TaskWorker local=new TaskWorker(store,tx,config,json,null,null,null,null,null,fake,null);
+        java.util.concurrent.ExecutorService pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try{
+            for(String kind:Arrays.asList("ai_turn","after_playback"))store.insert("taskoutbox",JsonSupport.map("tenant_id",i.tenant(),"task_type",kind,"aggregate_id",UUID.randomUUID().toString(),"idempotency_key",UUID.randomUUID().toString(),"payload_json","{}"));
+            java.util.concurrent.Future<Boolean> model=pool.submit(()->local.processLane(i.tenant(),1));assertTrue(entered.await(2,java.util.concurrent.TimeUnit.SECONDS));
+            assertTrue(local.processLane(i.tenant(),2));assertEquals(1,store.count("taskoutbox","WHERE tenant_id=? AND task_type='after_playback' AND state='COMPLETED'",i.tenant()));assertFalse(model.isDone());
+            release.countDown();assertTrue(model.get(3,java.util.concurrent.TimeUnit.SECONDS));
+        }finally{release.countDown();pool.shutdownNow();local.close();}
+    }
+
+    @Test void eventStreamClosesWhenBearerExpires() throws Exception {
+        Identity i=fixture("agent");Config shortLife=new Config(new MockEnvironment().withProperty("JWT_SECRET",config.get("JWT_SECRET","")).withProperty("JWT_TTL_SECONDS","2"));
+        String token=new Crypto(new com.fasterxml.jackson.databind.ObjectMapper(),shortLife).token(i.user());
+        org.springframework.test.web.servlet.MvcResult result=mvc.perform(get("/api/v1/agent/events/stream").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted()).andReturn();
+        assertNull(result.getAsyncResult(6000));
+        mvc.perform(asyncDispatch(result)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
+    }
+    @Test void exportedLegacyConsentCsvCanBeImportedWithoutConsentLoss() throws Exception {
+        Identity source=fixture("admin"),target=fixture("admin");store.insert("contact",JsonSupport.map("tenant_id",source.tenant(),"phone","13900000044","name","Roundtrip","consent_state","consented","dnc",true,"dnc_reason","requested"));
+        ByteArrayOutputStream output=new ByteArrayOutputStream();files.export(null,null,null,request(source)).getBody().writeTo(output);
+        Map<String,Object> imported=files.importCsv(new MockMultipartFile("file","roundtrip.csv","text/csv",output.toByteArray()),true,"roundtrip",request(target));assertEquals(1,imported.get("created"));
+        Map<String,Object> row=store.one("contact","WHERE tenant_id=?",target.tenant());assertEquals("consented",row.get("consent_state"));assertEquals(true,row.get("dnc"));
+    }
 }

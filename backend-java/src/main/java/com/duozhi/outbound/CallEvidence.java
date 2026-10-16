@@ -42,9 +42,9 @@ public class CallEvidence {
     }
 
     @GetMapping("/{id}/realtime")
-    public Map<String, Object> realtime(@PathVariable UUID id, HttpServletRequest request) {
+    public Object realtime(@PathVariable UUID id, HttpServletRequest request) {
         long tenant = visible(request, id);
         Map<String, Object> row = store.one("realtimesession", "WHERE tenant_id=? AND call_session_id=?", tenant, store.encode("realtimesession", "call_session_id", id));
-        return row == null ? null : contract.output("RealtimeSessionOut", row);
+        return row == null ? com.fasterxml.jackson.databind.node.NullNode.getInstance() : contract.output("RealtimeSessionOut", row);
     }
 }

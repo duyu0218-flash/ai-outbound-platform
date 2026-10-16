@@ -1,0 +1,22 @@
+{
+  "jar_sha256": "9acdbab5094db363ea5997a21f4cb6fe0c75720f6ffe1ac05021ee51a737ab4d",
+  "jdk": "Zulu 1.8.0_504",
+  "spring_boot": "2.7.18",
+  "classes": 80,
+  "class_major_versions": [
+    52
+  ],
+  "browser": {
+    "management_passed": 13,
+    "management_seconds": 33.4,
+    "mock_dispatch_passed": 1,
+    "mock_dispatch_seconds": 8.5,
+    "skipped": 0
+  },
+  "compose_configuration": "passed",
+  "docker_image": "not verified: base image metadata pull timeout",
+  "production_deployed": false,
+  "real_device": "not verified",
+  "real_sip_rtp": "not verified",
+  "source_baseline": "96d9bef44173612d85399792bf54c6399059b1e7"
+}

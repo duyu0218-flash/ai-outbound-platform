@@ -14,7 +14,7 @@ public class Errors {
     @ExceptionHandler(ApiError.class)
     ResponseEntity<?> api(ApiError e) { return ResponseEntity.status(e.status).body(Values.map("detail", e.getMessage())); }
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
-    ResponseEntity<?> invalid(Exception e) { return ResponseEntity.unprocessableEntity().body(Values.map("detail", "invalid request")); }
+    ResponseEntity<?> invalid(Exception e) { return ResponseEntity.badRequest().body(Values.map("detail", "invalid request")); }
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<?> conflict(Exception e) { return ResponseEntity.status(409).body(Values.map("detail", "data conflicts with existing records")); }
 }

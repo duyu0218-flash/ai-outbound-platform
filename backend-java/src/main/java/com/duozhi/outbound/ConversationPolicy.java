@@ -55,7 +55,7 @@ public class ConversationPolicy {
             &&!((Collection<?>)policy.get("holidays")).contains(local.toLocalDate().toString())
             &&local.getHour()>=JsonSupport.integer(policy.get("start_hour"),9)&&local.getHour()<JsonSupport.integer(policy.get("end_hour"),20);
     }
-    public static Map<String,Object> reply(String text,String action) {return JsonSupport.map("action",action,"tts_text",text,"handoff_to_human","handoff".equals(action));}
+    public static Map<String,Object> reply(String text,String action) {return JsonSupport.map("action",action,"tts_text",text,"handoff_to_human","handoff".equals(action),"escalate_priority",0,"hangup_sms",null,"next_keywords",Collections.emptyList());}
     private Map<String,Object> reply(String text) {return reply(text,"speak");}
     public void work(Map<String,Object> call,String kind,String key,Map<String,Object> detail) {
         String eventKey=CallLifecycle.tenant(call)+":"+key;

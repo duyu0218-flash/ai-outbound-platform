@@ -131,9 +131,9 @@ public class Campaigns {
     @PutMapping("/{id}")
     @Transactional
     public Map<String, Object> update(@PathVariable long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
-        long tenant = tenant(request); Map<String, Object> existing = locked(tenant, id);
+        long tenant = tenant(request); Map<String, Object> data = contract.input("CampaignCreate", body, true);
+        Map<String, Object> existing = locked(tenant, id);
         if (Values.set("deleted", "running", "paused").contains(existing.get("status"))) throw new ApiError(409, "stop campaign before editing");
-        Map<String, Object> data = contract.input("CampaignCreate", body, true);
         List<Long> contacts = validate(tenant, data); data.remove("contact_ids");
         data.put("script", script(tenant, data));
         Map<String, Object> row = store.update("campaign", tenant, id, data);

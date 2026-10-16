@@ -46,6 +46,7 @@ public class Authentication extends OncePerRequestFilter {
         if (authorization != null) {
             if (!authorization.startsWith("Bearer ")) throw new ApiError(401, "Invalid token");
             java.util.Map<java.lang.String,java.lang.Object> claims = crypto.claims(authorization.substring(7));
+            request.setAttribute("token_expires_at", ((Number)claims.get("exp")).longValue());
             if (!(claims.get("uid") instanceof Number)) throw new ApiError(401, "Invalid token payload");
             java.util.Map<java.lang.String,java.lang.Object> user = store.one("user", "WHERE id=?", ((Number)claims.get("uid")).longValue());
             if (user == null || !Boolean.TRUE.equals(user.get("enabled")) || !Objects.equals(user.get("username"), claims.get("sub"))) throw new ApiError(401, "Invalid token");

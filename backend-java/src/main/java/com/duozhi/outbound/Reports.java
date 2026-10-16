@@ -25,7 +25,7 @@ public class Reports {
     private final Contract contract;
     public Reports(Store store, Audit audit, Contract contract) { this.store = store; this.audit = audit; this.contract = contract; }
     private Identity admin(HttpServletRequest request) { Identity i = Identity.from(request); i.requireUser(); i.admin(); return i; }
-    private LocalDateTime since(int days) { if (days < 1 || days > 3650) throw new ApiError(422, "invalid days"); return Store.now().minusDays(days); }
+    private LocalDateTime since(int days) { if (days < 1 || days > 3650) throw new ApiError(400, "invalid days"); return Store.now().minusDays(days); }
     private void dimension(String dimension) { if (!Values.set("campaign", "agent", "line").contains(dimension)) throw new ApiError(400, "unsupported dimension"); }
     private List<Map<String,Object>> calls(long tenant, LocalDateTime since) {
         return store.list("callsession", "WHERE tenant_id=? AND created_at>=? ORDER BY created_at,id", tenant, store.encode("callsession", "created_at", since));
@@ -120,7 +120,7 @@ public class Reports {
     public Map<String,Object> billing(@RequestParam(defaultValue="campaign") String dimension, @RequestParam(defaultValue="30") int days,
             @RequestParam(defaultValue="0") double ai_unit_price_per_minute, @RequestParam(defaultValue="0") double telephony_unit_price_per_minute, @RequestParam(defaultValue="0") double sms_unit_price, HttpServletRequest request) {
         long tenant = admin(request).tenant(); dimension(dimension); LocalDateTime since = since(days);
-        for (double price : new double[]{ai_unit_price_per_minute, telephony_unit_price_per_minute, sms_unit_price}) if (!Double.isFinite(price) || price < 0) throw new ApiError(422, "invalid unit price");
+        for (double price : new double[]{ai_unit_price_per_minute, telephony_unit_price_per_minute, sms_unit_price}) if (!Double.isFinite(price) || price < 0) throw new ApiError(400, "invalid unit price");
         Map<String,List<Map<String,Object>>> usage = new HashMap<>();
         for (Map<String,Object> row : store.list("callusage", "WHERE tenant_id=? AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id=? AND created_at>=?)", tenant, tenant, store.encode("callsession", "created_at", since))) usage.computeIfAbsent(row.get("call_session_id").toString(), k -> new ArrayList<>()).add(row);
         Map<String,Long> sms = new HashMap<>();
