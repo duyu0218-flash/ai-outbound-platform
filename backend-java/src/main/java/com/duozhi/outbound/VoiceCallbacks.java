@@ -134,7 +134,7 @@ public class VoiceCallbacks {
             if(recorded==attempt)store.update("callsession",tenant,id,JsonSupport.map("recording_url",url));
             Map<String,Object> asset=store.one("recordingasset","WHERE call_session_id=? AND provider_url=? AND attempt=?",store.encode("recordingasset","call_session_id",id),url,recorded);
             if(asset==null) {
-                int days=Math.max(1,Math.min(3650,JsonSupport.integer(settings.get(tenant,"compliance").get("recording_retention_days"),config.number("RECORDING_RETENTION_DAYS",90))));
+                int days=Math.max(1,Math.min(3650,JsonSupport.integer(settings.get(tenant,"compliance").get("recording_retention_days"),config.number("RECORDING_RETENTION_DAYS", 90))));
                 asset=store.insert("recordingasset",JsonSupport.map("tenant_id",tenant,"call_session_id",id,"attempt",recorded,"provider_recording_id",p.get("recording_id"),"provider_url",url,"storage_uri",Objects.toString(p.get("storage_uri"),""),"state",Objects.toString(p.get("state"),"available"),"duration_sec",p.get("duration_sec"),"media_format",Objects.toString(p.get("format"),""),"channel_count",Math.max(1,JsonSupport.integer(p.get("channel_count"),1)),"checksum_sha256",p.get("checksum_sha256"),"retention_until",Store.now().plusDays(days)));
             }
             if(recorded==attempt&&CallLifecycle.TERMINAL.contains(call.get("status")))outbox.enqueue(tenant,"call_analysis",id,"analysis-recording:"+id+":"+recorded+":"+asset.get("id"),JsonSupport.map("call_id",id,"attempt",recorded));

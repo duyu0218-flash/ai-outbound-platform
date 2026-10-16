@@ -1,5 +1,5 @@
 {
-  "jar_sha256": "9acdbab5094db363ea5997a21f4cb6fe0c75720f6ffe1ac05021ee51a737ab4d",
+  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7",
   "jdk": "Zulu 1.8.0_504",
   "spring_boot": "2.7.18",
   "classes": 80,
@@ -8,13 +8,13 @@
   ],
   "browser": {
     "management_passed": 13,
-    "management_seconds": 33.4,
+    "management_seconds": 34.3,
     "mock_dispatch_passed": 1,
-    "mock_dispatch_seconds": 8.5,
+    "mock_dispatch_seconds": 8.1,
     "skipped": 0
   },
   "compose_configuration": "passed",
-  "docker_image": "not verified: base image metadata pull timeout",
+  "docker_image": "GitHub image build passed; container startup smoke retry fix awaiting CI",
   "production_deployed": false,
   "real_device": "not verified",
   "real_sip_rtp": "not verified",

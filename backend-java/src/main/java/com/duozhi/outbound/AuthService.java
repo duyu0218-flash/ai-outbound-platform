@@ -20,7 +20,7 @@ public class AuthService {
         int failed = user.get("locked_until") == null ? ((Number)user.get("failed_login_attempts")).intValue() : 0;
         if (!crypto.verifyPassword(user.get("password_hash").toString(), password)) {
             changes.put("failed_login_attempts", failed+1);
-            if (failed+1 >= Math.max(1, config.number("AUTH_MAX_FAILED_ATTEMPTS", 5))) changes.put("locked_until", now.plusSeconds(Math.max(30,config.number("AUTH_LOCKOUT_SECONDS",300))));
+            if (failed+1 >= Math.max(1, config.number("AUTH_MAX_FAILED_ATTEMPTS", 5))) changes.put("locked_until", now.plusSeconds(Math.max(30,config.number("AUTH_LOCKOUT_SECONDS", 900))));
             store.update("user", tenant, user.get("id"), changes);
             return null; // Return normally so failed-login counters commit.
         }

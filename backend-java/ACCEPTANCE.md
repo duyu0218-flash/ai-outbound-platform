@@ -5,7 +5,7 @@
 ## 环境与制品
 
 - Spring Boot 2.7.18；实际构建、测试和浏览器服务使用 Zulu JDK 1.8.0_504；Maven 3.9.11。
-- 80 个应用 class 的 major version 均为 52。制品 `target/outbound-control-0.1.0-SNAPSHOT.jar` 的 SHA-256 为 `9acdbab5094db363ea5997a21f4cb6fe0c75720f6ffe1ac05021ee51a737ab4d`。
+- 80 个应用 class 的 major version 均为 52。制品 `target/outbound-control-0.1.0-SNAPSHOT.jar` 的 SHA-256 为 `6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7`。
 - 内存 SQLite、专用 PostgreSQL 16、独立 Redis 7；浏览器使用本机隔离 SQLite 合成数据。未连接业务数据库或真实电话线路。
 - 108 项基线接口均有 Java 实现：108 mapped、0 partial、0 pending。路由存在不等于所有行为组合完全一致；271 项对照用例、独立集成测试和浏览器链路分别验证。
 
@@ -69,7 +69,7 @@ E2E_JAVA_DISPATCH=1 E2E_BASE_URL=http://127.0.0.1:18822 node node_modules/@playw
 - 500 总在途、长稳/突发流量、跨租户公平性、跨进程租约接管和进程崩溃恢复未验证。已验证慢 AI 不阻塞控制通道，但不是容量结论。
 - 短信使用稳定幂等键和持久记录；渠道不支持幂等或响应不确定时，仍需渠道级核对，不能承诺绝不重复发送。回调 DNS 地址过滤与 HTTP 响应解析有本地测试，公网网络行为未验证。
 - Spring Boot/JDK 8 按指定版本构建，专项依赖漏洞扫描及安全加固评审尚未执行。
-- Compose 配置解析通过；Docker Hub 基础镜像元数据拉取超时，镜像构建与 Linux 容器功能未验证。这是环境限制，不是构建成功。
+- Compose 配置解析通过；本机 Docker Hub 拉取超时，GitHub CI 已完成 Linux 镜像构建。容器启动烟测发现连接重置，已补充启动重试，最新运行结果以 PR #51 检查为准。
 - `/readyz` 默认因 `JAVA_RELEASE_ACCEPTED=false` 返回 503；验收标记开启仍须初始化、依赖和消费者健康。生产配置检查已实现；未批准或执行生产切换。
 - 测试环境发布、真机测试、生产发布均未进行；GitHub CI 和 main 合并状态须以实际远端结果为准，本记录不代表已发布。
 
@@ -91,7 +91,7 @@ E2E_JAVA_DISPATCH=1 E2E_BASE_URL=http://127.0.0.1:18822 node node_modules/@playw
 - SQLite：82 项，0 失败、0 错误、0 跳过；打包退出码 0。
 - PostgreSQL：82 项，0 失败、0 错误、0 跳过；测试退出码 0。两组均包含隔离 Redis 验证。
 - Java 制品管理端浏览器：13/13 通过，0 跳过。
-- 最新 Java 制品模拟外呼浏览器：1/1 通过（8.5 秒）。总计 14 个浏览器场景通过。
+- 最新 Java 制品模拟外呼浏览器：1/1 通过（8.1 秒）。总计 14 个浏览器场景通过。
 - Python/Java 行为对照：271/271 匹配；实 Python 服务 mock 驱动联调：4/4；PostgreSQL 备份迁移恢复演练通过。
 - 以上为开发环境验证，不代表真实线路、目标部署容量或生产验收完成。
 
@@ -100,3 +100,7 @@ E2E_JAVA_DISPATCH=1 E2E_BASE_URL=http://127.0.0.1:18822 node node_modules/@playw
 PR #51 的首次检查中，Java 8 两组检查及原服务单测通过，旧 Python 后端的 PyJWT 2.13.0 被安全扫描拦截；四个列表分页场景共用一个 30 秒用例导致 Compose E2E 超时。已将 PyJWT 固定为 2.15.1，并将分页场景拆为四个独立测试，保留翻到第六页、下一页禁用及返回第五页的断言。修复版依据 [PyJWT 官方变更记录](https://pyjwt.readthedocs.io/en/stable/changelog.html)。
 
 本地补验：Python 后端 310 项通过、18 项环境条件跳过；PyJWT 升级后的双后端对照仍为 271/271；四个分页浏览器用例 4/4 通过（8.8 秒）。这四项使用拦截的分页响应，单独作为前端分页回归，不替代真实后端验证。新增 `java-image` CI 构建并启动一次性 Java 容器，验证前端、登录、默认发布门槛、模拟拨号与结果读取；远端结果以最新 CI 为准。
+
+进一步补齐 Python 默认配置兼容：登录有效期 12 小时、锁定 15 分钟、导入 20 MiB / 20 万行 / 1000 条错误、录音保留 90 天、TURN 1 小时及 HTTP 超时/清理批次；登录和锁定增加断言，82 项双库测试及 271 项对照重新通过。前端间接依赖 tinypool、brace-expansion、source-map-js 固定到安全修复版本；单测 11/11、覆盖率门槛和构建通过，pnpm audit 高危门槛通过，仍报告 4 项 moderate，未声明零漏洞。
+
+依赖更新后重建前端并复验：12 个管理场景和 1 个模拟外呼场景通过；预约夹具状态未及时重置导致该场景跳过，重置后单独复跑 1/1 通过，全部 14 个场景均有通过证据。见 `validation/frontend-security.json`。

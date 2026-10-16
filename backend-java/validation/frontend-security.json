@@ -1,0 +1,9 @@
+{
+  "unit_tests_passed": 11,
+  "coverage_gate": "passed",
+  "build": "passed",
+  "audit_high_critical": 0,
+  "audit_moderate": 4,
+  "browser_recheck": "12 management and 1 dispatch passed; appointment fixture rerun passed separately (1/1)",
+  "business_source_changed": false
+}

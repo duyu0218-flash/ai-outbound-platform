@@ -94,7 +94,7 @@ public class AiRuntime {
             if(!Boolean.TRUE.equals(ai.getOrDefault("enabled",true)))throw new ApiError(503,"AI service is disabled for tenant");
             String approved=config.get("AI_AGENT_URL","http://localhost:8001");if(!Settings.endpoint(approved,false).equals(Settings.endpoint(Objects.toString(ai.get("agent_url"),approved),false)))throw new ApiError(503,"AI endpoint is managed by the platform");
             Map<String,String> headers=new LinkedHashMap<>();String token=config.get("AI_AGENT_SERVICE_TOKEN","");if(!token.isEmpty())headers.put("Authorization","Bearer "+token);
-            TaskWorker.permitted();result=validated(client.post(approved.replaceAll("/+$","")+"/agent/turn",json.json(snapshot.get("request")).getBytes(StandardCharsets.UTF_8),headers,config.number("AI_CALLBACK_TIMEOUT_SEC",20)*1000));
+            TaskWorker.permitted();result=validated(client.post(approved.replaceAll("/+$","")+"/agent/turn",json.json(snapshot.get("request")).getBytes(StandardCharsets.UTF_8),headers,config.number("AI_CALLBACK_TIMEOUT_SEC", 10)*1000));
         }
         final Map<String,Object> proposed=result;
         Map<String,Object> accepted=tx.run(()->{
