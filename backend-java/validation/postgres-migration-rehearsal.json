@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "environment": "isolated PostgreSQL16 clone with synthetic historical rows",
+  "plan_read_only": true,
+  "applied_versions": 22,
+  "repeat_applied": 0,
+  "backup_sha256": "e7542cdfc28cc8d90cca2013f20d29d51b03b52487792c61b4b382143ff6c13b",
+  "backup_bytes": 164408,
+  "restore_preserves_legacy_schema": true,
+  "business_snapshots": {
+    "tenant": "54|19ef20f74ace283aaeefdd7ae71f1a22",
+    "user": "36|f0e35709d3206c597aadda9c8533f007",
+    "contact": "18|b763a064c6062b299dde7c960e33b40e",
+    "campaign": "11|8a90fe6d46a56edcb0d035f8cbffeb3c",
+    "callsession": "45|4a3cae8f02b9b27ddbce2bdecd8218ac",
+    "speechturn": "23|953c205400b7ada819271b2533ce043f",
+    "callusage": "17|01f76d247527c4ce0cd31d2b858f38f3",
+    "recordingasset": "5|6d0fbe1680d7ab82fc8cc7237f8e76c7"
+  },
+  "jar_sha256": "6f287daa5681fcad1ac0aadfb60cf46d83d8156b4e5d3f11cfafc411b17fd2e7"
+}

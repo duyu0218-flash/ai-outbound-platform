@@ -10,3 +10,9 @@ backend/.pytest_cache
 **/__pycache__
 *.pyc
 *.log
+
+.tools
+backend-java/target
+backend-java/.local
+frontend/test-results
+frontend/playwright-report

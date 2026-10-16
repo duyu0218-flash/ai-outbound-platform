@@ -1,0 +1,657 @@
+{
+  "baseline": "96d9bef44173612d85399792bf54c6399059b1e7",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/product/policy",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/policy",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/simulate",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/appointments",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/product/appointments/{appointment_id}",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/work-items",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/product/work-items/{item_id}",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/incoming",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/outcomes",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/knowledge/import",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/knowledge/search",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/funnel",
+      "java_status": "mapped",
+      "java_source": "ProductOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "java_status": "mapped",
+      "java_source": "RuntimeController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz",
+      "java_status": "mapped",
+      "java_source": "RuntimeController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/readyz",
+      "java_status": "mapped",
+      "java_source": "RuntimeController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handover",
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/hangup",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/events",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/webhook-events",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/webhook-stats",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/retry",
+      "java_status": "mapped",
+      "java_source": "Calls.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/campaigns",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/start",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java",
+      "limitation": "已实现模拟/HTTP 拨号、网关选择及稳定性准入；默认关闭 JAVA_DISPATCH_ENABLED，真实线路和容量验收未完成"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/pause",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/resume",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java",
+      "limitation": "已实现恢复与持久化执行器；默认关闭 JAVA_DISPATCH_ENABLED，生产验收未完成"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/stop",
+      "java_status": "mapped",
+      "java_source": "Campaigns.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/contacts/import",
+      "java_status": "mapped",
+      "java_source": "ContactFiles.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts/export",
+      "java_status": "mapped",
+      "java_source": "ContactFiles.java"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/contacts/batch-dnc",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/contacts",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts/{contact_id}",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/contacts/{contact_id}",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/contacts/{contact_id}",
+      "java_status": "mapped",
+      "java_source": "Contacts.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/batch",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/status",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/transcript",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/speech",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/dtmf",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/media",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/recording",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/sms/status",
+      "java_status": "mapped",
+      "java_source": "Webhooks.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "java_status": "mapped",
+      "java_source": "AuthController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "java_status": "mapped",
+      "java_source": "AuthController.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/auth/presence",
+      "java_status": "mapped",
+      "java_source": "AuthController.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "java_status": "mapped",
+      "java_source": "AuthController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates",
+      "java_status": "mapped",
+      "java_source": "Templates.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates",
+      "java_status": "mapped",
+      "java_source": "Templates.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}",
+      "java_status": "mapped",
+      "java_source": "Templates.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/script-templates/{template_id}",
+      "java_status": "mapped",
+      "java_source": "Templates.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/script-templates/{template_id}",
+      "java_status": "mapped",
+      "java_source": "Templates.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}/flows",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "java_status": "mapped",
+      "java_source": "ScriptFlows.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/tasks/{task_id}/retry",
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{user_id}",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{user_id}",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{user_id}/reset-password",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{user_id}/unlock",
+      "java_status": "mapped",
+      "java_source": "AdminUsers.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/lines",
+      "java_status": "mapped",
+      "java_source": "AdminLines.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/lines",
+      "java_status": "mapped",
+      "java_source": "AdminLines.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/lines/{line_id}",
+      "java_status": "mapped",
+      "java_source": "AdminLines.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/lines/{line_id}",
+      "java_status": "mapped",
+      "java_source": "AdminLines.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/sms-logs",
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/settings/{section}",
+      "java_status": "mapped",
+      "java_source": "AdminSettings.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/settings/{section}",
+      "java_status": "mapped",
+      "java_source": "AdminSettings.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/calls/export",
+      "java_status": "mapped",
+      "java_source": "Reports.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/audit-logs",
+      "java_status": "mapped",
+      "java_source": "AdminOperations.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/call-reports",
+      "java_status": "mapped",
+      "java_source": "Reports.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/contact-groups",
+      "java_status": "mapped",
+      "java_source": "Reports.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/billing",
+      "java_status": "mapped",
+      "java_source": "Reports.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/system-overview",
+      "java_status": "mapped",
+      "java_source": "SystemOverview.java",
+      "limitation": "已实现数据库、Redis、AI 和电话服务探针；目标环境依赖故障及恢复完整验收未完成"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/realtime",
+      "java_status": "mapped",
+      "java_source": "CallEvidence.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/speech-turns",
+      "java_status": "mapped",
+      "java_source": "CallEvidence.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/metrics",
+      "java_status": "mapped",
+      "java_source": "CallEvidence.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/recordings",
+      "java_status": "mapped",
+      "java_source": "CallEvidence.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/interrupt",
+      "java_status": "mapped",
+      "java_source": "AiRuntime.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/analysis",
+      "java_status": "mapped",
+      "java_source": "CallAnalysis.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/calls/{call_id}/analysis",
+      "java_status": "mapped",
+      "java_source": "CallAnalysis.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/handoffs",
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/handoffs",
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quality/reviews",
+      "java_status": "mapped",
+      "java_source": "Reports.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
+      "java_status": "mapped",
+      "java_source": "Handoffs.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge",
+      "java_status": "mapped",
+      "java_source": "Knowledge.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/knowledge",
+      "java_status": "mapped",
+      "java_source": "Knowledge.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/knowledge/{item_id}",
+      "java_status": "mapped",
+      "java_source": "Knowledge.java"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/knowledge/{item_id}",
+      "java_status": "mapped",
+      "java_source": "Knowledge.java"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/webrtc/session",
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/media/status",
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent/media/status",
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/events/stream",
+      "java_status": "mapped",
+      "java_source": "AgentMedia.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "java_status": "mapped",
+      "java_source": "RuntimeController.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard",
+      "java_status": "mapped",
+      "java_source": "Dashboard.java"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/dashboard",
+      "java_status": "mapped",
+      "java_source": "Dashboard.java"
+    }
+  ],
+  "status_meaning": "mapped 表示 Java 存在路由；不表示行为等价或验收通过。具体测试见 ACCEPTANCE.md。"
+}

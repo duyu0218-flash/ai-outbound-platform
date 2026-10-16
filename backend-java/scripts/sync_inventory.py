@@ -1,0 +1,49 @@
+"""Record Java route presence, not behavioral equivalence or acceptance.
+
+Uses the simple literal controller annotations in this migration. Runtime and
+business tests remain necessary; a mapped route is not a completed migration.
+"""
+import json
+import re
+from pathlib import Path
+
+MODULE = Path(__file__).resolve().parents[1]
+
+
+def key(method, path):
+    return method, re.sub(r"\{[^}]+\}", "{}", path)
+
+
+def update_inventory():
+    mappings = {}
+    for path in (MODULE / "src/main/java/com/duozhi/outbound").glob("*.java"):
+        text = path.read_text()
+        prefix = re.search(r'@RequestMapping\("([^"]+)"\)', text)
+        prefix = prefix.group(1) if prefix else ""
+        for method, arguments in re.findall(r'@(Get|Post|Put|Patch|Delete)Mapping(?:\(([^)]*)\))?', text):
+            for suffix in re.findall(r'"([^"]*)"', arguments) or [""]:
+                mappings[key(method.upper(), prefix + suffix)] = path.name
+    verification = {
+        key("POST", "/api/v1/campaigns/{id}/start"): "已实现模拟/HTTP 拨号、网关选择及稳定性准入；默认关闭 JAVA_DISPATCH_ENABLED，真实线路和容量验收未完成",
+        key("POST", "/api/v1/campaigns/{id}/resume"): "已实现恢复与持久化执行器；默认关闭 JAVA_DISPATCH_ENABLED，生产验收未完成",
+        key("GET", "/api/v1/admin/system-overview"): "已实现数据库、Redis、AI 和电话服务探针；目标环境依赖故障及恢复完整验收未完成",
+    }
+    output = MODULE / "src/main/resources/contracts/migration-inventory.json"
+    inventory = json.loads(output.read_text())
+    inventory["status_meaning"] = "mapped 表示 Java 存在路由；不表示行为等价或验收通过。具体测试见 ACCEPTANCE.md。"
+    for route in inventory["routes"]:
+        route_key = key(route["method"], route["path"])
+        route["java_status"] = "mapped" if route_key in mappings else "pending"
+        route.pop("java_source", None)
+        route.pop("limitation", None)
+        if route_key in mappings:
+            route["java_source"] = mappings[route_key]
+        if route_key in verification:
+            route["limitation"] = verification[route_key]
+    output.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n")
+    counts = {state: sum(r["java_status"] == state for r in inventory["routes"]) for state in ("mapped", "partial", "pending")}
+    print(json.dumps(counts))
+
+
+if __name__ == "__main__":
+    update_inventory()
