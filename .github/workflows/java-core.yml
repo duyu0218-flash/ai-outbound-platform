@@ -50,7 +50,7 @@ jobs:
       - name: Start disposable Java container
         run: |
           docker run -d --name java-core-ci -p 127.0.0.1:18823:8000 \
-            --read-only --tmpfs /tmp:rw,nosuid,size=128m \
+            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m \
             -e ENV=test -e JAVA_DATABASE_URL=jdbc:sqlite:/tmp/core.db \
             -e JAVA_INITIALIZE_SCHEMA=true -e DEMO_USERS_ENABLED=true \
             -e JWT_SECRET=isolated-container-ci-secret-never-production \
