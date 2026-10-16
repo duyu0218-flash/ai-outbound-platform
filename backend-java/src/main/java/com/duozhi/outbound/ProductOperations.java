@@ -2,7 +2,7 @@ package com.duozhi.outbound;
 
 import java.util.*;
 import java.time.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

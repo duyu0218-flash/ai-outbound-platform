@@ -1,8 +1,8 @@
 package com.duozhi.outbound;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import javax.servlet.http.HttpServletRequest;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,7 +87,7 @@ public class Campaigns {
         try {
             for (JsonNode node : mapper.readTree(flow.get("graph_json").toString()).path("nodes"))
                 if ("start".equals(node.path("type").asText())) return node.path("id").asText();
-        } catch (java.io.IOException e) { throw new ApiError(409, "invalid published flow graph"); }
+        } catch (tools.jackson.core.JacksonException e) { throw new ApiError(409, "invalid published flow graph"); }
         throw new ApiError(409, "published flow has no start node");
     }
 

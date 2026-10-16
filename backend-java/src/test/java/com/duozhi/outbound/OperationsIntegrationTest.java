@@ -7,7 +7,7 @@ import java.time.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.*;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
@@ -178,7 +178,7 @@ class OperationsIntegrationTest {
 
     @Test void eventStreamClosesWhenBearerExpires() throws Exception {
         Identity i=fixture("agent");Config shortLife=new Config(new MockEnvironment().withProperty("JWT_SECRET",config.get("JWT_SECRET","")).withProperty("JWT_TTL_SECONDS","2"));
-        String token=new Crypto(new com.fasterxml.jackson.databind.ObjectMapper(),shortLife).token(i.user());
+        String token=new Crypto(new tools.jackson.databind.ObjectMapper(),shortLife).token(i.user());
         org.springframework.test.web.servlet.MvcResult result=mvc.perform(get("/api/v1/agent/events/stream").header("Authorization","Bearer "+token))
             .andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted()).andReturn();
         assertNull(result.getAsyncResult(6000));

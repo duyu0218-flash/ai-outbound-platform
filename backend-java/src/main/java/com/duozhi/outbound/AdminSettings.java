@@ -1,7 +1,7 @@
 package com.duozhi.outbound;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import javax.servlet.http.HttpServletRequest;
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -17,7 +17,7 @@ public class AdminSettings {
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> result=new LinkedHashMap<String,Object>();result.put("section",section);result.put("data",data);result.put("updated_at",record==null?null:record.get("updated_at"));return result;
     }
     @PutMapping("/{section}") @Transactional
-    public Map<String,Object> update(@PathVariable String section,@RequestBody Map<String,Object> body,HttpServletRequest request)throws com.fasterxml.jackson.core.JsonProcessingException{
+    public Map<String,Object> update(@PathVariable String section,@RequestBody Map<String,Object> body,HttpServletRequest request)throws tools.jackson.core.JacksonException{
         com.duozhi.outbound.Identity actor=Identity.from(request);if(!(body.get("data") instanceof Map))throw new ApiError(400,"data is required");Map<?,?> input=(Map<?,?>)body.get("data");
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> values=new LinkedHashMap<String,Object>();for(java.util.Map.Entry<?,?> entry:input.entrySet())values.put(entry.getKey().toString(),entry.getValue());java.util.Map<java.lang.String,java.lang.Object> data=settings.validate(section,values);
         if(Values.set("capacity","compliance").contains(section)){

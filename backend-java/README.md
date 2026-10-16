@@ -1,18 +1,18 @@
 # 核心后端 Java 迁移
 
 基线：`main` 的 `96d9bef44173612d85399792bf54c6399059b1e7`。
-技术栈：Spring Boot **2.7.18**、**JDK 1.8**、Maven。
+技术栈：Spring Boot **4.1.1**、**JDK 17**、Maven。
 前端沿用 React；AI Agent、语音网关和录音适配服务保留 Python。
 
 核心后端的接口、后台执行流程、旧库迁移和运行入口已实现 Java 版本，未通过转发 Python 核心接口代替迁移。开发环境验收见 [ACCEPTANCE.md](ACCEPTANCE.md)；生产替换尚未验收。`JAVA_RELEASE_ACCEPTED` 默认关闭，只有完成独立发布验收后才可开启就绪门槛；生产配置仍须通过完整检查。
 
 ## 构建与测试
 
-安装 JDK 1.8 和 Maven 3.9，设置 `JAVA_HOME`。以下命令在仓库根目录执行：
+安装 JDK 17 和 Maven 3.9，设置 `JAVA_HOME`。以下命令在仓库根目录执行：
 
 ```sh
 export JAVA_HOME=/path/to/jdk8
-bash backend-java/scripts/build-java8.sh clean verify
+bash backend-java/scripts/build-java17.sh clean verify
 ```
 
 脚本会拒绝使用其他 Java 主版本。默认集成测试使用独立内存 SQLite。也可使用专用、空白的 PostgreSQL 测试库：
@@ -21,7 +21,7 @@ bash backend-java/scripts/build-java8.sh clean verify
 export JAVA_TEST_DATABASE_URL=jdbc:postgresql://127.0.0.1:5432/java_core_test
 export DATABASE_USER=java_test
 export DATABASE_PASSWORD='<test-database-password>'
-bash backend-java/scripts/build-java8.sh test
+bash backend-java/scripts/build-java17.sh test
 ```
 
 测试会创建完整表结构并插入测试数据；不要连接业务数据库。重复运行 PostgreSQL 测试前须重建专用测试库。
@@ -86,7 +86,7 @@ PYTHON_AGENT=/path/to/agent-venv/bin/python PYTHON_VOICE=/path/to/voice-venv/bin
   python backend-java/scripts/retained_services_smoke.py
 ```
 
-脚本要求 `JAVA_HOME` 和已打包的 Java 制品，自动使用临时库与 loopback 端口，报告写入 `validation/`。行为对照归一化生成时间/令牌/UUID；固定历史时间保留比较，错误信息只比较状态边界。GitHub 配置新增 `java-core.yml`，覆盖 JDK 8 的 SQLite/PostgreSQL/Redis 测试；本机通过不等于远端 CI 通过。
+脚本要求 `JAVA_HOME` 和已打包的 Java 制品，自动使用临时库与 loopback 端口，报告写入 `validation/`。行为对照归一化生成时间/令牌/UUID；固定历史时间保留比较，错误信息只比较状态边界。GitHub 配置新增 `java-core.yml`，覆盖 JDK 17 的 SQLite/PostgreSQL/Redis 测试；本机通过不等于远端 CI 通过。
 
 `backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。本次只验证 Compose 配置，基础镜像下载超时，镜像构建与容器运行未通过验收。
 
@@ -98,3 +98,7 @@ docker compose -f docker-compose.yml -f docker-compose.java.yml build control-ap
 生产使用 PostgreSQL，配置 JDBC 的 `JAVA_DATABASE_URL`、`DATABASE_USER`、`DATABASE_PASSWORD`，保留原 JWT/服务签名密钥以兼容已有账号及回调；关闭演示账户、自动迁移及 inline 任务。`TRUSTED_HOSTS` 须包含业务域名和容器健康探针使用的 `127.0.0.1`。完整发布前置条件见验收记录。
 
 Java 镜像预置 SQLite 本地库以兼容只读文件系统及 noexec 临时目录。自定义 `JAVA_TOOL_OPTIONS` 时需保留 `-Dorg.sqlite.lib.path=/app/native`；生产数据库仍使用 PostgreSQL。
+
+## 安全检查
+
+用户已批准升级到 JDK 17，JDK 8 不再受支持。当前使用 Spring Boot 4.1.1 / Spring 7.0.9 / Jackson 3.1.7 / Tomcat 11.0.27；保留前端和 Python 辅助服务。执行 `bash backend-java/scripts/security-check.sh` 生成全依赖 SBOM、OSV 漏洞报告和 FindSecBugs 静态分析。扫描失败、依赖公告、新增高/中优先级提示或复核源文件变化均阻断 CI；原始报告作为 artifact 保存。范围与部署约束见 [安全检查报告](SECURITY-REVIEW.md)。
