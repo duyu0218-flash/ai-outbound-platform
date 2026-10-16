@@ -96,3 +96,5 @@ docker compose -f docker-compose.yml -f docker-compose.java.yml build control-ap
 ```
 
 生产使用 PostgreSQL，配置 JDBC 的 `JAVA_DATABASE_URL`、`DATABASE_USER`、`DATABASE_PASSWORD`，保留原 JWT/服务签名密钥以兼容已有账号及回调；关闭演示账户、自动迁移及 inline 任务。`TRUSTED_HOSTS` 须包含业务域名和容器健康探针使用的 `127.0.0.1`。完整发布前置条件见验收记录。
+
+Java 镜像预置 SQLite 本地库以兼容只读文件系统及 noexec 临时目录。自定义 `JAVA_TOOL_OPTIONS` 时需保留 `-Dorg.sqlite.lib.path=/app/native`；生产数据库仍使用 PostgreSQL。
