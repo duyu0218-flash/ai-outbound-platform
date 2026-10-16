@@ -80,6 +80,15 @@ public class Store {
         require(table, tenant, id);
         jdbc.update("DELETE FROM " + name(table) + " WHERE tenant_id=? AND id=?", tenant, encode(table, "id", id));
     }
+    /** Internal tables without tenant_id; callers must establish ownership first. */
+    public void updateInternal(String table, Object id, Map<String, Object> input) {
+        if (tables.get(table).containsKey("tenant_id")) throw new IllegalArgumentException("tenant update required");
+        List<String> columns = new ArrayList<>(input.keySet());
+        if (columns.isEmpty()) return;
+        List<Object> args = columns.stream().map(c -> encode(table, c, input.get(c))).collect(Collectors.toList());
+        args.add(encode(table, "id", id));
+        jdbc.update("UPDATE " + name(table) + " SET " + columns.stream().map(c -> column(table, c) + "=?").collect(Collectors.joining(",")) + " WHERE id=?", args.toArray());
+    }
     public Map<String, Object> defaults(String table) {
         name(table);
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> result = new LinkedHashMap<String, Object>();
@@ -97,13 +106,22 @@ public class Store {
         if (info == null) throw new IllegalArgumentException("unknown column");
         if (info.containsKey("enum")) {
             java.util.Map<java.lang.String,java.lang.String> enums = (Map<String, String>) info.get("enum");
-            return enums.entrySet().stream().filter(e -> e.getValue().equals(value.toString()) || e.getKey().equals(value.toString()))
+            String enumValue = value.toString();
+            return enums.entrySet().stream().filter(e -> e.getValue().equals(enumValue) || e.getKey().equals(enumValue))
                     .map(Map.Entry::getKey).findFirst().orElseThrow(() -> new ApiError(422, "invalid " + key));
         }
         String type = info.get("type").toString();
         if (type.equals("CHAR(32)") || type.equals("UUID")) {
             java.util.UUID uuid = value instanceof UUID ? (UUID)value : UUID.fromString(value.toString());
             return postgres ? uuid : uuid.toString().replace("-", "");
+        }
+        if ((type.startsWith("DATETIME") || type.startsWith("TIMESTAMP")) && value instanceof String) {
+            String text = value.toString().replace(' ', 'T');
+            try { value = LocalDateTime.parse(text); }
+            catch (java.time.format.DateTimeParseException local) {
+                try { value = java.time.OffsetDateTime.parse(text).withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime(); }
+                catch (java.time.format.DateTimeParseException invalid) { throw new ApiError(422, "invalid " + key); }
+            }
         }
         if (value instanceof LocalDateTime) return postgres ? Timestamp.valueOf((LocalDateTime)value) : value.toString().replace('T', ' ');
         return value;

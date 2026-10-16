@@ -25,6 +25,7 @@ public class Contract {
     public Map<String,Object> input(String type,Map<String,Object> raw,boolean defaults) {
         JsonNode schema=schemas.path(type);
         if(schema.isMissingNode()) throw new IllegalArgumentException("Unknown contract "+type);
+        validate(schema,mapper.valueToTree(raw),type);
         java.util.LinkedHashMap<java.lang.String,java.lang.Object> output=new LinkedHashMap<String,Object>();
         schema.path("properties").fields().forEachRemaining(entry->{
             String key=entry.getKey();
@@ -63,6 +64,7 @@ public class Contract {
             default:valid=true;
         }
         if(!valid) throw new ApiError(422,"invalid "+key);
+        if(schema.has("const")&&!schema.get("const").equals(value)) throw new ApiError(422,"invalid "+key);
         if(schema.has("enum")) {
             boolean found=false;for(com.fasterxml.jackson.databind.JsonNode option:schema.get("enum")) if(option.equals(value)) found=true;
             if(!found) throw new ApiError(422,"invalid "+key);
@@ -74,6 +76,11 @@ public class Contract {
             if("uuid".equals(schema.path("format").asText())) try {UUID.fromString(text);} catch(IllegalArgumentException e){throw new ApiError(422,"invalid "+key);}
         }
         if(value.isNumber()&&(value.asDouble()<schema.path("minimum").asDouble(-Double.MAX_VALUE)||value.asDouble()>schema.path("maximum").asDouble(Double.MAX_VALUE))) throw new ApiError(422,"out of range: "+key);
+        if(value.isObject()) {
+            for(JsonNode required:schema.path("required")) if(!value.has(required.asText())) throw new ApiError(422,key+"."+required.asText()+" is required");
+            schema.path("properties").fields().forEachRemaining(entry->{if(value.has(entry.getKey()))validate(entry.getValue(),value.get(entry.getKey()),key+"."+entry.getKey());});
+            if(schema.has("additionalProperties")&&schema.get("additionalProperties").isBoolean()&&!schema.get("additionalProperties").asBoolean())value.fieldNames().forEachRemaining(name->{if(!schema.path("properties").has(name))throw new ApiError(422,"unsupported field: "+key+"."+name);});
+        }
         if(value.isArray()) {
             if(value.size()<schema.path("minItems").asInt(0)||value.size()>schema.path("maxItems").asInt(Integer.MAX_VALUE)) throw new ApiError(422,"invalid count: "+key);
             for(com.fasterxml.jackson.databind.JsonNode item:value) validate(schema.path("items"),item,key);

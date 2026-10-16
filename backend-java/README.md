@@ -43,11 +43,29 @@ export DEMO_USERS_ENABLED=true
 
 ## 当前迁移范围
 
-已实现的接口范围：登录/退出/身份/在线状态、客户基本管理与批量 DNC、话术模板、知识库、管理员账户、线路配置、管理设置、概览查询、前端静态入口；另已迁移任务 CRUD、预检、待拨记录准备、暂停与停止，以及通话/事件/转写/录音/指标查询。测试范围见验收记录，接口实现不等于所有页面或业务已验收。
+108 个基线接口均已有 Java 路由（105 mapped、3 partial），但仍处于开发验收阶段，不能据此判定整体迁移完成。
 
-任务准备使用 `POST /api/v1/campaigns/{id}/start?auto_dial=false`。准备操作生成持久化的 `created` 通话记录，不实际拨号。实际启动和恢复暂时返回 503，并保持任务状态不变，直到 Java 执行器完成迁移。SQLite 开发环境使用单连接串行事务；PostgreSQL 使用行锁，已测试多连接同时准备任务不会重复建单。
+已实现：账户/权限/租户隔离、客户与 CSV 导入导出、任务准备/启动/暂停/恢复/停止、拨号尝试及重试、Webhook 持久化收件箱、Outbox 执行器、话术版本与流程、对话策略/预约/待办、AI Agent 协调、人工接管、录音适配和短信任务、分析质检、报表分组与时长账单、浏览器坐席媒体状态及 SIP 凭证。
 
-待迁移：客户导入导出、通话执行与重试、Webhook/Inbox/Outbox、任务调度、流程图、WebRTC、结果分析与报表、外部服务健康探测及其他管理接口。新建库结构从 Python SQLModel 导出；原有库的运行时增量迁移尚未逐项验证。
+执行器默认关闭。仅在隔离开发环境显式配置以下参数启用模拟外呼：
+
+```sh
+export TELEPHONY_PROVIDER=mock
+export JAVA_DISPATCH_ENABLED=true
+export JAVA_WORKERS_ENABLED=true
+# 可选：启用持久化回调收件箱和批量接收。
+export CALLBACK_INBOX_ENABLED=true
+```
+
+任务准备使用 `POST /api/v1/campaigns/{id}/start?auto_dial=false`；默认启动按钮执行实际调度，未开启 `JAVA_DISPATCH_ENABLED` 时返回 503。开启后可通过 mock 网关在 Java 内完成拨号、状态回调、结果分析与报表闭环。AI Agent、语音网关、录音存储继续调用保留的 Python 服务接口；HTTP 模拟不等于真实线路验收。
+
+执行器支持任务租约、重试与旧轮次/旧回复失效。录音删除只有适配器确认后才清除存储位置。定时核对只在 PBX 明确确认终止后结束超时通话，未知结果继续占用容量。SQLite 使用单连接串行事务；正式并发能力需要 PostgreSQL 和目标环境另行测量。
+
+新增后台能力：网关节点授权、容量/CPS 准入及健康探测；Redis 共享压力信号和降速、暂停、恢复控制；数据库、Redis、AI、电话服务探针；回调消费者心跳及过期回执清理；文本脱敏、录音到期删除和已完成任务压缩为幂等凭据。拨号、AI、通话控制、外部集成分别使用独立执行通道，回调消费单独运行。拨号会固定本轮策略快照并发送给 Python 网关。
+
+仍待完成：原库增量迁移与完整行为差异核对、执行通道并发公平性和容量压力验收、崩溃恢复及真实依赖故障演练。WebRTC/SIP、真实线路与云模型完整链路未验收；Redis 共享状态已在隔离实例测试，但生产拓扑未验证。生产启动禁用与 `/readyz` 503 保留。
+
+运行 Redis 集成测试时设置 `JAVA_TEST_REDIS_URL` 指向专用测试实例；未设置时该项会跳过，不能记为通过。生产准入使用 `REDIS_URL`，共享控制失败时暂停新拨号，不使用进程内缓存放行。
 
 接口清单位于 `src/main/resources/contracts/migration-inventory.json`。`mapped` 仅表示已注册 Java 路由，`partial` 表示功能受限，`pending` 表示尚未迁移；这些状态不等于验收结论。新增控制器后执行 `python3 backend-java/scripts/sync_inventory.py` 更新清单。
 

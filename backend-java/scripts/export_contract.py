@@ -14,10 +14,12 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app import models
 from app.main import app
 from app.services.admin_settings import SETTING_DEFAULTS
+from app.product_schemas import ScenarioPolicy
 from sqlmodel import SQLModel
 
 OUT = ROOT / "backend-java/src/main/resources/contracts"
 OUT.mkdir(parents=True, exist_ok=True)
+(OUT / "scenario-defaults.json").write_text(ScenarioPolicy().model_dump_json(indent=2))
 (OUT / "setting-defaults.json").write_text(json.dumps(SETTING_DEFAULTS, ensure_ascii=False, indent=2))
 (OUT / "openapi-baseline.json").write_text(json.dumps(app.openapi(), ensure_ascii=False, indent=2))
 metadata = {}

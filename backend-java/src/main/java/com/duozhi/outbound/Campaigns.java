@@ -15,9 +15,12 @@ public class Campaigns {
     private final Contract contract;
     private final CallPolicy policy;
     private final ObjectMapper mapper;
+    private final Transactions transactions;
+    private final DialService dial;
+    private final CallLifecycle lifecycle;
 
-    public Campaigns(Store store, Contract contract, CallPolicy policy, ObjectMapper mapper) {
-        this.store = store; this.contract = contract; this.policy = policy; this.mapper = mapper;
+    public Campaigns(Store store, Contract contract, CallPolicy policy, ObjectMapper mapper, Transactions transactions, DialService dial, CallLifecycle lifecycle) {
+        this.store = store; this.contract = contract; this.policy = policy; this.mapper = mapper; this.transactions = transactions; this.dial = dial; this.lifecycle = lifecycle;
     }
 
     private long tenant(HttpServletRequest request) {
@@ -25,6 +28,7 @@ public class Campaigns {
     }
 
     private Map<String, Object> locked(long tenant, long id) {
+        transactions.platform();
         // SQLite has no FOR UPDATE: reserve its writer before reading the state.
         if (store.lock().isEmpty()) store.jdbc().update("UPDATE campaign SET id=id WHERE tenant_id=? AND id=?", tenant, id);
         Map<String, Object> row = store.one("campaign", "WHERE tenant_id=? AND id=?" + store.lock(), tenant, id);
@@ -156,15 +160,49 @@ public class Campaigns {
     }
 
     @PostMapping("/{id}/start")
-    @Transactional
     public Map<String, Object> start(@PathVariable long id, HttpServletRequest request,
             @RequestParam(defaultValue="true") boolean auto_dial, @RequestParam(defaultValue="true") boolean async_dial,
             @RequestParam(required=false) Integer max_dials) {
-        long tenant = tenant(request); Map<String, Object> campaign = locked(tenant, id);
+        long tenant = tenant(request);
+        Map<String, Object> result = transactions.run(() -> prepare(tenant, id, auto_dial, async_dial, max_dials));
+        @SuppressWarnings("unchecked") List<Object> selected = (List<Object>)result.remove("_call_ids");
+        if (auto_dial && !async_dial) {
+            int succeeded = 0;
+            List<Map<String, Object>> errors = new ArrayList<>();
+            Set<String> codes = new TreeSet<>();
+            for (Object callId : selected) {
+                String code = "", message = "";
+                try {
+                    boolean attempted = dial.dispatch(callId);
+                    Map<String, Object> call = store.require("callsession", tenant, callId);
+                    if ("failed".equals(call.get("status"))) { code = "DISPATCH_FAILED"; message = Objects.toString(call.get("last_error"), "failed to dispatch call"); }
+                    else if (!attempted) { code = "CALL_NOT_DISPATCHABLE"; message = "call status is " + call.get("status"); }
+                    else succeeded++;
+                } catch (RuntimeException e) { code = "DISPATCH_EXCEPTION"; message = "failed to dispatch call"; }
+                if (!code.isEmpty()) { codes.add(code); errors.add(JsonSupport.map("code", code, "message", message, "call_id", callId)); }
+            }
+            result.put("auto_dial_count", succeeded);
+            result.put("dispatch_result", JsonSupport.map("total", selected.size(), "target", selected.size(), "succeeded", succeeded,
+                    "failed", errors.size(), "skipped", 0, "status", "completed", "errors", errors, "error_codes", codes));
+            @SuppressWarnings("unchecked") Collection<String> prechecks = (Collection<String>)result.get("error_codes");
+            Set<String> allCodes = new TreeSet<>(prechecks); allCodes.addAll(codes); result.put("error_codes", allCodes);
+            if (!errors.isEmpty()) { result.put("result_code", succeeded > 0 ? "PARTIAL_SUCCESS" : "FAILED"); result.put("result_message", "campaign started with errors"); }
+            if (succeeded == 0 && !selected.isEmpty()) transactions.run(() -> {
+                Map<String, Object> row = locked(tenant, id);
+                if ("running".equals(row.get("status")) && store.count("callsession", "WHERE tenant_id=? AND campaign_id=? AND next_attempt_at IS NOT NULL", tenant, id) == 0)
+                    store.update("campaign", tenant, id, Values.map("status", "failed", "dispatch_enabled", false));
+                return null;
+            });
+            String status = store.require("campaign", tenant, id).get("status").toString(); result.put("status", status); result.put("campaign_status", status);
+        }
+        return result;
+    }
+
+    private Map<String, Object> prepare(long tenant, long id, boolean auto_dial, boolean async_dial, Integer max_dials) {
+        Map<String, Object> campaign = locked(tenant, id);
         if (max_dials != null && max_dials < 1) throw new ApiError(422, "invalid max_dials");
         if (!Values.set("draft", "failed", "stopped", "prepared").contains(campaign.get("status"))) throw new ApiError(409, "campaign cannot be started from status " + campaign.get("status"));
-        // Never acknowledge queueing while the Java dispatcher has not been implemented.
-        if (auto_dial) throw new ApiError(503, "Java telephony dispatcher migration is incomplete; preparation is available with auto_dial=false");
+        if (auto_dial) dial.available();
         List<Map<String, Object>> relations = relations(id);
         Map<Long, Map<String, Object>> existing = new HashMap<>();
         for (Map<String, Object> call : store.list("callsession", "WHERE tenant_id=? AND campaign_id=? ORDER BY created_at DESC", tenant, id)) {
@@ -173,6 +211,7 @@ public class Campaigns {
             if (!existing.containsKey(contact) || ("campaign:" + id + ":contact:" + contact).equals(call.get("campaign_contact_key"))) existing.put(contact, call);
         }
         int created = 0, prepared = 0;
+        List<Object> callIds = new ArrayList<>();
         List<Map<String, Object>> skipped = new ArrayList<>(); Set<String> codes = new TreeSet<>();
         for (Map<String, Object> relation : relations) {
             long contactId = ((Number)relation.get("contact_id")).longValue();
@@ -186,7 +225,7 @@ public class Campaigns {
                     if ("created".equals(call.get("status")) || ("failed".equals(call.get("status")) && ((Number)call.get("attempts")).intValue() < ((Number)call.get("max_attempts")).intValue())) {
                         sync(tenant, campaign, call, contact);
                         Map<String, Object> change = new LinkedHashMap<>(); change.put("status", "created"); change.put("next_attempt_at", null);
-                        store.update("callsession", tenant, call.get("id"), change); prepared++;
+                        store.update("callsession", tenant, call.get("id"), change); prepared++; callIds.add(call.get("id"));
                     }
                     continue;
                 }
@@ -200,21 +239,26 @@ public class Campaigns {
                     values.put("phone", phone); values.put("mode", campaign.get("mode")); values.put("status", "created");
                     values.put("max_attempts", ((Number)campaign.get("retry_limit")).intValue() + 1);
                     values.put("script_flow_version_id", campaign.get("script_flow_version_id")); values.put("flow_node_key", startNode(tenant, campaign.get("script_flow_version_id")));
-                    values.put("voice_ai_pipeline", "pending"); store.insert("callsession", values); created++; prepared++; continue;
+                    values.put("voice_ai_pipeline", "pending"); callIds.add(store.insert("callsession", values).get("id")); created++; prepared++; continue;
                 }
             }
             Map<String, Object> error = new LinkedHashMap<>(); error.put("code", code); error.put("message", reason); error.put("contact_id", contactId);
             error.put("phone", contact == null ? null : phone); error.put("call_id", null); skipped.add(error); codes.add(code);
         }
-        String status = prepared > 0 ? "prepared" : "failed";
-        store.update("campaign", tenant, id, Values.map("status", status, "dispatch_enabled", false));
-        String resultCode = skipped.isEmpty() ? "NOT_DISPATCHED" : created > 0 ? "PARTIAL_SUCCESS" : "FAILED";
-        String message = skipped.isEmpty() ? "campaign prepared, auto dial disabled" : created > 0 ? "campaign started with precheck warnings" : "campaign started with precheck blocking";
-        return Values.map("id", id, "tenant_id", tenant, "name", campaign.get("name"), "status", status,
+        List<Object> selected = new ArrayList<>(callIds.subList(0, max_dials == null ? callIds.size() : Math.min(max_dials, callIds.size())));
+        String status = auto_dial ? (selected.isEmpty() ? "failed" : "running") : (prepared > 0 ? "prepared" : "failed");
+        if (auto_dial) for (Object callId : selected)
+            store.update("callsession", tenant, callId, JsonSupport.map("status", "queued", "next_attempt_at", null, "last_error", null));
+        store.update("campaign", tenant, id, Values.map("status", status, "dispatch_enabled", auto_dial && !selected.isEmpty()));
+        String resultCode = skipped.isEmpty() ? (auto_dial ? "SUCCESS" : "NOT_DISPATCHED") : created > 0 ? "PARTIAL_SUCCESS" : "FAILED";
+        String message = skipped.isEmpty() ? (auto_dial ? "campaign started" : "campaign prepared, auto dial disabled") : created > 0 ? "campaign started with precheck warnings" : "campaign started with precheck blocking";
+        return JsonSupport.map("id", id, "tenant_id", tenant, "name", campaign.get("name"), "status", status,
                 "total_contacts", relations.size(), "created", created, "skipped", skipped.size(), "campaign_status", status,
-                "auto_dial_requested", false, "auto_dial_count", 0, "dispatch_mode", "prepared", "result_code", resultCode,
-                "result_message", message, "error_codes", codes, "skip_reasons", skipped,
-                "dispatch_result", Values.map("total", relations.size(), "target", 0, "succeeded", 0, "failed", 0, "skipped", skipped.size(), "status", "not_dispatched", "errors", Collections.emptyList(), "error_codes", codes));
+                "auto_dial_requested", auto_dial, "auto_dial_count", auto_dial && async_dial ? selected.size() : 0,
+                "dispatch_mode", auto_dial ? (async_dial ? "async" : "sync") : "prepared", "result_code", resultCode,
+                "result_message", message, "error_codes", codes, "skip_reasons", skipped, "_call_ids", selected,
+                "dispatch_result", JsonSupport.map("total", auto_dial ? callIds.size() : relations.size(), "target", auto_dial ? selected.size() : 0,
+                    "succeeded", 0, "failed", 0, "skipped", auto_dial ? 0 : skipped.size(), "status", auto_dial ? "queued" : "not_dispatched", "errors", Collections.emptyList(), "error_codes", codes));
     }
 
     @PostMapping("/{id}/pause")
@@ -232,7 +276,14 @@ public class Campaigns {
         Map<String, Object> row = locked(tenant(request), id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         if (!Values.set("paused", "prepared").contains(row.get("status"))) throw new ApiError(409, "only a paused or prepared campaign can be resumed");
-        throw new ApiError(503, "Java telephony dispatcher migration is incomplete");
+        dial.available();
+        long tenant = tenant(request);
+        for (Map<String, Object> call : store.list("callsession", "WHERE tenant_id=? AND campaign_id=? AND status='CREATED'", tenant, id))
+            store.update("callsession", tenant, call.get("id"), Values.map("status", "queued"));
+        store.update("campaign", tenant, id, Values.map("status", "running", "dispatch_enabled", true));
+        Map<String, Object> sample = store.one("callsession", "WHERE tenant_id=? AND campaign_id=? LIMIT 1", tenant, id);
+        if (sample != null) lifecycle.completeCampaign(sample);
+        return output(store.require("campaign", tenant, id));
     }
 
     @PostMapping("/{id}/stop")

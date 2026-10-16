@@ -10,8 +10,24 @@ import org.springframework.web.bind.annotation.*;
 public class Calls {
     private final Store store;
     private final Contract contract;
+    private final DialService dial;
 
-    public Calls(Store store, Contract contract) { this.store = store; this.contract = contract; }
+    public Calls(Store store, Contract contract, DialService dial) { this.store = store; this.contract = contract; this.dial = dial; }
+
+    @PostMapping
+    public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.create(Identity.from(request), contract.input("StartCallRequest", body, true)));
+    }
+
+    @PostMapping("/{id}/retry")
+    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.retry(visible(Identity.from(request), id)));
+    }
+
+    @PostMapping("/{id}/hangup")
+    public Map<String, Object> hangup(@PathVariable UUID id, @RequestParam(defaultValue="hangup") String reason, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.hangup(visible(Identity.from(request), id), reason));
+    }
 
     private boolean restricted(Identity identity) {
         return identity.user() != null && "agent".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor"));

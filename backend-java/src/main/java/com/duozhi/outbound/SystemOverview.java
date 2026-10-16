@@ -11,7 +11,8 @@ public class SystemOverview {
     private final Store store;
     private final Settings settings;
     private final Config config;
-    public SystemOverview(Store store, Settings settings, Config config) { this.store = store; this.settings = settings; this.config = config; }
+    private final DependencyHealth health; private final StabilityAdmission stability; private final CallbackInbox inbox;
+    public SystemOverview(Store store, Settings settings, Config config, DependencyHealth health, StabilityAdmission stability, CallbackInbox inbox) { this.store = store; this.settings = settings; this.config = config; this.health = health; this.stability = stability; this.inbox = inbox; }
 
     private Map<String, Object> counts(String table, String column, long tenant) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -46,8 +47,8 @@ public class SystemOverview {
         Map<String, Object> oldest = store.one("taskoutbox", "WHERE tenant_id=? AND state IN ('PENDING','FAILED','PROCESSING') ORDER BY created_at ASC LIMIT 1", tenant);
         operations.put("oldest_open_task_age_sec", oldest == null ? 0 : Math.max(0, Duration.between(LocalDateTime.parse(oldest.get("created_at").toString()), Store.now()).getSeconds()));
         operations.put("recording_deletion_failures", store.count("recordingasset", "WHERE tenant_id=? AND state='deletion_failed'", tenant));
-        // Database queries above are live. External service probes are not yet ported.
-        return Values.map("services", Values.map("database", "ok", "redis", "unverified", "ai_agent", "unverified", "telephony", "unverified"),
+        operations.put("callback_inbox", inbox.snapshot()); operations.put("stability", stability.status());
+        return Values.map("services", health.services(tenant),
                 "resources", Values.map("users", store.count("user", "WHERE tenant_id=?", tenant), "enabled_users", store.count("user", "WHERE tenant_id=? AND enabled=?", tenant, true),
                         "lines", store.count("telephonyline", "WHERE tenant_id=?", tenant), "enabled_lines", lines.size()),
                 "call_statuses", counts("callsession", "status", tenant), "capacity", capacity, "operations", operations, "generated_at", Store.now());
