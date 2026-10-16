@@ -6,7 +6,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /** Port of baseline production configuration checks; does not approve a release. */
 final class ProductionConfiguration {
-    private static boolean weak(String value,int minimum){String s=value.trim().toLowerCase(Locale.ROOT);return s.length()<minimum||Arrays.asList("change-me","replace-me","example","dev-","your-").stream().anyMatch(s::contains);}
+    private static boolean weak(String value,int minimum){String s=value.trim().transform(Ascii::lower);return s.length()<minimum||Arrays.asList("change-me","replace-me","example","dev-","your-").stream().anyMatch(s::contains);}
     static void validate(Config c) {
         if(!c.production())return;
         List<String> errors=new ArrayList<>();
@@ -25,13 +25,13 @@ final class ProductionConfiguration {
         if(c.get("TELEPHONY_WEBHOOK_TOKEN","").trim().isEmpty())errors.add("TELEPHONY_WEBHOOK_TOKEN");
         if(!c.get("spring.datasource.url",c.get("JAVA_DATABASE_URL","")).startsWith("jdbc:postgresql:"))errors.add("PostgreSQL is required");
         if("mock".equals(c.get("TELEPHONY_PROVIDER","mock")))errors.add("TELEPHONY_PROVIDER=mock");
-        try{URI redis=URI.create(c.get("REDIS_URL",""));String credentials=Objects.toString(redis.getUserInfo(),"");String password=credentials.contains(":")?credentials.substring(credentials.indexOf(':')+1):"";if(!Values.set("redis","rediss").contains(redis.getScheme())||weak(password,16))errors.add("REDIS_URL");}catch(RuntimeException e){errors.add("REDIS_URL");}
+        try{URI redis=URI.create(c.get("REDIS_URL",""));String credentials=Objects.toString(redis.getUserInfo(),"");String password=credentials.contains(":")?credentials.substring(credentials.indexOf(':')+1):"";if(!"rediss".equals(redis.getScheme())||redis.getHost()==null||redis.getPort()>65535||weak(password,16))errors.add("REDIS_URL");}catch(RuntimeException e){errors.add("REDIS_URL");}
         String prefixes=c.get("OUTBOUND_ALLOWED_PHONE_PREFIXES","");if(prefixes.trim().isEmpty()||Arrays.stream(prefixes.split(",")).anyMatch(v->!v.trim().matches("[0-9]{1,15}")))errors.add("OUTBOUND_ALLOWED_PHONE_PREFIXES");
         int daily=c.number("OUTBOUND_DAILY_CALL_LIMIT",10000);if(daily<1||daily>10000000)errors.add("OUTBOUND_DAILY_CALL_LIMIT");
         if(c.number("RECORDING_RETENTION_DAYS", 90)>0)for(String kind:Arrays.asList("RECORDING_INGEST","RECORDING_DELETE")){if(c.get(kind+"_ENDPOINT","").trim().isEmpty())errors.add(kind+"_ENDPOINT");if(weak(c.get(kind+"_SERVICE_TOKEN",""),24))errors.add(kind+"_SERVICE_TOKEN");}
         if("http".equals(c.get("SMS_PROVIDER","mock"))){for(String key:Arrays.asList("SMS_CALLBACK_URL","SMS_WEBHOOK_TOKEN"))if(c.get(key,"").trim().isEmpty())errors.add(key);if(weak(c.get("SMS_WEBHOOK_SECRET",""),32))errors.add("SMS_WEBHOOK_SECRET");}
         if(c.flag("WEBRTC_ENABLED",false)){if(!c.get("WEBRTC_WSS_URL","").startsWith("wss://"))errors.add("WEBRTC_WSS_URL");for(String key:Arrays.asList("WEBRTC_SIP_DOMAIN","TURN_URLS"))if(c.get(key,"").trim().isEmpty())errors.add(key);for(String key:Arrays.asList("TURN_SHARED_SECRET","FREESWITCH_DIRECTORY_TOKEN"))if(weak(c.get(key,""),24))errors.add(key);}
-        String metrics=c.get("METRICS_TOKEN","");if(!c.get("METRICS_TOKEN_FILE","").isEmpty())try{metrics=new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(c.get("METRICS_TOKEN_FILE",""))),java.nio.charset.StandardCharsets.UTF_8).trim();}catch(Exception e){errors.add("METRICS_TOKEN_FILE");}if(weak(metrics,24))errors.add("METRICS_TOKEN");
+        String metrics=c.get("METRICS_TOKEN","");if(!c.get("METRICS_TOKEN_FILE","").isEmpty())try{metrics=ConfigFiles.readUtf8(c.get("METRICS_TOKEN_FILE",""),4096).trim();}catch(Exception e){errors.add("METRICS_TOKEN_FILE");}if(weak(metrics,24))errors.add("METRICS_TOKEN");
         if(!c.flag("JAVA_RELEASE_ACCEPTED",false))errors.add("JAVA_RELEASE_ACCEPTED requires separate release acceptance");
         if(!errors.isEmpty())throw new IllegalStateException("Production configuration rejected: "+String.join(", ",errors));
     }

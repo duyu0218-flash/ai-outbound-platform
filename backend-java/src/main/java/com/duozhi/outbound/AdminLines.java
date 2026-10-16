@@ -14,10 +14,12 @@ public class AdminLines {
     @GetMapping
     public List<Map<String,Object>> list(HttpServletRequest request){return store.list("telephonyline","WHERE tenant_id=? ORDER BY priority,created_at",Identity.from(request).tenant()).stream().map(row->contract.output("TelephonyLineOut",row)).collect(java.util.stream.Collectors.toList());}
     private void validate(Map<String,Object> values){
-        String provider=Objects.toString(values.get("provider"),"").trim().toLowerCase();String gateway=Objects.toString(values.get("gateway_url"),"").trim();
+        String provider=Objects.toString(values.get("provider"),"").trim().transform(Ascii::lower);String gateway=Objects.toString(values.get("gateway_url"),"").trim();
         if(!Values.set("http","mock","freeswitch","opensips").contains(provider))throw new ApiError(400,"invalid provider");
         if(provider.equals("http")&&gateway.isEmpty())throw new ApiError(400,"HTTP bridge requires gateway_url");
-        if(!gateway.isEmpty())try{URI uri=URI.create(gateway);if(!Values.set("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null)throw new IllegalArgumentException();}catch(IllegalArgumentException e){throw new ApiError(400,"gateway_url must point to an HTTP bridge");}
+        if(!gateway.isEmpty())try{Settings.endpoint(gateway,false);}catch(ApiError e){throw new ApiError(400,"gateway_url must point to an HTTP bridge");}
+        String credential=Objects.toString(values.get("credential_ref"),"").trim();
+        if(!credential.isEmpty()&&!credential.matches("[A-Za-z0-9_]{1,128}"))throw new ApiError(400,"invalid credential reference");
     }
     private void approval(HttpServletRequest request,boolean real){
         if(!real&&!config.production()&&config.get("TELEPHONY_PROVIDER","mock").equals("mock"))return;

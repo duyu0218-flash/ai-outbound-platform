@@ -77,6 +77,7 @@ jobs:
             -e ENV=test -e JAVA_DATABASE_URL=jdbc:sqlite:/tmp/core.db \
             -e JAVA_INITIALIZE_SCHEMA=true -e DEMO_USERS_ENABLED=true \
             -e JWT_SECRET=isolated-container-ci-secret-never-production \
+            -e CORS_ALLOW_ORIGINS=https://trusted.example \
             -e TELEPHONY_PROVIDER=mock -e JAVA_DISPATCH_ENABLED=true \
             -e JAVA_WORKERS_ENABLED=true java-core-ci
           python3 backend-java/scripts/container_smoke.py

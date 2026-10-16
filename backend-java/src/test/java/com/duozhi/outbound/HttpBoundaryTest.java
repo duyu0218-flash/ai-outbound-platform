@@ -41,7 +41,7 @@ class HttpBoundaryTest {
     }
     @Test void productionConfigurationRequiresSeparateAcceptanceAndRejectsEmbeddedWildcards(){
         MockEnvironment env=new MockEnvironment().withProperty("ENV","production").withProperty("TRUSTED_HOSTS","portal.test,127.0.0.1")
-            .withProperty("JAVA_DATABASE_URL","jdbc:postgresql://db/test").withProperty("REDIS_URL","redis://:synthetic-redis-password-long@redis:6379/0")
+            .withProperty("JAVA_DATABASE_URL","jdbc:postgresql://db/test").withProperty("REDIS_URL","rediss://:synthetic-redis-password-long@redis:6379/0")
             .withProperty("TELEPHONY_PROVIDER","http").withProperty("TELEPHONY_WEBHOOK_TOKEN","synthetic-token")
             .withProperty("OUTBOUND_ALLOWED_PHONE_PREFIXES","139").withProperty("RECORDING_RETENTION_DAYS","0");
         for(String key:new String[]{"SECRET_KEY","JWT_SECRET","TELEPHONY_WEBHOOK_SECRET","VOICE_COMMAND_SECRET","OUTBOUND_SECURITY_APPROVAL_TOKEN","TELEPHONY_SERVICE_TOKEN","AI_AGENT_SERVICE_TOKEN","API_KEY","METRICS_TOKEN"})env.withProperty(key,"synthetic-acceptance-only-secret-"+key);

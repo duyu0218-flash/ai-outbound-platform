@@ -24,7 +24,7 @@ public class GatewayCluster {
     @SuppressWarnings("unchecked") public List<Map<String,Object>> specs(){
         try {
             String file=config.get("VOICE_GATEWAY_NODES_FILE",""),raw=config.get("VOICE_GATEWAY_NODES_JSON","[]");
-            if(!file.isEmpty()){Path path=Paths.get(file);if(Files.size(path)>1048576)throw new IllegalArgumentException();raw=new String(Files.readAllBytes(path),StandardCharsets.UTF_8);}
+            if(!file.isEmpty()){raw=ConfigFiles.readUtf8(file,1048576);}
             Object parsed=json.object("{\"nodes\":"+raw+"}").get("nodes");if(!(parsed instanceof List))throw new IllegalArgumentException();
             List<Map<String,Object>> result=new ArrayList<>();Set<Object> ids=new HashSet<>(),endpoints=new HashSet<>();
             for(Object item:(List<?>)parsed){

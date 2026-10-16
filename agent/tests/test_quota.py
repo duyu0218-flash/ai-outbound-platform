@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 import multiprocessing
+import sqlite3
+from pathlib import Path
 from fastapi import HTTPException
 from app.config import Settings
 from app.quota import AccountQuota
@@ -37,13 +39,16 @@ def test_changed_account_budget_fails_closed(tmp_path):
 
 def _process_reservations(config, output):
     quota = AccountQuota(Settings(_env_file=None, **config))
+    phase = 'startup'
     try:
         quota.start()
+        phase = 'reserve'
         with ThreadPoolExecutor(max_workers=32) as pool:
             results = list(pool.map(lambda _: quota.reserve(1, now=100), range(400)))
         output.put(('ok', results.count(0)))
     except Exception as exc:
-        output.put(('error', type(exc).__name__))
+        output.put(('error', {'phase': phase, 'type': type(exc).__name__, 'message': str(exc),
+                              'sqlite_code': getattr(exc, 'sqlite_errorcode', None)}))
     finally:
         quota.close()
 
@@ -81,6 +86,90 @@ def test_quota_anchor_has_no_transaction_and_restart_retains_reservation(tmp_pat
         assert quota.reserve(1, now=100) == 1
     finally:
         quota.close()
+
+
+def test_start_does_not_drop_the_wal_between_initialization_and_anchor(monkeypatch, tmp_path):
+    cfg = settings(tmp_path)
+    quota = AccountQuota(cfg)
+    connect = sqlite3.connect
+    closed_during_start = []
+    starting = True
+
+    class ObservedConnection(sqlite3.Connection):
+        def close(self):
+            super().close()
+            if starting:
+                closed_during_start.append(Path(cfg.llm_quota_db_path + '-wal').exists())
+
+    def observed(*args, **kwargs):
+        return connect(*args, factory=ObservedConnection, **kwargs)
+
+    monkeypatch.setattr(sqlite3, 'connect', observed)
+    try:
+        quota.start()
+        starting = False
+        assert Path(cfg.llm_quota_db_path + '-wal').exists()
+        assert all(closed_during_start), 'startup must not close its last WAL connection before the anchor is retained'
+        assert not quota._wal_anchor.in_transaction
+    finally:
+        starting = False
+        quota.close()
+
+
+def test_ambiguous_commit_is_never_replayed_and_preserves_the_reservation(monkeypatch, tmp_path):
+    cfg = settings(tmp_path)
+    quota = AccountQuota(cfg)
+    quota.initialize()
+    connect = sqlite3.connect
+    commits = []
+    fail_once = True
+
+    class AmbiguousCommit(sqlite3.Connection):
+        def execute(self, sql, *args, **kwargs):
+            nonlocal fail_once
+            result = super().execute(sql, *args, **kwargs)
+            if sql == 'COMMIT' and fail_once:
+                fail_once = False
+                commits.append(sql)
+                raise sqlite3.OperationalError('synthetic error after durable commit')
+            return result
+
+    def ambiguous(*args, **kwargs):
+        return connect(*args, factory=AmbiguousCommit, **kwargs)
+
+    monkeypatch.setattr(sqlite3, 'connect', ambiguous)
+    with pytest.raises(sqlite3.OperationalError):
+        quota.reserve(10, now=100)
+    assert commits == ['COMMIT']
+    assert quota.reserve(191, now=100) == 1
+    assert quota.reserve(190, now=100) == 0
+
+
+def test_failed_start_closes_connection_and_does_not_retain_an_anchor(monkeypatch, tmp_path):
+    cfg = settings(tmp_path)
+    AccountQuota(cfg).initialize()
+    connect = sqlite3.connect
+    connections = []
+
+    def observed(*args, **kwargs):
+        db = connect(*args, **kwargs)
+        connections.append(db)
+        return db
+
+    monkeypatch.setattr(sqlite3, 'connect', observed)
+    quota = AccountQuota(cfg.model_copy(update={'llm_quota_rpm': 1000}))
+    with pytest.raises(RuntimeError, match='identical'):
+        quota.start()
+    assert quota._wal_anchor is None
+    for db in connections:
+        with pytest.raises(sqlite3.ProgrammingError):
+            db.execute('SELECT 1')
+    restarted = AccountQuota(cfg)
+    try:
+        restarted.start()
+        assert restarted.reserve(200, now=100) == 0
+    finally:
+        restarted.close()
 
 
 def test_inflight_cancel_and_disk_failure_do_not_leak_slots(tmp_path):

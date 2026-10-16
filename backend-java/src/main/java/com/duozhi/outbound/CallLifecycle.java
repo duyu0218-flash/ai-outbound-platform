@@ -22,13 +22,13 @@ public class CallLifecycle {
     public static long tenant(Map<String, Object> call) { return ((Number)call.get("tenant_id")).longValue(); }
     private int rank(String value) { return TERMINAL.contains(value) ? 7 : "handoff_transferring".equals(value) ? 4 : ORDER.indexOf(value); }
     private String mapped(Object status) {
-        String value = Objects.toString(status, "").trim().toLowerCase(Locale.ROOT);
+        String value = Objects.toString(status, "").trim().transform(Ascii::lower);
         for (String kind : Arrays.asList("no_answer", "busy", "voicemail")) {
-            String fallback = "no_answer".equals(kind) ? "[\"NOANSWER\",\"NO_ANSWER\"]" : "[\"" + kind.toUpperCase(Locale.ROOT) + "\"]";
-            String raw = config.get(kind.toUpperCase(Locale.ROOT) + "_CODES", fallback);
+            String fallback = "no_answer".equals(kind) ? "[\"NOANSWER\",\"NO_ANSWER\"]" : "[\"" + kind.transform(Ascii::upper) + "\"]";
+            String raw = config.get(kind.transform(Ascii::upper) + "_CODES", fallback);
             try {
                 Object values = json.object("{\"values\":" + raw + "}").get("values");
-                for (Object code : (List<?>)values) if (value.equals(code.toString().trim().toLowerCase(Locale.ROOT))) return kind;
+                for (Object code : (List<?>)values) if (value.equals(code.toString().trim().transform(Ascii::lower))) return kind;
             } catch (RuntimeException e) { throw new ApiError(503, "invalid provider status mapping"); }
         }
         if ("answering".equals(value)) return "answered";
@@ -120,7 +120,7 @@ public class CallLifecycle {
             if (event(call, "status", "telephony", payload)) return JsonSupport.map("result", "ok");
             if (payload.get("attempt") != null && JsonSupport.integer(payload.get("attempt"), -1) != number(call, "attempts")) return JsonSupport.map("result", "ignored", "reason", "stale_attempt");
             String current = call.get("status").toString(), target = mapped(payload.get("status"));
-            if ("human_unavailable".equals(Objects.toString(payload.get("status"), "").trim().toLowerCase(Locale.ROOT))) {
+            if ("human_unavailable".equals(Objects.toString(payload.get("status"), "").trim().transform(Ascii::lower))) {
                 Map<String, Object> handoff = store.one("handoffrequest", "WHERE tenant_id=? AND call_session_id=? AND state IN ('ACCEPTING','ACCEPTED') ORDER BY updated_at DESC LIMIT 1", tenant(call), store.encode("handoffrequest", "call_session_id", call.get("id")));
                 if (!"handoff_transferring".equals(current) || handoff == null) return JsonSupport.map("result", "ignored", "reason", "inactive_handoff");
                 store.update("handoffrequest", tenant(call), handoff.get("id"), JsonSupport.map("state", "waiting", "assigned_agent_id", null, "responded_at", null));

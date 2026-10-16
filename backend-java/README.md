@@ -101,4 +101,14 @@ Java 镜像预置 SQLite 本地库以兼容只读文件系统及 noexec 临时�
 
 ## 安全检查
 
-用户已批准升级到 JDK 17，JDK 8 不再受支持。当前使用 Spring Boot 4.1.1 / Spring 7.0.9 / Jackson 3.1.7 / Tomcat 11.0.27；保留前端和 Python 辅助服务。执行 `bash backend-java/scripts/security-check.sh` 生成全依赖 SBOM、OSV 漏洞报告和 FindSecBugs 静态分析。扫描失败、依赖公告、新增高/中优先级提示或复核源文件变化均阻断 CI；原始报告作为 artifact 保存。范围与部署约束见 [安全检查报告](SECURITY-REVIEW.md)。
+用户已批准升级到 JDK 17，JDK 8 不再受支持。当前使用 Spring Boot 4.1.1 / Spring 7.0.9 / Jackson 3.1.7 / Tomcat 11.0.27；保留前端和 Python 辅助服务。执行 `bash backend-java/scripts/security-check.sh` 生成全依赖 SBOM、OSV 漏洞报告和 FindSecBugs 静态分析。扫描失败、依赖公告、任何未复核提示（含低优先级）、新路由或运行源码/资源变化均阻断 CI；原始报告作为 artifact 保存。范围与部署约束见 [安全检查报告](SECURITY-REVIEW.md)。
+
+## 本轮安全加固的配置兼容要求
+
+- Java 核心使用 `ENV=prod` / `production` 时，`REDIS_URL` 必须为 `rediss://`，并由 JVM 信任服务证书和校验原始主机名。明文 `redis://` 仅供非生产开发/测试；共享配置有明文 Redis 的部署必须先提供 TLS 端点，不能直接套用生产配置启动。
+- `CORS_ALLOW_ORIGINS` 必须逐项填写完整 HTTP(S) origin，不再支持 `*`。跨域客户端使用显式 Authorization / API Key；服务不授予跨域浏览器 Cookie 凭据。仓库前端使用显式 Bearer，不依赖跨域 Cookie。
+- 线路 `credential_ref` 只接受 1—128 位 ASCII 字母、数字和下划线，不再将标点自动映射为其他凭据名称。历史非法引用需人工对照原凭据配置修正。
+- 指标令牌文件最多 4096 字节，网关配置最多 1 MiB；拒绝设备/FIFO/目录，支持合法 Secret 挂载符号链接。
+- 安全请求头必须为有界 ASCII 单值，出站头禁止换行及 Host/Content-Length/Transfer-Encoding/Connection 覆盖。自然语言、客户姓名和话术内容保持 Unicode 处理。
+
+当前 149 条原始提示全部保留：37 条安全相关观察逐项复核，112 条路由信息登记访问控制；未复核项为 0，不代表原始扫描零提示。维护复核时必须先检查源码/调用方/资源和回归证据，再更新 `security/reviewed-findings.json`、`entrypoints.json` 和全范围 `review-scope.json`；不得仅重算摘要以放行。见安全报告和验收记录。

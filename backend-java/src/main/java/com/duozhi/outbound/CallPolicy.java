@@ -89,7 +89,7 @@ public class CallPolicy {
                 "consent_revoked", "CONTACT_CONSENT_REVOKED", "retry_interval_not_elapsed", "CALL_RETRY_INTERVAL_NOT_ELAPSED");
         if (codes.containsKey(reason)) return codes.get(reason);
         if (Values.set("outside_calling_hours", "daily_attempt_limit", "invalid_compliance_timezone", "invalid_compliance_interval", "explicit_consent_required", "destination_not_allowed", "tenant_daily_call_limit").contains(reason))
-            return reason.toUpperCase(Locale.ROOT);
-        return "CALL_PRECHECK_" + reason.substring(0, Math.min(40, reason.length())).toUpperCase(Locale.ROOT);
+            return reason.transform(Ascii::upper);
+        return "CALL_PRECHECK_" + reason.substring(0, Math.min(40, reason.length())).transform(Ascii::upper);
     }
 }
