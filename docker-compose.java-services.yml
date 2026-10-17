@@ -1,0 +1,2 @@
+# Compatibility overlay: the default docker-compose.yml already selects Java auxiliary services.
+services: {}

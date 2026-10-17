@@ -14,5 +14,7 @@ backend/.pytest_cache
 .tools
 backend-java/target
 backend-java/.local
+services-java/target
+services-java/.local
 frontend/test-results
 frontend/playwright-report

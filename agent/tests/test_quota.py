@@ -37,11 +37,16 @@ def test_changed_account_budget_fails_closed(tmp_path):
         AccountQuota(cfg.model_copy(update={'llm_quota_rpm':1000})).initialize()
 
 
-def _process_reservations(config, output):
+def _process_reservations(config, output, ready):
     quota = AccountQuota(Settings(_env_file=None, **config))
     phase = 'startup'
     try:
         quota.start()
+        # Measure the hot two-process burst after both WAL anchors exist.
+        # Starting the burst while the peer is still importing tests startup
+        # under sustained traffic, which intentionally has a bounded lock wait.
+        phase = 'ready'
+        ready.wait(timeout=10)
         phase = 'reserve'
         with ThreadPoolExecutor(max_workers=32) as pool:
             results = list(pool.map(lambda _: quota.reserve(1, now=100), range(400)))
@@ -56,9 +61,10 @@ def _process_reservations(config, output):
 def test_two_process_burst_keeps_exact_budget_without_database_busy(tmp_path):
     ctx = multiprocessing.get_context('spawn')
     output = ctx.Queue()
+    ready = ctx.Barrier(2)
     cfg = settings(tmp_path).model_copy(update={'llm_quota_rpm':500, 'llm_quota_tpm':500,
                                                'llm_quota_rps':500})
-    processes = [ctx.Process(target=_process_reservations, args=(cfg.model_dump(), output)) for _ in range(2)]
+    processes = [ctx.Process(target=_process_reservations, args=(cfg.model_dump(), output, ready)) for _ in range(2)]
     try:
         for process in processes: process.start()
         results = [output.get(timeout=20) for _ in processes]
@@ -71,6 +77,28 @@ def test_two_process_burst_keeps_exact_budget_without_database_busy(tmp_path):
         for process in processes:
             if process.is_alive(): process.terminate(); process.join(timeout=5)
         output.close()
+
+
+def test_start_under_an_existing_write_lock_fails_closed_then_recovers(tmp_path):
+    cfg = settings(tmp_path)
+    AccountQuota(cfg).initialize()
+    blocker = sqlite3.connect(cfg.llm_quota_db_path, isolation_level=None)
+    quota = AccountQuota(cfg)
+    try:
+        blocker.execute('BEGIN IMMEDIATE')
+        with pytest.raises(sqlite3.OperationalError) as caught:
+            quota.start()
+        assert caught.value.sqlite_errorcode & 255 in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+        assert quota._wal_anchor is None
+        blocker.execute('ROLLBACK')
+        quota.start()
+        assert quota.reserve(200, now=100) == 0
+        assert quota.reserve(1, now=100) == 1
+    finally:
+        if blocker.in_transaction:
+            blocker.execute('ROLLBACK')
+        blocker.close()
+        quota.close()
 
 
 def test_quota_anchor_has_no_transaction_and_restart_retains_reservation(tmp_path):

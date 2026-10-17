@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "tests": 38,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "services_jar_sha256": "92aa8f0d74d61e51eb982682edadd1f9d114256cb36c278abc1c7b564a95088d",
+  "boundary": "Isolated HTTP/WebSocket, synthetic policy/legacy database fixtures and actual SeaweedFS; no business state or cloud accounts.",
+  "suites": [
+    {
+      "name": "com.duozhi.services.DocumentationMetricsTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.009"
+    },
+    {
+      "name": "com.duozhi.services.GatewayLifecycleTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.285"
+    },
+    {
+      "name": "com.duozhi.services.HttpBoundaryTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.216"
+    },
+    {
+      "name": "com.duozhi.services.LegacyLedgerTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.02"
+    },
+    {
+      "name": "com.duozhi.services.MediaTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.24"
+    },
+    {
+      "name": "com.duozhi.services.MetricsClusterTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.271"
+    },
+    {
+      "name": "com.duozhi.services.RealS3Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.058"
+    },
+    {
+      "name": "com.duozhi.services.ServicesTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.773"
+    },
+    {
+      "name": "com.duozhi.services.VoiceTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.21"
+    }
+  ]
+}

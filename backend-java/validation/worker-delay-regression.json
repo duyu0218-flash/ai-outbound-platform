@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "old_calculation_rejected": true,
+  "assertion": "database delay must not refresh stale lane progress",
+  "negative_exit_code": 1,
+  "delay_ms": 1100,
+  "boundary": "Temporary source copy and synthetic SQLite; no production state or real model/phone call.",
+  "fixed_calculation_passed": true,
+  "core_jar_sha256": "8a2e181ce9e858f1cd8c23ea8dad03f529e89e3c7367a9cc73e5a0ff9c52a53e"
+}
