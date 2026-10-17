@@ -1,3 +1,5 @@
+> 历史/兼容参考：本页可能包含已退役的 Python 命令和路径。当前开发、测试、部署、运维入口见仓库 `docs/migration/no-python-toolchain.md`。历史测试记录不等于本轮或生产验收。
+
 # AI 对话观测：Langfuse
 
 Langfuse 用于定位每轮回复慢在哪里、调用了哪个模型、消耗了多少 Token，以及失败发生在哪一轮。它不替代 Prometheus/Grafana 的呼叫容量、数据库、队列和线路监控。

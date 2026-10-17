@@ -6,7 +6,7 @@ WORKDIR /workspace
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml /workspace/frontend/
 RUN corepack enable && cd frontend && pnpm install --frozen-lockfile
 COPY frontend /workspace/frontend
-RUN mkdir -p /workspace/backend/app/static && cd frontend && pnpm build
+RUN cd frontend && pnpm build
 
 FROM ${JAVA_BUILD_IMAGE} AS java-builder
 WORKDIR /workspace
@@ -27,7 +27,7 @@ FROM ${JAVA_RUNTIME_IMAGE}
 WORKDIR /app
 COPY --from=java-builder /workspace/target/outbound-control-0.1.0-SNAPSHOT.jar /app/control.jar
 COPY --from=java-builder /workspace/native/libsqlitejdbc.so /app/native/libsqlitejdbc.so
-COPY --from=frontend-builder /workspace/backend/app/static /app/static
+COPY --from=frontend-builder /workspace/frontend/dist /app/static
 ENV JAVA_BIND_ADDRESS=0.0.0.0 PORT=8000 FRONTEND_STATIC_DIR=/app/static
 ENV JAVA_TOOL_OPTIONS="-Dorg.sqlite.lib.path=/app/native"
 USER 10001:10001

@@ -1,0 +1,165 @@
+{
+  "baseline": "8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+  "routes": [
+    {
+      "role": "agent",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "role": "agent",
+      "method": "GET",
+      "path": "/readyz"
+    },
+    {
+      "role": "agent",
+      "method": "POST",
+      "path": "/agent/start"
+    },
+    {
+      "role": "agent",
+      "method": "POST",
+      "path": "/agent/turn"
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/metrics"
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/readyz"
+    },
+    {
+      "role": "recording",
+      "method": "POST",
+      "path": "/v1/recordings/delete"
+    },
+    {
+      "role": "recording",
+      "method": "POST",
+      "path": "/v1/recordings/ingest"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/metrics"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/readyz"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/capacity"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/security"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/voice-permits"
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/recordings/{}"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/drain"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/security/stop"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/voice-permits/reconcile"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/dial"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/hangup"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/speak"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/status"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/stop-speaking"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/transfer"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/internal/media-events"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/internal/voice-permits"
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/recording-cleanup/{}"
+    },
+    {
+      "role": "voice",
+      "method": "WS",
+      "path": "/v1/pipecat/media/{}"
+    },
+    {
+      "role": "media",
+      "method": "GET",
+      "path": "/internal/state"
+    },
+    {
+      "role": "media",
+      "method": "POST",
+      "path": "/internal/command"
+    },
+    {
+      "role": "media",
+      "method": "WS",
+      "path": "/v1/pipecat/media/{}"
+    }
+  ]
+}

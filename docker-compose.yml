@@ -1,5 +1,5 @@
 # Canonical Java development stack. Offline migration and release acceptance are required before cutover.
-# Python baseline: docker-compose.python-reference.yml. No Python business process is started here.
+# Historical runtime baseline: Git 8cb4c30. This stack starts Java business processes.
 services:
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
@@ -152,9 +152,9 @@ services:
       recording-adapter:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
-      DATABASE_URL_API: ${DATABASE_URL_API:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
-      DATABASE_URL_BOOTSTRAP: ${DATABASE_URL_BOOTSTRAP:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_URL: postgresql://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
+      DATABASE_URL_API: ${DATABASE_URL_API:-postgresql://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
+      DATABASE_URL_BOOTSTRAP: ${DATABASE_URL_BOOTSTRAP:-postgresql://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
       DATABASE_BOOTSTRAP_ADVISORY_LOCK: ${DATABASE_BOOTSTRAP_ADVISORY_LOCK:-true}
       DATABASE_BOOTSTRAP_LOCK_NAME: ${DATABASE_BOOTSTRAP_LOCK_NAME:-ai-outbound-bootstrap-ddl}
       DATABASE_BOOTSTRAP_DATA_LOCK_NAME: ${DATABASE_BOOTSTRAP_DATA_LOCK_NAME:-ai-outbound-bootstrap-data}

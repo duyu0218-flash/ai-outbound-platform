@@ -1,3 +1,5 @@
+> 历史/兼容参考：本页可能包含已退役的 Python 命令和路径。当前开发、测试、部署、运维入口见仓库 `docs/migration/no-python-toolchain.md`。历史测试记录不等于本轮或生产验收。
+
 # 500 路并发架构瓶颈与解决方案
 
 > 后续复核更正：P1-3 中“每个回调重新创建 Ledger”的探针运行的是未包装的 `FreeswitchEslDriver`。基线 `SecureDriver.__init__` 已将同一个 sender 注入实际生产驱动与 Pipecat；不能把该探针的 100 次初始化直接当成生产路径开销。ESL/管理端同步读写阻塞事件循环的问题仍成立。修复范围、剩余验收项及最终证据见 [本次修复交付记录](20260907-capacity-p1-p2-fixes.md)。以下保留原始审查基线。

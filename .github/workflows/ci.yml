@@ -1,269 +1,64 @@
 name: ci
-
 on:
   push:
-    branches: [ main ]
+    branches: [main, migration/no-python-toolchain-20261017]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
 jobs:
-  security-supply-chain:
+  frontend-and-tools:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "22"
-      - name: Audit Python services and generate SBOMs
+          node-version: '22'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify source, frozen contracts, Compose and all tooling regressions
         run: |
-          mkdir -p artifacts/sbom
-          python scripts/build-pipecat-wheel.py
-          for service in backend agent voice_gateway recording_adapter; do
-            python -m venv "/tmp/audit-$service"
-            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir "pip==26.2.1" "setuptools==84.0.0"
-            "/tmp/audit-$service/bin/pip" install --disable-pip-version-check --no-cache-dir --find-links "$PWD/artifacts/wheels" "./$service" "pip-audit==2.10.1" "cyclonedx-bom==7.3.1"
-            if [ "$service" = "voice_gateway" ]; then
-              "/tmp/audit-$service/bin/python" scripts/check-pipecat-distribution.py
-            fi
-            "/tmp/audit-$service/bin/python" scripts/audit-python-environment.py
-            "/tmp/audit-$service/bin/cyclonedx-py" environment "/tmp/audit-$service/bin/python" --output-format JSON --output-file "artifacts/sbom/$service.cdx.json"
-          done
-      - name: Audit frontend dependencies
+          node tools/check-toolchain.mjs
+          node --test tools/tests/*.test.mjs
+          node tools/verify-contracts.mjs
+          node tools/verify-compose.mjs
+      - name: Frontend build, coverage and dependency audit
         working-directory: frontend
         run: |
           corepack enable
           pnpm install --frozen-lockfile
-          pnpm audit --audit-level low
-      - name: Upload SBOMs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: software-bill-of-materials
-          path: artifacts/sbom/*.cdx.json
-          if-no-files-found: error
-
-  version-constraints:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-      - name: Validate version constraints and compatibility matrix
-        run: python scripts/check-version-constraints.py
-
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [backend, agent, voice_gateway, recording_adapter]
-    defaults:
-      run:
-        working-directory: ${{ matrix.service }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        if: matrix.service == 'backend'
-        with:
-          node-version: "22"
-      - name: Enable pnpm
-        if: matrix.service == 'backend'
-        working-directory: frontend
-        run: corepack enable
-      - name: Install frontend
-        if: matrix.service == 'backend'
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-      - name: Build frontend
-        if: matrix.service == 'backend'
-        working-directory: frontend
-        run: pnpm build
-      - name: Test frontend with coverage
-        if: matrix.service == 'backend'
-        working-directory: frontend
-        run: pnpm test:coverage
-      - name: Install service
-        run: |
-          if [ "${{ matrix.service }}" = "voice_gateway" ]; then
-            python ../scripts/build-pipecat-wheel.py
-          fi
-          pip install --no-cache-dir --find-links ../artifacts/wheels ".[dev]"
-      - name: Verify controlled Pipecat distribution
-        if: matrix.service == 'voice_gateway'
-        run: python ../scripts/check-pipecat-distribution.py
-      - name: Verify Python dependencies
-        run: pip check
-      - name: Compile check
-        run: |
-          mkdir -p /tmp/pycache
-          PYTHONPYCACHEPREFIX=/tmp/pycache python -m compileall app
-      - name: Verify packaged frontend
-        if: matrix.service == 'backend'
-        run: |
-          python -c "from app.api.routers.pages import INDEX_FILE; assert INDEX_FILE.is_file(), f'missing packaged frontend: {INDEX_FILE}'"
-      - name: Service tests
-        env:
-          ENV: development
-          DATABASE_URL: sqlite:////tmp/ai-outbound-ci.db
-          REDIS_URL: ""
-          RATE_LIMIT_ENABLED: "false"
-          TELEPHONY_PROVIDER: mock
-          AI_AGENT_URL: http://127.0.0.1:8001
-        run: pytest -q tests
-      - name: Offline ASR evaluation and acceptance tooling tests
-        if: matrix.service == 'backend'
-        working-directory: .
-        run: python -m pytest -q scripts/test_evaluate_asr.py scripts/test_real_voice_acceptance.py scripts/test_capacity_preflight.py scripts/test_node200_pbx.py scripts/test_single_host_profile.py scripts/test_single_host_load_runner.py scripts/test_single_host_soak.py scripts/test_load_statistics.py scripts/test_stability_evaluate.py
-
-  postgres-redis-integration:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: ai_outbound
-          POSTGRES_USER: ai_user
-          POSTGRES_PASSWORD: integration-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ai_user -d ai_outbound"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: "22"
-      - name: Enable pnpm
-        run: corepack enable
-        working-directory: frontend
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          pnpm install --frozen-lockfile
           pnpm build
-      - name: Install backend
-        run: pip install --no-cache-dir ".[dev]"
-      - name: Verify packaged frontend
-        run: |
-          python -c "from app.api.routers.pages import INDEX_FILE; assert INDEX_FILE.is_file(), f'missing packaged frontend: {INDEX_FILE}'"
-      - name: Test backend against PostgreSQL and Redis
-        env:
-          ENV: test
-          DATABASE_URL: postgresql+psycopg://ai_user:integration-password@127.0.0.1:5432/ai_outbound
-          REDIS_URL: redis://127.0.0.1:6379/0
-          RATE_LIMIT_ENABLED: "false"
-          DEMO_USERS_ENABLED: "true"
-          SCHEDULER_ENABLED: "false"
-        run: |
-          pytest -q tests
-          python -m app.migration_runner
-          python -m app.migration_runner | grep "none"
-          python -c "from app.services.health import db_health_check, redis_health_check; assert db_health_check() == 'ok'; assert redis_health_check() == 'ok'"
-
-  compose-e2e:
+          pnpm test:coverage
+          pnpm audit --audit-level low
+  clean-no-python:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "22"
-      - name: Enable pnpm
-        run: corepack enable
-      - name: Install frontend and browser
-        working-directory: frontend
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
-      - name: Build and start Compose stack
-        run: |
-          ./scripts/bootstrap-deployment-secrets.sh
-          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml config --quiet
-          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml up -d --build
-      - name: Wait for readiness
-        run: |
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:8000/readyz >/dev/null \
-              && curl --fail --silent http://127.0.0.1:8003/readyz >/dev/null \
-              && curl --fail --silent http://127.0.0.1:9090/-/ready >/dev/null \
-              && curl --fail --silent http://127.0.0.1:9093/-/ready >/dev/null \
-              && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
-            sleep 2
-          done
-          docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml logs
-          exit 1
-      - name: Verify protected metrics targets
-        run: |
-          metrics_token=$(cat .secrets/metrics_token)
-          curl --fail --silent --header "Authorization: Bearer $metrics_token" http://127.0.0.1:8000/metrics | grep ai_outbound_calls_by_pipeline
-          curl --fail --silent --header "Authorization: Bearer $metrics_token" http://127.0.0.1:8003/metrics | grep ai_outbound_recording_adapter_ingest_total
-          for attempt in $(seq 1 30); do
-            up_targets=$(curl --fail --silent http://127.0.0.1:9090/api/v1/targets | jq '[.data.activeTargets[] | select(.labels.job == "control-api" or .labels.job == "voice-gateway" or .labels.job == "recording-adapter") | select(.health == "up")] | length')
-            if [ "$up_targets" = "3" ]; then break; fi
-            if [ "$attempt" = "30" ]; then
-              curl --fail --silent http://127.0.0.1:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health, lastError}'
-              exit 1
-            fi
-            sleep 2
-          done
-          grafana_password=$(cat .secrets/grafana_admin_password)
-          curl --fail --silent --user "admin:$grafana_password" http://127.0.0.1:3000/api/dashboards/uid/ai-outbound-commercial \
-            | jq --exit-status '.dashboard.title == "AI Outbound Commercial Readiness"'
-          curl --fail --silent http://127.0.0.1:9093/api/v2/status | jq --exit-status '.config.original | contains("local-dashboard")'
-      - name: Browser acceptance
-        working-directory: frontend
-        run: pnpm test:e2e
-      - name: Preserve browser failure evidence
-        if: failure()
+          node-version: '22'
+      - name: Build clean JDK/Node/Maven/browser environment without interpreter installation
+        run: docker build -f tools/Dockerfile --target browser -t outbound-no-python:ci .
+      - name: Actual Java, PostgreSQL, Redis, S3, tools and browser acceptance
+        run: node tools/clean-environment.mjs --image outbound-no-python:ci --browser
+      - name: Preserve clean-environment evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: legacy-compose-browser-failure
-          path: frontend/test-results/
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml logs
-      - name: Stop Compose stack
-        if: always()
-        run: docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml down --volumes
-
+          name: no-python-clean-acceptance
+          path: artifacts/no-python/
+          if-no-files-found: error
   deployable-assets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-      - name: Validate configuration assets
+      - name: Validate shell and native configuration
         run: |
           sh -n scripts/bootstrap-deployment-secrets.sh
           sh -n scripts/run-sipp-acceptance.sh
-          python -c "import json; json.load(open('deploy/grafana/provisioning/dashboards/json/ai-outbound-commercial.json'))"
-          python -c "import xml.etree.ElementTree as ET; ET.parse('deploy/sipp/scenarios/options.xml'); ET.parse('deploy/sipp/scenarios/uac-basic.xml')"
           ./scripts/bootstrap-deployment-secrets.sh
-          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml config --quiet
+          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml config --quiet
           docker compose -f docker-compose.sipp.yml config --quiet
           docker run --rm --entrypoint /bin/promtool \
             -v "$PWD/deploy/prometheus:/etc/prometheus:ro" \
@@ -272,7 +67,7 @@ jobs:
           docker run --rm --entrypoint /bin/amtool \
             -v "$PWD/deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
             prom/alertmanager:v0.34.0 check-config /etc/alertmanager/alertmanager.yml
-      - name: Build the pinned SIPp test image
+      - name: Build the pinned SIPp native test image
         run: |
           docker compose -f docker-compose.sipp.yml build sipp
           docker run --rm ai-outbound-sipp:3.7.7 -v | grep "SIPp v3.7.7"

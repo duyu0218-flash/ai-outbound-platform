@@ -1,3 +1,5 @@
+> 当前工具链及命令以仓库 `docs/migration/no-python-toolchain.md` 为准。下列既有验收数字保留为历史证据，不代表本轮重验；旧 Python 源码与对照启动模板已从当前树退役。
+
 # Java 部署与切换
 
 业务运行时统一 JDK 17 / Spring Boot 4.1.1。`backend-java/Dockerfile` 构建核心镜像，`services-java/Dockerfile` 构建一个供 Agent、录音、网关、媒体四角色共用的镜像。生产固定制品摘要；React/NGINX、PostgreSQL、Redis、对象存储及 FreeSWITCH 是独立组件。
@@ -10,7 +12,7 @@
 | `docker-compose.compact.yml` | 每台 4 API + 3 个统一 Java worker；4 台共享数据库/Redis | Linux host；每台 4 个媒体进程 | 命令/端口/挂载解析；未四机部署 |
 | `docker-compose.single-host-500.yml` | 6 API + 11 个统一 Java worker + 2 Agent | Linux host；12 个媒体进程、单个网关 | 静态资源预算及回归；未证明 Java 500 路容量 |
 
-`docker-compose.java.yml` 和 `docker-compose.java-services.yml` 是空的兼容覆盖文件，默认模板已完成其原有覆盖。Python 旧配置移到 `docker-compose[.compact|.single-host-500].python-reference.yml`，仅供旧基准与受控回退；正常 Java 启动不会使用它们。
+`docker-compose.java.yml` 和 `docker-compose.java-services.yml` 是空的兼容覆盖文件，默认模板已完成其原有覆盖。旧 Python 配置和启动入口已从当前树删除；仅在 Git 基线 `8cb4c30` 和保留的历史制品中追溯。受控回退须单独恢复旧制品与数据，不在新工具链安装旧依赖。
 
 ## 操作顺序
 

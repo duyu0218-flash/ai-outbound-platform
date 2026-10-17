@@ -1,3 +1,5 @@
+> 历史/兼容参考：本页可能包含已退役的 Python 命令和路径。当前开发、测试、部署、运维入口见仓库 `docs/migration/no-python-toolchain.md`。历史测试记录不等于本轮或生产验收。
+
 # Pipecat 受控补丁包：移除 NLTK
 
 ## 范围与身份

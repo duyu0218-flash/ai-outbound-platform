@@ -7,5 +7,5 @@ if [[ ! -f .env ]]; then
 else
   echo "kept existing .env"
 fi
-mkdir -p backend/app backend/app/api/routers
+mkdir -p artifacts
 echo "bootstrap done"

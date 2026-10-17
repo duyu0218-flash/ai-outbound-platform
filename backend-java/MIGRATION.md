@@ -1,3 +1,5 @@
+> 历史/兼容参考：本页可能包含已退役的 Python 命令和路径。当前开发、测试、部署、运维入口见仓库 `docs/migration/no-python-toolchain.md`。历史测试记录不等于本轮或生产验收。
+
 # 旧数据库迁移与回退
 
 当前 Java 制品要求 JDK 17，旧 JDK 8 无法运行；执行迁移前先设置对应的 `JAVA_HOME`。数据库格式与原版本迁移历史保持兼容。
@@ -41,4 +43,4 @@ SQLite 使用 `jdbc:sqlite:/absolute/path/backup-copy.db`。维护命令拒绝�
 
 `DatabaseMigrationTest` 覆盖只读计划、缺字段/缺表、历史保留、原 Python 版本历史复用、重复执行、校验和篡改、重复号码冲突、失败版本回滚、SQLite 备份恢复。通过 `JAVA_TEST_DATABASE_URL` 启用专用 PostgreSQL 后，同样验证其数据库语义。
 
-`scripts/postgres_migration_rehearsal.py` 仅面向本机固定的隔离 Docker 测试容器 `java-core-postgres-20261015` 和合成库 `java_core`，自动建/删临时副本，执行只读 plan、22 个版本 apply、verify、重复 apply 和备份恢复。不要改为连接业务库。实验报告为 `validation/postgres-migration-rehearsal.json`。
+`node tools/migration-rehearsal.mjs` 创建随机命名、仅本轮拥有的 PostgreSQL 测试容器，以冻结 SQL 和合成数据执行只读 plan、22 个版本 apply、verify、重复 apply 和原生备份恢复。报告保存到 `artifacts/no-python/migration-rehearsal.json`；不接受业务数据库地址。
