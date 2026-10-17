@@ -7,6 +7,6 @@
     "closed generation retry is idempotent and cannot resurrect",
     "actual process kill/restart changes epoch and fences old commands"
   ],
-  "services_jar_sha256": "1fc3b131f78578c068880d7cc09ef33bad18f90187212f81407a910b04173680",
+  "services_jar_sha256": "92aa8f0d74d61e51eb982682edadd1f9d114256cb36c278abc1c7b564a95088d",
   "boundary": "Actual Java media process and HTTP RPC; synthetic session metadata only. No audio, cloud, physical permit release or controller-journal recovery acceptance."
 }

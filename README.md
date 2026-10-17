@@ -2,7 +2,7 @@
 
 全后端 Java 候选现统一为 **JDK 17 + Spring Boot 4.1.1**：`backend-java` 运行核心 API/任务，`services-java` 分角色运行 Agent、录音、语音网关和媒体工作器。源码、开发验证与部署切换是独立状态，详见 [Java 服务说明](services-java/README.md)及[本轮验收记录](services-java/ACCEPTANCE.md)。
 
-全 Java 基础配置入口为 `docker compose -f docker-compose.yml -f docker-compose.java.yml -f docker-compose.java-services.yml`。它已通过配置解析及隔离 Java 服务验证，**尚未切换测试或生产部署**。单独使用旧基础/compact/500 配置仍可能启动 Python；这些旧配置不能作为全 Java 迁移已发布的证据。旧 Python 目录目前保留为行为对照及回退参考，测试和运维工具也仍可使用 Python。
+默认 `docker-compose.yml`、`docker-compose.compact.yml` 和 `docker-compose.single-host-500.yml` 已统一选择 Java 业务进程；兼容覆盖文件仍可叠加。旧配置移到对应的 `*.python-reference.yml`，旧 Python 源码及部分测试/运维驱动保留作对照。**尚未切换测试或生产部署**，首次启动和旧库切换请先完成 [Java 数据库迁移](backend-java/MIGRATION.md)及[部署前置条件](services-java/DEPLOYMENT.md)，不能只执行 `up` 或打开发布标记代替验收。
 
 单服务器 500 在途呼叫的代码及部署候选见[单机配置](deploy/single-host-500/README.md)和[开发验收报告](docs/reviews/20260908-single-host-500-implementation.md)。本地合成会话测试已覆盖 500 路；600 回调/秒混合压测未达标，真实 500 路商用容量尚未验收。
 

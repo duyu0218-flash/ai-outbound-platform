@@ -80,6 +80,16 @@ final class MediaCluster implements MediaManager {
     @Override public int capacity() { return Math.min((int)settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000), specs.stream().filter(this::healthy).mapToInt(Spec::capacity).sum()); }
     @Override public Session session(String call) { Owner owner = owners.get(call); return owner == null ? null : owner.session; }
     @Override public Collection<Session> sessions() { return owners.values().stream().map(Owner::session).toList(); }
+    @Override public Map<String,Number> metrics() {
+        Map<String,Number> totals = new LinkedHashMap<>();
+        for (var spec : specs) if (healthy(spec)) Support.map(health.get(spec.id).get("metrics")).forEach((key, raw) -> {
+            if (raw instanceof Number n && Double.isFinite(n.doubleValue())) {
+                double previous = totals.getOrDefault(key, 0).doubleValue();
+                totals.put(key, key.contains("_max_") ? Math.max(previous, n.doubleValue()) : previous + n.doubleValue());
+            }
+        });
+        return totals;
+    }
     private long used(Spec spec) {
         Set<String> known = new HashSet<>(Support.map(health.getOrDefault(spec.id, Map.of()).get("sessions")).keySet()); for (var owner : owners.values()) if (owner.spec.id.equals(spec.id)) known.add(owner.session.call); return known.size();
     }

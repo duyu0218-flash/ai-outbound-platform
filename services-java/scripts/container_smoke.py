@@ -80,7 +80,7 @@ def main():
             time.sleep(.2)
         else:
             raise RuntimeError('S3 fixture readiness timeout')
-        common = dict(ENV='test', PORT='8003', SERVICE_TOKEN=token)
+        common = dict(ENV='test', PORT='8003', SERVICE_TOKEN=token, METRICS_TOKEN='isolated-container-metrics')
         voice = run('voice', dict(common, JAVA_SERVICE_ROLE='voice', VOICE_GATEWAY_DRIVER='mock',
                                   VOICE_SECURITY_DB_PATH='/tmp/voice.sqlite', FREESWITCH_RECORDING_DIR='/recordings',
                                   VOICE_NODE_ID='container-node', VOICE_COMMAND_SECRET=command_key, VOICE_RECORDING_CLEANUP_TOKEN=cleanup))
@@ -123,6 +123,17 @@ def main():
         media_url = ready(media)
         assert httpx.get(media_url+'/internal/state', headers={'Authorization':'Bearer '+token}, trust_env=False).json()['worker_id'] == 'container-worker'
         checks.append('nonroot Java media role and authenticated worker state')
+        for url in [voice_url, agent_url, recording_url, media_url]:
+            document = httpx.get(url+'/openapi.json', trust_env=False)
+            assert document.status_code == 200 and document.json()['paths']
+            docs = httpx.get(url+'/docs', trust_env=False)
+            assert docs.status_code == 200 and "connect-src 'self'" in docs.headers['content-security-policy']
+        for url in [voice_url, recording_url]:
+            assert httpx.get(url+'/metrics', trust_env=False).status_code == 401
+            metrics = httpx.get(url+'/metrics', headers={'Authorization':'Bearer isolated-container-metrics'}, trust_env=False)
+            assert metrics.status_code == 200 and 'ai_outbound_java_uptime_seconds ' in metrics.text
+            assert token not in metrics.text and cleanup not in metrics.text
+        checks.append('all four role API references and authenticated nonempty JVM metrics in actual containers')
         report = dict(passed=True, image_id=image_id, checks=checks,
                       boundary='Disposable Linux Java role containers, noexec/read-only filesystem, synthetic WAV and real SeaweedFS; no production data, PBX, cloud model, call capacity or deployment cutover.')
         (OUT/'java-containers.json').write_text(json.dumps(report, indent=2)+'\n')

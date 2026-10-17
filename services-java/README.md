@@ -2,9 +2,9 @@
 
 统一版本：**JDK 17 / Spring Boot 4.1.1**，与 `backend-java` 核心保持一致。
 
-本目录正在接替 `agent`、`recording_adapter`、`voice_gateway` 及其媒体工作器。四个角色使用同一个 Java 制品，通过 `JAVA_SERVICE_ROLE=agent|recording|voice|media` 分进程运行。Java 不通过调用旧 Python 服务实现业务。前端继续使用 React；FreeSWITCH、PostgreSQL、Redis 和对象存储属于独立基础设施，不属于业务语言改写。
+本目录实现并接替 `agent`、`recording_adapter`、`voice_gateway` 及其媒体工作器。四个角色使用同一个 Java 制品，通过 `JAVA_SERVICE_ROLE=agent|recording|voice|media` 分进程运行。Java 不通过调用旧 Python 服务实现业务。前端继续使用 React；FreeSWITCH、PostgreSQL、Redis 和对象存储属于独立基础设施，不属于业务语言改写。
 
-**迁移验收进行中，尚未正式替换部署。** 旧 Python 代码暂作行为基准与回退参考；不能把已写入 Java 源码、模拟协议测试或注册路由当成全部功能验收完成。
+**Java 源码及隔离开发验证已落地，尚未正式替换部署。** 旧 Python 代码暂作行为基准与回退参考；不能把已写入 Java 源码、模拟协议测试或注册路由当成全部功能验收完成。
 
 ## 范围与入口
 
@@ -40,12 +40,15 @@ python services-java/scripts/verify_compose.py
 ## 全 Java 配置入口
 
 ```sh
-docker compose -f docker-compose.yml -f docker-compose.java.yml -f docker-compose.java-services.yml config
+docker compose -f docker-compose.yml config --quiet
+python services-java/scripts/verify_compose.py
 ```
 
-三个文件依次组合，将四个业务服务的构建、命令及健康检查切到 Java，旧 Python 核心任务进程不在默认启动集合内。这里只给出配置解析命令，正式启动须先完成离线切换条件。默认基础方案为桥接网络、网关进程内媒体；多媒体工作器采用同机 loopback HTTP/WS，需要独立配置 `JAVA_SERVICE_ROLE=media`、`MEDIA_WORKER_ID`、端口及共享 `MEDIA_RPC_TOKEN`。不能把 loopback 工作器地址直接用于互不共享网络命名空间的桥接容器。
+默认、compact、单机 500 三套模板都直接选择 Java 业务进程，两个旧 Java 覆盖文件保留为兼容入口。原配置在对应 `*.python-reference.yml`。基础模板采用桥接网络和网关内置媒体；compact/500 采用 Linux host 网络与同机 loopback 媒体 RPC，不能混用网络地址。Java worker 统一处理四条持久任务通道和 Inbox，不照搬 Python 的独立 shard/异步并发数。
 
-录音源目录 `/recordings` 是可写命名卷；实际 FreeSWITCH 必须共享同一个节点目录/卷及匹配的写权限。不要直接复用旧 compact 的只读录音挂载。模型额度、网关账本、录音生命周期都必须保留在已验证的持久卷内；新建空卷不能代替旧状态迁移。
+录音源目录必须可写，并与 FreeSWITCH 共享同一节点路径及 UID 权限。模型额度、网关账本、录音生命周期都必须保留在已验证的持久卷内；空卷不能代替旧状态迁移。JDBC、Redis TLS、truststore、独立健康检查端口及启动顺序见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+
+四个角色均提供 `/openapi.json` 和 `/docs`；文档页为本地、只读参考，支持筛选和展开参数，不存凭据、不发送业务命令。文档载荷源于旧接口模型并按 Java 错误及鉴权要求调整。监控名称与 JVM 语义映射见 [MONITORING.md](MONITORING.md)，未知指标不伪造为零。
 
 `PIPECAT_FALLBACK_TO_LEGACY=true` 只在已明确配置旧媒体启动命令、且旧模块和原生会话清理被确认后回退；清理结果未知会停止该次启动。该旧媒体命令属于部署方批准的 PBX 能力，必须单独确认其不再依赖 Python。ASR 连接期限沿用 `ALIYUN_NLS_CONNECT_TIMEOUT_SEC`。`LLM_MAX_KEEPALIVE_CONNECTIONS` 在 Agent 启动时映射到 JDK HTTP/1 空闲连接池，HTTP/2 复用由 JDK 管理。
 
@@ -53,6 +56,6 @@ docker compose -f docker-compose.yml -f docker-compose.java.yml -f docker-compos
 
 已建立 32 个原 Python 显式 HTTP/WS 入口和 158 个配置字段的静态对照；这不等于所有入口状态都已实测。本地已覆盖策略对照、旧账本升级/回滚、签名、防重放、额度、HTTP 边界、真实 S3、独立 Java 媒体进程崩溃重启、浏览器关键链路和四角色 Linux 容器。具体数量、制品及已知限制见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
-真实旧库/账本、外部 S3/TLS、云 ASR/TTS/模型、真实 SIP/RTP/WebRTC、500 总在途、持续负载及完整控制器崩溃恢复仍需单独验收。独立 Codex Security 差异扫描被宿主 Git 版本与清单工具参数不兼容阻断，保留部分草稿；不能以已通过的 OSV/FindSecBugs 门禁代称完整差异扫描通过。测试环境、真机与生产发布尚未完成。
+真实旧库/账本、外部 S3/TLS、云 ASR/TTS/模型、真实 SIP/RTP/WebRTC、500 总在途、持续负载及完整控制器崩溃恢复仍需单独验收。Codex Security 完整差异扫描的状态见验收记录；OSV/FindSecBugs 门禁与独立差异扫描分别报告。测试环境、真机与生产发布尚未完成。
 
 协议实现参考：[OpenAI Realtime transcription](https://developers.openai.com/api/docs/guides/realtime-transcription)、[Langfuse OTLP](https://langfuse.com/integrations/native/opentelemetry)。文档可证明协议约定，不能证明真实账户或目标环境已联调通过。

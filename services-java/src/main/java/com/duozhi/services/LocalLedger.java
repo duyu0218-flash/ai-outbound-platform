@@ -12,6 +12,7 @@ final class LocalLedger implements AutoCloseable {
     private final FileChannel owner;
     private final FileLock lock;
     private final Connection anchor;
+    private final java.util.concurrent.atomic.AtomicLong commits = new java.util.concurrent.atomic.AtomicLong();
     private static final class Transaction { final Connection db; boolean rollbackOnly; Transaction(Connection db) { this.db = db; } }
     private final ThreadLocal<Transaction> active = new ThreadLocal<>();
     LocalLedger(String path) throws Exception {
@@ -71,7 +72,7 @@ final class LocalLedger implements AutoCloseable {
         try (var db = connection()) {
             plain(db, "BEGIN IMMEDIATE");
             Transaction transaction = new Transaction(db); active.set(transaction);
-            try { T result = work.run(db); if (transaction.rollbackOnly) throw new Support.Failure(503, "gateway transaction marked for rollback"); plain(db, "COMMIT"); return result; }
+            try { T result = work.run(db); if (transaction.rollbackOnly) throw new Support.Failure(503, "gateway transaction marked for rollback"); plain(db, "COMMIT"); commits.incrementAndGet(); return result; }
             catch (Exception error) { try { plain(db, "ROLLBACK"); } catch (SQLException ignored) { } throw error; }
             finally { active.remove(); }
         } catch (Support.Failure error) { throw error; } catch (Exception error) { throw new Support.Failure(503, "gateway ledger unavailable"); }
@@ -97,6 +98,7 @@ final class LocalLedger implements AutoCloseable {
     }
     static void plain(Connection db, String sql) throws SQLException { try (var statement = db.createStatement()) { statement.execute(sql); } }
     static double now() { return System.currentTimeMillis() / 1000.0; }
+    long commits() { return commits.get(); }
     void stopped(boolean stop, String reason) { transaction(db -> { execute(db, "INSERT OR REPLACE INTO flags VALUES ('stopped',?)", stop ? "1" : "0"); execute(db, "INSERT INTO audit(at,action,detail) VALUES (?,?,?)", now(), stop ? "stop" : "resume", reason.substring(0, Math.min(300, reason.length()))); return null; }); }
     Map<String,Object> summary() { return read(db -> {
         var flag = query(db, "SELECT value FROM flags WHERE key='stopped'"); var pending = query(db, "SELECT COUNT(*) AS count,MIN(created) AS oldest FROM outbox").get(0);

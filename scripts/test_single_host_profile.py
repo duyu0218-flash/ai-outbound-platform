@@ -13,25 +13,26 @@ spec=importlib.util.spec_from_file_location('single500_profile',Path(__file__).w
 profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(profile)
 
 
-@pytest.fixture
-def rendered(tmp_path):
+@pytest.fixture(params=['java','python-reference'])
+def rendered(tmp_path, request):
     if not shutil.which('docker'):
         pytest.skip('Docker Compose CLI required for template validation')
     env_file=tmp_path/'synthetic.env'
     env_file.write_text('POSTGRES_USER=synthetic\nPOSTGRES_DB=synthetic\nPOSTGRES_PASSWORD=synthetic\nREDISCLI_AUTH=synthetic\n')
     env=dict(os.environ)
-    for file in ['docker-compose.single-host-500.yml','docker-compose.compact.yml']:
+    suffix='' if request.param=='java' else '.python-reference'
+    for file in [f'docker-compose.single-host-500{suffix}.yml',f'docker-compose.compact{suffix}.yml']:
         for key in re.findall(r'\$\{([A-Z0-9_]+)',(ROOT/file).read_text()):
             if key.endswith('_FILE'):env[key]=str(env_file)
             elif key.endswith('_DIR'):env[key]=str(tmp_path)
             elif key.endswith('_IMAGE'):env[key]='example.invalid/synthetic@sha256:'+'a'*64
             else:env[key]='synthetic-'+'a'*40
-    env.update(NODE_PRIVATE_IP='127.0.0.1',NODE_ID='single-500',LLM_APPROVED_RPM='10000',
+    env.update(NODE_PRIVATE_IP='127.0.0.1',NODE_ID='single-500',JAVA_RELEASE_ACCEPTED='false',JAVA_CALLBACK_MIN_WORKERS='12',JAVA_STABILITY_MIN_WORKERS='12',LLM_APPROVED_RPM='10000',
                LLM_APPROVED_TPM='13000000',LLM_APPROVED_RPS='500',LLM_MAX_OUTPUT_TOKENS='200',
                VOICE_RECORDING_CLEANUP_TOKEN='cleanup-'+'c'*40, VOICE_RECORDING_RESERVE_BYTES='10000000000',
                VOICE_QUOTA_BUDGETS_JSON=json.dumps({'asr':dict(provider='test',account='a',region='r',product='asr',concurrency=600),
                    'tts':dict(provider='test',account='a',region='r',product='tts',concurrency=100,requests_per_minute=10000)}))
-    result=subprocess.run(['docker','compose','-f','docker-compose.single-host-500.yml','config','--format','json'],
+    result=subprocess.run(['docker','compose','-f',f'docker-compose.single-host-500{suffix}.yml','config','--format','json'],
                           cwd=ROOT,env=env,text=True,capture_output=True,check=True)
     return json.loads(result.stdout)
 
@@ -40,6 +41,7 @@ def test_real_compose_merge_budgets_and_single_controller(rendered):
     result=profile.assess(rendered)
     assert result['static_config_passed'],result['blockers']
     assert result['application_db_connections']==64
+    if result['runtime']=='java': assert result['ai_slots']==11
     assert not result['real_500_call_capacity_verified']
 
 
@@ -64,11 +66,15 @@ def test_separate_account_quota_volumes_rejected(rendered):
 def test_callback_overload_and_missing_shard_coverage_rejected(rendered):
     rendered['services']['voice-gateway']['environment']['VOICE_CALLBACK_CONCURRENCY'] = '32'
     command = rendered['services']['callback-worker-2']['command']
-    command[command.index('--shard-index') + 1] = '0'
+    java=command[0]=='java'
+    if java:
+        rendered['services']['callback-worker-2']['environment']['PORT']=rendered['services']['callback-worker-1']['environment']['PORT']
+    else:
+        command[command.index('--shard-index') + 1] = '0'
     result = profile.assess(rendered)
     assert not result['static_config_passed']
     assert any('webhook admission budget' in e for e in result['blockers'])
-    assert any('cover each worker' in e for e in result['blockers'])
+    assert any(('unique loopback ports' if java else 'cover each worker') in e for e in result['blockers'])
 
 
 def test_partial_readiness_and_unbounded_batch_rejected(rendered):

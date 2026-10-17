@@ -30,6 +30,7 @@ interface MediaManager extends AutoCloseable {
     void closeSession(String call, boolean notify) throws Exception;
     boolean ready();
     int capacity();
+    default Map<String,Number> metrics() { return Map.of(); }
     default void fence(String call, String expected, boolean closing) throws Exception {
         Session session = session(call); if (session == null || session.closing || session.terminated.isDone() || (expected != null && !session.latest.equals(expected))) throw new Support.Failure(409, "stale media session or speech generation");
         if (closing) session.closing = true;

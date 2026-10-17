@@ -27,6 +27,10 @@ final class VoiceGateway implements AutoCloseable {
     private final List<ThreadPoolExecutor> eventWorkers = new ArrayList<>();
     private final ScheduledExecutorService maintenance;
     private final Semaphore eventSlots = new Semaphore(2048);
+    private final Queue<Long> pendingEvents = new ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.atomic.AtomicInteger processingEvents = new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.atomic.LongAdder eventErrors = new java.util.concurrent.atomic.LongAdder();
+    private volatile boolean eventOverloaded;
     private volatile Socket eventSocket;
     volatile boolean draining, running = true, subscribed;
     private final HttpClient http = Support.client();
@@ -219,8 +223,19 @@ final class VoiceGateway implements AutoCloseable {
     }
     private void enqueue(Map<String,Object> event) {
         String uuid = Support.str(event, "Unique-ID", Support.str(event, "Channel-Call-UUID", Support.str(event, "variable_origination_uuid", "")));
-        if (!eventSlots.tryAcquire()) { ledger.stopped(true, "ESL event capacity reached"); try { eventSlots.acquire(); } catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException("ESL stopped"); } }
-        eventWorkers.get(Math.floorMod(uuid.hashCode(), eventWorkers.size())).execute(() -> { try { event(event); } catch (Exception error) { ledger.stopped(true, "ESL event processing failed"); } finally { eventSlots.release(); } });
+        if (!eventSlots.tryAcquire()) { eventOverloaded = true; ledger.stopped(true, "ESL event capacity reached"); try { eventSlots.acquire(); } catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException("ESL stopped"); } }
+        long queued = System.nanoTime(); pendingEvents.add(queued);
+        try {
+            eventWorkers.get(Math.floorMod(uuid.hashCode(), eventWorkers.size())).execute(() -> {
+                processingEvents.incrementAndGet();
+                try { event(event); } catch (Exception error) { eventErrors.increment(); ledger.stopped(true, "ESL event processing failed"); }
+                finally { processingEvents.decrementAndGet(); pendingEvents.remove(queued); eventSlots.release(); }
+            });
+        } catch (RejectedExecutionException stopped) { pendingEvents.remove(queued); eventSlots.release(); throw stopped; }
+    }
+    Map<String,Number> eventMetrics() {
+        Long oldest = pendingEvents.peek();
+        return Map.of("queue_depth", Math.max(0, pendingEvents.size() - processingEvents.get()), "oldest_age_sec", oldest == null ? 0 : Math.max(0, (System.nanoTime() - oldest) / 1_000_000_000.0), "overloaded", eventOverloaded ? 1 : 0, "errors_total", eventErrors.sum());
     }
     void event(Map<String,Object> event) throws Exception {
         String name = Support.str(event, "Event-Name", ""), uuid = Support.str(event, "Unique-ID", Support.str(event, "Channel-Call-UUID", Support.str(event, "variable_origination_uuid", "")));

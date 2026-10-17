@@ -1,17 +1,26 @@
+# Canonical Java development stack. Offline migration and release acceptance are required before cutover.
+# Python baseline: docker-compose.python-reference.yml. No Python business process is started here.
 services:
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-replace-redis-password}"]
+    command:
+    - redis-server
+    - --requirepass
+    - ${REDIS_PASSWORD:-replace-redis-password}
     expose:
-      - "6379"
+    - '6379'
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-replace-redis-password}", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - -a
+      - ${REDIS_PASSWORD:-replace-redis-password}
+      - ping
       interval: 5s
       timeout: 5s
       retries: 20
-
   db:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-db
@@ -21,56 +30,66 @@ services:
       POSTGRES_USER: ai_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-replace-db-password}
     expose:
-      - "5432"
+    - '5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_outbound"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ai_user -d ai_outbound
       interval: 5s
       timeout: 5s
       retries: 20
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+    - postgres_data:/var/lib/postgresql/data
   seaweedfs:
     image: ${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs:4.44}
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-seaweedfs
     restart: unless-stopped
-    command: ["mini", "-dir=/data", "-ip=seaweedfs", "-ip.bind=0.0.0.0"]
+    command:
+    - mini
+    - -dir=/data
+    - -ip=seaweedfs
+    - -ip.bind=0.0.0.0
     environment:
       AWS_ACCESS_KEY_ID: ${RECORDING_S3_ACCESS_KEY_ID:-dev-recordings}
       AWS_SECRET_ACCESS_KEY: ${RECORDING_S3_SECRET_ACCESS_KEY:-dev-recordings-secret-change-in-production}
       S3_BUCKET: ${RECORDING_S3_BUCKET:-ai-outbound-recordings}
     expose:
-      - "8333"
-      - "9333"
+    - '8333'
+    - '9333'
     ports:
-      - "127.0.0.1:${SEAWEEDFS_S3_HOST_PORT:-8333}:8333"
+    - 127.0.0.1:${SEAWEEDFS_S3_HOST_PORT:-8333}:8333
     volumes:
-      - recording_data:/data
+    - recording_data:/data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9333/cluster/status"]
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:9333/cluster/status
       interval: 10s
       timeout: 5s
       retries: 30
-
   recording-adapter:
     build:
       context: .
-      dockerfile: recording_adapter/Dockerfile
-      args:
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+      dockerfile: services-java/Dockerfile
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-recording-adapter
     restart: unless-stopped
     read_only: true
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
-    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       seaweedfs:
         condition: service_healthy
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+    - host.docker.internal:host-gateway
     environment:
       SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
       S3_ENDPOINT_URL: http://seaweedfs:8333
@@ -83,32 +102,45 @@ services:
       RECORDING_MAX_BYTES: ${RECORDING_MAX_BYTES:-536870912}
       RECORDING_SPOOL_DIR: /var/spool/recordings
       RECORDING_INGEST_CONCURRENCY: ${RECORDING_INGEST_CONCURRENCY:-2}
+      JAVA_SERVICE_ROLE: recording
+      JAVA_BIND_ADDRESS: 0.0.0.0
+      PORT: '8003'
     volumes:
-      - recording_spool:/var/spool/recordings
+    - recording_spool:/var/spool/recordings
     expose:
-      - "8003"
+    - '8003'
     ports:
-      - "127.0.0.1:${RECORDING_ADAPTER_HOST_PORT:-8003}:8003"
+    - 127.0.0.1:${RECORDING_ADAPTER_HOST_PORT:-8003}:8003
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/readyz', timeout=3); print('ok')"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 30
-
+      start_period: 30s
+    image: ai-outbound-services-java:local
+    command:
+    - java
+    - -jar
+    - /app/services.jar
   control-api:
     build:
       context: .
-      dockerfile: backend/Dockerfile
-      args:
-        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+      dockerfile: backend-java/Dockerfile
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-control
     restart: unless-stopped
     read_only: true
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
     pids_limit: 512
-    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=128m
     env_file: ${APP_ENV_FILE:-.env.example}
     depends_on:
       db:
@@ -127,7 +159,7 @@ services:
       DATABASE_BOOTSTRAP_LOCK_NAME: ${DATABASE_BOOTSTRAP_LOCK_NAME:-ai-outbound-bootstrap-ddl}
       DATABASE_BOOTSTRAP_DATA_LOCK_NAME: ${DATABASE_BOOTSTRAP_DATA_LOCK_NAME:-ai-outbound-bootstrap-data}
       DATABASE_MIGRATION_LOCK_NAME: ${DATABASE_MIGRATION_LOCK_NAME:-ai-outbound-schema-migrations}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0}
       TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
       TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
       TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
@@ -136,105 +168,92 @@ services:
       RECORDING_INGEST_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
       RECORDING_DELETE_ENDPOINT: ${RECORDING_DELETE_ENDPOINT:-http://recording-adapter:8003/v1/recordings/delete}
       RECORDING_DELETE_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
-      SCHEDULER_ENABLED: "false"
+      SCHEDULER_ENABLED: 'false'
+      JAVA_DATABASE_URL: jdbc:postgresql://db:5432/ai_outbound
+      DATABASE_USER: ai_user
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-replace-db-password}
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_BIND_ADDRESS: 0.0.0.0
+      PORT: '8000'
+      FRONTEND_STATIC_DIR: /app/static
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'true'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      AI_AGENT_URL: http://ai-agent:8001
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=3); print('ok')"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
     ports:
-      - "127.0.0.1:${CONTROL_API_HOST_PORT:-8000}:8000"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${CONTROL_API_WORKERS:-2}", "--timeout-keep-alive", "15", "--log-level", "info"]
-
-  task-worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      args:
-        NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:22-alpine}
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
-    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-worker
-    restart: unless-stopped
-    read_only: true
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
-    pids_limit: 512
-    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
-    env_file: ${APP_ENV_FILE:-.env.example}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      voice-gateway:
-        condition: service_healthy
-      recording-adapter:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound
-      DATABASE_URL_API: ${DATABASE_URL_API:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
-      DATABASE_URL_BOOTSTRAP: ${DATABASE_URL_BOOTSTRAP:-postgresql+psycopg://ai_user:${POSTGRES_PASSWORD:-replace-db-password}@db:5432/ai_outbound}
-      DATABASE_BOOTSTRAP_ADVISORY_LOCK: ${DATABASE_BOOTSTRAP_ADVISORY_LOCK:-true}
-      DATABASE_BOOTSTRAP_LOCK_NAME: ${DATABASE_BOOTSTRAP_LOCK_NAME:-ai-outbound-bootstrap-ddl}
-      DATABASE_BOOTSTRAP_DATA_LOCK_NAME: ${DATABASE_BOOTSTRAP_DATA_LOCK_NAME:-ai-outbound-bootstrap-data}
-      DATABASE_MIGRATION_LOCK_NAME: ${DATABASE_MIGRATION_LOCK_NAME:-ai-outbound-schema-migrations}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-replace-redis-password}@redis:6379/0
-      TELEPHONY_PROVIDER: ${TELEPHONY_PROVIDER:-http}
-      TELEPHONY_PROVIDER_ENDPOINT: ${TELEPHONY_PROVIDER_ENDPOINT:-http://voice-gateway:8002}
-      TELEPHONY_SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
-      AI_AGENT_SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
-      RECORDING_INGEST_ENDPOINT: ${RECORDING_INGEST_ENDPOINT:-http://recording-adapter:8003/v1/recordings/ingest}
-      RECORDING_INGEST_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
-      RECORDING_DELETE_ENDPOINT: ${RECORDING_DELETE_ENDPOINT:-http://recording-adapter:8003/v1/recordings/delete}
-      RECORDING_DELETE_SERVICE_TOKEN: ${RECORDING_STORAGE_SERVICE_TOKEN:-dev-recording-storage-token-change-in-production}
-      TASK_QUEUE_LANES: ${TASK_QUEUE_LANES:-}
-      TASK_QUEUE_LANE_ALIASES: ${TASK_QUEUE_LANE_ALIASES:-recording_ingest:recording,recording_delete:recording}
-      SCHEDULER_ENABLED: "true"
-    command: ["python", "-m", "app.worker"]
-    healthcheck:
-      test: ["CMD", "python", "-m", "app.worker_health"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-
+    - 127.0.0.1:${CONTROL_API_HOST_PORT:-8000}:8000
+    command:
+    - java
+    - -jar
+    - /app/control.jar
   ai-agent:
     build:
-      context: ./agent
-      args:
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+      context: .
+      dockerfile: services-java/Dockerfile
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-agent
     restart: unless-stopped
     read_only: true
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
-    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
       AI_CONTROL_URL: http://control-api:8000
       SERVICE_TOKEN: ${AI_AGENT_SERVICE_TOKEN:-}
+      JAVA_SERVICE_ROLE: agent
+      JAVA_BIND_ADDRESS: 0.0.0.0
+      PORT: '8001'
+      LLM_QUOTA_DB_PATH: /var/lib/model-quota/account.db
+      LLM_QUOTA_SCOPE: ${LLM_QUOTA_SCOPE:-primary-account}
     expose:
-      - "8001"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    - '8001'
+    command:
+    - java
+    - -jar
+    - /app/services.jar
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3); print('ok')"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 20
-
+      start_period: 30s
+    image: ai-outbound-services-java:local
+    volumes:
+    - model_quota_java:/var/lib/model-quota
   voice-gateway:
     build:
       context: .
-      dockerfile: voice_gateway/Dockerfile
-      args:
-        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-slim}
+      dockerfile: services-java/Dockerfile
     container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-voice-gateway
     restart: unless-stopped
     read_only: true
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
-    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 2048
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
     stop_grace_period: 5m
     env_file: ${APP_ENV_FILE:-.env.example}
     environment:
@@ -244,22 +263,34 @@ services:
       WEBHOOK_SECRET: ${TELEPHONY_WEBHOOK_SECRET:-}
       SERVICE_TOKEN: ${TELEPHONY_SERVICE_TOKEN:-}
       VOICE_SECURITY_DB_PATH: /var/lib/voice-security/ledger.sqlite3
+      JAVA_SERVICE_ROLE: voice
+      JAVA_BIND_ADDRESS: 0.0.0.0
+      PORT: '8002'
+      FREESWITCH_RECORDING_DIR: /recordings
     volumes:
-      - voice_security_data:/var/lib/voice-security
+    - java_source_recordings:/recordings
     expose:
-      - "8002"
+    - '8002'
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=3); print('ok')"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 20
-
-  # FreeSWITCH should be deployed from a pinned, audited release and exposed to
-  # this private network through ESL. Do not use an unpinned `latest` image.
-  # Set VOICE_GATEWAY_DRIVER=freeswitch_esl and FREESWITCH_ESL_* in the env file.
-
+      start_period: 30s
+    image: ai-outbound-services-java:local
+    command:
+    - java
+    - -jar
+    - /app/services.jar
 volumes:
-  recording_spool:
-  postgres_data:
-  recording_data:
-  voice_security_data:
+  recording_spool: null
+  postgres_data: null
+  recording_data: null
+  voice_security_data: null
+  model_quota_java: null
+  java_source_recordings: null

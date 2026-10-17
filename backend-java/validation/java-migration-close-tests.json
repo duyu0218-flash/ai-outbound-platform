@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "database": "sqlite",
+      "tests": 113,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "database": "postgresql",
+      "tests": 113,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "boundary": "Isolated SQLite/PostgreSQL/Redis only; synthetic history, no target database cutover."
+}

@@ -69,6 +69,40 @@
       "line": 0,
       "specs": [
         {
+          "title": "Java API reference loads under CSP and filters endpoints without credentials",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 602,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-17T03:31:21.292Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cc2b685c641c4537d39e-2408b2711a5ef28ffbc3",
+          "file": "java-services.spec.ts",
+          "line": 4,
+          "column": 1
+        },
+        {
           "title": "Java service stack campaign dispatch, signed completion, history and analysis",
           "ok": true,
           "tags": [],
@@ -84,12 +118,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4291,
+                  "duration": 3589,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:00.972Z",
+                  "startTime": "2026-10-17T03:31:22.092Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -99,7 +133,7 @@
           ],
           "id": "cc2b685c641c4537d39e-eba0408f6344ae645544",
           "file": "java-services.spec.ts",
-          "line": 4,
+          "line": 26,
           "column": 1
         }
       ]
@@ -126,12 +160,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2979,
+                  "duration": 3077,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:05.513Z",
+                  "startTime": "2026-10-17T03:31:25.689Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -160,12 +194,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1215,
+                  "duration": 1288,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:08.496Z",
+                  "startTime": "2026-10-17T03:31:28.771Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -194,12 +228,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1426,
+                  "duration": 1451,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:09.716Z",
+                  "startTime": "2026-10-17T03:31:30.063Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -228,12 +262,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1845,
+                  "duration": 1912,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:11.146Z",
+                  "startTime": "2026-10-17T03:31:31.519Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -262,12 +296,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2485,
+                  "duration": 1677,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:12.995Z",
+                  "startTime": "2026-10-17T03:31:33.435Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -296,12 +330,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2222,
+                  "duration": 2309,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-17T03:10:15.484Z",
+                  "startTime": "2026-10-17T03:31:35.115Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -319,9 +353,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-17T03:10:00.754Z",
-    "duration": 17018.326,
-    "expected": 7,
+    "startTime": "2026-10-17T03:31:20.981Z",
+    "duration": 16524.796000000002,
+    "expected": 8,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

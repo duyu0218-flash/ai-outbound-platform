@@ -1,0 +1,1206 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Java voice service",
+    "version": "0.1.0",
+    "description": "JDK 17 / Spring Boot 4.1.1. Retained request schemas with Java service authentication; no Python runtime is needed. Operational and cloud acceptance is separate."
+  },
+  "paths": {
+    "/v1/recordings/{filename}": {
+      "get": {
+        "summary": "Recording Source",
+        "operationId": "recording_source_v1_recordings__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Expires"
+            }
+          },
+          {
+            "name": "signature",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "recordingSignature": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Ready",
+        "operationId": "ready_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/call/dial": {
+      "post": {
+        "summary": "Dial",
+        "operationId": "dial_v1_call_dial_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DialRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/admin/drain": {
+      "post": {
+        "summary": "Set Drain",
+        "operationId": "set_drain_v1_admin_drain_post",
+        "parameters": [
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Enabled"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "description": " Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN."
+      }
+    },
+    "/v1/admin/security/stop": {
+      "post": {
+        "summary": "Security Stop",
+        "operationId": "security_stop_v1_admin_security_stop_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecurityStopRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "description": " Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN."
+      }
+    },
+    "/v1/admin/security": {
+      "get": {
+        "summary": "Security Status",
+        "operationId": "security_status_v1_admin_security_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "description": " Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN."
+      }
+    },
+    "/v1/admin/capacity": {
+      "get": {
+        "summary": "Capacity Policy",
+        "description": "Effective approved limits only; no credentials or assumed PBX capacity. Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN.",
+        "operationId": "capacity_policy_v1_admin_capacity_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/call/speak": {
+      "post": {
+        "summary": "Speak",
+        "operationId": "speak_v1_call_speak_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/call/stop-speaking": {
+      "post": {
+        "summary": "Stop Speaking",
+        "operationId": "stop_speaking_v1_call_stop_speaking_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/call/transfer": {
+      "post": {
+        "summary": "Transfer",
+        "operationId": "transfer_v1_call_transfer_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/call/hangup": {
+      "post": {
+        "summary": "Hangup",
+        "operationId": "hangup_v1_call_hangup_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/call/status": {
+      "post": {
+        "summary": "Call Status",
+        "operationId": "call_status_v1_call_status_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "description": "Real ESL mode also requires timestamp, nonce and path/body HMAC command headers. See toll-fraud-protection.md.",
+        "parameters": [
+          {
+            "name": "x-voice-timestamp",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-nonce",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-voice-signature",
+            "in": "header",
+            "required": false,
+            "description": "Required in real ESL mode; HMAC binds path and exact body bytes.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/admin/voice-permits/reconcile": {
+      "post": {
+        "summary": "Reconcile Voice Permit",
+        "operationId": "reconcile_voice_permit_v1_admin_voice_permits_reconcile_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoicePermitReconcile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "description": " Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN."
+      }
+    },
+    "/v1/admin/voice-permits": {
+      "get": {
+        "summary": "Voice Permit Status",
+        "operationId": "voice_permit_status_v1_admin_voice_permits_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "description": " Real mode uses VOICE_SECURITY_ADMIN_TOKEN; development mock mode uses SERVICE_TOKEN."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CallRequest": {
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "title": "Call Id"
+          },
+          "expected_attempt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Attempt"
+          },
+          "provider_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Call Id"
+          },
+          "expected_speech_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Speech Event Id"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "target_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Group"
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_id"
+        ],
+        "title": "CallRequest"
+      },
+      "DialRequest": {
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Call Id"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Phone"
+          },
+          "webhook_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Webhook Url"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_id",
+          "phone",
+          "webhook_url"
+        ],
+        "title": "DialRequest"
+      },
+      "SecurityStopRequest": {
+        "properties": {
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stopped",
+          "reason"
+        ],
+        "title": "SecurityStopRequest"
+      },
+      "SpeakRequest": {
+        "properties": {
+          "command_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command Id"
+          },
+          "call_id": {
+            "type": "string",
+            "title": "Call Id"
+          },
+          "expected_attempt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Attempt"
+          },
+          "provider_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Call Id"
+          },
+          "expected_speech_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Speech Event Id"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "zh-CN"
+          },
+          "voice": {
+            "type": "string",
+            "title": "Voice",
+            "default": ""
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "call_id",
+          "text"
+        ],
+        "title": "SpeakRequest"
+      },
+      "VoicePermitReconcile": {
+        "properties": {
+          "permit_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Permit Id"
+          },
+          "provider_close_evidence": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Provider Close Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permit_id",
+          "provider_close_evidence"
+        ],
+        "title": "VoicePermitReconcile"
+      },
+      "JavaError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "serviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "adminBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "cleanupBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "mediaBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "recordingSignature": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "signature"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "x-websocket-endpoints": [
+    {
+      "path": "/v1/pipecat/media/{token}",
+      "authentication": "random single-session bearer capability in path",
+      "format": "mono pcm_s16le",
+      "bounds": "one connection per generation; binary frame <=65536 bytes"
+    }
+  ]
+}

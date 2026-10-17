@@ -33,6 +33,6 @@ class RecordingController {
         Support.auth(settings, "METRICS_TOKEN", auth, false);
         StringBuilder output = new StringBuilder();
         counts.forEach((key, value) -> { var parts = key.split(":"); output.append("ai_outbound_recording_adapter_").append(parts[0]).append("_total{result=\"").append(parts[1]).append("\"} ").append(value.sum()).append('\n'); });
-        return output.toString();
+        return output.append(Metrics.jvm()).toString();
     }
 }

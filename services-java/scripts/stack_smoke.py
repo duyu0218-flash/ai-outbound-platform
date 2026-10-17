@@ -116,7 +116,7 @@ with tempfile.TemporaryDirectory(prefix='java-all-services-') as folder:
             result = subprocess.run([node, str(ROOT/'frontend/node_modules/@playwright/test/cli.js'), 'test',
                                      'e2e/portal.spec.ts', 'e2e/java-services.spec.ts', '--grep-invert', 'SPA account switch', '--reporter=json'],
                                     cwd=ROOT/'frontend', capture_output=True, text=True, timeout=240,
-                                    env=dict(os.environ, E2E_BASE_URL=urls['core'], E2E_JAVA_SERVICES='1',
+                                    env=dict(os.environ, E2E_BASE_URL=urls['core'], E2E_JAVA_SERVICES='1', E2E_JAVA_AGENT_URL=urls['agent'], E2E_JAVA_VOICE_URL=urls['voice'],
                                              E2E_SECURITY_APPROVAL='isolated-retained-security-approval-only',
                                              E2E_WEBHOOK_TOKEN='isolated-webhook-token', E2E_WEBHOOK_SECRET='isolated-callback-signing-key'))
             (OUT/'java-services-browser.json').write_text(result.stdout)

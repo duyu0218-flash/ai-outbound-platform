@@ -1,3 +1,5 @@
+> 本文为保留的 Python 历史安装说明，仅适用于 `*.python-reference.yml`。当前 Java 安装与切换请使用 [Java 部署说明](services-java/DEPLOYMENT.md)，不要混用旧启动命令和并发参数。
+
 # AI 外呼平台安装教程
 
 > 更新：2026-09-08；应用代码基准：`26f205b`。面向首次部署人员。本文与[平台配置手册](docs/platform-configuration-guide.md)、[产品操作手册](docs/operator-manual.md)配套使用。

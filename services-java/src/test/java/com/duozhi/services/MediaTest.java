@@ -83,6 +83,9 @@ class MediaTest {
             await(() -> audio.stream().anyMatch(message -> message instanceof BinaryMessage));
             await(() -> permits.contains("tts:false:true"));
             int bytes = audio.stream().filter(message -> message instanceof BinaryMessage).mapToInt(WebSocketMessage::getPayloadLength).sum(); assertEquals(1600, bytes);
+            assertEquals(1L, media.metrics().get("pcm_input_frames_total").longValue());
+            assertEquals(1L, media.metrics().get("tts_first_audio_count").longValue());
+            assertTrue(media.metrics().get("tts_first_audio_seconds_sum").doubleValue() > 0);
             assertThrows(Support.Failure.class, () -> media.fence(session.call, "stale-generation", false));
             media.closeSession(session.call, true); assertTrue(session.terminated.isDone()); assertTrue(permits.contains("asr:false:false"));
         }

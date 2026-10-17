@@ -19,7 +19,7 @@ class HttpBoundaryTest {
     private final HttpClient http = Support.client();
     @Configuration(proxyBeanMethods=false)
     @EnableAutoConfiguration
-    @Import({AgentController.class, Boundary.class, ServiceErrors.class})
+    @Import({AgentController.class, ApiDocumentation.class, Boundary.class, ServiceErrors.class})
     static class AgentFixture {
         @Bean Settings settings() { return new Settings(Map.of("SERVICE_TOKEN", "isolated-boundary-token", "LLM_PROVIDER", "rule")); }
     }
@@ -41,6 +41,16 @@ class HttpBoundaryTest {
         assertFalse(Support.str(Support.object(reply.body().getBytes(StandardCharsets.UTF_8)), "tts_text", "").isBlank());
         assertEquals(404, post("/v1/call/dial", "isolated-boundary-token", "{}").statusCode());
         assertEquals(422, post("/agent/start", "isolated-boundary-token", "{").statusCode());
+    }
+    @Test void documentationIsSameOriginReadOnlyAndDoesNotWeakenApiAuthentication() throws Exception {
+        var docs = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/docs")).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, docs.statusCode());
+        assertTrue(docs.headers().firstValue("content-security-policy").orElseThrow().contains("connect-src 'self'"));
+        assertTrue(docs.body().contains("textContent")); assertFalse(docs.body().contains("innerHTML"));
+        var spec = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/openapi.json")).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, spec.statusCode());
+        assertTrue(Support.map(Support.object(spec.body()).get("paths")).containsKey("/agent/start"));
+        assertEquals(401, post("/agent/start", null, "{}").statusCode());
     }
     private int raw(String headers, String body) throws Exception {
         try (var socket = new Socket("127.0.0.1", port)) {

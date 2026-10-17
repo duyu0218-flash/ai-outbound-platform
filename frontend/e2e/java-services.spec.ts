@@ -1,6 +1,28 @@
 import { expect, test } from '@playwright/test'
 import { createHmac } from 'node:crypto'
 
+test('Java API reference loads under CSP and filters endpoints without credentials', async ({ page }) => {
+  test.skip(process.env.E2E_JAVA_SERVICES !== '1', 'requires disposable Java services')
+  for (const [origin, endpoint] of [[process.env.E2E_JAVA_AGENT_URL, '/agent/start'], [process.env.E2E_JAVA_VOICE_URL, '/v1/call/dial']]) {
+    expect(origin).toBeTruthy()
+    const response = await page.goto(`${origin}/docs`)
+    expect(response?.status()).toBe(200)
+    expect(response?.headers()['content-security-policy']).toContain("connect-src 'self'")
+    await expect(page.getByRole('status')).toContainText('documented operations')
+    await page.getByLabel('Find an endpoint').fill(endpoint!)
+    await expect(page.locator('article:visible')).toHaveCount(1)
+    await page.locator('article:visible summary').click()
+    await expect(page.locator('article:visible pre')).toBeVisible()
+    await page.getByLabel('Find an endpoint').fill('no-such-endpoint')
+    await expect(page.locator('article:visible')).toHaveCount(0)
+    await page.getByLabel('Find an endpoint').fill('')
+    await page.getByRole('link', { name: 'OpenAPI JSON' }).click()
+    await expect(page).toHaveURL(/\/openapi.json$/)
+    await page.goBack()
+    await expect(page.getByLabel('Find an endpoint')).toBeVisible()
+  }
+})
+
 test('Java service stack campaign dispatch, signed completion, history and analysis', async ({ page }) => {
   test.skip(process.env.E2E_JAVA_SERVICES !== '1', 'requires the disposable all-Java fixture')
   const login = await page.request.post('/api/v1/auth/login', { data: { username: 'admin', password: '12345678' } })

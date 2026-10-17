@@ -62,6 +62,7 @@ def main():
             process, state = start()
             epoch = state['epoch']
             assert state['worker_id'] == 'isolated-worker' and state['capacity'] == 2
+            assert state['metrics']['pcm_input_frames_total'] == 0 and 'tts_first_audio_seconds_sum' in state['metrics']
             assert client.get('/internal/state', headers={'Authorization': 'Bearer wrong'}).status_code == 401
             checks.append('actual Java worker readiness and RPC authentication')
             session = dict(call_id='isolated-call', session_id=str(uuid.uuid4()), token=secrets.token_urlsafe(32),

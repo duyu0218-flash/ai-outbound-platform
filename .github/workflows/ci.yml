@@ -201,8 +201,8 @@ jobs:
       - name: Build and start Compose stack
         run: |
           ./scripts/bootstrap-deployment-secrets.sh
-          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml config --quiet
-          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml up -d --build
+          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml config --quiet
+          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml up -d --build
       - name: Wait for readiness
         run: |
           for attempt in $(seq 1 60); do
@@ -213,7 +213,7 @@ jobs:
               && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
             sleep 2
           done
-          docker compose -f docker-compose.yml -f docker-compose.observability.yml logs
+          docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml logs
           exit 1
       - name: Verify protected metrics targets
         run: |
@@ -238,10 +238,10 @@ jobs:
         run: pnpm test:e2e
       - name: Show logs on failure
         if: failure()
-        run: docker compose -f docker-compose.yml -f docker-compose.observability.yml logs
+        run: docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml logs
       - name: Stop Compose stack
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.observability.yml down --volumes
+        run: docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml down --volumes
 
   deployable-assets:
     runs-on: ubuntu-latest
@@ -257,7 +257,7 @@ jobs:
           python -c "import json; json.load(open('deploy/grafana/provisioning/dashboards/json/ai-outbound-commercial.json'))"
           python -c "import xml.etree.ElementTree as ET; ET.parse('deploy/sipp/scenarios/options.xml'); ET.parse('deploy/sipp/scenarios/uac-basic.xml')"
           ./scripts/bootstrap-deployment-secrets.sh
-          docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.observability.yml config --quiet
+          docker compose --env-file .env.example -f docker-compose.python-reference.yml -f docker-compose.observability.yml config --quiet
           docker compose -f docker-compose.sipp.yml config --quiet
           docker run --rm --entrypoint /bin/promtool \
             -v "$PWD/deploy/prometheus:/etc/prometheus:ro" \
