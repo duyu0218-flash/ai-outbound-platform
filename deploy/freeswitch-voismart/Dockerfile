@@ -11,11 +11,11 @@ RUN set -eu; mkdir -p /runtime; \
         copy_native "$library"; done; \
     done; \
     test -x /runtime/usr/bin/freeswitch
-FROM eclipse-temurin:17-jdk-jammy AS helper
+FROM eclipse-temurin:22-jdk-jammy AS helper
 WORKDIR /helper
 COPY tools/java/Pbx.java .
 RUN javac --release 17 Pbx.java
-FROM eclipse-temurin:17-jre-jammy AS jre
+FROM eclipse-temurin:22-jre-jammy AS jre
 FROM debian:bookworm-slim
 COPY --from=jre /opt/java/openjdk /opt/java/openjdk
 COPY --from=native /runtime/ /
