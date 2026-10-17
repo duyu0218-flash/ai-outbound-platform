@@ -1,0 +1,12 @@
+{
+  "name": "outbound-platform-tools",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "description": "Dependency-free Node builtins and JDK 17 tools; no native addon build or interpreter needed"
+}

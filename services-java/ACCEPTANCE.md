@@ -1,3 +1,5 @@
+> 当前工具链及命令以仓库 `docs/migration/no-python-toolchain.md` 为准。下列既有验收数字保留为历史证据，不代表本轮重验；旧 Python 源码与对照启动模板已从当前树退役。
+
 # 全 Java 后端候选验收记录
 
 日期：2026-10-17。统一版本 **JDK 17 + Spring Boot 4.1.1**。本轮修改位于 `migration/java-services-20261017`，没有替换现有部署。

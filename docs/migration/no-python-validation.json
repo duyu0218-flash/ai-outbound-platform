@@ -1,0 +1,480 @@
+{
+  "schema_version": 1,
+  "baseline": "8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+  "verified_at_utc": "2026-10-17T15:13:13.519Z",
+  "classification": {
+    "reuse": 145,
+    "delete": 10,
+    "rewrite": 41
+  },
+  "source_inventory_sha256": "164b4413075ee529df97b4da02ff71d18d729151db751ac93ba5c5fa9c10b128",
+  "source_files": 280,
+  "clean_environment": {
+    "passed": true,
+    "image_id": "sha256:59f6a8c733f88331dc7508042759833016e9583b5bc006660f5b076e491d423b",
+    "browser": true,
+    "python_installed": false,
+    "source_matches_current": true,
+    "copy_errors": [],
+    "postgresql_redis_and_s3_fixtures": true,
+    "exit_code": 0,
+    "boundary": "Clean development/test container and isolated services only. No production/real line/capacity claim."
+  },
+  "regressions": {
+    "tools": {
+      "tests": 82,
+      "failures": 0,
+      "skipped": 0
+    },
+    "java_core_postgresql": {
+      "tests": 113,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "java_services_with_s3": {
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend_unit": {
+      "tests": 11,
+      "failures": 0,
+      "skipped": 0,
+      "raw_log_sha256": "e8d710e5559c97f84c3b6caf5890f146752081010b03f39dbcbd713f4b7e8b08"
+    },
+    "browser": [
+      {
+        "fixture": "browser",
+        "passed": 23,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      {
+        "fixture": "core-browser-queued",
+        "passed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      {
+        "fixture": "core-browser-prepared",
+        "passed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      },
+      {
+        "fixture": "core-browser-dispatch",
+        "passed": 1,
+        "skipped": 0,
+        "failed": 0,
+        "flaky": 0
+      }
+    ]
+  },
+  "security": {
+    "core": {
+      "passed": true,
+      "dependency_packages": 91,
+      "scanned_packages": 91,
+      "dependency_advisories": [],
+      "sast_classes": 84,
+      "sast_raw_findings": 149,
+      "sast_reviewed_high_medium": 23,
+      "sast_reviewed_low_priority": 14,
+      "sast_reviewed_actionable": 37,
+      "sast_reviewed_entrypoints": 112,
+      "sast_unreviewed_findings": 0,
+      "source_scope_files": 97,
+      "sast_low_priority": 126,
+      "sast_by_type": {
+        "SERVLET_HEADER": 9,
+        "SPRING_ENDPOINT": 112,
+        "URLCONNECTION_SSRF_FD": 2,
+        "WEAK_MESSAGE_DIGEST_SHA1": 1,
+        "SQL_INJECTION_SPRING_JDBC": 12,
+        "SQL_INJECTION_JDBC": 2,
+        "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE": 4,
+        "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING": 1,
+        "UNENCRYPTED_SOCKET": 2,
+        "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER": 1,
+        "PERMISSIVE_CORS": 1,
+        "SERVLET_SERVER_NAME": 1,
+        "PATH_TRAVERSAL_IN": 1
+      },
+      "errors": []
+    },
+    "services": {
+      "passed": true,
+      "dependency_packages": 73,
+      "scanned_packages": 73,
+      "dependency_advisories": [],
+      "sast_classes": 51,
+      "sast_raw_findings": 47,
+      "sast_reviewed_high_medium": 10,
+      "sast_reviewed_low_priority": 8,
+      "sast_reviewed_actionable": 18,
+      "sast_reviewed_entrypoints": 29,
+      "sast_unreviewed_findings": 0,
+      "source_scope_files": 32,
+      "sast_low_priority": 37,
+      "sast_by_type": {
+        "SPRING_ENDPOINT": 29,
+        "IMPROPER_UNICODE": 1,
+        "PREDICTABLE_RANDOM": 2,
+        "UNENCRYPTED_SOCKET": 1,
+        "SQL_INJECTION_JDBC": 3,
+        "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE": 1,
+        "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION": 1,
+        "USO_UNSAFE_INHERITABLE_OBJECT_SYNCHRONIZATION": 1,
+        "UNSAFE_HASH_EQUALS": 2,
+        "USO_UNSAFE_OBJECT_SYNCHRONIZATION": 2,
+        "URLCONNECTION_SSRF_FD": 1,
+        "SERVLET_HEADER": 2,
+        "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING": 1
+      },
+      "errors": []
+    }
+  },
+  "contracts": {
+    "passed": true,
+    "core_routes": 108,
+    "retained_auxiliary_routes": 32,
+    "routes": [
+      {
+        "role": "agent",
+        "method": "GET",
+        "path": "/docs"
+      },
+      {
+        "role": "agent",
+        "method": "GET",
+        "path": "/openapi.json"
+      },
+      {
+        "role": "agent",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "role": "agent",
+        "method": "GET",
+        "path": "/readyz"
+      },
+      {
+        "role": "agent",
+        "method": "POST",
+        "path": "/agent/start"
+      },
+      {
+        "role": "agent",
+        "method": "POST",
+        "path": "/agent/turn"
+      },
+      {
+        "role": "recording",
+        "method": "GET",
+        "path": "/docs"
+      },
+      {
+        "role": "recording",
+        "method": "GET",
+        "path": "/openapi.json"
+      },
+      {
+        "role": "recording",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "role": "recording",
+        "method": "GET",
+        "path": "/readyz"
+      },
+      {
+        "role": "recording",
+        "method": "POST",
+        "path": "/v1/recordings/ingest"
+      },
+      {
+        "role": "recording",
+        "method": "POST",
+        "path": "/v1/recordings/delete"
+      },
+      {
+        "role": "recording",
+        "method": "GET",
+        "path": "/metrics"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/docs"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/openapi.json"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/readyz"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/admin/drain"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/admin/security/stop"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/v1/admin/security"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/v1/admin/capacity"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/metrics"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/v1/recordings/{}"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/recording-cleanup/{}"
+      },
+      {
+        "role": "voice",
+        "method": "GET",
+        "path": "/v1/admin/voice-permits"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/internal/media-events"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/internal/voice-permits"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/admin/voice-permits/reconcile"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/dial"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/speak"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/stop-speaking"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/transfer"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/hangup"
+      },
+      {
+        "role": "voice",
+        "method": "POST",
+        "path": "/v1/call/status"
+      },
+      {
+        "role": "voice",
+        "method": "WS",
+        "path": "/v1/pipecat/media/{}"
+      },
+      {
+        "role": "media",
+        "method": "GET",
+        "path": "/docs"
+      },
+      {
+        "role": "media",
+        "method": "GET",
+        "path": "/openapi.json"
+      },
+      {
+        "role": "media",
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "role": "media",
+        "method": "GET",
+        "path": "/readyz"
+      },
+      {
+        "role": "media",
+        "method": "GET",
+        "path": "/internal/state"
+      },
+      {
+        "role": "media",
+        "method": "POST",
+        "path": "/internal/command"
+      },
+      {
+        "role": "media",
+        "method": "WS",
+        "path": "/v1/pipecat/media/{}"
+      }
+    ],
+    "boundary": "Static route accounting only; business equivalence requires runtime tests."
+  },
+  "migration": {
+    "passed": true,
+    "environment": "Disposable PostgreSQL 16, frozen SQL synthetic historical schema only",
+    "plan_read_only": true,
+    "readonly_database_snapshot_cli_verified": true,
+    "applied_versions": 22,
+    "repeat_applied": 0,
+    "backup_sha256": "b583ca9dc58afa9767a62b03f97df265c1ff04b60021e7fcb75776839ffb33ac",
+    "backup_bytes": 135315,
+    "restore_preserves_legacy_schema": true,
+    "business_snapshots": {
+      "tenant": "1|e7034178d1d28851bea19592419754ca",
+      "user": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "contact": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "campaign": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "callsession": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "speechturn": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "callusage": "0|d41d8cd98f00b204e9800998ecf8427e",
+      "recordingasset": "0|d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "jar_sha256": "8a2e181ce9e858f1cd8c23ea8dad03f529e89e3c7367a9cc73e5a0ff9c52a53e",
+    "boundary": "Synthetic schema/data, not the production old database."
+  },
+  "core_container": {
+    "passed": true,
+    "checks": [
+      "actual Tomcat duplicate credentials, frontend and login",
+      "strict CORS and default release gate",
+      "contact, actual mock dispatch/callback and persisted analysis",
+      "no interpreter/pip in core"
+    ],
+    "boundary": "Disposable Java Linux images and synthetic state. No production/real PBX/cloud/capacity acceptance."
+  },
+  "auxiliary_containers": {
+    "passed": true,
+    "checks": [
+      "nonroot/read-only/noexec voice with persistent SQLite",
+      "actual fleet identity/status, durable drain and explicit resume CLI",
+      "Agent HTTP authentication and greeting",
+      "signed source -> recording -> actual S3 readback -> cleanup/retry/tombstone",
+      "authenticated Java media role",
+      "four role docs and authenticated JVM metrics",
+      "remove/recreate retains stop until explicit resume",
+      "no interpreter/pip in agent",
+      "no interpreter/pip in recording",
+      "no interpreter/pip in media",
+      "no interpreter/pip in voice-restarted"
+    ],
+    "boundary": "Disposable Java Linux images and synthetic state. No production/real PBX/cloud/capacity acceptance."
+  },
+  "pbx_container": {
+    "passed": true,
+    "image_id": "sha256:3ff929ebb76c8aa9bc4232b9c626ded064a58db7682d8e9d0335e9454f50fcfb",
+    "checks": [
+      "nonroot read-only native PBX and Java authenticated ESL health",
+      "authenticated probe and no dial route",
+      {
+        "mode": "native_timer_without_controller",
+        "elapsed_ms": 1575.1342920000002
+      },
+      {
+        "mode": "drain",
+        "audible_seconds": 1.2000000000000006,
+        "recorded_tone_hz": 1000
+      },
+      {
+        "mode": "interrupt",
+        "audible_seconds": 0.3,
+        "recorded_tone_hz": 1000
+      },
+      {
+        "mode": "module_backlog_interrupt",
+        "audible_seconds": 0.3,
+        "recorded_tone_hz": 1000
+      },
+      {
+        "mode": "socket_disconnect",
+        "closed": true
+      },
+      "PBX and Node PCM fixture contain no interpreter or pip"
+    ],
+    "synthetic_only": true,
+    "real_line_verified": false,
+    "boundary": "Native FreeSWITCH PCM/drain/interruption fixture. Java gateway/media ownership and provider contracts have separate JUnit/process/container tests; not a full real-line gateway acceptance."
+  },
+  "media_process": {
+    "passed": true,
+    "checks": [
+      "worker state, metrics and RPC authentication",
+      "create/retry retains one generation",
+      "epoch/session/attempt/speech/expiry fences",
+      "close retries cannot resurrect generation",
+      "actual kill/restart changes epoch"
+    ],
+    "services_jar_sha256": "97a372b40b4a93249ad42e1098213314ef3fc907a86d7e789485fa9c03179531",
+    "boundary": "Actual Java process/RPC; no real audio/cloud or physical permit release qualification."
+  },
+  "java_stack": {
+    "passed": true,
+    "checks": [
+      "readiness verifies actual Java Agent and gateway",
+      "Java HTTP dial and signed Java gateway callbacks reach in_ai",
+      "Java core invokes Java Agent turn and Java gateway speak over HTTP",
+      "signed terminal callback generates durable analysis",
+      "bounded Node arrival-rate HTTP read and signed webhook smoke",
+      "browser navigation, save/readback, authorization, logout and Java calls/reports"
+    ],
+    "jar_sha256": "3b4d3c7b4ae5af6519ff9a9b17a6c51960a52a005552ae61a731b2ad8106d651",
+    "services_jar_sha256": "97a372b40b4a93249ad42e1098213314ef3fc907a86d7e789485fa9c03179531",
+    "boundary": "Actual Java processes, rule model and mock phone; no real PBX/cloud/capacity qualification."
+  },
+  "boundaries": {
+    "production_deployed": false,
+    "test_environment_published": false,
+    "physical_device_verified": false,
+    "real_line_verified": false,
+    "capacity_500_qualified": false,
+    "real_legacy_database_verified": false,
+    "independent_codex_security_diff_scan_complete": false
+  }
+}

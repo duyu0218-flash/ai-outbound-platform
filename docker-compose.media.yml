@@ -1,9 +1,10 @@
-# Add to the existing local Compose project. No database/data-volume changes.
-# Run build-voismart.sh and create .secrets/voismart-esl-password first.
+# Optional isolated native PBX/PCM fixture; never use it as the business gateway.
 services:
   freeswitch-media:
-    image: ai-freeswitch-voismart:2.5.1
-    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-freeswitch-media
+    image: ai-freeswitch-voismart-java:2.5.1
+    build:
+      context: .
+      dockerfile: deploy/freeswitch-voismart/Dockerfile
     restart: unless-stopped
     user: "10001:10001"
     read_only: true
@@ -11,42 +12,34 @@ services:
     security_opt: ["no-new-privileges:true"]
     pids_limit: 256
     tmpfs: ["/tmp:rw,nosuid,size=256m,uid=10001,gid=10001"]
-    entrypoint: ["python3", "/opt/media-config/entrypoint.py"]
     environment:
-      MEDIA_ESL_ALLOWED_CIDR: ${MEDIA_ESL_ALLOWED_CIDR:?Set the private Docker project subnet}
+      MEDIA_ESL_ALLOWED_CIDR: ${MEDIA_ESL_ALLOWED_CIDR:?Set the exact private Docker project subnet}
     volumes:
-      - ./deploy/freeswitch-voismart:/opt/media-config:ro
+      - ./deploy/freeswitch-voismart/freeswitch.xml:/opt/media-config/freeswitch.xml:ro
       - media_test_recordings:/recordings
     secrets: [voismart_esl_password]
     expose: ["8021"]
     healthcheck:
-      test: ["CMD", "python3", "/opt/media-config/healthcheck.py"]
+      test: ["CMD", "java", "-cp", "/opt/media-tools", "Pbx", "health"]
       interval: 10s
       timeout: 5s
       retries: 12
-
-  # Same gateway code, real ESL/WebSocket/Pipecat; only ASR/TTS are replaced by
-  # explicit synthetic test processors. This does NOT replace business gateway.
   media-probe:
-    image: ai-voice-gateway:latest
-    container_name: ${COMPOSE_CONTAINER_PREFIX:-ai-outbound}-media-probe
+    image: node:22-bookworm-slim
     restart: unless-stopped
     user: "10001:10001"
     read_only: true
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
-    pids_limit: 256
-    tmpfs: ["/tmp:rw,nosuid,size=128m,uid=10001,gid=10001"]
+    pids_limit: 128
+    working_dir: /workspace
+    tmpfs: ["/tmp:rw,nosuid,size=64m,uid=10001,gid=10001"]
     environment:
-      ENV: dev
-      PYTHONPATH: /app
+      ENV: test
       FREESWITCH_ESL_HOST: freeswitch-media
-    command: ["uvicorn", "media_probe_app:app", "--host", "0.0.0.0", "--port", "8002", "--app-dir", "/opt/media-test", "--no-access-log"]
+    command: ["node", "tools/media-probe.mjs", "--serve"]
     volumes:
-      - ./voice_gateway/app:/app/app:ro
-      - ./scripts/media_probe_app.py:/opt/media-test/media_probe_app.py:ro
-      - ./scripts/verify_voismart_media.py:/opt/media-test/verify_voismart_media.py:ro
-      - ./scripts/verify_media_lifecycle.py:/opt/media-test/verify_media_lifecycle.py:ro
+      - ./tools:/workspace/tools:ro
       - media_test_recordings:/recordings:ro
     secrets: [voismart_esl_password]
     ports: ["127.0.0.1:18002:8002"]
@@ -54,11 +47,10 @@ services:
       freeswitch-media:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=3)"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 12
-
 secrets:
   voismart_esl_password:
     file: ./.secrets/voismart-esl-password

@@ -1,0 +1,1600 @@
+{
+  "synthetic_only": true,
+  "services": {
+    "ai-agent-1": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "LLM_QUOTA_DB_PATH": "/var/lib/model-quota/account.db",
+        "LLM_QUOTA_RPM": "100",
+        "LLM_QUOTA_RPS": "10",
+        "LLM_QUOTA_SCOPE": "primary-account",
+        "LLM_QUOTA_TPM": "10000",
+        "PORT": "8025"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "model_quota",
+          "target": "/var/lib/model-quota",
+          "volume": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "1073741824"
+    },
+    "ai-agent-2": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "LLM_QUOTA_DB_PATH": "/var/lib/model-quota/account.db",
+        "LLM_QUOTA_RPM": "100",
+        "LLM_QUOTA_RPS": "10",
+        "LLM_QUOTA_SCOPE": "primary-account",
+        "LLM_QUOTA_TPM": "10000",
+        "PORT": "8026"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "model_quota",
+          "target": "/var/lib/model-quota",
+          "volume": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "1073741824"
+    },
+    "ai-worker-1": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8041",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.75,
+      "mem_limit": "1610612736"
+    },
+    "ai-worker-2": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8042",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.75,
+      "mem_limit": "1610612736"
+    },
+    "ai-worker-3": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8043",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.75,
+      "mem_limit": "1610612736"
+    },
+    "ai-worker-4": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8044",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.75,
+      "mem_limit": "1610612736"
+    },
+    "api-proxy": {
+      "environment": {},
+      "network_mode": "host",
+      "command": [
+        "-g",
+        "daemon off;"
+      ],
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/nginx/nginx.conf",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "268435456"
+    },
+    "callback-worker-1": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8031",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "callback-worker-2": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8032",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "callback-worker-3": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8033",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "callback-worker-4": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8034",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "callback-worker-5": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8035",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "callback-worker-6": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "1",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8036",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "536870912"
+    },
+    "control-api": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8010",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "control-api-2": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8011",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "control-api-3": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8012",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "control-api-4": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8013",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "control-api-5": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8014",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "control-api-6": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "5",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "false",
+        "JAVA_WORKERS_ENABLED": "false",
+        "PORT": "8015",
+        "REQUEST_ADMISSION_TOTAL_INFLIGHT": "5",
+        "REQUEST_ADMISSION_WEBHOOK_INFLIGHT": "4",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.25,
+      "mem_limit": "1073741824"
+    },
+    "db": {
+      "environment": {},
+      "network_mode": "host",
+      "command": [
+        "postgres",
+        "-c",
+        "listen_addresses=127.0.0.1",
+        "-c",
+        "max_connections=120",
+        "-c",
+        "shared_buffers=2GB",
+        "-c",
+        "work_mem=8MB",
+        "-c",
+        "max_wal_size=4GB",
+        "-c",
+        "synchronous_commit=on",
+        "-c",
+        "fsync=on"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+        ],
+        "timeout": "3s",
+        "interval": "5s",
+        "retries": 20
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "postgres_data",
+          "target": "/var/lib/postgresql/data",
+          "volume": {}
+        }
+      ],
+      "cpus": 3,
+      "mem_limit": "8589934592"
+    },
+    "freeswitch": {
+      "environment": {},
+      "network_mode": "host",
+      "command": null,
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/freeswitch",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/var/lib/freeswitch/recordings",
+          "bind": {}
+        }
+      ],
+      "cpus": 4,
+      "mem_limit": "4294967296"
+    },
+    "media-1": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-1",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8101/v1/pipecat/media",
+        "PORT": "8101",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-10": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-10",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8110/v1/pipecat/media",
+        "PORT": "8110",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-11": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-11",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8111/v1/pipecat/media",
+        "PORT": "8111",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-12": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-12",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8112/v1/pipecat/media",
+        "PORT": "8112",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-2": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-2",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8102/v1/pipecat/media",
+        "PORT": "8102",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-3": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-3",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8103/v1/pipecat/media",
+        "PORT": "8103",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-4": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-4",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8104/v1/pipecat/media",
+        "PORT": "8104",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-5": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-5",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8105/v1/pipecat/media",
+        "PORT": "8105",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-6": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-6",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8106/v1/pipecat/media",
+        "PORT": "8106",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-7": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-7",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8107/v1/pipecat/media",
+        "PORT": "8107",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-8": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-8",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8108/v1/pipecat/media",
+        "PORT": "8108",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "media-9": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[]",
+        "MEDIA_WORKER_CAPACITY": "50",
+        "MEDIA_WORKER_ID": "media-9",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8109/v1/pipecat/media",
+        "PORT": "8109",
+        "VOICE_QUOTA_ENABLED": "true"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [],
+      "cpus": 1,
+      "mem_limit": "1610612736"
+    },
+    "recording-adapter": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "PORT": "8003",
+        "RECORDING_SOURCE_CLEANUP_TOKEN": "VOICE_RECORDING_CLEANUP_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "recording_spool",
+          "target": "/var/spool/recordings",
+          "volume": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "1073741824"
+    },
+    "redis": {
+      "environment": {},
+      "network_mode": "host",
+      "command": [
+        "sh",
+        "-c",
+        "exec redis-server /usr/local/etc/redis/redis.conf --requirepass \"$$REDISCLI_AUTH\""
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "redis-cli",
+          "--tls",
+          "--cacert",
+          "/etc/redis/tls/ca.crt",
+          "--sni",
+          "localhost",
+          "-h",
+          "localhost",
+          "ping"
+        ],
+        "timeout": "3s",
+        "interval": "5s",
+        "retries": 20
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/usr/local/etc/redis/redis.conf",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "volume",
+          "source": "redis_data",
+          "target": "/data",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/redis/tls",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 0.5,
+      "mem_limit": "1073741824"
+    },
+    "task-worker": {
+      "environment": {
+        "CALLBACK_INBOX_ENABLED": "true",
+        "CALLBACK_INBOX_MIN_WORKERS": "11",
+        "DATABASE_MAX_OVERFLOW": "0",
+        "DATABASE_POOL_SIZE": "8",
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "JAVA_DISPATCH_ENABLED": "true",
+        "JAVA_WORKERS_ENABLED": "true",
+        "PORT": "8020",
+        "STABILITY_ADMISSION_ENABLED": "true",
+        "STABILITY_MIN_AI_WORKERS": "11"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/nodes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/java/redis-truststore.p12",
+          "read_only": true,
+          "bind": {}
+        }
+      ],
+      "cpus": 1.5,
+      "mem_limit": "3221225472"
+    },
+    "voice-gateway": {
+      "environment": {
+        "JAVA_BIND_ADDRESS": "127.0.0.1",
+        "MEDIA_RPC_TOKEN": "MEDIA_RPC_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "MEDIA_WORKERS_JSON": "[{\"id\":\"media-1\",\"endpoint\":\"http://127.0.0.1:8101\",\"ws_base\":\"ws://127.0.0.1:8101/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-2\",\"endpoint\":\"http://127.0.0.1:8102\",\"ws_base\":\"ws://127.0.0.1:8102/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-3\",\"endpoint\":\"http://127.0.0.1:8103\",\"ws_base\":\"ws://127.0.0.1:8103/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-4\",\"endpoint\":\"http://127.0.0.1:8104\",\"ws_base\":\"ws://127.0.0.1:8104/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-5\",\"endpoint\":\"http://127.0.0.1:8105\",\"ws_base\":\"ws://127.0.0.1:8105/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-6\",\"endpoint\":\"http://127.0.0.1:8106\",\"ws_base\":\"ws://127.0.0.1:8106/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-7\",\"endpoint\":\"http://127.0.0.1:8107\",\"ws_base\":\"ws://127.0.0.1:8107/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-8\",\"endpoint\":\"http://127.0.0.1:8108\",\"ws_base\":\"ws://127.0.0.1:8108/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-9\",\"endpoint\":\"http://127.0.0.1:8109\",\"ws_base\":\"ws://127.0.0.1:8109/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-10\",\"endpoint\":\"http://127.0.0.1:8110\",\"ws_base\":\"ws://127.0.0.1:8110/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-11\",\"endpoint\":\"http://127.0.0.1:8111\",\"ws_base\":\"ws://127.0.0.1:8111/v1/pipecat/media\",\"capacity\":50},{\"id\":\"media-12\",\"endpoint\":\"http://127.0.0.1:8112\",\"ws_base\":\"ws://127.0.0.1:8112/v1/pipecat/media\",\"capacity\":50}]",
+        "PIPECAT_MAX_ACTIVE_SESSIONS": "600",
+        "PIPECAT_MEDIA_WS_BASE": "ws://127.0.0.1:8101/v1/pipecat/media",
+        "PORT": "8002",
+        "VOICE_CALLBACK_BATCH_DELAY_MS": "5",
+        "VOICE_CALLBACK_BATCH_ENABLED": "true",
+        "VOICE_CALLBACK_BATCH_SIZE": "16",
+        "VOICE_CALLBACK_CONCURRENCY": "24",
+        "VOICE_MAX_CONCURRENT": "500",
+        "VOICE_QUOTA_BUDGETS_JSON": "{\"asr\":{\"provider\":\"test\",\"account\":\"a\",\"region\":\"r\",\"product\":\"asr\",\"concurrency\":600},\"tts\":{\"provider\":\"test\",\"account\":\"a\",\"region\":\"r\",\"product\":\"tts\",\"concurrency\":100,\"requests_per_minute\":10000}}",
+        "VOICE_QUOTA_ENABLED": "true",
+        "VOICE_RECORDING_CLEANUP_TOKEN": "VOICE_RECORDING_CLEANUP_TOKEN-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "VOICE_RECORDING_RESERVE_BYTES": "10000000000"
+      },
+      "network_mode": "host",
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 5,
+        "start_period": "30s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "voice_security",
+          "target": "/var/lib/voice-security",
+          "volume": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/etc/compact/voice-routes.json",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "bind",
+          "source": "/tmp/synthetic",
+          "target": "/var/lib/freeswitch/recordings",
+          "bind": {}
+        }
+      ],
+      "cpus": 1,
+      "mem_limit": "2147483648"
+    }
+  }
+}

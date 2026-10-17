@@ -1,19 +1,6 @@
 version: 2
 
 updates:
-  - package-ecosystem: "pip"
-    directories:
-      - "/backend"
-      - "/agent"
-      - "/voice_gateway"
-      - "/recording_adapter"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
-      timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
-
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
@@ -25,14 +12,11 @@ updates:
 
   - package-ecosystem: "docker"
     directories:
-      - "/"
-      - "/backend"
-      - "/agent"
-      - "/voice_gateway"
-      - "/recording_adapter"
       - "/backend-java"
       - "/services-java"
       - "/deploy/sipp"
+      - "/tools"
+      - "/deploy/freeswitch-voismart"
     schedule:
       interval: "weekly"
       day: "monday"
