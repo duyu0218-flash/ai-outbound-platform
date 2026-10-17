@@ -1,0 +1,81 @@
+package com.duozhi.services;
+
+import jakarta.annotation.PreDestroy;
+import jakarta.servlet.http.*;
+import java.util.*;
+import java.util.concurrent.Semaphore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+@RestController
+@ConditionalOnProperty(name="service.role", havingValue="voice")
+class VoiceController {
+    private final Settings settings;
+    final VoiceGateway gateway;
+    private final Semaphore downloads = new Semaphore(2);
+    VoiceController(Settings settings) throws Exception { this.settings = settings; gateway = new VoiceGateway(settings); gateway.start(); }
+    @PreDestroy void close() throws Exception { gateway.close(); }
+    @GetMapping("/health") Map<String,Object> health() {
+        return Map.of("status", "ok", "draining", gateway.draining, "driver", settings.get("VOICE_GATEWAY_DRIVER", "mock"), "voice_ai_pipeline", settings.get("VOICE_AI_PIPELINE", "legacy"), "media_protocol", settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm"), "pipecat_version", "", "pipecat_stt_provider", gateway.media == null ? "" : settings.get("PIPECAT_STT_PROVIDER", "openai-realtime"), "pipecat_active_sessions", gateway.media == null ? 0 : gateway.media.sessions().size(), "pipecat_max_active_sessions", settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000), "rtp_port_range", List.of(settings.number("RTP_PORT_START", 20000, 1024, 65535), settings.number("RTP_PORT_END", 30000, 1024, 65535)));
+    }
+    @GetMapping("/readyz") Map<String,Object> ready() {
+        if (!gateway.ready()) throw new Support.Failure(503, "voice gateway is not ready");
+        return Map.of("status", "ready", "node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", Math.min(settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000), gateway.media == null ? Integer.MAX_VALUE : gateway.media.capacity()), "driver", settings.get("VOICE_GATEWAY_DRIVER", "mock"), "voice_ai_pipeline", settings.get("VOICE_AI_PIPELINE", "legacy"), "callback_oldest_age_sec", gateway.ledger.summary().get("oldest_callback_age_sec"));
+    }
+    @PostMapping("/v1/call/{action}") Map<String,Object> call(@PathVariable String action, @RequestBody byte[] body, HttpServletRequest request) throws Exception {
+        Support.auth(settings, "SERVICE_TOKEN", request.getHeader("Authorization"), !gateway.real());
+        if (gateway.real()) gateway.security.command(request.getRequestURI(), body, request.getHeader("x-voice-timestamp"), request.getHeader("x-voice-nonce"), request.getHeader("x-voice-signature"));
+        return gateway.post(action, Support.object(body));
+    }
+    private void admin(String auth) { Support.auth(settings, gateway.real() ? "VOICE_SECURITY_ADMIN_TOKEN" : "SERVICE_TOKEN", auth, !gateway.real()); }
+    @PostMapping("/v1/admin/drain") Map<String,Object> drain(@RequestParam(defaultValue="true") boolean enabled, @RequestHeader(value="Authorization", required=false) String auth) { admin(auth); gateway.draining = enabled; return Map.of("draining", enabled); }
+    @PostMapping("/v1/admin/security/stop") Map<String,Object> stop(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {
+        admin(auth); if (!(payload.get("stopped") instanceof Boolean stopped)) throw new Support.Failure(422, "stopped must be a boolean"); gateway.ledger.stopped(stopped, Support.required(payload, "reason", 300)); return gateway.ledger.summary();
+    }
+    @GetMapping("/v1/admin/security") Map<String,Object> security(@RequestHeader(value="Authorization", required=false) String auth) { admin(auth); return gateway.ledger.summary(); }
+    @GetMapping("/v1/admin/capacity") Map<String,Object> capacity(@RequestHeader(value="Authorization", required=false) String auth) {
+        admin(auth); return Map.of("node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000), "cps", settings.number("VOICE_CPS", 2, 1, 1000), "routes", gateway.security.routes, "recording_disk", gateway.recordings.disk());
+    }
+    @GetMapping(value="/metrics", produces="text/plain;version=0.0.4;charset=utf-8") String metrics(@RequestHeader(value="Authorization", required=false) String auth) {
+        Support.auth(settings, "METRICS_TOKEN", auth, false); var state = gateway.ledger.summary();
+        return "ai_outbound_voice_gateway_ready " + (gateway.ready() ? 1 : 0) + "\nai_outbound_voice_gateway_draining " + (gateway.draining ? 1 : 0) + "\nai_outbound_voice_gateway_active_calls " + state.get("active_attempts") + "\nai_outbound_voice_gateway_pending_callbacks " + state.get("pending_callbacks") + "\n";
+    }
+    @GetMapping("/v1/recordings/{filename}") ResponseEntity<StreamingResponseBody> recording(@PathVariable String filename, @RequestParam long expires, @RequestParam String signature) throws Exception {
+        var path = gateway.recordings.authorized(filename, expires, signature);
+        if (!downloads.tryAcquire()) throw new Support.Failure(503, "recording download capacity");
+        // Open before dispatch to bind the descriptor and release on opening failure.
+        java.io.InputStream input;
+        try { input = java.nio.file.Files.newInputStream(path, java.nio.file.LinkOption.NOFOLLOW_LINKS); } catch (Exception error) { downloads.release(); throw error; }
+        StreamingResponseBody stream = output -> { try (input) { input.transferTo(output); } finally { downloads.release(); } };
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/wav")).body(stream);
+    }
+    @PostMapping("/v1/recording-cleanup/{filename}") Map<String,Object> cleanup(@PathVariable String filename, @RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) throws Exception {
+        if (settings.secret("VOICE_RECORDING_CLEANUP_TOKEN").length() < 32) throw new Support.Failure(503, "cleanup credential unavailable");
+        Support.auth(settings, "VOICE_RECORDING_CLEANUP_TOKEN", auth, false); return gateway.recordings.reclaim(filename, Support.required(payload, "checksum_sha256", 64), Support.integer(payload, "size_bytes", 0));
+    }
+    @GetMapping("/v1/admin/voice-permits") Map<String,Object> permits(@RequestHeader(value="Authorization", required=false) String auth) { admin(auth); if (!settings.flag("VOICE_QUOTA_ENABLED", false)) throw new Support.Failure(503, "shared voice permits unavailable"); return new VoiceQuota(settings, gateway.ledger).snapshot(); }
+    @PostMapping("/v1/internal/media-events") Map<String,Object> mediaEvent(@RequestBody Map<String,Object> event, @RequestHeader(value="Authorization", required=false) String auth) {
+        rpc(auth); if (!(gateway.media instanceof MediaCluster cluster)) throw new Support.Failure(503, "remote media ownership unavailable"); cluster.validate(event);
+        gateway.callbacks.post(Support.required(event, "url", 8192), Support.map(event.get("payload"))); return Map.of("accepted", true);
+    }
+    private void rpc(String auth) { if (settings.secret("MEDIA_RPC_TOKEN").length() < 32) throw new Support.Failure(503, "independent media RPC credential required"); Support.auth(settings, "MEDIA_RPC_TOKEN", auth, false); }
+    @PostMapping("/v1/internal/voice-permits") Map<String,Object> voicePermit(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {
+        rpc(auth); if (!settings.flag("VOICE_QUOTA_ENABLED", false)) throw new Support.Failure(503, "shared voice budgets unavailable");
+        String action = Support.required(payload, "action", 10), call = Support.required(payload, "call_id", 128), id = Support.required(payload, "permit_id", 128), worker = Support.str(payload, "worker_id", ""), epoch = Support.str(payload, "epoch", ""), sessionId = Support.required(payload, "session_id", 128), kind = Support.required(payload, "kind", 4); long attempt = Support.integer(payload, "attempt", 0);
+        if (!Set.of("acquire", "release").contains(action) || attempt < 1 || !Set.of("asr", "tts").contains(kind)) throw new Support.Failure(422, "invalid voice permit request");
+        if (action.equals("acquire")) {
+            var session = gateway.media == null ? null : gateway.media.session(call);
+            if (session == null || !session.id.equals(sessionId) || Support.integer(session.metadata, "attempt", 0) != attempt) throw new Support.Failure(409, "stale media session");
+            if (gateway.media instanceof MediaCluster cluster) { var owner = cluster.owners.get(call); if (owner == null || !owner.spec().id().equals(worker) || !owner.epoch().equals(epoch)) throw new Support.Failure(409, "stale media worker epoch"); }
+            else if (!worker.isEmpty() || !epoch.isEmpty()) throw new Support.Failure(409, "unexpected remote media owner");
+        }
+        String owner = new String(Support.json(List.of(worker, epoch, sessionId)), java.nio.charset.StandardCharsets.UTF_8); var quota = new VoiceQuota(settings, gateway.ledger);
+        gateway.ledger.transaction(db -> { if (action.equals("acquire")) quota.acquire(db, id, kind, call, attempt, owner); else quota.release(db, id, owner, Boolean.TRUE.equals(payload.get("confirmed"))); return null; }); return Map.of("accepted", true);
+    }
+    @PostMapping("/v1/admin/voice-permits/reconcile") Map<String,Object> reconcile(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {
+        admin(auth); String id = Support.required(payload, "permit_id", 128), evidence = Support.required(payload, "provider_close_evidence", 1000); if (evidence.length() < 10) throw new Support.Failure(422, "provider close evidence required");
+        gateway.ledger.transaction(db -> { var rows = LocalLedger.query(db, "SELECT kind FROM voice_permits WHERE id=?", id); if (rows.isEmpty() || rows.get(0).get("kind").equals("reserve")) throw new Support.Failure(409, "physical voice permit required"); LocalLedger.execute(db, "UPDATE voice_permits SET state='closed' WHERE id=?", id); LocalLedger.execute(db, "INSERT INTO audit(at,action,detail) VALUES (?,'voice-permit-provider-confirmed',?)", LocalLedger.now(), id + ": " + evidence); return null; }); return Map.of("reconciled", true);
+    }
+}
