@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "services": {
+    "control-api": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/control.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/control.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "15s",
+        "retries": 5,
+        "start_period": "30s"
+      }
+    },
+    "ai-agent": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 20,
+        "start_period": "30s"
+      }
+    },
+    "recording-adapter": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 30,
+        "start_period": "30s"
+      }
+    },
+    "voice-gateway": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/services.jar"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "java",
+          "-jar",
+          "/app/services.jar",
+          "--healthcheck"
+        ],
+        "timeout": "15s",
+        "interval": "10s",
+        "retries": 20,
+        "start_period": "30s"
+      }
+    }
+  },
+  "java_version": 17,
+  "spring_boot_version": "4.1.1",
+  "legacy_worker_active": false,
+  "boundary": "Configuration resolution only; no image startup, host mounts, database cutover or deployment verified."
+}

@@ -2,7 +2,7 @@
 
 基线：`main` 的 `96d9bef44173612d85399792bf54c6399059b1e7`。
 技术栈：Spring Boot **4.1.1**、**JDK 17**、Maven。
-前端沿用 React；AI Agent、语音网关和录音适配服务保留 Python。
+前端沿用 React。核心迁移阶段保留的 AI Agent、语音网关和录音适配服务现已有 `services-java` 独立 Java 实现；全 Java 配置入口与本轮验证见 [辅助服务说明](../services-java/README.md)及[验收记录](../services-java/ACCEPTANCE.md)。历史 Python 联调结果仅作基线。
 
 核心后端的接口、后台执行流程、旧库迁移和运行入口已实现 Java 版本，未通过转发 Python 核心接口代替迁移。开发环境验收见 [ACCEPTANCE.md](ACCEPTANCE.md)；生产替换尚未验收。`JAVA_RELEASE_ACCEPTED` 默认关闭，只有完成独立发布验收后才可开启就绪门槛；生产配置仍须通过完整检查。
 
@@ -57,11 +57,11 @@ export JAVA_WORKERS_ENABLED=true
 export CALLBACK_INBOX_ENABLED=true
 ```
 
-任务准备使用 `POST /api/v1/campaigns/{id}/start?auto_dial=false`；默认启动按钮执行实际调度，未开启 `JAVA_DISPATCH_ENABLED` 时返回 503。开启后可通过 mock 网关在 Java 内完成拨号、状态回调、结果分析与报表闭环。AI Agent、语音网关、录音存储继续调用保留的 Python 服务接口；HTTP 模拟不等于真实线路验收。
+任务准备使用 `POST /api/v1/campaigns/{id}/start?auto_dial=false`；默认启动按钮执行实际调度，未开启 `JAVA_DISPATCH_ENABLED` 时返回 503。开启后可通过 mock 网关在 Java 内完成拨号、状态回调、结果分析与报表闭环。AI Agent、语音网关、录音存储使用配置的 HTTP 服务接口；全 Java 方案将其指向 `services-java` 对应角色。HTTP 模拟不等于真实线路验收。
 
 执行器支持任务租约、重试与旧轮次/旧回复失效。录音删除只有适配器确认后才清除存储位置。定时核对只在 PBX 明确确认终止后结束超时通话，未知结果继续占用容量。SQLite 使用单连接串行事务；正式并发能力需要 PostgreSQL 和目标环境另行测量。
 
-新增后台能力：网关节点授权、容量/CPS 准入及健康探测；Redis 共享压力信号和降速、暂停、恢复控制；数据库、Redis、AI、电话服务探针；回调消费者心跳及过期回执清理；文本脱敏、录音到期删除和已完成任务压缩为幂等凭据。拨号、AI、通话控制、外部集成分别使用独立执行通道，回调消费单独运行。拨号会固定本轮策略快照并发送给 Python 网关。
+新增后台能力：网关节点授权、容量/CPS 准入及健康探测；Redis 共享压力信号和降速、暂停、恢复控制；数据库、Redis、AI、电话服务探针；回调消费者心跳及过期回执清理；文本脱敏、录音到期删除和已完成任务压缩为幂等凭据。拨号、AI、通话控制、外部集成分别使用独立执行通道，回调消费单独运行。拨号会固定本轮策略快照并发送给配置的网关。
 
 旧库迁移已支持原 21 个 PostgreSQL 版本与 49 条运行时补列语句，另有 Java 兼容性版本；支持只读计划、历史校验和、重复执行、完整性冲突阻断、单版本事务和备份恢复演练。操作方法见 [MIGRATION.md](MIGRATION.md)。Java 启动只校验已有库，不自动修改旧表。
 
@@ -88,7 +88,7 @@ PYTHON_AGENT=/path/to/agent-venv/bin/python PYTHON_VOICE=/path/to/voice-venv/bin
 
 脚本要求 `JAVA_HOME` 和已打包的 Java 制品，自动使用临时库与 loopback 端口，报告写入 `validation/`。行为对照归一化生成时间/令牌/UUID；固定历史时间保留比较，错误信息只比较状态边界。GitHub 配置新增 `java-core.yml`，覆盖 JDK 17 的 SQLite/PostgreSQL/Redis 测试；本机通过不等于远端 CI 通过。
 
-`backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。Compose 配置可单独校验；`java-image` CI 负责 Linux 镜像构建及一次性容器烟测，运行结果以对应提交为准。目标环境发布仍需单独验收。
+全 Java 启动需再叠加 `docker-compose.java-services.yml`；仅使用核心覆盖文件仍保留 Python 辅助进程。`backend-java/Dockerfile` 构建 Java 核心及前端；`docker-compose.java.yml` 覆盖原 Compose 的 `control-api`，保留其他 Python 服务，将旧 `task-worker` 置于 `legacy-python-core` profile。切换前必须先停止旧核心及其执行器，完成备份、离线迁移和回滚验证；不能让两个实现同时消费任务。Compose 配置可单独校验；`java-image` CI 负责 Linux 镜像构建及一次性容器烟测，运行结果以对应提交为准。目标环境发布仍需单独验收。
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.java.yml config --quiet
@@ -101,7 +101,7 @@ Java 镜像预置 SQLite 本地库以兼容只读文件系统及 noexec 临时�
 
 ## 安全检查
 
-用户已批准升级到 JDK 17，JDK 8 不再受支持。当前使用 Spring Boot 4.1.1 / Spring 7.0.9 / Jackson 3.1.7 / Tomcat 11.0.27；保留前端和 Python 辅助服务。执行 `bash backend-java/scripts/security-check.sh` 生成全依赖 SBOM、OSV 漏洞报告和 FindSecBugs 静态分析。扫描失败、依赖公告、任何未复核提示（含低优先级）、新路由或运行源码/资源变化均阻断 CI；原始报告作为 artifact 保存。范围与部署约束见 [安全检查报告](SECURITY-REVIEW.md)。
+用户已批准升级到 JDK 17，JDK 8 不再受支持。当前使用 Spring Boot 4.1.1 / Spring 7.0.9 / Jackson 3.1.7 / Tomcat 11.0.27；前端保持 React；辅助服务 Java 迁移另见 `services-java`。执行 `bash backend-java/scripts/security-check.sh` 生成全依赖 SBOM、OSV 漏洞报告和 FindSecBugs 静态分析。扫描失败、依赖公告、任何未复核提示（含低优先级）、新路由或运行源码/资源变化均阻断 CI；原始报告作为 artifact 保存。范围与部署约束见 [安全检查报告](SECURITY-REVIEW.md)。
 
 ## 本轮安全加固的配置兼容要求
 

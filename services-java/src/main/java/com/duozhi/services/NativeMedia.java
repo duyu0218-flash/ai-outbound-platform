@@ -32,6 +32,7 @@ final class NativeMedia implements MediaManager {
         if (!Set.of(8000, 16000, 24000, 48000).contains(rate) || settings.number("PIPECAT_CHANNELS", 1, 1, 1) != 1) throw new IllegalArgumentException("invalid mono PCM configuration");
         String provider = settings.get("PIPECAT_STT_PROVIDER", "openai-realtime");
         if (!Set.of("aliyun-nls", "openai-realtime").contains(provider)) throw new IllegalArgumentException("unsupported speech provider");
+        if (!settings.get("PIPECAT_TTS_PROVIDER", "openai").equals("openai")) throw new IllegalArgumentException("unsupported synthesis provider");
         if (settings.secret("PIPECAT_OPENAI_API_KEY").isEmpty()) throw new IllegalArgumentException("speech synthesis credential required");
         if (provider.equals("aliyun-nls") && (settings.secret("ALIYUN_NLS_TOKEN").isEmpty() || settings.get("ALIYUN_NLS_APPKEY", "").isEmpty() || !Set.of(8000, 16000).contains(rate))) throw new IllegalArgumentException("Alibaba NLS requires appkey, token and 8/16 kHz PCM");
         String protocol = settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm"); if (!Set.of("raw_pcm", "voismart").contains(protocol)) throw new IllegalArgumentException("invalid PCM transport protocol"); voismart = protocol.equals("voismart");
@@ -64,14 +65,18 @@ final class NativeMedia implements MediaManager {
     void connect(WebSocketSession socket, String token) throws Exception {
         Session session = tokens.get(token);
         if (session == null) { socket.close(new CloseStatus(4404, "unknown media session")); return; }
+        Stream stream;
         synchronized (session) {
             if (session.closing || session.terminated.isDone() || session.connected) { socket.close(new CloseStatus(4409, "media generation already claimed")); return; }
             if (System.currentTimeMillis() - session.created > settings.decimal("PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC", 15, .1, 300) * 1000) { socket.close(new CloseStatus(4408, "expired media session")); fail(session, "MEDIA_CONNECT_TIMEOUT"); return; }
-            session.connected = true; Stream stream = new Stream(session, socket); streams.put(session.call, stream);
+            session.connected = true; stream = new Stream(session, socket); streams.put(session.call, stream);
             socket.setBinaryMessageSizeLimit(65536); socket.setTextMessageSizeLimit(65536);
-            try { stream.connectAsr(); session.started.complete(null); media(session, "listening", "", ""); }
-            catch (Exception error) { fail(session, "ASR_CONNECTION_ERROR"); throw error; }
         }
+        // Provider acknowledgement must not hold the session monitor needed by close/fencing.
+        try {
+            stream.connectAsr();
+            synchronized (session) { if (!session.closing && !session.terminated.isDone()) { session.started.complete(null); media(session, "listening", "", ""); } }
+        } catch (Exception error) { fail(session, "ASR_CONNECTION_ERROR"); throw error; }
     }
     void audio(WebSocketSession socket, byte[] pcm) throws Exception {
         Stream stream = streams.values().stream().filter(s -> s.socket.getId().equals(socket.getId())).findFirst().orElse(null);
@@ -194,24 +199,32 @@ final class NativeMedia implements MediaManager {
         final boolean aliyun = settings.get("PIPECAT_STT_PROVIDER", "openai-realtime").equals("aliyun-nls");
         final PcmResampler resampler = new PcmResampler(rate, 24000);
         boolean permitAcquired;
+        final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         long speechSamples, silenceSamples, bufferSamples;
         boolean localSpeech;
         Stream(Session session, WebSocketSession socket) { this.session = session; this.socket = socket; }
         void connectAsr() throws Exception {
-            permits.change(session, asrPermit, "asr", true, false); permitAcquired = true;
+            synchronized (this) {
+                if (closed.get() || session.closing) throw new IOException("media closed before ASR connection");
+                permits.change(session, asrPermit, "asr", true, false); permitAcquired = true;
+            }
             String target = aliyun ? settings.get("ALIYUN_NLS_GATEWAY_URL", "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1") : settings.get("PIPECAT_OPENAI_REALTIME_BASE_URL", "wss://api.openai.com/v1/realtime");
             URI endpoint = URI.create(target); if (!Set.of("ws", "wss").contains(endpoint.getScheme()) || endpoint.getHost() == null || endpoint.getUserInfo() != null || endpoint.getFragment() != null || (settings.production() && !endpoint.getScheme().equals("wss"))) throw new IllegalArgumentException("invalid ASR endpoint");
-            var builder = http.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8));
+            long startupMillis = (long)((aliyun ? settings.decimal("ALIYUN_NLS_CONNECT_TIMEOUT_SEC", 8, .1, 300) : 8) * 1000);
+            var builder = http.newWebSocketBuilder().connectTimeout(Duration.ofMillis(startupMillis));
             if (aliyun) { if (endpoint.getQuery() != null && Support.asciiLower(endpoint.getQuery()).contains("token=")) throw new IllegalArgumentException("ASR endpoint must not embed a token"); target += (target.contains("?") ? "&" : "?") + "token=" + S3Store.encode(settings.secret("ALIYUN_NLS_TOKEN")); }
             else { builder.header("Authorization", "Bearer " + settings.secret("PIPECAT_OPENAI_API_KEY")); target += target.contains("?") ? "&intent=transcription" : "?intent=transcription"; }
-            asr = builder.buildAsync(URI.create(target), this).get(8, TimeUnit.SECONDS);
+            var connecting = builder.buildAsync(URI.create(target), this);
+            connecting.thenAccept(socket -> { if (closed.get() || session.closing) socket.abort(); });
+            var connected = connecting.get(startupMillis, TimeUnit.MILLISECONDS);
+            synchronized (this) { asr = connected; if (closed.get() || session.closing) { connected.abort(); throw new IOException("media closed during ASR connection"); } }
             if (aliyun) sendAsr(Map.of("header", header("StartTranscription"), "payload", aliyunPayload(session)));
             else {
                 Map<String,Object> input = new LinkedHashMap<>(); input.put("format", Map.of("type", "audio/pcm", "rate", 24000));
                 input.put("transcription", Map.of("model", settings.get("JAVA_OPENAI_STT_MODEL", "gpt-realtime-whisper"), "language", Support.str(Support.map(session.metadata.get("scenario_policy")), "language", Support.str(session.metadata, "language", "zh-CN")).split("-", 2)[0]));
                 input.put("turn_detection", null); sendAsr(Map.of("type", "session.update", "session", Map.of("type", "transcription", "audio", Map.of("input", input))));
             }
-            asrStarted.get(8, TimeUnit.SECONDS);
+            asrStarted.get(startupMillis, TimeUnit.MILLISECONDS);
         }
         Map<String,Object> header(String name) { return Map.of("appkey", settings.get("ALIYUN_NLS_APPKEY", ""), "message_id", UUID.randomUUID().toString().replace("-", ""), "task_id", task, "namespace", "SpeechTranscriber", "name", name); }
         void audio(byte[] pcm) throws Exception {
@@ -235,23 +248,38 @@ final class NativeMedia implements MediaManager {
         void text(Object value) throws Exception { synchronized (socket) { if (socket.isOpen()) socket.sendMessage(new TextMessage(Support.json(value))); } }
         @Override public void onOpen(java.net.http.WebSocket socket) { socket.request(1); }
         @Override public CompletionStage<?> onText(java.net.http.WebSocket socket, CharSequence data, boolean last) {
-            if (message.length() + data.length() > 1048576) { fail(session, "ASR_FRAME_LIMIT"); return null; }
+            if (message.length() + data.length() > 1048576) { deferFailure("ASR_FRAME_LIMIT"); return null; }
             message.append(data);
             if (!last) { socket.request(1); return null; }
             byte[] bytes = message.toString().getBytes(StandardCharsets.UTF_8); message.setLength(0);
-            try { asrEvents.execute(() -> { try { asrEvent(this, Support.object(bytes)); } catch (Exception error) { fail(session, "ASR_PROTOCOL_ERROR"); } finally { socket.request(1); } }); }
-            catch (RejectedExecutionException full) { fail(session, "MEDIA_PROCESS_OVERLOADED"); }
+            // Stop evidence must remain consumable even if all event workers are closing other streams.
+            try {
+                var parsed = Support.object(bytes);
+                if (aliyun && "TranscriptionCompleted".equals(Support.str(Support.map(parsed.get("header")), "name", "")) && Support.integer(Support.map(parsed.get("header")), "status", 20000000) == 20000000) {
+                    asrStopped.complete(null); socket.request(1); return null;
+                }
+                asrEvents.execute(() -> { try { asrEvent(this, parsed); } catch (Exception error) { fail(session, "ASR_PROTOCOL_ERROR"); } finally { socket.request(1); } });
+            }
+            catch (RejectedExecutionException full) { deferFailure("MEDIA_PROCESS_OVERLOADED"); }
+            catch (Exception invalid) { deferFailure("ASR_PROTOCOL_ERROR"); }
             return null;
         }
-        @Override public CompletionStage<?> onClose(java.net.http.WebSocket socket, int status, String reason) { if (!session.closing) fail(session, "ASR_DISCONNECTED"); return null; }
-        @Override public void onError(java.net.http.WebSocket socket, Throwable error) { asrStarted.completeExceptionally(new IOException("ASR connection failed")); if (!session.closing) fail(session, "ASR_CONNECTION_ERROR"); }
+        private void deferFailure(String code) {
+            asrStarted.completeExceptionally(new IOException("ASR connection failed"));
+            try { asrEvents.execute(() -> { if (!session.closing) fail(session, code); }); }
+            catch (RejectedExecutionException full) { session.error = code; session.terminated.complete(null); }
+        }
+        @Override public CompletionStage<?> onClose(java.net.http.WebSocket socket, int status, String reason) { if (!session.closing) deferFailure("ASR_DISCONNECTED"); return null; }
+        @Override public void onError(java.net.http.WebSocket socket, Throwable error) { if (!session.closing) deferFailure("ASR_CONNECTION_ERROR"); }
         @Override public void close() throws Exception {
+            if (!closed.compareAndSet(false, true)) return;
+            asrStarted.completeExceptionally(new IOException("media closed during ASR startup"));
             generation++; if (tts != null) tts.cancel(true); boolean confirmed = false;
             if (asr != null) {
                 try { if (aliyun) { sendAsr(Map.of("header", header("StopTranscription"))); asrStopped.get((long)(settings.decimal("ALIYUN_NLS_STOP_TIMEOUT_SEC", 3, .1, 30) * 1000), TimeUnit.MILLISECONDS); confirmed = true; } asr.sendClose(1000, "closing").get(3, TimeUnit.SECONDS); }
                 catch (Exception unknown) { asr.abort(); }
             }
-            try { if (permitAcquired) permits.change(session, asrPermit, "asr", false, confirmed && settings.flag("VOICE_QUOTA_NORMAL_CLOSE_RELEASES", false)); }
+            try { synchronized (this) { if (permitAcquired) permits.change(session, asrPermit, "asr", false, confirmed && settings.flag("VOICE_QUOTA_NORMAL_CLOSE_RELEASES", false)); } }
             finally { if (socket.isOpen()) socket.close(); }
         }
     }

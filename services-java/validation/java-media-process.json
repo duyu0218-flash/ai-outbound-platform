@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "actual Java worker readiness and RPC authentication",
+    "create/retry preserves one media generation",
+    "epoch/session/attempt/speech/expiry reject stale control",
+    "closed generation retry is idempotent and cannot resurrect",
+    "actual process kill/restart changes epoch and fences old commands"
+  ],
+  "services_jar_sha256": "1fc3b131f78578c068880d7cc09ef33bad18f90187212f81407a910b04173680",
+  "boundary": "Actual Java media process and HTTP RPC; synthetic session metadata only. No audio, cloud, physical permit release or controller-journal recovery acceptance."
+}

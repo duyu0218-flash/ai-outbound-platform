@@ -22,7 +22,12 @@ final class VoiceCallbacks implements AutoCloseable {
         delivery = Executors.newFixedThreadPool(concurrency, r -> { Thread t = new Thread(r, "voice-callback"); t.setDaemon(true); return t; });
         poll = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "voice-outbox"); t.setDaemon(true); return t; });
     }
-    void start() { poll.scheduleWithFixedDelay(this::tick, 0, (long)(settings.decimal("VOICE_CALLBACK_POLL_SEC", .1, .01, 10) * 1000), TimeUnit.MILLISECONDS); poll.scheduleWithFixedDelay(this::purge, 60, 60, TimeUnit.SECONDS); }
+    void start() {
+        long interval = (long)(settings.decimal("VOICE_CALLBACK_POLL_SEC", .1, .01, 10) * 1000);
+        if (settings.flag("VOICE_CALLBACK_BATCH_ENABLED", false)) interval = Math.max(1, Math.min(interval, (long)settings.decimal("VOICE_CALLBACK_BATCH_DELAY_MS", 5, 0, 5)));
+        poll.scheduleWithFixedDelay(this::tick, 0, interval, TimeUnit.MILLISECONDS);
+        poll.scheduleWithFixedDelay(this::purge, 60, 60, TimeUnit.SECONDS);
+    }
     void atomic(Runnable work) { ledger.transaction(db -> { work.run(); return null; }); }
     void post(String url, Map<String,Object> payload) {
         security.callback(url); byte[] body = Support.canonical(payload); byte[] target = (url + "\0").getBytes(StandardCharsets.UTF_8); byte[] identity = Arrays.copyOf(target, target.length + body.length); System.arraycopy(body, 0, identity, target.length, body.length);

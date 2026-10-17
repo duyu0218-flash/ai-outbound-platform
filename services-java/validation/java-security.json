@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "dependency_packages": 73,
+  "scanned_packages": 73,
+  "dependency_advisories": [],
+  "sast_classes": 49,
+  "sast_raw_findings": 45,
+  "sast_reviewed_high_medium": 10,
+  "sast_reviewed_low_priority": 8,
+  "sast_reviewed_actionable": 18,
+  "sast_reviewed_entrypoints": 27,
+  "sast_unreviewed_findings": 0,
+  "source_scope_files": 26,
+  "sast_low_priority": 35,
+  "sast_by_type": {
+    "SPRING_ENDPOINT": 27,
+    "IMPROPER_UNICODE": 1,
+    "PREDICTABLE_RANDOM": 2,
+    "UNENCRYPTED_SOCKET": 1,
+    "SQL_INJECTION_JDBC": 3,
+    "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE": 1,
+    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION": 1,
+    "USO_UNSAFE_INHERITABLE_OBJECT_SYNCHRONIZATION": 1,
+    "UNSAFE_HASH_EQUALS": 2,
+    "USO_UNSAFE_OBJECT_SYNCHRONIZATION": 2,
+    "URLCONNECTION_SSRF_FD": 1,
+    "SERVLET_HEADER": 2,
+    "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING": 1
+  },
+  "errors": []
+}

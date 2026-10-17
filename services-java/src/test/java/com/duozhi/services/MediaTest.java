@@ -31,18 +31,20 @@ class MediaTest {
     @EnableAutoConfiguration
     @EnableWebSocket
     static class SpeechFixture implements WebSocketConfigurer {
+        static volatile CountDownLatch pendingStartup = new CountDownLatch(1);
         @Bean SpeechController speechController() { return new SpeechController(); }
         @Override public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
             registry.addHandler(new AbstractWebSocketHandler() {
                 @Override protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
                     var data = Support.object(message.asBytes()); String name = Support.str(Support.map(data.get("header")), "name", "");
-                    if (name.equals("StartTranscription")) session.sendMessage(new TextMessage(Support.json(Map.of("header", Map.of("name", "TranscriptionStarted", "status", 20000000)))));
+                    if (name.equals("StartTranscription") && session.getUri().getPath().equals("/asr-delayed")) pendingStartup.countDown();
+                    else if (name.equals("StartTranscription")) session.sendMessage(new TextMessage(Support.json(Map.of("header", Map.of("name", "TranscriptionStarted", "status", 20000000)))));
                     else if (name.equals("StopTranscription")) session.sendMessage(new TextMessage(Support.json(Map.of("header", Map.of("name", "TranscriptionCompleted", "status", 20000000)))));
                 }
                 @Override protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) throws Exception {
                     session.sendMessage(new TextMessage(Support.json(Map.of("header", Map.of("name", "SentenceEnd", "status", 20000000, "message_id", "sentence-1"), "payload", Map.of("result", "你好，请介绍一下", "index", 1, "begin_time", 0, "time", 200, "confidence", .95)))));
                 }
-            }, "/asr");
+            }, "/asr", "/asr-delayed");
         }
     }
     @RestController
@@ -95,6 +97,20 @@ class MediaTest {
             media.module(session.call, "openai_speech_stop", 99); assertTrue(session.speaking);
             media.module(session.call, "openai_speech_stop", 101); assertFalse(session.speaking); assertTrue(session.playback.isEmpty());
         }
+    }
+    @Test void closingDuringUnacknowledgedAsrStartupDoesNotWaitForStartupTimeout() throws Exception {
+        SpeechFixture.pendingStartup = new CountDownLatch(1);
+        var executor = Executors.newSingleThreadExecutor();
+        List<String> permits = new CopyOnWriteArrayList<>();
+        try (var media = new NativeMedia(settings(Map.of("ALIYUN_NLS_GATEWAY_URL", "ws://" + origin + "/asr-delayed")), (url, payload) -> {},
+            (session, id, kind, acquire, confirmed) -> permits.add(kind + ":" + acquire + ":" + confirmed), 1)) {
+            var session = media.create("pending", "", "", Map.of("attempt", 1));
+            var connecting = executor.submit(() -> { try { media.connect(socket(new CopyOnWriteArrayList<>()), session.token); return false; } catch (Exception closed) { return true; } });
+            assertTrue(SpeechFixture.pendingStartup.await(3, TimeUnit.SECONDS));
+            assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> media.closeSession(session.call, false));
+            assertTrue(connecting.get(1, TimeUnit.SECONDS)); assertTrue(session.terminated.isDone());
+            assertEquals(1, permits.stream().filter(p -> p.startsWith("asr:false:")).count());
+        } finally { executor.shutdownNow(); }
     }
     @Test void resamplingCarriesSamplePhaseAcrossArbitraryChunks() {
         byte[] pcm = new byte[4800]; new Random(42).nextBytes(pcm);

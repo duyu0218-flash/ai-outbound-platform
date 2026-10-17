@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "image_id": "sha256:d7a2469dbd35afe376135fa5ea079292768c0beeb4ac0a4f2fe687683782f001",
+  "checks": [
+    "nonroot read-only Java voice container and SQLite with noexec temporary directory",
+    "nonroot Java Agent HTTP credentials and greeting",
+    "Java signed source -> Java recording -> actual S3 readback -> owner cleanup, retry and delete tombstone",
+    "nonroot Java media role and authenticated worker state"
+  ],
+  "boundary": "Disposable Linux Java role containers, noexec/read-only filesystem, synthetic WAV and real SeaweedFS; no production data, PBX, cloud model, call capacity or deployment cutover."
+}

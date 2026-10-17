@@ -121,7 +121,7 @@ final class RecordingStorage {
         }
         if (size != expected || !Support.hex(digest.digest()).equals(result.get("checksum_sha256"))) throw new Support.Failure(503, "remote recording checksum differs; source retained");
         var response = client.send(HttpRequest.newBuilder(URI.create(origin.toString().replaceAll("/+$", "") + "/v1/recording-cleanup/" + filename)).timeout(Duration.ofSeconds(60)).header("Authorization", "Bearer " + token).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofByteArray(Support.json(Map.of("checksum_sha256", result.get("checksum_sha256"), "size_bytes", size)))).build(), HttpResponse.BodyHandlers.ofInputStream());
-        try (var input = response.body()) {
+        try (var input = Support.timed(response.body(), 60000)) {
             if (response.statusCode() / 100 != 2 || !Boolean.TRUE.equals(Support.object(Support.read(input, 65536)).get("deleted"))) throw new Support.Failure(503, "source cleanup was not confirmed");
         }
     }

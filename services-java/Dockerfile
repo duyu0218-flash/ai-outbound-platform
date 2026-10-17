@@ -13,8 +13,8 @@ FROM ${JAVA_RUNTIME_IMAGE}
 WORKDIR /app
 COPY --from=builder /workspace/target/outbound-services-0.1.0-SNAPSHOT.jar /app/services.jar
 COPY --from=builder /workspace/native/libsqlitejdbc.so /app/native/libsqlitejdbc.so
-RUN mkdir -p /var/lib/voice-security /var/spool/recordings /var/lib/model-quota \
-    && chown -R 10001:10001 /var/lib/voice-security /var/spool/recordings /var/lib/model-quota
+RUN mkdir -p /var/lib/voice-security /var/spool/recordings /var/lib/model-quota /recordings \
+    && chown -R 10001:10001 /var/lib/voice-security /var/spool/recordings /var/lib/model-quota /recordings
 ENV JAVA_BIND_ADDRESS=0.0.0.0 JAVA_TOOL_OPTIONS="-Dorg.sqlite.lib.path=/app/native"
 USER 10001:10001
 CMD ["java", "-jar", "/app/services.jar"]

@@ -1,0 +1,245 @@
+{
+  "passed": true,
+  "routes": [
+    {
+      "role": "agent",
+      "method": "GET",
+      "path": "/health",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "agent",
+      "method": "GET",
+      "path": "/readyz",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "agent",
+      "method": "POST",
+      "path": "/agent/start",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "agent",
+      "method": "POST",
+      "path": "/agent/turn",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/health",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/metrics",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "recording",
+      "method": "GET",
+      "path": "/readyz",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "recording",
+      "method": "POST",
+      "path": "/v1/recordings/delete",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "recording",
+      "method": "POST",
+      "path": "/v1/recordings/ingest",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/health",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/metrics",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/readyz",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/capacity",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/security",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/admin/voice-permits",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "GET",
+      "path": "/v1/recordings/{}",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/drain",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/security/stop",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/admin/voice-permits/reconcile",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/dial",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/hangup",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/speak",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/status",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/stop-speaking",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/call/transfer",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/internal/media-events",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/internal/voice-permits",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "POST",
+      "path": "/v1/recording-cleanup/{}",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "voice",
+      "method": "WS",
+      "path": "/v1/pipecat/media/{}",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "media",
+      "method": "GET",
+      "path": "/health",
+      "retained_python_contract": false,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "media",
+      "method": "GET",
+      "path": "/internal/state",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "media",
+      "method": "GET",
+      "path": "/readyz",
+      "retained_python_contract": false,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "media",
+      "method": "POST",
+      "path": "/internal/command",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    },
+    {
+      "role": "media",
+      "method": "WS",
+      "path": "/v1/pipecat/media/{}",
+      "retained_python_contract": true,
+      "verification": "Source route/accounting only; see acceptance matrix for actual runtime tests."
+    }
+  ],
+  "retained_contract_count": 32,
+  "boundary": "Explicit HTTP/WS source routes only; autogenerated FastAPI docs/OpenAPI pages are not implemented by this inventory."
+}

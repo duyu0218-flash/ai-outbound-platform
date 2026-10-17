@@ -20,6 +20,13 @@ public class ServicesApplication {
         }
         String role = System.getenv().getOrDefault("JAVA_SERVICE_ROLE", "recording");
         if (!java.util.Set.of("recording", "agent", "voice", "media").contains(role)) throw new IllegalArgumentException("invalid Java service role");
+        if (role.equals("agent")) {
+            Settings settings = new Settings();
+            long connections = settings.number("LLM_MAX_CONNECTIONS", 256, 1, 1024);
+            long idle = settings.number("LLM_MAX_KEEPALIVE_CONNECTIONS", Math.min(128, connections), 1, connections);
+            // This JDK setting is read when the first HTTP client is constructed.
+            System.setProperty("jdk.httpclient.connectionPoolSize", Long.toString(idle));
+        }
         SpringApplication.run(ServicesApplication.class, args);
     }
 }

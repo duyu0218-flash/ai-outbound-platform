@@ -20,9 +20,10 @@ final class VoiceGateway implements AutoCloseable {
     final MediaManager media;
     final Map<String,Binding> bindings = new ConcurrentHashMap<>();
     private final Map<String,CompletableFuture<Void>> notices = new ConcurrentHashMap<>();
-    private final Map<String,Future<?>> mediaTasks = new ConcurrentHashMap<>();
+    private final Map<String,CompletableFuture<Void>> mediaTasks = new ConcurrentHashMap<>();
     private final ExecutorService listener;
     private final ExecutorService lifecycle;
+    private final ExecutorService termination;
     private final List<ThreadPoolExecutor> eventWorkers = new ArrayList<>();
     private final ScheduledExecutorService maintenance;
     private final Semaphore eventSlots = new Semaphore(2048);
@@ -45,6 +46,7 @@ final class VoiceGateway implements AutoCloseable {
         this.settings = settings;
         String driver = settings.get("VOICE_GATEWAY_DRIVER", "mock"); if (!Set.of("mock", "freeswitch_esl").contains(driver)) throw new IllegalArgumentException("unsupported or unverified voice driver");
         if (!Set.of("legacy", "pipecat", "hybrid").contains(settings.get("VOICE_AI_PIPELINE", "legacy"))) throw new IllegalArgumentException("invalid media pipeline");
+        if (settings.flag("PIPECAT_FALLBACK_TO_LEGACY", false) && settings.get("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE", "").isBlank()) throw new IllegalArgumentException("native media fallback requires an explicit legacy start command");
         if (!driver.equals("freeswitch_esl") && !settings.get("VOICE_AI_PIPELINE", "legacy").equals("legacy")) throw new IllegalArgumentException("realtime media requires FreeSWITCH driver");
         String path = settings.get("VOICE_SECURITY_DB_PATH", "");
         if (path.isEmpty() && driver.equals("mock") && !settings.production()) path = Files.createTempDirectory("java-voice-").resolve("ledger.sqlite").toString();
@@ -56,7 +58,12 @@ final class VoiceGateway implements AutoCloseable {
             media = settings.get("VOICE_AI_PIPELINE", "legacy").equals("legacy") ? null : settings.get("MEDIA_WORKERS_JSON", "[]").equals("[]") ? new NativeMedia(settings, callbacks::post, this::localPermit, (int)settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000)) : new MediaCluster(settings, ledger);
         } catch (Exception error) { callbacks.close(); ledger.close(); throw error; }
         listener = Executors.newSingleThreadExecutor(r -> daemon(r, "voice-esl"));
-        lifecycle = new ThreadPoolExecutor(4, 32, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(512), r -> daemon(r, "voice-media"), new ThreadPoolExecutor.AbortPolicy());
+        int lifecycleThreads = (int)settings.number("JAVA_VOICE_LIFECYCLE_THREADS", 32, 4, 128);
+        var starts = new ThreadPoolExecutor(lifecycleThreads, lifecycleThreads, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1024), r -> daemon(r, "voice-media"), new ThreadPoolExecutor.AbortPolicy());
+        starts.allowCoreThreadTimeOut(true); lifecycle = starts;
+        int terminationThreads = (int)settings.number("JAVA_VOICE_TERMINATION_THREADS", 16, 4, 64);
+        var stops = new ThreadPoolExecutor(terminationThreads, terminationThreads, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1024), r -> daemon(r, "voice-stop"), new ThreadPoolExecutor.AbortPolicy());
+        stops.allowCoreThreadTimeOut(true); termination = stops;
         maintenance = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "voice-reconcile"));
         for (int i = 0; i < 32; i++) eventWorkers.add(new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(2048), r -> daemon(r, "voice-event")));
         if (real() && settings.get("FREESWITCH_TTS_HTTP_ENDPOINT", "").isEmpty() && (settings.get("FREESWITCH_TTS_ENGINE", "").isEmpty() || settings.get("FREESWITCH_TTS_VOICE", "").isEmpty())) { close(); throw new IllegalArgumentException("FreeSWITCH requires TTS for recording notices"); }
@@ -119,7 +126,12 @@ final class VoiceGateway implements AutoCloseable {
             String exists = Support.asciiLower(esl.command("uuid_exists " + uuid, false).strip());
             if (exists.equals("true")) ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE attempts SET observed=1 WHERE uuid=?", uuid); return null; });
             boolean ended = exists.equals("false") && Support.integer(row, "observed", 0) != 0 && LocalLedger.now() >= ((Number)row.get("deadline")).doubleValue();
-            if (ended) security.finish(uuid, null); return Map.of("result", ended ? "hungup" : "pending", "ended", ended, "provider_call_id", uuid);
+            if (ended) {
+                Binding finished = bindings.get(uuid);
+                if (finished != null) stopMedia(finished);
+                security.finish(uuid, null); bindings.remove(uuid);
+            }
+            return Map.of("result", ended ? "hungup" : "pending", "ended", ended, "provider_call_id", uuid);
         }
         if (row.get("state").equals("ended")) throw new Support.Failure(409, "call has ended");
         Binding binding = bindings.get(uuid); if (binding == null) throw new Support.Failure(409, "call binding requires authenticated PBX reconstruction");
@@ -139,9 +151,22 @@ final class VoiceGateway implements AutoCloseable {
             String digest = Support.hex(Support.sha(Support.canonicalAscii(List.of(action, outgoing))));
             var previous = ledger.transaction(db -> {
                 var rows = LocalLedger.query(db, "SELECT * FROM voice_action_commands WHERE id=?", commandId);
-                if (!rows.isEmpty()) { var saved = rows.get(0); if (!digest.equals(saved.get("digest"))) throw new Support.Failure(409, "business command identity conflict"); if (saved.get("result") == null) throw new Support.Failure(409, "business command outcome unknown; reconcile before retry", Map.of("X-Voice-Outcome", "unknown")); return Support.object(saved.get("result").toString().getBytes(StandardCharsets.UTF_8)); }
+                if (!rows.isEmpty()) { var saved = rows.get(0); if (!digest.equals(saved.get("digest"))) throw new Support.Failure(409, "business command identity conflict"); if (saved.get("result") == null) return Map.<String,Object>of("java_pending_reconciliation", true); return Support.object(saved.get("result").toString().getBytes(StandardCharsets.UTF_8)); }
                 LocalLedger.execute(db, "INSERT INTO voice_action_commands(id,digest,call_id,attempt) VALUES (?,?,?,?)", commandId, digest, binding.call, row.get("attempt")); return null;
-            }); if (previous != null) return previous;
+            });
+            if (previous != null) {
+                if (!Boolean.TRUE.equals(previous.get("java_pending_reconciliation"))) return previous;
+                // Query the original media operation outside the SQLite transaction; never replay an unknown synthesis.
+                if (binding.pipeline.equals("pipecat") && !"fallback-audio".equals(payload.get("provider"))) {
+                    var confirmed = media.lookup(binding.call, commandId, text);
+                    if (Boolean.TRUE.equals(confirmed.get("confirmed"))) {
+                        var recovered = Map.<String,Object>of("result", "queued", "provider_call_id", uuid, "playback_id", confirmed.get("playback_id"), "pipeline", "pipecat");
+                        ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE voice_action_commands SET result=? WHERE id=? AND digest=?", new String(Support.canonical(recovered), StandardCharsets.UTF_8), commandId, digest); return null; });
+                        return recovered;
+                    }
+                }
+                throw new Support.Failure(409, "business command outcome unknown; reconcile before retry", Map.of("X-Voice-Outcome", "unknown"));
+            }
         }
         if (binding.pipeline.equals("pipecat") && !"fallback-audio".equals(payload.get("provider"))) {
             String playback = media.speak(binding.call, text, expected, commandId);
@@ -177,7 +202,7 @@ final class VoiceGateway implements AutoCloseable {
             var builder = HttpRequest.newBuilder(Support.endpoint(endpoint)).timeout(Duration.ofSeconds(30)).header("Content-Type", "application/json");
             String token = settings.secret("FREESWITCH_TTS_HTTP_TOKEN"); if (!token.isEmpty()) builder.header("Authorization", "Bearer " + token);
             var response = http.send(builder.POST(HttpRequest.BodyPublishers.ofByteArray(Support.json(payload))).build(), HttpResponse.BodyHandlers.ofInputStream());
-            try (var input = response.body()) { if (response.statusCode() / 100 != 2) throw new Support.Failure(503, "TTS service unavailable"); var body = Support.object(Support.read(input, 65536)); String uri = Support.str(body, "media_uri", Support.str(body, "url", "")); if (uri.isEmpty()) throw new Support.Failure(503, "TTS service returned no media URI"); return oneLine(uri); }
+            try (var input = Support.timed(response.body(), 30000)) { if (response.statusCode() / 100 != 2) throw new Support.Failure(503, "TTS service unavailable"); var body = Support.object(Support.read(input, 65536)); String uri = Support.str(body, "media_uri", Support.str(body, "url", "")); if (uri.isEmpty()) throw new Support.Failure(503, "TTS service returned no media URI"); return oneLine(uri); }
         }
         String engine = Support.str(payload, "provider", settings.get("FREESWITCH_TTS_ENGINE", "")), voice = Support.str(payload, "voice", settings.get("FREESWITCH_TTS_VOICE", ""));
         if (engine.isEmpty()) engine = settings.get("FREESWITCH_TTS_ENGINE", ""); if (voice.isEmpty()) voice = settings.get("FREESWITCH_TTS_VOICE", "");
@@ -245,33 +270,88 @@ final class VoiceGateway implements AutoCloseable {
         Map<String,Object> data = new LinkedHashMap<>(); data.put("call_id", binding.call); data.put("event_id", "fs:" + binding.uuid + ":media:" + state + ":" + UUID.randomUUID()); data.put("event_sequence", System.currentTimeMillis() * 1000); data.put("state", state); data.put("provider_session_id", binding.uuid); data.put("playback_id", playback); data.put("error_code", error); data.put("codec", "PCMA"); data.put("sample_rate", 8000); data.put("channel_count", 1); data.put("duration_ms", state.equals("closed") && binding.answeredAt != 0 ? Math.max(0, System.currentTimeMillis() - binding.answeredAt) : null); data.put("provider", "freeswitch"); data.put("attempt", binding.metadata.get("attempt")); callbacks.post(url, data);
     }
     private void scheduleMedia(Binding binding) {
-        if (binding.stopped) return;
-        mediaTasks.computeIfAbsent(binding.uuid, key -> lifecycle.submit(() -> {
-            try { startMedia(binding); }
-            catch (Exception failed) { if (!binding.stopped) { binding.failure = "MEDIA_STARTUP_FAILED"; try { stopMedia(binding); esl.command("uuid_kill " + binding.uuid + " NORMAL_TEMPORARY_FAILURE", false); } catch (Exception ignored) { } media(binding, "closed", null, "MEDIA_STARTUP_FAILED"); } }
-        }));
+        synchronized (binding) {
+            if (binding.stopped) return;
+            var completion = new CompletableFuture<Void>();
+            if (mediaTasks.putIfAbsent(binding.uuid, completion) != null) return;
+            completion.whenComplete((ignored, error) -> {
+                if (error != null && !binding.stopped) try { termination.execute(() -> startupFailed(binding)); }
+                catch (RejectedExecutionException overloaded) { draining = true; }
+            });
+            runLifecycle(binding, completion, () -> startMedia(binding, completion));
+        }
     }
-    private void startMedia(Binding binding) throws Exception {
+    @FunctionalInterface private interface Startup { void run() throws Exception; }
+    private void runLifecycle(Binding binding, CompletableFuture<Void> completion, Startup action) {
+        try { lifecycle.execute(() -> { if (!binding.stopped && !completion.isDone()) try { action.run(); } catch (Exception error) { completion.completeExceptionally(error); } }); }
+        catch (RejectedExecutionException full) { completion.completeExceptionally(full); }
+    }
+    private void startupFailed(Binding binding) {
+        binding.failure = "MEDIA_STARTUP_FAILED";
+        try { stopMedia(binding); esl.command("uuid_kill " + binding.uuid + " NORMAL_TEMPORARY_FAILURE", false); }
+        catch (Exception unavailable) { ledger.stopped(true, "failed media startup could not stop PBX"); }
+        media(binding, "closed", null, "MEDIA_STARTUP_FAILED");
+    }
+    private void startMedia(Binding binding, CompletableFuture<Void> completion) throws Exception {
         if (!Boolean.FALSE.equals(binding.metadata.get("recording_enabled")) && binding.recordingPath.isEmpty()) {
             if (Boolean.TRUE.equals(binding.metadata.get("recording_notice"))) {
                 String uri = tts(Map.of("call_id", binding.call, "text", Support.str(binding.metadata, "recording_notice_text", "本次通话可能会被录音，用于服务和质量管理。"), "language", Support.str(binding.metadata, "language", "zh-CN")));
                 var notice = new CompletableFuture<Void>(); notices.put(binding.uuid, notice);
-                try { media(binding, "speaking", "notice:" + binding.uuid, null); esl.command("uuid_broadcast " + binding.uuid + " " + quote(uri) + " both", false); notice.get((long)(settings.decimal("FREESWITCH_PLAYBACK_TIMEOUT_SEC", 30, 1, 300) * 1000), TimeUnit.MILLISECONDS); }
-                finally { notices.remove(binding.uuid, notice); }
+                synchronized (binding) {
+                    if (binding.stopped) { notices.remove(binding.uuid, notice); return; }
+                    media(binding, "speaking", "notice:" + binding.uuid, null);
+                    try { esl.command("uuid_broadcast " + binding.uuid + " " + quote(uri) + " both", false); }
+                    catch (Exception error) { notices.remove(binding.uuid, notice); throw error; }
+                }
+                notice.orTimeout((long)(settings.decimal("FREESWITCH_PLAYBACK_TIMEOUT_SEC", 30, 1, 300) * 1000), TimeUnit.MILLISECONDS)
+                    .whenComplete((ignored, error) -> {
+                        notices.remove(binding.uuid, notice);
+                        if (error != null) completion.completeExceptionally(error);
+                        else runLifecycle(binding, completion, () -> afterNotice(binding, completion));
+                    });
+                return;
             }
-            if (binding.stopped) return;
-            String filename = binding.call.replaceAll("[^A-Za-z0-9_.-]", "_") + "-" + binding.uuid + ".wav";
-            String path = Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings")).resolve(filename).toString();
-            esl.command("uuid_record " + binding.uuid + " start " + quote(path), false); binding.recordingPath = path;
         }
-        if (binding.stopped || binding.human) return;
-        if (binding.pipeline.equals("pipecat")) { startNativeMedia(binding); return; }
+        afterNotice(binding, completion);
+    }
+    private void afterNotice(Binding binding, CompletableFuture<Void> completion) throws Exception {
+        // Serialise commands which can create resources with the stop fence; never wait for an event under this monitor.
+        synchronized (binding) {
+            if (binding.stopped) return;
+            if (!Boolean.FALSE.equals(binding.metadata.get("recording_enabled")) && binding.recordingPath.isEmpty()) {
+                String filename = binding.call.replaceAll("[^A-Za-z0-9_.-]", "_") + "-" + binding.uuid + ".wav";
+                String path = Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings")).resolve(filename).toString();
+                esl.command("uuid_record " + binding.uuid + " start " + quote(path), false); binding.recordingPath = path;
+            }
+            if (binding.human) { completion.complete(null); return; }
+            if (binding.pipeline.equals("pipecat")) {
+                try { startNativeMedia(binding, completion); return; }
+                catch (Exception unavailable) {
+                    if (!settings.flag("PIPECAT_FALLBACK_TO_LEGACY", false)) throw unavailable;
+                    // An ambiguous start may have reached the PBX: confirm cleanup before starting another pipeline.
+                    if (settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm").equals("voismart")) esl.command("uuid_raw_audio_stream " + binding.uuid + " stop", false);
+                    else {
+                        String stop = settings.get("FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE", "");
+                        if (stop.isBlank()) throw new IOException("native fallback requires confirmed module cleanup", unavailable);
+                        esl.command(template(stop, Map.of("uuid", binding.uuid, "call_id", binding.call)), false);
+                    }
+                    media.closeSession(binding.call, false); binding.pipeline = "legacy";
+                }
+            }
+            startLegacyMedia(binding); completion.complete(null);
+        }
+    }
+    private void startLegacyMedia(Binding binding) throws Exception {
         String command = settings.get("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE", "");
         if (!command.isEmpty()) esl.command(template(command, Map.of("uuid", binding.uuid, "call_id", binding.call, "speech_webhook_url", Support.str(binding.metadata, "speech_webhook_url", ""), "media_webhook_url", Support.str(binding.metadata, "media_webhook_url", ""), "asr_provider", Support.str(binding.metadata, "asr_provider", ""), "language", Support.str(binding.metadata, "language", "zh-CN"))), false);
         media(binding, "listening", null, null);
     }
     private void stopMedia(Binding binding) throws Exception {
-        binding.stopped = true; var task = mediaTasks.remove(binding.uuid); if (task != null) task.cancel(true); var notice = notices.remove(binding.uuid); if (notice != null) notice.cancel(true);
+        synchronized (binding) {
+            binding.stopped = true;
+            var task = mediaTasks.remove(binding.uuid); if (task != null) task.cancel(false);
+            var notice = notices.remove(binding.uuid); if (notice != null) notice.cancel(false);
+        }
         String stop = settings.get("FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE", "");
         try { if (binding.pipeline.equals("pipecat") && settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm").equals("voismart")) esl.command("uuid_raw_audio_stream " + binding.uuid + " stop", false); else if (!stop.isEmpty()) esl.command(template(stop, Map.of("uuid", binding.uuid, "call_id", binding.call)), false); }
         finally { if (media != null && binding.pipeline.equals("pipecat")) media.closeSession(binding.call, true); }
@@ -295,7 +375,7 @@ final class VoiceGateway implements AutoCloseable {
     @Override public void close() throws Exception {
         running = false; draining = true; if (eventSocket != null) eventSocket.close(); listener.shutdownNow(); maintenance.shutdownNow();
         for (var binding : bindings.values()) try { stopMedia(binding); } catch (Exception ignored) { }
-        lifecycle.shutdownNow(); for (var worker : eventWorkers) worker.shutdownNow(); if (media != null) media.close(); callbacks.close(); ledger.close();
+        lifecycle.shutdownNow(); termination.shutdownNow(); for (var worker : eventWorkers) worker.shutdownNow(); if (media != null) media.close(); callbacks.close(); ledger.close();
     }
     private String pipeline(Map<String,Object> metadata) {
         String configured = settings.get("VOICE_AI_PIPELINE", "legacy"), requested = Support.str(metadata, "voice_ai_pipeline", "");
@@ -308,7 +388,7 @@ final class VoiceGateway implements AutoCloseable {
         String owner = new String(Support.json(List.of("", "", session.id)), StandardCharsets.UTF_8); VoiceQuota quota = new VoiceQuota(settings, ledger);
         ledger.transaction(db -> { if (acquire) quota.acquire(db, id, kind, session.call, Support.integer(session.metadata, "attempt", 0), owner); else quota.release(db, id, owner, confirmed); return null; });
     }
-    private void startNativeMedia(Binding binding) throws Exception {
+    private void startNativeMedia(Binding binding, CompletableFuture<Void> completion) throws Exception {
         var session = media.create(binding.call, Support.str(binding.metadata, "speech_webhook_url", ""), Support.str(binding.metadata, "media_webhook_url", ""), binding.metadata);
         boolean voismart = settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm").equals("voismart");
         String command = settings.get("FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE", "");
@@ -317,11 +397,14 @@ final class VoiceGateway implements AutoCloseable {
         if (voismart) for (String variable : List.of("STREAM_DISABLE_AUDIOFILES", "STREAM_NO_RECONNECT", "STREAM_SUPPRESS_LOG")) esl.command("uuid_setvar " + binding.uuid + " " + variable + " true", false);
         esl.command(template(command, Map.of("uuid", binding.uuid, "call_id", binding.call, "session_id", session.id, "media_ws_url", media.url(session), "sample_rate", settings.number("PIPECAT_SAMPLE_RATE", 8000, 8000, 48000), "channels", 1, "codec", "pcm_s16le")), false);
         if (voismart) esl.command("uuid_broadcast " + binding.uuid + " silence_stream://-1 aleg", false);
-        session.started.get((long)(settings.decimal("PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC", 15, .1, 300) * 1000), TimeUnit.MILLISECONDS);
-        if (session.terminated.isDone()) throw new Support.Failure(503, "native media terminated during startup");
+        session.started.orTimeout((long)(settings.decimal("PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC", 15, .1, 300) * 1000), TimeUnit.MILLISECONDS)
+            .whenComplete((ignored, error) -> {
+                if (error != null || session.terminated.isDone()) completion.completeExceptionally(error == null ? new IOException("media terminated during startup") : error);
+                else completion.complete(null);
+            });
         session.terminated.thenRunAsync(() -> {
             if (!binding.stopped) try { String exists = esl.command("uuid_exists " + binding.uuid, false); if (!exists.strip().equals("false") && !binding.stopped) { binding.failure = session.error.isEmpty() ? "MEDIA_DISCONNECTED" : session.error; esl.command("uuid_kill " + binding.uuid + " NORMAL_TEMPORARY_FAILURE", false); } }
             catch (Exception unavailable) { ledger.stopped(true, "media termination could not stop PBX"); }
-        }, lifecycle);
+        }, termination).exceptionally(overloaded -> { draining = true; return null; });
     }
 }

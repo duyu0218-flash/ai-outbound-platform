@@ -1,0 +1,953 @@
+{
+  "boundary": "Static configuration-key accounting against retained Python declarations. Not runtime behavior or capacity acceptance.",
+  "rows": [
+    {
+      "service": "agent",
+      "key": "APP_NAME",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "ENV",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "SERVICE_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_PROVIDER",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "OPENAI_API_KEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "OPENAI_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "OPENAI_MODEL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_ALLOWED_HOSTS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_SEND_PII",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_REQUIRE_HTTPS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LANGFUSE_ENABLED",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LANGFUSE_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LANGFUSE_PUBLIC_KEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LANGFUSE_SECRET_KEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LANGFUSE_SAMPLE_RATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "DEFAULT_HANDOFF_KEYWORDS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "DEFAULT_HANDOFF_KEYWORDS_EN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "DEFAULT_HANGUP_SMS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "DEFAULT_HANGUP_SMS_EN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "MAX_OUTPUT_TOKENS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_MAX_CONNECTIONS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_MAX_KEEPALIVE_CONNECTIONS",
+      "status": "explicit_difference",
+      "detail": "JDK HTTP/1 idle pool configured before HttpClient construction; HTTP/2 uses JDK multiplexing."
+    },
+    {
+      "service": "agent",
+      "key": "OPENAI_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "CONVERSATION_HISTORY_TURNS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "CONVERSATION_HISTORY_MAX_CHARS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_QUOTA_DB_PATH",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_QUOTA_SCOPE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_QUOTA_RPM",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_QUOTA_TPM",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "agent",
+      "key": "LLM_QUOTA_RPS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "ENV",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "SERVICE_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "SERVICE_TOKEN_FILE",
+      "status": "mapped",
+      "detail": "Settings.secret supports bounded regular-file references, with *_FILE precedence."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "METRICS_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "METRICS_TOKEN_FILE",
+      "status": "mapped",
+      "detail": "Settings.secret supports bounded regular-file references, with *_FILE precedence."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_ENDPOINT_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_REGION",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_ACCESS_KEY_ID",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_SECRET_ACCESS_KEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_SECRET_ACCESS_KEY_FILE",
+      "status": "mapped",
+      "detail": "Settings.secret supports bounded regular-file references, with *_FILE precedence."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_BUCKET",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_KEY_PREFIX",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "S3_AUTO_CREATE_BUCKET",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SOURCE_ALLOWED_HOSTS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SOURCE_CLEANUP_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SOURCE_CLEANUP_ORIGIN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SOURCE_REQUIRE_HTTPS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_DOWNLOAD_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_MAX_BYTES",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SPOOL_DIR",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_INGEST_CONCURRENCY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "recording_adapter",
+      "key": "RECORDING_SPOOL_RESERVE_BYTES",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ENV",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_GATEWAY_DRIVER",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_AI_PIPELINE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PBX_BASE_URL",
+      "status": "explicit_difference",
+      "detail": "Legacy HTTP PBX driver remains disabled without a verified hard-stop contract."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PBX_BEARER_TOKEN",
+      "status": "explicit_difference",
+      "detail": "No Java HTTP PBX forwarding; ESL is the verified protocol implementation."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "REQUEST_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "RTP_PORT_START",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "RTP_PORT_END",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "WEBHOOK_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "WEBHOOK_SECRET",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "SERVICE_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_COMMAND_SECRET",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_SECURITY_ADMIN_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_SECURITY_DB_PATH",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_SENSITIVE_RETENTION_DAYS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_AUDIT_RETENTION_DAYS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_SECURITY_ROUTES_JSON",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_SECURITY_ROUTES_FILE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_ALLOW_PRIVATE_HTTP",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_FAILURE_STOP_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_CONCURRENCY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_POLL_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_BATCH_ENABLED",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_BATCH_SIZE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CALLBACK_BATCH_DELAY_MS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_NODE_ID",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_AGENT_REGISTRARS_JSON",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_RECORDING_SOURCE_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_QUOTA_ENABLED",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_QUOTA_BUDGETS_JSON",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_QUOTA_NORMAL_CLOSE_RELEASES",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_RECORDING_CLEANUP_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_RECORDING_RESERVE_BYTES",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_RECORDING_RETENTION_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_MAX_CONCURRENT",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_CPS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_DAILY_CALL_LIMIT",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_HOUR_BUDGET_MINOR",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_DAY_BUDGET_MINOR",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "VOICE_MAX_DURATION_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "METRICS_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "METRICS_TOKEN_FILE",
+      "status": "mapped",
+      "detail": "Settings.secret supports bounded regular-file references, with *_FILE precedence."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ESL_HOST",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ESL_PORT",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ESL_PASSWORD",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ESL_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ESL_RECONNECT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_GATEWAY",
+      "status": "explicit_difference",
+      "detail": "Approved tenant/line route policy supplies the gateway; global caller overrides are not used."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_CALLER_ID",
+      "status": "explicit_difference",
+      "detail": "Approved tenant/line route policy supplies the caller ID."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_ORIGINATE_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_PLAYBACK_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_DIALPLAN_CONTEXT",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_AGENT_EXTENSION_TEMPLATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_DEFAULT_HANDOFF_EXTENSION",
+      "status": "explicit_difference",
+      "detail": "Transfers require an approved agent ID and restricted XML context; generic extension transfer is disabled."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_TTS_ENGINE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_FALLBACK_AUDIO_PATH",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_TTS_VOICE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_TTS_URI_TEMPLATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_TTS_HTTP_ENDPOINT",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_TTS_HTTP_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_MEDIA_START_COMMAND_TEMPLATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_RECORDING_DIR",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_RECORDING_PUBLIC_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "FREESWITCH_RECORDING_STEREO",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_VERSION",
+      "status": "explicit_difference",
+      "detail": "Java native runtime has no Python distribution version; health returns empty pipecat_version."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_MEDIA_WS_BASE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_SAMPLE_RATE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_CHANNELS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_MEDIA_PROTOCOL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_SESSION_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_MAX_ACTIVE_SESSIONS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_WORKERS_JSON",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_RPC_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_CONTROL_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_WORKER_ID",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_WORKER_CAPACITY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_RPC_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_ALLOW_DEGRADED_ADMISSION",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "MEDIA_HEALTH_TTL_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_STT_PROVIDER",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_TTS_PROVIDER",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_OPENAI_API_KEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_OPENAI_REALTIME_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_OPENAI_BASE_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_TTS_MODEL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_TTS_VOICE",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "PIPECAT_FALLBACK_TO_LEGACY",
+      "status": "explicit_difference",
+      "detail": "Explicit fallback after confirmed module/session cleanup only; uncertain cleanup fails closed."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_GATEWAY_URL",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_APPKEY",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_TOKEN",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_TOKEN_FILE",
+      "status": "mapped",
+      "detail": "Settings.secret supports bounded regular-file references, with *_FILE precedence."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_VOCABULARY_ID",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_CUSTOMIZATION_ID",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_MAX_SENTENCE_SILENCE_MS",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_ENABLE_PUNCTUATION_PREDICTION",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_ENABLE_INVERSE_TEXT_NORMALIZATION",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_ENABLE_WORDS",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_ENABLE_SEMANTIC_SENTENCE_DETECTION",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_ENABLE_IGNORE_SENTENCE_TIMEOUT",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_DISFLUENCY",
+      "status": "mapped",
+      "detail": "Dynamically generated Alibaba option key in NativeMedia.aliyunPayload."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_CONNECT_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    },
+    {
+      "service": "voice_gateway",
+      "key": "ALIYUN_NLS_STOP_TIMEOUT_SEC",
+      "status": "implemented_key",
+      "detail": "Referenced by Java source; key presence is not evidence that every value/state was verified."
+    }
+  ]
+}

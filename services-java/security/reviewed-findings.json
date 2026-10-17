@@ -1,0 +1,223 @@
+{
+  "IMPROPER_UNICODE:com/duozhi/services/AgentPolicy.java:com.duozhi.services.AgentPolicy:turn:(Ljava/util/Map;Z)Ljava/util/Map;:50:50:3": {
+    "source": "com/duozhi/services/AgentPolicy.java",
+    "count": 1,
+    "disposition": "natural_language_matching",
+    "reason": "AgentPolicy lowercases natural-language transcripts to match human/priority keywords; this value is never a credential, tenant identity, route host or signature. Protocol/host folding uses Support.asciiLower.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/AgentPolicy.java": "f7c0297be71d972b22de01b92f41030473f6ae658be4db59dc71955c0ef8a794",
+      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe"
+    }
+  },
+  "PREDICTABLE_RANDOM:com/duozhi/services/AgentTracing.java:com.duozhi.services.AgentTracing:span:(Ljava/lang/String;Ljava/lang/String;)Lcom/duozhi/services/AgentTracing$Span;:37:37:2": {
+    "source": "com/duozhi/services/AgentTracing.java",
+    "count": 1,
+    "disposition": "nonsecret_sampling_or_backoff",
+    "reason": "ThreadLocalRandom is used only for telemetry sampling or callback retry jitter. Session capabilities are SecureRandom; nonce/HMAC/signature validation does not use these values.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "c561240346fd4620ab6cd77c71bf0de8f04a82b34aa191e4c5b6912a5efe5f4f",
+      "src/main/java/com/duozhi/services/AgentTracing.java": "d3629f03c4f5934b4b71e1d3886ebafb001aff101ba0da7a4a4841118ef3019c"
+    }
+  },
+  "UNENCRYPTED_SOCKET:com/duozhi/services/EslClient.java:com.duozhi.services.EslClient:connect:()Ljava/net/Socket;:31:31:2": {
+    "source": "com/duozhi/services/EslClient.java",
+    "count": 1,
+    "disposition": "private_pbx_transport",
+    "reason": "ESL is intentionally the native authenticated PBX protocol. Real operation requires six distinct strong credentials and approved fixed route policy. Plain transport requires a trusted private network or loopback; network confidentiality is a deployment prerequisite, not claimed by this review.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/EslClient.java": "8a441b862a3a718413326794fc83813e417d4a21112311bc5120f2b0ec155905",
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
+    }
+  },
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:query:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:86:86:2": {
+    "source": "com/duozhi/services/LocalLedger.java",
+    "count": 1,
+    "disposition": "bound_internal_sql",
+    "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "a6abecbe547c2892b05b5b3687022c7a278d0cdbd2a1e4477aedc1bb77339763",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "ff99ed7e0cf66a3ebdb14893fba7d987765a796027466789f0ae9495afdfff9c",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "63919404ecad7fe92bbd6015d5583ee5730fdde3bf024684f3102f8a5279fef2",
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "c561240346fd4620ab6cd77c71bf0de8f04a82b34aa191e4c5b6912a5efe5f4f"
+    }
+  },
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:execute:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)V:96:96:3": {
+    "source": "com/duozhi/services/LocalLedger.java",
+    "count": 1,
+    "disposition": "bound_internal_sql",
+    "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "a6abecbe547c2892b05b5b3687022c7a278d0cdbd2a1e4477aedc1bb77339763",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "ff99ed7e0cf66a3ebdb14893fba7d987765a796027466789f0ae9495afdfff9c",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "63919404ecad7fe92bbd6015d5583ee5730fdde3bf024684f3102f8a5279fef2",
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "c561240346fd4620ab6cd77c71bf0de8f04a82b34aa191e4c5b6912a5efe5f4f"
+    }
+  },
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:plain:(Ljava/sql/Connection;Ljava/lang/String;)V:98:98:3": {
+    "source": "com/duozhi/services/LocalLedger.java",
+    "count": 1,
+    "disposition": "bound_internal_sql",
+    "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "a6abecbe547c2892b05b5b3687022c7a278d0cdbd2a1e4477aedc1bb77339763",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "ff99ed7e0cf66a3ebdb14893fba7d987765a796027466789f0ae9495afdfff9c",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "63919404ecad7fe92bbd6015d5583ee5730fdde3bf024684f3102f8a5279fef2",
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "c561240346fd4620ab6cd77c71bf0de8f04a82b34aa191e4c5b6912a5efe5f4f"
+    }
+  },
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:<init>:(Ljava/lang/String;)V:37:37:3": {
+    "source": "com/duozhi/services/LocalLedger.java",
+    "count": 1,
+    "disposition": "literal_schema_array",
+    "reason": "The constructor iterates its compile-time schema string array. Legacy migrations use fixed ALTER/CREATE statements and bound data updates within one transaction; schema SQL is never read from requests or state.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/LocalLedger.java": "ff99ed7e0cf66a3ebdb14893fba7d987765a796027466789f0ae9495afdfff9c"
+    }
+  },
+  "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:closeSession:(Ljava/lang/String;Z)V:115:122:2": {
+    "source": "com/duozhi/services/MediaCluster.java",
+    "count": 1,
+    "disposition": "internal_generation_monitor",
+    "reason": "MediaCluster synchronizes the internally created Session to serialize closure and ownership deletion. References are used only by trusted in-process Java code; no caller-supplied monitor or plugin object enters the model. RPC ownership is independently fenced.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/MediaManager.java": "424486864ad488f130de01e0dba31919baca224e501900d9986ed32f6612ae53",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "63919404ecad7fe92bbd6015d5583ee5730fdde3bf024684f3102f8a5279fef2"
+    }
+  },
+  "USO_UNSAFE_INHERITABLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:create:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lcom/duozhi/services/MediaManager$Session;:88:97:3": {
+    "source": "com/duozhi/services/MediaCluster.java",
+    "count": 1,
+    "disposition": "internal_owner_map_monitor",
+    "reason": "Owner map is a final internally constructed ConcurrentHashMap, not supplied by a request or subclass. create serializes admission/journal intent; only package-private trusted controller code reads ownership. No untrusted Java extension boundary is exposed.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "63919404ecad7fe92bbd6015d5583ee5730fdde3bf024684f3102f8a5279fef2"
+    }
+  },
+  "UNSAFE_HASH_EQUALS:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia:speak:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;:91:91:2": {
+    "source": "com/duozhi/services/NativeMedia.java",
+    "count": 1,
+    "disposition": "public_payload_identity",
+    "reason": "Equality compares public request/text SHA-256 values for idempotency conflict detection, not authentication secrets. Bearer/HMAC checks use MessageDigest.isEqual via Support.equals. A timing observation cannot recover a secret from these payload fingerprints.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "a6abecbe547c2892b05b5b3687022c7a278d0cdbd2a1e4477aedc1bb77339763"
+    }
+  },
+  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:binary:([B)V:247:247:2": {
+    "source": "com/duozhi/services/NativeMedia.java",
+    "count": 1,
+    "disposition": "framework_socket_write_monitor",
+    "reason": "NativeMedia serializes writes to a trusted Spring WebSocketSession created by the server framework. The peer controls bytes, not the Java monitor reference. Startup acknowledgement is outside the session monitor and close is idempotent; ASR startup/closure race is covered by MediaTest.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/MediaWebSocket.java": "ab0b095c4d4f0d5e9a15f6c7575941b4f13d1822c609d904f156d4ef3a73c403"
+    }
+  },
+  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:text:(Ljava/lang/Object;)V:248:248:2": {
+    "source": "com/duozhi/services/NativeMedia.java",
+    "count": 1,
+    "disposition": "framework_socket_write_monitor",
+    "reason": "NativeMedia serializes writes to a trusted Spring WebSocketSession created by the server framework. The peer controls bytes, not the Java monitor reference. Startup acknowledgement is outside the session monitor and close is idempotent; ASR startup/closure race is covered by MediaTest.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/MediaWebSocket.java": "ab0b095c4d4f0d5e9a15f6c7575941b4f13d1822c609d904f156d4ef3a73c403"
+    }
+  },
+  "URLCONNECTION_SSRF_FD:com/duozhi/services/ServicesApplication.java:com.duozhi.services.ServicesApplication:main:([Ljava/lang/String;)V:12:12:2": {
+    "source": "com/duozhi/services/ServicesApplication.java",
+    "count": 1,
+    "disposition": "fixed_numeric_health_destination",
+    "reason": "Healthcheck constructs only http://127.0.0.1:<validated 1..65535 PORT>/readyz, disables proxies and redirects, and runs as a local command. No remote host/path/userinfo comes from HTTP input.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/ServicesApplication.java": "c4fba69716dcd2fa945a9993dedc72cd67586d52de3c8259ab3bc8d32d728533"
+    }
+  },
+  "PREDICTABLE_RANDOM:com/duozhi/services/VoiceCallbacks.java:com.duozhi.services.VoiceCallbacks:complete:(Ljava/util/Map;ZLjava/lang/String;)V:86:86:2": {
+    "source": "com/duozhi/services/VoiceCallbacks.java",
+    "count": 1,
+    "disposition": "nonsecret_sampling_or_backoff",
+    "reason": "ThreadLocalRandom is used only for telemetry sampling or callback retry jitter. Session capabilities are SecureRandom; nonce/HMAC/signature validation does not use these values.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "c561240346fd4620ab6cd77c71bf0de8f04a82b34aa191e4c5b6912a5efe5f4f",
+      "src/main/java/com/duozhi/services/AgentTracing.java": "d3629f03c4f5934b4b71e1d3886ebafb001aff101ba0da7a4a4841118ef3019c"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:28:28:3": {
+    "source": "com/duozhi/services/VoiceController.java",
+    "count": 1,
+    "disposition": "validated_signed_command_headers",
+    "reason": "Boundary rejects duplicate, non-ASCII, oversized security headers before dispatch. VoiceController authenticates SERVICE_TOKEN and real mode verifies HMAC over exact timestamp, nonce, request path and body; durable nonce replay check precedes dialing.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/Boundary.java": "1b7f9b0dccf8175c394a41f65ad466423b9d9ee60a123c72240db6d594934935",
+      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
+    }
+  },
+  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:29:29:3": {
+    "source": "com/duozhi/services/VoiceController.java",
+    "count": 1,
+    "disposition": "validated_signed_command_headers",
+    "reason": "Boundary rejects duplicate, non-ASCII, oversized security headers before dispatch. VoiceController authenticates SERVICE_TOKEN and real mode verifies HMAC over exact timestamp, nonce, request path and body; durable nonce replay check precedes dialing.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceController.java": "e91ef9a7fc52772e13ea54241ea6f8213547b05c2f860f2b7f1d2c1e7d2634f2",
+      "src/main/java/com/duozhi/services/Boundary.java": "1b7f9b0dccf8175c394a41f65ad466423b9d9ee60a123c72240db6d594934935",
+      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
+    }
+  },
+  "UNSAFE_HASH_EQUALS:com/duozhi/services/VoiceGateway.java:com.duozhi.services.VoiceGateway:lambda$realPost$9:(Ljava/lang/String;Ljava/lang/String;Lcom/duozhi/services/VoiceGateway$Binding;Ljava/util/Map;Ljava/sql/Connection;)Ljava/util/Map;:154:154:2": {
+    "source": "com/duozhi/services/VoiceGateway.java",
+    "count": 1,
+    "disposition": "public_payload_identity",
+    "reason": "Equality compares public request/text SHA-256 values for idempotency conflict detection, not authentication secrets. Bearer/HMAC checks use MessageDigest.isEqual via Support.equals. A timing observation cannot recover a secret from these payload fingerprints.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/NativeMedia.java": "c30afd59ad3a1e15eb9090847399915f62e6c8952305a27e1232123d2547877e",
+      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "a6abecbe547c2892b05b5b3687022c7a278d0cdbd2a1e4477aedc1bb77339763"
+    }
+  },
+  "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING:com/duozhi/services/VoiceSecurity.java:com.duozhi.services.VoiceSecurity:checkScope:(Ljava/sql/Connection;Ljava/lang/String;Ljava/util/List;DJJJJJJ)V:98:98:3": {
+    "source": "com/duozhi/services/VoiceSecurity.java",
+    "count": 1,
+    "disposition": "fixed_scope_predicates",
+    "reason": "checkScope is private and called with only 1=1, tenant=?, or tenant=? AND line=? literals. Values, time windows and tenant/line IDs are bound separately. No payload selects SQL syntax.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified.",
+    "sha256": {
+      "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "ff99ed7e0cf66a3ebdb14893fba7d987765a796027466789f0ae9495afdfff9c"
+    }
+  }
+}

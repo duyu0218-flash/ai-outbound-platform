@@ -1,0 +1,112 @@
+name: java-services
+on:
+  push:
+    branches: [main, migration/java-services-20261017]
+  pull_request:
+    branches: [main]
+jobs:
+  java-services-tests:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_TEST_S3_ENDPOINT: http://127.0.0.1:18333
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+      - name: Start isolated S3 fixture
+        run: |
+          docker run -d --name java-services-s3-ci -p 127.0.0.1:18333:8333 \
+            --tmpfs /data:rw,size=256m \
+            -e AWS_ACCESS_KEY_ID=java-isolated-access \
+            -e AWS_SECRET_ACCESS_KEY=java-isolated-secret \
+            -e S3_BUCKET=java-isolated-recordings \
+            chrislusf/seaweedfs:4.44 mini -dir=/data -ip=127.0.0.1 -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=8
+          for attempt in $(seq 1 60); do
+            if docker exec java-services-s3-ci wget -q --spider http://127.0.0.1:9333/cluster/status; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Build core and auxiliary Java services; run S3, media, HTTP and migration regressions
+        run: |
+          bash backend-java/scripts/build-java17.sh -B -DskipTests package
+          bash services-java/scripts/build-java17.sh -B verify
+      - name: Prepare browser and test driver
+        run: |
+          python -m pip install httpx==0.28.1
+          corepack enable
+          cd frontend
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm exec playwright install --with-deps chromium
+      - name: Check Compose selection and actual Java processes including browser chain
+        env:
+          JAVA_SERVICES_BROWSER: '1'
+        run: |
+          export NODE_BIN="$(command -v node)"
+          python services-java/scripts/verify_compose.py
+          python services-java/scripts/verify_routes.py
+          python services-java/scripts/media_process_smoke.py
+          python services-java/scripts/stack_smoke.py
+      - name: Preserve validation artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: java-services-validation
+          path: |
+            services-java/target/surefire-reports/
+            services-java/validation/
+            frontend/test-results/
+      - name: Stop isolated S3 fixture
+        if: always()
+        run: docker rm -f java-services-s3-ci || true
+  java-services-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Source-bound SAST reviews and full SBOM dependency coverage
+        run: bash services-java/scripts/security-check.sh
+      - name: Preserve raw reports and gate result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: java-services-security
+          path: |
+            services-java/target/spotbugsXml.xml
+            services-java/target/java-dependencies.cdx.json
+            services-java/target/osv.json
+            services-java/target/security-summary.json
+  java-services-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Build JDK 17 service image
+        run: docker build -f services-java/Dockerfile -t java-services-ci .
+      - name: Verify four Java roles and recording lifecycle in disposable containers
+        env:
+          JAVA_SERVICES_TEST_IMAGE: java-services-ci
+        run: |
+          python -m pip install httpx==0.28.1
+          python services-java/scripts/container_smoke.py
+      - name: Preserve container validation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: java-services-container-validation
+          path: services-java/validation/
