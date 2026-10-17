@@ -1,159 +1,616 @@
-# Standalone Linux-host stack: run once on each of four independent hosts.
-# Managed PostgreSQL/Redis, cloud LB and object storage are external.
-x-app: &app
-  restart: unless-stopped
-  network_mode: host
-  read_only: true
-  cap_drop: [ALL]
-  security_opt: [no-new-privileges:true]
-  pids_limit: 1024
-  tmpfs: [/tmp:rw,nosuid,size=256m]
-  ulimits:
-    nofile: {soft: 65536, hard: 65536}
-  logging:
-    driver: json-file
-    options: {max-size: 20m, max-file: '3'}
-
-x-backend-env: &backend-env
-  ENV: production
-  AUTO_MIGRATE: 'false'
-  DEMO_USERS_ENABLED: 'false'
-  VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
-  OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
-  MAX_CONCURRENT_CALLS: '500'
-  TERMINAL_ANALYSIS_ASYNC: 'true'
-  TASK_INLINE_EXECUTION_ENABLED: 'false'
-  AI_AGENT_URL: http://127.0.0.1:8001
-  DATABASE_POOL_SIZE: '6'
-  DATABASE_MAX_OVERFLOW: '0'
-  RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
-  RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
-
+# Canonical Java Linux host-network candidate; use immutable backend-java/services-java image digests.
+# No capacity claim. Required TLS truststore and operator secrets are not provisioned by Compose.
 services:
-  control-api: &control-api
-    <<: *app
+  control-api:
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
     env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
     environment:
-      <<: *backend-env
-      SCHEDULER_ENABLED: 'false'
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
       DATABASE_POOL_SIZE: '4'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '4'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '3'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       REQUEST_ADMISSION_MAX_WAITERS: '8'
       REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8010'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'false'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
     volumes:
-      - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
     cpus: 1
     mem_limit: 1g
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8010', --workers, '1', --no-access-log]
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/readyz',timeout=3)"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
-
   control-api-2:
-    <<: *control-api
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8011', --workers, '1', --no-access-log]
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
+      DATABASE_POOL_SIZE: '4'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '4'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '3'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      REQUEST_ADMISSION_MAX_WAITERS: '8'
+      REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8011'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'false'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
+    volumes:
+    - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
+    cpus: 1
+    mem_limit: 1g
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/readyz',timeout=3)"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
-
   control-api-3:
-    <<: *control-api
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8012', --workers, '1', --no-access-log]
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
+      DATABASE_POOL_SIZE: '4'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '4'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '3'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      REQUEST_ADMISSION_MAX_WAITERS: '8'
+      REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8012'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'false'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
+    volumes:
+    - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
+    cpus: 1
+    mem_limit: 1g
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/readyz',timeout=3)"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
-
   control-api-4:
-    <<: *control-api
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8013', --workers, '1', --no-access-log]
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${CONTROL_IMAGE:?Set the same immutable control image on all nodes}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
+      DATABASE_POOL_SIZE: '4'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+      REQUEST_ADMISSION_TOTAL_INFLIGHT: '4'
+      REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '3'
+      REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
+      REQUEST_ADMISSION_MAX_WAITERS: '8'
+      REQUEST_ADMISSION_TIMEOUT_SEC: '0.05'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8013'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'false'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
+    volumes:
+    - ${COMPACT_NODES_FILE:?Set the identical operator roster on all nodes}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
+    cpus: 1
+    mem_limit: 1g
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/readyz',timeout=3)"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
-
   api-proxy:
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${API_PROXY_IMAGE:?Set a qualified immutable NGINX image}
-    entrypoint: [nginx]
-    command: [-g, 'daemon off;']
-    volumes: [./deploy/compact/nginx.conf:/etc/nginx/nginx.conf:ro]
+    entrypoint:
+    - nginx
+    command:
+    - -g
+    - daemon off;
+    volumes:
+    - ./deploy/compact/nginx.conf:/etc/nginx/nginx.conf:ro
     cpus: 0.5
     mem_limit: 256m
-    depends_on: [control-api, control-api-2, control-api-3, control-api-4]
-
+    depends_on:
+    - control-api
+    - control-api-2
+    - control-api-3
+    - control-api-4
   task-worker:
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${CONTROL_IMAGE:?Set immutable control image}
     env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
     environment:
-      <<: *backend-env
-      SCHEDULER_ENABLED: 'true'
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
       DATABASE_POOL_SIZE: '2'
-      TASK_WORKER_ROLE: background
-      TASK_CALLBACK_CONCURRENCY: '8'
-      TASK_RECORDING_CONCURRENCY: '2'
-      TASK_QUEUE_LANES: call_analysis:2
-      TASK_POLL_INTERVAL_SEC: '0.05'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
       SCHEDULER_BATCH_SIZE: '50'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8020'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'true'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'true'
+      FRONTEND_STATIC_DIR: /app/static
     volumes:
-      - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
     cpus: 2
     mem_limit: 4g
     stop_grace_period: 150s
-    command: [python, -m, app.worker]
-
-  ai-worker: &ai-worker
-    <<: *app
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
+  ai-worker:
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${CONTROL_IMAGE:?Set immutable control image}
     env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
     environment:
-      <<: *backend-env
-      SCHEDULER_ENABLED: 'false'
-      TASK_WORKER_ROLE: ai
-      TASK_AI_CONCURRENCY: '128'
-      AI_DB_THREADS: '2'
-      AI_ACTION_THREADS: '2'
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
       DATABASE_POOL_SIZE: '3'
-      TASK_POLL_INTERVAL_SEC: '0.05'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8041'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'true'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
     volumes:
-      - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
     cpus: 1
     mem_limit: 2g
     stop_grace_period: 150s
-    command: [python, -m, app.ai_worker]
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
-      test: [CMD, python, -m, app.ai_worker_health]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       start_period: 30s
-      retries: 3
-
+      retries: 5
   ai-worker-2:
-    <<: *ai-worker
-
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${CONTROL_IMAGE:?Set immutable control image}
+    env_file: ${COMPACT_BACKEND_ENV_FILE:?Set backend secrets/config file}
+    environment:
+      ENV: production
+      AUTO_MIGRATE: 'false'
+      DEMO_USERS_ENABLED: 'false'
+      VOICE_GATEWAY_NODES_FILE: /etc/compact/nodes.json
+      OUTBOUND_PLATFORM_MAX_CONCURRENT: '500'
+      MAX_CONCURRENT_CALLS: '500'
+      TERMINAL_ANALYSIS_ASYNC: 'true'
+      AI_AGENT_URL: http://127.0.0.1:8001
+      DATABASE_POOL_SIZE: '3'
+      DATABASE_MAX_OVERFLOW: '0'
+      RECORDING_INGEST_ENDPOINT: http://127.0.0.1:8003/v1/recordings/ingest
+      RECORDING_DELETE_ENDPOINT: http://127.0.0.1:8003/v1/recordings/delete
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8042'
+      JAVA_INITIALIZE_SCHEMA: 'false'
+      JAVA_RELEASE_ACCEPTED: ${JAVA_RELEASE_ACCEPTED:-false}
+      JAVA_WORKERS_ENABLED: 'true'
+      CALLBACK_INBOX_ENABLED: 'true'
+      CALLBACK_INBOX_MIN_WORKERS: ${JAVA_CALLBACK_MIN_WORKERS:-12}
+      STABILITY_ADMISSION_ENABLED: 'true'
+      STABILITY_MIN_AI_WORKERS: ${JAVA_STABILITY_MIN_WORKERS:-12}
+      JAVA_DISPATCH_ENABLED: 'false'
+      FRONTEND_STATIC_DIR: /app/static
+    volumes:
+    - ${COMPACT_NODES_FILE:?Set roster file}:/etc/compact/nodes.json:ro
+    - ${JAVA_TRUSTSTORE_FILE:?Set Java truststore containing Redis CA}:/etc/java/redis-truststore.p12:ro
+    cpus: 1
+    mem_limit: 2g
+    stop_grace_period: 150s
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   ai-agent:
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${AGENT_IMAGE:?Set immutable agent image}
     env_file: ${COMPACT_AGENT_ENV_FILE:?Set agent secrets/config file}
     environment:
       LLM_MAX_CONNECTIONS: '256'
       LLM_MAX_KEEPALIVE_CONNECTIONS: '128'
+      JAVA_SERVICE_ROLE: agent
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8001'
+      LLM_QUOTA_DB_PATH: /var/lib/model-quota/account.db
+      LLM_QUOTA_SCOPE: ${LLM_QUOTA_SCOPE:-primary-account}
     cpus: 1
     mem_limit: 2g
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8001']
-
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    volumes:
+    - model_quota:/var/lib/model-quota
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   voice-gateway:
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
     env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
     environment:
@@ -173,25 +630,56 @@ services:
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
       MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set the same independent 32+ character RPC token on this host}
       MEDIA_WORKERS_JSON: '[{"id":"media-1","endpoint":"http://127.0.0.1:8101","ws_base":"ws://127.0.0.1:8101/v1/pipecat/media","capacity":50},{"id":"media-2","endpoint":"http://127.0.0.1:8102","ws_base":"ws://127.0.0.1:8102/v1/pipecat/media","capacity":50},{"id":"media-3","endpoint":"http://127.0.0.1:8103","ws_base":"ws://127.0.0.1:8103/v1/pipecat/media","capacity":50},{"id":"media-4","endpoint":"http://127.0.0.1:8104","ws_base":"ws://127.0.0.1:8104/v1/pipecat/media","capacity":50}]'
+      JAVA_SERVICE_ROLE: voice
+      JAVA_BIND_ADDRESS: 0.0.0.0
+      PORT: '8002'
     volumes:
-      - voice_security:/var/lib/voice-security
-      - ${COMPACT_ROUTES_FILE:?Set independently approved tenant/line policies}:/etc/compact/voice-routes.json:ro
-      - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings:ro
+    - voice_security:/var/lib/voice-security
+    - ${COMPACT_ROUTES_FILE:?Set independently approved tenant/line policies}:/etc/compact/voice-routes.json:ro
+    - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings
     cpus: 1
     mem_limit: 2g
     stop_grace_period: 30s
-    command: [uvicorn, 'app.main:app', --host, 0.0.0.0, --port, '8002', --workers, '1', --no-access-log]
+    command:
+    - java
+    - -jar
+    - /app/services.jar
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://${NODE_PRIVATE_IP}:8002/readyz',timeout=3)"]
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
-
-  media-1: &media-worker
-    <<: *app
+  media-1:
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
     env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
-    environment: &media-env
+    environment:
       ENV: production
       VOICE_GATEWAY_DRIVER: freeswitch_esl
       VOICE_AI_PIPELINE: pipecat
@@ -201,32 +689,192 @@ services:
       MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set host RPC token}
       MEDIA_CONTROL_URL: http://127.0.0.1:8002
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8101'
     cpus: 1.5
     mem_limit: 2g
     stop_grace_period: 30s
-    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8101', --workers, '1', --no-access-log]
-
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-2:
-    <<: *media-worker
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
+    env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
     environment:
-      <<: *media-env
+      ENV: production
+      VOICE_GATEWAY_DRIVER: freeswitch_esl
+      VOICE_AI_PIPELINE: pipecat
+      MEDIA_WORKERS_JSON: '[]'
       MEDIA_WORKER_ID: media-2
-    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8102', --workers, '1', --no-access-log]
-
+      MEDIA_WORKER_CAPACITY: '50'
+      MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set host RPC token}
+      MEDIA_CONTROL_URL: http://127.0.0.1:8002
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8102'
+    cpus: 1.5
+    mem_limit: 2g
+    stop_grace_period: 30s
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-3:
-    <<: *media-worker
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
+    env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
     environment:
-      <<: *media-env
+      ENV: production
+      VOICE_GATEWAY_DRIVER: freeswitch_esl
+      VOICE_AI_PIPELINE: pipecat
+      MEDIA_WORKERS_JSON: '[]'
       MEDIA_WORKER_ID: media-3
-    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8103', --workers, '1', --no-access-log]
-
+      MEDIA_WORKER_CAPACITY: '50'
+      MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set host RPC token}
+      MEDIA_CONTROL_URL: http://127.0.0.1:8002
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8103'
+    cpus: 1.5
+    mem_limit: 2g
+    stop_grace_period: 30s
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-4:
-    <<: *media-worker
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: ${VOICE_IMAGE:?Set immutable voice image with tested media dependencies}
+    env_file: ${COMPACT_VOICE_ENV_FILE:?Set voice secrets/config file}
     environment:
-      <<: *media-env
+      ENV: production
+      VOICE_GATEWAY_DRIVER: freeswitch_esl
+      VOICE_AI_PIPELINE: pipecat
+      MEDIA_WORKERS_JSON: '[]'
       MEDIA_WORKER_ID: media-4
-    command: [uvicorn, 'app.media_worker:app', --host, 127.0.0.1, --port, '8104', --workers, '1', --no-access-log]
-
+      MEDIA_WORKER_CAPACITY: '50'
+      MEDIA_RPC_TOKEN: ${MEDIA_RPC_TOKEN:?Set host RPC token}
+      MEDIA_CONTROL_URL: http://127.0.0.1:8002
+      PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8104'
+    cpus: 1.5
+    mem_limit: 2g
+    stop_grace_period: 30s
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   freeswitch:
     restart: unless-stopped
     network_mode: host
@@ -235,38 +883,98 @@ services:
     mem_limit: 4g
     pids_limit: 2048
     ulimits:
-      nofile: {soft: 65536, hard: 65536}
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - ${FREESWITCH_CONFIG_DIR:?Set qualified SIP/dialplan/media configuration}:/etc/freeswitch:ro
-      - ${FREESWITCH_RECORDING_DIR:?Set node recording path}:/var/lib/freeswitch/recordings
+    - ${FREESWITCH_CONFIG_DIR:?Set qualified SIP/dialplan/media configuration}:/etc/freeswitch:ro
+    - ${FREESWITCH_RECORDING_DIR:?Set node recording path}:/var/lib/freeswitch/recordings
     stop_grace_period: 30s
     logging:
       driver: json-file
-      options: {max-size: 20m, max-file: '3'}
-
+      options:
+        max-size: 20m
+        max-file: '3'
   recording-adapter:
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
     image: ${RECORDING_IMAGE:?Set immutable recording adapter image}
     env_file: ${COMPACT_RECORDING_ENV_FILE:?Set object-storage credentials/config file}
     environment:
       ENV: production
       RECORDING_SPOOL_DIR: /var/spool/recordings
       RECORDING_INGEST_CONCURRENCY: '2'
-    volumes: [recording_spool:/var/spool/recordings]
+      JAVA_SERVICE_ROLE: recording
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8003'
+    volumes:
+    - recording_spool:/var/spool/recordings
     cpus: 0.5
     mem_limit: 1g
-    command: [uvicorn, 'app.main:app', --host, 127.0.0.1, --port, '8003']
-
-  # Optional SIP edge on node-1 and node-2; never run an unconfigured router.
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   sip-edge:
-    profiles: [sip-edge]
-    <<: *app
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 1024
+    tmpfs:
+    - /tmp:rw
+    - nosuid
+    - size=256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    profiles:
+    - sip-edge
     image: ${OPENSIPS_IMAGE:-registry.example.invalid/outbound/sip-edge:configure-before-use}
     volumes:
-      - ${OPENSIPS_CONFIG_FILE:-./deploy/compact/opensips.cfg}:/etc/opensips/opensips.cfg:ro
+    - ${OPENSIPS_CONFIG_FILE:-./deploy/compact/opensips.cfg}:/etc/opensips/opensips.cfg:ro
     cpus: 0.5
     mem_limit: 512m
-
 volumes:
-  voice_security:
-  recording_spool:
+  voice_security: null
+  recording_spool: null
+  model_quota: null

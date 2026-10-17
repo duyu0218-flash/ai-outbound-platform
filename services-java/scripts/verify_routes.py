@@ -1,0 +1,51 @@
+"""Account for retained Python HTTP/WS routes in Java role controllers.
+
+This is a static contract inventory, not a claim that each route/state was exercised.
+"""
+import ast
+import json
+from pathlib import Path
+import re
+
+root = Path(__file__).resolve().parents[2]
+roles = {
+    'agent': ('agent/app/main.py', 'AgentController'),
+    'recording': ('recording_adapter/app/main.py', 'RecordingController'),
+    'voice': ('voice_gateway/app/main.py', 'VoiceController'),
+    'media': ('voice_gateway/app/media_worker.py', 'MediaWorkerController'),
+}
+
+
+def normalized(path):
+    return re.sub(r'\{[^}]+\}', '{}', path)
+
+
+rows = []
+for role, (python_file, controller) in roles.items():
+    old = set()
+    for node in ast.walk(ast.parse((root/python_file).read_text())):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            if (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)
+                    and decorator.func.attr in {'get','post','put','delete','patch','websocket'} and decorator.args
+                    and isinstance(decorator.args[0], ast.Constant)):
+                old.add((decorator.func.attr.upper().replace('WEBSOCKET', 'WS'), normalized(decorator.args[0].value)))
+    source = root/'services-java/src/main/java/com/duozhi/services'/f'{controller}.java'
+    java = {(method.upper(), normalized(path)) for method, path in re.findall(r'@(Get|Post|Put|Delete|Patch)Mapping\((?:value=)?"([^"]+)"', source.read_text())}
+    java.update({('GET','/docs'),('GET','/openapi.json')})
+    if role == 'voice':
+        java.remove(('POST', '/v1/call/{}'))
+        java.update(('POST', '/v1/call/'+action) for action in ['dial','speak','stop-speaking','transfer','hangup','status'])
+    if role in {'voice','media'}:
+        java.add(('WS', '/v1/pipecat/media/{}'))
+    assert old <= java, (role, 'unmapped source routes', sorted(old-java))
+    for method, path in sorted(java):
+        rows.append(dict(role=role, method=method, path=path, retained_python_contract=(method,path) in old,
+                         verification='Source route/accounting only; see acceptance matrix for actual runtime tests.'))
+report = dict(passed=True, routes=rows, retained_contract_count=sum(r['retained_python_contract'] for r in rows),
+              boundary='Source HTTP/WS accounting including Java documentation endpoints; actual runtime evidence is recorded separately.')
+out = root/'services-java/validation/routes.json'
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(report, indent=2)+'\n')
+print('Accounted for', report['retained_contract_count'], 'retained Python routes across all four Java roles.')
