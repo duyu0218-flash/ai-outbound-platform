@@ -1,66 +1,10 @@
-# Isolated synthetic load only. No published ports, carrier or cloud model.
-# All processes share a Linux loopback namespace; no Docker -> macOS -> Docker hop.
-# Use a unique Compose project and fresh output label on each run. Remove only
-# that test project's containers/volumes after preserving the resulting report.
+# Disposable Java/Node synthetic smoke harness; never targets business services.
+# Each invocation needs its own Compose project and output directory.
 services:
-  proxy:
-    image: nginx:stable-alpine
-    volumes:
-      - ./scripts/fixtures/single500_linux_nginx.conf:/etc/nginx/nginx.conf:ro
-  postgres:
-    image: postgres:16-alpine
-    network_mode: service:proxy
-    command: [postgres, -p, '15443']
-    environment:
-      POSTGRES_USER: node200
-      POSTGRES_PASSWORD: synthetic-node200-local
-      POSTGRES_DB: node200single500linux
-    healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U node200 -d node200single500linux -p 15443']
-      interval: 1s
-      timeout: 2s
-      retries: 30
-  redis:
-    image: redis:7-alpine
-    network_mode: service:proxy
-    command: [redis-server, --port, '16443', --save, '', --appendonly, 'no']
-    healthcheck:
-      test: [CMD, redis-cli, -p, '16443', ping]
-      interval: 1s
-      timeout: 2s
-      retries: 30
   load:
-    image: ${SINGLE500_TEST_IMAGE:?Set a locally built backend runtime image for this source revision}
-    network_mode: service:proxy
-    user: '0:0'
-    working_dir: /workspace
-    entrypoint: [python, scripts/load-single-host-dialogue.py]
+    image: ${JAVA_LOAD_IMAGE:-outbound-no-python:validation}
+    command: ["node", "tools/stack-smoke.mjs"]
     environment:
-      SINGLE500_ISOLATED_MOCK: ${SINGLE500_ISOLATED_MOCK:?Explicit synthetic test acknowledgement required}
-      SINGLE500_TEST_DB: node200single500linux
-      SINGLE500_LOAD_LABEL: ${SINGLE500_LOAD_LABEL:?Fresh synthetic artifact label required}
-      SINGLE500_NETWORK_LABEL: linux-loopback-nginx
-      SINGLE500_EVENT_LOOP: ${SINGLE500_EVENT_LOOP:-asyncio}
-      SINGLE500_BATCH_CALLBACKS: ${SINGLE500_BATCH_CALLBACKS:-false}
-      SINGLE500_TURN_RATE: ${SINGLE500_TURN_RATE:-200}
-      SINGLE500_LOAD_SECONDS: ${SINGLE500_LOAD_SECONDS:-30}
-      SINGLE500_REPORT_DIR: ${SINGLE500_REPORT_DIR:-docs/reviews/evidence/20260908-single-host-500}
-      SINGLE500_SCENARIO: ${SINGLE500_SCENARIO:-mixed}
-      SINGLE500_AI_DB_THREADS: ${SINGLE500_AI_DB_THREADS:-2}
-      SINGLE500_CONVERSATION_DURATION: ${SINGLE500_CONVERSATION_DURATION:-0}
-      SINGLE500_CONVERSATION_ROUNDS: ${SINGLE500_CONVERSATION_ROUNDS:-5}
-      SINGLE500_TURN_GAP_SEC: ${SINGLE500_TURN_GAP_SEC:-6.25}
-      SINGLE500_LEDGER_DIR: /var/lib/callback-ledger
-      PYTHONDONTWRITEBYTECODE: '1'
-      PYTHONUNBUFFERED: '1'
+      JAVA_SERVICES_LOAD: "1"
     volumes:
-      - .:/workspace:ro
-      - ./artifacts/single-host-500:/workspace/artifacts/single-host-500
-      - ./docs/reviews/evidence/20260908-single-host-500:/workspace/docs/reviews/evidence/20260908-single-host-500
-      - ./docs/reviews/evidence/20260913-single-host-500-fixes:/workspace/docs/reviews/evidence/20260913-single-host-500-fixes
-      - callback_ledger:/var/lib/callback-ledger
-    depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-volumes:
-  callback_ledger:
+      - ${JAVA_LOAD_OUTPUT_DIR:?Set a fresh synthetic artifact directory}:/workspace/artifacts/no-python

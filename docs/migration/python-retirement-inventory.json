@@ -1,0 +1,1420 @@
+{
+  "baseline": "8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+  "meaning": "delete = retire; reuse = retire duplicate source and preserve existing Java/TS implementation; rewrite = active capability must have replacement and verification. Not an acceptance report.",
+  "files": [
+    {
+      "path": "agent/app/__init__.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "agent/app/config.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a09c75d86bfa7aa4316a32e679b5d2cd68f915188ebdb5c06d0183c988df2ef1"
+    },
+    {
+      "path": "agent/app/llm.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "cfb40ace1c7a7be703d616846fbb144569ee2a0703cb1a2d05c473b64ac8d563"
+    },
+    {
+      "path": "agent/app/main.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "acb7ff7359ad4bf80b1c2a2443310d61af5d31e1ba483aaa747fd71fced69aa1"
+    },
+    {
+      "path": "agent/app/observability.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8dc946a4563ebb05546274336cb42ff15bd19062eadf4df4487bff3cf11a5f3f"
+    },
+    {
+      "path": "agent/app/policy.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1d1162ad799d0fa4a494abacb55f721db74bb54e63d5ed97e9debf3d47787aa4"
+    },
+    {
+      "path": "agent/app/quota.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a39100d77bb040393483d582d25c2220d4de076b2c9458053ed7c0a0e2287155"
+    },
+    {
+      "path": "agent/tests/test_langfuse_http.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2e3406df79b2147386681afe5d9448a42bdfe05dae5c8d7edf00b28eeacfdbb7"
+    },
+    {
+      "path": "agent/tests/test_observability.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "495bda24e2a2a824c9d80e52ff924d34c9111ecf5c6801dd1d6218da81bc2e40"
+    },
+    {
+      "path": "agent/tests/test_policy.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1a9abd89b221440930f1ef3e5d030254ea336c3eadaac9648140168188263969"
+    },
+    {
+      "path": "agent/tests/test_quota.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "d8d7d09cc83eed956b9463c4c3ccee20ef454230d7cca0fd2391834d44d440fd"
+    },
+    {
+      "path": "backend-java/scripts/compare_behavior.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "68548a61421bd5ff33b90d0b0230ba23a3063f9180e29d354b6648c1abbdcd76"
+    },
+    {
+      "path": "backend-java/scripts/container_smoke.py",
+      "action": "rewrite",
+      "replacement": "tools/container-smoke.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "737bb56f420f2735c2eb76c986ed9e19103ad01f0a5e8f14bf05719e21aec4d4"
+    },
+    {
+      "path": "backend-java/scripts/export_contract.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "1a4792b644702a0831be54dfc138830dd9c513683fc5cfd56030c8a9f94b5ecf"
+    },
+    {
+      "path": "backend-java/scripts/export_migrations.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "2be9e7a0541998e43b13234627ccba035f902cdb12d6a7a08b552de4041386d2"
+    },
+    {
+      "path": "backend-java/scripts/postgres_migration_rehearsal.py",
+      "action": "rewrite",
+      "replacement": "tools/migration-rehearsal.mjs",
+      "reason": "Disposable native PostgreSQL plan/apply/verify/pg_dump/restore without an interpreter.",
+      "sha256": "a35761e08bc78fd37d8a28a9e36f5ef8ae9dbe75efb6e5eef2d282c6a8a6c382"
+    },
+    {
+      "path": "backend-java/scripts/retained_services_smoke.py",
+      "action": "delete",
+      "replacement": "tools/stack-smoke.mjs",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "ea0cf38c8215ca181f887ffc590f32f29c452cb154c24e71c491f5a7c5aacb80"
+    },
+    {
+      "path": "backend-java/scripts/security_check.py",
+      "action": "rewrite",
+      "replacement": "tools/security-check.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "6383cd351b135b85b3bf05e485454b82cd2f292def603d9f021bf9b974d4eb9e"
+    },
+    {
+      "path": "backend-java/scripts/sync_inventory.py",
+      "action": "delete",
+      "replacement": "tools/verify-contracts.mjs",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "7753761d6a310fac1c1d41dc7b811d6cfb09372a5c37ebf5c7799bb671c33301"
+    },
+    {
+      "path": "backend-java/scripts/test_security_check.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/security-check.test.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "7ad98f87c5cbd9e97b1e660b3db45314d5c54bd5ac1cf1d0fbdb9b36519ce033"
+    },
+    {
+      "path": "backend/app/__init__.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "backend/app/ai_worker.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "df8e47758685702b5573e95d8f9238207ecc8a0b0760a6282958a0c9824dcfa0"
+    },
+    {
+      "path": "backend/app/ai_worker_health.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "0357f1192eae1937ae1f7f2fc225987a51c91c7241e7ecd50324680b3e104800"
+    },
+    {
+      "path": "backend/app/api/deps.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f7b2944918f2c71dfa077134c33fed3ed50cc29ce56b894c0f6d41da728feab5"
+    },
+    {
+      "path": "backend/app/api/routers/__init__.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "411705519a6361a87f0e07729202966a482931e946bc3d239c8b7728b36b189d"
+    },
+    {
+      "path": "backend/app/api/routers/admin_management.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8888be63a5c1b58b50f487dd582d0180feca3ff949a58ff8cf144e8c2c7fa7c1"
+    },
+    {
+      "path": "backend/app/api/routers/auth.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "46b38b3011ce68695e5ed43bb30bfddabb2f19da717f90a9c5f9283329a90245"
+    },
+    {
+      "path": "backend/app/api/routers/calls.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "0f77da77af8bd82c306d5dedc949d4eb41866dfd0f0dd42de44e298766729ee5"
+    },
+    {
+      "path": "backend/app/api/routers/campaigns.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8c13d96cc9ef4d12831946f425d1d666a4380ac8f8ecb02de18cee1d979a3c13"
+    },
+    {
+      "path": "backend/app/api/routers/contacts.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6765d4e23f7be62e4ac0e6141fef086c3857c05eefdcc5d748a5af5983fff01d"
+    },
+    {
+      "path": "backend/app/api/routers/pages.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "cdddb309ce1b04155f5b61cab3fd97d2c6bb62474548190b78efff5e2766b494"
+    },
+    {
+      "path": "backend/app/api/routers/portal.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "fd56f1bfe26b62f695ce5d10d234560c9f276a7c63f752cd82084baa29fcb402"
+    },
+    {
+      "path": "backend/app/api/routers/product.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "57e131a801868fa43fb6f46f7248ac75d05797fc4495b032e5062af28044d18e"
+    },
+    {
+      "path": "backend/app/api/routers/script_flows.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "968461f2a0bf170428d747221d989e7193c28bdfeb1762043eddd44d6242d4f5"
+    },
+    {
+      "path": "backend/app/api/routers/script_templates.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "5481a3a9d099ff459f583f222dd7802fd3b3e5592531df9a682318895192637c"
+    },
+    {
+      "path": "backend/app/api/routers/voice_operations.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a87f51c3786073a2ec030dae2e2669cea02882b12f9e5915085e98fa3e03c43a"
+    },
+    {
+      "path": "backend/app/api/routers/webhooks.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "70e61bf0fc5034e883f11463abf8bdd75ef3272bc022138d68d8f9848e837b9a"
+    },
+    {
+      "path": "backend/app/api/routers/webrtc.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2c80fb9035cebec2f2a023a5408fd61a7f57a7c87cd131e42d37025d5b8049d6"
+    },
+    {
+      "path": "backend/app/callback_inbox_worker.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "b4777326f99e26fe69af7703222395643390a7d9cd76508f73889187fa5f7e38"
+    },
+    {
+      "path": "backend/app/clock.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f16a2c13ce13fbb1d84991bab350df11b5ce977393fd20ea9ebfe62fc88b6ed5"
+    },
+    {
+      "path": "backend/app/config.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "ea62c335958fa645d3f5346a96bacd5172abb86d8f7d7cf412094237d0460892"
+    },
+    {
+      "path": "backend/app/db.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "e801e572f50d57deb2c044215c11a558ed45b52843e514e49be5cd6ff42896f0"
+    },
+    {
+      "path": "backend/app/main.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "0b26e15e3f2af2fff9ee93f4861cbbc6bacb9957d15c32f6f8d03800fa62d2a0"
+    },
+    {
+      "path": "backend/app/middleware.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6ad42803939d3a15826975ebe567ca07fe747f444a47451ebc0f89529ab6e51c"
+    },
+    {
+      "path": "backend/app/migration_runner.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "d546362f4e60e60433e0da0009ed158db74f43acf4c80323cb808b64c52334f9"
+    },
+    {
+      "path": "backend/app/models.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c33fd74daeb7982475b7d360875776a0bfb54a37e1776baf6ffa44f945fd93f6"
+    },
+    {
+      "path": "backend/app/product_schemas.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "63a4c1641937208fc3904cf36405a0d273f6a6c463f69d0b3f68dd476c355452"
+    },
+    {
+      "path": "backend/app/schema_bootstrap.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "abdcbc9f98e731f4e0bf52893b08ba2462ffbba70ee73540e404f6efcebd9574"
+    },
+    {
+      "path": "backend/app/schema_migrations.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "af9083c998337de84f3459b66fa53ea2d966ffa48d36fd9c30760bc25e38c4fb"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2137fa1b851ac3477ee767a938b29a238f5998598712d9c27a29b1290cafb884"
+    },
+    {
+      "path": "backend/app/services/__init__.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "12d04a636179220b49034c1454d2eacb3f02d8ae333ec594016f31ae6c8a5bc2"
+    },
+    {
+      "path": "backend/app/services/admin_settings.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2c1d6897baa681a1c4f3aa3c6155e6589a045d1f8528b858c9ff4d0b7d92e053"
+    },
+    {
+      "path": "backend/app/services/ai_actions.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a820f52c63976a2583f159c97f99daaa6e46e9710240b7cefdcff5b8f0c12e46"
+    },
+    {
+      "path": "backend/app/services/ai_claim_state.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "5242bc8c609f203f1e328e160a69d053e93f95c2ee7321ddc55157e09d54f81b"
+    },
+    {
+      "path": "backend/app/services/ai_liveness.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "3cf839b20eb5d354c2f71fd0b0b965e4a21b749f8bbf1e92703a2f93bf581eb6"
+    },
+    {
+      "path": "backend/app/services/async_ai.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "b0bafc7053394bc89369ff2c02c06682609f934404f60b5357a0fbc14192121e"
+    },
+    {
+      "path": "backend/app/services/auth.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f0464db0f91d618e35b75d078d8d115e6ed77428466509020c3143ab4e53c444"
+    },
+    {
+      "path": "backend/app/services/billing_usage.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1f8d5fc27544a547c3a86c73273913b193b3bff308d0da70909cf5dbfdd7b468"
+    },
+    {
+      "path": "backend/app/services/business_callbacks.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f26a58219f8eb51b3316f1e51d022d0a5555a5f9f4bee24baa937d66af5cc2c0"
+    },
+    {
+      "path": "backend/app/services/call_analysis.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "325a1768bd3f1285aca9c5815fa087f5e98f7314678636d2f410a567fd63894a"
+    },
+    {
+      "path": "backend/app/services/call_service.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "b7109d5a10b4679bf81628de27b5714a35a94d044cfab31883cc3a057a8b59fc"
+    },
+    {
+      "path": "backend/app/services/callback_inbox.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6ee0a92a3da3b7e73d6dbdffcd95cf7047a8d0fc0cd26324d28db008f1878c3b"
+    },
+    {
+      "path": "backend/app/services/conversation_policy.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "50485b7b2ab0a9e35d01dd750a053f3892c5de3e07d8edeba3bc54acedb8a72d"
+    },
+    {
+      "path": "backend/app/services/db_work_observation.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "5739ea4c0cdd12403cfe1760495f772cb185e504f111fe00185319a05b4bca3b"
+    },
+    {
+      "path": "backend/app/services/dialogue_rules.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a48f17d932b3bf7539a0e90034168916691aab16de0fc437fd146bd031aff7fd"
+    },
+    {
+      "path": "backend/app/services/dispatcher.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8924e4b542991d8714a672b56d2ed7d5db209cc667c0492cda5ad4bb803b6647"
+    },
+    {
+      "path": "backend/app/services/gateway_cluster.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "d3c8d0047ccfde498b0ddf6790f532faea71ec8bbb5102ce92cc8521c3214510"
+    },
+    {
+      "path": "backend/app/services/health.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "94d829fa94892427e5da23e67cc8da1987f27a18797ca360f9c0668ae8c9045d"
+    },
+    {
+      "path": "backend/app/services/knowledge.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "000179e954a61451b57c9e3b37638f260a2b63017bf6b37ed4da72cc9e5cec05"
+    },
+    {
+      "path": "backend/app/services/leases.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a9730ab8393dc4f5f19c44d99d9563fe3002d845dc94f5c2588a748a66a884c0"
+    },
+    {
+      "path": "backend/app/services/metrics.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2a18fdeccca5fe7f3ed5fd64a58a21b2d336dd92ec1a00459beae9c0adf33f52"
+    },
+    {
+      "path": "backend/app/services/outbound_policy.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "9b68312fdff5d2aca9bbf8fc50d4cc398f33a54a432708a86b7745d6d542c2b3"
+    },
+    {
+      "path": "backend/app/services/realtime_voice.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "cf09013c9a1808d9c8240c08b6b20f56b81636a10e281b60cf42847599f51d1a"
+    },
+    {
+      "path": "backend/app/services/recording_storage.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6cabe16abd4c47a0b162e70036b0ad36482137e02d2f80da5c693e7d800816a7"
+    },
+    {
+      "path": "backend/app/services/retention.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "7b5a89b62b77012e6ade96b2323c7497c28f859778abfc7b3b3c90e320095909"
+    },
+    {
+      "path": "backend/app/services/runtime_metrics.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "109da24419d4246aaab736f807876188709e52b64e8e5ed80c474f067b3de84f"
+    },
+    {
+      "path": "backend/app/services/script_flow.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "787beafce160bc60f074d4416b8ca4fa17c9741edae3fedebff41f11d2019c26"
+    },
+    {
+      "path": "backend/app/services/stability.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a1cd55d5d2bf901f8f95b8ee9f494c9c501e5aa51433ee88d4e968b3fd98f573"
+    },
+    {
+      "path": "backend/app/services/task_queue.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1d055c3ddc400a0fb8c1d4b44b626f8fee0fb53841380ded86288f9fa36585a2"
+    },
+    {
+      "path": "backend/app/services/telephony.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "5997a5ca699556444c61113a73e847ce709e75d44a8d80960edaebd6dcc42701"
+    },
+    {
+      "path": "backend/app/services/webrtc.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c867ff654fb01b9f1540ae1f01b8532c8364f877da799ef7235211ab98e540ca"
+    },
+    {
+      "path": "backend/app/services/work_scheduling.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "0be964f2c67b65f5ba2d271ae1276cd4438f7fc0eae493805535e3ccd864fde5"
+    },
+    {
+      "path": "backend/app/services/worker_runtime.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "48d62b7dd9d2c79abb06aba2fdbab838f8822c2dd1959acc47f48673ea12b9ba"
+    },
+    {
+      "path": "backend/app/worker.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "9bf9c6feccd9dc6734998ac29a0d01e5478ba087e29db31bab15417d8c87d783"
+    },
+    {
+      "path": "backend/app/worker_health.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "10db4b70a53f1303367f238cae92770f0e1fd5ccf7ff56e9e76da68dab19a844"
+    },
+    {
+      "path": "backend/tests/test_ai_db_efficiency.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "ff922a0c1461576c727dd762dfd275c59cebce4a47ed5e5b5281ccc9429f5d7b"
+    },
+    {
+      "path": "backend/tests/test_ai_transport_retry.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "ca157ba061778b7e672a9a0e3a2668e06d2f226b1bba16bb9dee9e2452ec58c2"
+    },
+    {
+      "path": "backend/tests/test_architecture_hardening.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f3a078a7995ad1ef68219d47dcd0caa263b07775dbbcd6e4dc6a3b5b72bb4582"
+    },
+    {
+      "path": "backend/tests/test_async_ai.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6605eb4e1a642bfa3b95e83d63cccded1201158279acea8b57c8dba2094342fa"
+    },
+    {
+      "path": "backend/tests/test_callback_batch.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "992fd49897ec15690ae443571d1fc6aac3c38c63744ccf34b3460239f8b0d235"
+    },
+    {
+      "path": "backend/tests/test_callback_inbox.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c6524cffc54ea7555099e4ba24047d1c5035c84a3c70c56949a067d84d70993f"
+    },
+    {
+      "path": "backend/tests/test_callback_throughput.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "e2151e24404aa32ff1993b4f3169758921b9c337393bf7261ee5b8c72e555fcb"
+    },
+    {
+      "path": "backend/tests/test_capacity_bottlenecks.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "ff7473ccf8f7677bc1f362ce64a5c6bb953c881de88a0d6a0b57a0b74c103479"
+    },
+    {
+      "path": "backend/tests/test_compact_cluster.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2326d58a0aeeb577ee98eaacf090709794c716208859840c681cb433f2026719"
+    },
+    {
+      "path": "backend/tests/test_product_capabilities.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8225bbda99f5d331bf3b73b657c9532618e8a21ccdbeb336bc5574762b1d06b0"
+    },
+    {
+      "path": "backend/tests/test_product_postgres.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "8e025d58589cf5c61af1fc083d60ca4d9e411ebdc257b639184211811b12c356"
+    },
+    {
+      "path": "backend/tests/test_production_hardening.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c36a639707bfcbe0645b18686d6c31108ac19e15e4f1cd73a6e49b13aceef769"
+    },
+    {
+      "path": "backend/tests/test_queue_pressure.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c3911328a6acb23daeb94b9fb206a7b6f340d9c0658b7dc6cf52f9a8a65934b1"
+    },
+    {
+      "path": "backend/tests/test_request_execution.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "6c29f69717dc92bf6b1c87021c538b9963fbe373fa4026332641f2d0f2e3a1d5"
+    },
+    {
+      "path": "backend/tests/test_review_fixes.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "b6792d800eb1b3539d171ccc6c6a1ca791a191426e22857ac7e2145b3c754b27"
+    },
+    {
+      "path": "backend/tests/test_stability.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "950a789237a9d6a886fbc0f8fe8013024a744af75c12c3ff1fd3cd9238e9bb3c"
+    },
+    {
+      "path": "backend/tests/test_telephony_pool.py",
+      "action": "reuse",
+      "replacement": "backend-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "9d90a69ec7e57e74bf32dbe5024e3d77dafe6fb4b9179b07e799e8498cdb2da2"
+    },
+    {
+      "path": "deploy/freeswitch-voismart/entrypoint.py",
+      "action": "rewrite",
+      "replacement": "tools/java/Pbx.java",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "327bc06321344884d0ec8a41c49cc1be36ae9de3ccc1454fc4e180c62bf1138e"
+    },
+    {
+      "path": "deploy/freeswitch-voismart/healthcheck.py",
+      "action": "rewrite",
+      "replacement": "tools/java/Pbx.java",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "e79fbea0c496529dd282f596c0f4a13505c50173ec3a6455b3c0ae9377888b37"
+    },
+    {
+      "path": "recording_adapter/app/__init__.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "4d19864a5494e8307723e34da0a3bf85a3702b1fe3f2bd46e427abebe945eebf"
+    },
+    {
+      "path": "recording_adapter/app/config.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "13f964109ff0729d94da4309c0de5a9d9dfa8580ef9b5598d8f99a6534f3b947"
+    },
+    {
+      "path": "recording_adapter/app/main.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "829a0f135b153224a29a66ee9b7eca4ecf9d7226151170727e60fe0ad000fc11"
+    },
+    {
+      "path": "recording_adapter/app/models.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "017727054fdf38bf0c8e1d8abb3adcf05dac6705e47c43231a9b88c7d79182f0"
+    },
+    {
+      "path": "recording_adapter/app/storage.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "3d5f67868ea86e888cc974a59122ff5199b4deedd544f85373b8c11f36c9d67d"
+    },
+    {
+      "path": "recording_adapter/tests/test_main.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "d044986cdb76fe4bbf1f2508700ced93f2f7bed8f67113a5b8456af2308d3ce1"
+    },
+    {
+      "path": "recording_adapter/tests/test_storage.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "71e3019aa77693de7b7dc7db2e23ee8c696587134f2928bfe7b92cf29cf4c2b8"
+    },
+    {
+      "path": "scripts/audit-python-environment.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "d05d421b29d072e509bc0d977b06cdfbe6fcfe77708ae5f4f041fe35f034bcb5"
+    },
+    {
+      "path": "scripts/build-pipecat-wheel.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "1d5afe8861f61930baf3ed20b7402b9e6e61966a28c82994d13b1e23772a481f"
+    },
+    {
+      "path": "scripts/capacity-preflight.py",
+      "action": "rewrite",
+      "replacement": "tools/capacity-preflight.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "fc2a486d925380c4dd2d8ddd1e242bd6dfcd227b1b742c70c0615a1a35c688db"
+    },
+    {
+      "path": "scripts/check-node200-pbx.py",
+      "action": "rewrite",
+      "replacement": "tools/pbx.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "bc647247478d9ce70ef30e1dcc282f7b086dea8ffe1cf32c11e858734e9801ab"
+    },
+    {
+      "path": "scripts/check-pipecat-distribution.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "cb1ca38290f6d0b08f375f3d07c489cec6fda05bb9accf853f6c91f4072673d8"
+    },
+    {
+      "path": "scripts/check-single-host-500.py",
+      "action": "rewrite",
+      "replacement": "tools/verify-compose.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "4441378d1e68c7dbd8277eb7279116fe5af9b2da868fd4b984c28e6bc023e38f"
+    },
+    {
+      "path": "scripts/check-version-constraints.py",
+      "action": "rewrite",
+      "replacement": "tools/check-toolchain.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "e04afacbb28240c8f65c33c05c3261961f7235065646619e348d6e562c73a49a"
+    },
+    {
+      "path": "scripts/compact-fleet.py",
+      "action": "rewrite",
+      "replacement": "tools/fleet.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "d5fa431cf33a9337b88e338e4a423452f14e197e44c3559514a2852d7949ac3d"
+    },
+    {
+      "path": "scripts/evaluate_asr.py",
+      "action": "rewrite",
+      "replacement": "tools/evaluate-asr.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "0bab35cacfa84cf6d1372f22f29e6d58bf53d0411771a22a6219cb88f82d840a"
+    },
+    {
+      "path": "scripts/fixtures/node200_agent_fixture.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "be9c3b9f98d1b58c95d90c3b84a366a3b15591ef5b4bb2c44c407ee9fa445422"
+    },
+    {
+      "path": "scripts/fixtures/single500_cloud_and_playback.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "7270bd86a85d4d6dadcb16c13a7b84df7d3fc2aa71f6b8a55f86b0751d6396b2"
+    },
+    {
+      "path": "scripts/fixtures/single500_inbox_ui.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "4620d1ac76a9b5a8a12864cc3b5cbecd159b860fcc6c2280b0fb9d4dc9c5e78b"
+    },
+    {
+      "path": "scripts/fixtures/single500_instrumented_ai.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "6b1964a0333702bc41ca979bf818e20924d53f734f7d88ea60847eefa748d7d2"
+    },
+    {
+      "path": "scripts/fixtures/single500_instrumented_api.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "4fae4f34a8a5235a68d2fe13fadc72cc326b83db4d7b0408922199b089294c6f"
+    },
+    {
+      "path": "scripts/fixtures/single500_model_fixture.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "d23f64727d662269d6eb94145adb0aa2d2df6dcb29d2e9e5aa246436b1203488"
+    },
+    {
+      "path": "scripts/fixtures/single500_real_agent.py",
+      "action": "reuse",
+      "replacement": "tools/load.mjs",
+      "reason": "Use native Java business roles and Node synthetic model/callback fixtures rather than Python instrumented business modules.",
+      "sha256": "c791ff12863b266bdc3b6ae50e69efbe19bfa74d1b5483ef66cb3dddf29c87d5"
+    },
+    {
+      "path": "scripts/load-control-api.py",
+      "action": "rewrite",
+      "replacement": "tools/load.mjs",
+      "reason": "Replace Python-process-specific synthetic harness with Java HTTP load driver, source-bound bounded telemetry and explicit SLO result; old capacity results are not transferable.",
+      "sha256": "5f7ec31667d5486bec393e765fafaf426e6dd49f60d8add9c58b4e3c5792af7a"
+    },
+    {
+      "path": "scripts/load-node200-ai-processes.py",
+      "action": "rewrite",
+      "replacement": "tools/load.mjs",
+      "reason": "Replace Python-process-specific synthetic harness with Java HTTP load driver, source-bound bounded telemetry and explicit SLO result; old capacity results are not transferable.",
+      "sha256": "26cd07bfb7f745ef54b1a08a29e8fc2e34f9e69220c03a5ffaf1fabe797a85e6"
+    },
+    {
+      "path": "scripts/load-node200-media-processes.py",
+      "action": "rewrite",
+      "replacement": "tools/load.mjs",
+      "reason": "Replace Python-process-specific synthetic harness with Java HTTP load driver, source-bound bounded telemetry and explicit SLO result; old capacity results are not transferable.",
+      "sha256": "dee28e40a229b91ba90edf7aa0bc52f5bd0d5a7e548893012f6850a68e035e5c"
+    },
+    {
+      "path": "scripts/load-single-host-dialogue.py",
+      "action": "rewrite",
+      "replacement": "tools/load.mjs",
+      "reason": "Replace Python-process-specific synthetic harness with Java HTTP load driver, source-bound bounded telemetry and explicit SLO result; old capacity results are not transferable.",
+      "sha256": "9f388f961a4596ceba33ac00940bed4807b566dcfd9c71c71c2562bfdf7a2d12"
+    },
+    {
+      "path": "scripts/load_statistics.py",
+      "action": "rewrite",
+      "replacement": "tools/lib/statistics.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "95eb324646ecde2f26966f694dba4bfe7419a7ede3f43ea03abe62e7002fb0d5"
+    },
+    {
+      "path": "scripts/media_probe_app.py",
+      "action": "rewrite",
+      "replacement": "tools/media-probe.mjs",
+      "reason": "Native PCM probe plus existing Java media/gateway lifecycle regressions. The old Python driver-specific injection hooks are retired; full Java real-line acceptance remains separate.",
+      "sha256": "4f0a122246442e2b010618a3936758a79c89c7ea5d6d32618bdbb8f7a294d686"
+    },
+    {
+      "path": "scripts/real_voice_acceptance.py",
+      "action": "rewrite",
+      "replacement": "tools/real-voice-acceptance.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "f4fced2f54345e2a57ac13715b453aa5490df0adb0f396fff8eede4c203ebd5e"
+    },
+    {
+      "path": "scripts/run-single-host-load.py",
+      "action": "rewrite",
+      "replacement": "tools/load.mjs",
+      "reason": "Replace Python-process-specific synthetic harness with Java HTTP load driver, source-bound bounded telemetry and explicit SLO result; old capacity results are not transferable.",
+      "sha256": "a3f5c5f4f75988ac19e38201d2a2d1b277394433bfb6f99753776db3523303a7"
+    },
+    {
+      "path": "scripts/run-single-host-soak.py",
+      "action": "rewrite",
+      "replacement": "tools/soak.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "1bb4459eb56a9774bac9500d7b623690a2b29a6b29c099d66cf709c7ed14073f"
+    },
+    {
+      "path": "scripts/stability-db-snapshot.py",
+      "action": "rewrite",
+      "replacement": "tools/db-snapshot.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "ef5267ae5c3c45141f4d19fbb0f7b74bbbd18f096e808e595ff78154a97e0c62"
+    },
+    {
+      "path": "scripts/stability-evaluate.py",
+      "action": "rewrite",
+      "replacement": "tools/stability-evaluate.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "1a01bc9ecea51b50a2d95b68f5afdc53072bec754f2c39fd37a083e15640a5c6"
+    },
+    {
+      "path": "scripts/test_capacity_preflight.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "f0c244f1ecdd14196cb1cc104b3cd547aeb23b3f64548c9718eb8346b4294257"
+    },
+    {
+      "path": "scripts/test_evaluate_asr.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "ef30164b1128ea3c56378c5e1119847b29ef33ca2f43bf09bf0ea24e9528c8d8"
+    },
+    {
+      "path": "scripts/test_load_statistics.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "1abdd5bbe00374a373706554404c83f2eabf5cbc46723f939825f45b21f679be"
+    },
+    {
+      "path": "scripts/test_node200_pbx.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "015eee877c69ce776b8e540da943d327ef051159fe49ef7f894cabd90b052361"
+    },
+    {
+      "path": "scripts/test_real_voice_acceptance.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "d61bd820cd6f7d3fc217563ad2dd7d9e7321e2bddd8282228148a93cd579b810"
+    },
+    {
+      "path": "scripts/test_single_host_load_runner.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "3fa727d69fd08b1d77a2319876067d912a5daee1fb29d91e0e81f39866e634fa"
+    },
+    {
+      "path": "scripts/test_single_host_profile.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "33adb4aca3d0874916c86e7d5740d0e8e5fdb7a615e7587af46ef139b0cafe04"
+    },
+    {
+      "path": "scripts/test_single_host_soak.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "ecfe27f86a85322c8fef07f052cb65e6a49f9e507596dd8da25640818a362cdb"
+    },
+    {
+      "path": "scripts/test_stability_evaluate.py",
+      "action": "rewrite",
+      "replacement": "tools/tests/",
+      "reason": "Port meaningful tooling invariants and fail-closed cases to node:test.",
+      "sha256": "ee5436413958f392b0e1a9963748307125b910076713d407dcae67d97623ff4d"
+    },
+    {
+      "path": "scripts/verify_media_lifecycle.py",
+      "action": "rewrite",
+      "replacement": "tools/media-probe.mjs",
+      "reason": "Native PCM probe plus existing Java media/gateway lifecycle regressions. The old Python driver-specific injection hooks are retired; full Java real-line acceptance remains separate.",
+      "sha256": "818095675b73153169093b94f64372b9b93a920b9863e61f81549ae71903e1b9"
+    },
+    {
+      "path": "scripts/verify_toll_fraud_freeswitch.py",
+      "action": "rewrite",
+      "replacement": "tools/media-probe.mjs",
+      "reason": "Native PCM probe plus existing Java media/gateway lifecycle regressions. The old Python driver-specific injection hooks are retired; full Java real-line acceptance remains separate.",
+      "sha256": "8f86f79fa0feb1af47112d6dfe7e8d0a43f1d20202bd883d66201860a4c12677"
+    },
+    {
+      "path": "scripts/verify_voismart_media.py",
+      "action": "rewrite",
+      "replacement": "tools/media-probe.mjs",
+      "reason": "Native PCM probe plus existing Java media/gateway lifecycle regressions. The old Python driver-specific injection hooks are retired; full Java real-line acceptance remains separate.",
+      "sha256": "bae4997d48a0accba0e81ebd36c647eb3c2ef6095acea9f944553523fd98c4b2"
+    },
+    {
+      "path": "services-java/scripts/container_smoke.py",
+      "action": "rewrite",
+      "replacement": "tools/container-smoke.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "46756ab1362821abffde17fb858a1855150acd40e74ceab72934a7b412a7323b"
+    },
+    {
+      "path": "services-java/scripts/media_process_smoke.py",
+      "action": "rewrite",
+      "replacement": "tools/media-process-smoke.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "9579efe31e81f415400d7d4c88b1528d2144eb6a1079302541e78b9f6dac5bcf"
+    },
+    {
+      "path": "services-java/scripts/security_check.py",
+      "action": "rewrite",
+      "replacement": "tools/security-check.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "865298858d82b01bb3fa17742db50a0cf25ab7abbe115016e6caab232a6269da"
+    },
+    {
+      "path": "services-java/scripts/stack_smoke.py",
+      "action": "rewrite",
+      "replacement": "tools/stack-smoke.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "6ff21c647faa08575f3e531ece59322c9353b3c5ac72a5451950584f383bfb31"
+    },
+    {
+      "path": "services-java/scripts/verify_compose.py",
+      "action": "rewrite",
+      "replacement": "tools/verify-compose.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "5bb55ea4e17af8989623b1b7af826727e3c646859f941309bf712e4b780044ae"
+    },
+    {
+      "path": "services-java/scripts/verify_routes.py",
+      "action": "rewrite",
+      "replacement": "tools/verify-contracts.mjs",
+      "reason": "Retain operator/test capability without an interpreter dependency.",
+      "sha256": "97772ad9927f80fca198a04b45ac1fcac91d432a9e54086a83033ed2678a7428"
+    },
+    {
+      "path": "vendor/pipecat/prewarm.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "e7e378ca78917baf93822e4cc2c13af124f8a068787d1dea75836568873d4cd5"
+    },
+    {
+      "path": "vendor/pipecat/sentence.py",
+      "action": "delete",
+      "replacement": "Git history at 8cb4c30d4dfa195130bb13f66b14d97d550f3f94",
+      "reason": "One-time legacy export, superseded smoke, or retired Python packaging/SDK maintenance. Frozen SQL/contracts/vectors remain checked in; do not regenerate from deleted runtime.",
+      "sha256": "2d43a3782cbb099a09e3c6908a56b0cd0515fdc9548a1818147b2e615fa9edf8"
+    },
+    {
+      "path": "voice_gateway/app/__init__.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "376ccbb0735fecd092b0507516053f13a8e4fa5105292b91916363b516c80685"
+    },
+    {
+      "path": "voice_gateway/app/action_commands.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "3b525347a10a19151613637f12883daecb1dea65df97a4e80f19d01e394a478b"
+    },
+    {
+      "path": "voice_gateway/app/aliyun_nls_stt.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "24d7b09367555529d4c4d3c6266e5308f72f8f088689fdc3d09ae7b56d203127"
+    },
+    {
+      "path": "voice_gateway/app/config.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f56223fe5276399455ab1eb68a1368468f2ba537965802eb0c5f637731dec694"
+    },
+    {
+      "path": "voice_gateway/app/drivers.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "caead8ffe82bbbaa5ebf4e96577c3017a86305dbcf880f8884f588cb31bb2dfb"
+    },
+    {
+      "path": "voice_gateway/app/durable_batch.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "89d1b76eaeb370138bd0a76ba9723b5a5db9b6ef8207958094d7c16a4a3cb7f9"
+    },
+    {
+      "path": "voice_gateway/app/esl.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1de6b3a1cd7377cb8bb83c7efe4ba453cfe0bea242105fd025374e7abceec15c"
+    },
+    {
+      "path": "voice_gateway/app/freeswitch.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a564da1b9f003ec1cda492a622f90179ea333073c887ac772bcd7963d151946e"
+    },
+    {
+      "path": "voice_gateway/app/main.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "30b5a27b147209616c4903c6a943708d9b664c5d06629ddeaf0b8df48f6788ed"
+    },
+    {
+      "path": "voice_gateway/app/media_cluster.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "efa4a76e735252abcd744c5b79bed4bd89ccfd4aa9496c51a687bc5a0eca49f7"
+    },
+    {
+      "path": "voice_gateway/app/media_worker.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f24809b58a24f474606a04bb69536a6ff36669fb0d1b1f57a1d0e9973c61de99"
+    },
+    {
+      "path": "voice_gateway/app/models.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "5a264df07a1d4bca6d2cc1ca2ae0c01a1eedf52234d5d7fa3c841e2efb21afd5"
+    },
+    {
+      "path": "voice_gateway/app/pipecat_pipeline.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c196a73b81f6df565abf6531140147e655a194b4c6eef4d99304618aaa29e0c0"
+    },
+    {
+      "path": "voice_gateway/app/recording_source.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "0f2fa648a5b18eab172c81c7e0ebdd194238355f422fd69c6521a22d60034d78"
+    },
+    {
+      "path": "voice_gateway/app/rtp.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c81d2b88fbb637cfb97f345dcc39dc3349908af6d363335ff2f9043f09957959"
+    },
+    {
+      "path": "voice_gateway/app/security.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "556c3a06fb6a0aaae6c8379d037042d2811726a4a9a48077c0b012511a284006"
+    },
+    {
+      "path": "voice_gateway/app/voice_quota.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "2cbef4951a29dfb2cf22f6229802afec465f69052b4dccb79a257812db18fa16"
+    },
+    {
+      "path": "voice_gateway/app/voice_quota_client.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "166c7d0dce3d1bd3e9f55a6e1f26c3113c3f0b00eefde1c7f1f05d610d0868b7"
+    },
+    {
+      "path": "voice_gateway/tests/security_fixtures.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "052a00d8df27a682c69e01b5648a9dd183b38ce2db57d2a763e112e211eba093"
+    },
+    {
+      "path": "voice_gateway/tests/test_aliyun_nls_stt.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a768d5f0e224d57ae2611cefd10d133e5288019a1943eb6f67004d46b9a0d1a0"
+    },
+    {
+      "path": "voice_gateway/tests/test_callback_batch.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f9e2420677ff938cc2b12e50db78d728454e8ee922ebf92a3383b2f102ee607d"
+    },
+    {
+      "path": "voice_gateway/tests/test_callback_wal.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "680be1f11d91801fc90f6d640873a662795cfd4c6825dbfd5b061ca1892ac8e5"
+    },
+    {
+      "path": "voice_gateway/tests/test_capacity_bottlenecks.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "18310321b02223b58a0efc93a0c5c0ab8fab58b6aa37c9a01e9c14928314efcb"
+    },
+    {
+      "path": "voice_gateway/tests/test_compact_callbacks.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "a89eb3d27861b9c55868ec45c4b7f49b0e5bcb90f8ba574d747e51216bd37385"
+    },
+    {
+      "path": "voice_gateway/tests/test_freeswitch.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "d3bbf96669207f1fdb4740776ded629123481d4c133d44ec2d9e5e03bcf9ccc9"
+    },
+    {
+      "path": "voice_gateway/tests/test_gateway.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "f5eedfa2a21e8fba82dcf08dd3d53d54da6f28e63218371ee449db3e25fb2e0b"
+    },
+    {
+      "path": "voice_gateway/tests/test_media_cluster.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "cd14456a32139cabdfbe6cae776496d6a7845efb9933d8bbad72ceddb5189000"
+    },
+    {
+      "path": "voice_gateway/tests/test_media_lifecycle.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "e68f1ca61d23d2bd70d5822f131f0d06411bbc5c61a88d0c76e0abbe31dfef90"
+    },
+    {
+      "path": "voice_gateway/tests/test_pipecat_pipeline.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "51e3ebf1d3b7477fef3777a1fe200c962b28bf3215ec9a2da60a89eb8ea16822"
+    },
+    {
+      "path": "voice_gateway/tests/test_pipecat_wheel.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "48ddc5b6d5b59c2d358867a4527affe7b2bdce1f3087d624cd5d99745ed91590"
+    },
+    {
+      "path": "voice_gateway/tests/test_security.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1d0a0f7a1cc66df4b869f45d226b837812f6d57a03e89b7eab5ea94d737336c4"
+    },
+    {
+      "path": "voice_gateway/tests/test_sentence_boundaries.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "79fd2c33fcb03d0b38ea29f5974b21f6c940c23d3ad5d0e504ea97774cb7dfea"
+    },
+    {
+      "path": "voice_gateway/tests/test_single_host_500.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1e6f1505c4bf36087dd62bb2dc34c8673dd7c9ca0a264af267585bb1fac3d4d4"
+    },
+    {
+      "path": "voice_gateway/tests/test_source_reclamation.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "997beb968440c49eb2360d9bb6edb0906a2306d6d40f2c9242061fc0e8fd3c4a"
+    },
+    {
+      "path": "voice_gateway/tests/test_upstream_pipecat_aggregator.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "1a42d6547de2223c511b47ee4481d4d88167fa9a71837d92a9d9a9618794ac7a"
+    },
+    {
+      "path": "voice_gateway/tests/test_upstream_pipecat_string.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "52547c0df169d9dff0b602ca6b7ff08bc7b5d279e582adf71570fc80fc1db47a"
+    },
+    {
+      "path": "voice_gateway/tests/test_voice_quota.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "b45cbad9d66f498bae6c4bf39f52de70eca8c44902c458f1db585859e1b934a1"
+    },
+    {
+      "path": "voice_gateway/tests/test_voismart.py",
+      "action": "reuse",
+      "replacement": "services-java/",
+      "reason": "Retire legacy runtime/test source; reuse Java implementation, JUnit regressions and frozen compatibility fixtures. Historical tests are not claimed to have been ported one-for-one.",
+      "sha256": "c17c1cb0e8f4d893370833875c406af355b4a1036668f590ae3f8ba0eedeea11"
+    }
+  ],
+  "retired_non_python_artifacts": [
+    "agent/Dockerfile",
+    "agent/pyproject.toml",
+    "backend/Dockerfile",
+    "backend/migrations/postgresql/20260828_admin_management.sql",
+    "backend/migrations/postgresql/20260828_call_retry_schedule.sql",
+    "backend/migrations/postgresql/20260828_contact_integrity.sql",
+    "backend/migrations/postgresql/20260828_event_audit_indexes.sql",
+    "backend/migrations/postgresql/20260829_agent_presence_sms_receipts.sql",
+    "backend/migrations/postgresql/20260829_durable_tasks.sql",
+    "backend/migrations/postgresql/20260829_realtime_voice_p0_p1.sql",
+    "backend/migrations/postgresql/20260829_runtime_configuration_linkage.sql",
+    "backend/migrations/postgresql/20260829_script_flow.sql",
+    "backend/migrations/postgresql/20260830_handoff_accepting_state.sql",
+    "backend/migrations/postgresql/20260831_browser_webrtc.sql",
+    "backend/migrations/postgresql/20260831_commercial_readiness.sql",
+    "backend/migrations/postgresql/20260901_contact_import_idempotency.sql",
+    "backend/migrations/postgresql/20260901_runtime_migrations_parity.sql",
+    "backend/migrations/postgresql/20260906_execution_leases.sql",
+    "backend/migrations/postgresql/20260907_capacity_bottlenecks.sql",
+    "backend/migrations/postgresql/20260907_compact_cluster.sql",
+    "backend/migrations/postgresql/20260907_review_fixes.sql",
+    "backend/migrations/postgresql/20260908_callback_00_partition_defaults.sql",
+    "backend/migrations/postgresql/20260908_callback_inbox.sql",
+    "backend/migrations/postgresql/20260908_product_delivery.sql",
+    "backend/pyproject.toml",
+    "compatibility-matrix.toml",
+    "docker-compose.compact.python-reference.yml",
+    "docker-compose.python-reference.yml",
+    "docker-compose.single-host-500.python-reference.yml",
+    "recording_adapter/Dockerfile",
+    "recording_adapter/pyproject.toml",
+    "vendor/pipecat/LICENSE",
+    "vendor/pipecat/README.md",
+    "vendor/pipecat/lookahead.txt",
+    "vendor/pipecat/manifest.json",
+    "voice_gateway/Dockerfile",
+    "voice_gateway/pyproject.toml"
+  ],
+  "rewritten_non_python_artifacts": [
+    "deploy/freeswitch-voismart/Dockerfile"
+  ]
+}

@@ -1,3 +1,5 @@
+> 当前工具链及命令以仓库 `docs/migration/no-python-toolchain.md` 为准。下列既有验收数字保留为历史证据，不代表本轮重验；旧 Python 源码与对照启动模板已从当前树退役。
+
 # 单机 500 Java 部署候选
 
 本目录示例已配合根目录 `docker-compose.single-host-500.yml` 切换为 JDK 17 / Spring Boot 4.1.1。详细启动顺序、JDBC、Redis TLS、持久卷/UID 和离线旧库迁移要求见 [Java 部署说明](../../services-java/DEPLOYMENT.md)。验收状态见 [ACCEPTANCE.md](../../services-java/ACCEPTANCE.md)。

@@ -1,1 +1,0 @@
-"""Managed recording storage adapter."""
