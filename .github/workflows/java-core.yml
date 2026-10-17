@@ -1,7 +1,7 @@
 name: java-core
 on:
   push:
-    branches: [main, feat/java-core-backend-20261015, migration/java-services-20261017]
+    branches: [main, feat/java-core-backend-20261015, migration/java-services-20261017, migration/no-python-toolchain-20261017]
   pull_request:
     branches: [main]
 jobs:
@@ -34,6 +34,9 @@ jobs:
       JAVA_TEST_REDIS_URL: redis://redis:6379/0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - name: Compile and test with JDK 17
         run: bash backend-java/scripts/build-java17.sh -B verify
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -45,13 +48,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
           cache: maven
       - name: Test fail-closed security report validation
-        run: python3 -m unittest discover -s backend-java/scripts -p 'test_security_check.py'
+        run: node --test tools/tests/security-check.test.mjs
       - name: SBOM, OSV dependencies and FindSecBugs analysis
         run: bash backend-java/scripts/security-check.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -68,22 +74,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - name: Build Java runtime image and frontend
         run: docker build -f backend-java/Dockerfile -t java-core-ci .
-      - name: Start disposable Java container
-        run: |
-          docker run -d --name java-core-ci -p 127.0.0.1:18823:8000 \
-            --read-only --tmpfs /tmp:rw,noexec,nosuid,size=128m \
-            -e ENV=test -e JAVA_DATABASE_URL=jdbc:sqlite:/tmp/core.db \
-            -e JAVA_INITIALIZE_SCHEMA=true -e DEMO_USERS_ENABLED=true \
-            -e JWT_SECRET=isolated-container-ci-secret-never-production \
-            -e CORS_ALLOW_ORIGINS=https://trusted.example \
-            -e TELEPHONY_PROVIDER=mock -e JAVA_DISPATCH_ENABLED=true \
-            -e JAVA_WORKERS_ENABLED=true java-core-ci
-          python3 backend-java/scripts/container_smoke.py
-      - name: Capture container diagnostics
-        if: failure()
-        run: docker logs java-core-ci
-      - name: Stop disposable container
+      - name: Verify disposable Java image and all HTTP boundaries
+        run: node tools/container-smoke.mjs --role core --image java-core-ci
+      - name: Preserve container diagnostics
         if: always()
-        run: docker rm -f java-core-ci || true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: java-core-container-validation
+          path: artifacts/no-python/

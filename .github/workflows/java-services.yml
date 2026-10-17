@@ -1,7 +1,7 @@
 name: java-services
 on:
   push:
-    branches: [main, migration/java-services-20261017]
+    branches: [main, migration/java-services-20261017, migration/no-python-toolchain-20261017]
   pull_request:
     branches: [main]
 jobs:
@@ -11,14 +11,14 @@ jobs:
       JAVA_TEST_S3_ENDPOINT: http://127.0.0.1:18333
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: '3.12'
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
@@ -41,7 +41,6 @@ jobs:
           bash services-java/scripts/build-java17.sh -B verify
       - name: Prepare browser and test driver
         run: |
-          python -m pip install httpx==0.28.1
           corepack enable
           cd frontend
           pnpm install --frozen-lockfile
@@ -52,10 +51,10 @@ jobs:
           JAVA_SERVICES_BROWSER: '1'
         run: |
           export NODE_BIN="$(command -v node)"
-          python services-java/scripts/verify_compose.py
-          python services-java/scripts/verify_routes.py
-          python services-java/scripts/media_process_smoke.py
-          python services-java/scripts/stack_smoke.py
+          node tools/verify-compose.mjs
+          node tools/verify-contracts.mjs
+          node tools/media-process-smoke.mjs
+          node tools/stack-smoke.mjs
       - name: Preserve validation artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -64,6 +63,7 @@ jobs:
           path: |
             services-java/target/surefire-reports/
             services-java/validation/
+            artifacts/no-python/
             frontend/test-results/
       - name: Stop isolated S3 fixture
         if: always()
@@ -72,6 +72,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
@@ -93,17 +96,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          python-version: '3.12'
+          node-version: '22'
       - name: Build JDK 17 service image
         run: docker build -f services-java/Dockerfile -t java-services-ci .
       - name: Verify four Java roles and recording lifecycle in disposable containers
         env:
           JAVA_SERVICES_TEST_IMAGE: java-services-ci
         run: |
-          python -m pip install httpx==0.28.1
-          python services-java/scripts/container_smoke.py
+          node tools/container-smoke.mjs --role services --image java-services-ci
       - name: Preserve container validation
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

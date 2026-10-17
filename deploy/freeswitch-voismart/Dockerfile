@@ -1,23 +1,28 @@
-# Local validation image. Build the pinned upstream integration base first with
-# scripts/build-voismart.sh. SDK/tools are intentionally retained for acceptance.
-ARG FS_BASE_IMAGE=ai-freeswitch-voismart-base:4c5f5b3
-ARG FS_BUILDER_IMAGE=ai-freeswitch-voismart-builder:4c5f5b3
-FROM ${FS_BUILDER_IMAGE} AS fs-builder
-FROM ${FS_BASE_IMAGE}
-# Upstream's /usr/lib/*/ glob omits spandsp when ARM64 installs in /usr/lib.
-COPY --from=fs-builder /src/spandsp/src/.libs/libspandsp.so.3.0.0 /usr/lib/
-RUN ldconfig && freeswitch -version
-WORKDIR /work
-COPY . /work
-RUN cmake -S tests -B /tmp/unit -DENABLE_TEST_SANITIZERS=ON \
-    && cmake --build /tmp/unit --parallel 4 \
-    && ctest --test-dir /tmp/unit --output-on-failure \
-    && cmake -S . -B /tmp/module -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_TLS=ON \
-    && cmake --build /tmp/module --parallel 4 \
-    && cmake --install /tmp/module && ldconfig \
-    && mkdir -p /recordings && chown 10001:10001 /recordings
-LABEL org.opencontainers.image.source="https://github.com/VoiSmart/mod_openai_realtime" \
-      org.opencontainers.image.revision="4c5f5b3000636edf6f5b08a482d62ec8d620bb06" \
-      org.opencontainers.image.version="2.5.1" \
-      org.opencontainers.image.licenses="MIT (module); FreeSWITCH and dependencies retain their own licenses"
-CMD ["freeswitch", "-nf", "-nonat"]
+# Export only native FreeSWITCH executables/modules and their resolved ELF libraries.
+# The upstream integration image is an artifact source, never the runtime base.
+ARG FS_NATIVE_IMAGE=ai-freeswitch-voismart:2.5.1
+FROM ${FS_NATIVE_IMAGE} AS native
+RUN set -eu; mkdir -p /runtime; \
+    copy_native() { dest="/runtime$1"; case "$1" in /lib/*) dest="/runtime/usr$1" ;; esac; mkdir -p "$(dirname "$dest")"; cp -L "$1" "$dest"; }; \
+    for binary in /usr/bin/freeswitch /usr/bin/fs_cli /usr/lib/libfreeswitch.so* /usr/lib/freeswitch/mod/*.so; do \
+      case "$binary" in *mod_python*|*mod_pypy*) continue ;; esac; \
+      test -e "$binary" || continue; copy_native "$binary"; \
+      ldd "$binary" | awk '/=> \/|^\t\// { for (i=1;i<=NF;i++) if ($i ~ /^\//) print $i }' | while read library; do \
+        copy_native "$library"; done; \
+    done; \
+    test -x /runtime/usr/bin/freeswitch
+FROM eclipse-temurin:17-jdk-jammy AS helper
+WORKDIR /helper
+COPY tools/java/Pbx.java .
+RUN javac --release 17 Pbx.java
+FROM eclipse-temurin:17-jre-jammy AS jre
+FROM debian:bookworm-slim
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
+COPY --from=native /runtime/ /
+COPY --from=helper /helper/Pbx.class /opt/media-tools/Pbx.class
+ENV JAVA_HOME=/opt/java/openjdk PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+RUN ldconfig && freeswitch -version \
+    && mkdir -p /recordings && chown 10001:10001 /recordings \
+    && for p in python python3 pip pip3; do if command -v "$p" >/dev/null 2>&1; then exit 1; fi; done
+USER 10001:10001
+ENTRYPOINT ["java", "-cp", "/opt/media-tools", "Pbx", "start"]

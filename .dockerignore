@@ -18,3 +18,8 @@ services-java/target
 services-java/.local
 frontend/test-results
 frontend/playwright-report
+
+**/.venv*
+**/target
+**/.pytest_cache
+frontend/dist
