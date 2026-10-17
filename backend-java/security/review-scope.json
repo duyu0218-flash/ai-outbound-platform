@@ -58,7 +58,7 @@
   "src/main/java/com/duozhi/outbound/StabilityAdmission.java": "2de21fcdb8c7079895037a5582ed921eab92c4bee7a4285912a7526577e60200",
   "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
   "src/main/java/com/duozhi/outbound/SystemOverview.java": "0eea2e77224b4859550a1ffa664cd758ade91383fcdfa72edf457ec2b660768b",
-  "src/main/java/com/duozhi/outbound/TaskWorker.java": "dfe6ccaf04d79c6af76835f6a4b760387e967078bd1bac044c2c4dd572d20449",
+  "src/main/java/com/duozhi/outbound/TaskWorker.java": "27f969d2ee6352e9d5c992375aa6d6aeb2a471ff7606f84252fbba0bec006be9",
   "src/main/java/com/duozhi/outbound/TelephonyClient.java": "f47998458829411fcc1f333bfe710d20ba94e08e4950475403256c13ca138598",
   "src/main/java/com/duozhi/outbound/Templates.java": "253761fb6d05e3fadbf629d86da55fb77f6e5faca2e55d8dd346efdd48635ae7",
   "src/main/java/com/duozhi/outbound/Transactions.java": "e61530c3afa9a965d3187b7bbd53b87bb0e507a7d5e94d2e4587d5c43a33f544",

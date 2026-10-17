@@ -1,7 +1,7 @@
 {
   "passed": true,
-  "image_id": "sha256:b7de90abaade246524969cd1128c83b369fc1ff844479e42fc780e47d308651b",
-  "core_jar_sha256": "60dad0e87e7c406384b0e86ab49cd4afc947f5208a16d9a6f5cd6fccd6e76204",
+  "image_id": "sha256:64d3833b4bbd3be5792d8dd667c029094e6a574945760bb19e65fdaa4ce50a02",
+  "core_jar_sha256": "8a2e181ce9e858f1cd8c23ea8dad03f529e89e3c7367a9cc73e5a0ff9c52a53e",
   "checks": [
     "nonroot read-only noexec runtime",
     "login and packaged frontend",

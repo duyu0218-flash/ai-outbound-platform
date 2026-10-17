@@ -16,5 +16,6 @@
       "skipped": 0
     }
   ],
-  "boundary": "Isolated SQLite/PostgreSQL/Redis only; synthetic history, no target database cutover."
+  "boundary": "Isolated SQLite/PostgreSQL/Redis only; synthetic history, no target database cutover.",
+  "core_jar_sha256": "8a2e181ce9e858f1cd8c23ea8dad03f529e89e3c7367a9cc73e5a0ff9c52a53e"
 }

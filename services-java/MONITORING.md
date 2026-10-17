@@ -20,4 +20,4 @@
 
 旧 Python writer_queue、writer_batch、executor/event_loop 指标停止提供；原有自定义告警必须按上表迁移，不能用固定零兼容。仓库现有商业面板/告警使用的 ready、calls、sessions、安全账本和录音指标继续保留。Java API 进程的完整监控继承核心实现。
 
-Java worker 健康探针统一为 `java -jar /app/control.jar --healthcheck`，各进程有独立 loopback PORT。准入信号 `ai:java-<随机实例ID>` 写入既有 Redis stability signals；`at` 绑定实际 AI 通道进展时间，`queue_p95_ms` 取最近 30 秒最多 256 次实际调度等待，`oldest_wait_ms` 取数据库已到期 AI 任务最老等待。未启动、停止、数据库读取失败和通道进展过期不产生新健康心跳；Redis 故障保持准入失败关闭。该信号用于保护，不能代替吞吐或 500 路资格证明。
+Java worker 健康探针统一为 `java -jar /app/control.jar --healthcheck`，各进程有独立 loopback PORT。准入信号 `ai:java-<随机实例ID>` 写入既有 Redis stability signals；`at` 绑定实际 AI 通道进展时间，队列读取期间的耗时也计入年龄，慢数据库不会刷新旧心跳；`queue_p95_ms` 取最近 30 秒最多 256 次实际调度等待，`oldest_wait_ms` 取数据库已到期 AI 任务最老等待。未启动、停止、数据库读取失败和通道进展过期不产生新健康心跳；Redis 故障保持准入失败关闭。该信号用于保护，不能代替吞吐或 500 路资格证明。
