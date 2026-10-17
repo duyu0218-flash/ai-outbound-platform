@@ -236,6 +236,12 @@ jobs:
       - name: Browser acceptance
         working-directory: frontend
         run: pnpm test:e2e
+      - name: Preserve browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legacy-compose-browser-failure
+          path: frontend/test-results/
       - name: Show logs on failure
         if: failure()
         run: docker compose -f docker-compose.python-reference.yml -f docker-compose.observability.yml logs

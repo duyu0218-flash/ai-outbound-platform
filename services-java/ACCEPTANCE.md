@@ -39,6 +39,7 @@
 ## 可复查证据
 
 - `validation/java-stack.json`：5 项服务/浏览器链路检查，记录核心及辅助 jar SHA-256。
+- `validation/ci-harness-regression.json`：旧对照 CI 出现过导航总时限和启动/突发叠加竞态；补齐实际页面标题/退出 HTTP 200，以及两进程就绪同步，保留精确 500/800 预算和遇锁失败关闭。本地旧 Agent 39 项及两项三轮重复通过；不修改 Python 业务实现。
 - `validation/java-services-browser.json`：8 项 Chromium 用例，无跳过或失败。
 - `target/surefire-reports/`：38 项 Java 用例，包含独立 S3 夹具；报告由测试重新生成。
 - `../backend-java/validation/java-migration-close-tests.json`：SQLite 与 PostgreSQL 各 113 项核心回归，无失败或跳过；包含实际 Java AI 通道进展、停止/陈旧信号及隔离 Redis 发布。

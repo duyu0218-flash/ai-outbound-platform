@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "reference_agent_tests": 39,
+  "quota_repeat_runs": 3,
+  "quota_cases_per_repeat": 2,
+  "java_browser_tests": 8,
+  "runtime_sources_changed": false,
+  "checks": [
+    "All 13 direct routes wait for actual page title before proceeding",
+    "Logout requires actual POST HTTP 200 followed by login route",
+    "Two-process burst starts after both quota anchors are ready and still admits exactly 500 of 800 requests",
+    "Held SQLite write lock rejects startup with no retained anchor; release permits recovery"
+  ],
+  "boundary": "Test synchronization and diagnostics only; no Python business implementation changes or production acceptance."
+}

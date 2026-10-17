@@ -9,6 +9,9 @@ async function login(page: Page, portal: 'admin' | 'agent', username: string) {
 }
 
 test('administrator can enter every management route and log out', async ({ page }) => {
+  // Thirteen full document loads need their own overall budget on shared CI.
+  // Per-page content and logout assertions keep their normal short deadlines.
+  test.setTimeout(90_000)
   await login(page, 'admin', 'admin')
   for (const route of [
     'contacts',
@@ -27,10 +30,13 @@ test('administrator can enter every management route and log out', async ({ page
   ]) {
     await page.goto(`/admin/${route}`)
     await expect(page.locator('.app-content')).toBeVisible()
+    await expect(page.locator('.page-title-row h2')).toBeVisible()
     await expect(page.locator('.ant-result-404')).toHaveCount(0)
   }
   await page.locator('.account-button').click()
-  await page.locator('.ant-dropdown-menu-item-danger').click()
+  const loggedOut = page.waitForResponse(response => response.url().endsWith('/api/v1/auth/logout') && response.request().method() === 'POST')
+  await page.getByRole('menuitem', { name: /退出登录|Sign out/ }).click()
+  expect((await loggedOut).status()).toBe(200)
   await expect(page).toHaveURL(/\/admin\/login$/)
 })
 
