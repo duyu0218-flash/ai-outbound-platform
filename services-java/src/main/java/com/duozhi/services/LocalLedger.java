@@ -22,20 +22,38 @@ final class LocalLedger implements AutoCloseable {
         if (acquired == null) { owner.close(); throw new IllegalArgumentException("gateway ledger already has a Java owner; stop old controllers before cutover"); } lock = acquired;
         Connection opened = null;
         try {
-            opened = connection(); plain(opened, "PRAGMA journal_mode=WAL");
+            opened = connection(); plain(opened, "PRAGMA journal_mode=WAL"); plain(opened, "BEGIN IMMEDIATE");
             String[] schema = {
                 "CREATE TABLE IF NOT EXISTS attempts(call_id TEXT NOT NULL,attempt INTEGER NOT NULL,tenant INTEGER NOT NULL,line TEXT NOT NULL,uuid TEXT NOT NULL UNIQUE,digest TEXT NOT NULL,payload TEXT NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL,cost INTEGER NOT NULL,rate INTEGER NOT NULL,multiplier INTEGER NOT NULL,state TEXT NOT NULL DEFAULT 'pending',result TEXT,ended REAL,observed INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(call_id,attempt))",
                 "CREATE INDEX IF NOT EXISTS attempts_scope ON attempts(tenant,line,created)",
                 "CREATE TABLE IF NOT EXISTS flags(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS nonces(nonce TEXT PRIMARY KEY,expires REAL NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,url TEXT NOT NULL,body BLOB NOT NULL,created REAL NOT NULL,due REAL NOT NULL,failures INTEGER NOT NULL DEFAULT 0,stream_key TEXT NOT NULL DEFAULT '')",
-                "CREATE INDEX IF NOT EXISTS outbox_stream_order ON outbox(stream_key,created)",
                 "CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,at REAL NOT NULL,action TEXT NOT NULL,detail TEXT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS voice_action_commands(id TEXT PRIMARY KEY,digest TEXT NOT NULL,result TEXT,call_id TEXT NOT NULL DEFAULT '',attempt INTEGER NOT NULL DEFAULT 0)",
                 "CREATE TABLE IF NOT EXISTS voice_permits(id TEXT PRIMARY KEY,scope TEXT NOT NULL,kind TEXT NOT NULL,call_id TEXT NOT NULL,attempt INTEGER NOT NULL,owner TEXT NOT NULL,state TEXT NOT NULL,created REAL NOT NULL)",
                 "CREATE INDEX IF NOT EXISTS voice_permits_scope ON voice_permits(scope,state)"
             };
             for (String sql : schema) try (var statement = opened.createStatement()) { statement.execute(sql); }
+            // Upgrade retained Python ledgers before creating indexes on newly added columns.
+            if (query(opened, "PRAGMA table_info(outbox)").stream().noneMatch(c -> "stream_key".equals(c.get("name")))) {
+                plain(opened, "ALTER TABLE outbox ADD COLUMN stream_key TEXT NOT NULL DEFAULT ''");
+                for (var row : query(opened, "SELECT id,body FROM outbox")) {
+                    byte[] body = row.get("body") instanceof byte[] bytes ? bytes : row.get("body").toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    Object call = Support.object(body).get("call_id");
+                    execute(opened, "UPDATE outbox SET stream_key=? WHERE id=?", Support.truthy(call) ? call.toString() : row.get("id"), row.get("id"));
+                }
+            }
+            var commandColumns = query(opened, "PRAGMA table_info(voice_action_commands)");
+            if (commandColumns.stream().noneMatch(c -> "call_id".equals(c.get("name")))) plain(opened, "ALTER TABLE voice_action_commands ADD COLUMN call_id TEXT NOT NULL DEFAULT ''");
+            if (commandColumns.stream().noneMatch(c -> "attempt".equals(c.get("name")))) plain(opened, "ALTER TABLE voice_action_commands ADD COLUMN attempt INTEGER NOT NULL DEFAULT 0");
+            plain(opened, "CREATE INDEX IF NOT EXISTS outbox_stream_order ON outbox(stream_key,created)");
+            plain(opened, "CREATE INDEX IF NOT EXISTS outbox_created_order ON outbox(created)");
+            plain(opened, "CREATE INDEX IF NOT EXISTS voice_commands_call ON voice_action_commands(call_id,attempt)");
+            plain(opened, "CREATE INDEX IF NOT EXISTS voice_permits_retention ON voice_permits(state,created)");
+            plain(opened, "CREATE INDEX IF NOT EXISTS attempts_ended ON attempts(state,ended)");
+            plain(opened, "CREATE INDEX IF NOT EXISTS attempts_created ON attempts(created)");
+            plain(opened, "COMMIT");
             anchor = opened;
         } catch (Exception error) { if (opened != null) opened.close(); lock.release(); owner.close(); throw error; }
     }

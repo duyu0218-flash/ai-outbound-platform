@@ -10,6 +10,9 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:8000',
+    extraHTTPHeaders: process.env.E2E_SECURITY_APPROVAL
+      ? { 'x-security-approval': process.env.E2E_SECURITY_APPROVAL }
+      : undefined,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -1,5 +1,9 @@
 # AI 外呼平台
 
+全后端 Java 候选现统一为 **JDK 17 + Spring Boot 4.1.1**：`backend-java` 运行核心 API/任务，`services-java` 分角色运行 Agent、录音、语音网关和媒体工作器。源码、开发验证与部署切换是独立状态，详见 [Java 服务说明](services-java/README.md)及[本轮验收记录](services-java/ACCEPTANCE.md)。
+
+全 Java 基础配置入口为 `docker compose -f docker-compose.yml -f docker-compose.java.yml -f docker-compose.java-services.yml`。它已通过配置解析及隔离 Java 服务验证，**尚未切换测试或生产部署**。单独使用旧基础/compact/500 配置仍可能启动 Python；这些旧配置不能作为全 Java 迁移已发布的证据。旧 Python 目录目前保留为行为对照及回退参考，测试和运维工具也仍可使用 Python。
+
 单服务器 500 在途呼叫的代码及部署候选见[单机配置](deploy/single-host-500/README.md)和[开发验收报告](docs/reviews/20260908-single-host-500-implementation.md)。本地合成会话测试已覆盖 500 路；600 回调/秒混合压测未达标，真实 500 路商用容量尚未验收。
 
 回调持久接收、同通话保序、有界批处理和积压准入保护已实现，启用方式及验证边界见 [Inbox 修复报告](docs/reviews/20260908-callback-inbox.md)。
@@ -435,4 +439,4 @@ bash scripts/test-campaign-start.sh
 
 ## Java 核心后端迁移
 
-`backend-java/` 基于 Spring Boot 4.1.1、JDK 17，保留 React 前端和 Python AI Agent、语音网关、录音适配服务。108 项基线接口、核心执行流程、旧库迁移工具和运行入口已有 Java 实现；271 项行为对照及隔离环境功能测试通过，生产尚未切换。构建和运行见 [Java README](backend-java/README.md)，旧库升级与回退见 [迁移手册](backend-java/MIGRATION.md)，实测结果与未验证范围见 [验收记录](backend-java/ACCEPTANCE.md)。
+`backend-java/` 基于 Spring Boot 4.1.1、JDK 17，保留 React 前端。核心迁移阶段保留的 Python 辅助服务现已有 `services-java` Java 候选，需使用本文顶部的全 Java 配置入口；既有运行环境没有自动切换。108 项基线接口、核心执行流程、旧库迁移工具和运行入口已有 Java 实现；271 项行为对照及隔离环境功能测试通过，生产尚未切换。构建和运行见 [Java README](backend-java/README.md)，旧库升级与回退见 [迁移手册](backend-java/MIGRATION.md)，实测结果与未验证范围见 [验收记录](backend-java/ACCEPTANCE.md)。

@@ -3,10 +3,11 @@
     "readiness verifies actual Java Agent and gateway",
     "Java HTTP dial and signed Java gateway callbacks reach in_ai",
     "Java core invokes Java Agent turn and Java gateway speak over HTTP",
-    "signed terminal callback generates durable analysis"
+    "signed terminal callback generates durable analysis",
+    "actual browser management forms/navigation/logout and Java call history/analysis/report chain"
   ],
   "passed": true,
   "jar_sha256": "94d95c8af51029df86d4b9163e3b8c79933307c927846c739cc2a43f73fdfccc",
-  "services_jar_sha256": "a44cbf3dfaf22b6d3823117d73dcabe542e854e9fe55e31cd9a5def2c981d1d2",
+  "services_jar_sha256": "1fc3b131f78578c068880d7cc09ef33bad18f90187212f81407a910b04173680",
   "boundary": "Actual Java core/Agent/gateway processes, rule model and mock phone driver only; no real SIP/RTP or cloud model. Recording and media have independent local fixtures."
 }

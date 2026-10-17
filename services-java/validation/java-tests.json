@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "tests": 34,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "suites": [
+    {
+      "name": "com.duozhi.services.GatewayLifecycleTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.278"
+    },
+    {
+      "name": "com.duozhi.services.HttpBoundaryTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.138"
+    },
+    {
+      "name": "com.duozhi.services.LegacyLedgerTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.019"
+    },
+    {
+      "name": "com.duozhi.services.MediaTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.254"
+    },
+    {
+      "name": "com.duozhi.services.RealS3Test",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.042"
+    },
+    {
+      "name": "com.duozhi.services.ServicesTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.725"
+    },
+    {
+      "name": "com.duozhi.services.VoiceTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.203"
+    }
+  ],
+  "services_jar_sha256": "1fc3b131f78578c068880d7cc09ef33bad18f90187212f81407a910b04173680",
+  "boundary": "Local JDK17, loopback protocol fixtures, temporary SQLite and a dedicated actual SeaweedFS instance. No production database, phone line or cloud service."
+}

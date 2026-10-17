@@ -75,6 +75,7 @@ with tempfile.TemporaryDirectory(prefix='java-all-services-') as folder:
                    TELEPHONY_WEBHOOK_BASE=urls['core'], TELEPHONY_WEBHOOK_TOKEN='isolated-webhook-token',
                    TELEPHONY_WEBHOOK_SECRET='isolated-callback-signing-key', AI_AGENT_URL=urls['agent'],
                    AI_AGENT_SERVICE_TOKEN='isolated-agent-service-token', CALLBACK_INBOX_ENABLED='true',
+                   FRONTEND_STATIC_DIR=str(ROOT/'backend/app/static'),
                    STABILITY_ADMISSION_ENABLED='false', VOICE_GATEWAY_NODES_JSON='[]'))
         with httpx.Client(base_url=urls['core'], timeout=20) as client:
             def api(method, path, body=None):
@@ -110,6 +111,18 @@ with tempfile.TemporaryDirectory(prefix='java-all-services-') as folder:
             wait(lambda: api('GET','/api/v1/calls/'+call_id)['status']=='completed')
             wait(lambda: client.get('/api/v1/calls/'+call_id+'/analysis').status_code==200 and client.get('/api/v1/calls/'+call_id+'/analysis').json() is not None)
             checks.append('signed terminal callback generates durable analysis')
+        if os.environ.get('JAVA_SERVICES_BROWSER') == '1':
+            node = os.environ['NODE_BIN']
+            result = subprocess.run([node, str(ROOT/'frontend/node_modules/@playwright/test/cli.js'), 'test',
+                                     'e2e/portal.spec.ts', 'e2e/java-services.spec.ts', '--grep-invert', 'SPA account switch', '--reporter=json'],
+                                    cwd=ROOT/'frontend', capture_output=True, text=True, timeout=240,
+                                    env=dict(os.environ, E2E_BASE_URL=urls['core'], E2E_JAVA_SERVICES='1',
+                                             E2E_SECURITY_APPROVAL='isolated-retained-security-approval-only',
+                                             E2E_WEBHOOK_TOKEN='isolated-webhook-token', E2E_WEBHOOK_SECRET='isolated-callback-signing-key'))
+            (OUT/'java-services-browser.json').write_text(result.stdout)
+            (OUT/'java-services-browser.log').write_text(result.stderr)
+            assert result.returncode == 0, 'Java services browser regression failed; inspect validation/java-services-browser.json'
+            checks.append('actual browser management forms/navigation/logout and Java call history/analysis/report chain')
     finally:
         for p in reversed(processes):
             p.terminate()
@@ -119,7 +132,7 @@ with tempfile.TemporaryDirectory(prefix='java-all-services-') as folder:
         for role in ['agent', 'voice']:
             text=''.join(p.read_text() for p in Path(folder, role+'-access').glob('*'))
             (OUT/('java-stack-'+role+'-access.log')).write_text(text)
-report={'checks':checks,'passed':len(checks)==4,'jar_sha256':hashlib.sha256(jar.read_bytes()).hexdigest(), 'services_jar_sha256':hashlib.sha256(services_jar.read_bytes()).hexdigest(),
+report={'checks':checks,'passed':len(checks)==(5 if os.environ.get('JAVA_SERVICES_BROWSER') == '1' else 4),'jar_sha256':hashlib.sha256(jar.read_bytes()).hexdigest(), 'services_jar_sha256':hashlib.sha256(services_jar.read_bytes()).hexdigest(),
         'boundary':'Actual Java core/Agent/gateway processes, rule model and mock phone driver only; no real SIP/RTP or cloud model. Recording and media have independent local fixtures.'}
 (OUT/'java-stack.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report))
