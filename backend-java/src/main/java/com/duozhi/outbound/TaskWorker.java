@@ -59,7 +59,8 @@ public class TaskWorker {
         }
         Map<String,Object> oldest=store.one("taskoutbox","WHERE task_type='ai_turn' AND state IN ('PENDING','FAILED') AND available_at<=? ORDER BY available_at LIMIT 1",store.encode("taskoutbox","available_at",Store.now()));
         double age=oldest==null?0:Math.max(0,java.time.Duration.between(LocalDateTime.parse(oldest.get("available_at").toString()),Store.now()).toMillis());
-        return JsonSupport.map("at",System.currentTimeMillis()/1000.0-(now-progress)/1_000_000_000.0,"queue_p95_ms",p95,"oldest_wait_ms",age);
+        // Include time spent reading the queue; a slow database must not freshen old progress.
+        return JsonSupport.map("at",System.currentTimeMillis()/1000.0-(System.nanoTime()-progress)/1_000_000_000.0,"queue_p95_ms",p95,"oldest_wait_ms",age);
     }
 
     public int enqueueDue() {

@@ -43,6 +43,7 @@
 - `target/surefire-reports/`：38 项 Java 用例，包含独立 S3 夹具；报告由测试重新生成。
 - `../backend-java/validation/java-migration-close-tests.json`：SQLite 与 PostgreSQL 各 113 项核心回归，无失败或跳过；包含实际 Java AI 通道进展、停止/陈旧信号及隔离 Redis 发布。
 - `../backend-java/validation/java-close-container.json`：本轮核心 Linux 镜像的登录/前端/凭据/CORS/发布门禁/模拟外呼回调和分析通过。
+- `../backend-java/validation/worker-delay-regression.json`：1100ms 延迟读取会使旧算法的回归断言失败；新算法及完整核心回归通过，心跳保留实际进展年龄。
 - `../backend-java/validation/java-security.json`：91/91 Maven 包，公告 0；84 个主类、149 条原始提示全部纳入门禁。
 - `validation/java-single500.json`：Java 单机静态预算及 10 项 Java/Python 配置回归；不表示 500 路容量通过。
 - `validation/java-media-process.json`：5 项独立工作器 RPC/崩溃重启检查，与 jar 摘要绑定。
@@ -63,7 +64,7 @@ Python 的 flock 与 Java 的 FileChannel 使用不同 owner 文件，不能互�
 
 ## 已知问题与环境限制
 
-1. 完整 Codex Security 差异扫描尚未完成。旧扫描 `be158319-0569-403d-b6fa-1d10ddcf40fa` 固定在 `dd735c6`；最新扫描 `7e460d74-706b-4eff-b78a-412b872f2cfa` 固定在 `8cf9db8`，新架构模型已保存。两次清单工具均因宿主 Apple Git 2.39.5 不支持 `git cat-file --batch -Z` 而失败，没有封存为通过结果。可用新版 Git 已存在于仓库外，但未擅自更改 MCP 宿主环境或用户配置。随后默认网关账本挂载修复有独立配置及实际重建容器验证，位于固定扫描范围之后；不能以该修复或 OSV/SAST 门禁代替完整差异审查。
+1. 完整 Codex Security 差异扫描尚未完成。旧扫描 `be158319-0569-403d-b6fa-1d10ddcf40fa` 固定在 `dd735c6`；最新扫描 `7e460d74-706b-4eff-b78a-412b872f2cfa` 固定在 `8cf9db8`，新架构模型已保存。两次清单工具均因宿主 Apple Git 2.39.5 不支持 `git cat-file --batch -Z` 而失败，没有封存为通过结果。可用新版 Git 已存在于仓库外，但未擅自更改 MCP 宿主环境或用户配置。随后默认网关账本挂载和慢数据库心跳时间修复有独立配置、实际重建容器与时序负向对照验证，位于固定扫描范围之后；不能以该修复或 OSV/SAST 门禁代替完整差异审查。
 2. 文档页和 OpenAPI 已迁移；旧 Python writer/事件循环专属指标改用实际 JVM、事件积压和根事务指标，映射见 MONITORING.md。部署方自定义告警尚未接入验收；未知样本不当作 0。
 3. 原 Python A-law 对 -7..-1 七个样本产生非法 byte；Java 使用合法零档值 0x55。其他 65,529 个输入及 256 个解码值已按原输出对照。这是有记录的行为修复。
 4. OpenAI 路径保留 `gpt-realtime-whisper` 默认模型；原生本地 RMS VAD 需要真实音频校准。未通过云服务返回、电话录音和主观听感验收，不承诺识别质量/延迟。
