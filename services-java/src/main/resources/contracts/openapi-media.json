@@ -1,0 +1,245 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Java media service",
+    "version": "0.1.0",
+    "description": "JDK 17 / Spring Boot 4.1.1. Retained request schemas with Java service authentication; no Python runtime is needed. Operational and cloud acceptance is separate."
+  },
+  "paths": {
+    "/internal/state": {
+      "get": {
+        "summary": "State",
+        "operationId": "state_internal_state_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ]
+      }
+    },
+    "/internal/command": {
+      "post": {
+        "summary": "Command",
+        "operationId": "command_internal_command_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Command": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "epoch": {
+            "type": "string",
+            "title": "Epoch"
+          },
+          "call_id": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Call Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "attempt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 50000,
+            "title": "Text",
+            "default": ""
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Operation Id",
+            "default": ""
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "expected_speech_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Speech Event Id"
+          },
+          "closing": {
+            "type": "boolean",
+            "title": "Closing",
+            "default": false
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": ""
+          },
+          "timestamp_us": {
+            "type": "integer",
+            "title": "Timestamp Us",
+            "default": 0
+          },
+          "notify": {
+            "type": "boolean",
+            "title": "Notify",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "epoch",
+          "call_id",
+          "session_id"
+        ],
+        "title": "Command"
+      },
+      "JavaError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "serviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "x-websocket-endpoints": [
+    {
+      "path": "/v1/pipecat/media/{token}",
+      "authentication": "random single-session bearer capability in path",
+      "format": "mono pcm_s16le",
+      "bounds": "one connection per generation; binary frame <=65536 bytes"
+    }
+  ]
+}

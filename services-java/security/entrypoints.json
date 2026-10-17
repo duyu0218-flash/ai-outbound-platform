@@ -23,6 +23,18 @@
     "access": "SERVICE_TOKEN; optional only when unconfigured in nonproduction development. Health is public.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
+  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:docs:()Lorg/springframework/http/ResponseEntity;:25:27:3": {
+    "source": "com/duozhi/services/ApiDocumentation.java",
+    "count": 1,
+    "access": "Public immutable API reference only; never executes commands or accepts credentials. Business API authentication remains enforced.",
+    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs."
+  },
+  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:openapi:()[B:23:23:3": {
+    "source": "com/duozhi/services/ApiDocumentation.java",
+    "count": 1,
+    "access": "Public immutable API reference only; never executes commands or accepts credentials. Business API authentication remains enforced.",
+    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs."
+  },
   "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:command:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:39:59:3": {
     "source": "com/duozhi/services/MediaWorkerController.java",
     "count": 1,
@@ -89,7 +101,7 @@
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:cleanup:(Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:55:56:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:cleanup:(Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:64:65:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character VOICE_RECORDING_CLEANUP_TOKEN; completion/hash/retention checks before unlink.",
@@ -107,19 +119,19 @@
     "access": "Public operational health/readiness; no mutation or credential values.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:mediaEvent:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:60:61:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:mediaEvent:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:69:70:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character MEDIA_RPC_TOKEN; controller owner/session/attempt/epoch checks.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:metrics:(Ljava/lang/String;)Ljava/lang/String;:42:43:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:metrics:(Ljava/lang/String;)Ljava/lang/String;:42:52:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "METRICS_TOKEN.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. Updated numeric-only ledger/event/media/JVM metrics reviewed; token authentication unchanged. No sensitive labels or fabricated unknown values."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:permits:(Ljava/lang/String;)Ljava/util/Map;:58:58:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:permits:(Ljava/lang/String;)Ljava/util/Map;:67:67:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
@@ -131,13 +143,13 @@
     "access": "Public operational health/readiness; no mutation or credential values.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:reconcile:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:78:79:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:reconcile:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:87:88:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:recording:(Ljava/lang/String;JLjava/lang/String;)Lorg/springframework/http/ResponseEntity;:46:52:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:recording:(Ljava/lang/String;JLjava/lang/String;)Lorg/springframework/http/ResponseEntity;:55:61:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Expiring HMAC signed owner-node WAV capability; filename and source containment checks.",
@@ -155,7 +167,7 @@
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
     "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:voicePermit:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:65:75:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:voicePermit:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:74:84:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character MEDIA_RPC_TOKEN; controller owner/session/attempt/epoch checks.",

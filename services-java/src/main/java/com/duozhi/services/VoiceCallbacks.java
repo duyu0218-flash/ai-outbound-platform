@@ -29,6 +29,7 @@ final class VoiceCallbacks implements AutoCloseable {
         poll.scheduleWithFixedDelay(this::purge, 60, 60, TimeUnit.SECONDS);
     }
     void atomic(Runnable work) { ledger.transaction(db -> { work.run(); return null; }); }
+    int inflight() { return inflight.size(); }
     void post(String url, Map<String,Object> payload) {
         security.callback(url); byte[] body = Support.canonical(payload); byte[] target = (url + "\0").getBytes(StandardCharsets.UTF_8); byte[] identity = Arrays.copyOf(target, target.length + body.length); System.arraycopy(body, 0, identity, target.length, body.length);
         String id = Support.hex(Support.sha(identity)); String stream = Support.str(payload, "call_id", id);

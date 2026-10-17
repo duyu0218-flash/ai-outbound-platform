@@ -30,11 +30,24 @@ updates:
       - "/agent"
       - "/voice_gateway"
       - "/recording_adapter"
+      - "/backend-java"
+      - "/services-java"
       - "/deploy/sipp"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "03:30"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "maven"
+    directories:
+      - "/backend-java"
+      - "/services-java"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:35"
       timezone: "Asia/Shanghai"
     open-pull-requests-limit: 10
 

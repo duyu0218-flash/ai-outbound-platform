@@ -26,6 +26,9 @@ final class NativeMedia implements MediaManager {
     private final HttpClient http = Support.client();
     private final int rate, limit;
     private final boolean voismart;
+    private final java.util.concurrent.atomic.LongAdder inputFrames = new java.util.concurrent.atomic.LongAdder(), firstAudioCount = new java.util.concurrent.atomic.LongAdder();
+    private final java.util.concurrent.atomic.DoubleAdder firstAudioSeconds = new java.util.concurrent.atomic.DoubleAdder();
+    private final java.util.concurrent.atomic.DoubleAccumulator arrivalGap = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0), firstAudioMax = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0);
     NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings; this.events = events; this.permits = permits; this.limit = limit;
         rate = (int)settings.number("PIPECAT_SAMPLE_RATE", 8000, 8000, 48000);
@@ -62,6 +65,7 @@ final class NativeMedia implements MediaManager {
     @Override public String url(Session session) { return settings.get("PIPECAT_MEDIA_WS_BASE", "").replaceAll("/+$", "") + "/" + session.token; }
     @Override public boolean ready() { return !work.isShutdown(); }
     @Override public int capacity() { return limit; }
+    @Override public Map<String,Number> metrics() { return Map.of("pcm_input_frames_total", inputFrames.sum(), "pcm_arrival_gap_max_seconds", arrivalGap.get(), "tts_first_audio_count", firstAudioCount.sum(), "tts_first_audio_seconds_sum", firstAudioSeconds.sum(), "tts_first_audio_max_seconds", firstAudioMax.get()); }
     void connect(WebSocketSession socket, String token) throws Exception {
         Session session = tokens.get(token);
         if (session == null) { socket.close(new CloseStatus(4404, "unknown media session")); return; }
@@ -81,7 +85,10 @@ final class NativeMedia implements MediaManager {
     void audio(WebSocketSession socket, byte[] pcm) throws Exception {
         Stream stream = streams.values().stream().filter(s -> s.socket.getId().equals(socket.getId())).findFirst().orElse(null);
         if (stream == null || stream.session.closing || stream.session.terminated.isDone()) return;
-        if (pcm.length % 2 != 0 || pcm.length > 65536) throw new Support.Failure(400, "invalid PCM frame"); stream.audio(pcm);
+        if (pcm.length % 2 != 0 || pcm.length > 65536) throw new Support.Failure(400, "invalid PCM frame");
+        long now = System.nanoTime(), previous = stream.lastPcmAt; stream.lastPcmAt = now;
+        inputFrames.increment(); if (previous != 0) arrivalGap.accumulate((now - previous) / 1_000_000_000.0);
+        stream.audio(pcm);
     }
     void disconnected(WebSocketSession socket) { for (var stream : streams.values()) if (stream.socket.getId().equals(socket.getId()) && !stream.session.closing) fail(stream.session, "MEDIA_DISCONNECTED"); }
     @Override public String speak(String call, String text, String expected, String operation) throws Exception {
@@ -92,7 +99,8 @@ final class NativeMedia implements MediaManager {
             if (voismart && (!session.playback.isEmpty() || session.speaking || session.interrupting)) throw new Support.Failure(409, "previous module playout has not drained");
             Stream stream = streams.get(call); if (stream == null) throw new Support.Failure(503, "media socket has not connected");
             String playback = UUID.randomUUID().toString(); session.playback = playback; long generation = ++stream.generation;
-            Future<?> task = work.submit(() -> { try { synthesize(stream, text, generation); } catch (Exception error) { if (stream.generation == generation && !session.closing) fail(session, "TTS_REQUEST_FAILED"); } }); stream.tts = task;
+            long requested = System.nanoTime();
+            Future<?> task = work.submit(() -> { try { synthesize(stream, text, generation, requested); } catch (Exception error) { if (stream.generation == generation && !session.closing) fail(session, "TTS_REQUEST_FAILED"); } }); stream.tts = task;
             if (!operation.isEmpty()) { session.operations.put(operation, Map.of("digest", digest, "playback_id", playback)); while (session.operations.size() > 64) session.operations.remove(session.operations.keySet().iterator().next()); }
             return playback;
         }
@@ -156,8 +164,9 @@ final class NativeMedia implements MediaManager {
         Map<String,Object> payload = new LinkedHashMap<>(); payload.put("call_id", session.call); payload.put("provider_session_id", session.id); payload.put("event_id", id); payload.put("transcript", text); payload.put("is_final", true); payload.put("speaker_role", "customer"); payload.put("channel_id", "inbound"); payload.put("asr_provider", "pipecat:" + settings.get("PIPECAT_STT_PROVIDER", "openai-realtime")); payload.put("barge_in", false); payload.put("attempt", session.metadata.get("attempt"));
         for (String key : List.of("confidence", "start_ms", "end_ms", "latency_ms")) payload.put(key, details.get(key)); events.post(session.speechUrl, payload);
     }
-    private void synthesize(Stream stream, String text, long generation) throws Exception {
+    private void synthesize(Stream stream, String text, long generation, long requested) throws Exception {
         String permit = UUID.randomUUID().toString(); boolean acquired = false, confirmed = false;
+        boolean first = true;
         try {
             permits.change(stream.session, permit, "tts", true, false); acquired = true;
             URI base = Support.endpoint(settings.get("PIPECAT_OPENAI_BASE_URL", "https://api.openai.com/v1"));
@@ -176,11 +185,15 @@ final class NativeMedia implements MediaManager {
                     for (int offset = 0; offset < output.length; offset += rate / 50 * 2) {
                         if (stream.generation != generation) return;
                         int end = Math.min(output.length, offset + rate / 50 * 2); stream.binary(Arrays.copyOfRange(output, offset, end)); sent += end - offset;
+                        if (first) { first = false; double elapsed = (System.nanoTime() - requested) / 1_000_000_000.0; firstAudioCount.increment(); firstAudioSeconds.add(elapsed); firstAudioMax.accumulate(elapsed); }
                         long wait = started + sent * 1_000_000_000L / (rate * 2L) - System.nanoTime(); if (wait > 0) TimeUnit.NANOSECONDS.sleep(wait);
                     }
                 }
                 if (stream.generation == generation && !stream.session.closing) {
-                    byte[] tail = resampler.finish(); if (tail.length != 0) stream.binary(tail);
+                    byte[] tail = resampler.finish(); if (tail.length != 0) {
+                        stream.binary(tail);
+                        if (first) { double elapsed = (System.nanoTime() - requested) / 1_000_000_000.0; firstAudioCount.increment(); firstAudioSeconds.add(elapsed); firstAudioMax.accumulate(elapsed); }
+                    }
                 }
                 confirmed = true;
                 if (stream.generation == generation) { if (voismart) stream.text(Map.of("type", "response.output_audio.done")); else { stream.session.playback = ""; media(stream.session, "listening", "", ""); } }
@@ -193,6 +206,7 @@ final class NativeMedia implements MediaManager {
         volatile java.net.http.WebSocket asr;
         volatile Future<?> tts;
         volatile long generation;
+        volatile long lastPcmAt;
         final CompletableFuture<Void> asrStarted = new CompletableFuture<>(), asrStopped = new CompletableFuture<>();
         final String task = UUID.randomUUID().toString().replace("-", ""), asrPermit = UUID.randomUUID().toString();
         final StringBuilder message = new StringBuilder();
@@ -244,7 +258,7 @@ final class NativeMedia implements MediaManager {
             else if (!localSpeech && bufferSamples >= 24000 * 2) { sendAsr(Map.of("type", "input_audio_buffer.clear")); bufferSamples = 0; }
         }
         void sendAsr(Object value) throws Exception { asr.sendText(new String(Support.json(value), StandardCharsets.UTF_8), true).get(5, TimeUnit.SECONDS); }
-        void binary(byte[] value) throws Exception { synchronized (socket) { if (socket.isOpen()) socket.sendMessage(new BinaryMessage(value)); } }
+        void binary(byte[] value) throws Exception { synchronized (socket) { if (!socket.isOpen()) throw new IOException("media socket closed"); socket.sendMessage(new BinaryMessage(value)); } }
         void text(Object value) throws Exception { synchronized (socket) { if (socket.isOpen()) socket.sendMessage(new TextMessage(Support.json(value))); } }
         @Override public void onOpen(java.net.http.WebSocket socket) { socket.request(1); }
         @Override public CompletionStage<?> onText(java.net.http.WebSocket socket, CharSequence data, boolean last) {

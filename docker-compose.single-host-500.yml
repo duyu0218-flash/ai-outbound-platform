@@ -1,5 +1,5 @@
-# Standalone Linux single-host qualification profile; 500 total in-flight calls, NOT measured capacity.
-# Use this file alone; extends imports individual compact services.
+# Java Linux single-host qualification candidate. 500 total in-flight is an acceptance target, not measured Java capacity.
+# Java workers share leased queues; former Python shard/concurrency settings are not carried over.
 services:
   control-api:
     extends:
@@ -8,31 +8,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8010'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8010'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -47,31 +47,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8011'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8011'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -86,31 +86,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8012'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8012'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -125,31 +125,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8013'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8013'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -164,31 +164,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8014'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8014'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8014/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -203,31 +203,31 @@ services:
     environment:
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       REQUEST_ADMISSION_TOTAL_INFLIGHT: '5'
       REQUEST_ADMISSION_WEBHOOK_INFLIGHT: '4'
       REQUEST_ADMISSION_DEFAULT_INFLIGHT: '1'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8015'
+      JAVA_WORKERS_ENABLED: 'false'
+      JAVA_DISPATCH_ENABLED: 'false'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8015'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/control.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8015/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     depends_on:
       db:
@@ -255,13 +255,16 @@ services:
     environment:
       DATABASE_POOL_SIZE: '8'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       AI_AGENT_URL: http://127.0.0.1:8004
       OUTBOUND_REQUIRE_AGENT_READY: 'true'
-      TASK_QUEUE_LANES: call_analysis:2,after_playback:8,dial_call:16
       SCHEDULER_POLL_INTERVAL_SEC: '0.1'
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8020'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'true'
     depends_on:
       db:
         condition: service_healthy
@@ -269,27 +272,54 @@ services:
         condition: service_healthy
     cpus: 1.5
     mem_limit: 3g
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   callback-worker-1:
     extends:
       file: docker-compose.compact.yml
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '0']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8031'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -301,21 +331,33 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '1']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8032'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -327,21 +369,33 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '2']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8033'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -353,21 +407,33 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '3']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8034'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -379,21 +445,33 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '4']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8035'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -405,21 +483,33 @@ services:
       service: task-worker
     environment:
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
-      SCHEDULER_ENABLED: 'false'
+      STABILITY_MIN_AI_WORKERS: '11'
       DATABASE_POOL_SIZE: '1'
       DATABASE_MAX_OVERFLOW: '0'
       AI_AGENT_URL: http://127.0.0.1:8004
-    command: [python, -m, app.callback_inbox_worker, --shards, '6', --shard-index, '5']
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8036'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
+    command:
+    - java
+    - -jar
+    - /app/control.jar
     cpus: 0.5
-    mem_limit: 256m
+    mem_limit: 512m
     healthcheck:
-      test: [CMD, python, -c, "import json,time; assert time.time()-json.load(open('/tmp/callback-inbox-health.json'))['at'] < 10"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
@@ -430,14 +520,16 @@ services:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
-      TASK_AI_CONCURRENCY: '160'
-      AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8041'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
     depends_on:
       db:
         condition: service_healthy
@@ -445,19 +537,36 @@ services:
         condition: service_healthy
     cpus: 0.75
     mem_limit: 1536m
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   ai-worker-2:
     extends:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
-      TASK_AI_CONCURRENCY: '160'
-      AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8042'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
     depends_on:
       db:
         condition: service_healthy
@@ -465,19 +574,36 @@ services:
         condition: service_healthy
     cpus: 0.75
     mem_limit: 1536m
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   ai-worker-3:
     extends:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
-      TASK_AI_CONCURRENCY: '160'
-      AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8043'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
     depends_on:
       db:
         condition: service_healthy
@@ -485,19 +611,36 @@ services:
         condition: service_healthy
     cpus: 0.75
     mem_limit: 1536m
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   ai-worker-4:
     extends:
       file: docker-compose.compact.yml
       service: ai-worker
     environment:
-      TASK_AI_CONCURRENCY: '160'
-      AI_DB_THREADS: '2'
       DATABASE_POOL_SIZE: '5'
       CALLBACK_INBOX_ENABLED: 'true'
-      CALLBACK_INBOX_MIN_WORKERS: '6'
+      CALLBACK_INBOX_MIN_WORKERS: '11'
       STABILITY_ADMISSION_ENABLED: 'true'
-      STABILITY_MIN_AI_WORKERS: '4'
+      STABILITY_MIN_AI_WORKERS: '11'
       AI_AGENT_URL: http://127.0.0.1:8004
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8044'
+      JAVA_WORKERS_ENABLED: 'true'
+      JAVA_DISPATCH_ENABLED: 'false'
     depends_on:
       db:
         condition: service_healthy
@@ -505,6 +648,21 @@ services:
         condition: service_healthy
     cpus: 0.75
     mem_limit: 1536m
+    command:
+    - java
+    - -jar
+    - /app/control.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/control.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   ai-agent-1:
     extends:
       file: docker-compose.compact.yml
@@ -520,26 +678,25 @@ services:
       LLM_QUOTA_TPM: ${LLM_APPROVED_TPM:?Set approved estimated token budget}
       LLM_QUOTA_RPS: ${LLM_APPROVED_RPS:?Set approved short-burst request budget}
       MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-200}
+      JAVA_SERVICE_ROLE: agent
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8025'
     volumes:
     - model_quota:/var/lib/model-quota
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8025'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8025/health',timeout=3)
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     cpus: 0.5
     mem_limit: 1g
@@ -558,26 +715,25 @@ services:
       LLM_QUOTA_TPM: ${LLM_APPROVED_TPM:?Set approved estimated token budget}
       LLM_QUOTA_RPS: ${LLM_APPROVED_RPS:?Set approved short-burst request budget}
       MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-200}
+      JAVA_SERVICE_ROLE: agent
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8026'
     volumes:
     - model_quota:/var/lib/model-quota
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8026'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8026/health',timeout=3)
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     cpus: 0.5
     mem_limit: 1g
@@ -586,7 +742,7 @@ services:
       file: docker-compose.compact.yml
       service: voice-gateway
     volumes:
-      - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings
+    - ${FREESWITCH_RECORDING_DIR:?Set node-local recording path}:/var/lib/freeswitch/recordings
     environment:
       VOICE_MAX_CONCURRENT: '500'
       VOICE_CALLBACK_CONCURRENCY: '24'
@@ -599,26 +755,26 @@ services:
       VOICE_QUOTA_ENABLED: 'true'
       VOICE_QUOTA_BUDGETS_JSON: ${VOICE_QUOTA_BUDGETS_JSON:?Set approved ASR and TTS account budgets}
       VOICE_RECORDING_CLEANUP_TOKEN: ${VOICE_RECORDING_CLEANUP_TOKEN:?Set independent recording cleanup credential}
-      VOICE_RECORDING_RESERVE_BYTES: ${VOICE_RECORDING_RESERVE_BYTES:?Set source-disk reserve for active recordings and upload outage}
+      VOICE_RECORDING_RESERVE_BYTES: ${VOICE_RECORDING_RESERVE_BYTES:?Set source-disk reserve for active recordings
+        and upload outage}
       MEDIA_WORKERS_JSON: '[{"id":"media-1","endpoint":"http://127.0.0.1:8101","ws_base":"ws://127.0.0.1:8101/v1/pipecat/media","capacity":50},{"id":"media-2","endpoint":"http://127.0.0.1:8102","ws_base":"ws://127.0.0.1:8102/v1/pipecat/media","capacity":50},{"id":"media-3","endpoint":"http://127.0.0.1:8103","ws_base":"ws://127.0.0.1:8103/v1/pipecat/media","capacity":50},{"id":"media-4","endpoint":"http://127.0.0.1:8104","ws_base":"ws://127.0.0.1:8104/v1/pipecat/media","capacity":50},{"id":"media-5","endpoint":"http://127.0.0.1:8105","ws_base":"ws://127.0.0.1:8105/v1/pipecat/media","capacity":50},{"id":"media-6","endpoint":"http://127.0.0.1:8106","ws_base":"ws://127.0.0.1:8106/v1/pipecat/media","capacity":50},{"id":"media-7","endpoint":"http://127.0.0.1:8107","ws_base":"ws://127.0.0.1:8107/v1/pipecat/media","capacity":50},{"id":"media-8","endpoint":"http://127.0.0.1:8108","ws_base":"ws://127.0.0.1:8108/v1/pipecat/media","capacity":50},{"id":"media-9","endpoint":"http://127.0.0.1:8109","ws_base":"ws://127.0.0.1:8109/v1/pipecat/media","capacity":50},{"id":"media-10","endpoint":"http://127.0.0.1:8110","ws_base":"ws://127.0.0.1:8110/v1/pipecat/media","capacity":50},{"id":"media-11","endpoint":"http://127.0.0.1:8111","ws_base":"ws://127.0.0.1:8111/v1/pipecat/media","capacity":50},{"id":"media-12","endpoint":"http://127.0.0.1:8112","ws_base":"ws://127.0.0.1:8112/v1/pipecat/media","capacity":50}]'
+      JAVA_SERVICE_ROLE: voice
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8002'
     command:
-    - uvicorn
-    - app.main:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8002'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     healthcheck:
       test:
       - CMD
-      - python
-      - -c
-      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/readyz',timeout=3)
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
       interval: 10s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
   media-1:
     extends:
@@ -628,18 +784,26 @@ services:
       MEDIA_WORKER_ID: media-1
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8101/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8101'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8101'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-2:
     extends:
       file: docker-compose.compact.yml
@@ -648,18 +812,26 @@ services:
       MEDIA_WORKER_ID: media-2
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8102/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8102'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8102'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-3:
     extends:
       file: docker-compose.compact.yml
@@ -668,18 +840,26 @@ services:
       MEDIA_WORKER_ID: media-3
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8103/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8103'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8103'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-4:
     extends:
       file: docker-compose.compact.yml
@@ -688,18 +868,26 @@ services:
       MEDIA_WORKER_ID: media-4
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8104/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8104'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8104'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-5:
     extends:
       file: docker-compose.compact.yml
@@ -708,18 +896,26 @@ services:
       MEDIA_WORKER_ID: media-5
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8105/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8105'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8105'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-6:
     extends:
       file: docker-compose.compact.yml
@@ -728,18 +924,26 @@ services:
       MEDIA_WORKER_ID: media-6
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8106/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8106'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8106'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-7:
     extends:
       file: docker-compose.compact.yml
@@ -748,18 +952,26 @@ services:
       MEDIA_WORKER_ID: media-7
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8107/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8107'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8107'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-8:
     extends:
       file: docker-compose.compact.yml
@@ -768,18 +980,26 @@ services:
       MEDIA_WORKER_ID: media-8
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8108/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8108'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8108'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-9:
     extends:
       file: docker-compose.compact.yml
@@ -788,18 +1008,26 @@ services:
       MEDIA_WORKER_ID: media-9
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8109/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8109'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8109'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-10:
     extends:
       file: docker-compose.compact.yml
@@ -808,18 +1036,26 @@ services:
       MEDIA_WORKER_ID: media-10
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8110/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8110'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8110'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-11:
     extends:
       file: docker-compose.compact.yml
@@ -828,18 +1064,26 @@ services:
       MEDIA_WORKER_ID: media-11
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8111/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8111'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8111'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   media-12:
     extends:
       file: docker-compose.compact.yml
@@ -848,18 +1092,26 @@ services:
       MEDIA_WORKER_ID: media-12
       VOICE_QUOTA_ENABLED: 'true'
       PIPECAT_MEDIA_WS_BASE: ws://127.0.0.1:8112/v1/pipecat/media
+      JAVA_SERVICE_ROLE: media
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8112'
     cpus: 1
     command:
-    - uvicorn
-    - app.media_worker:app
-    - --host
-    - 127.0.0.1
-    - --port
-    - '8112'
-    - --workers
-    - '1'
-    - --no-access-log
+    - java
+    - -jar
+    - /app/services.jar
     mem_limit: 1536m
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   freeswitch:
     extends:
       file: docker-compose.compact.yml
@@ -872,6 +1124,24 @@ services:
     environment:
       RECORDING_SOURCE_CLEANUP_ORIGIN: http://127.0.0.1:8002
       RECORDING_SOURCE_CLEANUP_TOKEN: ${VOICE_RECORDING_CLEANUP_TOKEN:?Set independent recording cleanup credential}
+      JAVA_SERVICE_ROLE: recording
+      JAVA_BIND_ADDRESS: 127.0.0.1
+      PORT: '8003'
+    command:
+    - java
+    - -jar
+    - /app/services.jar
+    healthcheck:
+      test:
+      - CMD
+      - java
+      - -jar
+      - /app/services.jar
+      - --healthcheck
+      interval: 10s
+      timeout: 15s
+      start_period: 30s
+      retries: 5
   db:
     image: ${POSTGRES_IMAGE:?Set qualified PostgreSQL 16 immutable image}
     restart: unless-stopped
@@ -921,6 +1191,7 @@ services:
     volumes:
     - ${SINGLE500_REDIS_CONFIG_FILE:?Set Redis password and persistence config}:/usr/local/etc/redis/redis.conf:ro
     - redis_data:/data
+    - ${SINGLE500_REDIS_TLS_DIR:?Set Redis certificate key and CA directory}:/etc/redis/tls:ro
     cpus: 0.5
     mem_limit: 1g
     logging:
@@ -932,6 +1203,13 @@ services:
       test:
       - CMD
       - redis-cli
+      - --tls
+      - --cacert
+      - /etc/redis/tls/ca.crt
+      - --sni
+      - localhost
+      - -h
+      - localhost
       - ping
       interval: 5s
       timeout: 3s

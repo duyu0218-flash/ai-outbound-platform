@@ -16,6 +16,8 @@ def assess(config):
     for label, rows, required in [('callback', callbacks, 6), ('API', api, 6), ('AI', ai, 4), ('Agent', agents, 2), ('media', media, 12)]:
         if len(rows) != required:
             errors.append(f'{label}: expected {required} processes')
+    java = services['control-api'].get('command', [])[:2] == ['java', '-jar']
+    workers = [row for row in ai + callbacks + [services['task-worker']] if row.get('environment', {}).get('JAVA_WORKERS_ENABLED') == 'true'] if java else []
     gateway = services['voice-gateway']['environment']
     if str(gateway.get('VOICE_QUOTA_ENABLED', '')).lower() != 'true' or any(
             str(row['environment'].get('VOICE_QUOTA_ENABLED', '')).lower() != 'true' for row in media):
@@ -61,18 +63,18 @@ def assess(config):
     for row in api + ai + callbacks + [services['task-worker']]:
         if str(row['environment'].get('CALLBACK_INBOX_ENABLED', '')).lower() != 'true':
             errors.append('all backend roles must enable durable callback reception')
-        if int(row['environment'].get('CALLBACK_INBOX_MIN_WORKERS', 1)) != len(callbacks):
+        if int(row['environment'].get('CALLBACK_INBOX_MIN_WORKERS', 1)) != (len(workers) if java else len(callbacks)):
             errors.append('backend readiness must require every configured callback worker')
     for row in api + ai + [services['task-worker']]:
         if (str(row['environment'].get('STABILITY_ADMISSION_ENABLED', '')).lower() != 'true'
-                or int(row['environment'].get('STABILITY_MIN_AI_WORKERS', 0)) != len(ai)):
+                or int(row['environment'].get('STABILITY_MIN_AI_WORKERS', 0)) != (len(workers) if java else len(ai))):
             errors.append('all dial/AI roles must enable stability admission with complete AI worker coverage')
     if (str(gateway.get('VOICE_CALLBACK_BATCH_ENABLED', '')).lower() != 'true'
             or not 1 <= int(gateway.get('VOICE_CALLBACK_BATCH_SIZE', 0)) <= 16
             or not 0 <= float(gateway.get('VOICE_CALLBACK_BATCH_DELAY_MS', -1)) <= 5):
         errors.append('callback transport requires bounded batches of at most 16 events and 5ms')
-    ai_slots = sum(int(row['environment']['TASK_AI_CONCURRENCY']) for row in ai)
-    if ai_slots != 640:
+    ai_slots = len(workers) if java else sum(int(row['environment']['TASK_AI_CONCURRENCY']) for row in ai)
+    if not java and ai_slots != 640:
         errors.append('AI lane budget must be 640')
     for row in api:
         env = row['environment']
@@ -83,17 +85,29 @@ def assess(config):
     api_callback_slots = sum(int(row['environment']['REQUEST_ADMISSION_WEBHOOK_INFLIGHT']) for row in api)
     if callback_slots > api_callback_slots:
         errors.append('callback transport exceeds API webhook admission budget')
-    shard_ids = []
-    for row in callbacks:
-        command = row.get('command', [])
-        if '--shards' not in command or '--shard-index' not in command:
-            errors.append('callback worker requires explicit shard assignment')
-            continue
-        if int(command[command.index('--shards') + 1]) != len(callbacks):
-            errors.append('callback shard count differs from worker count')
-        shard_ids.append(int(command[command.index('--shard-index') + 1]))
-    if sorted(shard_ids) != list(range(len(callbacks))):
-        errors.append('callback shard assignments must cover each worker exactly once')
+    if java:
+        ports = set()
+        for row in api + workers:
+            env=row['environment'];port=int(env['PORT'])
+            if port in ports: errors.append('Java workers and API require unique loopback ports')
+            ports.add(port)
+            if row.get('command') != ['java','-jar','/app/control.jar'] or row.get('healthcheck',{}).get('test') != ['CMD','java','-jar','/app/control.jar','--healthcheck']:
+                errors.append('Java core roles require the core jar and Java readiness probe')
+        if len(workers) != len(ai)+len(callbacks)+1 or any(row['environment'].get('JAVA_WORKERS_ENABLED')!='false' for row in api):
+            errors.append('Java queue ownership must be explicit and excluded from API roles')
+        if '--tls' not in services['redis'].get('healthcheck',{}).get('test',[]): errors.append('Java Redis readiness must use TLS')
+    else:
+        shard_ids = []
+        for row in callbacks:
+            command = row.get('command', [])
+            if '--shards' not in command or '--shard-index' not in command:
+                errors.append('callback worker requires explicit shard assignment')
+                continue
+            if int(command[command.index('--shards') + 1]) != len(callbacks):
+                errors.append('callback shard count differs from worker count')
+            shard_ids.append(int(command[command.index('--shard-index') + 1]))
+        if sorted(shard_ids) != list(range(len(callbacks))):
+            errors.append('callback shard assignments must cover each worker exactly once')
     quota_configs = {tuple(row['environment'].get(key) for key in
                           ('LLM_QUOTA_DB_PATH', 'LLM_QUOTA_SCOPE', 'LLM_QUOTA_RPM', 'LLM_QUOTA_TPM', 'LLM_QUOTA_RPS')) for row in agents}
     if len(quota_configs) != 1 or not all(next(iter(quota_configs), ())):
@@ -107,7 +121,7 @@ def assess(config):
             quota_sources.add((mounts[0].get('type'), mounts[0]['source']))
     if len(quota_sources) != 1:
         errors.append('Agents must use the same writable account quota volume')
-    if len([v for v in services.values() if v.get('environment', {}).get('SCHEDULER_ENABLED') == 'true']) != 1:
+    if len([v for v in services.values() if v.get('environment', {}).get('JAVA_DISPATCH_ENABLED' if java else 'SCHEDULER_ENABLED') == 'true']) != 1:
         errors.append('exactly one scheduler role required')
     cpu = sum(float(v.get('cpus', 0)) for v in services.values())
     memory = sum(int(v.get('mem_limit', 0)) for v in services.values()) / 1024**3
@@ -118,9 +132,9 @@ def assess(config):
             errors.append(f'{name}: single-host profile requires Linux host network')
         if name.startswith(('control-api', 'ai-agent', 'media-')) or name == 'voice-gateway':
             command = row.get('command', [])
-            if '--host' not in command or command[command.index('--host')+1] != '127.0.0.1':
+            if (row.get('environment',{}).get('JAVA_BIND_ADDRESS') != '127.0.0.1') if java else ('--host' not in command or command[command.index('--host')+1] != '127.0.0.1'):
                 errors.append(f'{name}: internal endpoint must bind loopback')
-    return {'static_config_passed': not errors, 'customer_inflight_limit': 500,
+    return {'static_config_passed': not errors, 'runtime': 'java' if java else 'python-reference', 'customer_inflight_limit': 500,
             'media_slots': sum(row['capacity'] for row in specs), 'ai_slots': ai_slots,
             'application_db_connections': db_connections, 'cpu_limits_total': cpu,
             'callback_delivery_slots': callback_slots, 'api_callback_slots': api_callback_slots,

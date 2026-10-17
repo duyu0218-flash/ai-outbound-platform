@@ -1,0 +1,336 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Java recording service",
+    "version": "0.1.0",
+    "description": "JDK 17 / Spring Boot 4.1.1. Retained request schemas with Java service authentication; no Python runtime is needed. Operational and cloud acceptance is separate."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Ready",
+        "operationId": "ready_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Ready Readyz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recordings/ingest": {
+      "post": {
+        "summary": "Ingest Recording",
+        "operationId": "ingest_recording_v1_recordings_ingest_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingIngestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingIngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/recordings/delete": {
+      "post": {
+        "summary": "Delete Recording",
+        "operationId": "delete_recording_v1_recordings_delete_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JavaError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body exceeds 1 MiB"
+          }
+        },
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RecordingDeleteRequest": {
+        "properties": {
+          "recording_asset_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Recording Asset Id"
+          },
+          "tenant_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Tenant Id"
+          },
+          "call_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Call Id"
+          },
+          "provider_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Recording Id"
+          },
+          "provider_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Url"
+          },
+          "storage_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Uri"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_asset_id",
+          "tenant_id",
+          "call_id"
+        ],
+        "title": "RecordingDeleteRequest"
+      },
+      "RecordingDeleteResponse": {
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "RecordingDeleteResponse"
+      },
+      "RecordingIngestRequest": {
+        "properties": {
+          "recording_asset_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Recording Asset Id"
+          },
+          "tenant_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Tenant Id"
+          },
+          "call_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Call Id"
+          },
+          "provider_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Recording Id"
+          },
+          "provider_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Provider Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_asset_id",
+          "tenant_id",
+          "call_id",
+          "provider_url"
+        ],
+        "title": "RecordingIngestRequest"
+      },
+      "RecordingIngestResponse": {
+        "properties": {
+          "storage_uri": {
+            "type": "string",
+            "title": "Storage Uri"
+          },
+          "checksum_sha256": {
+            "type": "string",
+            "title": "Checksum Sha256"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "storage_uri",
+          "checksum_sha256",
+          "size_bytes"
+        ],
+        "title": "RecordingIngestResponse"
+      },
+      "JavaError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "serviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ]
+}

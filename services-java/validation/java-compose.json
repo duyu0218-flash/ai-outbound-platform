@@ -1,89 +1,258 @@
 {
   "passed": true,
-  "services": {
-    "control-api": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/control.jar"
+  "profiles": [
+    {
+      "files": [
+        "docker-compose.yml"
       ],
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "java",
-          "-jar",
-          "/app/control.jar",
-          "--healthcheck"
-        ],
-        "timeout": "15s",
-        "interval": "15s",
-        "retries": 5,
-        "start_period": "30s"
+      "services": {
+        "ai-agent": {
+          "jar": "/app/services.jar",
+          "port": 8001
+        },
+        "control-api": {
+          "jar": "/app/control.jar",
+          "port": 8000
+        },
+        "recording-adapter": {
+          "jar": "/app/services.jar",
+          "port": 8003
+        },
+        "voice-gateway": {
+          "jar": "/app/services.jar",
+          "port": 8002
+        }
       }
     },
-    "ai-agent": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/services.jar"
+    {
+      "files": [
+        "docker-compose.yml",
+        "docker-compose.java.yml",
+        "docker-compose.java-services.yml"
       ],
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "java",
-          "-jar",
-          "/app/services.jar",
-          "--healthcheck"
-        ],
-        "timeout": "15s",
-        "interval": "10s",
-        "retries": 20,
-        "start_period": "30s"
+      "services": {
+        "ai-agent": {
+          "jar": "/app/services.jar",
+          "port": 8001
+        },
+        "control-api": {
+          "jar": "/app/control.jar",
+          "port": 8000
+        },
+        "recording-adapter": {
+          "jar": "/app/services.jar",
+          "port": 8003
+        },
+        "voice-gateway": {
+          "jar": "/app/services.jar",
+          "port": 8002
+        }
       }
     },
-    "recording-adapter": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/services.jar"
+    {
+      "files": [
+        "docker-compose.compact.yml"
       ],
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "java",
-          "-jar",
-          "/app/services.jar",
-          "--healthcheck"
-        ],
-        "timeout": "15s",
-        "interval": "10s",
-        "retries": 30,
-        "start_period": "30s"
+      "services": {
+        "ai-agent": {
+          "jar": "/app/services.jar",
+          "port": 8001
+        },
+        "ai-worker": {
+          "jar": "/app/control.jar",
+          "port": 8041
+        },
+        "ai-worker-2": {
+          "jar": "/app/control.jar",
+          "port": 8042
+        },
+        "control-api": {
+          "jar": "/app/control.jar",
+          "port": 8010
+        },
+        "control-api-2": {
+          "jar": "/app/control.jar",
+          "port": 8011
+        },
+        "control-api-3": {
+          "jar": "/app/control.jar",
+          "port": 8012
+        },
+        "control-api-4": {
+          "jar": "/app/control.jar",
+          "port": 8013
+        },
+        "media-1": {
+          "jar": "/app/services.jar",
+          "port": 8101
+        },
+        "media-2": {
+          "jar": "/app/services.jar",
+          "port": 8102
+        },
+        "media-3": {
+          "jar": "/app/services.jar",
+          "port": 8103
+        },
+        "media-4": {
+          "jar": "/app/services.jar",
+          "port": 8104
+        },
+        "recording-adapter": {
+          "jar": "/app/services.jar",
+          "port": 8003
+        },
+        "task-worker": {
+          "jar": "/app/control.jar",
+          "port": 8020
+        },
+        "voice-gateway": {
+          "jar": "/app/services.jar",
+          "port": 8002
+        }
       }
     },
-    "voice-gateway": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/services.jar"
+    {
+      "files": [
+        "docker-compose.single-host-500.yml"
       ],
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "java",
-          "-jar",
-          "/app/services.jar",
-          "--healthcheck"
-        ],
-        "timeout": "15s",
-        "interval": "10s",
-        "retries": 20,
-        "start_period": "30s"
+      "services": {
+        "ai-agent-1": {
+          "jar": "/app/services.jar",
+          "port": 8025
+        },
+        "ai-agent-2": {
+          "jar": "/app/services.jar",
+          "port": 8026
+        },
+        "ai-worker-1": {
+          "jar": "/app/control.jar",
+          "port": 8041
+        },
+        "ai-worker-2": {
+          "jar": "/app/control.jar",
+          "port": 8042
+        },
+        "ai-worker-3": {
+          "jar": "/app/control.jar",
+          "port": 8043
+        },
+        "ai-worker-4": {
+          "jar": "/app/control.jar",
+          "port": 8044
+        },
+        "callback-worker-1": {
+          "jar": "/app/control.jar",
+          "port": 8031
+        },
+        "callback-worker-2": {
+          "jar": "/app/control.jar",
+          "port": 8032
+        },
+        "callback-worker-3": {
+          "jar": "/app/control.jar",
+          "port": 8033
+        },
+        "callback-worker-4": {
+          "jar": "/app/control.jar",
+          "port": 8034
+        },
+        "callback-worker-5": {
+          "jar": "/app/control.jar",
+          "port": 8035
+        },
+        "callback-worker-6": {
+          "jar": "/app/control.jar",
+          "port": 8036
+        },
+        "control-api": {
+          "jar": "/app/control.jar",
+          "port": 8010
+        },
+        "control-api-2": {
+          "jar": "/app/control.jar",
+          "port": 8011
+        },
+        "control-api-3": {
+          "jar": "/app/control.jar",
+          "port": 8012
+        },
+        "control-api-4": {
+          "jar": "/app/control.jar",
+          "port": 8013
+        },
+        "control-api-5": {
+          "jar": "/app/control.jar",
+          "port": 8014
+        },
+        "control-api-6": {
+          "jar": "/app/control.jar",
+          "port": 8015
+        },
+        "media-1": {
+          "jar": "/app/services.jar",
+          "port": 8101
+        },
+        "media-10": {
+          "jar": "/app/services.jar",
+          "port": 8110
+        },
+        "media-11": {
+          "jar": "/app/services.jar",
+          "port": 8111
+        },
+        "media-12": {
+          "jar": "/app/services.jar",
+          "port": 8112
+        },
+        "media-2": {
+          "jar": "/app/services.jar",
+          "port": 8102
+        },
+        "media-3": {
+          "jar": "/app/services.jar",
+          "port": 8103
+        },
+        "media-4": {
+          "jar": "/app/services.jar",
+          "port": 8104
+        },
+        "media-5": {
+          "jar": "/app/services.jar",
+          "port": 8105
+        },
+        "media-6": {
+          "jar": "/app/services.jar",
+          "port": 8106
+        },
+        "media-7": {
+          "jar": "/app/services.jar",
+          "port": 8107
+        },
+        "media-8": {
+          "jar": "/app/services.jar",
+          "port": 8108
+        },
+        "media-9": {
+          "jar": "/app/services.jar",
+          "port": 8109
+        },
+        "recording-adapter": {
+          "jar": "/app/services.jar",
+          "port": 8003
+        },
+        "task-worker": {
+          "jar": "/app/control.jar",
+          "port": 8020
+        },
+        "voice-gateway": {
+          "jar": "/app/services.jar",
+          "port": 8002
+        }
       }
     }
-  },
+  ],
   "java_version": 17,
   "spring_boot_version": "4.1.1",
-  "legacy_worker_active": false,
-  "boundary": "Configuration resolution only; no image startup, host mounts, database cutover or deployment verified."
+  "boundary": "Compose resolution and command/port/mount checks only. No host deployment, certificate, database cutover or 500-call qualification."
 }

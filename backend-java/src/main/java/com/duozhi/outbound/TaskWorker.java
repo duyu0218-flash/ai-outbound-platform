@@ -32,6 +32,8 @@ public class TaskWorker {
     private final ExecutorService receipts = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "java-callback-inbox"); t.setDaemon(true); return t; });
     private static final String[] LANE_TYPES = {"('dial_call','mock_status')", "('ai_turn')", "('after_playback','interrupt_playback','call_analysis')", "('business_callback','recording_ingest','recording_delete','send_sms')"};
     private volatile boolean ready;
+    private volatile long aiProgress;
+    private final ArrayDeque<long[]> aiDelays = new ArrayDeque<>();
     private long cursor;
     public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations) {
         this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;
@@ -39,6 +41,26 @@ public class TaskWorker {
     public static void permitted() { Runnable guard = GUARD.get(); if (guard != null) guard.run(); }
     @EventListener(ApplicationReadyEvent.class) public void ready() { ready = true; }
     @PreDestroy public void close() { ready = false; executor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
+    private void aiProgress(long queued) {
+        long now=System.nanoTime();
+        synchronized(aiDelays){
+            aiProgress=now;
+            if(queued!=0){aiDelays.addLast(new long[]{now,Math.max(0,now-queued)});if(aiDelays.size()>256)aiDelays.removeFirst();}
+        }
+    }
+    Map<String,Object> aiSignal() {
+        long now=System.nanoTime(),progress=aiProgress;
+        if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||progress==0||now-progress>config.number("STABILITY_SIGNAL_TTL_SEC",15)*1_000_000_000L)return null;
+        double p95;
+        synchronized(aiDelays){
+            while(!aiDelays.isEmpty()&&now-aiDelays.peekFirst()[0]>30_000_000_000L)aiDelays.removeFirst();
+            long[] delays=aiDelays.stream().mapToLong(sample->sample[1]).sorted().toArray();
+            p95=delays.length==0?0:delays[(int)Math.ceil(delays.length*.95)-1]/1_000_000.0;
+        }
+        Map<String,Object> oldest=store.one("taskoutbox","WHERE task_type='ai_turn' AND state IN ('PENDING','FAILED') AND available_at<=? ORDER BY available_at LIMIT 1",store.encode("taskoutbox","available_at",Store.now()));
+        double age=oldest==null?0:Math.max(0,java.time.Duration.between(LocalDateTime.parse(oldest.get("available_at").toString()),Store.now()).toMillis());
+        return JsonSupport.map("at",System.currentTimeMillis()/1000.0-(now-progress)/1_000_000_000.0,"queue_p95_ms",p95,"oldest_wait_ms",age);
+    }
 
     public int enqueueDue() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return 0;
@@ -147,10 +169,12 @@ public class TaskWorker {
         for (int lane=0;lane<LANE_TYPES.length;lane++) {
             final int index=lane;
             if (!lanes[index].compareAndSet(false,true)) continue;
+            long queued=System.nanoTime();
             executor.submit(() -> {
                 try {
+                    if(index==1)aiProgress(queued);
                     if(index==0)enqueueDue();
-                    for(int i=0;i<16&&!Thread.currentThread().isInterrupted();i++)if(!processOne(null,LANE_TYPES[index]))break;
+                    for(int i=0;i<16&&!Thread.currentThread().isInterrupted();i++){boolean processed=processOne(null,LANE_TYPES[index]);if(index==1)aiProgress(0);if(!processed)break;}
                 } catch(RuntimeException e) { org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("worker lane={} error_type={}",index,e.getClass().getSimpleName()); }
                 finally { lanes[index].set(false); }
             });

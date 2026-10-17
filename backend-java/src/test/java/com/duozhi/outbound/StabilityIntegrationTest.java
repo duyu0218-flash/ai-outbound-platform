@@ -11,7 +11,14 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(properties={"spring.datasource.url=${JAVA_TEST_DATABASE_URL:jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared}","spring.datasource.hikari.maximum-pool-size=1","JAVA_INITIALIZE_SCHEMA=true","JWT_SECRET=java-integration-test-secret-at-least-32-characters","DEMO_USERS_ENABLED=true"})
 @AutoConfigureMockMvc
 class StabilityIntegrationTest {
-    @Autowired Store store;@Autowired Transactions tx;@Autowired JsonSupport json;@Autowired CallbackInbox inbox;
+    @Autowired Store store;@Autowired Transactions tx;@Autowired JsonSupport json;@Autowired CallbackInbox inbox;@Autowired TaskWorker worker;
+    @Test void disabledOrUnstartedJavaLaneCannotInventHealthySignals() {
+        assertNull(worker.aiSignal());
+        Config cfg=new Config(new MockEnvironment().withProperty("STABILITY_ADMISSION_ENABLED","true"));
+        ExpiringValues forbidden=new ExpiringValues(cfg){@Override public Object shared(String... command){fail("no progress must not publish a heartbeat");return null;}};
+        JavaWorkerSignals signals=new JavaWorkerSignals(worker,cfg,forbidden,json);
+        try{signals.publish();}finally{signals.close();}
+    }
     @Test void hardPressurePausesImmediatelyAndHealthyRecoveryRequiresHold() {
         Map<String,Object> state=StabilityAdmission.advance(null,1000,0,0,true);assertEquals("PAUSED",state.get("mode"));
         state=StabilityAdmission.advance(state,1059,0,0,true);assertEquals(0.0,state.get("fraction"));
@@ -40,7 +47,12 @@ class StabilityIntegrationTest {
         try {
             first.set(prefix+":media","registered",30);assertEquals("registered",second.get(prefix+":media"));second.delete(prefix+":media");assertNull(first.get(prefix+":media"));
             double now=System.currentTimeMillis()/1000.0;
-            first.shared("HSET",prefix+":signals","ai:test",json.json(JsonSupport.map("at",now,"queue_p95_ms",0,"oldest_wait_ms",0)));gate.publishGateway("test",true,0);
+            TaskWorker observed=org.mockito.Mockito.mock(TaskWorker.class);
+            org.mockito.Mockito.when(observed.aiSignal()).thenReturn(JsonSupport.map("at",now,"queue_p95_ms",0,"oldest_wait_ms",0));
+            JavaWorkerSignals publisher=new JavaWorkerSignals(observed,cfg,first,json);
+            try{publisher.publish();}finally{publisher.close();}
+            assertTrue(((List<?>)second.shared("HGETALL",prefix+":signals")).stream().anyMatch(value->value.toString().startsWith("ai:java-")));
+            gate.publishGateway("test",true,0);
             first.shared("SET",prefix+":control",json.json(JsonSupport.map("mode","NORMAL","fraction",1.0,"changed_at",now-120,"version",0)),"EX","120");
             // The test has its own inbox view, independent of other tests' intentionally dead callbacks.
             CallbackInbox healthy=new CallbackInbox(store,tx,json,cfg,null,null){@Override public Map<String,Object> snapshot(){return JsonSupport.map("ready",true,"oldest_age_sec",0);}};

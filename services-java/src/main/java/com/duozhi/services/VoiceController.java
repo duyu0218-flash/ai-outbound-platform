@@ -40,7 +40,16 @@ class VoiceController {
     }
     @GetMapping(value="/metrics", produces="text/plain;version=0.0.4;charset=utf-8") String metrics(@RequestHeader(value="Authorization", required=false) String auth) {
         Support.auth(settings, "METRICS_TOKEN", auth, false); var state = gateway.ledger.summary();
-        return "ai_outbound_voice_gateway_ready " + (gateway.ready() ? 1 : 0) + "\nai_outbound_voice_gateway_draining " + (gateway.draining ? 1 : 0) + "\nai_outbound_voice_gateway_active_calls " + state.get("active_attempts") + "\nai_outbound_voice_gateway_pending_callbacks " + state.get("pending_callbacks") + "\n";
+        StringBuilder text = new StringBuilder();
+        Metrics.append(text, "ai_outbound_voice_gateway_", Map.of("ready", gateway.ready() ? 1 : 0, "draining", gateway.draining ? 1 : 0,
+            "active_calls", state.get("active_attempts"), "pending_callbacks", state.get("pending_callbacks"), "calls", gateway.bindings.size()));
+        Metrics.append(text, "ai_outbound_voice_security_", state);
+        Metrics.append(text, "ai_outbound_voice_esl_", gateway.eventMetrics());
+        Metrics.append(text, "ai_outbound_voice_callback_", Map.of("http_inflight", gateway.callbacks.inflight()));
+        Metrics.append(text, "ai_outbound_voice_ledger_", Map.of("commits_total", gateway.ledger.commits()));
+        Metrics.append(text, "ai_outbound_pipecat_", Map.of("sessions", gateway.media == null ? 0 : gateway.media.sessions().size(), "session_capacity", settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000)));
+        if (gateway.media != null) Metrics.append(text, "ai_outbound_voice_", gateway.media.metrics());
+        return text.append(Metrics.jvm()).toString();
     }
     @GetMapping("/v1/recordings/{filename}") ResponseEntity<StreamingResponseBody> recording(@PathVariable String filename, @RequestParam long expires, @RequestParam String signature) throws Exception {
         var path = gateway.recordings.authorized(filename, expires, signature);

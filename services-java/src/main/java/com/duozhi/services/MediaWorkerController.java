@@ -33,7 +33,7 @@ class MediaWorkerController {
     @GetMapping("/readyz") Map<String,Object> ready(@RequestHeader(value="Authorization", required=false) String auth) { auth(auth); if (!manager.ready()) throw new Support.Failure(503, "media runtime unavailable"); return Map.of("status", "ready"); }
     @GetMapping("/internal/state") Map<String,Object> state(@RequestHeader(value="Authorization", required=false) String auth) {
         auth(auth); Map<String,Object> sessions = new LinkedHashMap<>(); for (var session : registered.values()) sessions.put(session.call, session.state());
-        return Map.of("worker_id", worker, "epoch", epoch, "ready", manager.ready(), "capacity", capacity, "metrics", Map.of(), "sessions", sessions);
+        return Map.of("worker_id", worker, "epoch", epoch, "ready", manager.ready(), "capacity", capacity, "metrics", manager.metrics(), "sessions", sessions);
     }
     @PostMapping("/internal/command") Map<String,Object> command(@RequestBody Map<String,Object> command, @RequestHeader(value="Authorization", required=false) String auth) throws Exception {
         auth(auth); if (!epoch.equals(command.get("epoch"))) throw new Support.Failure(409, "worker epoch changed");

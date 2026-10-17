@@ -3,7 +3,7 @@ package com.duozhi.outbound;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
-/** Shared controller compatible with the retained Python AI workers' signals. */
+/** Shared controller for Java worker progress and retained baseline signal contracts. */
 @Service
 public class StabilityAdmission {
     private final Config config;private final ExpiringValues redis;private final JsonSupport json;private final CallbackInbox inbox;

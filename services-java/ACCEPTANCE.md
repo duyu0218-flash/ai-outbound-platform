@@ -7,7 +7,7 @@
 | 层级 | 本轮状态 |
 | --- | --- |
 | 源代码 | 四个辅助角色已有独立 Java 实现；核心继续使用 `backend-java`。旧 Python 业务实现保留为基准/回退参考 |
-| 静态检查 | 编译、源代码差异检查、Compose 配置、32 个旧显式路由和 158 个配置字段清单通过；OSV/FindSecBugs 门禁通过 |
+| 静态检查 | 编译、差异检查、四种 Java Compose 组合、32 个旧显式路由及 8 个文档入口、158 个配置字段清单通过；两模块 OSV/FindSecBugs 门禁通过 |
 | 开发环境 | Java 测试、三服务真实进程链路、媒体独立进程重启、浏览器及四角色 Linux 临时容器通过，范围见下文 |
 | 测试环境发布 | 未发布；一次性本机测试进程/容器不等于持续测试环境 |
 | 真机测试 | 未验证真实 SIP/RTP/WebRTC、外呼号码、云语音/模型 |
@@ -29,6 +29,9 @@
 | 录音告知和媒体启动/停止 | 12 路等待告知、挂断并发、迟到响应、启动失败、超时 | 告知等待不占启动线程；挂断围栏；确认清理后显式回退；慢挂断不堵全局超时线程 | 实际 PBX 的全部事件顺序和资源耗尽 |
 | 原生 PCM/ASR/TTS | 合成语音、最终转写、播放事件、打断、关闭 | 真实本机 ASR WebSocket/TTS HTTP 夹具；重采样/滤波、全域 G711 对照；ASR 未应答时关闭 | 云 OpenAI/阿里云及真实电话音频、本地 VAD 校准 |
 | 媒体 `/internal/state`、`/internal/command` | 认证、epoch/session/attempt/语句/期限围栏、关闭、重启 | 实际独立 Java 进程强制结束并重启，旧 epoch 被拒绝 | 控制器账本与多工作器同时崩溃的完整接管 |
+| 四角色 `/docs`、`/openapi.json` | 加载、参数展开、筛选、JSON 链接、返回、鉴权不变 | 四角色实际容器 HTTP；Agent/网关实际 Chromium CSP/筛选/展开/返回 | 全接口每个字段/响应组合 |
+| 网关/录音监控、媒体状态 | 有效计数、凭据、无事件、工作器不可用 | 实际容器鉴权/JVM指标；TTS 首包/PCM计数、根事务回滚、HTTP聚合sum/max/缺失 | 目标监控平台、自定义告警迁移与长期时序 |
+| Java 执行器与准入 | 真实通道进展、停止/超时、Redis发布、共享状态 | 本机线程/数据库及独立 Redis；API不执行任务、唯一调度者配置 | 11工作器合并部署与吞吐/长稳 |
 | HTTP/容器边界 | 缺失/错误凭据、重复头、坏 JSON、超大/分块请求、角色隔离 | 实际 Tomcat HTTP；非 root、只读 root、noexec 临时目录的四角色容器 | 完整渗透测试和目标 Linux 主机 |
 
 本项目不是电商；本轮关键业务链路采用“首页 → 客户搜索 → 任务 → 拨号/回调 → 通话记录 → 分析/报表 → 返回/退出”。未执行购物车、下单或支付链路。
@@ -36,13 +39,17 @@
 ## 可复查证据
 
 - `validation/java-stack.json`：5 项服务/浏览器链路检查，记录核心及辅助 jar SHA-256。
-- `validation/java-services-browser.json`：7 项 Chromium 用例，无跳过或失败。
-- `target/surefire-reports/`：34 项 Java 用例，包含独立 S3 夹具；报告由测试重新生成。
+- `validation/java-services-browser.json`：8 项 Chromium 用例，无跳过或失败。
+- `target/surefire-reports/`：38 项 Java 用例，包含独立 S3 夹具；报告由测试重新生成。
+- `../backend-java/validation/java-migration-close-tests.json`：SQLite 与 PostgreSQL 各 113 项核心回归，无失败或跳过；包含实际 Java AI 通道进展、停止/陈旧信号及隔离 Redis 发布。
+- `../backend-java/validation/java-close-container.json`：本轮核心 Linux 镜像的登录/前端/凭据/CORS/发布门禁/模拟外呼回调和分析通过。
+- `../backend-java/validation/java-security.json`：91/91 Maven 包，公告 0；84 个主类、149 条原始提示全部纳入门禁。
+- `validation/java-single500.json`：Java 单机静态预算及 10 项 Java/Python 配置回归；不表示 500 路容量通过。
 - `validation/java-media-process.json`：5 项独立工作器 RPC/崩溃重启检查，与 jar 摘要绑定。
 - `validation/java-containers.json`：四个 Java 角色和 S3 的隔离容器结果，记录实际镜像 ID。
-- `validation/java-compose.json`：四个默认业务服务的 Java 命令/健康检查，旧任务进程不在默认集合内。
+- `validation/java-compose.json`：默认、兼容覆盖、compact 和单机 500 四种配置组合的 Java 命令、健康检查、host 端口唯一性和可写录音挂载；旧 Python 任务进程不在默认集合内。
 - `validation/routes.json`、`validation/configuration-mapping.json`：静态映射，不能当作所有路由或配置组合已执行。
-- `validation/java-security.json`：73/73 Maven 依赖包，公告为 0；49 个主类全部分析，45 条原始提示保留，18 条分析提示和 27 个路由观察逐项复核，未复核为 0。提示不等于已确认漏洞。
+- `validation/java-security.json`：73/73 Maven 依赖包，公告为 0；51 个主类全部分析，47 条原始提示保留，18 条分析提示和 29 个路由观察逐项复核，未复核为 0。提示不等于已确认漏洞。
 
 原始 SBOM、OSV、SpotBugs XML 均保留在 `target/` 并由 CI 上传。复核记录绑定完整源码摘要、方法/位置及出现次数；不得仅刷新摘要来放行变化。
 
@@ -57,10 +64,10 @@ Python 的 flock 与 Java 的 FileChannel 使用不同 owner 文件，不能互�
 ## 已知问题与环境限制
 
 1. 完整 Codex Security 差异扫描尚未完成。扫描 `be158319-0569-403d-b6fa-1d10ddcf40fa` 固定在原迁移检查点 `dd735c6`；清单工具使用 `git cat-file --batch -Z`，其宿主选择的 Apple Git 2.39.5 不支持该参数。已保存架构模型及部分覆盖，未封存为通过结果。后续修复也不在该固定检查点内。
-2. 原 FastAPI 自动文档/OpenAPI 页面没有迁移；业务显式路由映射已登记。部分旧 Python 执行器/事件循环指标没有一一对应到 JVM，切换前需调整监控/告警，不能把缺失指标当成数值 0。
+2. 文档页和 OpenAPI 已迁移；旧 Python writer/事件循环专属指标改用实际 JVM、事件积压和根事务指标，映射见 MONITORING.md。部署方自定义告警尚未接入验收；未知样本不当作 0。
 3. 原 Python A-law 对 -7..-1 七个样本产生非法 byte；Java 使用合法零档值 0x55。其他 65,529 个输入及 256 个解码值已按原输出对照。这是有记录的行为修复。
 4. OpenAI 路径保留 `gpt-realtime-whisper` 默认模型；原生本地 RMS VAD 需要真实音频校准。未通过云服务返回、电话录音和主观听感验收，不承诺识别质量/延迟。
-5. 原基础/compact/500 部署文件仍保留 Python 配置作旧版本参考。全 Java 基础方案须显式叠加两份 Java 覆盖文件；既有 500 路性能结论不能直接套用新 Java 服务，也不能直接混用桥接容器与 loopback 工作器地址。
+5. 三套标准部署配置已直接选择 Java，旧文件单独保留为 python-reference。Java worker 统一执行租约任务/Inbox并上报真实准入信号；单机 11 条 AI 通道不能沿用旧 Python 640 异步槽位的吞吐结论。目标 Linux host 配置、Redis证书/truststore、全部进程的合并部署及 500 路性能尚未验证，详见 DEPLOYMENT.md。
 6. ESL 是明文原生协议，仅允许可信私网/loopback 的部署边界；网络保密性不能由服务令牌代替。真实配置须提供独立强凭据、允许线路、回调地址、PBX 硬挂断和最小权限路由。
 7. Docker Hub 访问超时；本轮隔离镜像改用 AWS 公共镜像副本构建，实际镜像 ID见验证报告。正式制品仍需固定并复验目标镜像摘要。测试环境资源不构成容量承诺。
 

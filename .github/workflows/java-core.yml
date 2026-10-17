@@ -1,7 +1,7 @@
 name: java-core
 on:
   push:
-    branches: [main, feat/java-core-backend-20261015]
+    branches: [main, feat/java-core-backend-20261015, migration/java-services-20261017]
   pull_request:
     branches: [main]
 jobs:
