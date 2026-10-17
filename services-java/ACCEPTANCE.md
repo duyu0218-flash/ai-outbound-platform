@@ -46,7 +46,7 @@
 - `../backend-java/validation/java-security.json`：91/91 Maven 包，公告 0；84 个主类、149 条原始提示全部纳入门禁。
 - `validation/java-single500.json`：Java 单机静态预算及 10 项 Java/Python 配置回归；不表示 500 路容量通过。
 - `validation/java-media-process.json`：5 项独立工作器 RPC/崩溃重启检查，与 jar 摘要绑定。
-- `validation/java-containers.json`：四个 Java 角色和 S3 的隔离容器结果，记录实际镜像 ID。
+- `validation/java-containers.json`：四个 Java 角色和 S3 的隔离容器结果，记录实际镜像 ID；实际删除/重建网关后，同一命名卷中的安全停止标记保留，readiness 仍拒绝，显式恢复后才就绪。
 - `validation/java-compose.json`：默认、兼容覆盖、compact 和单机 500 四种配置组合的 Java 命令、健康检查、host 端口唯一性和可写录音挂载；旧 Python 任务进程不在默认集合内。
 - `validation/routes.json`、`validation/configuration-mapping.json`：静态映射，不能当作所有路由或配置组合已执行。
 - `validation/java-security.json`：73/73 Maven 依赖包，公告为 0；51 个主类全部分析，47 条原始提示保留，18 条分析提示和 29 个路由观察逐项复核，未复核为 0。提示不等于已确认漏洞。
@@ -63,7 +63,7 @@ Python 的 flock 与 Java 的 FileChannel 使用不同 owner 文件，不能互�
 
 ## 已知问题与环境限制
 
-1. 完整 Codex Security 差异扫描尚未完成。扫描 `be158319-0569-403d-b6fa-1d10ddcf40fa` 固定在原迁移检查点 `dd735c6`；清单工具使用 `git cat-file --batch -Z`，其宿主选择的 Apple Git 2.39.5 不支持该参数。已保存架构模型及部分覆盖，未封存为通过结果。后续修复也不在该固定检查点内。
+1. 完整 Codex Security 差异扫描尚未完成。旧扫描 `be158319-0569-403d-b6fa-1d10ddcf40fa` 固定在 `dd735c6`；最新扫描 `7e460d74-706b-4eff-b78a-412b872f2cfa` 固定在 `8cf9db8`，新架构模型已保存。两次清单工具均因宿主 Apple Git 2.39.5 不支持 `git cat-file --batch -Z` 而失败，没有封存为通过结果。可用新版 Git 已存在于仓库外，但未擅自更改 MCP 宿主环境或用户配置。随后默认网关账本挂载修复有独立配置及实际重建容器验证，位于固定扫描范围之后；不能以该修复或 OSV/SAST 门禁代替完整差异审查。
 2. 文档页和 OpenAPI 已迁移；旧 Python writer/事件循环专属指标改用实际 JVM、事件积压和根事务指标，映射见 MONITORING.md。部署方自定义告警尚未接入验收；未知样本不当作 0。
 3. 原 Python A-law 对 -7..-1 七个样本产生非法 byte；Java 使用合法零档值 0x55。其他 65,529 个输入及 256 个解码值已按原输出对照。这是有记录的行为修复。
 4. OpenAI 路径保留 `gpt-realtime-whisper` 默认模型；原生本地 RMS VAD 需要真实音频校准。未通过云服务返回、电话录音和主观听感验收，不承诺识别质量/延迟。

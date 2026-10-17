@@ -41,6 +41,9 @@ with tempfile.TemporaryDirectory(prefix='java-compose-check-') as folder:
                 assert settings['JAVA_WORKERS_ENABLED'] == ('false' if name.startswith('control-api') and service.get('network_mode')=='host' else 'true')
             if name=='voice-gateway':
                 assert any(v['target'] in {'/recordings','/var/lib/freeswitch/recordings'} and not v.get('read_only',False) for v in service['volumes'])
+            state_path=(settings.get('VOICE_SECURITY_DB_PATH') if name=='voice-gateway' else settings.get('LLM_QUOTA_DB_PATH') if name.startswith('ai-agent') else settings.get('RECORDING_SPOOL_DIR') if name=='recording-adapter' else None)
+            if state_path:
+                assert any(not mount.get('read_only',False) and Path(state_path).is_relative_to(mount['target']) for mount in service.get('volumes',[])), (files,name,'persistent state has no writable volume')
             selected[name]={'jar':service['command'][2], 'port':port}
         assert len(selected)>=4
         if files==['docker-compose.yml']: assert 'task-worker' not in config['services']

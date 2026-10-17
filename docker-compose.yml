@@ -269,6 +269,7 @@ services:
       FREESWITCH_RECORDING_DIR: /recordings
     volumes:
     - java_source_recordings:/recordings
+    - voice_security_data:/var/lib/voice-security
     expose:
     - '8002'
     healthcheck:

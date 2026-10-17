@@ -22,6 +22,8 @@ def main():
     prefix = 'java-services-check-' + secrets.token_hex(4)
     names, checks = [], []
     network_created = False
+    ledger_volume = prefix+'-ledger'
+    volume_created = False
     token, cleanup, command_key = (secrets.token_urlsafe(32) for _ in range(3))
 
     def docker(*args, check=True):
@@ -42,6 +44,7 @@ def main():
                      '--tmpfs', '/recordings:rw,noexec,nosuid,size=64m,uid=10001,gid=10001',
                      '--tmpfs', '/var/spool/recordings:rw,noexec,nosuid,size=64m,uid=10001,gid=10001',
                      '-p', '127.0.0.1::8003']
+            if env.get('JAVA_SERVICE_ROLE') == 'voice': args += ['-v',ledger_volume+':/var/lib/voice-security']
         for key, value in env.items():
             args += ['-e', key+'='+value]
         args += [image]+(command or [])
@@ -71,6 +74,8 @@ def main():
         assert docker('image', 'inspect', '--format', '{{.Config.User}}', IMAGE) == '10001:10001'
         docker('network', 'create', '--label', 'codex.task=java-services-container-check', prefix)
         network_created = True
+        docker('volume','create','--label','codex.task=java-services-container-check',ledger_volume)
+        volume_created = True
         s3 = run('s3', dict(AWS_ACCESS_KEY_ID='java-isolated-access', AWS_SECRET_ACCESS_KEY='java-isolated-secret', S3_BUCKET='java-isolated-recordings'),
                  image='chrislusf/seaweedfs:4.44', command=['mini', '-dir=/data', '-ip='+prefix+'-s3', '-ip.bind=0.0.0.0', '-master.volumeSizeLimitMB=8'])
         for _ in range(60):
@@ -82,7 +87,7 @@ def main():
             raise RuntimeError('S3 fixture readiness timeout')
         common = dict(ENV='test', PORT='8003', SERVICE_TOKEN=token, METRICS_TOKEN='isolated-container-metrics')
         voice = run('voice', dict(common, JAVA_SERVICE_ROLE='voice', VOICE_GATEWAY_DRIVER='mock',
-                                  VOICE_SECURITY_DB_PATH='/tmp/voice.sqlite', FREESWITCH_RECORDING_DIR='/recordings',
+                                  VOICE_SECURITY_DB_PATH='/var/lib/voice-security/ledger.sqlite3', FREESWITCH_RECORDING_DIR='/recordings',
                                   VOICE_NODE_ID='container-node', VOICE_COMMAND_SECRET=command_key, VOICE_RECORDING_CLEANUP_TOKEN=cleanup))
         voice_url = ready(voice)
         checks.append('nonroot read-only Java voice container and SQLite with noexec temporary directory')
@@ -134,6 +139,23 @@ def main():
             assert metrics.status_code == 200 and 'ai_outbound_java_uptime_seconds ' in metrics.text
             assert token not in metrics.text and cleanup not in metrics.text
         checks.append('all four role API references and authenticated nonempty JVM metrics in actual containers')
+        headers={'Authorization':'Bearer '+token}
+        assert httpx.post(voice_url+'/v1/admin/security/stop',headers=headers,json={'stopped':True,'reason':'isolated persistence regression'},trust_env=False).status_code==200
+        docker('rm','-f',voice);names.remove(voice)
+        restarted=run('voice-restarted',dict(common,JAVA_SERVICE_ROLE='voice',VOICE_GATEWAY_DRIVER='mock',VOICE_SECURITY_DB_PATH='/var/lib/voice-security/ledger.sqlite3',FREESWITCH_RECORDING_DIR='/recordings'))
+        restarted_url=endpoint(restarted)
+        for attempt in range(150):
+            try:
+                response=httpx.get(restarted_url+'/v1/admin/security',headers=headers,timeout=2,trust_env=False)
+                if response.status_code==200: break
+            except httpx.HTTPError: pass
+            time.sleep(.1)
+        else: raise RuntimeError('recreated gateway did not expose retained ledger')
+        assert response.json()['stopped'] is True
+        assert httpx.get(restarted_url+'/readyz',trust_env=False).status_code==503
+        assert httpx.post(restarted_url+'/v1/admin/security/stop',headers=headers,json={'stopped':False,'reason':'isolated persistence verified'},trust_env=False).status_code==200
+        ready(restarted)
+        checks.append('nonroot gateway recreation retains persistent security stop and remains unready until explicitly resumed')
         report = dict(passed=True, image_id=image_id, checks=checks,
                       boundary='Disposable Linux Java role containers, noexec/read-only filesystem, synthetic WAV and real SeaweedFS; no production data, PBX, cloud model, call capacity or deployment cutover.')
         (OUT/'java-containers.json').write_text(json.dumps(report, indent=2)+'\n')
@@ -146,6 +168,8 @@ def main():
             docker('rm','-f',*names,check=False)
         if network_created:
             docker('network','rm',prefix,check=False)
+        if volume_created:
+            docker('volume','rm',ledger_volume,check=False)
 
 
 if __name__ == '__main__':

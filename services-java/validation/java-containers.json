@@ -6,7 +6,8 @@
     "nonroot Java Agent HTTP credentials and greeting",
     "Java signed source -> Java recording -> actual S3 readback -> owner cleanup, retry and delete tombstone",
     "nonroot Java media role and authenticated worker state",
-    "all four role API references and authenticated nonempty JVM metrics in actual containers"
+    "all four role API references and authenticated nonempty JVM metrics in actual containers",
+    "nonroot gateway recreation retains persistent security stop and remains unready until explicitly resumed"
   ],
   "boundary": "Disposable Linux Java role containers, noexec/read-only filesystem, synthetic WAV and real SeaweedFS; no production data, PBX, cloud model, call capacity or deployment cutover."
 }
