@@ -17,6 +17,11 @@ on:
         type: choice
         default: x64
         options: [x64, arm64]
+      capacity_profile:
+        description: Transaction sizes only; all CPS and AI SLO thresholds remain identical
+        type: choice
+        default: balanced
+        options: [balanced, large]
 permissions:
   contents: read
 jobs:
@@ -72,8 +77,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.synthetic_capacity
     runs-on: ${{ inputs.capacity_arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 25
+    env:
+      CAPACITY_PROFILE: ${{ inputs.capacity_profile == 'large' && 'large' || 'balanced' }}
+      DIAL_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '500' || '100' }}
+      RECEIPT_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '250' || '32' }}
     concurrency:
-      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}
+      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}-${{ inputs.capacity_profile || 'balanced' }}
       cancel-in-progress: true
     defaults:
       run:
@@ -107,11 +116,12 @@ jobs:
           free -m > verification/ci-host/memory.txt
           docker info > verification/ci-host/docker.txt
           git rev-parse HEAD > verification/ci-host/commit.txt
+          printf '%s\n' "$CAPACITY_PROFILE" > verification/ci-host/profile.txt
           mvn -B -DskipTests package
           sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.batch=500 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=250 -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
       - name: Publish first CPS evidence before the longer AI probe
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -125,7 +135,7 @@ jobs:
       - name: Measure real queued-pool dial acknowledgements (repeat)
         id: cps_repeat
         if: always()
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.batch=500 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=250 -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-repeat test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-repeat test
       - name: Hold 500 AI calls with the original throughput and latency thresholds
         id: ai_capacity
         if: always()
