@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-20",
+  "application_model": "single instance, single JVM",
+  "source_validation": {
+    "mvn_verify": "passed",
+    "tests": {
+      "unit": {
+        "tests": 140,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "integration": {
+        "tests": 196,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "browser_groups": 19,
+    "healthz": 200,
+    "enforcer": "passed"
+  },
+  "tested_jar_sha256": "ec5c3bd200a494e4b23356a471ce37a821d91b9fa571d6e9a9bf51f92742005f",
+  "capacity": {
+    "target_calls": 500,
+    "target_turns_per_second": 50,
+    "hold_seconds": 120,
+    "thresholds": {
+      "reply_p99_ms_max": 3000,
+      "scheduled_reply_fraction_min": 0.99,
+      "all_500_in_ai": true,
+      "reply_p95_ms_max": 1500,
+      "pending_after_drain_max": 0,
+      "http_success_fraction_min": 0.999
+    },
+    "planned_turns": 6000,
+    "sent_turns": 5492,
+    "http_status": {
+      "200": 5492
+    },
+    "delivered_within_steady_window": 5148,
+    "durable_replies": 5492,
+    "pending_calls_after_drain": 0,
+    "call_waiting_missed_slots": 508,
+    "generator_missed_slots": 0,
+    "reply_p95_ms": 10110.0,
+    "reply_p99_ms": 10496.0,
+    "steady_valid_reply_rps": 42.9,
+    "peak_pending_tasks": 483,
+    "peak_pending_callbacks": 34,
+    "held_500_in_steady_samples": true,
+    "simulation_slo_passed": false,
+    "real_500_audio_capacity_verified": false,
+    "production_capacity_verified": false
+  },
+  "runtime_versions": {
+    "java": "17.0.20.1",
+    "maven": "3.9.11",
+    "spring_boot": "3.5.16",
+    "shiro": "2.0.6 Jakarta",
+    "mybatis_starter": "3.0.4",
+    "spring_ai": "1.0.3",
+    "druid": "1.2.28",
+    "pagehelper": "2.1.0",
+    "springdoc": "2.8.16"
+  },
+  "deployment_updated": false,
+  "raw_evidence": "Retained locally in outbound-mono/verification/; deliberately excluded from Git"
+}

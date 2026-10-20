@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.CampaignContactMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.CampaignContact">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="campaign_id" property="campaignId" javaType="java.lang.Integer"/>
+    <result column="contact_id" property="contactId" javaType="java.lang.Integer"/>
+    <result column="contact_order" property="contactOrder" javaType="java.lang.Integer"/>
+    <result column="is_active" property="isActive" javaType="java.lang.Boolean"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `campaigncontact`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `campaign_id`,
+      `contact_id`,
+      `contact_order`,
+      `is_active`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.campaignId,jdbcType=INTEGER},
+      #{row.contactId,jdbcType=INTEGER},
+      #{row.contactOrder,jdbcType=INTEGER},
+      #{row.isActive,jdbcType=BOOLEAN},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `campaigncontact`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `campaign_id`,
+      `contact_id`,
+      `contact_order`,
+      `is_active`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.campaignId,jdbcType=INTEGER},
+      #{row.contactId,jdbcType=INTEGER},
+      #{row.contactOrder,jdbcType=INTEGER},
+      #{row.isActive,jdbcType=BOOLEAN},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `campaign_id`, `contact_id`, `contact_order`, `is_active` FROM `campaigncontact` WHERE `id` = #{id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `campaign` p WHERE p.`id` = `campaigncontact`.`campaign_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </select>
+  <update id="updateById">
+    UPDATE `campaigncontact` SET
+      `campaign_id` = #{row.campaignId,jdbcType=INTEGER},
+      `contact_id` = #{row.contactId,jdbcType=INTEGER},
+      `contact_order` = #{row.contactOrder,jdbcType=INTEGER},
+      `is_active` = #{row.isActive,jdbcType=BOOLEAN}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `campaign` p WHERE p.`id` = `campaigncontact`.`campaign_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `campaigncontact` WHERE `id` = #{id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `campaign` p WHERE p.`id` = `campaigncontact`.`campaign_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `campaign_id`, `contact_id`, `contact_order`, `is_active` FROM `campaigncontact`
+    WHERE EXISTS (SELECT 1 FROM `campaign` p WHERE p.`id` = `campaigncontact`.`campaign_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `campaigncontact`
+    <set>
+      <if test="changes.containsKey('campaign_id')">`campaign_id` = #{changes.campaign_id,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('contact_id')">`contact_id` = #{changes.contact_id,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('contact_order')">`contact_order` = #{changes.contact_order,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('is_active')">`is_active` = #{changes.is_active,jdbcType=BOOLEAN},</if>
+    </set>
+    WHERE `id` = #{id} AND `campaign_id` IN (SELECT `id` FROM `campaign` WHERE `tenant_id` = #{tenantId})
+  </update>
+  <select id="scopedCampaigns40" resultMap="row">SELECT * FROM `campaigncontact` WHERE `campaign_id` IN (SELECT id FROM campaign WHERE tenant_id = #{tenantId}) AND (campaign_id=#{p0}) ORDER BY contact_order ASC,id ASC</select>
+  <delete id="replaceCampaignContacts">DELETE FROM campaigncontact WHERE campaign_id=#{campaignId} AND campaign_id IN (SELECT id FROM campaign WHERE tenant_id = #{tenantId})</delete>
+</mapper>

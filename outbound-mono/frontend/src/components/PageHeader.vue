@@ -1,0 +1,1 @@
+<script setup>import {t} from '../i18n';defineProps({title:String,description:String})</script><template><header class="page-header"><div><h1>{{t(title)}}</h1><p v-if="description">{{t(description)}}</p></div><div class="actions"><slot/></div></header></template>

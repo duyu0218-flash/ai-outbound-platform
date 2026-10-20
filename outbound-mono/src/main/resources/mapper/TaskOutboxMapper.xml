@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.TaskOutboxMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.TaskOutbox">
+    <id column="id" property="id" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="task_type" property="taskType" javaType="java.lang.String"/>
+    <result column="aggregate_id" property="aggregateId" javaType="java.lang.String"/>
+    <result column="idempotency_key" property="idempotencyKey" javaType="java.lang.String"/>
+    <result column="payload_json" property="payloadJson" javaType="java.lang.String"/>
+    <result column="state" property="state" javaType="com.duozhi.outbound.entity.enums.TaskState"/>
+    <result column="attempts" property="attempts" javaType="java.lang.Integer"/>
+    <result column="max_attempts" property="maxAttempts" javaType="java.lang.Integer"/>
+    <result column="available_at" property="availableAt" javaType="java.time.LocalDateTime"/>
+    <result column="locked_at" property="lockedAt" javaType="java.time.LocalDateTime"/>
+    <result column="lease_token" property="leaseToken" javaType="java.lang.String"/>
+    <result column="last_error" property="lastError" javaType="java.lang.String"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert">
+    INSERT INTO `taskoutbox`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      `id`,
+      `tenant_id`,
+      `task_type`,
+      `aggregate_id`,
+      `idempotency_key`,
+      `payload_json`,
+      `state`,
+      `attempts`,
+      `max_attempts`,
+      `available_at`,
+      `locked_at`,
+      `lease_token`,
+      `last_error`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.taskType,jdbcType=VARCHAR},
+      #{row.aggregateId,jdbcType=VARCHAR},
+      #{row.idempotencyKey,jdbcType=VARCHAR},
+      #{row.payloadJson,jdbcType=LONGVARCHAR},
+      #{row.state,jdbcType=VARCHAR},
+      #{row.attempts,jdbcType=INTEGER},
+      #{row.maxAttempts,jdbcType=INTEGER},
+      #{row.availableAt,jdbcType=TIMESTAMP},
+      #{row.lockedAt,jdbcType=TIMESTAMP},
+      #{row.leaseToken,jdbcType=VARCHAR},
+      #{row.lastError,jdbcType=VARCHAR},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `payload_json`, `state`, `attempts`, `max_attempts`, `available_at`, `locked_at`, `lease_token`, `last_error`, `created_at`, `updated_at` FROM `taskoutbox` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `taskoutbox` SET
+      `task_type` = #{row.taskType,jdbcType=VARCHAR},
+      `aggregate_id` = #{row.aggregateId,jdbcType=VARCHAR},
+      `idempotency_key` = #{row.idempotencyKey,jdbcType=VARCHAR},
+      `payload_json` = #{row.payloadJson,jdbcType=LONGVARCHAR},
+      `state` = #{row.state,jdbcType=VARCHAR},
+      `attempts` = #{row.attempts,jdbcType=INTEGER},
+      `max_attempts` = #{row.maxAttempts,jdbcType=INTEGER},
+      `available_at` = #{row.availableAt,jdbcType=TIMESTAMP},
+      `locked_at` = #{row.lockedAt,jdbcType=TIMESTAMP},
+      `lease_token` = #{row.leaseToken,jdbcType=VARCHAR},
+      `last_error` = #{row.lastError,jdbcType=VARCHAR},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `taskoutbox` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `payload_json`, `state`, `attempts`, `max_attempts`, `available_at`, `locked_at`, `lease_token`, `last_error`, `created_at`, `updated_at` FROM `taskoutbox`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `taskoutbox`
+    <set>
+      <if test="changes.containsKey('task_type')">`task_type` = #{changes.task_type,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('aggregate_id')">`aggregate_id` = #{changes.aggregate_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('idempotency_key')">`idempotency_key` = #{changes.idempotency_key,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('payload_json')">`payload_json` = #{changes.payload_json,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('state')">`state` = #{changes.state,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('attempts')">`attempts` = #{changes.attempts,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('max_attempts')">`max_attempts` = #{changes.max_attempts,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('available_at')">`available_at` = #{changes.available_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('locked_at')">`locked_at` = #{changes.locked_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('lease_token')">`lease_token` = #{changes.lease_token,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('last_error')">`last_error` = #{changes.last_error,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="findByIdempotencyKey" resultMap="row">SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND idempotency_key = #{key}</select>
+  <select id="pendingAiForAggregate" resultMap="row">SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND aggregate_id = #{aggregate} AND task_type='ai_turn' AND state IN ('PENDING','FAILED') ORDER BY id</select>
+  <select id="lockById" resultMap="row">SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND id = #{id,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} FOR UPDATE</select>
+
+  <select id="expiredPayloads" resultMap="row">SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id = #{tenantId} AND task_type IN ('ai_turn','business_callback') AND payload_json&lt;&gt;'{}' AND state&lt;&gt;'PROCESSING' AND REPLACE(aggregate_id,'-','') IN (SELECT REPLACE(CAST(id AS CHAR),'-','') FROM callsession WHERE tenant_id = #{tenantId} AND finished_at &lt;= #{cutoff} AND status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')) ORDER BY created_at LIMIT #{limit}</select>
+  <select id="archivableTasks" resultMap="row">SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND state='COMPLETED' AND updated_at &lt;= #{cutoff} AND EXISTS (SELECT 1 FROM callsession c WHERE c.tenant_id=taskoutbox.tenant_id AND REPLACE(CAST(c.id AS CHAR),'-','')=REPLACE(taskoutbox.aggregate_id,'-','') AND c.finished_at &lt;= #{cutoff} AND c.phone LIKE 'redacted:%' AND c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')) ORDER BY updated_at LIMIT #{limit}</select>
+  <select id="sourceAdminOperations13_0" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND id=#{p1} FOR UPDATE</select>
+  <select id="sourceSystemOverview46_2" resultType="long">SELECT COUNT(*) FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND state='PROCESSING' AND locked_at&lt;=#{p1}</select>
+  <select id="sourceSystemOverview47_3" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND state IN ('PENDING','FAILED','PROCESSING') ORDER BY created_at ASC LIMIT 1</select>
+  <select id="sourceVoiceCallbacks114_3" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND aggregate_id=#{p1} AND task_type='after_playback' AND state='PENDING'</select>
+  <select id="scopedOperationalMetrics25" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (task_type=#{p0} AND state IN ('PENDING','FAILED') AND available_at&lt;=#{p1}) ORDER BY available_at LIMIT 1</select>
+  <select id="scopedTaskWorker60" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (task_type='ai_turn' AND state IN ('PENDING','FAILED') AND available_at&lt;=#{p0}) ORDER BY available_at LIMIT 1</select>
+  <select id="scopedTaskWorker107" resultType="long">SELECT COUNT(*) FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (id=#{p0} AND state='PROCESSING' AND lease_token=#{p1} AND locked_at&gt;#{p2})</select>
+  <select id="scopedTaskWorker151" resultMap="row">SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (id=#{p0} AND state='PROCESSING' AND lease_token=#{p1} AND locked_at&gt;#{p2}) FOR UPDATE</select>
+  <select id="abandonedLeases" resultMap="row">SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id = #{tenantId} AND task_type IN <foreach collection="types" item="type" open="(" separator="," close=")">#{type}</foreach> AND state='PROCESSING' AND locked_at &lt;= #{cutoff} AND attempts &gt;= max_attempts LIMIT 10</select>
+  <select id="claimCandidate" resultMap="row">SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id = #{tenantId} AND task_type IN <foreach collection="types" item="type" open="(" separator="," close=")">#{type}</foreach> AND available_at &lt;= #{now} AND attempts &lt; max_attempts AND (state IN ('PENDING','FAILED') OR (state='PROCESSING' AND locked_at &lt;= #{cutoff})) AND NOT EXISTS (SELECT 1 FROM taskoutbox older WHERE taskoutbox.task_type&lt;&gt;'after_playback' AND older.tenant_id=taskoutbox.tenant_id AND older.aggregate_id=taskoutbox.aggregate_id AND (older.task_type=taskoutbox.task_type OR (older.task_type IN ('recording_ingest','recording_delete') AND taskoutbox.task_type IN ('recording_ingest','recording_delete'))) AND older.state IN ('PENDING','FAILED','PROCESSING') AND (older.created_at&lt;taskoutbox.created_at OR (older.created_at=taskoutbox.created_at AND older.id&lt;taskoutbox.id))) ORDER BY available_at,id LIMIT 1</select>
+  <update id="renewLease">UPDATE taskoutbox SET locked_at=#{now},updated_at=#{now} WHERE tenant_id = #{tenantId} AND id=#{id,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND state='PROCESSING' AND lease_token=#{lease} AND locked_at &gt; #{cutoff}</update>
+  <select id="systemCounts" resultType="java.util.LinkedHashMap">SELECT state,COUNT(*) AS n FROM taskoutbox WHERE tenant_id = #{tenantId} GROUP BY state</select>
+  <select id="metricsGroupstate" resultType="java.util.LinkedHashMap">SELECT state AS value,COUNT(*) AS total FROM taskoutbox WHERE tenant_id = #{tenantId} GROUP BY state</select>
+</mapper>

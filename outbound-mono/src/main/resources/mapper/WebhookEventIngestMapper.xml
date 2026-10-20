@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.WebhookEventIngestMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.WebhookEventIngest">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="call_session_id" property="callSessionId" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="event_type" property="eventType" javaType="java.lang.String"/>
+    <result column="source" property="source" javaType="java.lang.String"/>
+    <result column="provider_event_key" property="providerEventKey" javaType="java.lang.String"/>
+    <result column="repeat_count" property="repeatCount" javaType="java.lang.Integer"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `webhookeventingest`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `call_session_id`,
+      `event_type`,
+      `source`,
+      `provider_event_key`,
+      `repeat_count`,
+      `created_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.eventType,jdbcType=LONGVARCHAR},
+      #{row.source,jdbcType=LONGVARCHAR},
+      #{row.providerEventKey,jdbcType=VARCHAR},
+      #{row.repeatCount,jdbcType=INTEGER},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `webhookeventingest`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `call_session_id`,
+      `event_type`,
+      `source`,
+      `provider_event_key`,
+      `repeat_count`,
+      `created_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.eventType,jdbcType=LONGVARCHAR},
+      #{row.source,jdbcType=LONGVARCHAR},
+      #{row.providerEventKey,jdbcType=VARCHAR},
+      #{row.repeatCount,jdbcType=INTEGER},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `call_session_id`, `event_type`, `source`, `provider_event_key`, `repeat_count`, `created_at` FROM `webhookeventingest` WHERE `id` = #{id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `callsession` p WHERE p.`id` = `webhookeventingest`.`call_session_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </select>
+  <update id="updateById">
+    UPDATE `webhookeventingest` SET
+      `call_session_id` = #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      `event_type` = #{row.eventType,jdbcType=LONGVARCHAR},
+      `source` = #{row.source,jdbcType=LONGVARCHAR},
+      `provider_event_key` = #{row.providerEventKey,jdbcType=VARCHAR},
+      `repeat_count` = #{row.repeatCount,jdbcType=INTEGER}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `callsession` p WHERE p.`id` = `webhookeventingest`.`call_session_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `webhookeventingest` WHERE `id` = #{id,jdbcType=INTEGER} AND EXISTS (SELECT 1 FROM `callsession` p WHERE p.`id` = `webhookeventingest`.`call_session_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `call_session_id`, `event_type`, `source`, `provider_event_key`, `repeat_count`, `created_at` FROM `webhookeventingest`
+    WHERE EXISTS (SELECT 1 FROM `callsession` p WHERE p.`id` = `webhookeventingest`.`call_session_id` AND p.`tenant_id` = #{tenantId,jdbcType=INTEGER})
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `webhookeventingest`
+    <set>
+      <if test="changes.containsKey('call_session_id')">`call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('event_type')">`event_type` = #{changes.event_type,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('source')">`source` = #{changes.source,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('provider_event_key')">`provider_event_key` = #{changes.provider_event_key,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('repeat_count')">`repeat_count` = #{changes.repeat_count,jdbcType=INTEGER},</if>
+    </set>
+    WHERE `id` = #{id} AND `call_session_id` IN (SELECT `id` FROM `callsession` WHERE `tenant_id` = #{tenantId})
+  </update>
+  <select id="scopedCallLifecycle43" resultMap="row">SELECT * FROM `webhookeventingest` WHERE `call_session_id` IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId}) AND (call_session_id=#{p0} AND provider_event_key=#{p1})</select>
+  <select id="scopedCalls79" resultMap="row">SELECT * FROM `webhookeventingest` WHERE `call_session_id` IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId}) AND (call_session_id=#{p0}) ORDER BY created_at DESC LIMIT #{p1} OFFSET #{p2}</select>
+  <select id="scopedCalls89" resultType="long">SELECT COUNT(*) FROM `webhookeventingest` WHERE `call_session_id` IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId}) AND (call_session_id=#{p0})</select>
+  <select id="eventBuckets" resultType="java.util.LinkedHashMap">SELECT source,event_type,COUNT(*) AS count FROM webhookeventingest WHERE call_session_id=#{callId,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId}) GROUP BY source,event_type ORDER BY source,event_type</select>
+  <select id="duplicateCount" resultType="long">SELECT COALESCE(SUM(CASE WHEN repeat_count IS NULL OR repeat_count=0 THEN 0 ELSE repeat_count-1 END),0) FROM webhookeventingest WHERE call_session_id=#{callId,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId})</select>
+</mapper>
