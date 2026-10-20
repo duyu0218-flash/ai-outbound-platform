@@ -34,12 +34,34 @@ class OutboundReliabilityIT {
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired DialBatchStore dialDb;@Autowired TaskWorker worker;
     @Autowired CallbackInbox inbox;@Autowired CallbackBatchStore callbackDb;
+    @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
     @Test void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection()throws Exception{try(var connection=dataSource.getConnection()){
         var properties=connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
         for(var key:List.of(com.mysql.cj.conf.PropertyKey.rewriteBatchedStatements,com.mysql.cj.conf.PropertyKey.useServerPrepStmts,com.mysql.cj.conf.PropertyKey.cachePrepStmts))assertThat(properties.getBooleanProperty(key).getValue()).isTrue();
         assertThat(properties.getIntegerProperty(com.mysql.cj.conf.PropertyKey.prepStmtCacheSize).getValue()).isEqualTo(128);
     }}
     static AtomicInteger sequence=new AtomicInteger(1000);long tenant;
+    @Test void admissionTenantReadDoesNotBlockUnrelatedAiMetricForeignKeyInsert()throws Exception{
+        var call=call("in_ai","ai_only");var pool=Executors.newFixedThreadPool(2);var locked=new CountDownLatch(1);var release=new CountDownLatch(1);
+        try{
+            var owner=pool.submit(()->tx.serialized(()->{tx.tenant(tenant);locked.countDown();try{if(!release.await(10,TimeUnit.SECONDS))throw new IllegalStateException("fixture release timeout");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}return null;}));
+            assertThat(locked.await(5,TimeUnit.SECONDS)).isTrue();
+            var writer=pool.submit(()->tx.run(()->{store.appendMetric(JsonSupport.map("tenant_id",tenant,"call_session_id",call.get("id"),"stage","fixture.concurrent-ai","success",true));return null;}));
+            writer.get(2,TimeUnit.SECONDS);
+            var disabling=new CountDownLatch(1);var disable=pool.submit(()->tx.run(()->{disabling.countDown();store.update("tenant",0,tenant,Map.of("enabled",false));return null;}));
+            assertThat(disabling.await(5,TimeUnit.SECONDS)).isTrue();assertThatThrownBy(()->disable.get(100,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            release.countDown();owner.get(5,TimeUnit.SECONDS);disable.get(5,TimeUnit.SECONDS);
+        }finally{release.countDown();pool.shutdownNow();}
+    }
+    @Test void initialBatchCannotApplyProviderMappingThatReleasesSharedCapacity(){
+        var call=call("dialing","ai_only");var body=JsonSupport.map("call_id",call.get("id"),"payload",JsonSupport.map("status","dialing","attempt",1,"event_id","mapped-fixture"));
+        String property="mapped-status-fixture";environment.getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource(property,Map.of("NO_ANSWER_CODES","[\"dialing\"]")));
+        try{
+            assertThatThrownBy(()->tx.run(()->{var locked=tx.call(call.get("id"));try(var scope=new CallStatusBatchScope()){scope.calls.put(call.get("id").toString(),locked);return lifecycle.status(body);}})).isInstanceOf(IllegalStateException.class).hasMessageContaining("requires platform transaction");
+            assertThat(store.require("callsession",tenant,call.get("id")).get("status")).isEqualTo("dialing");
+            lifecycle.status(body);assertThat(store.require("callsession",tenant,call.get("id")).get("status")).isEqualTo("no_answer");
+        }finally{environment.getPropertySources().remove(property);}
+    }
     @BeforeEach void seed(){tenant=sequence.incrementAndGet();store.insert("tenant",JsonSupport.map("id",tenant,"code","reliability-"+tenant,"name","Synthetic reliability"));store.insert("adminsetting",JsonSupport.map("tenant_id",tenant,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));}
     @AfterEach void releaseFixtureCapacity(){for(var c:store.query("callsession","list",JsonSupport.map("tenantId",tenant,"offset",0,"limit",1000)))if(!CallLifecycle.TERMINAL.contains(c.get("status")))store.update("callsession",tenant,c.get("id"),Map.of("status","completed"));}
     Map<String,Object> call(String state,String mode){return store.insert("callsession",JsonSupport.map("tenant_id",tenant,"phone","1555"+String.format("%07d",sequence.incrementAndGet()),"mode",mode,"status",state,"attempts",state.equals("queued")?0:1,"max_attempts",2));}

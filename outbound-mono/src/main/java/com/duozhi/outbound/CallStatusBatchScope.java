@@ -1,7 +1,7 @@
 package com.duozhi.outbound;
 import java.util.*;
 
-/** Initial-status facts loaded under the platform/call locks for one transaction.
+/** Initial-status facts loaded under partition/call locks for one transaction.
  * The existing lifecycle remains the only implementation of status transitions. */
 final class CallStatusBatchScope implements AutoCloseable {
     private static final ThreadLocal<CallStatusBatchScope> CURRENT=new ThreadLocal<>();

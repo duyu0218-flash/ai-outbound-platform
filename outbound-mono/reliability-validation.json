@@ -32,20 +32,20 @@
       "log": "outbound-batch-safety10.log",
       "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
     },
-    "latest_changes": "Targeted final source passed; Linux full regression and all capacity probes pending",
+    "latest_changes": "Final runtime changes: 1 policy test +49 integration tests passed 2026-10-21T00:54:28+08:00. Final full Linux regression pending; local Docker became unavailable afterward.",
     "final_follow_up": {
       "unit": 1,
-      "integration": 47,
+      "integration": 49,
       "failures": 0,
       "errors": 0,
       "skipped": 0,
-      "completed_at": "2026-10-21T00:29:09+08:00",
-      "scope": "Final per-call AI fences, in-flight superseded reply, shared human reserve, V2 signed callback and bounded refill source",
-      "log": "outbound-batch-safety14-ai-refill.log"
+      "completed_at": "2026-10-21T00:54:28+08:00",
+      "log": "outbound-batch-safety26-receipt500.log",
+      "scope": "Initial callback call locks; provider mapping rollback; tenant shared-state lock; human reserve; stale AI dispatch; bounded number-task refill"
     }
   },
   "capacity": {
-    "status": "failed; not qualified",
+    "status": "500 CPS not qualified; 500-call AI candidate passed; further CPS optimizations pending",
     "http_500_cps": {
       "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
       "target_cps": 500,
@@ -813,6 +813,603 @@
           },
           "passed": false,
           "real_telephony_verified": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r14-refill",
+          "jar_sha256": "40ab18e077ee5d11a9c72c8c35f2629d08ad24f221bf11042e62892620e47dce",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "dial_accepted_per_second": {
+            "1": 800,
+            "2": 400,
+            "3": 300,
+            "4": 600,
+            "5": 600,
+            "6": 500
+          },
+          "actual_cps": 540,
+          "call_states_at_observation_end": {
+            "ANSWERED": 151,
+            "DIALING": 3229,
+            "IN_AI": 20,
+            "QUEUED": 6600
+          },
+          "callback_receipts": [
+            {
+              "count": 429,
+              "oldest_age_sec": 6.093,
+              "state": "done"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "count": 6171,
+            "oldest_age_sec": 6.446000099182129,
+            "max_failures": 5
+          },
+          "passed": false,
+          "real_telephony_verified": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r15-signed-anon",
+          "jar_sha256": "91c5c073b9585d3f23bdaa2f1f6138fc7e2077b4ca04d50ce0fcc0969ca96f4b",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "dial_accepted_per_second": {
+            "1": 600,
+            "2": 400,
+            "6": 400
+          },
+          "actual_cps": 200,
+          "call_states_at_observation_end": {
+            "ANSWERED": 1052,
+            "DIALING": 500,
+            "IN_AI": 48,
+            "QUEUED": 8400
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 6.186,
+              "count": 2264,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 0.893,
+              "count": 696,
+              "state": "pending"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "oldest_age_sec": 0.36499977111816406,
+            "count": 240,
+            "max_failures": 0
+          },
+          "passed": false,
+          "real_telephony_verified": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r17-local-ai-phases",
+          "jar_sha256": "7ea789af04b98854bc50dd36b8df56c5e176c6be9da5f2b81c75de7ce8f0b2d8",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 1,
+          "dial_accepted_per_second": {
+            "1": 400,
+            "2": 400,
+            "5": 400,
+            "6": 400,
+            "7": 100
+          },
+          "actual_cps": 240,
+          "call_states_at_observation_end": {
+            "ANSWERED": 729,
+            "DIALING": 728,
+            "IN_AI": 243,
+            "QUEUED": 8300
+          },
+          "callback_receipts": [
+            {
+              "state": "done",
+              "count": 2000,
+              "oldest_age_sec": 5.994
+            },
+            {
+              "state": "pending",
+              "count": 1008,
+              "oldest_age_sec": 1.236
+            }
+          ],
+          "gateway_callback_backlog": {
+            "max_failures": 0,
+            "count": 392,
+            "oldest_age_sec": 0.7559998035430908
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r18-profile-poll10",
+          "jar_sha256": "405432372282791f910341c87fa076568a91aeeb2024fa6d597dc3843706ffba",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "2",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 1,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 500,
+            "2": 200,
+            "4": 200,
+            "5": 400,
+            "6": 400
+          },
+          "actual_cps": 260,
+          "call_states_at_observation_end": {
+            "ANSWERED": 1176,
+            "DIALING": 492,
+            "IN_AI": 232,
+            "QUEUED": 8100
+          },
+          "callback_receipts": [
+            {
+              "state": "done",
+              "oldest_age_sec": 6.376,
+              "count": 2964
+            },
+            {
+              "state": "pending",
+              "oldest_age_sec": 0.824,
+              "count": 648
+            }
+          ],
+          "gateway_callback_backlog": {
+            "max_failures": 0,
+            "oldest_age_sec": 0.5669999122619629,
+            "count": 188
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r21-parent-share",
+          "jar_sha256": "54f2532e4b4b114d4d87abca1f915f96d14b399c40a9985b22f6188c12330cf9",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 1,
+          "dial_accepted_per_second": {
+            "1": 400,
+            "2": 400,
+            "5": 400,
+            "6": 400
+          },
+          "actual_cps": 240,
+          "call_states_at_observation_end": {
+            "ANSWERED": 821,
+            "DIALING": 492,
+            "IN_AI": 287,
+            "QUEUED": 8400
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 6.198,
+              "state": "done",
+              "count": 2264
+            },
+            {
+              "oldest_age_sec": 1.256,
+              "state": "pending",
+              "count": 936
+            }
+          ],
+          "gateway_callback_backlog": {
+            "oldest_age_sec": 0,
+            "max_failures": 0,
+            "count": 0
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r22-initial-call-lock",
+          "jar_sha256": "bf9726778343b55d5df0fee04fcc363a0c643c154e2d40dd9cc884e65197ff16",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 1,
+          "dial_accepted_per_second": {
+            "1": 400,
+            "2": 500,
+            "3": 700,
+            "4": 700,
+            "5": 500,
+            "6": 400
+          },
+          "actual_cps": 560,
+          "call_states_at_observation_end": {
+            "ANSWERED": 1128,
+            "DIALING": 1975,
+            "IN_AI": 97,
+            "QUEUED": 6800
+          },
+          "callback_receipts": [
+            {
+              "state": "done",
+              "count": 2505,
+              "oldest_age_sec": 5.908
+            },
+            {
+              "state": "pending",
+              "count": 183,
+              "oldest_age_sec": 0.607
+            }
+          ],
+          "gateway_callback_backlog": {
+            "max_failures": 0,
+            "count": 3712,
+            "oldest_age_sec": 3.686999797821045
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r23-delivery128",
+          "jar_sha256": "bf9726778343b55d5df0fee04fcc363a0c643c154e2d40dd9cc884e65197ff16",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "128",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 1,
+          "dial_accepted_per_second": {
+            "0": 100,
+            "1": 500,
+            "2": 700,
+            "3": 500,
+            "4": 200,
+            "6": 100
+          },
+          "actual_cps": 380,
+          "call_states_at_observation_end": {
+            "ANSWERED": 1828,
+            "DIALING": 400,
+            "IN_AI": 172,
+            "QUEUED": 7600
+          },
+          "callback_receipts": [
+            {
+              "count": 4000,
+              "state": "done",
+              "oldest_age_sec": 6.506
+            },
+            {
+              "count": 456,
+              "state": "pending",
+              "oldest_age_sec": 0.304
+            }
+          ],
+          "gateway_callback_backlog": {
+            "count": 208,
+            "max_failures": 0,
+            "oldest_age_sec": 0.2739999294281006
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r24-steady10",
+          "jar_sha256": "bf9726778343b55d5df0fee04fcc363a0c643c154e2d40dd9cc884e65197ff16",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "128",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 10,
+          "dial_accepted_per_second": {
+            "1": 400,
+            "2": 400,
+            "3": 400,
+            "4": 600,
+            "5": 500,
+            "7": 300,
+            "8": 500,
+            "9": 400,
+            "10": 400,
+            "12": 300,
+            "13": 300,
+            "14": 500,
+            "15": 100,
+            "16": 100
+          },
+          "actual_cps": 300,
+          "call_states_at_observation_end": {
+            "ANSWERED": 4696,
+            "DIALING": 268,
+            "IN_AI": 236,
+            "QUEUED": 4800
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 15.115,
+              "count": 9924,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 0.917,
+              "count": 440,
+              "state": "pending"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "oldest_age_sec": 0.21700000762939453,
+            "count": 36,
+            "max_failures": 0
+          },
+          "passed": false
+        },
+        {
+          "run": "p0p1-dial500-batch-r25-db8",
+          "jar_sha256": "bf9726778343b55d5df0fee04fcc363a0c643c154e2d40dd9cc884e65197ff16",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 8,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "128",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "mysql_buffer_pool_override_mib": 512,
+          "warmup_seconds": 10,
+          "dial_accepted_per_second": {
+            "1": 400,
+            "2": 800,
+            "3": 500,
+            "4": 300,
+            "7": 200,
+            "8": 700,
+            "9": 100,
+            "10": 300,
+            "11": 500,
+            "12": 100,
+            "13": 500,
+            "14": 400,
+            "15": 600
+          },
+          "actual_cps": 360,
+          "call_states_at_observation_end": {
+            "ANSWERED": 3705,
+            "DIALING": 1108,
+            "IN_AI": 587,
+            "QUEUED": 4600
+          },
+          "callback_receipts": [
+            {
+              "state": "done",
+              "oldest_age_sec": 15.027,
+              "count": 8692
+            },
+            {
+              "state": "pending",
+              "oldest_age_sec": 1.322,
+              "count": 844
+            }
+          ],
+          "gateway_callback_backlog": {
+            "max_failures": 0,
+            "oldest_age_sec": 1.6599998474121094,
+            "count": 1264
+          },
+          "passed": false
         }
       ]
     },
@@ -883,10 +1480,11 @@
       "default_enabled": false,
       "dial_batch_max": 100,
       "dial_workers_max": 4,
-      "callback_batch_max": 100,
+      "callback_batch_max": 500,
       "admission_and_callback_backpressure_retained": true,
       "migration": "V6 nonunique covering indexes; no existing migration changed",
-      "linux_capacity": "default-buffer candidate failed; final source with explicit 512 MiB buffer pending"
+      "linux_capacity": "Final source and explicit high-load profile pending",
+      "business_jdbc_profile": "Default 4; high-load CPS profile explicitly uses 8, ledger stays 4"
     },
     "linux_candidate_ecc34a4": {
       "workflow": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/39452418532",
@@ -1046,6 +1644,199 @@
       "pending_calls_after_drain": 0,
       "simulation_slo_passed": false,
       "real_500_audio_capacity_verified": false
+    },
+    "callback_v2_correction": "The first signed HTTP fixture incorrectly carried user JWT; real gateway requests exposed missing anonymous route. aadd76d fixes the narrow route; signed-only valid and forged/oversized/duplicate requests plus auth regressions passed. R15 has zero gateway retries but still fails CPS because callback consumption triggers retained backpressure.",
+    "ai_500_inflight_after_call_locks": {
+      "jar_sha256": "91c5c073b9585d3f23bdaa2f1f6138fc7e2077b4ca04d50ce0fcc0969ca96f4b",
+      "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+      "configuration": {
+        "jvm_heap_max_gib": 2,
+        "db_pool_max": 4,
+        "voice_ledger_pool_max": 4,
+        "model_quota_window": "disabled; rule AI",
+        "http_inflight_limit": 100,
+        "api_rate_limit_rps": 100,
+        "worker_lanes": 7,
+        "task_executor_threads": 4,
+        "ai_lane_threads_max": 4,
+        "callback_consumer_threads": 1,
+        "external_model": "not used",
+        "audio": "not exercised",
+        "capacity_knobs": 500,
+        "application_jvms": 1
+      },
+      "mysql_buffer_pool_override_mib": 512,
+      "target_calls": 500,
+      "hold_seconds": 120,
+      "thresholds": {
+        "pending_after_drain_max": 0,
+        "reply_p95_ms_max": 1500,
+        "all_500_in_ai": true,
+        "scheduled_reply_fraction_min": 0.99,
+        "reply_p99_ms_max": 3000,
+        "http_success_fraction_min": 0.999
+      },
+      "planned_turns": 6000,
+      "sent_turns": 6000,
+      "durable_replies": 6000,
+      "delivered_within_steady_window": 5938,
+      "held_500_in_steady_samples": true,
+      "steady_valid_reply_rps": 49.483333333333334,
+      "reply_p95_ms": 639,
+      "reply_p99_ms": 1132,
+      "call_waiting_missed_slots": 0,
+      "pending_calls_after_drain": 0,
+      "simulation_slo_passed": true,
+      "real_500_audio_capacity_verified": false,
+      "call_501": {
+        "active_count": 500,
+        "status": "queued",
+        "http": 200
+      },
+      "source_commit": "aadd76d"
+    },
+    "local_r26_infrastructure": {
+      "run": "p0p1-dial500-batch-r26-receipt500",
+      "outcome": "incomplete; no capacity pass",
+      "jar_sha256": "b0f27283fee2cddab836016acd1f086e6dd5ab77a414c719f596efe20c48c20d",
+      "reason": "MySQL communication loss followed by Docker API 500 errors; own test processes terminated after capturing a thread blocked in Docker InspectContainer. Only 2.1 GiB host disk free was observed; root cause not established.",
+      "raw_evidence": "verification/p0p1-dial500-batch-r26-receipt500/application.log and hung-test-thread.txt"
+    },
+    "linux_candidate_aadd76d": {
+      "workflow": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/39458340178",
+      "status": "failed raw artifacts; function regression passed",
+      "cps_runs": [
+        {
+          "run": "ci-cps-first",
+          "jar_sha256": "8d8742fbcb6777be7b05ad44c0f7cad1b446c44cfe4a23d0fa55a836491ea594",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64"
+          },
+          "dial_accepted_per_second": {
+            "2": 400,
+            "3": 300
+          },
+          "actual_cps": 140,
+          "passed": false,
+          "callback_receipts": [
+            {
+              "count": 864,
+              "oldest_age_sec": 5.059,
+              "state": "done"
+            },
+            {
+              "count": 536,
+              "oldest_age_sec": 3.171,
+              "state": "pending"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "count": 0,
+            "oldest_age_sec": 0,
+            "max_failures": 0
+          }
+        },
+        {
+          "run": "ci-cps-repeat",
+          "jar_sha256": "8d8742fbcb6777be7b05ad44c0f7cad1b446c44cfe4a23d0fa55a836491ea594",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64"
+          },
+          "dial_accepted_per_second": {
+            "2": 400,
+            "3": 200
+          },
+          "actual_cps": 120,
+          "passed": false,
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 5.23,
+              "count": 864,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 3.324,
+              "count": 336,
+              "state": "pending"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "oldest_age_sec": 0,
+            "count": 0,
+            "max_failures": 0
+          }
+        }
+      ],
+      "ai": {
+        "jar_sha256": "8d8742fbcb6777be7b05ad44c0f7cad1b446c44cfe4a23d0fa55a836491ea594",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 4,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 7,
+          "task_executor_threads": 4,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 1,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1
+        },
+        "target_calls": 500,
+        "hold_seconds": 120,
+        "planned_turns": 6000,
+        "sent_turns": 5446,
+        "durable_replies": 5446,
+        "reply_p95_ms": 11694,
+        "reply_p99_ms": 15829,
+        "steady_valid_reply_rps": 43.525,
+        "simulation_slo_passed": false
+      }
     }
   },
   "test_environment_released": false,

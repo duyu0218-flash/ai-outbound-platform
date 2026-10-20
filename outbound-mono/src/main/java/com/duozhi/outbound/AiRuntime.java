@@ -88,7 +88,7 @@ public class AiRuntime {
     @SuppressWarnings("unchecked")
     private void runTurn(Map<String,Object> payload){
         long started=System.nanoTime();
-        Map<String,Object> snapshot=tx.serialized(()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
+        java.util.function.Supplier<Map<String,Object>> prepare=()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
             String transcript=Objects.toString(payload.get("transcript"),"");
             Map<String,Object> state=product.state(call),result=product.prepare(call,transcript,state),policy=product.policy(state);
             if(Boolean.TRUE.equals(json.object(state.get("data_json").toString()).get("failure_handled")))result=ConversationPolicy.reply(policy.get("failure_prompt").toString(),"hangup");
@@ -96,7 +96,11 @@ public class AiRuntime {
             Map<String,Object> ai=policy.get("_ai") instanceof Map?(Map<String,Object>)policy.get("_ai"):settings.get(CallLifecycle.tenant(call),"ai");
             Map<String,Object> data=json.object(state.get("data_json").toString());data.put("model_pending",result==null);product.save(state,data);
             return JsonSupport.map("call",call,"policy",policy,"ai",ai,"result",result,"generation",state.get("generation"),"request",result==null?agentRequest(call,policy,ai,transcript):Map.of());
-        });
+        };
+        // Empty opening/timer transcripts can only prepare local conversation
+        // state. Spoken transcripts may suppress a phone or create appointments
+        // and therefore retain the shared platform transaction.
+        Map<String,Object> snapshot=Objects.toString(payload.get("transcript"),"").trim().isEmpty()?tx.run(prepare):tx.serialized(prepare);
         if(snapshot==null)return;
         Map<String,Object> result=(Map<String,Object>)snapshot.get("result"),ai=(Map<String,Object>)snapshot.get("ai");
         if(result==null){
@@ -168,7 +172,7 @@ public class AiRuntime {
             // The attempt and transcript sequence still fence all subsequent effects.
             actionPayload.remove("_generation");
             final Map<String,Object> response=playback;
-            boolean saved=tx.serialized(()->{Map<String,Object> latest=current(actionPayload,true);if(latest==null)return false;
+            boolean saved=tx.run(()->{Map<String,Object> latest=current(actionPayload,true);if(latest==null)return false;
                 Map<String,Object> rt=voice.realtime(latest);if(Objects.equals(beforeMediaAt,rt.get("updated_at")))store.writeLocked("realtimesession",tenant,rt.get("id"),JsonSupport.map("state","speaking","playback_id",response.get("playback_id")));
                 String normalized=text.trim().replaceAll("(?U)\\s+"," "),key=JsonSupport.sha(id+":"+latest.get("attempts")+":ai:"+rt.get("turn_sequence")+":"+normalized);
                 if(store.scalar("speechturn","scopedAiRuntime160",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("speechturn","call_session_id",id),key))==0)store.insert("speechturn",JsonSupport.map("tenant_id",tenant,"call_session_id",id,"provider_event_key",key,"turn_index",rt.get("turn_sequence"),"attempt",latest.get("attempts"),"speaker_role","ai","channel_id","outbound","transcript",text,"normalized_transcript",normalized,"is_final",true));
@@ -195,7 +199,7 @@ public class AiRuntime {
                 else store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("last_error","hangup requested; awaiting PBX termination"));return null;
             });
         }
-        tx.serialized(()->{TaskWorker.permitted();Map<String,Object> latest="hangup".equals(result.get("action"))?tx.call(hangupCall.get("id")):current(payload,true);if(latest==null||hangupCall!=null&&CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(hangupCall,"attempts"))return null;var call=latest;
+        java.util.function.Supplier<Object> finishWork=()->{TaskWorker.permitted();Map<String,Object> latest="hangup".equals(result.get("action"))?tx.call(hangupCall.get("id")):current(payload,true);if(latest==null||hangupCall!=null&&CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(hangupCall,"attempts"))return null;var call=latest;
             if(!"hangup".equals(result.get("action"))){
                 if("handoff".equals(result.get("action"))||Boolean.TRUE.equals(result.get("handoff_to_human")))handoffs.queue(latest,"ai_decision");
                 else {latest=store.patchLoaded("callsession",latest,JsonSupport.map("status","in_ai"));if(playbackComplete){Map<String,Object> rt=voice.realtime(latest);store.writeLocked("realtimesession",CallLifecycle.tenant(call),rt.get("id"),JsonSupport.map("state","listening","playback_id",null));product.arm(latest,"silence");}}
@@ -207,7 +211,8 @@ public class AiRuntime {
                 Map<String,Object> campaign=call.get("campaign_id")==null?null:store.require("campaign",CallLifecycle.tenant(call),call.get("campaign_id"));
                 if(campaign==null||Boolean.TRUE.equals(campaign.get("hangup_sms_enabled")))outbox.enqueue(CallLifecycle.tenant(call),"send_sms",call.get("id"),"sms:"+call.get("id")+":"+call.get("attempts")+":"+Objects.toString(payload.get("turn_sequence"),"0"),JsonSupport.map("call_id",call.get("id"),"attempt",call.get("attempts"),"text",settings.get(CallLifecycle.tenant(call),"sms").getOrDefault("hangup_template",result.get("hangup_sms"))));
             }return null;
-        });
+        };
+        if(Values.set("hangup","handoff").contains(result.get("action"))||Boolean.TRUE.equals(result.get("handoff_to_human")))tx.serialized(finishWork);else tx.run(finishWork);
     }
     @SuppressWarnings("unchecked") public void afterPlayback(Map<String,Object> payload){
         if("appointment".equals(payload.get("product_kind"))){appointment(payload);return;}
