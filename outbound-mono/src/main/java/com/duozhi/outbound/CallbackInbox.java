@@ -149,13 +149,17 @@ public class CallbackInbox {
         }
     }
     int consumeBatch(int limit){
+        return consumeBatch(limit,0,1);
+    }
+    int consumeBatch(int limit,int owner,int owners){
+        if(owners<1||owners>4||owner<0||owner>=owners)throw new IllegalArgumentException("invalid callback ownership");
         long started=System.nanoTime();long[] stages=new long[4];
         try{int consumed=tx.run(()->{stages[0]=System.nanoTime();
             // Initial dialing/answered transitions preserve shared active counts.
             // Partition ownership + sorted call row locks serialize each call;
             // receivers append after its earliest pending receipt. Resource-
             // releasing and human transitions remain on the platform-locked path.
-            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(500,limit))));if(candidates.isEmpty())return 0;
+            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(500,limit)),"owner",owner,"owners",owners));if(candidates.isEmpty())return 0;
             var partitions=candidates.stream().map(r->((Number)r.get("partition_id")).intValue()).distinct().sorted().toList();
             for(int id:partitions)if(!tx.tryLock(19483921,id))return 0;
             if(batchDb.rows("partitions",Map.of("ids",partitions)).size()!=partitions.size())throw new ApiError(503,"callback partitions are not initialized");

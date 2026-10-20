@@ -28,7 +28,7 @@ transaction-isolation=REPEATABLE-READ
 
 JDK 17 使用 `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`，选择理由是保留锁定 JDK 的默认收集器并明确暂停目标；它不是实测音频保证。专属媒体线程池、全局有界队列、每连接帧上限、过载丢最旧帧、堆外 DirectByteBuffer 保留。媒体压测/真机验证是原阶段 6 验收项，尚未完成。目标 Linux、真实 PBX/音频/云模型的 500 总在途容量须另测。
 
-批量调度默认关闭（`JAVA_DIAL_BATCH_SIZE=1`）。启用时单批上限 100，`JAVA_DIAL_WORKERS` 为 1—4 个独立拨号线程，通用任务线程默认 4 个，`JAVA_TASK_WORKERS` 与 AI 逻辑领取数 `JAVA_AI_TASK_OWNERS` 均可显式配置为 1—16，默认均为 4；批次之间仍共用平台准入锁，每个号码保留独立任务、租约和幂等键。`JAVA_CALLBACK_BATCH_SIZE=1` 保留逐回执消费，设为 2—500 时可批量提交初始拨号/接通事件，其余事件沿用原处理；网关批量投递另需 `VOICE_CALLBACK_BATCH_ENABLED=true`。同一通话依旧按回执顺序消费，回执积压保护继续生效。启用参数本身不代表容量验收通过，最新实测见 `reliability-validation.json`；回退到逐条模式前应排空在途任务，恢复中的冻结拨号尝试也保留兼容处理。
+批量调度默认关闭（`JAVA_DIAL_BATCH_SIZE=1`）。启用时准入批次上限 500，提交后仍按最多 100 条的原网关协议拆包下发和确认，`JAVA_DIAL_WORKERS` 为 1—4 个独立拨号线程，通用任务线程默认 4 个，`JAVA_TASK_WORKERS` 与 AI 逻辑领取数 `JAVA_AI_TASK_OWNERS` 均可显式配置为 1—16，默认均为 4；批次之间仍共用平台准入锁，每个号码保留独立任务、租约和幂等键。`JAVA_CALLBACK_BATCH_SIZE=1` 保留逐回执消费，设为 2—500 时可批量提交初始拨号/接通事件，其余事件沿用原处理；网关批量投递另需 `VOICE_CALLBACK_BATCH_ENABLED=true`。同一通话依旧按回执顺序消费，回执积压保护继续生效。启用参数本身不代表容量验收通过，最新实测见 `reliability-validation.json`；回退到逐条模式前应排空在途任务，恢复中的冻结拨号尝试也保留兼容处理。
 
 网关回调批量大小默认仍为 16。`VOICE_CALLBACK_BATCH_SIZE=17—64` 时使用新增 `/api/v1/webhooks/telephony/batch-v2`，最多 64 项、256 KiB；原 v1 的 16 项、64 KiB 限制保留。两种协议都要求原回调签名、令牌和完整持久化确认，旧接收端不支持 v2 时仍回退逐条发送。当前容量复测显式使用 MySQL 512 MiB InnoDB 缓冲池、4 个拨号线程和 64 项回调批次；fsync、binlog 同步、REPEATABLE READ、TLS 均保留。产品默认仍为 4+4 个连接；高负载 CPS 验证显式配置 8 个业务连接、4 个账本连接，不能标成默认资源容量。驱动使用每连接最多 128 条的预编译语句缓存，避免反复解析固定 SQL。这些参数须连同原始测试结果评估，不能视为生产容量承诺。
 
@@ -60,3 +60,5 @@ spool/源录音是待上传过程文件：升级前排空；无法排空时保�
 本轮仅本机开发验证。测试环境未发布、真机未验证、生产未发布。正式上线前须完成目标宿主 MySQL 参数、备份恢复演练、配置校验、真实 SIP/RTP 与云供应商、浏览器音频设备、媒体长稳/GC/丢帧及容量验收，再据原发布流程设 JAVA_RELEASE_ACCEPTED。不能用 /healthz 或 mock 测试替代这些验收。
 
 JDBC 批量插入按 512 KiB 估算预算分块，并保持一个事务；不要依靠无限增大 MySQL 包限制处理回执。显式容量数据库配置为 InnoDB 缓冲 512 MiB、table_open_cache=512、max_allowed_packet=16 MiB、redo 容量 256 MiB，结果必须记录实际变量；这些是独立验证资源配置，尚未完成生产验收。普通 AI 对话只锁定本通话；号码禁呼/共享预约写入先回滚本地准备，再在平台锁下重新执行，保留原共享资源边界。
+
+`JAVA_CALLBACK_WORKERS` 为 1—4 个消费者线程，默认 1。按已有 64 个分区的编号取模分配独立所有者；同一通话固定在同一分区，仍由最早回执、分区锁、通话行锁和事务保持 FIFO。CPS 候选配置显式使用 500 个准入号码、2 个回执消费者、每消费者最多 250 条回执；该配置尚待容量复测。所有批量更新仍按最多 100 行及 512 KiB 估算预算拆块，保持一个事务。

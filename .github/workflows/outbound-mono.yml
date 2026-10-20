@@ -111,7 +111,7 @@ jobs:
           sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=500 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.batch=500 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=250 -Ddial.callback.workers=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
       - name: Publish first CPS evidence before the longer AI probe
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -125,7 +125,7 @@ jobs:
       - name: Measure real queued-pool dial acknowledgements (repeat)
         id: cps_repeat
         if: always()
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=500 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-repeat test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.batch=500 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=250 -Ddial.callback.workers=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-repeat test
       - name: Hold 500 AI calls with the original throughput and latency thresholds
         id: ai_capacity
         if: always()

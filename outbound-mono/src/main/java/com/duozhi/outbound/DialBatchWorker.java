@@ -13,7 +13,7 @@ public class DialBatchWorker {
     private final Store store;private final DialBatchStore db;private final Transactions tx;private final DialService dial;private final Config config;private final JsonSupport json;private final CallbackInbox inbox;
     private long cursor;
     public DialBatchWorker(Store store,DialBatchStore db,Transactions tx,DialService dial,Config config,JsonSupport json,CallbackInbox inbox){this.store=store;this.db=db;this.tx=tx;this.dial=dial;this.config=config;this.json=json;this.inbox=inbox;}
-    int size(){return Math.max(1,Math.min(100,config.number("JAVA_DIAL_BATCH_SIZE",1)));}
+    int size(){return Math.max(1,Math.min(500,config.number("JAVA_DIAL_BATCH_SIZE",1)));}
     int enqueue(){
         return tx.serialized(()->{int total=0;for(var tenant:store.query("tenant","allForMaintenance",Map.of())){
             if(db.count("readyTaskCount",JsonSupport.map("tenantId",tenant.get("id"),"now",Store.now()))>=1000)continue;

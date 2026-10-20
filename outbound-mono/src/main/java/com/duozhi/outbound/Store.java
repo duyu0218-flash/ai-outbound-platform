@@ -39,9 +39,10 @@ public class Store {
         var factory=((org.mybatis.spring.SqlSessionTemplate)sql).getSqlSessionFactory();
         for(var iterator=groups.values().iterator();iterator.hasNext();){var group=iterator.next();var first=group.get(0);String combined=first.statement().replaceAll("\\.patchFields$",".patchBatch");
             if(!first.insert()&&group.size()>1&&sql.getConfiguration().hasStatement(combined)){
-                var params=(Map<?,?>)first.parameters();var changes=(Map<?,?>)params.get("changes");var constants=new HashSet<String>();
-                for(var field:changes.keySet())if(group.stream().allMatch(op->Objects.equals(changes.get(field),((Map<?,?>)((Map<?,?>)op.parameters()).get("changes")).get(field))))constants.add(field.toString());
-                int changed=sql.update(combined,Map.of("tenantId",params.get("tenantId"),"rows",group.stream().map(BufferedWrite::parameters).toList(),"constants",constants));if(changed!=group.size())throw new IllegalStateException("locked batch row was not written");iterator.remove();
+                for(int start=0;start<group.size();){int end=start;long bytes=0;
+                    while(end<group.size()&&end-start<100&&(end==start||bytes+group.get(end).estimatedBytes()<=512*1024)){bytes+=group.get(end).estimatedBytes();end++;}
+                    writeCombined(combined,group.subList(start,end));start=end;
+                }iterator.remove();
             }
         }
         try(var batch=factory.openSession(org.apache.ibatis.session.ExecutorType.BATCH)){
@@ -56,6 +57,11 @@ public class Store {
             flushJdbcBatch(batch);
         }
         sql.clearCache();for(var op:writes)if(op.after()!=null)op.after().run();
+    }
+    private void writeCombined(String statement,List<BufferedWrite> group){
+        var params=(Map<?,?>)group.get(0).parameters();var changes=(Map<?,?>)params.get("changes");var constants=new HashSet<String>();
+        for(var field:changes.keySet())if(group.stream().allMatch(op->Objects.equals(changes.get(field),((Map<?,?>)((Map<?,?>)op.parameters()).get("changes")).get(field))))constants.add(field.toString());
+        int changed=sql.update(statement,Map.of("tenantId",params.get("tenantId"),"rows",group.stream().map(BufferedWrite::parameters).toList(),"constants",constants));if(changed!=group.size())throw new IllegalStateException("locked batch row was not written");
     }
     private static void flushJdbcBatch(org.apache.ibatis.session.SqlSession batch){
         for(var result:batch.flushStatements())for(int count:result.getUpdateCounts())if(count==java.sql.Statement.EXECUTE_FAILED||count==0)throw new IllegalStateException("buffered locked row was not written");

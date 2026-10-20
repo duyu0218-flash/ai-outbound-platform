@@ -279,7 +279,7 @@
     "com.duozhi.outbound.mapper.CallbackBatchMapper.initialStatuses": {
       "category": "A",
       "table": "callbackinbox",
-      "reason": "Platform worker selects FIFO initial statuses; business call rows are subsequently resolved with explicit tenant predicates under the platform lock."
+      "reason": "Platform worker selects FIFO initial statuses within its owned callback partitions; business call rows are subsequently resolved with explicit tenant predicates and call row locks."
     },
     "com.duozhi.outbound.mapper.CallbackBatchMapper.lockReceipts": {
       "category": "A",

@@ -35,18 +35,21 @@ public class TaskWorker {
     // Logical AI owners share a bounded executor with the other task lanes.
     // Claim's same-stream predecessor predicate and lease fencing still serialize each call.
     private final AtomicBoolean[] lanes;
-    private final AtomicBoolean receiving = new AtomicBoolean();
-    private final ExecutorService receipts = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "java-callback-inbox"); t.setDaemon(true); return t; });
+    private final AtomicBoolean[] receiving;
+    private final ExecutorService receipts;
     private final String[] laneTypes;
     private volatile boolean ready;
     private volatile long aiProgress;
     private final ArrayDeque<long[]> aiDelays = new ArrayDeque<>();
     private long cursor;
-    private int callbackCursor=-1;
+    private final int[] callbackCursors;
     public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations,DialBatchWorker dialBatch) {
         this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;this.dialBatch=dialBatch;
         int taskWorkers=Math.max(1,Math.min(16,config.number("JAVA_TASK_WORKERS",4))),aiOwners=Math.max(1,Math.min(16,config.number("JAVA_AI_TASK_OWNERS",4)));
         executor=Executors.newFixedThreadPool(taskWorkers,r->{Thread thread=new Thread(r,"java-outbox");thread.setDaemon(true);return thread;});
+        int callbackWorkers=Math.max(1,Math.min(4,config.number("JAVA_CALLBACK_WORKERS",1)));
+        receiving=java.util.stream.IntStream.range(0,callbackWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);callbackCursors=new int[callbackWorkers];Arrays.fill(callbackCursors,-1);
+        receipts=Executors.newFixedThreadPool(callbackWorkers,r->{Thread thread=new Thread(r,"java-callback-inbox");thread.setDaemon(true);return thread;});
         var types=new ArrayList<>(List.of("('dial_call','mock_status')","('ai_turn')","('after_playback','interrupt_playback','call_analysis')","('business_callback','recording_ingest','recording_delete','send_sms')"));
         for(int i=1;i<aiOwners;i++)types.add("('ai_turn')");laneTypes=types.toArray(String[]::new);lanes=java.util.stream.IntStream.range(0,laneTypes.length).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
         int dialWorkers=Math.max(1,Math.min(4,config.number("JAVA_DIAL_WORKERS",1)));dialLanes=java.util.stream.IntStream.range(0,dialWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
@@ -227,7 +230,7 @@ public class TaskWorker {
             // Refill before this owner consumes its previous 1,000-row refill.
             // An indefinitely self-resubmitting lane must not drain the outbox
             // and wait for the scheduler tick while queued numbers still exist.
-            if(dispatch)enqueueDue();int processed=0;while(processed<8&&!Thread.currentThread().isInterrupted()){if(!processLane(null,0))break;processed++;}full=processed==8;
+            if(dispatch)enqueueDue();int processed=0,refillEvery=Math.max(1,800/dialBatch.size());while(processed<8&&!Thread.currentThread().isInterrupted()){if(processed>0&&processed%refillEvery==0)enqueueDue();if(!processLane(null,0))break;processed++;}full=processed==8;
         }catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("batch dial lane={} error_type={}",lane,error.getClass().getSimpleName());}
         finally{if(full&&ready&&!dialExecutor.isShutdown())submitDialLane(lane,true);else dialLanes[lane].set(false);}});
     }
@@ -253,26 +256,30 @@ public class TaskWorker {
 
     @Scheduled(fixedDelayString="${JAVA_CALLBACK_POLL_MS:100}")
     public void receiveTick() {
-        if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!config.flag("CALLBACK_INBOX_ENABLED",false)||!receiving.compareAndSet(false,true))return;
+        if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!config.flag("CALLBACK_INBOX_ENABLED",false))return;
+        for(int owner=0;owner<receiving.length;owner++)if(receiving[owner].compareAndSet(false,true))receiveOwned(owner);
+    }
+    private void receiveOwned(int owner){
         receipts.submit(()->{
             try {
                 inbox.maintenance();long deadline=System.nanoTime()+250000000L;
                 do {
                     boolean progress=false;
                     int batchSize=config.number("JAVA_CALLBACK_BATCH_SIZE",1);
-                    if(batchSize>1&&inbox.consumeBatch(batchSize)>0)continue;
+                    if(batchSize>1&&inbox.consumeBatch(batchSize,owner,receiving.length)>0)continue;
                     List<Map<String,Object>> partitions=new ArrayList<>(store.projection("callbackinbox","rawTaskWorker192_1",Store.queryParameters(-1)));
-                    int previous=callbackCursor;
+                    partitions.removeIf(p->((Number)p.get("partition_id")).intValue()%receiving.length!=owner);
+                    int previous=callbackCursors[owner];
                     partitions.sort(Comparator.comparingInt(p->Math.floorMod(((Number)p.get("partition_id")).intValue()-previous-1,64)));
                     for(Map<String,Object> partition:partitions) {
-                        callbackCursor=((Number)partition.get("partition_id")).intValue();
-                        progress|=inbox.consume(callbackCursor);
+                        callbackCursors[owner]=((Number)partition.get("partition_id")).intValue();
+                        progress|=inbox.consume(callbackCursors[owner]);
                         if(System.nanoTime()>deadline||Thread.currentThread().isInterrupted())break;
                     }
                     if(!progress)break;
                 }while(System.nanoTime()<deadline&&!Thread.currentThread().isInterrupted());
             }catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("callback consumer error_type={}",e.getClass().getSimpleName());}
-            finally{receiving.set(false);}
+            finally{receiving[owner].set(false);}
         });
     }
 }

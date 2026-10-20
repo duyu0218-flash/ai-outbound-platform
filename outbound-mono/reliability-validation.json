@@ -32,7 +32,7 @@
       "log": "outbound-batch-safety10.log",
       "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
     },
-    "latest_changes": "Packet-bounded JDBC rewrite chunks with same transaction and generated keys; optimistic per-call dialogue preparation rolls back before shared phone/appointment effects and retries under admission lock; real MySQL regressions added and pending Linux.",
+    "latest_changes": "247614e full Linux functional regression passed; counts being read from raw log. Subsequent 500-admission cohorts, <=100 gateway chunks and disjoint callback owners compiled; final full Linux regression pending.",
     "final_follow_up": {
       "unit": 1,
       "integration": 49,
@@ -44,11 +44,11 @@
       "scope": "Initial callback call locks; provider mapping rollback; tenant shared-state lock; human reserve; stale AI dispatch; bounded number-task refill"
     },
     "latest_pure_unit": {
-      "tests": 89,
+      "tests": 94,
       "failures": 0,
       "errors": 0,
       "skipped": 0,
-      "log": "outbound-bounded-workers-unit.log"
+      "log": "outbound-cohort-refill-final-unit.log"
     },
     "linux_f8": {
       "head": "f8ed357a9080068d86f1677beb6367ca7e54f642",
@@ -59,10 +59,20 @@
       "errors": 0,
       "skipped": 0,
       "status": "passed before subsequent packet and dialogue preparation fixes"
+    },
+    "linux_247": {
+      "head": "247614e4d4a46776fdb65af454f50cebefd3a708",
+      "run": 39472040374,
+      "unit": 147,
+      "integration": 235,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "status": "passed including ordinary dialogue rollback boundary and packet chunk rollback; before callback owners/cohort changes"
     }
   },
   "capacity": {
-    "status": "500 CPS not qualified; local AI500 candidate passed, all completed Linux capacity suites failed; optimized resource profiles pending",
+    "status": "500 CPS not qualified; original AI500 SLO passed on 247614e Linux x64; partitioned callback and larger bounded admission follow-ups pending",
     "http_500_cps": {
       "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
       "target_cps": 500,
@@ -2188,7 +2198,10 @@
         "ledger_pool": 4,
         "dial_workers": 4,
         "task_workers": 4,
-        "callback_batch": 500
+        "admission_cohort": 500,
+        "gateway_command_max": 100,
+        "callback_workers": 2,
+        "callback_batch_per_worker": 250
       },
       "ai": {
         "business_pool": 8,
@@ -2321,6 +2334,381 @@
       },
       "reason": "PacketTooBigException confirmed in CallEvent batch inserts; actual database variables will be recorded; thresholds unchanged",
       "status": "pending"
+    },
+    "linux_247": {
+      "head": "247614e4d4a46776fdb65af454f50cebefd3a708",
+      "run": 39472026652,
+      "conclusion": "failure; AI passed, both CPS failed",
+      "results": {
+        "ci-cps-first": {
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "target_cps": 500,
+          "seconds": 5,
+          "jar_sha256": "ebb06d63efd55cc42afe493539f0a86d41e3cfa74e154426edc8038b6ccf5cb9",
+          "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+          "mysql_resource_overrides": {
+            "bufferMiB": 512,
+            "tableCache": 512,
+            "packetMiB": 16,
+            "redoMiB": 256
+          },
+          "mysql_buffer_pool_override_mib": 512,
+          "mysql_actual_variables": {
+            "innodb_buffer_pool_size": "536870912",
+            "innodb_flush_log_at_trx_commit": "1",
+            "innodb_redo_log_capacity": "268435456",
+            "max_allowed_packet": "16777216",
+            "sync_binlog": "1",
+            "table_open_cache": "512",
+            "transaction_isolation": "REPEATABLE-READ"
+          },
+          "mysql_container": "80d99aee20c9d9a0821bf053ccd3f16bdfa2d12cd51544bc45155505bd3da5e6",
+          "redis_container": "4cd4de02c65379ec12e78127f23293edca87170cd613e260ae76b1b3f051596c",
+          "mysql_jdbc": "jdbc:mysql://localhost:32769/test?connectTimeout=5000&socketTimeout=15000",
+          "profile_jfr": true,
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 8,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": "500",
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "128",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "application_pid": 3311,
+          "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+          "phase_start_ms": 1792519781973,
+          "db_stats_before": {
+            "Com_commit": 3653,
+            "Com_insert": 20075,
+            "Com_rollback": 0,
+            "Com_select": 12275,
+            "Com_stmt_execute": 14656,
+            "Com_update": 1295,
+            "Innodb_row_lock_time": 0,
+            "Questions": 46147
+          },
+          "queued_pool_size": 10000,
+          "planned_calls": 10000,
+          "warmup_seconds": 10,
+          "measured_seconds": 5,
+          "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+          "submitted_calls": 0,
+          "generator_capacity_misses": 0,
+          "http_codes": {},
+          "error_examples": {},
+          "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+          "dial_accepted_per_second": {
+            "2": 200,
+            "3": 400,
+            "4": 100,
+            "5": 200,
+            "6": 100,
+            "7": 400,
+            "9": 300,
+            "10": 100,
+            "11": 100,
+            "12": 400,
+            "14": 300
+          },
+          "dial_accepted_within_window": 900,
+          "dial_accepted_at_observation_end": 2600,
+          "actual_cps": 180,
+          "real_telephony_verified": false,
+          "db_stats_after": {
+            "Com_commit": 6950,
+            "Com_insert": 22203,
+            "Com_rollback": 1,
+            "Com_select": 26831,
+            "Com_stmt_execute": 34093,
+            "Com_update": 3840,
+            "Innodb_row_lock_time": 26650,
+            "Questions": 75491
+          },
+          "call_states_at_observation_end": {
+            "ANSWERED": 1979,
+            "DIALING": 276,
+            "IN_AI": 345,
+            "QUEUED": 7400
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 13.498,
+              "count": 4776,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 0.472,
+              "count": 256,
+              "state": "pending"
+            }
+          ],
+          "gateway_callback_backlog": {
+            "oldest_age_sec": 1.616999864578247,
+            "count": 168,
+            "max_failures": 0
+          },
+          "passed": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-first/result.json ==> expected: <true> but was: <false>"
+        },
+        "ci-cps-repeat": {
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "target_cps": 500,
+          "seconds": 5,
+          "jar_sha256": "ebb06d63efd55cc42afe493539f0a86d41e3cfa74e154426edc8038b6ccf5cb9",
+          "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+          "mysql_resource_overrides": {
+            "bufferMiB": 512,
+            "tableCache": 512,
+            "packetMiB": 16,
+            "redoMiB": 256
+          },
+          "mysql_buffer_pool_override_mib": 512,
+          "mysql_actual_variables": {
+            "innodb_buffer_pool_size": "536870912",
+            "innodb_flush_log_at_trx_commit": "1",
+            "innodb_redo_log_capacity": "268435456",
+            "max_allowed_packet": "16777216",
+            "sync_binlog": "1",
+            "table_open_cache": "512",
+            "transaction_isolation": "REPEATABLE-READ"
+          },
+          "mysql_container": "7e9e66ca0c21dc576f7daa2aa8ff04d31207251a163d4b715ccab52eea5fa3cc",
+          "redis_container": "3a66d6ee95c43ed0461a9144957241643bb887cd5bcf0b1af115f77dc536fc21",
+          "mysql_jdbc": "jdbc:mysql://localhost:32772/test?connectTimeout=5000&socketTimeout=15000",
+          "profile_jfr": false,
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 8,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": "500",
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "4",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "128",
+            "voice_callback_batch_size": "64",
+            "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+            "callback_consumer_poll_ms": "10"
+          },
+          "application_pid": 4742,
+          "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+          "phase_start_ms": 1792519847983,
+          "db_stats_before": {
+            "Com_commit": 3776,
+            "Com_insert": 20075,
+            "Com_rollback": 0,
+            "Com_select": 12668,
+            "Com_stmt_execute": 15131,
+            "Com_update": 1336,
+            "Innodb_row_lock_time": 0,
+            "Questions": 46990
+          },
+          "queued_pool_size": 10000,
+          "planned_calls": 10000,
+          "warmup_seconds": 10,
+          "measured_seconds": 5,
+          "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+          "submitted_calls": 0,
+          "generator_capacity_misses": 0,
+          "http_codes": {},
+          "error_examples": {},
+          "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+          "dial_accepted_per_second": {
+            "2": 300,
+            "3": 300,
+            "4": 100,
+            "5": 300,
+            "6": 200,
+            "7": 300,
+            "8": 400,
+            "9": 400,
+            "10": 300,
+            "12": 400,
+            "13": 200,
+            "15": 200
+          },
+          "dial_accepted_within_window": 900,
+          "dial_accepted_at_observation_end": 3400,
+          "actual_cps": 180,
+          "real_telephony_verified": false,
+          "db_stats_after": {
+            "Com_commit": 6735,
+            "Com_insert": 22036,
+            "Com_rollback": 1,
+            "Com_select": 25701,
+            "Com_stmt_execute": 32672,
+            "Com_update": 3643,
+            "Innodb_row_lock_time": 28764,
+            "Questions": 73428
+          },
+          "call_states_at_observation_end": {
+            "ANSWERED": 2326,
+            "DIALING": 984,
+            "IN_AI": 290,
+            "QUEUED": 6400
+          },
+          "callback_receipts": [
+            {
+              "state": "done",
+              "count": 5340,
+              "oldest_age_sec": 14.011
+            },
+            {
+              "state": "pending",
+              "count": 704,
+              "oldest_age_sec": 1.09
+            }
+          ],
+          "gateway_callback_backlog": {
+            "max_failures": 0,
+            "count": 1156,
+            "oldest_age_sec": 3.385999917984009
+          },
+          "passed": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-repeat/result.json ==> expected: <true> but was: <false>"
+        },
+        "ci-ai500": {
+          "run_id": "b2edf88f",
+          "jar_sha256": "ebb06d63efd55cc42afe493539f0a86d41e3cfa74e154426edc8038b6ccf5cb9",
+          "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+          "target_calls": 500,
+          "target_turns_per_second": 50,
+          "hold_seconds": 120,
+          "thresholds": {
+            "pending_after_drain_max": 0,
+            "http_success_fraction_min": 0.999,
+            "reply_p99_ms_max": 3000,
+            "scheduled_reply_fraction_min": 0.99,
+            "all_500_in_ai": true,
+            "reply_p95_ms_max": 1500
+          },
+          "threshold_note": "Explicit simulation acceptance assumptions; 500 calls each get a slot every 10.0 seconds. No next utterance before the previous durable reply. Missed slots remain failures.",
+          "mysql_resource_overrides": {
+            "bufferMiB": 512,
+            "tableCache": 512,
+            "packetMiB": 16,
+            "redoMiB": 256
+          },
+          "mysql_buffer_pool_override_mib": 512,
+          "mysql_actual_variables": {
+            "innodb_buffer_pool_size": "536870912",
+            "innodb_flush_log_at_trx_commit": "1",
+            "innodb_redo_log_capacity": "268435456",
+            "max_allowed_packet": "16777216",
+            "sync_binlog": "1",
+            "table_open_cache": "512",
+            "transaction_isolation": "REPEATABLE-READ"
+          },
+          "mysql_container": "4a6d2a761dc2f01cc61837eb4f3fd43adcbeb8c2ca63dff15701e16aa32e2c3e",
+          "redis_container": "cbae88ee7a20b42d8e520596275c59262385cb6bbd6e83838182b1b172407b84",
+          "mysql_jdbc": "jdbc:mysql://localhost:32775/test?connectTimeout=5000&socketTimeout=15000",
+          "profile_jfr": false,
+          "samples": 128,
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 8,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 100,
+            "worker_lanes": 11,
+            "task_executor_threads": 8,
+            "ai_lane_threads_max": 8,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 500,
+            "application_jvms": 1
+          },
+          "application_pid": 6174,
+          "fixtures": "One isolated tenant/admin and 501 explicitly-consented synthetic contacts; calls are all created through the real HTTP dial/admission path, never inserted as IN_AI rows.",
+          "admission": {
+            "elapsed_seconds": 28.523060444,
+            "created": 500,
+            "http_status": {
+              "200": 500
+            },
+            "p95_ms": 116.73321
+          },
+          "in_ai_at_load_start": 500,
+          "call_501": {
+            "http": 200,
+            "status": "queued",
+            "active_count": 500
+          },
+          "phase_start_ms": 1792519930223,
+          "phase_end_ms": 1792520050223,
+          "delivered_within_steady_window": 5977,
+          "planned_turns": 6000,
+          "sent_turns": 6000,
+          "http_status": {
+            "200": 6000
+          },
+          "generator_missed_slots": 0,
+          "call_waiting_missed_slots": 0,
+          "durable_replies": 6000,
+          "pending_calls_after_drain": 0,
+          "http_p95_ms": 15.747016,
+          "http_p99_ms": 25.565769,
+          "reply_p95_ms": 640,
+          "reply_p99_ms": 789,
+          "steady_valid_reply_rps": 49.80833333333333,
+          "max_in_flight_calls": 500,
+          "peak_pending_tasks": 14,
+          "peak_pending_callbacks": 6,
+          "held_500_in_steady_samples": true,
+          "steady_sample_count": 100,
+          "observer_query_p95_ms": 159.421901,
+          "observer_query_p99_ms": 206.009776,
+          "simulation_slo_passed": true,
+          "real_500_audio_capacity_verified": false,
+          "production_capacity_verified": false,
+          "final_database": {
+            "at_ms": 1792520052195,
+            "active_calls": 500,
+            "in_ai": 500,
+            "pending_tasks": 0,
+            "pending_callbacks": 0,
+            "dead_tasks": 0,
+            "voice_pending_callbacks": 0,
+            "durable_replies": 6000,
+            "application_cpu_seconds": 168.5,
+            "application_cpu_percent": 103,
+            "application_rss_kib": 788900,
+            "ai_outbound_jvm_heap_used_bytes": 289503528,
+            "ai_outbound_jvm_threads": 70
+          },
+          "application_alive": true
+        }
+      }
     }
   },
   "test_environment_released": false,
