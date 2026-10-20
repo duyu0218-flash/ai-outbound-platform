@@ -15,8 +15,9 @@ public class CallLifecycle {
     private final JsonSupport json;
     private final Config config;
     private final ConversationPolicy conversation;
-    public CallLifecycle(Store store, Transactions tx, Outbox outbox, JsonSupport json, Config config, ConversationPolicy conversation) {
-        this.store = store; this.tx = tx; this.outbox = outbox; this.json = json; this.config = config; this.conversation = conversation;
+    private final OperationsWorkforce workforce;
+    public CallLifecycle(Store store, Transactions tx, Outbox outbox, JsonSupport json, Config config, ConversationPolicy conversation, OperationsWorkforce workforce) {
+        this.store = store; this.tx = tx; this.outbox = outbox; this.json = json; this.config = config; this.conversation = conversation;this.workforce=workforce;
     }
     public static int number(Map<String, Object> row, String key) { return JsonSupport.integer(row.get(key), 0); }
     public static long tenant(Map<String, Object> call) { return ((Number)call.get("tenant_id")).longValue(); }
@@ -108,7 +109,7 @@ public class CallLifecycle {
         if (agentId == null) return;
         Map<String, Object> agent = store.one("user","sourceCallLifecycle109_8",Store.queryParameters(0,tenant(call),agentId));
         long active = store.scalar("callsession","scopedCallLifecycle110",Store.scopedParameters(tenant(call),agentId,store.encode("callsession", "id", call.get("id"))));
-        if (agent != null && "busy".equals(agent.get("agent_status")) && active == 0) store.update("user", tenant(call), agentId, JsonSupport.map("agent_status", "ready", "last_seen_at", Store.now()));
+        if (agent != null && "busy".equals(agent.get("agent_status")) && active == 0) workforce.release(tenant(call),agentId);
     }
     @SuppressWarnings("unchecked")
     public Map<String, Object> status(Map<String, Object> body) {

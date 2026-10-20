@@ -1,0 +1,1220 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Operations workspace API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/ops/me": {
+      "get": {
+        "summary": "GET /api/v1/ops/me",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/lookups": {
+      "get": {
+        "summary": "GET /api/v1/ops/lookups",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/permissions/{user}": {
+      "get": {
+        "summary": "GET /api/v1/ops/permissions/{user}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/v1/ops/permissions/{user}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/workspace": {
+      "get": {
+        "summary": "GET /api/v1/ops/workspace",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/v1/ops/workspace",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/calls": {
+      "get": {
+        "summary": "GET /api/v1/ops/calls",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "phone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contact_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agent_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "line_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "team_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "owner_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "intent",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "review_state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_seconds",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "max_seconds",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "handoff",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/calls/export": {
+      "get": {
+        "summary": "GET /api/v1/ops/calls/export",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/reports": {
+      "get": {
+        "summary": "GET /api/v1/ops/reports",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/reports/export": {
+      "get": {
+        "summary": "GET /api/v1/ops/reports/export",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/campaigns": {
+      "get": {
+        "summary": "GET /api/v1/ops/campaigns",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/teams": {
+      "get": {
+        "summary": "GET /api/v1/ops/teams",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/v1/ops/teams",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/leads": {
+      "get": {
+        "summary": "GET /api/v1/ops/leads",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/leads/{id}": {
+      "get": {
+        "summary": "GET /api/v1/ops/leads/{id}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "patch": {
+        "summary": "PATCH /api/v1/ops/leads/{id}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/leads/batch": {
+      "post": {
+        "summary": "POST /api/v1/ops/leads/batch",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/notices": {
+      "get": {
+        "summary": "GET /api/v1/ops/notices",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/notices/{id}/read": {
+      "post": {
+        "summary": "POST /api/v1/ops/notices/{id}/read",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/views": {
+      "get": {
+        "summary": "GET /api/v1/ops/views",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/v1/ops/views",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/views/{id}": {
+      "delete": {
+        "summary": "DELETE /api/v1/ops/views/{id}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/configs": {
+      "get": {
+        "summary": "GET /api/v1/ops/configs",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/v1/ops/configs",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/tag-objects": {
+      "get": {
+        "summary": "GET /api/v1/ops/tag-objects",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/tags": {
+      "get": {
+        "summary": "GET /api/v1/ops/tags",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api/v1/ops/tags",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/work-items": {
+      "get": {
+        "summary": "GET /api/v1/ops/work-items",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/work-items/{id}": {
+      "patch": {
+        "summary": "PATCH /api/v1/ops/work-items/{id}",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/deliveries": {
+      "get": {
+        "summary": "GET /api/v1/ops/deliveries",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/ops/deliveries/{id}/retry": {
+      "post": {
+        "summary": "POST /api/v1/ops/deliveries/{id}/retry",
+        "description": "Requires a current user bearer token. Tenant, team, owner, recording and export permissions are checked by the server. Team/config/permission administration requires an administrator. Mutations validate revisions and input; lead mutations require event_key.",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "403": {
+            "description": "Outside authorized data or operation scope"
+          },
+          "404": {
+            "description": "Tenant-scoped resource does not exist"
+          },
+          "409": {
+            "description": "Stale revision, conflicting event or invalid state"
+          },
+          "422": {
+            "description": "Invalid input"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

@@ -1,12 +1,13 @@
 <script setup>
-import {computed,ref,watch} from 'vue'
+import {computed,ref,watch,onMounted} from 'vue'
 import {useRoute,useRouter} from 'vue-router'
 import {adminNavigation} from './router'
 import {apiRequest} from './api'
-import {session,logout} from './session'
+import {session,logout,request} from './session'
 import {t,language,setLanguage} from './i18n'
 const props=defineProps({role:String}),route=useRoute(),router=useRouter(),collapsed=ref(false),healthy=ref(null)
-const navigation=computed(()=>props.role==='admin'?adminNavigation.map(([path,label])=>({path:'/admin'+(path?'/'+path:''),label})):[{path:'/agent',label:'workspace'},...(session.user?.is_supervisor?[{path:'/agent/quality',label:'qualityReview'}]:[]),{path:'/agent/calls',label:'calls'}])
+const opsProfile=ref(null);onMounted(()=>request('/api/v1/ops/me').then(v=>opsProfile.value=v).catch(()=>{}))
+const navigation=computed(()=>props.role==='admin'?adminNavigation.map(([path,label])=>({path:'/admin'+(path?'/'+path:''),label})):[{path:'/agent',label:'workspace'},...(session.user?.is_supervisor&&opsProfile.value?.all_scope?[{path:'/agent/quality',label:'qualityReview'}]:[]),{path:'/agent/calls',label:'calls'},...['calls','leads','reports','notices','workspace'].map((p,i)=>({path:'/agent/operations/'+p,label:['话单查询','线索与跟进','运营报表','通知中心','坐席个人配置'][i]}))])
 watch(()=>route.path,()=>apiRequest('/healthz').then(()=>healthy.value=true).catch(()=>healthy.value=false),{immediate:true})
 async function leave(){try{await logout()}finally{router.replace('/'+props.role+'/login')}}
 </script>
