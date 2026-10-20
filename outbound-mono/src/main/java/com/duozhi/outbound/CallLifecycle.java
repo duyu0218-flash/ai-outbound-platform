@@ -114,14 +114,18 @@ public class CallLifecycle {
     }
     @SuppressWarnings("unchecked")
     public Map<String, Object> status(Map<String, Object> body) {
-        return tx.serialized(() -> {
-            tx.platform();
-            var batch=CallStatusBatchScope.current();Map<String, Object> call = batch==null?tx.call(body.get("call_id")):batch.calls.get(body.get("call_id").toString());
+        var batch=CallStatusBatchScope.current();java.util.function.Supplier<Map<String,Object>> transition=() -> {
+            if(batch==null)tx.platform();
+            Map<String, Object> call = batch==null?tx.call(body.get("call_id")):batch.calls.get(body.get("call_id").toString());
             if (call == null) return JsonSupport.map("result", "ignore");
             Map<String, Object> payload = (Map<String, Object>)body.getOrDefault("payload", Collections.emptyMap());
             if (event(call, "status", "telephony", payload)) return JsonSupport.map("result", "ok");
             if (payload.get("attempt") != null && JsonSupport.integer(payload.get("attempt"), -1) != number(call, "attempts")) return JsonSupport.map("result", "ignored", "reason", "stale_attempt");
             String current = call.get("status").toString(), target = mapped(payload.get("status"));
+            // A provider mapping may redefine an otherwise initial raw status.
+            // Roll back that cohort and let the ordinary locked consumer handle
+            // it; never release shared resources through the local batch path.
+            if(batch!=null&&!Values.set("dialing","answered").contains(target))throw new IllegalStateException("non-initial mapped status requires platform transaction");
             if ("human_unavailable".equals(Objects.toString(payload.get("status"), "").trim().transform(Ascii::lower))) {
                 Map<String, Object> handoff = store.one("handoffrequest","sourceCallLifecycle124_10",Store.queryParameters(0,tenant(call),store.encode("handoffrequest", "call_session_id", call.get("id"))));
                 if (!"handoff_transferring".equals(current) || handoff == null) return JsonSupport.map("result", "ignored", "reason", "inactive_handoff");
@@ -164,6 +168,7 @@ public class CallLifecycle {
                 outbox.enqueue(tenant(call), "ai_turn", call.get("id"), "ai:" + call.get("id") + ":answered:" + call.get("attempts"), JsonSupport.map("call_id", call.get("id"), "attempt", call.get("attempts"), "transcript", body.getOrDefault("transcript", "")));
             if (applied) outbox.callback(updated, "call.status", JsonSupport.map("status", target, "hangup_reason", payload.get("hangup_reason")), "callback:status:" + call.get("id") + ":" + call.get("attempts") + ":" + target);
             return JsonSupport.map("result", "ok");
-        });
+        };
+        return batch==null?tx.serialized(transition):tx.run(transition);
     }
 }

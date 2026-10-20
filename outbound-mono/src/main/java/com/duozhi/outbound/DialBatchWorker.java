@@ -16,6 +16,7 @@ public class DialBatchWorker {
     int size(){return Math.max(1,Math.min(100,config.number("JAVA_DIAL_BATCH_SIZE",1)));}
     int enqueue(){
         return tx.serialized(()->{int total=0;for(var tenant:store.query("tenant","allForMaintenance",Map.of())){
+            if(db.count("readyTaskCount",JsonSupport.map("tenantId",tenant.get("id"),"now",Store.now()))>=1000)continue;
             var pending=db.rows("queuedCandidates",JsonSupport.map("tenantId",tenant.get("id"),"now",Store.now(),"limit",1000));if(pending.isEmpty())continue;
             var rows=pending.stream().map(c->JsonSupport.map("id",UUID.randomUUID().toString(),"tenant_id",tenant.get("id"),"call_id",c.get("id"),"key","dial:"+c.get("id")+":"+(((Number)c.get("attempts")).intValue()+1),"payload",json.json(JsonSupport.map("call_id",c.get("id"),"attempt",c.get("attempts"))))).toList();total+=db.write("enqueueRows",JsonSupport.map("rows",rows,"now",Store.now()));
         }return total;});

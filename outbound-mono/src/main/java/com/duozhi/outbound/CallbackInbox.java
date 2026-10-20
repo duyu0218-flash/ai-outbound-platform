@@ -149,24 +149,28 @@ public class CallbackInbox {
         }
     }
     int consumeBatch(int limit){
-        try{return tx.serialized(()->{
-            // All consumers hold the platform lock. Receivers append within their
-            // partition lock, so a new receipt cannot precede a selected one for
-            // the same call. Lock only this cohort's partitions before its rows.
-            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(100,limit))));if(candidates.isEmpty())return 0;
+        long started=System.nanoTime();long[] stages=new long[4];
+        try{int consumed=tx.run(()->{stages[0]=System.nanoTime();
+            // Initial dialing/answered transitions preserve shared active counts.
+            // Partition ownership + sorted call row locks serialize each call;
+            // receivers append after its earliest pending receipt. Resource-
+            // releasing and human transitions remain on the platform-locked path.
+            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(500,limit))));if(candidates.isEmpty())return 0;
             var partitions=candidates.stream().map(r->((Number)r.get("partition_id")).intValue()).distinct().sorted().toList();
             for(int id:partitions)if(!tx.tryLock(19483921,id))return 0;
             if(batchDb.rows("partitions",Map.of("ids",partitions)).size()!=partitions.size())throw new ApiError(503,"callback partitions are not initialized");
             var receipts=batchDb.records("lockReceipts","callbackinbox",Map.of("ids",candidates.stream().map(r->r.get("id")).toList())).stream().filter(r->"pending".equals(r.get("state"))&&!LocalDateTime.parse(r.get("available_at").toString()).isAfter(Store.now())).toList();if(receipts.isEmpty())return 0;
+            stages[1]=System.nanoTime();
             try(var scope=new CallStatusBatchScope()){
-                batchDb.prepare(scope,receipts);
+                batchDb.prepare(scope,receipts);stages[2]=System.nanoTime();
                 store.bufferWrites(()->{for(var receipt:receipts)callbacks.handle(receipt.get("kind").toString(),json.object(receipt.get("body_json").toString()));return null;});
+                stages[3]=System.nanoTime();
                 if(batchDb.write("complete",JsonSupport.map("ids",receipts.stream().map(r->r.get("id")).toList(),"now",Store.now()))!=receipts.size())throw new IllegalStateException("callback batch ownership changed");
                 var deltas=new TreeMap<Integer,Map<String,Object>>();double latency=0;
                 for(var receipt:receipts){int id=((Number)receipt.get("partition_id")).intValue();var d=deltas.computeIfAbsent(id,k->JsonSupport.map("id",k,"count",0L,"bytes",0L));d.put("count",((Number)d.get("count")).longValue()-1);d.put("bytes",((Number)d.get("bytes")).longValue()-((Number)receipt.get("body_bytes")).longValue());latency=Math.max(latency,java.time.Duration.between(LocalDateTime.parse(receipt.get("received_at").toString()),Store.now()).toMillis());}
                 batchDb.write("partitionDelta",Map.of("deltas",new ArrayList<>(deltas.values())));batchDb.write("progress",JsonSupport.map("count",receipts.size(),"latency",latency,"now",Store.now(),"worker",workerId));return receipts.size();
             }
-        });}catch(RuntimeException failure){
+        });if(consumed>0&&config.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(CallbackInbox.class).info("callback_batch size={} wait_ms={} claim_ms={} facts_ms={} apply_flush_ms={} finish_ms={}",consumed,(stages[0]-started)/1_000_000.0,(stages[1]-stages[0])/1_000_000.0,(stages[2]-stages[1])/1_000_000.0,(stages[3]-stages[2])/1_000_000.0,(System.nanoTime()-stages[3])/1_000_000.0);return consumed;}catch(RuntimeException failure){
             // The entire cohort rolled back, including event dedupe and tasks.
             // Existing per-receipt handling isolates/retries a malformed event.
             org.slf4j.LoggerFactory.getLogger(CallbackInbox.class).warn("callback batch rolled back error_type={}",failure.getClass().getSimpleName());return 0;
