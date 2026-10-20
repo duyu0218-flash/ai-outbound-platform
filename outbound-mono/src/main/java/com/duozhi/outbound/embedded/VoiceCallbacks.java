@@ -53,13 +53,20 @@ final class VoiceCallbacks implements AutoCloseable {
         int count = rows.size();
         boolean batch = settings.flag("VOICE_CALLBACK_BATCH_ENABLED", false);
         int batchSize = (int)settings.number("VOICE_CALLBACK_BATCH_SIZE", 16, 1, 64);
+        int partitionGroups=(int)settings.number("VOICE_CALLBACK_PARTITION_GROUPS",1,1,4);var owners=new IdentityHashMap<Map<String,Object>,Integer>();
+        if(batch&&partitionGroups>1){for(var row:rows)owners.put(row,partitionOwner(row,partitionGroups));rows.sort(Comparator.comparingInt(owners::get));}
         for (int i = 0; i < rows.size();) {
             List<Map<String,Object>> group = new ArrayList<>(); group.add(rows.get(i++));
             String url = Support.str(group.get(0), "url", ""); String prefix = url.substring(0, url.lastIndexOf('/'));
-            if (batch) while (i < rows.size() && group.size() < batchSize && Support.str(rows.get(i), "url", "").startsWith(prefix + "/")) group.add(rows.get(i++));
+            int owner=owners.getOrDefault(group.get(0),0);
+            if (batch) while (i < rows.size() && group.size() < batchSize && owners.getOrDefault(rows.get(i),0)==owner && Support.str(rows.get(i), "url", "").startsWith(prefix + "/")) group.add(rows.get(i++));
             delivery.submit(() -> deliver(group));
         }
         return count;
+    }
+    private static int partitionOwner(Map<String,Object> row,int groups){
+        String stream=Support.str(row,"stream_key",Support.str(row,"id",""));try{stream=UUID.fromString(stream).toString();}catch(IllegalArgumentException opaque){}
+        long hash=Integer.toUnsignedLong(java.nio.ByteBuffer.wrap(Support.sha(stream.getBytes(StandardCharsets.UTF_8))).getInt());return (int)(hash%64)%groups;
     }
     private void tick() { try { tickOnce(); } catch (Exception unavailable) { /* Durable rows remain and stop new admission when overdue. */ } }
     private HttpResponse<byte[]> send(String url, byte[] body) throws Exception {

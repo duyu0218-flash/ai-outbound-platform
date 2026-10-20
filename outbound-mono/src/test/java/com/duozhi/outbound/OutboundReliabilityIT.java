@@ -145,6 +145,19 @@ class OutboundReliabilityIT {
             for(String field:List.of("active","legacy_attempts","event_attempts"))assertThat(((Number)b.get(field)).longValue()).isZero();
         }return null;});
     }
+    @Test void sharedInitialPolicyNeverOverwritesAnExistingFrozenAttempt(){
+        var campaign=store.insert("campaign",JsonSupport.map("tenant_id",tenant,"name","Synthetic policy cohort","script","current campaign script"));var calls=new ArrayList<Map<String,Object>>();
+        for(int i=0;i<3;i++){var call=call("dialing","ai_only");calls.add(store.update("callsession",tenant,call.get("id"),Map.of("campaign_id",campaign.get("id"))));}
+        store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",calls.get(0).get("id"),"attempt",1,"policy_json",json.json(Map.of("_script","previously frozen script"))));
+        tx.serialized(()->{try(var scope=new DialBatchScope()){
+            dialDb.prepare(scope,tenant,calls.stream().map(call->call.get("id").toString()).toList());for(var call:calls)conversation.initialStatePolicy(call);
+            var states=store.bufferWrites(()->calls.stream().map(conversation::state).toList());
+            assertThat(conversation.policy(states.get(0)).get("_script")).isEqualTo("previously frozen script");
+            assertThat(conversation.policy(states.get(1)).get("_script")).isEqualTo("current campaign script");assertThat(states.get(1).get("policy_json")).isEqualTo(states.get(2).get("policy_json"));
+            conversation.policy(states.get(1)).put("_script","caller-local mutation");assertThat(conversation.policy(states.get(2)).get("_script")).isEqualTo("current campaign script");
+            assertThat(states.stream().map(state->state.get("id")).distinct().count()).isEqualTo(3);
+        }return null;});
+    }
     @Test void oneCohortKeepsPhoneMutualExclusionConsentAndPerAttemptAcknowledgements(){
         var a=call("queued","ai_only");consent(a);var b=call("queued","ai_only");store.update("callsession",tenant,b.get("id"),Map.of("phone",a.get("phone")));
         var denied=call("queued","ai_only");var good=call("queued","ai_only");consent(good);

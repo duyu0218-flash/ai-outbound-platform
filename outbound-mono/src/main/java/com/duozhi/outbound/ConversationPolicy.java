@@ -39,21 +39,30 @@ public class ConversationPolicy {
         var batch=DialBatchScope.current();String key=DialBatchScope.stateKey(call);
         Map<String,Object> state=batch!=null&&batch.stateKeys.contains(key)?batch.states.get(key):store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("conversationstate","call_id",call.get("id")),call.get("attempts")));
         if(state!=null)return state;
+        long tenant=CallLifecycle.tenant(call);var initial=initialStatePolicy(call);
+        state=store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",initial.get("version"),"policy_json",initial.get("json")));if(batch!=null){batch.stateKeys.add(key);batch.states.put(key,state);}return state;
+    }
+    @SuppressWarnings("unchecked")
+    Map<String,Object> initialStatePolicy(Map<String,Object> call){
+        var batch=DialBatchScope.current();String key=CallLifecycle.tenant(call)+":"+call.get("campaign_id");
+        if(batch!=null&&batch.initialPolicies.containsKey(key))return batch.initialPolicies.get(key);
         long tenant=CallLifecycle.tenant(call);Map<String,Object> current=current(tenant,call.get("campaign_id"));
         Map<String,Object> policy=(Map<String,Object>)current.get("policy");policy.put("_ai",settings.get(tenant,"ai"));
         String script="";
         if(call.get("campaign_id")!=null) {
-            Map<String,Object> campaign=store.require("campaign",tenant,call.get("campaign_id"));script=Objects.toString(campaign.get("script"),"");
+            Object campaignId=call.get("campaign_id");Map<String,Object> campaign=batch==null?store.require("campaign",tenant,campaignId):batch.campaigns.computeIfAbsent(key,k->store.require("campaign",tenant,campaignId));script=Objects.toString(campaign.get("script"),"");
             if(script.isEmpty()&&campaign.get("script_template_id")!=null) {
                 Map<String,Object> template=store.one("scripttemplate","sourceConversationPolicy38_2",Store.queryParameters(0,tenant,campaign.get("script_template_id")));
                 if(template!=null&&Boolean.TRUE.equals(template.get("is_active")))script=Objects.toString(template.get("content"),"");
             }
         }
         policy.put("_script",script);
-        state=store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",current.get("version"),"policy_json",json.json(policy)));if(batch!=null){batch.stateKeys.add(key);batch.states.put(key,state);}return state;
+        var result=JsonSupport.map("version",current.get("version"),"json",json.json(policy));if(batch!=null)batch.initialPolicies.put(key,result);return result;
     }
     public Map<String,Object> policy(Map<String,Object> state) {
-        Map<String,Object> result=new LinkedHashMap<>(defaults);result.putAll(json.object(state.get("policy_json").toString()));return result;
+        String encoded=state.get("policy_json").toString();var batch=DialBatchScope.current();
+        if(batch!=null&&batch.parsedPolicies.containsKey(encoded))return new LinkedHashMap<>(batch.parsedPolicies.get(encoded));
+        Map<String,Object> result=new LinkedHashMap<>(defaults);result.putAll(json.object(encoded));if(batch!=null)batch.parsedPolicies.put(encoded,new LinkedHashMap<>(result));return result;
     }
     public void save(Map<String,Object> state,Map<String,Object> data) {
         state.put("data_json",json.json(data));
