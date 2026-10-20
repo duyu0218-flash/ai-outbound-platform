@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.ScriptFlowVersionMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.ScriptFlowVersion">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="script_template_id" property="scriptTemplateId" javaType="java.lang.Integer"/>
+    <result column="version" property="version" javaType="java.lang.Integer"/>
+    <result column="name" property="name" javaType="java.lang.String"/>
+    <result column="description" property="description" javaType="java.lang.String"/>
+    <result column="status" property="status" javaType="java.lang.String"/>
+    <result column="graph_json" property="graphJson" javaType="java.lang.String"/>
+    <result column="created_by" property="createdBy" javaType="java.lang.Integer"/>
+    <result column="published_at" property="publishedAt" javaType="java.time.LocalDateTime"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `scriptflowversion`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `script_template_id`,
+      `version`,
+      `name`,
+      `description`,
+      `status`,
+      `graph_json`,
+      `created_by`,
+      `published_at`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.scriptTemplateId,jdbcType=INTEGER},
+      #{row.version,jdbcType=INTEGER},
+      #{row.name,jdbcType=LONGVARCHAR},
+      #{row.description,jdbcType=LONGVARCHAR},
+      #{row.status,jdbcType=VARCHAR},
+      #{row.graphJson,jdbcType=LONGVARCHAR},
+      #{row.createdBy,jdbcType=INTEGER},
+      #{row.publishedAt,jdbcType=TIMESTAMP},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `scriptflowversion`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `script_template_id`,
+      `version`,
+      `name`,
+      `description`,
+      `status`,
+      `graph_json`,
+      `created_by`,
+      `published_at`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.scriptTemplateId,jdbcType=INTEGER},
+      #{row.version,jdbcType=INTEGER},
+      #{row.name,jdbcType=LONGVARCHAR},
+      #{row.description,jdbcType=LONGVARCHAR},
+      #{row.status,jdbcType=VARCHAR},
+      #{row.graphJson,jdbcType=LONGVARCHAR},
+      #{row.createdBy,jdbcType=INTEGER},
+      #{row.publishedAt,jdbcType=TIMESTAMP},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `script_template_id`, `version`, `name`, `description`, `status`, `graph_json`, `created_by`, `published_at`, `created_at`, `updated_at` FROM `scriptflowversion` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `scriptflowversion` SET
+      `script_template_id` = #{row.scriptTemplateId,jdbcType=INTEGER},
+      `version` = #{row.version,jdbcType=INTEGER},
+      `name` = #{row.name,jdbcType=LONGVARCHAR},
+      `description` = #{row.description,jdbcType=LONGVARCHAR},
+      `status` = #{row.status,jdbcType=VARCHAR},
+      `graph_json` = #{row.graphJson,jdbcType=LONGVARCHAR},
+      `created_by` = #{row.createdBy,jdbcType=INTEGER},
+      `published_at` = #{row.publishedAt,jdbcType=TIMESTAMP},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `scriptflowversion` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `script_template_id`, `version`, `name`, `description`, `status`, `graph_json`, `created_by`, `published_at`, `created_at`, `updated_at` FROM `scriptflowversion`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `scriptflowversion`
+    <set>
+      <if test="changes.containsKey('script_template_id')">`script_template_id` = #{changes.script_template_id,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('version')">`version` = #{changes.version,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('name')">`name` = #{changes.name,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('description')">`description` = #{changes.description,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('status')">`status` = #{changes.status,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('graph_json')">`graph_json` = #{changes.graph_json,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('created_by')">`created_by` = #{changes.created_by,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('published_at')">`published_at` = #{changes.published_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="templateVersions" resultMap="row">SELECT * FROM scriptflowversion WHERE tenant_id = #{tenantId} AND script_template_id=#{templateId} ORDER BY version DESC</select>
+  <select id="maxTemplateVersion" resultType="long">SELECT COALESCE(MAX(version),0) FROM scriptflowversion WHERE tenant_id = #{tenantId} AND script_template_id=#{templateId}</select>
+  <select id="sourceCampaigns64_4" resultMap="row">SELECT * FROM `scriptflowversion` WHERE tenant_id=#{tenantId} AND id=#{p1}</select>
+</mapper>

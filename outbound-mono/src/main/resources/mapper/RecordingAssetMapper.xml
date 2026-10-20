@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.RecordingAssetMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.RecordingAsset">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="call_session_id" property="callSessionId" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="attempt" property="attempt" javaType="java.lang.Integer"/>
+    <result column="provider_recording_id" property="providerRecordingId" javaType="java.lang.String"/>
+    <result column="provider_url" property="providerUrl" javaType="java.lang.String"/>
+    <result column="storage_uri" property="storageUri" javaType="java.lang.String"/>
+    <result column="state" property="state" javaType="java.lang.String"/>
+    <result column="duration_sec" property="durationSec" javaType="java.lang.Integer"/>
+    <result column="media_format" property="mediaFormat" javaType="java.lang.String"/>
+    <result column="channel_count" property="channelCount" javaType="java.lang.Integer"/>
+    <result column="checksum_sha256" property="checksumSha256" javaType="java.lang.String"/>
+    <result column="retention_until" property="retentionUntil" javaType="java.time.LocalDateTime"/>
+    <result column="deleted_at" property="deletedAt" javaType="java.time.LocalDateTime"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `recordingasset`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `call_session_id`,
+      `attempt`,
+      `provider_recording_id`,
+      `provider_url`,
+      `storage_uri`,
+      `state`,
+      `duration_sec`,
+      `media_format`,
+      `channel_count`,
+      `checksum_sha256`,
+      `retention_until`,
+      `deleted_at`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.attempt,jdbcType=INTEGER},
+      #{row.providerRecordingId,jdbcType=VARCHAR},
+      #{row.providerUrl,jdbcType=VARCHAR},
+      #{row.storageUri,jdbcType=VARCHAR},
+      #{row.state,jdbcType=VARCHAR},
+      #{row.durationSec,jdbcType=INTEGER},
+      #{row.mediaFormat,jdbcType=VARCHAR},
+      #{row.channelCount,jdbcType=INTEGER},
+      #{row.checksumSha256,jdbcType=VARCHAR},
+      #{row.retentionUntil,jdbcType=TIMESTAMP},
+      #{row.deletedAt,jdbcType=TIMESTAMP},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `recordingasset`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `call_session_id`,
+      `attempt`,
+      `provider_recording_id`,
+      `provider_url`,
+      `storage_uri`,
+      `state`,
+      `duration_sec`,
+      `media_format`,
+      `channel_count`,
+      `checksum_sha256`,
+      `retention_until`,
+      `deleted_at`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.attempt,jdbcType=INTEGER},
+      #{row.providerRecordingId,jdbcType=VARCHAR},
+      #{row.providerUrl,jdbcType=VARCHAR},
+      #{row.storageUri,jdbcType=VARCHAR},
+      #{row.state,jdbcType=VARCHAR},
+      #{row.durationSec,jdbcType=INTEGER},
+      #{row.mediaFormat,jdbcType=VARCHAR},
+      #{row.channelCount,jdbcType=INTEGER},
+      #{row.checksumSha256,jdbcType=VARCHAR},
+      #{row.retentionUntil,jdbcType=TIMESTAMP},
+      #{row.deletedAt,jdbcType=TIMESTAMP},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `call_session_id`, `attempt`, `provider_recording_id`, `provider_url`, `storage_uri`, `state`, `duration_sec`, `media_format`, `channel_count`, `checksum_sha256`, `retention_until`, `deleted_at`, `created_at`, `updated_at` FROM `recordingasset` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `recordingasset` SET
+      `call_session_id` = #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      `attempt` = #{row.attempt,jdbcType=INTEGER},
+      `provider_recording_id` = #{row.providerRecordingId,jdbcType=VARCHAR},
+      `provider_url` = #{row.providerUrl,jdbcType=VARCHAR},
+      `storage_uri` = #{row.storageUri,jdbcType=VARCHAR},
+      `state` = #{row.state,jdbcType=VARCHAR},
+      `duration_sec` = #{row.durationSec,jdbcType=INTEGER},
+      `media_format` = #{row.mediaFormat,jdbcType=VARCHAR},
+      `channel_count` = #{row.channelCount,jdbcType=INTEGER},
+      `checksum_sha256` = #{row.checksumSha256,jdbcType=VARCHAR},
+      `retention_until` = #{row.retentionUntil,jdbcType=TIMESTAMP},
+      `deleted_at` = #{row.deletedAt,jdbcType=TIMESTAMP},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `recordingasset` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `call_session_id`, `attempt`, `provider_recording_id`, `provider_url`, `storage_uri`, `state`, `duration_sec`, `media_format`, `channel_count`, `checksum_sha256`, `retention_until`, `deleted_at`, `created_at`, `updated_at` FROM `recordingasset`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `recordingasset`
+    <set>
+      <if test="changes.containsKey('call_session_id')">`call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('attempt')">`attempt` = #{changes.attempt,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('provider_recording_id')">`provider_recording_id` = #{changes.provider_recording_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('provider_url')">`provider_url` = #{changes.provider_url,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('storage_uri')">`storage_uri` = #{changes.storage_uri,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('state')">`state` = #{changes.state,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('duration_sec')">`duration_sec` = #{changes.duration_sec,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('media_format')">`media_format` = #{changes.media_format,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('channel_count')">`channel_count` = #{changes.channel_count,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('checksum_sha256')">`checksum_sha256` = #{changes.checksum_sha256,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('retention_until')">`retention_until` = #{changes.retention_until,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('deleted_at')">`deleted_at` = #{changes.deleted_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <update id="redactCallEvidence">UPDATE recordingasset SET provider_url='',provider_recording_id=NULL WHERE tenant_id = #{tenantId} AND call_session_id = #{callId,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND deleted_at IS NOT NULL</update>
+  <select id="expiredRecordings" resultMap="row">SELECT * FROM recordingasset WHERE tenant_id = #{tenantId} AND retention_until &lt;= #{cutoff} AND deleted_at IS NULL AND state NOT IN ('deletion_pending','deletion_failed') ORDER BY retention_until,id LIMIT #{limit}</select>
+  <select id="sourceAdminOperations13_1" resultMap="row">SELECT * FROM `recordingasset` WHERE tenant_id=#{tenantId} AND id=#{p1}</select>
+  <select id="sourceIntegrationTasks77_1" resultMap="row">SELECT * FROM `recordingasset` WHERE tenant_id=#{tenantId} AND id=#{p1}</select>
+  <select id="sourceReports186_11" resultMap="row">SELECT * FROM `recordingasset` WHERE tenant_id=#{tenantId} AND call_session_id=#{p1} ORDER BY created_at,id</select>
+  <select id="sourceSystemOverview49_4" resultType="long">SELECT COUNT(*) FROM `recordingasset` WHERE tenant_id=#{tenantId} AND state='deletion_failed'</select>
+  <select id="sourceTaskWorker159_7" resultMap="row">SELECT * FROM `recordingasset` WHERE tenant_id=#{tenantId} AND id=#{p1}</select>
+  <select id="countDeletionFailures" resultType="long">SELECT COUNT(*) FROM `recordingasset` WHERE tenant_id = #{tenantId} AND (state='deletion_failed')</select>
+  <select id="countIngestFailures" resultType="long">SELECT COUNT(*) FROM `recordingasset` WHERE tenant_id = #{tenantId} AND (state='ingest_failed')</select>
+  <select id="scopedVoiceCallbacks135" resultMap="row">SELECT * FROM `recordingasset` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND provider_url=#{p1} AND attempt=#{p2})</select>
+  <select id="callEvidence" resultMap="row">SELECT * FROM recordingasset WHERE tenant_id = #{tenantId} AND call_session_id=#{callId,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} ORDER BY created_at DESC</select>
+</mapper>

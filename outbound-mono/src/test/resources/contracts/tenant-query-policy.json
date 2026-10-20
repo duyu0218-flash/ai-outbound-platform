@@ -1,0 +1,270 @@
+{
+  "source": "./backend-java/src/main/resources/contracts/schema-postgresql.sql",
+  "source_tables_without_tenant_id": [
+    "tenant",
+    "gatewaynode",
+    "callbackinboxpartition",
+    "callbackinbox",
+    "callbackinboxworker",
+    "campaigncontact",
+    "callevent",
+    "webhookeventingest"
+  ],
+  "parent_scoped_tables": {
+    "campaigncontact": "campaign.tenant_id",
+    "callevent": "callsession.tenant_id",
+    "webhookeventingest": "callsession.tenant_id"
+  },
+  "exceptions": {
+    "com.duozhi.outbound.mapper.TenantMapper.findById": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.list": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.updateById": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.deleteById": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.findById": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.list": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.updateById": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.deleteById": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.findById": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.list": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.updateById": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.deleteById": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.findById": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.list": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.updateById": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.deleteById": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.findById": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.list": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.updateById": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.deleteById": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original schema has no tenant_id; platform-internal persistence, not tenant business data."
+    },
+    "com.duozhi.outbound.mapper.AuthIdentityMapper.findByUsernameForLogin": {
+      "category": "B",
+      "table": "sys_user",
+      "reason": "Global UNIQUE(username); identity lookup only before tenant is established."
+    },
+    "com.duozhi.outbound.mapper.AuthIdentityMapper.findByIdForJwt": {
+      "category": "B",
+      "table": "sys_user",
+      "reason": "Global PRIMARY KEY(id); tenant context is read from the returned user, not JWT/header."
+    },
+    "com.duozhi.outbound.mapper.AuthIdentityMapper.findTenantById": {
+      "category": "B",
+      "table": "tenant",
+      "reason": "Global PRIMARY KEY(id); only checks enabled tenant for an already located identity."
+    },
+    "com.duozhi.outbound.mapper.AuthIdentityMapper.lockTenantForUserAdmin": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original tenant primary-key lock serializes last-administrator checks; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.patchFields": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Platform table has no tenant_id in source schema; explicit field patch, same scope as original updateInternal."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.patchFields": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Platform table has no tenant_id in source schema; explicit field patch, same scope as original updateInternal."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.patchFields": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Platform table has no tenant_id in source schema; explicit field patch, same scope as original updateInternal."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.patchFields": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Platform table has no tenant_id in source schema; explicit field patch, same scope as original updateInternal."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.patchFields": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Platform table has no tenant_id in source schema; explicit field patch, same scope as original updateInternal."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.lockForTransaction": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Original primary-key tenant transaction lock; platform table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.TenantMapper.allForMaintenance": {
+      "category": "A",
+      "table": "tenant",
+      "reason": "Platform-only tenant enumeration for original maintenance jobs; all following business queries bind this tenant."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.sourceCallbackInbox28_0": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-table statement at CallbackInbox.java:28; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.sourceCallbackInbox30_1": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-table statement at CallbackInbox.java:30; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.sourceCallbackInbox30_2": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original platform-table statement at CallbackInbox.java:30; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.sourceCallbackInbox36_3": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original platform-table statement at CallbackInbox.java:36; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.sourceCallbackInbox56_4": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original platform-table statement at CallbackInbox.java:56; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.sourceCallbackInbox58_5": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-table statement at CallbackInbox.java:58; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.sourceCallbackInbox80_6": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original platform-table statement at CallbackInbox.java:80; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.sourceCallbackInbox100_7": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-table statement at CallbackInbox.java:100; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.sourceCallbackInbox115_8": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-table statement at CallbackInbox.java:115; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.sourceDependencyHealth21_0": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original platform-table statement at DependencyHealth.java:21; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.sourceGatewayCluster51_0": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original platform-table statement at GatewayCluster.java:51; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.GatewayNodeMapper.sourceGatewayCluster64_2": {
+      "category": "A",
+      "table": "gatewaynode",
+      "reason": "Original platform-table statement at GatewayCluster.java:64; source table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.rawCallbackInbox40_2": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:40; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.rawCallbackInbox67_4": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:67; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxPartitionMapper.rawCallbackInbox106_7": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:106; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxWorkerMapper.rawCallbackInbox108_8": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:108; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.rawTaskWorker192_1": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-only persistence operation at TaskWorker.java:192; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.expiredReceipts": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:39; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackInboxMapper.deleteExpiredReceipt": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Original platform-only persistence operation at CallbackInbox.java:39; table has no tenant_id."
+    }
+  }
+}

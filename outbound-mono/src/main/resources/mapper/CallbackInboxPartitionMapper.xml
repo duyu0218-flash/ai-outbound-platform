@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.CallbackInboxPartitionMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.CallbackInboxPartition">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="pending_count" property="pendingCount" javaType="java.lang.Integer"/>
+    <result column="pending_bytes" property="pendingBytes" javaType="java.lang.Integer"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `callbackinboxpartition`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `pending_count`,
+      `pending_bytes`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.pendingCount,jdbcType=INTEGER},
+      #{row.pendingBytes,jdbcType=INTEGER},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `callbackinboxpartition`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `pending_count`,
+      `pending_bytes`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.pendingCount,jdbcType=INTEGER},
+      #{row.pendingBytes,jdbcType=INTEGER},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `pending_count`, `pending_bytes` FROM `callbackinboxpartition` WHERE `id` = #{id,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `callbackinboxpartition` SET
+      `pending_count` = #{row.pendingCount,jdbcType=INTEGER},
+      `pending_bytes` = #{row.pendingBytes,jdbcType=INTEGER}
+    WHERE `id` = #{row.id,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `callbackinboxpartition` WHERE `id` = #{id,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `pending_count`, `pending_bytes` FROM `callbackinboxpartition`
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `callbackinboxpartition`
+    <set>
+      <if test="changes.containsKey('pending_count')">`pending_count` = #{changes.pending_count,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('pending_bytes')">`pending_bytes` = #{changes.pending_bytes,jdbcType=INTEGER},</if>
+    </set>
+    WHERE `id` = #{id}
+  </update>
+  <select id="sourceCallbackInbox56_4" resultMap="row">SELECT * FROM `callbackinboxpartition` WHERE id=#{p0} FOR UPDATE</select>
+  <select id="sourceCallbackInbox80_6" resultMap="row">SELECT * FROM `callbackinboxpartition` WHERE id=#{p0} FOR UPDATE</select>
+  <update id="rawCallbackInbox67_4" >UPDATE callbackinboxpartition SET pending_count=pending_count+1,pending_bytes=pending_bytes+#{p0} WHERE id=#{p1}</update>
+  <update id="rawCallbackInbox106_7" >UPDATE callbackinboxpartition SET pending_count=pending_count-1,pending_bytes=pending_bytes-#{p0} WHERE id=#{p1}</update>
+  <insert id="initializePartition">INSERT INTO callbackinboxpartition (id,pending_count,pending_bytes) VALUES (#{id},0,0) ON DUPLICATE KEY UPDATE id=id</insert>
+</mapper>

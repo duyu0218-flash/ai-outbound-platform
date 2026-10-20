@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.CallbackInboxWorkerMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.CallbackInboxWorker">
+    <id column="id" property="id" javaType="java.lang.String"/>
+    <result column="heartbeat_at" property="heartbeatAt" javaType="java.time.LocalDateTime"/>
+    <result column="processed" property="processed" javaType="java.lang.Long"/>
+    <result column="max_latency_ms" property="maxLatencyMs" javaType="java.lang.Double"/>
+  </resultMap>
+  <insert id="insert">
+    INSERT INTO `callbackinboxworker`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      `id`,
+      `heartbeat_at`,
+      `processed`,
+      `max_latency_ms`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      #{row.id,jdbcType=VARCHAR},
+      #{row.heartbeatAt,jdbcType=TIMESTAMP},
+      #{row.processed,jdbcType=BIGINT},
+      #{row.maxLatencyMs,jdbcType=DOUBLE},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `heartbeat_at`, `processed`, `max_latency_ms` FROM `callbackinboxworker` WHERE `id` = #{id,jdbcType=VARCHAR}
+  </select>
+  <update id="updateById">
+    UPDATE `callbackinboxworker` SET
+      `heartbeat_at` = #{row.heartbeatAt,jdbcType=TIMESTAMP},
+      `processed` = #{row.processed,jdbcType=BIGINT},
+      `max_latency_ms` = #{row.maxLatencyMs,jdbcType=DOUBLE}
+    WHERE `id` = #{row.id,jdbcType=VARCHAR}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `callbackinboxworker` WHERE `id` = #{id,jdbcType=VARCHAR}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `heartbeat_at`, `processed`, `max_latency_ms` FROM `callbackinboxworker`
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `callbackinboxworker`
+    <set>
+      <if test="changes.containsKey('heartbeat_at')">`heartbeat_at` = #{changes.heartbeat_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('processed')">`processed` = #{changes.processed,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('max_latency_ms')">`max_latency_ms` = #{changes.max_latency_ms,jdbcType=DOUBLE},</if>
+    </set>
+    WHERE `id` = #{id}
+  </update>
+  <select id="sourceCallbackInbox30_2" resultType="long">SELECT COUNT(*) FROM `callbackinboxworker` WHERE heartbeat_at&gt;=#{p0}</select>
+  <select id="sourceCallbackInbox36_3" resultMap="row">SELECT * FROM `callbackinboxworker` WHERE id=#{p0}</select>
+  <delete id="rawCallbackInbox40_2" >DELETE FROM callbackinboxworker WHERE heartbeat_at&lt;#{p0} LIMIT 100</delete>
+  <update id="rawCallbackInbox108_8" >UPDATE callbackinboxworker SET processed=processed+1,max_latency_ms=CASE WHEN max_latency_ms&lt;#{p0} THEN #{p1} ELSE max_latency_ms END WHERE id=#{p2}</update>
+</mapper>

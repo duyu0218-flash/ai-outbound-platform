@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.ProductWorkItemMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.ProductWorkItem">
+    <id column="id" property="id" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="event_key" property="eventKey" javaType="java.lang.String"/>
+    <result column="call_id" property="callId" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="kind" property="kind" javaType="java.lang.String"/>
+    <result column="state" property="state" javaType="java.lang.String"/>
+    <result column="phone" property="phone" javaType="java.lang.String"/>
+    <result column="detail_json" property="detailJson" javaType="java.lang.String"/>
+    <result column="assigned_to" property="assignedTo" javaType="java.lang.Integer"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert">
+    INSERT INTO `productworkitem`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      `id`,
+      `tenant_id`,
+      `event_key`,
+      `call_id`,
+      `kind`,
+      `state`,
+      `phone`,
+      `detail_json`,
+      `assigned_to`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.eventKey,jdbcType=VARCHAR},
+      #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.kind,jdbcType=LONGVARCHAR},
+      #{row.state,jdbcType=LONGVARCHAR},
+      #{row.phone,jdbcType=LONGVARCHAR},
+      #{row.detailJson,jdbcType=LONGVARCHAR},
+      #{row.assignedTo,jdbcType=INTEGER},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `event_key`, `call_id`, `kind`, `state`, `phone`, `detail_json`, `assigned_to`, `created_at`, `updated_at` FROM `productworkitem` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `productworkitem` SET
+      `event_key` = #{row.eventKey,jdbcType=VARCHAR},
+      `call_id` = #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      `kind` = #{row.kind,jdbcType=LONGVARCHAR},
+      `state` = #{row.state,jdbcType=LONGVARCHAR},
+      `phone` = #{row.phone,jdbcType=LONGVARCHAR},
+      `detail_json` = #{row.detailJson,jdbcType=LONGVARCHAR},
+      `assigned_to` = #{row.assignedTo,jdbcType=INTEGER},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `productworkitem` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `event_key`, `call_id`, `kind`, `state`, `phone`, `detail_json`, `assigned_to`, `created_at`, `updated_at` FROM `productworkitem`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `productworkitem`
+    <set>
+      <if test="changes.containsKey('event_key')">`event_key` = #{changes.event_key,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('call_id')">`call_id` = #{changes.call_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('kind')">`kind` = #{changes.kind,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('state')">`state` = #{changes.state,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('phone')">`phone` = #{changes.phone,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('detail_json')">`detail_json` = #{changes.detail_json,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('assigned_to')">`assigned_to` = #{changes.assigned_to,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <update id="redactCallEvidence">UPDATE productworkitem SET phone=#{phone},detail_json='{}' WHERE tenant_id = #{tenantId} AND call_id = #{callId,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler}</update>
+  <select id="expiredOrphans" resultMap="row">SELECT * FROM productworkitem WHERE tenant_id = #{tenantId} AND call_id IS NULL AND created_at &lt;= #{cutoff} AND phone NOT LIKE 'redacted:%' ORDER BY created_at LIMIT #{limit}</select>
+  <select id="sourceProductOperations51_4" resultMap="row">SELECT * FROM `productworkitem` WHERE tenant_id=#{tenantId} ORDER BY created_at DESC LIMIT 50 OFFSET #{p1}</select>
+  <select id="scopedConversationPolicy62" resultType="long">SELECT COUNT(*) FROM `productworkitem` WHERE tenant_id = #{tenantId} AND (event_key=#{p0})</select>
+  <select id="scopedProductOperations54" resultMap="row">SELECT * FROM `productworkitem` WHERE tenant_id = #{tenantId} AND (event_key=#{p0})</select>
+</mapper>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.AdminSettingMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.AdminSetting">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="section" property="section" javaType="java.lang.String"/>
+    <result column="data_json" property="dataJson" javaType="java.lang.String"/>
+    <result column="updated_by" property="updatedBy" javaType="java.lang.Integer"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `adminsetting`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `section`,
+      `data_json`,
+      `updated_by`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.section,jdbcType=VARCHAR},
+      #{row.dataJson,jdbcType=LONGVARCHAR},
+      #{row.updatedBy,jdbcType=INTEGER},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `adminsetting`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `section`,
+      `data_json`,
+      `updated_by`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.section,jdbcType=VARCHAR},
+      #{row.dataJson,jdbcType=LONGVARCHAR},
+      #{row.updatedBy,jdbcType=INTEGER},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `section`, `data_json`, `updated_by`, `updated_at` FROM `adminsetting` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `adminsetting` SET
+      `section` = #{row.section,jdbcType=VARCHAR},
+      `data_json` = #{row.dataJson,jdbcType=LONGVARCHAR},
+      `updated_by` = #{row.updatedBy,jdbcType=INTEGER},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `adminsetting` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `section`, `data_json`, `updated_by`, `updated_at` FROM `adminsetting`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `adminsetting`
+    <set>
+      <if test="changes.containsKey('section')">`section` = #{changes.section,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('data_json')">`data_json` = #{changes.data_json,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('updated_by')">`updated_by` = #{changes.updated_by,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="findBySection" resultMap="row">SELECT * FROM adminsetting WHERE tenant_id = #{tenantId} AND section = #{section}</select>
+</mapper>

@@ -1,0 +1,2 @@
+<script setup>import {t} from '../i18n';defineProps({page:Number,count:Number,size:{default:50},loading:Boolean});defineEmits(['change'])</script>
+<template><div class="pager"><el-button :disabled="page===1||loading" @click="$emit('change',page-1)">{{t('previousPage')}}</el-button><span>{{t('currentPageNumber',{page})}}</span><el-button :disabled="count<size||loading" @click="$emit('change',page+1)">{{t('nextPage')}}</el-button></div></template>
