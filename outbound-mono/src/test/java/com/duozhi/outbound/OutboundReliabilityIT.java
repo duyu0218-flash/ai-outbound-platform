@@ -25,12 +25,14 @@ class OutboundReliabilityIT {
         p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",MYSQL::getUsername);p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
         p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_DISPATCH_ENABLED",()->"true");p.add("TELEPHONY_PROVIDER",()->"mock");
+        p.add("OUTBOUND_PLATFORM_MAX_CONCURRENT",()->"500");
     }
     @Autowired Store store;@Autowired OperationsStore db;@Autowired Transactions tx;@Autowired DialService dial;@Autowired Handoffs handoffs;
     @Autowired HumanRouting routing;@Autowired ConversationPolicy conversation;@Autowired CallLifecycle lifecycle;@Autowired JsonSupport json;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     static AtomicInteger sequence=new AtomicInteger(1000);long tenant;
     @BeforeEach void seed(){tenant=sequence.incrementAndGet();store.insert("tenant",JsonSupport.map("id",tenant,"code","reliability-"+tenant,"name","Synthetic reliability"));store.insert("adminsetting",JsonSupport.map("tenant_id",tenant,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));}
+    @AfterEach void releaseFixtureCapacity(){for(var c:store.query("callsession","list",JsonSupport.map("tenantId",tenant,"offset",0,"limit",1000)))if(!CallLifecycle.TERMINAL.contains(c.get("status")))store.update("callsession",tenant,c.get("id"),Map.of("status","completed"));}
     Map<String,Object> call(String state,String mode){return store.insert("callsession",JsonSupport.map("tenant_id",tenant,"phone","1555"+String.format("%07d",sequence.incrementAndGet()),"mode",mode,"status",state,"attempts",state.equals("queued")?0:1,"max_attempts",2));}
     Map<String,Object> agent(String state){return store.insert("user",JsonSupport.map("tenant_id",tenant,"username","desk-"+UUID.randomUUID(),"full_name","Synthetic desk","role","agent","agent_status",state,"last_seen_at",Store.now()));}
     void policy(Map<String,Object> call,Map<String,Object> changes){tx.serialized(()->{var state=conversation.state(call);var p=conversation.policy(state);p.putAll(changes);p.put("start_hour",0);p.put("end_hour",24);store.update("conversationstate",tenant,state.get("id"),JsonSupport.map("policy_json",json.json(p)));return null;});}
