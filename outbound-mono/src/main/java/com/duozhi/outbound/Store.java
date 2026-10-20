@@ -17,7 +17,12 @@ public class Store {
     private final javax.sql.DataSource dataSource;
     private final Map<String,Map<String,Map<String,Object>>> tables;
     private final Map<String,String> mappers=new HashMap<>();
-    private record BufferedWrite(String statement,Object parameters,boolean insert,Runnable after){}
+    private record BufferedWrite(String statement,Object parameters,boolean insert,Runnable after,long estimatedBytes){}
+    private static long insertBytes(Map<String,Object> values){
+        long bytes=512L+64L*values.size();
+        for(Object value:values.values())if(value instanceof String text)bytes+=2L*text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;else if(value instanceof byte[] data)bytes+=2L*data.length;else bytes+=64;
+        return bytes;
+    }
     private final ThreadLocal<List<BufferedWrite>> buffered=new ThreadLocal<>();
     /** Only used for locked admission rows; flushes before every subsequent read.
      * SpringManagedTransaction keeps the JDBC batch in the caller's transaction. */
@@ -40,10 +45,20 @@ public class Store {
             }
         }
         try(var batch=factory.openSession(org.apache.ibatis.session.ExecutorType.BATCH)){
-            for(var group:groups.values())for(var op:group){if(op.insert())batch.insert(op.statement(),op.parameters());else batch.update(op.statement(),op.parameters());}
-            for(var result:batch.flushStatements())for(int count:result.getUpdateCounts())if(count==java.sql.Statement.EXECUTE_FAILED||count==0)throw new IllegalStateException("buffered locked row was not written");
+            long bytes=0;
+            for(var group:groups.values())for(var op:group){
+                // Connector/J rewrites inserts into one packet. Keep cohorts below
+                // even the test container's 1 MiB limit; all chunks still share
+                // the caller's transaction and generated-key/rollback semantics.
+                if(bytes>0&&bytes+op.estimatedBytes()>512*1024){flushJdbcBatch(batch);bytes=0;}
+                if(op.insert())batch.insert(op.statement(),op.parameters());else batch.update(op.statement(),op.parameters());bytes+=op.estimatedBytes();
+            }
+            flushJdbcBatch(batch);
         }
         sql.clearCache();for(var op:writes)if(op.after()!=null)op.after().run();
+    }
+    private static void flushJdbcBatch(org.apache.ibatis.session.SqlSession batch){
+        for(var result:batch.flushStatements())for(int count:result.getUpdateCounts())if(count==java.sql.Statement.EXECUTE_FAILED||count==0)throw new IllegalStateException("buffered locked row was not written");
     }
     public Store(SqlSession sql,ObjectMapper json,javax.sql.DataSource dataSource)throws IOException{
         this.dataSource=dataSource;
@@ -87,7 +102,7 @@ public class Store {
         values.forEach((column,raw)->{Object value=encode(table,column,raw);Class<?> type=bean.getPropertyType(property(column));if(value!=null&&type.isEnum())value=Enum.valueOf((Class<? extends Enum>)type,value.toString());bean.setPropertyValue(property(column),value);});
         String explicit=namespace(table)+".insertExplicitId",statement=input.get("id")!=null&&sql.getConfiguration().hasStatement(explicit)?explicit:namespace(table)+".insert";
         if(buffered.get()!=null&&Set.of("callevent","conversationstate","webhookeventingest","callusage","taskoutbox","callbackinbox").contains(table)){
-            var result=record(table,entity);final Object saved=entity;buffered.get().add(new BufferedWrite(statement,Map.of("row",entity),true,()->result.putAll(record(table,saved))));return result;
+            var result=record(table,entity);final Object saved=entity;buffered.get().add(new BufferedWrite(statement,Map.of("row",entity),true,()->result.putAll(record(table,saved)),insertBytes(values)));return result;
         }
         flushBuffered();sql.insert(statement,Map.of("row",entity));
         long tenant=values.get("tenant_id") instanceof Number n?n.longValue():0;
@@ -113,7 +128,7 @@ public class Store {
         if(buffered.get()!=null&&Set.of("callsession","taskoutbox","callusage").contains(table)&&!changes.isEmpty()){
             String statement=namespace(table)+".patchFields";Object encoded=encode(table,"id",id);
             if(buffered.get().stream().anyMatch(op->!op.insert()&&op.statement().equals(statement)&&op.parameters() instanceof Map<?,?> previous&&Objects.equals(previous.get("id"),encoded)&&Objects.equals(previous.get("tenantId"),tenant)))flushBuffered();
-            buffered.get().add(new BufferedWrite(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes),false,null));return;
+            buffered.get().add(new BufferedWrite(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes),false,null,insertBytes(changes)));return;
         }
         if(changes.isEmpty()||sql.update(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes))==0)
             require(table,tenant,id);

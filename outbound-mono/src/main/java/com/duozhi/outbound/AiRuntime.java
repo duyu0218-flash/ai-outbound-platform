@@ -97,10 +97,13 @@ public class AiRuntime {
             Map<String,Object> data=json.object(state.get("data_json").toString());data.put("model_pending",result==null);product.save(state,data);
             return JsonSupport.map("call",call,"policy",policy,"ai",ai,"result",result,"generation",state.get("generation"),"request",result==null?agentRequest(call,policy,ai,transcript):Map.of());
         };
-        // Empty opening/timer transcripts can only prepare local conversation
-        // state. Spoken transcripts may suppress a phone or create appointments
-        // and therefore retain the shared platform transaction.
-        Map<String,Object> snapshot=Objects.toString(payload.get("transcript"),"").trim().isEmpty()?tx.run(prepare):tx.serialized(prepare);
+        // Ordinary dialogue touches only the locked call. A shared phone or
+        // appointment effect aborts this transaction before the effect, then
+        // reruns from a fresh snapshot under the platform lock. Never upgrade
+        // from a held call row lock to the platform lock.
+        Map<String,Object> snapshot;
+        try{snapshot=tx.run(()->product.localPreparation(prepare));}
+        catch(ConversationPolicy.SharedPreparationRequired shared){snapshot=tx.serialized(prepare);}
         if(snapshot==null)return;
         Map<String,Object> result=(Map<String,Object>)snapshot.get("result"),ai=(Map<String,Object>)snapshot.get("ai");
         if(result==null){
@@ -111,14 +114,14 @@ public class AiRuntime {
             try{result=validated(embeddedAgent.turn((Map<String,Object>)snapshot.get("request"),token.isEmpty()?null:"Bearer "+token,config.number("AI_CALLBACK_TIMEOUT_SEC",10)*1000));}
             catch(TelephonyClient.Failure failure){throw failure;}
         }
-        final Map<String,Object> proposed=result;
+        final Map<String,Object> proposed=result,preparedSnapshot=snapshot;
         // This phase changes only the locked call's conversation/metrics. It
         // does not admit calls, allocate agents or release shared capacity.
         Map<String,Object> accepted=tx.run(()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
-            Map<String,Object> state=product.state(call);if(!Objects.equals(state.get("generation"),snapshot.get("generation")))return null;
+            Map<String,Object> state=product.state(call);if(!Objects.equals(state.get("generation"),preparedSnapshot.get("generation")))return null;
             Map<String,Object> data=json.object(state.get("data_json").toString());data.put("model_pending",false);product.save(state,data);
             Map<String,Object> guarded=guard(call,new LinkedHashMap<>(proposed),ai);
-            Map<String,Object> original=(Map<String,Object>)snapshot.get("call");if(!Objects.equals(call.get("flow_node_key"),original.get("flow_node_key")))store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("flow_node_key",original.get("flow_node_key")));
+            Map<String,Object> original=(Map<String,Object>)preparedSnapshot.get("call");if(!Objects.equals(call.get("flow_node_key"),original.get("flow_node_key")))store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("flow_node_key",original.get("flow_node_key")));
             metric(call,"ai.turn",Objects.toString(ai.get("llm_provider"),"rule"),(System.nanoTime()-started)/1000000,true,null);
             return guarded;
         });

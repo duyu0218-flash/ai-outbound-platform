@@ -53,6 +53,22 @@ class OutboundReliabilityIT {
             release.countDown();owner.get(5,TimeUnit.SECONDS);disable.get(5,TimeUnit.SECONDS);
         }finally{release.countDown();pool.shutdownNow();}
     }
+    @Test void ordinaryDialoguePreparesWhileAdmissionIsLockedButSuppressionRetriesAtomically()throws Exception{
+        var call=call("in_ai","ai_only");policy(call,Map.of());var pool=Executors.newFixedThreadPool(2);var locked=new CountDownLatch(1);var release=new CountDownLatch(1);
+        try{
+            var holder=pool.submit(()->tx.serialized(()->{locked.countDown();try{if(!release.await(10,TimeUnit.SECONDS))throw new IllegalStateException("fixture release timeout");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}return null;}));
+            assertThat(locked.await(5,TimeUnit.SECONDS)).isTrue();
+            var ordinary=pool.submit(()->tx.run(()->conversation.localPreparation(()->conversation.prepare(tx.call(call.get("id")),"稍等一下"))));
+            assertThat(ordinary.get(2,TimeUnit.SECONDS).get("tts_text").toString()).contains("稍等");
+            release.countDown();holder.get(5,TimeUnit.SECONDS);
+        }finally{release.countDown();pool.shutdownNow();}
+        var before=conversation.state(call);Object generation=before.get("generation");
+        assertThatThrownBy(()->tx.run(()->conversation.localPreparation(()->conversation.prepare(tx.call(call.get("id")),"不要再打电话")))).isInstanceOf(ConversationPolicy.SharedPreparationRequired.class);
+        assertThat(store.scalar("phonesuppression","countPhone",JsonSupport.map("tenantId",tenant,"phone",call.get("phone")))).isZero();
+        assertThat(conversation.state(call).get("generation")).isEqualTo(generation);
+        assertThat(tx.serialized(()->conversation.prepare(tx.call(call.get("id")),"不要再打电话")).get("action")).isEqualTo("hangup");
+        assertThat(store.scalar("phonesuppression","countPhone",JsonSupport.map("tenantId",tenant,"phone",call.get("phone")))).isEqualTo(1);
+    }
     @Test void initialBatchCannotApplyProviderMappingThatReleasesSharedCapacity(){
         var call=call("dialing","ai_only");var body=JsonSupport.map("call_id",call.get("id"),"payload",JsonSupport.map("status","dialing","attempt",1,"event_id","mapped-fixture"));
         String property="mapped-status-fixture";environment.getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource(property,Map.of("NO_ANSWER_CODES","[\"dialing\"]")));
@@ -101,6 +117,14 @@ class OutboundReliabilityIT {
         })).isInstanceOf(IllegalStateException.class).hasMessage("synthetic crash before commit");
         assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("queued");
         assertThat(store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(tenant,store.encode("callsession","id",c.get("id")),1))).isNull();
+    }
+    @Test void largeBufferedInsertsKeepGeneratedKeysAndAtomicRollbackAcrossPacketChunks(){
+        var call=call("dialing","ai_only");String payload=json.json(Map.of("text","中".repeat(4096)));var rows=new ArrayList<Map<String,Object>>();
+        tx.run(()->store.bufferWrites(()->{for(int i=0;i<160;i++)rows.add(store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","packet_fixture","payload",payload)));return null;}));
+        assertThat(rows).allSatisfy(row->assertThat(row.get("id")).isNotNull());assertThat(rows.stream().map(row->row.get("id")).distinct().count()).isEqualTo(160);
+        assertThat(store.query("callevent","list",Map.of("tenantId",tenant,"offset",0,"limit",1000))).hasSize(160);
+        assertThatThrownBy(()->tx.run(()->{store.bufferWrites(()->{for(int i=0;i<160;i++)store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","packet_rollback","payload",payload));return null;});throw new IllegalStateException("rollback after every packet flushed");})).isInstanceOf(IllegalStateException.class).hasMessage("rollback after every packet flushed");
+        assertThat(store.query("callevent","list",Map.of("tenantId",tenant,"offset",0,"limit",1000))).hasSize(160);
     }
     @Test void oneCohortKeepsPhoneMutualExclusionConsentAndPerAttemptAcknowledgements(){
         var a=call("queued","ai_only");consent(a);var b=call("queued","ai_only");store.update("callsession",tenant,b.get("id"),Map.of("phone",a.get("phone")));

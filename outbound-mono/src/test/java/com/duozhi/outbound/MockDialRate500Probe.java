@@ -18,8 +18,8 @@ class MockDialRate500Probe {
   var futures=new ArrayList<CompletableFuture<?>>();var codes=new ConcurrentHashMap<Integer,AtomicInteger>();var missed=new AtomicInteger();var errors=new ConcurrentHashMap<String,String>();
   try{
         try(var mysql=new MySQLContainer<>("mysql:8.4");var redis=new GenericContainer<>(DockerImageName.parse("redis:7")).withExposedPorts(6379)) {
-            int bufferMiB=Integer.getInteger("capacity.mysql.bufferMiB",0);if(bufferMiB>0)mysql.withCommand("--innodb-buffer-pool-size="+(bufferMiB*1024L*1024L),"--innodb-flush-log-at-trx-commit=1","--sync-binlog=1","--transaction-isolation=REPEATABLE-READ");result.put("mysql_buffer_pool_override_mib",bufferMiB);
-            mysql.start();redis.start();jdbc=mysql.getJdbcUrl()+"?connectTimeout=5000&socketTimeout=15000";dbUser=mysql.getUsername();dbPassword=mysql.getPassword();
+            CapacityDatabaseProfile.apply(mysql,result);
+            mysql.start();redis.start();jdbc=mysql.getJdbcUrl()+"?connectTimeout=5000&socketTimeout=15000";dbUser=mysql.getUsername();dbPassword=mysql.getPassword();result.put("mysql_actual_variables",CapacityDatabaseProfile.actual(jdbc,dbUser,dbPassword));
             result.put("mysql_container",mysql.getContainerId());result.put("redis_container",redis.getContainerId());result.put("mysql_jdbc",jdbc);result.put("profile_jfr",Boolean.getBoolean("capacity.jfr"));write();
             try {
                 int port;try(var reservation=new ServerSocket(0,1,InetAddress.getLoopbackAddress())){port=reservation.getLocalPort();}
