@@ -157,7 +157,7 @@ public class DialService {
         long tenant = CallLifecycle.tenant(call); int attempt = CallLifecycle.number(call, "attempts");
         Map<String, Object> ai = settings.get(tenant, "ai"), compliance = settings.get(tenant, "compliance");
         String base = config.get("TELEPHONY_WEBHOOK_BASE", "http://localhost:8000").replaceAll("/+$", "");
-        Map<String, Object> metadata = JsonSupport.map("tenant_id", tenant, "campaign_id", call.get("campaign_id"), "contact_id", call.get("contact_id"), "mode", call.get("mode"), "human_agent_id", call.get("human_agent_id"), "attempt", attempt, "gateway_node_id", call.get("gateway_node_id"));
+        Map<String, Object> metadata = JsonSupport.map("tenant_id", tenant, "campaign_id", call.get("campaign_id"), "contact_id", call.get("contact_id"), "mode", call.get("mode"), "human_agent_id", call.get("human_agent_id"), "attempt", attempt, "telephony_line_id",call.get("telephony_line_id"),"gateway_node_id", call.get("gateway_node_id"));
         for (String kind : Arrays.asList("transcript", "speech", "media", "recording", "dtmf")) metadata.put(kind + "_webhook_url", base + "/api/v1/webhooks/telephony/" + kind);
         for (String key : Arrays.asList("asr_provider", "tts_provider", "voice", "language")) metadata.put(key, ai.get(key));
         metadata.put("recording_notice", compliance.get("recording_notice")); metadata.put("recording_notice_text", compliance.get("recording_notice_text"));
@@ -211,7 +211,7 @@ public class DialService {
                 tx.platform(); Map<String, Object> latest = tx.call(id);
                 if (latest != null && CallLifecycle.number(latest, "attempts") == attempt)
                     store.update("callsession", tenant, id, JsonSupport.map("telephony_call_id", response.get("provider_call_id"), "ai_session_id", response.get("provider_call_id"), "voice_ai_pipeline", metadata.get("voice_ai_pipeline")));
-                if(latest!=null&&CallLifecycle.number(latest,"attempts")==attempt&&store.scalar("callevent","dialAcceptedAttempt",JsonSupport.map("id",store.encode("callsession","id",id),"attempt",attempt))==0)
+                if(latest!=null&&CallLifecycle.number(latest,"attempts")==attempt&&store.scalar("callevent","dialAcceptedAttempt",JsonSupport.map("tenantId",tenant,"id",store.encode("callsession","id",id),"attempt",attempt))==0)
                     store.insert("callevent",JsonSupport.map("call_session_id",id,"event_type","dial_command_accepted","source","telephony","payload",json.json(JsonSupport.map("attempt",attempt,"provider_call_id",response.get("provider_call_id")))));
                 return null;
             });
@@ -256,7 +256,7 @@ public class DialService {
         var successful=pending.stream().filter(e->e.containsKey("response")).toList();if(successful.isEmpty())return;
         tx.serialized(()->{TaskWorker.permitted();long tenant=CallLifecycle.tenant((Map<String,Object>)successful.get(0).get("call"));var ids=successful.stream().map(e->((Map<?,?>)e.get("call")).get("id").toString()).toList();
             var current=new HashMap<String,Map<String,Object>>();for(var raw:db.calls(tenant,ids))current.put(raw.get("id").toString(),raw);
-            var acknowledged=new HashSet<String>();for(var ack:db.rows("dialAcks",JsonSupport.map("ids",ids)))acknowledged.add(ack.get("call_session_id")+":"+ack.get("attempt"));
+            var acknowledged=new HashSet<String>();for(var ack:db.rows("dialAcks",JsonSupport.map("tenantId",tenant,"ids",ids)))acknowledged.add(ack.get("call_session_id")+":"+ack.get("attempt"));
             return store.bufferWrites(()->{for(var entry:successful){var call=(Map<String,Object>)entry.get("call");var latest=current.get(call.get("id").toString());if(latest==null||CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(call,"attempts"))continue;
                 var response=(Map<String,Object>)entry.get("response");store.writeLocked("callsession",tenant,call.get("id"),JsonSupport.map("telephony_call_id",response.get("provider_call_id"),"ai_session_id",response.get("provider_call_id")));
                 if(acknowledged.add(call.get("id")+":"+call.get("attempts")))store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","dial_command_accepted","source","telephony","payload",json.json(JsonSupport.map("attempt",call.get("attempts"),"provider_call_id",response.get("provider_call_id")))));

@@ -42,6 +42,10 @@ class OutboundReliabilityIT {
     Map<String,Object> agent(String state){return store.insert("user",JsonSupport.map("tenant_id",tenant,"username","desk-"+UUID.randomUUID(),"full_name","Synthetic desk","role","agent","agent_status",state,"last_seen_at",Store.now()));}
     void policy(Map<String,Object> call,Map<String,Object> changes){tx.serialized(()->{var state=conversation.state(call);var p=conversation.policy(state);p.putAll(changes);p.put("start_hour",0);p.put("end_hour",24);store.update("conversationstate",tenant,state.get("id"),JsonSupport.map("policy_json",json.json(p)));return null;});}
     void consent(Map<String,Object> call){store.insert("contact",JsonSupport.map("tenant_id",tenant,"phone",call.get("phone"),"consent_state","consented"));}
+    @Test void frozenCommandCarriesTheSelectedTenantLineForGatewayAuthorization(){
+        var c=call("dialing","ai_only");var line=store.insert("telephonyline",JsonSupport.map("tenant_id",tenant,"name","Synthetic authorized line","provider","mock","caller_id","+8613800138000"));var bound=store.update("callsession",tenant,c.get("id"),Map.of("telephony_line_id",line.get("id")));var metadata=dial.metadataFor(bound);
+        assertThat(metadata.get("telephony_line_id")).isEqualTo(line.get("id"));assertThat(metadata.get("caller_id")).isEqualTo("+8613800138000");
+    }
     @Test void bufferedCaseUpdatesKeepWriteOrderAndWrongTenantRollsBackOtherChanges(){
         var a=call("queued","ai_only");var b=call("queued","ai_only");
         tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,b.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","answered"));return null;}));
@@ -67,12 +71,12 @@ class OutboundReliabilityIT {
         worker.enqueueDue();assertThat(worker.processLane(tenant,0)).isTrue();
         var statuses=List.of(store.require("callsession",tenant,a.get("id")).get("status"),store.require("callsession",tenant,b.get("id")).get("status"));assertThat(statuses).containsExactlyInAnyOrder("dialing","queued");
         assertThat(store.require("callsession",tenant,denied.get("id")).get("status")).isEqualTo("failed");assertThat(store.require("callsession",tenant,good.get("id")).get("status")).isEqualTo("dialing");
-        assertThat(dialDb.rows("dialAcks",Map.of("ids",List.of(a.get("id"),b.get("id"),good.get("id"))))).hasSize(2);
+        assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",List.of(a.get("id"),b.get("id"),good.get("id"))))).hasSize(2);
     }
     @Test void parallelCohortsCannotAdmitTheSamePhoneTwice()throws Exception{
         var first=call("queued","ai_only");consent(first);var ids=new ArrayList<String>();ids.add(first.get("id").toString());for(int i=0;i<100;i++){var next=call("queued","ai_only");store.update("callsession",tenant,next.get("id"),Map.of("phone",first.get("phone")));ids.add(next.get("id").toString());}
         worker.enqueueDue();var pool=Executors.newFixedThreadPool(2);var gate=new CountDownLatch(1);try{var a=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});var b=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});gate.countDown();boolean ar=a.get(20,TimeUnit.SECONDS),br=b.get(20,TimeUnit.SECONDS);assertThat(ar||br).isTrue();}finally{pool.shutdownNow();}
-        assertThat(dialDb.rows("dialAcks",Map.of("ids",ids))).hasSize(1);assertThat(store.scalar("callsession","activePhone",JsonSupport.map("tenantId",tenant,"phone",first.get("phone"),"id",UUID.randomUUID()))).isEqualTo(1);
+        assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",ids))).hasSize(1);assertThat(store.scalar("callsession","activePhone",JsonSupport.map("tenantId",tenant,"phone",first.get("phone"),"id",UUID.randomUUID()))).isEqualTo(1);
     }
     @Test void finishingOneCohortDoesNotWaitForUnrelatedTaskRows()throws Exception{
         var rows=new ArrayList<Map<String,Object>>();tx.run(()->store.bufferWrites(()->{for(int i=0;i<1000;i++)rows.add(store.insert("taskoutbox",JsonSupport.map("tenant_id",tenant,"task_type","dial_call","aggregate_id","synthetic-lock-scope-"+i,"idempotency_key","synthetic-lock-scope-"+i,"payload_json","{}")));return null;}));
@@ -91,7 +95,7 @@ class OutboundReliabilityIT {
         assertThat(worker.processLane(tenant,0)).isTrue();assertThat(store.require("callsession",tenant,c.get("id")).get("attempts")).isEqualTo(1);
         var task=store.require("taskoutbox",tenant,tasks.get(0).get("id"));assertThat(task.get("state")).isEqualTo("completed");
         store.update("taskoutbox",tenant,task.get("id"),Map.of("state","failed","available_at",Store.now()));assertThat(worker.processLane(tenant,0)).isTrue();
-        assertThat(dialDb.rows("dialAcks",Map.of("ids",List.of(c.get("id"))))).hasSize(1);
+        assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",List.of(c.get("id"))))).hasSize(1);
     }
     @Test void batchedStatusReceiptsKeepFifoIdempotencyUsageAndOpeningAiTask(){
         inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");

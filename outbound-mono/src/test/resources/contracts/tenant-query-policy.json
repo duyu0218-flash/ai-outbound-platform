@@ -265,6 +265,41 @@
       "category": "A",
       "table": "callbackinbox",
       "reason": "Original platform-only persistence operation at CallbackInbox.java:39; table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.partitions": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Platform receipt partitions have no tenant_id; receive/consume lock selected partition IDs in ascending order before receipt rows."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.receipts": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Platform receipt dedupe by canonical event hash under its partition lock; not exposed as a tenant data query."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.initialStatuses": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Platform worker selects FIFO initial statuses; business call rows are subsequently resolved with explicit tenant predicates under the platform lock."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.lockReceipts": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Internal worker locks only selected receipt primary keys after acquiring their partition locks; no tenant business response is returned."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.complete": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Internal completion of owned receipt IDs commits atomically with tenant-scoped lifecycle writes and partition counters."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.partitionDelta": {
+      "category": "A",
+      "table": "callbackinboxpartition",
+      "reason": "Internal accounting for partitions already locked by receive/consume; original platform table has no tenant_id."
+    },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.progress": {
+      "category": "A",
+      "table": "callbackinboxworker",
+      "reason": "Internal worker heartbeat and cumulative processing metrics; original platform worker table has no tenant_id."
     }
   }
 }

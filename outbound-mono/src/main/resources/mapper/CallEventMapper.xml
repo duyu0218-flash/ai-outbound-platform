@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.duozhi.outbound.mapper.CallEventMapper">
-  <select id="dialAcceptedAttempt" resultType="long">SELECT COUNT(*) FROM callevent WHERE call_session_id=#{id,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND event_type='dial_command_accepted' AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.attempt'))=#{attempt}</select>
+  <select id="dialAcceptedAttempt" resultType="long">SELECT COUNT(*) FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND e.call_session_id=#{id,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND e.event_type='dial_command_accepted' AND JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt'))=#{attempt}</select>
   <resultMap id="row" type="com.duozhi.outbound.entity.CallEvent">
     <id column="id" property="id" javaType="java.lang.Integer"/>
     <result column="call_session_id" property="callSessionId" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
