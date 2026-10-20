@@ -22,8 +22,8 @@ class DataLayerReplayIT {
         var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration").load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(4);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("4");
+        assertThat(first.migrationsExecuted).isEqualTo(5);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("5");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-20",
+  "scope": "outbound-mono only; single JVM; no deployment",
+  "source_modified": true,
+  "static_checks": {
+    "diff_check": "passed",
+    "xml_parse": "passed",
+    "frozen_contracts": "passed",
+    "compose_profiles": 4,
+    "enforcer": "pending final explicit run"
+  },
+  "development_functional": {
+    "status": "previous complete source passed; final FIFO pagination change rerun in progress",
+    "last_complete": {
+      "unit": 142,
+      "integration": 215,
+      "total": 357,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "browser_groups": 27,
+      "completed_at": "2026-10-20T22:36:53+08:00"
+    },
+    "final_fifo_rerun": "pending"
+  },
+  "capacity": {
+    "status": "failed; not qualified",
+    "http_500_cps": {
+      "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
+      "target_cps": 500,
+      "seconds": 5,
+      "scope": "Full HTTP / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+      "configuration": {
+        "jvm_heap_max_gib": 2,
+        "db_pool_max": 4,
+        "voice_ledger_pool_max": 4,
+        "model_quota_window": "disabled; rule AI",
+        "http_inflight_limit": 100,
+        "api_rate_limit_rps": 2000,
+        "worker_lanes": 7,
+        "task_executor_threads": 4,
+        "ai_lane_threads_max": 4,
+        "callback_consumer_threads": 1,
+        "external_model": "not used",
+        "audio": "not exercised",
+        "capacity_knobs": 10000,
+        "application_jvms": 1
+      },
+      "planned_calls": 3500,
+      "submitted_calls": 3500,
+      "generator_capacity_misses": 0,
+      "http_codes": {
+        "200": 270,
+        "503": 3230
+      },
+      "error_examples": {
+        "http_503": "{\"detail\":\"request capacity reached\"}"
+      },
+      "dial_accepted_per_second": {
+        "2": 10,
+        "3": 49,
+        "4": 47,
+        "5": 20,
+        "6": 43,
+        "7": 44,
+        "8": 43
+      },
+      "dial_accepted_within_window": 126,
+      "actual_cps": 25.2,
+      "passed": false,
+      "real_telephony_verified": false
+    },
+    "queued_pool_500_cps": {
+      "status": "pending"
+    },
+    "ai_500_inflight": {
+      "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
+      "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+      "configuration": {
+        "jvm_heap_max_gib": 2,
+        "db_pool_max": 4,
+        "voice_ledger_pool_max": 4,
+        "model_quota_window": "disabled; rule AI",
+        "http_inflight_limit": 100,
+        "api_rate_limit_rps": 100,
+        "worker_lanes": 7,
+        "task_executor_threads": 4,
+        "ai_lane_threads_max": 4,
+        "callback_consumer_threads": 1,
+        "external_model": "not used",
+        "audio": "not exercised",
+        "capacity_knobs": 500,
+        "application_jvms": 1
+      },
+      "target_calls": 500,
+      "target_turns_per_second": 50,
+      "hold_seconds": 120,
+      "thresholds": {
+        "scheduled_reply_fraction_min": 0.99,
+        "reply_p99_ms_max": 3000,
+        "http_success_fraction_min": 0.999,
+        "pending_after_drain_max": 0,
+        "reply_p95_ms_max": 1500,
+        "all_500_in_ai": true
+      },
+      "admission": {
+        "created": 500,
+        "elapsed_seconds": 25.83871425,
+        "p95_ms": 88.407542,
+        "http_status": {
+          "200": 500
+        }
+      },
+      "in_ai_at_load_start": 500,
+      "call_501": {
+        "http": 200,
+        "active_count": 500,
+        "status": "queued"
+      },
+      "planned_turns": 6000,
+      "sent_turns": 5449,
+      "http_status": {
+        "200": 5449
+      },
+      "delivered_within_steady_window": 5187,
+      "durable_replies": 5449,
+      "call_waiting_missed_slots": 551,
+      "generator_missed_slots": 0,
+      "pending_calls_after_drain": 0,
+      "steady_valid_reply_rps": 43.225,
+      "reply_p95_ms": 10165,
+      "reply_p99_ms": 11125,
+      "held_500_in_steady_samples": true,
+      "simulation_slo_passed": false,
+      "real_500_audio_capacity_verified": false,
+      "production_capacity_verified": false
+    },
+    "final_fifo_build_capacity_rerun": "pending"
+  },
+  "test_environment_released": false,
+  "real_device_verified": false,
+  "production_released": false,
+  "release_gate_enabled": false,
+  "known_open": [
+    "500 CPS throughput",
+    "500 in-flight AI dialogue throughput and latency",
+    "real SIP/RTP/PCM/cloud voice/recording/device/long-run validation",
+    "single JVM deployment only"
+  ],
+  "evidence": "Raw logs and outputs retained locally in outbound-mono/verification and target; deliberately not committed"
+}

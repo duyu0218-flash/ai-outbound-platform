@@ -38,8 +38,17 @@ public class AuthService {
     }
     @Transactional public Map<String,Object> presence(Identity identity,String status){
         Map<String,Object> actor=identity.requireUser();if(!"agent".equals(actor.get("role")))throw new ApiError(409,"presence is only available for agents");
-        if(status.equals("ready")&&config.flag("WEBRTC_ENABLED",false))throw new ApiError(409,"SIP registration and microphone readiness are required before accepting calls");
+        if(status.equals("ready")&&config.flag("WEBRTC_ENABLED",false)){
+            String raw=media.get("ai-outbound:agent-media:"+identity.tenant()+":"+actor.get("id"));
+            try {
+                var state=new com.fasterxml.jackson.databind.ObjectMapper().readTree(raw==null?"{}":raw);
+                if(!"registered".equals(state.path("registration_state").asText())||!"granted".equals(state.path("microphone_permission").asText()))
+                    throw new ApiError(409,"SIP registration and microphone readiness are required before accepting calls");
+            } catch(java.io.IOException invalid){throw new ApiError(409,"SIP media registration is invalid");}
+        }
+        if(status.equals("ready")&&identitiesBusy(identity))status="busy";
         return publicUser(patch(((Number)actor.get("id")).longValue(),(int)identity.tenant(),Map.of("agent_status",status,"last_seen_at",now())));
     }
+    private boolean identitiesBusy(Identity identity){return users.activeAgentCalls(Map.of("tenantId",identity.tenant(),"agentId",identity.userId()))>0;}
     public static Map<String,Object> publicUser(Map<String,Object> user){var out=new LinkedHashMap<String,Object>();for(String key:List.of("id","tenant_id","username","full_name","role","is_supervisor","agent_status","last_seen_at","enabled"))out.put(key,user.get(key));return out;}
 }

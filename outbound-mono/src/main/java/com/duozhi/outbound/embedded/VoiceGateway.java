@@ -141,11 +141,22 @@ final class VoiceGateway implements AutoCloseable {
         if (action.equals("stop-speaking")) { if (binding.pipeline.equals("pipecat")) media.interrupt(binding.call, expected); else { esl.command("uuid_break " + uuid + " all", false); media(binding, "interrupted", null, null); } return binding.pipeline.equals("pipecat") ? Map.of("result", "stopped", "provider_call_id", uuid, "pipeline", "pipecat") : Map.of("result", "stopped", "provider_call_id", uuid); }
         if (action.equals("transfer")) {
             String target = Support.required(payload, "target_group", 128); if (!target.matches("agent:[1-9][0-9]*")) throw new Support.Failure(403, "transfer requires an authorized agent ID");
-            String destination = agent(binding.metadata, Long.parseLong(target.substring(6))); stopMedia(binding); binding.metadata.put("human_target", target);
-            esl.command("uuid_break " + uuid + " all", false);
-            if (destination.startsWith("sofia/")) esl.command("uuid_setvar " + uuid + " platform_agent_route " + destination, false);
+            String destination = agent(binding.metadata, Long.parseLong(target.substring(6))); stopMedia(binding,false); binding.metadata.put("human_target", target);
             long agentId = Long.parseLong(target.substring(6)); String extension = template(settings.get("FREESWITCH_AGENT_EXTENSION_TEMPLATE", "agent_{agent_id}"), Map.of("agent_id", agentId, "tenant_id", tenant));
-            esl.command("uuid_transfer " + uuid + " " + extension + " XML agent-restricted", false); return Map.of("result", "transferred", "provider_call_id", uuid, "target_group", target, "destination", extension);
+            try {
+                esl.command("uuid_break " + uuid + " all", false);
+                if (destination.startsWith("sofia/")) esl.command("uuid_setvar " + uuid + " platform_agent_route " + destination, false);
+                esl.command("uuid_transfer " + uuid + " " + extension + " XML agent-restricted", false);
+            }
+            catch(Exception failure){
+                // Cancel any ambiguous bridge before restoring AI; retain the call
+                // reservation if the PBX cannot confirm this recovery command.
+                esl.command("uuid_transfer " + uuid + " park inline",false);
+                restoreAi(binding);
+                status(binding,"human_unavailable",Map.of("Event-Date-Timestamp",Long.toString(System.currentTimeMillis()*1000)),"transfer command failed; AI restored");
+                throw failure;
+            }
+            return Map.of("result", "transferring", "provider_call_id", uuid, "target_group", target, "destination", extension);
         }
         String text = Support.required(payload, "text", 50000), commandId = Support.str(payload, "command_id", "");
         if (!commandId.isEmpty()) {
@@ -255,9 +266,9 @@ final class VoiceGateway implements AutoCloseable {
             case "CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA" -> status(binding, "dialing", event, "");
             case "CHANNEL_ANSWER" -> { binding.answeredAt = System.currentTimeMillis(); boolean human = "human_only".equals(binding.metadata.get("mode")) && Support.integer(binding.metadata, "human_agent_id", 0) > 0; status(binding, human ? "agent_answered" : "answered", event, ""); if (!human) scheduleMedia(binding); }
             case "CHANNEL_BRIDGE" -> { if (binding.metadata.containsKey("human_target") || binding.metadata.containsKey("human_agent_id")) { binding.human = true; status(binding, "human_connected", event, ""); scheduleMedia(binding); } }
-            case "CHANNEL_UNBRIDGE" -> { if (binding.human) status(binding, "human_disconnected", event, ""); }
+            case "CHANNEL_UNBRIDGE" -> { if (binding.human) {status(binding, "human_disconnected", event, "");esl.command("uuid_kill "+binding.uuid+" NORMAL_CLEARING",false);} }
             case "DTMF" -> { String digit = Support.str(event, "DTMF-Digit", ""), stamp = stamp(event); if (digit.matches("[0-9*#]") && binding.metadata.containsKey("dtmf_webhook_url")) callbacks.post(binding.metadata.get("dtmf_webhook_url").toString(), Map.of("call_id", binding.call, "kind", "dtmf", "payload", Map.of("digit", digit, "event_id", "fs:" + uuid + ":dtmf:" + stamp, "attempt", binding.metadata.get("attempt")))); }
-            case "CHANNEL_EXECUTE_COMPLETE" -> { String app = Support.str(event, "Application", Support.str(event, "variable_current_application", "")); if (Set.of("playback", "speak").contains(app)) { var notice = notices.remove(uuid); if (notice != null) notice.complete(null); media(binding, "listening", null, null); } if (app.equals("bridge") && binding.metadata.containsKey("human_target") && !binding.human) status(binding, "human_unavailable", event, Support.str(event, "Application-Response", "agent did not answer")); }
+            case "CHANNEL_EXECUTE_COMPLETE" -> { String app = Support.str(event, "Application", Support.str(event, "variable_current_application", "")); if (Set.of("playback", "speak").contains(app)) { var notice = notices.remove(uuid); if (notice != null) notice.complete(null); media(binding, "listening", null, null); } if (app.equals("bridge") && binding.metadata.containsKey("human_target") && !binding.human) {restoreAi(binding);status(binding, "human_unavailable", event, Support.str(event, "Application-Response", "agent did not answer"));} }
             case "CUSTOM" -> { String kind = Support.str(event, "Event-Subclass", ""), prefix = "mod_openai_audio_stream::"; if (!binding.stopped && media != null && kind.startsWith(prefix)) { String stamp = Support.str(event, "Event-Date-Timestamp", "0"); media.module(binding.call, kind.substring(prefix.length()), stamp.matches("[0-9]+") ? Long.parseLong(stamp) : 0); } }
             case "CHANNEL_HANGUP" -> stopMedia(binding);
             case "CHANNEL_HANGUP_COMPLETE" -> {
@@ -360,7 +371,13 @@ final class VoiceGateway implements AutoCloseable {
         if (!command.isEmpty()) esl.command(template(command, Map.of("uuid", binding.uuid, "call_id", binding.call, "speech_webhook_url", Support.str(binding.metadata, "speech_webhook_url", ""), "media_webhook_url", Support.str(binding.metadata, "media_webhook_url", ""), "asr_provider", Support.str(binding.metadata, "asr_provider", ""), "language", Support.str(binding.metadata, "language", "zh-CN"))), false);
         media(binding, "listening", null, null);
     }
-    private void stopMedia(Binding binding) throws Exception {
+    private void restoreAi(Binding binding) throws Exception {
+        if(!esl.command("uuid_exists "+binding.uuid,false).strip().equals("true"))return;
+        synchronized(binding){if(binding.human)return;binding.metadata.remove("human_target");binding.stopped=false;}
+        scheduleMedia(binding);
+    }
+    private void stopMedia(Binding binding) throws Exception {stopMedia(binding,true);}
+    private void stopMedia(Binding binding,boolean notify) throws Exception {
         synchronized (binding) {
             binding.stopped = true;
             var task = mediaTasks.remove(binding.uuid); if (task != null) task.cancel(false);
@@ -368,7 +385,7 @@ final class VoiceGateway implements AutoCloseable {
         }
         String stop = settings.get("FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE", "");
         try { if (binding.pipeline.equals("pipecat") && settings.get("PIPECAT_MEDIA_PROTOCOL", "raw_pcm").equals("voismart")) esl.command("uuid_raw_audio_stream " + binding.uuid + " stop", false); else if (!stop.isEmpty()) esl.command(template(stop, Map.of("uuid", binding.uuid, "call_id", binding.call)), false); }
-        finally { if (media != null && binding.pipeline.equals("pipecat")) media.closeSession(binding.call, true); }
+        finally { if (media != null && binding.pipeline.equals("pipecat")) media.closeSession(binding.call, notify); }
     }
     private void recording(Binding binding) throws Exception {
         String target = Support.str(binding.metadata, "recording_webhook_url", ""); if (target.isEmpty() || binding.recordingPath.isEmpty()) return;

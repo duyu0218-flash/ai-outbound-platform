@@ -113,7 +113,7 @@ public class CallLifecycle {
     }
     @SuppressWarnings("unchecked")
     public Map<String, Object> status(Map<String, Object> body) {
-        return tx.run(() -> {
+        return tx.serialized(() -> {
             tx.platform();
             Map<String, Object> call = tx.call(body.get("call_id"));
             if (call == null) return JsonSupport.map("result", "ignore");
@@ -139,6 +139,10 @@ public class CallLifecycle {
             boolean applied = target != null && (current.equals(target) || !TERMINAL.contains(current) && rank(target) >= rank(current));
             Map<String, Object> changes = new LinkedHashMap<>();
             if (applied) changes.put("status", target);
+            if(applied&&"in_human".equals(target)){
+                Map<String,Object> h=store.one("handoffrequest","sourceCallLifecycle124_10",Store.queryParameters(0,tenant(call),store.encode("handoffrequest","call_session_id",call.get("id"))));
+                if(h!=null)store.update("handoffrequest",tenant(call),h.get("id"),JsonSupport.map("state","accepted","responded_at",Store.now()));
+            }
             if (payload.get("telephony_call_id") != null) changes.put("telephony_call_id", payload.get("telephony_call_id").toString());
             if (payload.get("hangup_reason") != null && (applied || call.get("last_error") == null)) changes.put("last_error", payload.get("hangup_reason").toString());
             if (payload.get("summary") != null) changes.put("summary", Objects.toString(call.get("summary"), "") + "\n" + payload.get("summary"));

@@ -19,17 +19,18 @@ public class DialService {
     private final GatewayCluster gateways;
     private final CallbackInbox inbox;
     private final ConversationPolicy conversation;
+    private final HumanRouting routing;
     public DialService(Store store, Transactions tx, Config config, Settings settings, CallPolicy policy,
-            CallLifecycle lifecycle, TelephonyClient client, Outbox outbox, JsonSupport json, AgentMedia media, GatewayCluster gateways, CallbackInbox inbox, ConversationPolicy conversation) {
+            CallLifecycle lifecycle, TelephonyClient client, Outbox outbox, JsonSupport json, AgentMedia media, GatewayCluster gateways, CallbackInbox inbox, ConversationPolicy conversation, HumanRouting routing) {
         this.store = store; this.tx = tx; this.config = config; this.settings = settings; this.policy = policy;
-        this.lifecycle = lifecycle; this.client = client; this.outbox = outbox; this.json = json; this.media = media; this.gateways = gateways; this.inbox = inbox; this.conversation = conversation;
+        this.lifecycle = lifecycle; this.client = client; this.outbox = outbox; this.json = json; this.media = media; this.gateways = gateways; this.inbox = inbox; this.conversation = conversation;this.routing=routing;
     }
     public void available() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) throw new ApiError(503, "Java dispatch is not enabled");
     }
     public Map<String, Object> create(Identity identity, Map<String, Object> input) {
         available();
-        Map<String, Object> call = tx.run(() -> {
+        Map<String, Object> call = tx.serialized(() -> {
             tx.platform(); tx.tenant(identity.tenant());
             Map<String, Object> campaign = input.get("campaign_id") == null ? null : store.require("campaign", identity.tenant(), input.get("campaign_id"));
             Map<String, Object> contact = input.get("contact_id") == null ? null : store.require("contact", identity.tenant(), input.get("contact_id"));
@@ -71,7 +72,7 @@ public class DialService {
                 && local.getHour() >= JsonSupport.integer(value.get("start_hour"), 9) && local.getHour() < JsonSupport.integer(value.get("end_hour"), 20);
     }
     private Map<String, Object> claim(Object id) {
-        return tx.run(() -> {
+        return tx.serialized(() -> {
             tx.platform();
             Map<String, Object> initial = store.locate("callsession",store.encode("callsession", "id", id),false);
             if (initial == null) return null;
@@ -82,6 +83,9 @@ public class DialService {
                 store.update("callsession", tenant, id, JsonSupport.map("status", "failed", "next_attempt_at", null, "last_error", "reach max attempts")); lifecycle.completeCampaign(call); return null;
             }
             if (!productHours(call) || active(null,null,null) >= Math.max(1, config.number("OUTBOUND_PLATFORM_MAX_CONCURRENT", 20))) return null;
+            // Admission holds the platform lock: two campaigns/direct calls cannot
+            // both acquire the same tenant/phone while a previous call is active.
+            if(store.scalar("callsession","activePhone",JsonSupport.map("tenantId",tenant,"phone",call.get("phone"),"id",store.encode("callsession","id",id)))>0)return null;
             if (config.flag("CALLBACK_INBOX_ENABLED", false) && !Boolean.TRUE.equals(inbox.snapshot().get("ready"))) return null;
             String reason = policy.check(tenant, call.get("phone").toString(), call.get("campaign_id") != null, id);
             Map<String, Object> compliance = settings.get(tenant, "compliance");
@@ -104,7 +108,7 @@ public class DialService {
             }
             if (!lines.isEmpty()) { if (selected == null) return null; tenantLimit = Math.min(tenantLimit, lineCapacity); }
             else if ("tenant".equals(config.get("TELEPHONY_PROVIDER", "mock"))) return null;
-            if (active(tenant,null,null) >= tenantLimit) return null;
+            if (active(tenant,null,null) >= tenantLimit || !routing.permits(call)) return null;
             Map<String, Object> campaign = null;
             if (call.get("campaign_id") != null) {
                 campaign = store.require("campaign", tenant, call.get("campaign_id"));
@@ -145,7 +149,7 @@ public class DialService {
         for (String kind : Arrays.asList("transcript", "speech", "media", "recording", "dtmf")) metadata.put(kind + "_webhook_url", base + "/api/v1/webhooks/telephony/" + kind);
         for (String key : Arrays.asList("asr_provider", "tts_provider", "voice", "language")) metadata.put(key, ai.get(key));
         metadata.put("recording_notice", compliance.get("recording_notice")); metadata.put("recording_notice_text", compliance.get("recording_notice_text"));
-        Map<String,Object> scenario = tx.run(() -> { tx.platform(); return conversation.policy(conversation.state(call)); });
+        Map<String,Object> scenario = tx.serialized(() -> { tx.platform(); return conversation.policy(conversation.state(call)); });
         scenario.keySet().removeIf(key -> key.startsWith("_"));
         metadata.put("scenario_policy", scenario);
         metadata.put("voice_ai_pipeline", call.get("voice_ai_pipeline"));
@@ -156,10 +160,12 @@ public class DialService {
         }
         try {
             Map<String, Object> response = client.command(call, "dial", JsonSupport.map("phone", call.get("phone"), "caller_id", metadata.getOrDefault("caller_id", ""), "webhook_url", base + "/api/v1/webhooks/telephony/status", "metadata", metadata));
-            tx.run(() -> {
+            tx.serialized(() -> {
                 tx.platform(); Map<String, Object> latest = tx.call(id);
                 if (latest != null && CallLifecycle.number(latest, "attempts") == attempt)
                     store.update("callsession", tenant, id, JsonSupport.map("telephony_call_id", response.get("provider_call_id"), "ai_session_id", response.get("provider_call_id"), "voice_ai_pipeline", metadata.get("voice_ai_pipeline")));
+                if(latest!=null&&CallLifecycle.number(latest,"attempts")==attempt)
+                    store.insert("callevent",JsonSupport.map("call_session_id",id,"event_type","dial_command_accepted","source","telephony","payload",json.json(JsonSupport.map("attempt",attempt,"provider_call_id",response.get("provider_call_id")))));
                 return null;
             });
             if (client.mock(call)) {
@@ -183,7 +189,7 @@ public class DialService {
         }
     }
     private void mutateAttempt(Map<String, Object> call, Map<String, Object> changes) {
-        tx.run(() -> { tx.platform(); Map<String, Object> latest = tx.call(call.get("id"));
+        tx.serialized(() -> { tx.platform(); Map<String, Object> latest = tx.call(call.get("id"));
             if (latest != null && "dialing".equals(latest.get("status")) && CallLifecycle.number(latest, "attempts") == CallLifecycle.number(call, "attempts"))
                 store.update("callsession", CallLifecycle.tenant(call), call.get("id"), changes);
             return null;
@@ -191,7 +197,7 @@ public class DialService {
     }
     public Map<String, Object> retry(Map<String, Object> call) {
         available();
-        tx.run(() -> { tx.platform(); Map<String, Object> latest = tx.call(call.get("id"));
+        tx.serialized(() -> { tx.platform(); Map<String, Object> latest = tx.call(call.get("id"));
             if (!CallLifecycle.TERMINAL.contains(latest.get("status"))) throw new ApiError(409, "call is not in terminal state");
             if (CallLifecycle.number(latest, "attempts") >= CallLifecycle.number(latest, "max_attempts")) throw new ApiError(409, "reach max attempts");
             store.update("callsession", CallLifecycle.tenant(call), call.get("id"), JsonSupport.map("status", "queued", "next_attempt_at", null, "last_error", null)); return null;

@@ -193,7 +193,7 @@ public class AiRuntime {
             if(!"hangup".equals(result.get("action"))){
                 if(current(payload,false)==null)return null;
                 if("handoff".equals(result.get("action"))||Boolean.TRUE.equals(result.get("handoff_to_human")))handoffs.queue(latest,"ai_decision");
-                else {latest=store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("status","in_ai"));if(playbackComplete){Map<String,Object> rt=voice.realtime(latest);store.writeLocked("realtimesession",CallLifecycle.tenant(call),rt.get("id"),JsonSupport.map("state","listening","playback_id",null));product.arm(latest,"silence");}}
+                else {latest=store.patchLoaded("callsession",latest,JsonSupport.map("status","in_ai"));if(playbackComplete){Map<String,Object> rt=voice.realtime(latest);store.writeLocked("realtimesession",CallLifecycle.tenant(call),rt.get("id"),JsonSupport.map("state","listening","playback_id",null));product.arm(latest,"silence");}}
             }
             Map<String,Object> event=store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","ai_decision","source","dispatcher","payload",json.json(JsonSupport.map("action",result.get("action"),"tts_dispatched",!Objects.toString(result.get("tts_text"),"").isEmpty(),"handoff_to_human",result.getOrDefault("handoff_to_human",false),"resulting_status",store.require("callsession",CallLifecycle.tenant(call),call.get("id")).get("status")))));
             outbox.callback(latest,"call.ai_decision",json.object(event.get("payload").toString()),"callback:ai-decision:"+event.get("id"));
@@ -219,7 +219,7 @@ public class AiRuntime {
             Map<String,Object> result;
             Object cached=data.get("timer_action");
             if(cached instanceof Map&&Objects.equals(((Map<?,?>)cached).get("generation"),state.get("generation"))){ @SuppressWarnings("unchecked") Map<String,Object> old=(Map<String,Object>)((Map<?,?>)cached).get("result"); result=old; }
-            else if("handoff".equals(kind)) {if(!"waiting_human".equals(call.get("status")))return null;product.resumeAi(call);result=ConversationPolicy.reply(policy.get("handoff_timeout_prompt").toString(),"end".equals(policy.get("handoff_fallback"))?"hangup":"speak");data.put("outcome","handoff_timeout");}
+            else if("handoff".equals(kind)) {if(!"waiting_human".equals(call.get("status")))return null;if(!Boolean.FALSE.equals(policy.get("handoff_auto_callback")))product.handoffCallback(call,policy);product.resumeAi(call);result=ConversationPolicy.reply(policy.get("handoff_timeout_prompt").toString(),"end".equals(policy.get("handoff_fallback"))?"hangup":"speak");data.put("outcome","handoff_timeout");}
             else if("failure".equals(kind)){result=ConversationPolicy.reply(policy.get("failure_prompt").toString(),"hangup");data.put("outcome","service_failure");product.work(call,"service_failure","media-failure:"+call.get("id")+":"+call.get("attempts"),JsonSupport.map("error","speech_service_unavailable"));}
             else {int count=JsonSupport.integer(data.get("silence_count"),0)+1;data.put("silence_count",count);boolean exhausted=count>JsonSupport.integer(policy.get("max_clarifications"),2);result=ConversationPolicy.reply(exhausted?"暂时没有收到您的回复，本次先结束，再见。":policy.get("silence_prompt").toString(),exhausted?"hangup":"speak");if(exhausted)data.put("outcome","no_response");}
             data.put("timer_action",JsonSupport.map("generation",state.get("generation"),"result",result));product.save(state,data);

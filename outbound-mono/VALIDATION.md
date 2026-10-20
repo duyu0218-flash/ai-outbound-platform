@@ -1,4 +1,6 @@
-# 验证记录与容量边界（2026-10-20）
+# 历史基线验证记录与容量边界（2026-10-20）
+
+后续号码调度和转人工修复、最终功能回归及容量实测见 [可靠性验收](RELIABILITY-ACCEPTANCE.md) 与 `reliability-validation.json`。本文件各项数字只描述下述旧 Jar。
 
 P0—P2 运营工作台的最新功能验证见 [功能对照与验收](OPERATIONS-ACCEPTANCE.md) 和 [机器验证摘要](operations-validation.json)。以下336项回归、19组浏览器验证及R5容量数据属于工作台修改前的基线，保留原Jar哈希及结论，不代表本次新Jar接受过容量复测。最新功能回归通过不能覆盖原容量验收失败。
 

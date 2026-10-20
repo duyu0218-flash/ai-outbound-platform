@@ -61,6 +61,14 @@ public class ConversationPolicy {
         String eventKey=CallLifecycle.tenant(call)+":"+key;
         if(store.scalar("productworkitem","scopedConversationPolicy62",Store.scopedParameters(CallLifecycle.tenant(call),eventKey))==0)store.insert("productworkitem",JsonSupport.map("tenant_id",CallLifecycle.tenant(call),"call_id",call.get("id"),"phone",call.get("phone"),"kind",kind,"event_key",eventKey,"detail_json",json.json(detail)));
     }
+    public void handoffCallback(Map<String,Object> call,Map<String,Object> policy){
+        long tenant=CallLifecycle.tenant(call);String key=tenant+":handoff-callback:"+call.get("id")+":"+call.get("attempts");
+        if(store.scalar("productworkitem","scopedConversationPolicy62",Store.scopedParameters(tenant,key))>0)return;
+        if(store.scalar("phonesuppression","countPhone",JsonSupport.map("tenantId",tenant,"phone",call.get("phone")))>0)return;
+        Object owner=workforce.callbackOwner(call,policy);
+        store.insert("productworkitem",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"phone",call.get("phone"),"kind","handoff_callback","event_key",key,"assigned_to",owner,
+            "detail_json",json.json(JsonSupport.map("reason","human_queue_timeout","team_ids",policy.getOrDefault("handoff_team_ids",List.of()),"skills",policy.getOrDefault("handoff_skills",List.of()),"customer_time_confirmed",false))));
+    }
     public void suppress(Map<String,Object> call,String reason) {
         long tenant=CallLifecycle.tenant(call);Object phone=call.get("phone");
         if(store.scalar("phonesuppression","sourceConversationPolicy66_4",Store.queryParameters(0,tenant,phone))==0)store.insert("phonesuppression",JsonSupport.map("tenant_id",tenant,"phone",phone,"reason",reason,"source_call_id",call.get("id")));
