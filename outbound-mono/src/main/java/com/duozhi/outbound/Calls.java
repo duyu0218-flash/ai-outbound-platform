@@ -11,8 +11,9 @@ public class Calls {
     private final Store store;
     private final Contract contract;
     private final DialService dial;
+    private final OperationsAccess operations;
 
-    public Calls(Store store, Contract contract, DialService dial) { this.store = store; this.contract = contract; this.dial = dial; }
+    public Calls(Store store, Contract contract, DialService dial,OperationsAccess operations) { this.store = store; this.contract = contract; this.dial = dial;this.operations=operations; }
 
     @PostMapping
     public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
@@ -35,8 +36,7 @@ public class Calls {
 
     private Map<String, Object> visible(Identity identity, UUID id) {
         Map<String, Object> call = store.require("callsession", identity.tenant(), id);
-        if (restricted(identity) && !Objects.toString(identity.userId(), "").equals(Objects.toString(call.get("human_agent_id"), "")))
-            throw new ApiError(403, "call is not assigned to this agent");
+        operations.call(identity,id);
         return call;
     }
 
@@ -48,7 +48,7 @@ public class Calls {
         Identity identity = Identity.from(request); int offset = Contract.page(page, size);
         Object encoded=null;
         if(status!=null&&!status.isEmpty())try{encoded=store.encode("callsession","status",status.transform(Ascii::lower));}catch(ApiError e){throw new ApiError(400,"invalid status filter");}
-        return store.query("callsession","searchCalls",JsonSupport.map("tenantId",identity.tenant(),"agentId",restricted(identity)?identity.userId():null,"campaignId",campaign_id,"status",encoded,"limit",size,"offset",offset)).stream().map(row->contract.output("CallSessionOut",row)).collect(Collectors.toList());
+        return store.query("callsession","searchCalls",JsonSupport.map("tenantId",identity.tenant(),"agentId",null,"opsUser",identity.user()!=null&&!operations.all(identity)?identity.userId():null,"campaignId",campaign_id,"status",encoded,"limit",size,"offset",offset)).stream().map(row->contract.output("CallSessionOut",row)).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")

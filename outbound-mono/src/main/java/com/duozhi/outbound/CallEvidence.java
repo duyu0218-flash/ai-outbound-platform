@@ -10,14 +10,13 @@ import org.springframework.web.bind.annotation.*;
 public class CallEvidence {
     private final Store store;
     private final Contract contract;
-    public CallEvidence(Store store, Contract contract) { this.store = store; this.contract = contract; }
+    private final OperationsAccess operations;
+    public CallEvidence(Store store, Contract contract,OperationsAccess operations) { this.store = store; this.contract = contract;this.operations=operations; }
 
     private long visible(HttpServletRequest request, UUID id) {
         Identity identity = Identity.from(request);
         Map<String, Object> call = store.require("callsession", identity.tenant(), id);
-        if (identity.user() != null && "agent".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor"))
-                && call.get("human_agent_id") != null && !call.get("human_agent_id").toString().equals(identity.userId().toString()))
-            throw new ApiError(403, "call is assigned to another agent");
+        operations.call(identity,id);
         return identity.tenant();
     }
 

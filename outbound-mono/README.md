@@ -37,9 +37,13 @@ java -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -jar target/outbound-mono.jar
 
 `TELEPHONY_PROVIDER=mock` 不连接 PBX；`VOICE_GATEWAY_DRIVER=freeswitch_esl` 才连接 FreeSWITCH。原网关端点作为逻辑身份/校验配置，命令在同 JVM 内执行，不另启网关进程。录音回调、PIPECAT_MEDIA_WS_BASE 指向唯一应用进程的可达地址。
 
+## 运营工作台
+
+P0—P2新增话单查询、线索跟进、运营分析、团队权限、表单标签、通知和坐席配置，详见 [功能对照与验收](OPERATIONS-ACCEPTANCE.md) 和 `operations-validation.json`。管理员入口 `/admin/operations/calls`，坐席入口 `/agent/operations/leads`。测试、真机及发布状态分别记录，GitHub源码更新不等于部署。
+
 ## 数据与凭证
 
-MySQL 共 **44 张应用表**：原业务 34 张、语音账本 8 张、模型配额 2 张，另有 1 张 Flyway 元数据表。V1 保持原样，V2 新增辅助账本，V3 只增加队列查询所需的3个非唯一索引。所有应用数据库持久化均使用 MySQL；Redis 保留原控制信号/队列用途。对象存储保存录音，spool/源录音是原文件处理暂存。
+迁移基线为 **44 张应用表**：原业务 34 张、语音账本 8 张、模型配额 2 张，V4新增10张运营表，当前共54张应用表，另有1张Flyway元数据表。V1 保持原样，V2 新增辅助账本，V3 只增加队列查询所需的3个非唯一索引。所有应用数据库持久化均使用 MySQL；Redis 保留原控制信号/队列用途。对象存储保存录音，spool/源录音是原文件处理暂存。
 
 `voiceLedgerDataSource` 是独立 Druid 连接池，使用 MYSQL_JDBC_URL / MYSQL_USER / MYSQL_PASSWORD 连接同一 MySQL 库；独立事务不加入控制面业务事务。命名写者行 FOR UPDATE 保留原单写者范围。启动强制验证 `innodb_flush_log_at_trx_commit=1`、`sync_binlog=1` 和 REPEATABLE READ，不满足拒绝启动。开发旧账本不做数据迁移；新辅助账本从空开始。原模型配额以“路径已配置”启用窗口，迁为 LLM_QUOTA_ENABLED（默认 false）；原来配置过路径的部署须设 true，样例已映射为 true。
 

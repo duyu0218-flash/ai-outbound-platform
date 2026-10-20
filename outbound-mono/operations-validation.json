@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-20",
+  "baseline_commit": "d4d17b5fee337150f98fb2a375cfb843482b2f49",
+  "branch": "feat/operations-p0-p2",
+  "application_model": "single instance, single JVM",
+  "validation_environment": "Local macOS, Java 17, Maven 3.9.11, Chromium and isolated MySQL 8.4/Redis Testcontainers; mock telephony",
+  "verification": {
+    "mvn_verify": "passed",
+    "finished_at": "2026-10-20T21:34:39+08:00",
+    "unit": {
+      "tests": 140,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "integration": {
+      "tests": 208,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "total_junit_tests": 348,
+    "browser_groups": 26,
+    "browser_checks": [
+      "admin login and dashboard",
+      "contacts required validation create edit search persistence",
+      "scripts create canvas drag save publish readonly",
+      "campaign form remote contacts save and start",
+      "completed mock call transcript QA recording metrics events views",
+      "terminal retry button submits real HTTP and advances next attempt",
+      "quality review saving and echo",
+      "reports group monitor billing actual completed call",
+      "contacts operations CSV import export batch DNC",
+      "users create edit password role fields",
+      "lines mock save echo and disable",
+      "knowledge create update persistence",
+      "settings load save echo all five sections",
+      "P0 calls compound search URL persistence evidence return and matching export",
+      "P2 form template publishing versions and contact tag dictionary",
+      "P0 lead allocation follow-up manual form tags and history persist",
+      "P0 teams membership leader and unified workplace save echo",
+      "P1 reports configurable columns saved views drilldown and task operations",
+      "P2 notifications read navigate and personal configuration echo",
+      "product policy simulate publish and knowledge retrieval",
+      "system real service health audit and SMS tabs",
+      "browser back and logout session invalidation",
+      "agent login workspace presence and admin boundary",
+      "agent operations entrances use scoped data and read-only boundaries",
+      "supervisor agent quality entrance uses the original supervisor role",
+      "wrong credentials error and unauthorized protected entrance"
+    ],
+    "browser_errors": [],
+    "operations_api_tests": 12,
+    "enforcer": "passed",
+    "git_diff_check": "passed",
+    "fat_jar": {
+      "fat_jar_started": true,
+      "healthz": 200,
+      "vue_login": 200,
+      "vue_asset": 200,
+      "metrics_authenticated": 200,
+      "metrics_anonymous": 401,
+      "application_processes": 1,
+      "gc": "G1 MaxGCPauseMillis=20; media load not performed"
+    }
+  },
+  "migration": {
+    "first": {
+      "targetSchemaVersion": "4",
+      "migrationsExecuted": 4,
+      "success": true
+    },
+    "second": {
+      "currentSchemaVersion": "4",
+      "migrationsExecuted": 0,
+      "success": true
+    },
+    "operations_tables": 10,
+    "application_tables": 54,
+    "total_tables_including_flyway": 55,
+    "previous_migrations_unchanged": true
+  },
+  "tested_jar_sha256": "3f4b9c88235af59be31469658f882e0442e258439d869c302ec840021acfaa8b",
+  "status": {
+    "source_modified": true,
+    "static_checks_passed": true,
+    "development_functional_tests_passed": true,
+    "test_environment_deployed": false,
+    "real_device_verified": false,
+    "production_deployed": false
+  },
+  "unverified": [
+    "Real SIP/RTP and media bridging",
+    "Cloud ASR/LLM/TTS and real recording/object-storage load",
+    "External business webhook delivery with customer credentials",
+    "Native enterprise WeChat authorization and commercial package/payment services are outside this implementation",
+    "Target Linux capacity, long-running stability, disaster recovery and backup restoration"
+  ],
+  "known_issues": {
+    "previous_capacity_slo_passed": false,
+    "current_jar_capacity_retested": false,
+    "previous_steady_reply_rps": 42.9,
+    "target_reply_rps": 50,
+    "previous_reply_p95_ms": 10110,
+    "previous_reply_p99_ms": 10496,
+    "historical_source": "validation-summary.json; original Jar and capacity provenance retained",
+    "structured_masking_only": "Phone fields are masked; free-form notes and audio require appropriate evidence access permissions"
+  },
+  "production_prerequisites": [
+    "Resolve and rerun original capacity SLO without lowering thresholds",
+    "Initialize tenant teams and data-access permissions",
+    "Validate real telephony, media, recordings and external business integration",
+    "Back up and rehearse restoration and single-instance upgrade/rollback",
+    "Obtain business acceptance before enabling the release gate"
+  ],
+  "evidence": "JUnit XML, browser output, migration replay and fat-Jar smoke results are retained locally in target; Maven logs in /private/tmp/ops-release-verify.log and /private/tmp/ops-release-enforcer.log. No local database or cache is committed."
+}
