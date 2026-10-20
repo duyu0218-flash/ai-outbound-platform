@@ -18,6 +18,8 @@ public class HumanRouting {
     private final Config config;
     private final JsonSupport json;
     private final AtomicBoolean running=new AtomicBoolean();
+    private final java.util.concurrent.ExecutorService executor=java.util.concurrent.Executors.newSingleThreadExecutor(r->{Thread thread=new Thread(r,"java-human-routing");thread.setDaemon(true);return thread;});
+    @jakarta.annotation.PreDestroy void close(){executor.shutdownNow();}
     public HumanRouting(Store store,OperationsStore db,Transactions tx,ConversationPolicy conversation,OperationsWorkforce workforce,AgentMedia media,Config config,JsonSupport json){
         this.store=store;this.db=db;this.tx=tx;this.conversation=conversation;this.workforce=workforce;this.media=media;this.config=config;this.json=json;
     }
@@ -113,6 +115,7 @@ public class HumanRouting {
     }
     @Scheduled(fixedDelayString="${JAVA_HANDOFF_POLL_MS:500}") public void tick(){
         if(!config.flag("JAVA_WORKERS_ENABLED",false)||!running.compareAndSet(false,true))return;
-        try{redistribute();}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(getClass()).warn("human routing failed: {}",e.getClass().getSimpleName());}finally{running.set(false);}
+        try{executor.submit(()->{try{redistribute();}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(getClass()).warn("human routing failed: {}",e.getClass().getSimpleName());}finally{running.set(false);}});}
+        catch(java.util.concurrent.RejectedExecutionException stopping){running.set(false);}
     }
 }

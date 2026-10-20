@@ -17,13 +17,19 @@ public class DialBatchStore {
     List<Map<String,Object>> tasks(Map<String,Object> params){return sql.selectList(statement("taskCandidates"),params).stream().map(raw->store.record("taskoutbox",raw)).toList();}
     List<Map<String,Object>> lockedTasks(Map<String,Object> params){return sql.selectList(statement("lockTasks"),params).stream().map(raw->store.record("taskoutbox",raw)).toList();}
     void prepare(DialBatchScope scope,long tenant,List<String> ids){
+        // Keep the original global call lock order across query chunks.
+        var ordered=ids.stream().distinct().sorted().toList();
+        for(int start=0;start<ordered.size();start+=100)preparePart(scope,tenant,ordered.subList(start,Math.min(ordered.size(),start+100)));
+    }
+    private void preparePart(DialBatchScope scope,long tenant,List<String> ids){
         var params=JsonSupport.map("tenantId",tenant,"ids",ids);
+        var selected=new ArrayList<Map<String,Object>>();
         for(Object raw:sql.selectList(statement("calls"),params)){
-            var call=store.record("callsession",raw);scope.calls.put(call.get("id").toString(),call);
+            var call=store.record("callsession",raw);scope.calls.put(call.get("id").toString(),call);selected.add(call);
             for(int attempt:List.of(CallLifecycle.number(call,"attempts"),CallLifecycle.number(call,"attempts")+1))scope.stateKeys.add(call.get("id")+":"+attempt);
         }
         for(Object raw:sql.selectList(statement("states"),params)){var state=store.record("conversationstate",raw);scope.states.put(state.get("call_id")+":"+state.get("attempt"),state);}
-        var phones=scope.calls.values().stream().filter(c->CallLifecycle.tenant(c)==tenant).map(c->c.get("phone").toString()).distinct().toList();if(phones.isEmpty())return;
+        var phones=selected.stream().map(c->c.get("phone").toString()).distinct().toList();if(phones.isEmpty())return;
         for(String phone:phones)scope.contacts.put(tenant+":"+phone,null);
         for(Object raw:sql.selectList(statement("contacts"),JsonSupport.map("tenantId",tenant,"phones",phones))){var contact=store.record("contact",raw);scope.contacts.put(tenant+":"+contact.get("phone"),contact);}
         var compliance=settings.get(tenant,"compliance");var cutoffs=new ArrayList<Map<String,Object>>();
