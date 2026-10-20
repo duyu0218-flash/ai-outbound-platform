@@ -184,7 +184,7 @@ public class DialService {
                 scope.lines.put(tenant,store.query("telephonyline","sourceDialService94_3",Store.queryParameters(0,tenant,true)));
                 if(scope.calls.values().stream().anyMatch(c->Values.set("ai_handoff","mixed_human_first").contains(c.get("mode"))))routing.pressure(tenant);
                 active(null,null,null);active(tenant,null,null);for(var line:scope.lines.get(tenant))active(tenant,line.get("id"),null);
-                for(var c:scope.calls.values()){productHours(c);conversation.current(tenant,c.get("campaign_id"));if(c.get("campaign_id")!=null){Object campaignId=c.get("campaign_id");scope.campaigns.computeIfAbsent(tenant+":"+campaignId,k->store.require("campaign",tenant,campaignId));active(tenant,null,campaignId);}}
+                for(var c:scope.calls.values()){productHours(c);conversation.current(tenant,c.get("campaign_id"));if(c.get("campaign_id")!=null){Object campaignId=c.get("campaign_id");scope.campaigns.computeIfAbsent(tenant+":"+campaignId,k->store.require("campaign",tenant,campaignId));active(tenant,null,campaignId);}conversation.initialStatePolicy(c);}
                 // Resolve shared readiness and daily counters before buffering.
                 if(config.flag("CALLBACK_INBOX_ENABLED",false))scope.hours.put("inbox-ready",Boolean.TRUE.equals(inbox.snapshot().get("ready")));
                 var compliance=settings.get(tenant,"compliance");var local=scope.instant.atZone(ZoneId.of(Objects.toString(compliance.get("timezone"),"Asia/Shanghai")));Object day=store.encode("callsession","started_at",LocalDateTime.ofInstant(local.toLocalDate().atStartOfDay(local.getZone()).toInstant(),ZoneOffset.UTC));

@@ -8,6 +8,7 @@ final class DialBatchScope implements AutoCloseable {
     private static final ThreadLocal<DialBatchScope> CURRENT=new ThreadLocal<>();
     final Instant instant=Instant.now();
     final Map<String,Map<String,Object>> calls=new HashMap<>(),tenants=new HashMap<>(),settings=new HashMap<>(),scenarios=new HashMap<>(),states=new HashMap<>(),contacts=new HashMap<>(),facts=new HashMap<>(),campaigns=new HashMap<>();
+    final Map<String,Map<String,Object>> initialPolicies=new HashMap<>(),parsedPolicies=new HashMap<>();
     final Map<Long,List<Map<String,Object>>> lines=new HashMap<>();
     final Map<String,Long> counts=new HashMap<>();final Map<String,Boolean> hours=new HashMap<>();
     final Set<String> stateKeys=new HashSet<>();
