@@ -155,7 +155,11 @@ public class ConversationPolicy {
     }
     @SuppressWarnings("unchecked")
     public Map<String,Object> prepare(Map<String,Object> call,String transcript) {
-        Map<String,Object> state=state(call),policy=policy(state),data=json.object(state.get("data_json").toString());
+        return prepare(call,transcript,state(call));
+    }
+    @SuppressWarnings("unchecked")
+    Map<String,Object> prepare(Map<String,Object> call,String transcript,Map<String,Object> state) {
+        Map<String,Object> policy=policy(state),data=json.object(state.get("data_json").toString());
         Map<String,Object> realtime=store.one("realtimesession","scopedConversationPolicy144",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("realtimesession","call_session_id",call.get("id"))));
         int sequence=realtime==null?0:CallLifecycle.number(realtime,"turn_sequence");
         if(JsonSupport.integer(data.get("sequence"),-1)==sequence&&transcript.equals(data.get("transcript"))&&data.get("result") instanceof Map)return (Map<String,Object>)data.get("result");

@@ -44,7 +44,7 @@ final class VoiceSecurity {
     }
     void callback(String url) {
         String base = settings.get("VOICE_CALLBACK_BASE_URL", "").replaceAll("/+$", "");
-        if (base.isEmpty() || List.of("status", "speech", "media", "recording", "transcript", "dtmf", "batch").stream().noneMatch(kind -> url.equals(base + "/api/v1/webhooks/telephony/" + kind))) throw new Support.Failure(403, "callback target is not registered");
+        if (base.isEmpty() || List.of("status", "speech", "media", "recording", "transcript", "dtmf", "batch", "batch-v2").stream().noneMatch(kind -> url.equals(base + "/api/v1/webhooks/telephony/" + kind))) throw new Support.Failure(403, "callback target is not registered");
     }
     void command(String path, byte[] body, String stamp, String nonce, String signature) {
         double now = LocalLedger.now();

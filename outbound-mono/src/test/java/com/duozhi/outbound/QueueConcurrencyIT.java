@@ -36,6 +36,7 @@ class QueueConcurrencyIT {
     @Autowired TaskWorker worker;@Autowired CallbackInbox inbox;@Autowired TestRestTemplate http;
     @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
     @org.springframework.boot.test.mock.mockito.SpyBean AiRuntime runtime;
+    @org.springframework.boot.test.mock.mockito.SpyBean TelephonyClient telephony;
     @BeforeEach void seed(){
         if(store.one("tenant","findById",Map.of("id",1))==null)store.insert("tenant",Values.map("id",1,"code","queue-regression","name","Isolated queue fixture"));
         inbox.initialize();inbox.maintenance();
@@ -208,6 +209,20 @@ class QueueConcurrencyIT {
     }
     @SuppressWarnings("unchecked") Map<String,Object> currentLookup(java.lang.reflect.Method method,Map<String,Object> payload,boolean locked){
         return tx.serialized(()->{try{return (Map<String,Object>)method.invoke(runtime,payload,locked);}catch(ReflectiveOperationException e){throw new AssertionError(e);}});
+    }
+    @Test void speechDispatchSnapshotStillRejectsStaleAndInFlightSupersededReplies(){
+        var call=store.insert("callsession",Values.map("tenant_id",1,"phone","+8613800000995","mode","ai_only","status","in_ai","attempts",1));
+        var rt=store.insert("realtimesession",Values.map("tenant_id",1,"call_session_id",call.get("id"),"turn_sequence",4));
+        store.insert("conversationstate",Values.map("tenant_id",1,"call_id",call.get("id"),"attempt",1,"generation",2));
+        var stale=JsonSupport.map("call_id",call.get("id"),"attempt",1,"turn_sequence",3,"_generation",2);
+        runtime.apply(stale,ConversationPolicy.reply("stale reply","speak"));
+        org.mockito.Mockito.verify(telephony,org.mockito.Mockito.never()).command(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.eq("speak"),org.mockito.ArgumentMatchers.anyMap());
+        org.mockito.Mockito.doAnswer(invocation->{tx.serialized(()->{store.writeLocked("realtimesession",1,rt.get("id"),Values.map("turn_sequence",5));return null;});return Values.map("result","accepted","playback_id","superseded-playback");})
+            .when(telephony).command(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.eq("speak"),org.mockito.ArgumentMatchers.anyMap());
+        runtime.apply(JsonSupport.map("call_id",call.get("id"),"attempt",1,"turn_sequence",4,"_generation",2),ConversationPolicy.reply("superseded reply","speak"));
+        org.mockito.Mockito.verify(telephony,org.mockito.Mockito.times(1)).command(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.eq("speak"),org.mockito.ArgumentMatchers.anyMap());
+        assertThat(store.query("speechturn","list",Values.map("tenantId",1,"offset",0,"limit",1000))).noneMatch(r->call.get("id").equals(r.get("call_session_id")));
+        assertThat(store.query("callevent","list",Values.map("tenantId",1,"offset",0,"limit",1000))).noneMatch(r->call.get("id").equals(r.get("call_session_id")));
     }
     @Test void errorDispatchRetainsServerStatusWhileDirectErrorRequestStillRequiresAuthentication(){
         var failed=http.getForEntity("/v1/call/queue-fault-probe",String.class);

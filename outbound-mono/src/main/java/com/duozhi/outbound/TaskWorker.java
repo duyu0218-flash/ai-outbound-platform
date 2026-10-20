@@ -220,9 +220,12 @@ public class TaskWorker {
     }
     private void submitDialLane(int lane,boolean dispatch){
         dialExecutor.submit(()->{boolean full=false;try{
-            if(dispatch)enqueueDue();int processed=0;while(processed<16&&!Thread.currentThread().isInterrupted()){if(!processLane(null,0))break;processed++;}full=processed==16;
+            // Refill before this owner consumes its previous 1,000-row refill.
+            // An indefinitely self-resubmitting lane must not drain the outbox
+            // and wait for the scheduler tick while queued numbers still exist.
+            if(dispatch)enqueueDue();int processed=0;while(processed<8&&!Thread.currentThread().isInterrupted()){if(!processLane(null,0))break;processed++;}full=processed==8;
         }catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("batch dial lane={} error_type={}",lane,error.getClass().getSimpleName());}
-        finally{if(full&&ready&&!dialExecutor.isShutdown())submitDialLane(lane,false);else dialLanes[lane].set(false);}});
+        finally{if(full&&ready&&!dialExecutor.isShutdown())submitDialLane(lane,true);else dialLanes[lane].set(false);}});
     }
     private void submitLane(int index,long queued,boolean dispatch) {
         executor.submit(() -> {

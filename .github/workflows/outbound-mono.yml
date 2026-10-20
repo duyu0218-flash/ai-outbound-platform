@@ -105,16 +105,15 @@ jobs:
           sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
-        continue-on-error: true
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.output=verification/ci-cps-first test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Dcapacity.mysql.bufferMiB=512 -Ddial.output=verification/ci-cps-first test
       - name: Measure real queued-pool dial acknowledgements (repeat)
         id: cps_repeat
-        continue-on-error: true
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.output=verification/ci-cps-repeat test
+        if: always()
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Dcapacity.mysql.bufferMiB=512 -Ddial.output=verification/ci-cps-repeat test
       - name: Hold 500 AI calls with the original throughput and latency thresholds
         id: ai_capacity
-        continue-on-error: true
-        run: mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.output=verification/ci-ai500 test
+        if: always()
+        run: mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.mysql.bufferMiB=512 -Dcapacity.output=verification/ci-ai500 test
       - name: Require every capacity probe to pass
         if: always()
         env:

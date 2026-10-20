@@ -34,7 +34,11 @@ class OutboundReliabilityIT {
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired DialBatchStore dialDb;@Autowired TaskWorker worker;
     @Autowired CallbackInbox inbox;@Autowired CallbackBatchStore callbackDb;
-    @Test void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection()throws Exception{try(var connection=dataSource.getConnection()){assertThat(connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet().getBooleanProperty(com.mysql.cj.conf.PropertyKey.rewriteBatchedStatements).getValue()).isTrue();}}
+    @Test void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection()throws Exception{try(var connection=dataSource.getConnection()){
+        var properties=connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
+        for(var key:List.of(com.mysql.cj.conf.PropertyKey.rewriteBatchedStatements,com.mysql.cj.conf.PropertyKey.useServerPrepStmts,com.mysql.cj.conf.PropertyKey.cachePrepStmts))assertThat(properties.getBooleanProperty(key).getValue()).isTrue();
+        assertThat(properties.getIntegerProperty(com.mysql.cj.conf.PropertyKey.prepStmtCacheSize).getValue()).isEqualTo(128);
+    }}
     static AtomicInteger sequence=new AtomicInteger(1000);long tenant;
     @BeforeEach void seed(){tenant=sequence.incrementAndGet();store.insert("tenant",JsonSupport.map("id",tenant,"code","reliability-"+tenant,"name","Synthetic reliability"));store.insert("adminsetting",JsonSupport.map("tenant_id",tenant,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));}
     @AfterEach void releaseFixtureCapacity(){for(var c:store.query("callsession","list",JsonSupport.map("tenantId",tenant,"offset",0,"limit",1000)))if(!CallLifecycle.TERMINAL.contains(c.get("status")))store.update("callsession",tenant,c.get("id"),Map.of("status","completed"));}
@@ -173,6 +177,13 @@ class OutboundReliabilityIT {
         var a=agent("ready");var next=call("queued","ai_handoff");policy(next,Map.of("handoff_agent_ids",List.of(a.get("id")),"handoff_queue_limit",1,"handoff_expected_ratio",1.0));
         var waiting=call("waiting_human","ai_handoff");assertThat(tx.serialized(()->routing.permits(next))).isFalse();
         store.update("callsession",tenant,waiting.get("id"),JsonSupport.map("status","completed"));assertThat(tx.serialized(()->routing.permits(next))).isTrue();
+    }
+    @Test void oneBatchCannotSpendTheSharedHumanReserveMoreThanOnce(){
+        agent("ready");store.insert("scenarioversion",JsonSupport.map("tenant_id",tenant,"policy_json",json.json(JsonSupport.map("timezone","Asia/Shanghai","start_hour",0,"end_hour",24,"weekdays",List.of(0,1,2,3,4,5,6),"handoff_queue_limit",1,"handoff_expected_ratio",1.0))));
+        var ids=new ArrayList<String>();for(int i=0;i<5;i++){var c=call("queued","ai_handoff");consent(c);ids.add(c.get("id").toString());}
+        worker.enqueueDue();assertThat(worker.processLane(tenant,0)).isTrue();
+        assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",ids))).hasSize(2);assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant+100000,"ids",ids))).isEmpty();
+        assertThat(((Number)db.one("routingPressure",Map.of("tenantId",tenant)).get("upstream")).longValue()).isEqualTo(2);
     }
     @Test void unmatchedFirstHundredWaitingCallsDoNotStarveLaterMatchingCall(){
         var absent=agent("offline");var ready=agent("ready");Map<String,Object> last=null;
