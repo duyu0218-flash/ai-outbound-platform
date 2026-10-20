@@ -1,0 +1,1584 @@
+{
+  "revision": "bae3b0058452d38aa32c8a42b052c7960c3ee833",
+  "source_files": [
+    {
+      "path": "./.env.example",
+      "sha256": "ef9b97ef2caed9232d8bf85bf13617a476af107c4e61d113f12cdaaacad055fb",
+      "bytes": 15352
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AdminLines.java",
+      "sha256": "75ffe7b4791d479f9109faeedf96270406a789e3116751c9af944262dd97c33c",
+      "bytes": 4133
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AdminOperations.java",
+      "sha256": "9c176d082e563c59701ed9451e6b59c96b9aa0b2fc977915a9c2a4f13851dec9",
+      "bytes": 4862
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AdminSettings.java",
+      "sha256": "90315f1019c34e7d3eaac7fe2b7b894d353c4b289d6eb5712e0903adb02583a9",
+      "bytes": 3806
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AdminUsers.java",
+      "sha256": "d0bd86a7822358862e59d3d37e3973cdd534b6051fc64b40775f941a305f1c3b",
+      "bytes": 6200
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AgentMedia.java",
+      "sha256": "e7441efd425492e0b7f9430d18f5b098840edb173347b29b3919c5527ddd3d12",
+      "bytes": 10831
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AiRuntime.java",
+      "sha256": "cb13f2d868638c348d7c7653f6199f95abea498cbcd741beab9c698ccb8a7bcd",
+      "bytes": 33232
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ApiError.java",
+      "sha256": "819ca58e2882559e42cdbba10be3f86be17fcea52df7093e8c03b5a830f05346",
+      "bytes": 198
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Ascii.java",
+      "sha256": "8907239e313852411dbbd44ec5ace65de84ff5228a9387a73537d64854be06bb",
+      "bytes": 656
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Audit.java",
+      "sha256": "fb5c048dfec2970bdde4a8d05c8cc7820ab602ba4e35695087577f3c91150f5f",
+      "bytes": 795
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AuthController.java",
+      "sha256": "ceb59b98811b3c6202d4a97c6aed0e68fbb1e0e3df725d9db62be3b4e25f7009",
+      "bytes": 2564
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/AuthService.java",
+      "sha256": "e40a8759f828c7e7d54988a21e557e79bdc2766b1ec3609b8d289135d60d7a64",
+      "bytes": 3195
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Authentication.java",
+      "sha256": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41",
+      "bytes": 5512
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Bootstrap.java",
+      "sha256": "1f25b06e06b359fed16499c2594ea35630554566bef40a61f54282c8ac0917d4",
+      "bytes": 2835
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallAnalysis.java",
+      "sha256": "97ca512d8906c8f717c8e6c835d8ec6159e9fe67f3a68b33f09a404e0400753d",
+      "bytes": 10350
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallEvidence.java",
+      "sha256": "32115638fa2221e88f48d43a274c21e77d7e39d8bbd08e7934f3ac4eb6299db8",
+      "bytes": 2712
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallLifecycle.java",
+      "sha256": "9e5e92763c159946c5c9ba01867326c91d693ebbd2aaec3b51459f2eb1a40bb1",
+      "bytes": 14537
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallPolicy.java",
+      "sha256": "b273f81c78169d38bd94b546509bdf08da02a88dd96d24e8270392df940b8403",
+      "bytes": 5913
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallReconciliation.java",
+      "sha256": "45861cd10da1566e76ad1052383623f4e9e437121904f08331beecac144749eb",
+      "bytes": 3818
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/CallbackInbox.java",
+      "sha256": "8fc863e08add3b7ea1fc5ff6b4bd53e468e7ceeaa5a80adedd31d02567664304",
+      "bytes": 9556
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Calls.java",
+      "sha256": "fa7be9f4b37a062aa8f84c0a18500f765b5aef15df977980fc575bcc4c5e9936",
+      "bytes": 5516
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Campaigns.java",
+      "sha256": "9414b93892b600dd7cec05c992f7c7282d97338a10344d156bd13646f6bbad7e",
+      "bytes": 21151
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Config.java",
+      "sha256": "5013f113c2185e776669e9b892df8ae7e2bd29e6494a83ce37732b5a2a83a0e2",
+      "bytes": 737
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ConfigFiles.java",
+      "sha256": "9c4e0284808758421e7d237f513ab9b1a4c77c5c1384075fd98ddaefc05293cc",
+      "bytes": 777
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ContactFiles.java",
+      "sha256": "d6d9b238c83e53120214610fafd65b6f15bc8880447fd288f3b789e429876819",
+      "bytes": 8277
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Contacts.java",
+      "sha256": "d7c8905f344f801e01fa98a8417ba65c17f97dae76454d6115d82e72de2acc1c",
+      "bytes": 6847
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Contract.java",
+      "sha256": "8da84f6f41a2df3f61aa506a4ed037fa6e8f8c39c673a697a3a8330bd3f2aa83",
+      "bytes": 6047
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ControlApplication.java",
+      "sha256": "0d0aeb28a182e15fd412af30c680392fb309c57e1dc5ab68409cc40a84d882ab",
+      "bytes": 1249
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ConversationPolicy.java",
+      "sha256": "6be16ef928187db6462838452ce6a1d7b2b2c4cd6b1e32988ba3a7edb40423e4",
+      "bytes": 23311
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Crypto.java",
+      "sha256": "836293f37aaf9816d76d7982cf4ac5fc1878df1f08d8fe3e2bf341d3b4c09642",
+      "bytes": 5247
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Dashboard.java",
+      "sha256": "3b3dce92908c8ce3d5588a7d161bc31e8282dc37d113ea5746ced39e9443291b",
+      "bytes": 4755
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DataRetention.java",
+      "sha256": "554f44913e4cf74e34dc7f878a6308c6dd6cedaf8cf2530c5369c6fe33b2c5df",
+      "bytes": 10543
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DatabaseConfiguration.java",
+      "sha256": "854e9a8922d8b5a47664d9a8b61affc846ae022b455288b1f127f682ac1cd7ed",
+      "bytes": 1332
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DatabaseMigration.java",
+      "sha256": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2",
+      "bytes": 15596
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DependencyHealth.java",
+      "sha256": "b735876b44b78f78065972530d9262823c851a79a78e63cf92415093aecad94d",
+      "bytes": 3252
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DialService.java",
+      "sha256": "3b8293b9d3836288c6adedb6c1a9f1c06d99f431d32b84cd028747aaf7fe3536",
+      "bytes": 18255
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/DialogueRules.java",
+      "sha256": "726531aa7f8aab2d26010aeefa49f08de3889895bc34ef8bed276466aab69ace",
+      "bytes": 5641
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Errors.java",
+      "sha256": "d84900fa79057ea921002b8965848edee75c08a3f25901925eab379feb10cea5",
+      "bytes": 1223
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ExpiringValues.java",
+      "sha256": "711f692c9a5cbe41508a875f24b7879d377f5cf246b71e5483a5f70bb2032cff",
+      "bytes": 6434
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/GatewayCluster.java",
+      "sha256": "040891a82c419d4e591193f17162cf61338ef772184602643b3e608466d7f9a1",
+      "bytes": 8570
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Handoffs.java",
+      "sha256": "b3fb9b0290ebdb86b9ca7ed6e2b55c403e6f924e06872ff544f14fb8b69ed392",
+      "bytes": 13690
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/HttpBoundary.java",
+      "sha256": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172",
+      "bytes": 4874
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Identity.java",
+      "sha256": "db47e56208be85697f21880c2d5a507104d2995d660db62257f808966dbb4811",
+      "bytes": 1079
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/IntegrationTasks.java",
+      "sha256": "c39a4bf09af888eb3c7d7ae217441958390dbf8c74e71c754593f9904837d783",
+      "bytes": 14143
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/JavaWorkerSignals.java",
+      "sha256": "1ace9d81fed5cb05575f7f72ccb734a05d36c4a1c359eb7f756074a107d303f8",
+      "bytes": 1909
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/JsonSupport.java",
+      "sha256": "115637771654da38a6eec8476ddde8196416ec0a4fdffd90b52b598a71f0ee9b",
+      "bytes": 2979
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Knowledge.java",
+      "sha256": "d4e4292fc9add559cc95af9f92cf8efa9212767f44b0e7b06651306fcad61ff5",
+      "bytes": 2174
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/OperationalMetrics.java",
+      "sha256": "777d90f3e6d9f103fb7e38ea7879c1341562c9beb6948145c16c6b68ab5be8b6",
+      "bytes": 5211
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Outbox.java",
+      "sha256": "43f7913011c2dd308a8a3f69578d49304d3d6ac0dadbf567d2f2a197b2b04c18",
+      "bytes": 2699
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Pages.java",
+      "sha256": "2030f58c4ac1e6560acf98c0d94045f2f99f581a4472fe63c819c2f628fdac1f",
+      "bytes": 1044
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ProductOperations.java",
+      "sha256": "c792e292aa7b9206a80fbe8e4772a5c484f7a1a0da50dbd4ed8e195988d4b65f",
+      "bytes": 17103
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ProductionConfiguration.java",
+      "sha256": "9fae64788f77dcd899a49965e7c2657bfbcc77bd265c770207e80b9eb44e65e9",
+      "bytes": 5043
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Reports.java",
+      "sha256": "0a858b68586f90afb685ceac2953b956a02cf0562bf3318cef746ef3ca427225",
+      "bytes": 21384
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/RuntimeController.java",
+      "sha256": "a7768edf7b600dde65457547a389dcc8cd9f6870bc0c60b64a13d04ef6ef52d1",
+      "bytes": 2999
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/ScriptFlows.java",
+      "sha256": "9ab67170f2a8e058a76588b9eb7fe03f4e93f3ce674dfdee498268dc1f665dc9",
+      "bytes": 13171
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/SecurityHeaders.java",
+      "sha256": "a657ff21c5d9192ac3fb58a7a97690f627612906875f8f4dbeda07eee7a443b1",
+      "bytes": 1784
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Settings.java",
+      "sha256": "f086b3348509a8ca73754ab124a7309fad435cdef0086ac45cf3127801b8029b",
+      "bytes": 9257
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/StabilityAdmission.java",
+      "sha256": "2de21fcdb8c7079895037a5582ed921eab92c4bee7a4285912a7526577e60200",
+      "bytes": 5949
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Store.java",
+      "sha256": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95",
+      "bytes": 9394
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/SystemOverview.java",
+      "sha256": "0eea2e77224b4859550a1ffa664cd758ade91383fcdfa72edf457ec2b660768b",
+      "bytes": 4897
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/TaskWorker.java",
+      "sha256": "27f969d2ee6352e9d5c992375aa6d6aeb2a471ff7606f84252fbba0bec006be9",
+      "bytes": 16055
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/TelephonyClient.java",
+      "sha256": "f47998458829411fcc1f333bfe710d20ba94e08e4950475403256c13ca138598",
+      "bytes": 7586
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Templates.java",
+      "sha256": "253761fb6d05e3fadbf629d86da55fb77f6e5faca2e55d8dd346efdd48635ae7",
+      "bytes": 3224
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Transactions.java",
+      "sha256": "e61530c3afa9a965d3187b7bbd53b87bb0e507a7d5e94d2e4587d5c43a33f544",
+      "bytes": 1664
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Values.java",
+      "sha256": "79cd42b21dba97194778080023da10c7211c652de20b305bcbc03c74b59147f3",
+      "bytes": 936
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/VoiceCallbacks.java",
+      "sha256": "893d1fc248133463ab1b962818935082168a457821483256f7744cdfd9fe3909",
+      "bytes": 17857
+    },
+    {
+      "path": "./backend-java/src/main/java/com/duozhi/outbound/Webhooks.java",
+      "sha256": "b92c306c069393d15e5cfdb6a0d12180d4c681374282665401d52277d44a7593",
+      "bytes": 6257
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/migration-inventory.json",
+      "sha256": "253c8980527585ace9e3c78daf5de150455a855449d73616dd1109dd01d96497",
+      "bytes": 17296
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "sha256": "4928389e475636de5411ecd8a398a25abb55ad3e873173c3f9f0789d082dcc29",
+      "bytes": 331018
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/scenario-defaults.json",
+      "sha256": "0bc3971984ac5eb320bba4a799c494e6d6bc8c66d52864a089fb0af2a5b67de9",
+      "bytes": 1367
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/schema-postgresql.sql",
+      "sha256": "2c0fa6b467d1d47c9bf904bc635ecd631ce7826c764f7b113becd4221f927170",
+      "bytes": 25704
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/schema-sqlite.sql",
+      "sha256": "fc4a51183d74ea06cd323b39f43a65ea1cd7f587d08f47ddc57c1322b6687157",
+      "bytes": 23620
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/setting-defaults.json",
+      "sha256": "b63ff8c332bd4c9f822a403b2f6febc0de4bed57dcb699c127a152b88553b758",
+      "bytes": 1688
+    },
+    {
+      "path": "./backend-java/src/main/resources/contracts/tables.json",
+      "sha256": "a1866f38a2865d7ceb5bb6b88a7a8b5200a23b2620ffd96c3df54c42d2ff8bef",
+      "bytes": 46365
+    },
+    {
+      "path": "./compatibility-matrix.json",
+      "sha256": "c3a1fbc46f66b8c78178f04515aa905118cc41790ee61cb003abfbc3ed48792d",
+      "bytes": 8154
+    },
+    {
+      "path": "./docs/operator-manual.md",
+      "sha256": "87d2e45465585ae609d6ec4947c6ff0636a8464ebd0f06ed47e0e44044debc2e",
+      "bytes": 25073
+    },
+    {
+      "path": "./docs/platform-configuration-guide.md",
+      "sha256": "2ce301001bda01797070e6e6648438889a8ff7d71b500f7f570eb403d41c20c7",
+      "bytes": 28842
+    },
+    {
+      "path": "./frontend/src/App.tsx",
+      "sha256": "184d7a100b9df84b9df2ef11e7dc0986d416c68dbb94c22451e300938380f317",
+      "bytes": 3456
+    },
+    {
+      "path": "./frontend/src/api.test.ts",
+      "sha256": "4f2553145c8465d42b5e1c2b7908435d4abe820f5669c0ec3d3a3ceb63b9c57f",
+      "bytes": 3074
+    },
+    {
+      "path": "./frontend/src/api.ts",
+      "sha256": "114cf5e83d0d84094e39c4b486967068f414b5a4f3a700851294b093266de7cf",
+      "bytes": 2225
+    },
+    {
+      "path": "./frontend/src/auth.tsx",
+      "sha256": "2a1b01f6f2063c6cd0478d55acb0df3b93c78b852304e973165987939c078f71",
+      "bytes": 3198
+    },
+    {
+      "path": "./frontend/src/campaign-contact-select.tsx",
+      "sha256": "9d97dc4c29ad4c07ec27e053520c54631995c437ce8eff9c77ce4688d29c8289",
+      "bytes": 3371
+    },
+    {
+      "path": "./frontend/src/i18n.ts",
+      "sha256": "2acc9726788b299c03e7a90ae4ac95d5c54806916ea94efc299eb1eb2c4ee80f",
+      "bytes": 25715
+    },
+    {
+      "path": "./frontend/src/layout.tsx",
+      "sha256": "f1ab34a0033b14bf479d14c5726fa144c1d0b8a4c027da63b0da41e4be0e13c2",
+      "bytes": 6799
+    },
+    {
+      "path": "./frontend/src/main.tsx",
+      "sha256": "cea1065b793891a1be2d8de3e4701a1ee237ace8b587232d5d1a7fafe9b0cf54",
+      "bytes": 414
+    },
+    {
+      "path": "./frontend/src/pages.tsx",
+      "sha256": "34f35927660375fd5d2f0df80ed78040df017c15adeeb798726355be210c0d04",
+      "bytes": 125333
+    },
+    {
+      "path": "./frontend/src/product-operations.tsx",
+      "sha256": "673c25fcd469cd31073ad295084c4cd1d0cf3b55b4094c760cc93814f4fe35ad",
+      "bytes": 18000
+    },
+    {
+      "path": "./frontend/src/query-session.test.ts",
+      "sha256": "10377bee0515c09794a3d0275151967382066ddedb4afc9b6cb6c20ec395bddd",
+      "bytes": 1291
+    },
+    {
+      "path": "./frontend/src/query-session.ts",
+      "sha256": "0479d1eaff97c69c1d3090a53f26c18c0e6dac6785fb430f0fee62b3bbc658dc",
+      "bytes": 491
+    },
+    {
+      "path": "./frontend/src/renew-registration.test.ts",
+      "sha256": "2ecdfea8948dfd17e29b2644a0585a8193622f2b0bb423651a6ec3818ab52dd6",
+      "bytes": 1953
+    },
+    {
+      "path": "./frontend/src/renew-registration.ts",
+      "sha256": "0349a871f4d3e6ba338fc0c1c349ac4b6539831a3dbd7709d17f3d5211ac1ea6",
+      "bytes": 767
+    },
+    {
+      "path": "./frontend/src/script-template-select.tsx",
+      "sha256": "17708f172dc4c1b8784445d3a8ab9afdaae36c2a6a47946b6be2c9b46ed54b53",
+      "bytes": 1563
+    },
+    {
+      "path": "./frontend/src/styles.css",
+      "sha256": "86b5a1b38056b0ade44b59721a77d3865fcad75c07372b87d27cbdd0dfba06d6",
+      "bytes": 9084
+    },
+    {
+      "path": "./frontend/src/types.ts",
+      "sha256": "2cdd4f9a9ebef431fbe600566f9b839ee4ac1f69d8023cd4a78354dd3e14d4fe",
+      "bytes": 11406
+    },
+    {
+      "path": "./frontend/src/webrtc.tsx",
+      "sha256": "24a7898187d3eed28572afd9cff29273d786575869344bb89eeb38c8dda2157b",
+      "bytes": 21033
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/AccountQuota.java",
+      "sha256": "69935358489cd7897ac18cf0daeedf1810899676ce0b186f9302fb89b3d3eda7",
+      "bytes": 7532
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/AgentController.java",
+      "sha256": "68d683d230478c6529f351453b09bb403161d3df6033608dd5dad0f0afada46f",
+      "bytes": 11049
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/AgentPolicy.java",
+      "sha256": "f7c0297be71d972b22de01b92f41030473f6ae658be4db59dc71955c0ef8a794",
+      "bytes": 4635
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/AgentTracing.java",
+      "sha256": "d3629f03c4f5934b4b71e1d3886ebafb001aff101ba0da7a4a4841118ef3019c",
+      "bytes": 7527
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/ApiDocumentation.java",
+      "sha256": "d3b421bd18346d1b98fd47f074f1649389a43ce8658c063b7b26572a7683073a",
+      "bytes": 4378
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/Boundary.java",
+      "sha256": "1b7f9b0dccf8175c394a41f65ad466423b9d9ee60a123c72240db6d594934935",
+      "bytes": 2739
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/EslClient.java",
+      "sha256": "8a441b862a3a718413326794fc83813e417d4a21112311bc5120f2b0ec155905",
+      "bytes": 4621
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/LocalLedger.java",
+      "sha256": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71",
+      "bytes": 9972
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/MediaCluster.java",
+      "sha256": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879",
+      "bytes": 15032
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/MediaManager.java",
+      "sha256": "9dc333bd8773856725939d6b0897dd1c30f4d418ba478fd61db10061902f2962",
+      "bytes": 2666
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/MediaWebSocket.java",
+      "sha256": "ab0b095c4d4f0d5e9a15f6c7575941b4f13d1822c609d904f156d4ef3a73c403",
+      "bytes": 2480
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/MediaWorkerController.java",
+      "sha256": "9f7542248054350f9e750765b1ed7e4fe39e19479df50b7fdab2e3f9dad9de9f",
+      "bytes": 8474
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/Metrics.java",
+      "sha256": "bcd2c87180a9190df3616899fcb0973f98b50e4052416a3fc764e059ee4d3fa0",
+      "bytes": 1516
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/NativeMedia.java",
+      "sha256": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
+      "bytes": 36469
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/RecordingController.java",
+      "sha256": "1b0e9d93b9f0d8920fe8a6fe28759c4613ffc387409d0c7b16a3619d22eb27d5",
+      "bytes": 2726
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/RecordingSource.java",
+      "sha256": "1a2fb9fbbdb9ff77765c32487a7dd80adb9ad8b3863fcf7ac47c5838c262b820",
+      "bytes": 5485
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/RecordingStorage.java",
+      "sha256": "3be121e44fabf9b8b5b95a1b1f6fb8222e7856aa528d4243501cbc3dabc9eae0",
+      "bytes": 13065
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/Rtp.java",
+      "sha256": "51fcfcb214cf3c9d2d2d3388150527af6838b065a00b9f81e881615931e04374",
+      "bytes": 3508
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/S3Store.java",
+      "sha256": "9c22e1b6f988c7c6ea64b8c60d320cbb0d372eb8134c9b9b833aec694850adfe",
+      "bytes": 7135
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/ServicesApplication.java",
+      "sha256": "c4fba69716dcd2fa945a9993dedc72cd67586d52de3c8259ab3bc8d32d728533",
+      "bytes": 2031
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/Settings.java",
+      "sha256": "f0d088ee5e5a56ee1e5221829461186e2148133b902c28e98a64e642cf1b9152",
+      "bytes": 2619
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/Support.java",
+      "sha256": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "bytes": 9609
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/VoiceCallbacks.java",
+      "sha256": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e",
+      "bytes": 9483
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/VoiceController.java",
+      "sha256": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
+      "bytes": 11174
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/VoiceGateway.java",
+      "sha256": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790",
+      "bytes": 44686
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/VoiceQuota.java",
+      "sha256": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
+      "bytes": 6222
+    },
+    {
+      "path": "./services-java/src/main/java/com/duozhi/services/VoiceSecurity.java",
+      "sha256": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
+      "bytes": 14462
+    },
+    {
+      "path": "./services-java/src/main/resources/contracts/openapi-agent.json",
+      "sha256": "6266f8c198d7e2d40083ea94cff77aef588197eb539d592d6e2cfadba346ccc4",
+      "bytes": 5640
+    },
+    {
+      "path": "./services-java/src/main/resources/contracts/openapi-media.json",
+      "sha256": "1353357c313c98ac88ed4196c1ed87aaced9ac376103e97d3eaf9c509abcf804",
+      "bytes": 5853
+    },
+    {
+      "path": "./services-java/src/main/resources/contracts/openapi-recording.json",
+      "sha256": "b30353b423c638d8bedea35b36ad5b925a3c40b0244b4a0f61db3a3f3d0e8256",
+      "bytes": 8399
+    },
+    {
+      "path": "./services-java/src/main/resources/contracts/openapi-voice.json",
+      "sha256": "a4c00786fa05102bf593765fb199f19ab4f86f60cf31c9a6eeea3b014fcd9050",
+      "bytes": 32080
+    }
+  ],
+  "tables": [
+    "tenant",
+    "user",
+    "contact",
+    "scenarioversion",
+    "conversationstate",
+    "phonesuppression",
+    "callbackappointment",
+    "productworkitem",
+    "contactimportjob",
+    "campaign",
+    "campaigncontact",
+    "scripttemplate",
+    "scriptflowversion",
+    "gatewaynode",
+    "callsession",
+    "callevent",
+    "realtimesession",
+    "speechturn",
+    "callmetric",
+    "taskoutbox",
+    "taskreceipt",
+    "recordingasset",
+    "callanalysis",
+    "knowledgeitem",
+    "handoffrequest",
+    "webhookeventingest",
+    "smslog",
+    "telephonyline",
+    "adminsetting",
+    "auditlog",
+    "callusage",
+    "callbackinboxpartition",
+    "callbackinbox",
+    "callbackinboxworker"
+  ],
+  "control_api": [
+    {
+      "method": "GET",
+      "route": "/api/v1/product/policy",
+      "operationId": "get_policy_api_v1_product_policy_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/product/policy",
+      "operationId": "save_policy_api_v1_product_policy_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/product/simulate",
+      "operationId": "simulate_scenario_api_v1_product_simulate_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/product/appointments",
+      "operationId": "list_appointments_api_v1_product_appointments_get"
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/v1/product/appointments/{appointment_id}",
+      "operationId": "patch_appointment_api_v1_product_appointments__appointment_id__patch"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/product/work-items",
+      "operationId": "work_items_api_v1_product_work_items_get"
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/v1/product/work-items/{item_id}",
+      "operationId": "patch_work_api_v1_product_work_items__item_id__patch"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/product/incoming",
+      "operationId": "incoming_api_v1_product_incoming_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/product/outcomes",
+      "operationId": "outcomes_api_v1_product_outcomes_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/import",
+      "operationId": "import_knowledge_api_v1_product_knowledge_import_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/product/knowledge/search",
+      "operationId": "probe_knowledge_api_v1_product_knowledge_search_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/product/funnel",
+      "operationId": "funnel_api_v1_product_funnel_get"
+    },
+    {
+      "method": "GET",
+      "route": "/health",
+      "operationId": "health_health_get"
+    },
+    {
+      "method": "GET",
+      "route": "/healthz",
+      "operationId": "healthz_healthz_get"
+    },
+    {
+      "method": "GET",
+      "route": "/readyz",
+      "operationId": "readyz_readyz_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls",
+      "operationId": "create_call_api_api_v1_calls_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls",
+      "operationId": "list_calls_api_api_v1_calls_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}",
+      "operationId": "get_call_api_api_v1_calls__call_id__get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handover",
+      "operationId": "handover_api_api_v1_calls__call_id__handover_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/hangup",
+      "operationId": "hangup_api_api_v1_calls__call_id__hangup_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/events",
+      "operationId": "list_call_events_api_v1_calls__call_id__events_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-events",
+      "operationId": "list_webhook_events_api_v1_calls__call_id__webhook_events_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/webhook-stats",
+      "operationId": "get_webhook_stats_api_v1_calls__call_id__webhook_stats_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/retry",
+      "operationId": "retry_call_api_api_v1_calls__call_id__retry_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/campaigns",
+      "operationId": "create_campaign_api_v1_campaigns_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/campaigns",
+      "operationId": "list_campaigns_api_v1_campaigns_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "operationId": "get_campaign_api_v1_campaigns__campaign_id__get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "operationId": "update_campaign_api_v1_campaigns__campaign_id__put"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/campaigns/{campaign_id}",
+      "operationId": "delete_campaign_api_v1_campaigns__campaign_id__delete"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/start",
+      "operationId": "start_campaign_api_v1_campaigns__campaign_id__start_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/pause",
+      "operationId": "pause_campaign_api_v1_campaigns__campaign_id__pause_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/resume",
+      "operationId": "resume_campaign_api_v1_campaigns__campaign_id__resume_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/campaigns/{campaign_id}/stop",
+      "operationId": "stop_campaign_api_v1_campaigns__campaign_id__stop_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/contacts/import",
+      "operationId": "import_contacts_api_v1_contacts_import_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/contacts/export",
+      "operationId": "export_contacts_api_v1_contacts_export_get"
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/v1/contacts/batch-dnc",
+      "operationId": "batch_dnc_api_v1_contacts_batch_dnc_patch"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/contacts",
+      "operationId": "create_contact_api_v1_contacts_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/contacts",
+      "operationId": "list_contacts_api_v1_contacts_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/contacts/{contact_id}",
+      "operationId": "get_contact_api_v1_contacts__contact_id__get"
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/v1/contacts/{contact_id}",
+      "operationId": "patch_contact_api_v1_contacts__contact_id__patch"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/contacts/{contact_id}",
+      "operationId": "delete_contact_api_v1_contacts__contact_id__delete"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/batch",
+      "operationId": "telephony_batch_api_v1_webhooks_telephony_batch_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/status",
+      "operationId": "telephony_status_api_v1_webhooks_telephony_status_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/transcript",
+      "operationId": "telephony_transcript_api_v1_webhooks_telephony_transcript_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/speech",
+      "operationId": "telephony_speech_api_v1_webhooks_telephony_speech_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/dtmf",
+      "operationId": "telephony_dtmf_api_v1_webhooks_telephony_dtmf_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/media",
+      "operationId": "telephony_media_api_v1_webhooks_telephony_media_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/telephony/recording",
+      "operationId": "telephony_recording_api_v1_webhooks_telephony_recording_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/webhooks/sms/status",
+      "operationId": "sms_status_api_v1_webhooks_sms_status_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/login",
+      "operationId": "login_api_v1_auth_login_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/auth/me",
+      "operationId": "me_api_v1_auth_me_get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/auth/presence",
+      "operationId": "update_presence_api_v1_auth_presence_put"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/auth/logout",
+      "operationId": "logout_api_v1_auth_logout_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/script-templates",
+      "operationId": "list_templates_api_v1_script_templates_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/script-templates",
+      "operationId": "create_template_api_v1_script_templates_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}",
+      "operationId": "get_template_api_v1_script_templates__template_id__get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}",
+      "operationId": "update_template_api_v1_script_templates__template_id__put"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/script-templates/{template_id}",
+      "operationId": "delete_template_api_v1_script_templates__template_id__delete"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "operationId": "list_versions_api_v1_script_templates__template_id__flows_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows",
+      "operationId": "create_version_api_v1_script_templates__template_id__flows_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "operationId": "get_version_api_v1_script_templates__template_id__flows__version_id__get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "operationId": "update_version_api_v1_script_templates__template_id__flows__version_id__put"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "operationId": "publish_version_api_v1_script_templates__template_id__flows__version_id__publish_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "operationId": "simulate_version_api_v1_script_templates__template_id__flows__version_id__simulate_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/tasks/{task_id}/retry",
+      "operationId": "retry_task_api_v1_admin_tasks__task_id__retry_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/users",
+      "operationId": "list_users_api_v1_admin_users_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/users",
+      "operationId": "create_user_api_v1_admin_users_post"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/admin/users/{user_id}",
+      "operationId": "update_user_api_v1_admin_users__user_id__put"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/admin/users/{user_id}",
+      "operationId": "disable_user_api_v1_admin_users__user_id__delete"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/reset-password",
+      "operationId": "reset_user_password_api_v1_admin_users__user_id__reset_password_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/users/{user_id}/unlock",
+      "operationId": "unlock_user_api_v1_admin_users__user_id__unlock_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/lines",
+      "operationId": "list_lines_api_v1_admin_lines_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/lines",
+      "operationId": "create_line_api_v1_admin_lines_post"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "operationId": "update_line_api_v1_admin_lines__line_id__put"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/admin/lines/{line_id}",
+      "operationId": "disable_line_api_v1_admin_lines__line_id__delete"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/sms-logs",
+      "operationId": "list_sms_logs_api_v1_admin_sms_logs_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
+      "operationId": "retry_sms_log_api_v1_admin_sms_logs__sms_log_id__retry_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/settings/{section}",
+      "operationId": "get_setting_api_v1_admin_settings__section__get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/admin/settings/{section}",
+      "operationId": "update_setting_api_v1_admin_settings__section__put"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/calls/export",
+      "operationId": "export_calls_csv_api_v1_admin_calls_export_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/audit-logs",
+      "operationId": "list_audit_logs_api_v1_admin_audit_logs_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/call-reports",
+      "operationId": "call_reports_api_v1_admin_call_reports_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/contact-groups",
+      "operationId": "contact_groups_api_v1_admin_contact_groups_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/billing",
+      "operationId": "billing_api_v1_admin_billing_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/system-overview",
+      "operationId": "system_overview_api_v1_admin_system_overview_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/realtime",
+      "operationId": "get_realtime_session_api_v1_calls__call_id__realtime_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/speech-turns",
+      "operationId": "list_speech_turns_api_v1_calls__call_id__speech_turns_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/metrics",
+      "operationId": "list_call_metrics_api_v1_calls__call_id__metrics_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/recordings",
+      "operationId": "list_recordings_api_v1_calls__call_id__recordings_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/interrupt",
+      "operationId": "interrupt_call_playback_api_v1_calls__call_id__interrupt_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "operationId": "get_call_analysis_api_v1_calls__call_id__analysis_get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/calls/{call_id}/analysis",
+      "operationId": "review_call_analysis_api_v1_calls__call_id__analysis_put"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/calls/{call_id}/handoffs",
+      "operationId": "list_handoffs_api_v1_calls__call_id__handoffs_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/handoffs",
+      "operationId": "list_handoff_queue_api_v1_handoffs_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/quality/reviews",
+      "operationId": "list_quality_reviews_api_v1_quality_reviews_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+      "operationId": "accept_handoff_api_v1_calls__call_id__handoffs__handoff_id__accept_post"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
+      "operationId": "reject_handoff_api_v1_calls__call_id__handoffs__handoff_id__reject_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/knowledge",
+      "operationId": "list_knowledge_api_v1_knowledge_get"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/knowledge",
+      "operationId": "create_knowledge_api_v1_knowledge_post"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/knowledge/{item_id}",
+      "operationId": "update_knowledge_api_v1_knowledge__item_id__put"
+    },
+    {
+      "method": "DELETE",
+      "route": "/api/v1/knowledge/{item_id}",
+      "operationId": "disable_knowledge_api_v1_knowledge__item_id__delete"
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/agent/webrtc/session",
+      "operationId": "create_webrtc_session_api_v1_agent_webrtc_session_post"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/agent/media/status",
+      "operationId": "read_media_status_api_v1_agent_media_status_get"
+    },
+    {
+      "method": "PUT",
+      "route": "/api/v1/agent/media/status",
+      "operationId": "update_media_status_api_v1_agent_media_status_put"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/agent/events/stream",
+      "operationId": "stream_agent_events_api_v1_agent_events_stream_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/runtime",
+      "operationId": "runtime_info_api_v1_runtime_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/admin/dashboard",
+      "operationId": "admin_dashboard_api_v1_admin_dashboard_get"
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/agent/dashboard",
+      "operationId": "agent_dashboard_api_v1_agent_dashboard_get"
+    }
+  ],
+  "service_apis": {
+    "openapi-media.json": [
+      {
+        "method": "GET",
+        "route": "/internal/state"
+      },
+      {
+        "method": "POST",
+        "route": "/internal/command"
+      }
+    ],
+    "openapi-voice.json": [
+      {
+        "method": "GET",
+        "route": "/v1/recordings/{filename}"
+      },
+      {
+        "method": "GET",
+        "route": "/health"
+      },
+      {
+        "method": "GET",
+        "route": "/readyz"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/dial"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/admin/drain"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/admin/security/stop"
+      },
+      {
+        "method": "GET",
+        "route": "/v1/admin/security"
+      },
+      {
+        "method": "GET",
+        "route": "/v1/admin/capacity"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/speak"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/stop-speaking"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/transfer"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/hangup"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/call/status"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/admin/voice-permits/reconcile"
+      },
+      {
+        "method": "GET",
+        "route": "/v1/admin/voice-permits"
+      }
+    ],
+    "openapi-recording.json": [
+      {
+        "method": "GET",
+        "route": "/health"
+      },
+      {
+        "method": "GET",
+        "route": "/readyz"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/recordings/ingest"
+      },
+      {
+        "method": "POST",
+        "route": "/v1/recordings/delete"
+      }
+    ],
+    "openapi-agent.json": [
+      {
+        "method": "GET",
+        "route": "/health"
+      },
+      {
+        "method": "GET",
+        "route": "/readyz"
+      },
+      {
+        "method": "POST",
+        "route": "/agent/turn"
+      },
+      {
+        "method": "POST",
+        "route": "/agent/start"
+      }
+    ]
+  },
+  "environment_variable_names": [
+    "APP_NAME",
+    "ENV",
+    "COMPOSE_CONTAINER_PREFIX",
+    "CONTROL_API_HOST_PORT",
+    "RECORDING_ADAPTER_HOST_PORT",
+    "SEAWEEDFS_S3_HOST_PORT",
+    "PROMETHEUS_HOST_PORT",
+    "ALERTMANAGER_HOST_PORT",
+    "GRAFANA_HOST_PORT",
+    "SECRET_KEY",
+    "JWT_SECRET",
+    "AUTH_MAX_FAILED_ATTEMPTS",
+    "AUTH_LOCKOUT_SECONDS",
+    "METRICS_TOKEN",
+    "METRICS_TOKEN_FILE",
+    "API_KEY",
+    "UI_API_KEY",
+    "TENANT_API_KEYS_JSON",
+    "CORS_ALLOW_ORIGINS",
+    "POSTGRES_PASSWORD",
+    "REDIS_PASSWORD",
+    "NODE_BASE_IMAGE",
+    "POSTGRES_IMAGE",
+    "REDIS_IMAGE",
+    "SEAWEEDFS_IMAGE",
+    "PROMETHEUS_IMAGE",
+    "ALERTMANAGER_IMAGE",
+    "GRAFANA_IMAGE",
+    "DATABASE_URL",
+    "DATABASE_URL_API",
+    "DATABASE_URL_BOOTSTRAP",
+    "DATABASE_BOOTSTRAP_ADVISORY_LOCK",
+    "DATABASE_BOOTSTRAP_LOCK_NAME",
+    "DATABASE_BOOTSTRAP_DATA_LOCK_NAME",
+    "DATABASE_MIGRATION_LOCK_NAME",
+    "REDIS_URL",
+    "TELEPHONY_PROVIDER",
+    "TELEPHONY_WEBHOOK_BASE",
+    "TELEPHONY_PROVIDER_ENDPOINT",
+    "TELEPHONY_WEBHOOK_TOKEN",
+    "TELEPHONY_WEBHOOK_SECRET",
+    "WEBHOOK_SIGNATURE_MAX_AGE_SEC",
+    "TELEPHONY_SERVICE_TOKEN",
+    "VOICE_GATEWAY_DRIVER",
+    "VOICE_AI_PIPELINE",
+    "PBX_BASE_URL",
+    "PBX_BEARER_TOKEN",
+    "FREESWITCH_IMAGE",
+    "FREESWITCH_VERSION",
+    "FREESWITCH_MEDIA_MODULE_VERSION",
+    "FREESWITCH_ESL_HOST",
+    "FREESWITCH_ESL_PORT",
+    "FREESWITCH_ESL_PASSWORD",
+    "FREESWITCH_ESL_TIMEOUT_SEC",
+    "FREESWITCH_ESL_RECONNECT_SEC",
+    "FREESWITCH_GATEWAY",
+    "FREESWITCH_CALLER_ID",
+    "FREESWITCH_ORIGINATE_TIMEOUT_SEC",
+    "FREESWITCH_PLAYBACK_TIMEOUT_SEC",
+    "FREESWITCH_DIALPLAN_CONTEXT",
+    "FREESWITCH_AGENT_EXTENSION_TEMPLATE",
+    "FREESWITCH_DEFAULT_HANDOFF_EXTENSION",
+    "FREESWITCH_TTS_ENGINE",
+    "FREESWITCH_TTS_VOICE",
+    "FREESWITCH_TTS_HTTP_ENDPOINT",
+    "FREESWITCH_TTS_HTTP_TOKEN",
+    "FREESWITCH_FALLBACK_AUDIO_PATH",
+    "FREESWITCH_MEDIA_START_COMMAND_TEMPLATE",
+    "FREESWITCH_PIPECAT_START_COMMAND_TEMPLATE",
+    "FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE",
+    "FREESWITCH_RECORDING_DIR",
+    "FREESWITCH_RECORDING_PUBLIC_BASE_URL",
+    "VOICE_RECORDING_SOURCE_BASE_URL",
+    "VOICE_AGENT_REGISTRARS_JSON",
+    "FREESWITCH_RECORDING_STEREO",
+    "RTP_PORT_START",
+    "RTP_PORT_END",
+    "WEBRTC_ENABLED",
+    "WEBRTC_WSS_URL",
+    "WEBRTC_SIP_DOMAIN",
+    "WEBRTC_EXTENSION_TEMPLATE",
+    "WEBRTC_SIP_CREDENTIAL_TTL_SEC",
+    "WEBRTC_MEDIA_STATUS_TTL_SEC",
+    "WEBRTC_EVENT_STREAM_INTERVAL_SEC",
+    "TURN_URLS",
+    "TURN_SHARED_SECRET",
+    "TURN_CREDENTIAL_TTL_SEC",
+    "COTURN_IMAGE",
+    "NGINX_IMAGE",
+    "FREESWITCH_DIRECTORY_TOKEN",
+    "FREESWITCH_WSS_PEM",
+    "AI_AGENT_URL",
+    "AI_AGENT_SERVICE_TOKEN",
+    "SIP_PROVIDER_ENDPOINT",
+    "SMS_PROVIDER",
+    "SMS_PROVIDER_ENDPOINT",
+    "SMS_API_KEY",
+    "SMS_CALLBACK_URL",
+    "SMS_WEBHOOK_TOKEN",
+    "SMS_WEBHOOK_SECRET",
+    "LLM_PROVIDER",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_MODEL",
+    "LLM_ALLOWED_HOSTS",
+    "LLM_SEND_PII",
+    "LLM_REQUIRE_HTTPS",
+    "LANGFUSE_ENABLED",
+    "LANGFUSE_BASE_URL",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "LANGFUSE_SAMPLE_RATE",
+    "PIPECAT_VERSION",
+    "PIPECAT_MEDIA_WS_BASE",
+    "PIPECAT_SAMPLE_RATE",
+    "PIPECAT_CHANNELS",
+    "PIPECAT_MEDIA_PROTOCOL",
+    "MEDIA_ESL_ALLOWED_CIDR",
+    "PIPECAT_SESSION_TIMEOUT_SEC",
+    "PIPECAT_MEDIA_CONNECT_TIMEOUT_SEC",
+    "PIPECAT_MAX_ACTIVE_SESSIONS",
+    "PIPECAT_STT_PROVIDER",
+    "PIPECAT_TTS_PROVIDER",
+    "PIPECAT_OPENAI_API_KEY",
+    "PIPECAT_OPENAI_REALTIME_BASE_URL",
+    "PIPECAT_OPENAI_BASE_URL",
+    "PIPECAT_TTS_MODEL",
+    "PIPECAT_TTS_VOICE",
+    "PIPECAT_FALLBACK_TO_LEGACY",
+    "ALIYUN_NLS_GATEWAY_URL",
+    "ALIYUN_NLS_APPKEY",
+    "ALIYUN_NLS_TOKEN",
+    "ALIYUN_NLS_TOKEN_FILE",
+    "ALIYUN_NLS_VOCABULARY_ID",
+    "ALIYUN_NLS_CUSTOMIZATION_ID",
+    "ALIYUN_NLS_MAX_SENTENCE_SILENCE_MS",
+    "ALIYUN_NLS_ENABLE_PUNCTUATION_PREDICTION",
+    "ALIYUN_NLS_ENABLE_INVERSE_TEXT_NORMALIZATION",
+    "ALIYUN_NLS_ENABLE_WORDS",
+    "ALIYUN_NLS_ENABLE_SEMANTIC_SENTENCE_DETECTION",
+    "ALIYUN_NLS_ENABLE_IGNORE_SENTENCE_TIMEOUT",
+    "ALIYUN_NLS_DISFLUENCY",
+    "ALIYUN_NLS_CONNECT_TIMEOUT_SEC",
+    "ALIYUN_NLS_STOP_TIMEOUT_SEC",
+    "OPENAI_TIMEOUT_SEC",
+    "CONVERSATION_HISTORY_TURNS",
+    "CONVERSATION_HISTORY_MAX_CHARS",
+    "DEMO_USERS_ENABLED",
+    "DEMO_ADMIN_USERNAME",
+    "DEMO_ADMIN_PASSWORD",
+    "DEMO_AGENT_USERNAME",
+    "DEMO_AGENT_PASSWORD",
+    "DEMO_TENANT_ID",
+    "REQUEST_TIMEOUT_MS",
+    "REQUEST_TIMEOUT_EXEMPT_PATHS",
+    "REQUEST_ID_HEADER",
+    "REQUEST_ADMISSION_ENABLED",
+    "REQUEST_ADMISSION_TOTAL_INFLIGHT",
+    "REQUEST_ADMISSION_MAX_WAITERS",
+    "REQUEST_ADMISSION_DEFAULT_INFLIGHT",
+    "REQUEST_ADMISSION_WEBHOOK_INFLIGHT",
+    "REQUEST_ADMISSION_TIMEOUT_SEC",
+    "REQUEST_ADMISSION_RETRY_AFTER_SEC",
+    "REQUEST_ADMISSION_METRICS_INFLIGHT",
+    "REQUEST_ADMISSION_STREAM_INFLIGHT",
+    "REQUEST_ADMISSION_STATIC_INFLIGHT",
+    "AGENT_SNAPSHOT_CONCURRENCY",
+    "TRUSTED_HOSTS",
+    "TRUSTED_PROXY_IPS",
+    "RATE_LIMIT_ENABLED",
+    "RATE_LIMIT_DEFAULT_RPM",
+    "RATE_LIMIT_AUTH_RPM",
+    "RATE_LIMIT_WINDOW_SEC",
+    "CONTROL_API_WORKERS",
+    "MAX_CONCURRENT_CALLS",
+    "OUTBOUND_ALLOWED_PHONE_PREFIXES",
+    "OUTBOUND_DAILY_CALL_LIMIT",
+    "OUTBOUND_PLATFORM_MAX_CONCURRENT",
+    "VOICE_COMMAND_SECRET",
+    "VOICE_SECURITY_ADMIN_TOKEN",
+    "OUTBOUND_SECURITY_APPROVAL_TOKEN",
+    "VOICE_SECURITY_DB_PATH",
+    "VOICE_SECURITY_ROUTES_JSON",
+    "VOICE_SECURITY_ROUTES_FILE",
+    "VOICE_CALLBACK_BASE_URL",
+    "VOICE_CALLBACK_ALLOW_PRIVATE_HTTP",
+    "VOICE_CALLBACK_FAILURE_STOP_SEC",
+    "VOICE_MAX_CONCURRENT",
+    "VOICE_CPS",
+    "VOICE_DAILY_CALL_LIMIT",
+    "VOICE_HOUR_BUDGET_MINOR",
+    "VOICE_DAY_BUDGET_MINOR",
+    "VOICE_MAX_DURATION_SEC",
+    "TENANT_API_SCOPES_JSON",
+    "DEFAULT_CALL_TIMEOUT_SEC",
+    "SCHEDULER_ENABLED",
+    "SCHEDULER_POLL_INTERVAL_SEC",
+    "SCHEDULER_BATCH_SIZE",
+    "AGENT_PRESENCE_TIMEOUT_SEC",
+    "AI_TURN_LOCK_TTL_SEC",
+    "AI_TURN_LOCK_WAIT_SEC",
+    "RECORDING_RETENTION_DAYS",
+    "PARTIAL_TRANSCRIPT_RETENTION_HOURS",
+    "FINAL_TRANSCRIPT_RETENTION_DAYS",
+    "CALL_SENSITIVE_DATA_RETENTION_DAYS",
+    "RETENTION_SCAN_INTERVAL_SEC",
+    "RETENTION_BATCH_SIZE",
+    "RETENTION_RUN_BUDGET_SEC",
+    "VOICE_SENSITIVE_RETENTION_DAYS",
+    "VOICE_AUDIT_RETENTION_DAYS",
+    "TASK_LEASE_SEC",
+    "TASK_TIMEOUT_SEC",
+    "TASK_POLL_INTERVAL_SEC",
+    "TASK_AI_CONCURRENCY",
+    "TASK_CALLBACK_CONCURRENCY",
+    "TASK_RECORDING_CONCURRENCY",
+    "TASK_QUEUE_LANES",
+    "TASK_QUEUE_LANE_ALIASES",
+    "TASK_INLINE_EXECUTION_ENABLED",
+    "BUSINESS_CALLBACK_ALLOWED_ORIGINS",
+    "BUSINESS_CALLBACK_PRIVATE_ORIGINS",
+    "RATE_LIMIT_WEBHOOK_RPM",
+    "RATE_LIMIT_WEBHOOK_CONTROL_RPM",
+    "RATE_LIMIT_UNVERIFIED_WEBHOOK_RPM",
+    "RATE_LIMIT_MEMORY_MAX_KEYS",
+    "RECORDING_INGEST_CONCURRENCY",
+    "RECORDING_SPOOL_RESERVE_BYTES",
+    "RECORDING_STORAGE_SERVICE_TOKEN",
+    "RECORDING_S3_ACCESS_KEY_ID",
+    "RECORDING_S3_SECRET_ACCESS_KEY",
+    "RECORDING_S3_BUCKET",
+    "RECORDING_S3_KEY_PREFIX",
+    "RECORDING_SOURCE_ALLOWED_HOSTS",
+    "RECORDING_SOURCE_REQUIRE_HTTPS",
+    "RECORDING_MAX_BYTES",
+    "RECORDING_DELETE_ENDPOINT",
+    "RECORDING_DELETE_SERVICE_TOKEN",
+    "RECORDING_DELETE_TIMEOUT_SEC",
+    "RECORDING_INGEST_ENDPOINT",
+    "RECORDING_INGEST_SERVICE_TOKEN",
+    "RECORDING_INGEST_TIMEOUT_SEC",
+    "CONTACT_IMPORT_MAX_BYTES",
+    "CONTACT_IMPORT_MAX_ROWS",
+    "CONTACT_IMPORT_MAX_ERRORS",
+    "CONTACT_EXPORT_BATCH_SIZE",
+    "CONTACT_IMPORT_BATCH_SIZE",
+    "TTS_PLAYBACK_TIMEOUT_SEC",
+    "SCHEDULER_LOCK_TTL_SEC",
+    "DATABASE_POOL_SIZE",
+    "DATABASE_MAX_OVERFLOW",
+    "DATABASE_POOL_TIMEOUT_SEC",
+    "DATABASE_POOL_RECYCLE_SEC",
+    "AUTO_MIGRATE",
+    "CALLBACK_INBOX_ENABLED",
+    "CALLBACK_INBOX_BATCH_SIZE",
+    "CALLBACK_INBOX_BATCH_BUDGET_MS",
+    "CALLBACK_INBOX_PARTITION_LIMIT",
+    "CALLBACK_INBOX_PARTITION_BYTES",
+    "CALLBACK_INBOX_MAX_AGE_SEC"
+  ]
+}

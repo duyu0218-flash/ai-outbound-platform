@@ -1,0 +1,84 @@
+package com.duozhi.outbound;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.*;
+import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/calls")
+public class Calls {
+    private final Store store;
+    private final Contract contract;
+    private final DialService dial;
+
+    public Calls(Store store, Contract contract, DialService dial) { this.store = store; this.contract = contract; this.dial = dial; }
+
+    @PostMapping
+    public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.create(Identity.from(request), contract.input("StartCallRequest", body, true)));
+    }
+
+    @PostMapping("/{id}/retry")
+    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.retry(visible(Identity.from(request), id)));
+    }
+
+    @PostMapping("/{id}/hangup")
+    public Map<String, Object> hangup(@PathVariable UUID id, @RequestParam(defaultValue="hangup") String reason, HttpServletRequest request) {
+        return contract.output("CallSessionOut", dial.hangup(visible(Identity.from(request), id), reason));
+    }
+
+    private boolean restricted(Identity identity) {
+        return identity.user() != null && "agent".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor"));
+    }
+
+    private Map<String, Object> visible(Identity identity, UUID id) {
+        Map<String, Object> call = store.require("callsession", identity.tenant(), id);
+        if (restricted(identity) && !Objects.toString(identity.userId(), "").equals(Objects.toString(call.get("human_agent_id"), "")))
+            throw new ApiError(403, "call is not assigned to this agent");
+        return call;
+    }
+
+    @GetMapping
+    public List<Map<String, Object>> list(HttpServletRequest request,
+            @RequestParam(name="status", required=false) String status,
+            @RequestParam(required=false) Long campaign_id,
+            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+        Identity identity = Identity.from(request); int offset = Contract.page(page, size);
+        Object encoded=null;
+        if(status!=null&&!status.isEmpty())try{encoded=store.encode("callsession","status",status.transform(Ascii::lower));}catch(ApiError e){throw new ApiError(400,"invalid status filter");}
+        return store.query("callsession","searchCalls",JsonSupport.map("tenantId",identity.tenant(),"agentId",restricted(identity)?identity.userId():null,"campaignId",campaign_id,"status",encoded,"limit",size,"offset",offset)).stream().map(row->contract.output("CallSessionOut",row)).collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}")
+    public Map<String, Object> get(@PathVariable UUID id, HttpServletRequest request) {
+        return contract.output("CallSessionOut", visible(Identity.from(request), id));
+    }
+
+    @GetMapping("/{id}/events")
+    public List<Map<String, Object>> events(@PathVariable UUID id, HttpServletRequest request,
+            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+        visible(Identity.from(request), id);
+        return store.across("callevent","scopedCalls71",Store.queryParameters(-1,store.encode("callevent", "call_session_id", id),size,Contract.page(page, size)))
+                .stream().map(row -> contract.output("CallEventOut", row)).collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}/webhook-events")
+    public List<Map<String, Object>> webhookEvents(@PathVariable UUID id, HttpServletRequest request,
+            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+        visible(Identity.from(request), id);
+        return store.across("webhookeventingest","scopedCalls79",Store.queryParameters(-1,store.encode("webhookeventingest", "call_session_id", id),size,Contract.page(page, size)))
+                .stream().map(row -> contract.output("WebhookEventIngestOut", row)).collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}/webhook-stats")
+    public Map<String, Object> webhookStats(@PathVariable UUID id, HttpServletRequest request) {
+        visible(Identity.from(request), id);
+        Object boundId = store.encode("webhookeventingest", "call_session_id", id);
+        List<Map<String, Object>> groups = store.projection("webhookeventingest","eventBuckets",Values.map("tenantId",Identity.from(request).tenant(),"callId",boundId));
+        Long duplicates = store.value("webhookeventingest","duplicateCount",Values.map("tenantId",Identity.from(request).tenant(),"callId",boundId),Long.class);
+        long total = store.sumAcross("webhookeventingest","scopedCalls89",Store.queryParameters(-1,boundId));
+        return Values.map("total", total, "unique", total, "duplicate_estimate", duplicates == null ? 0 : duplicates, "buckets", groups);
+    }
+}

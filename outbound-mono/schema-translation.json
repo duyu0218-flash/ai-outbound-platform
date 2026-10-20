@@ -1,0 +1,622 @@
+{
+  "source": "./backend-java/src/main/resources/contracts/schema-postgresql.sql",
+  "table_count": 34,
+  "column_count": 379,
+  "tables": {
+    "tenant": {
+      "target": "tenant",
+      "entity": "Tenant",
+      "columns": {
+        "id": "INTEGER",
+        "name": "LONGTEXT",
+        "code": "VARCHAR(64)",
+        "enabled": "BOOLEAN",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "gatewaynode": {
+      "target": "gatewaynode",
+      "entity": "GatewayNode",
+      "columns": {
+        "id": "VARCHAR(64)",
+        "endpoint": "VARCHAR(512)",
+        "capacity": "INTEGER",
+        "ready": "BOOLEAN",
+        "checked_at": "DATETIME(3)",
+        "next_dial_at": "DATETIME(3)"
+      }
+    },
+    "callbackinboxpartition": {
+      "target": "callbackinboxpartition",
+      "entity": "CallbackInboxPartition",
+      "columns": {
+        "id": "INTEGER",
+        "pending_count": "INTEGER",
+        "pending_bytes": "INTEGER"
+      }
+    },
+    "callbackinbox": {
+      "target": "callbackinbox",
+      "entity": "CallbackInbox",
+      "columns": {
+        "id": "BIGINT",
+        "receipt_key": "VARCHAR(64)",
+        "partition_id": "INTEGER",
+        "call_id": "CHAR(36)",
+        "kind": "VARCHAR(32)",
+        "body_json": "LONGTEXT",
+        "body_digest": "VARCHAR(64)",
+        "body_bytes": "INTEGER",
+        "state": "VARCHAR(16)",
+        "received_at": "DATETIME(3)",
+        "available_at": "DATETIME(3)",
+        "completed_at": "DATETIME(3)",
+        "attempts": "INTEGER",
+        "error_type": "VARCHAR(128)"
+      }
+    },
+    "callbackinboxworker": {
+      "target": "callbackinboxworker",
+      "entity": "CallbackInboxWorker",
+      "columns": {
+        "id": "VARCHAR(64)",
+        "heartbeat_at": "DATETIME(3)",
+        "processed": "BIGINT",
+        "max_latency_ms": "DOUBLE"
+      }
+    },
+    "user": {
+      "target": "sys_user",
+      "entity": "SysUser",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "username": "VARCHAR(200)",
+        "password_hash": "LONGTEXT",
+        "full_name": "LONGTEXT",
+        "phone": "LONGTEXT",
+        "role": "LONGTEXT",
+        "is_supervisor": "BOOLEAN",
+        "agent_status": "VARCHAR(32)",
+        "last_seen_at": "DATETIME(3)",
+        "failed_login_attempts": "INTEGER",
+        "locked_until": "DATETIME(3)",
+        "token_version": "INTEGER",
+        "last_login_at": "DATETIME(3)",
+        "enabled": "BOOLEAN",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "contact": {
+      "target": "contact",
+      "entity": "Contact",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "phone": "VARCHAR(32)",
+        "name": "LONGTEXT",
+        "tags": "LONGTEXT",
+        "consent_state": "VARCHAR(32)",
+        "consented_at": "DATETIME(3)",
+        "consented_by": "LONGTEXT",
+        "dnc": "BOOLEAN",
+        "dnc_reason": "LONGTEXT",
+        "timezone": "LONGTEXT",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "phonesuppression": {
+      "target": "phonesuppression",
+      "entity": "PhoneSuppression",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "phone": "VARCHAR(32)",
+        "reason": "LONGTEXT",
+        "source_call_id": "CHAR(36)",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "contactimportjob": {
+      "target": "contactimportjob",
+      "entity": "ContactImportJob",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "request_key": "VARCHAR(128)",
+        "state": "VARCHAR(32)",
+        "result_json": "LONGTEXT",
+        "last_error": "VARCHAR(2000)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "taskoutbox": {
+      "target": "taskoutbox",
+      "entity": "TaskOutbox",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "task_type": "VARCHAR(64)",
+        "aggregate_id": "VARCHAR(128)",
+        "idempotency_key": "VARCHAR(255)",
+        "payload_json": "LONGTEXT",
+        "state": "VARCHAR(32)",
+        "attempts": "INTEGER",
+        "max_attempts": "INTEGER",
+        "available_at": "DATETIME(3)",
+        "locked_at": "DATETIME(3)",
+        "lease_token": "VARCHAR(64)",
+        "last_error": "VARCHAR(2000)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "taskreceipt": {
+      "target": "taskreceipt",
+      "entity": "TaskReceipt",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "task_type": "VARCHAR(64)",
+        "aggregate_id": "VARCHAR(128)",
+        "idempotency_key": "VARCHAR(255)",
+        "completed_at": "DATETIME(3)"
+      }
+    },
+    "telephonyline": {
+      "target": "telephonyline",
+      "entity": "TelephonyLine",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "name": "VARCHAR(200)",
+        "provider": "VARCHAR(100)",
+        "gateway_url": "VARCHAR(1000)",
+        "caller_id": "VARCHAR(64)",
+        "max_concurrency": "INTEGER",
+        "priority": "INTEGER",
+        "weight": "INTEGER",
+        "credential_ref": "VARCHAR(128)",
+        "enabled": "BOOLEAN",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "scripttemplate": {
+      "target": "scripttemplate",
+      "entity": "ScriptTemplate",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "name": "LONGTEXT",
+        "content": "LONGTEXT",
+        "category": "LONGTEXT",
+        "description": "LONGTEXT",
+        "tags": "LONGTEXT",
+        "is_active": "BOOLEAN",
+        "version": "INTEGER",
+        "created_by": "INTEGER",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "adminsetting": {
+      "target": "adminsetting",
+      "entity": "AdminSetting",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "section": "VARCHAR(64)",
+        "data_json": "LONGTEXT",
+        "updated_by": "INTEGER",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "auditlog": {
+      "target": "auditlog",
+      "entity": "AuditLog",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "actor_user_id": "INTEGER",
+        "actor_username": "VARCHAR(200)",
+        "action": "VARCHAR(100)",
+        "resource_type": "VARCHAR(100)",
+        "resource_id": "VARCHAR(200)",
+        "detail": "VARCHAR(4000)",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "scriptflowversion": {
+      "target": "scriptflowversion",
+      "entity": "ScriptFlowVersion",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "script_template_id": "INTEGER",
+        "version": "INTEGER",
+        "name": "LONGTEXT",
+        "description": "LONGTEXT",
+        "status": "VARCHAR(32)",
+        "graph_json": "LONGTEXT",
+        "created_by": "INTEGER",
+        "published_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "campaign": {
+      "target": "campaign",
+      "entity": "Campaign",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "name": "LONGTEXT",
+        "script": "LONGTEXT",
+        "script_template_id": "INTEGER",
+        "script_flow_version_id": "INTEGER",
+        "mode": "VARCHAR(32)",
+        "concurrency": "INTEGER",
+        "retry_limit": "INTEGER",
+        "retry_interval_sec": "INTEGER",
+        "attempt_interval_sec": "INTEGER",
+        "recording_enabled": "BOOLEAN",
+        "hangup_sms_enabled": "BOOLEAN",
+        "voice_ai_pipeline": "VARCHAR(16)",
+        "created_by": "INTEGER",
+        "status": "LONGTEXT",
+        "dispatch_enabled": "BOOLEAN",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "scenarioversion": {
+      "target": "scenarioversion",
+      "entity": "ScenarioVersion",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "policy_json": "LONGTEXT",
+        "published_by": "INTEGER",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "campaigncontact": {
+      "target": "campaigncontact",
+      "entity": "CampaignContact",
+      "columns": {
+        "id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "contact_id": "INTEGER",
+        "contact_order": "INTEGER",
+        "is_active": "BOOLEAN"
+      }
+    },
+    "callsession": {
+      "target": "callsession",
+      "entity": "CallSession",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "campaign_id": "INTEGER",
+        "script_flow_version_id": "INTEGER",
+        "flow_node_key": "VARCHAR(128)",
+        "contact_id": "INTEGER",
+        "campaign_contact_key": "VARCHAR(128)",
+        "phone": "LONGTEXT",
+        "mode": "VARCHAR(32)",
+        "status": "VARCHAR(32)",
+        "attempts": "INTEGER",
+        "max_attempts": "INTEGER",
+        "last_error": "LONGTEXT",
+        "human_agent_id": "INTEGER",
+        "handoff_reason": "LONGTEXT",
+        "recording_url": "LONGTEXT",
+        "ai_session_id": "LONGTEXT",
+        "telephony_call_id": "LONGTEXT",
+        "telephony_line_id": "INTEGER",
+        "gateway_node_id": "VARCHAR(64)",
+        "gateway_endpoint": "VARCHAR(512)",
+        "conversation_id": "LONGTEXT",
+        "voice_ai_pipeline": "VARCHAR(16)",
+        "last_transcript": "LONGTEXT",
+        "summary": "LONGTEXT",
+        "started_at": "DATETIME(3)",
+        "finished_at": "DATETIME(3)",
+        "next_attempt_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "knowledgeitem": {
+      "target": "knowledgeitem",
+      "entity": "KnowledgeItem",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "title": "VARCHAR(300)",
+        "content": "LONGTEXT",
+        "category": "VARCHAR(100)",
+        "keywords": "VARCHAR(2000)",
+        "source": "VARCHAR(2000)",
+        "valid_from": "DATETIME(3)",
+        "valid_until": "DATETIME(3)",
+        "campaign_id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "version": "INTEGER",
+        "created_by": "INTEGER",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "conversationstate": {
+      "target": "conversationstate",
+      "entity": "ConversationState",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_id": "CHAR(36)",
+        "attempt": "INTEGER",
+        "policy_json": "LONGTEXT",
+        "policy_version_id": "INTEGER",
+        "data_json": "LONGTEXT",
+        "generation": "INTEGER",
+        "deadline": "DATETIME(3)",
+        "timer_kind": "LONGTEXT",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "callbackappointment": {
+      "target": "callbackappointment",
+      "entity": "CallbackAppointment",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "source_call_id": "CHAR(36)",
+        "request_key": "VARCHAR(200)",
+        "scheduled_at": "DATETIME(3)",
+        "state": "LONGTEXT",
+        "revision": "INTEGER",
+        "dial_call_id": "CHAR(36)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "productworkitem": {
+      "target": "productworkitem",
+      "entity": "ProductWorkItem",
+      "columns": {
+        "id": "CHAR(36)",
+        "tenant_id": "INTEGER",
+        "event_key": "VARCHAR(250)",
+        "call_id": "CHAR(36)",
+        "kind": "LONGTEXT",
+        "state": "LONGTEXT",
+        "phone": "LONGTEXT",
+        "detail_json": "LONGTEXT",
+        "assigned_to": "INTEGER",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "callevent": {
+      "target": "callevent",
+      "entity": "CallEvent",
+      "columns": {
+        "id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "event_type": "VARCHAR(64)",
+        "source": "LONGTEXT",
+        "payload": "LONGTEXT",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "realtimesession": {
+      "target": "realtimesession",
+      "entity": "RealtimeSession",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "provider_session_id": "VARCHAR(255)",
+        "attempt": "INTEGER",
+        "state": "VARCHAR(32)",
+        "codec": "VARCHAR(32)",
+        "sample_rate": "INTEGER",
+        "channel_count": "INTEGER",
+        "last_event_sequence": "INTEGER",
+        "turn_sequence": "INTEGER",
+        "playback_id": "VARCHAR(255)",
+        "started_at": "DATETIME(3)",
+        "ended_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "speechturn": {
+      "target": "speechturn",
+      "entity": "SpeechTurn",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "provider_event_key": "VARCHAR(128)",
+        "turn_index": "INTEGER",
+        "attempt": "INTEGER",
+        "speaker_role": "VARCHAR(32)",
+        "channel_id": "VARCHAR(64)",
+        "transcript": "LONGTEXT",
+        "normalized_transcript": "LONGTEXT",
+        "is_final": "BOOLEAN",
+        "confidence": "DOUBLE",
+        "start_ms": "INTEGER",
+        "end_ms": "INTEGER",
+        "asr_provider": "VARCHAR(100)",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "callmetric": {
+      "target": "callmetric",
+      "entity": "CallMetric",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "stage": "VARCHAR(64)",
+        "provider": "VARCHAR(100)",
+        "duration_ms": "INTEGER",
+        "success": "BOOLEAN",
+        "error_code": "VARCHAR(100)",
+        "detail": "VARCHAR(2000)",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "recordingasset": {
+      "target": "recordingasset",
+      "entity": "RecordingAsset",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "attempt": "INTEGER",
+        "provider_recording_id": "VARCHAR(255)",
+        "provider_url": "VARCHAR(2000)",
+        "storage_uri": "VARCHAR(2000)",
+        "state": "VARCHAR(32)",
+        "duration_sec": "INTEGER",
+        "media_format": "VARCHAR(32)",
+        "channel_count": "INTEGER",
+        "checksum_sha256": "VARCHAR(64)",
+        "retention_until": "DATETIME(3)",
+        "deleted_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "callanalysis": {
+      "target": "callanalysis",
+      "entity": "CallAnalysis",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "result_code": "VARCHAR(64)",
+        "sentiment": "VARCHAR(32)",
+        "intent": "VARCHAR(100)",
+        "summary": "LONGTEXT",
+        "qa_score": "INTEGER",
+        "qa_flags_json": "LONGTEXT",
+        "structured_json": "LONGTEXT",
+        "automatic_result_json": "LONGTEXT",
+        "needs_review": "BOOLEAN",
+        "review_state": "VARCHAR(32)",
+        "reviewed_by": "INTEGER",
+        "reviewed_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "handoffrequest": {
+      "target": "handoffrequest",
+      "entity": "HandoffRequest",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "assigned_agent_id": "INTEGER",
+        "state": "VARCHAR(32)",
+        "reason": "VARCHAR(500)",
+        "target_group": "VARCHAR(200)",
+        "requested_at": "DATETIME(3)",
+        "responded_at": "DATETIME(3)",
+        "completed_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "webhookeventingest": {
+      "target": "webhookeventingest",
+      "entity": "WebhookEventIngest",
+      "columns": {
+        "id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "event_type": "LONGTEXT",
+        "source": "LONGTEXT",
+        "provider_event_key": "VARCHAR(64)",
+        "repeat_count": "INTEGER",
+        "created_at": "DATETIME(3)"
+      }
+    },
+    "smslog": {
+      "target": "smslog",
+      "entity": "SmsLog",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "to_phone": "LONGTEXT",
+        "template_code": "LONGTEXT",
+        "content": "LONGTEXT",
+        "state": "LONGTEXT",
+        "provider_message_id": "VARCHAR(255)",
+        "provider_error": "VARCHAR(2000)",
+        "sent_at": "DATETIME(3)",
+        "created_at": "DATETIME(3)",
+        "updated_at": "DATETIME(3)"
+      }
+    },
+    "callusage": {
+      "target": "callusage",
+      "entity": "CallUsage",
+      "columns": {
+        "id": "INTEGER",
+        "tenant_id": "INTEGER",
+        "call_session_id": "CHAR(36)",
+        "attempt": "INTEGER",
+        "answered_at": "DATETIME(3)",
+        "ended_at": "DATETIME(3)",
+        "ai_ended_at": "DATETIME(3)",
+        "telephony_seconds": "DOUBLE",
+        "ai_seconds": "DOUBLE",
+        "duration_source": "LONGTEXT",
+        "created_at": "DATETIME(3)"
+      }
+    }
+  },
+  "indexed_unbounded_mappings": [
+    {
+      "table": "tenant",
+      "column": "code",
+      "target": "VARCHAR(64)",
+      "source_limit_evidence": "Bootstrap emits java-dev- plus an integer tenant id"
+    },
+    {
+      "table": "user",
+      "column": "username",
+      "target": "VARCHAR(200)",
+      "source_limit_evidence": "AdminUserCreate/LoginRequest maxLength=200"
+    },
+    {
+      "table": "contact",
+      "column": "phone",
+      "target": "VARCHAR(32)",
+      "source_limit_evidence": "ContactCreate/Incoming/StartCallRequest maxLength=32"
+    },
+    {
+      "table": "phonesuppression",
+      "column": "phone",
+      "target": "VARCHAR(32)",
+      "source_limit_evidence": "same contact/call phone after Contacts.phone"
+    },
+    {
+      "table": "webhookeventingest",
+      "column": "provider_event_key",
+      "target": "VARCHAR(64)",
+      "source_limit_evidence": "CallLifecycle.event uses SHA-256 hex"
+    }
+  ]
+}

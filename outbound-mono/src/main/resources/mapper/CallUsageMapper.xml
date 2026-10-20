@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.CallUsageMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.CallUsage">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="call_session_id" property="callSessionId" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="attempt" property="attempt" javaType="java.lang.Integer"/>
+    <result column="answered_at" property="answeredAt" javaType="java.time.LocalDateTime"/>
+    <result column="ended_at" property="endedAt" javaType="java.time.LocalDateTime"/>
+    <result column="ai_ended_at" property="aiEndedAt" javaType="java.time.LocalDateTime"/>
+    <result column="telephony_seconds" property="telephonySeconds" javaType="java.lang.Double"/>
+    <result column="ai_seconds" property="aiSeconds" javaType="java.lang.Double"/>
+    <result column="duration_source" property="durationSource" javaType="java.lang.String"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `callusage`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `call_session_id`,
+      `attempt`,
+      `answered_at`,
+      `ended_at`,
+      `ai_ended_at`,
+      `telephony_seconds`,
+      `ai_seconds`,
+      `duration_source`,
+      `created_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.attempt,jdbcType=INTEGER},
+      #{row.answeredAt,jdbcType=TIMESTAMP},
+      #{row.endedAt,jdbcType=TIMESTAMP},
+      #{row.aiEndedAt,jdbcType=TIMESTAMP},
+      #{row.telephonySeconds,jdbcType=DOUBLE},
+      #{row.aiSeconds,jdbcType=DOUBLE},
+      #{row.durationSource,jdbcType=LONGVARCHAR},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `callusage`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `call_session_id`,
+      `attempt`,
+      `answered_at`,
+      `ended_at`,
+      `ai_ended_at`,
+      `telephony_seconds`,
+      `ai_seconds`,
+      `duration_source`,
+      `created_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.attempt,jdbcType=INTEGER},
+      #{row.answeredAt,jdbcType=TIMESTAMP},
+      #{row.endedAt,jdbcType=TIMESTAMP},
+      #{row.aiEndedAt,jdbcType=TIMESTAMP},
+      #{row.telephonySeconds,jdbcType=DOUBLE},
+      #{row.aiSeconds,jdbcType=DOUBLE},
+      #{row.durationSource,jdbcType=LONGVARCHAR},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `call_session_id`, `attempt`, `answered_at`, `ended_at`, `ai_ended_at`, `telephony_seconds`, `ai_seconds`, `duration_source`, `created_at` FROM `callusage` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `callusage` SET
+      `call_session_id` = #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      `attempt` = #{row.attempt,jdbcType=INTEGER},
+      `answered_at` = #{row.answeredAt,jdbcType=TIMESTAMP},
+      `ended_at` = #{row.endedAt,jdbcType=TIMESTAMP},
+      `ai_ended_at` = #{row.aiEndedAt,jdbcType=TIMESTAMP},
+      `telephony_seconds` = #{row.telephonySeconds,jdbcType=DOUBLE},
+      `ai_seconds` = #{row.aiSeconds,jdbcType=DOUBLE},
+      `duration_source` = #{row.durationSource,jdbcType=LONGVARCHAR}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `callusage` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `call_session_id`, `attempt`, `answered_at`, `ended_at`, `ai_ended_at`, `telephony_seconds`, `ai_seconds`, `duration_source`, `created_at` FROM `callusage`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `callusage`
+    <set>
+      <if test="changes.containsKey('call_session_id')">`call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('attempt')">`attempt` = #{changes.attempt,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('answered_at')">`answered_at` = #{changes.answered_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('ended_at')">`ended_at` = #{changes.ended_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('ai_ended_at')">`ai_ended_at` = #{changes.ai_ended_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('telephony_seconds')">`telephony_seconds` = #{changes.telephony_seconds,jdbcType=DOUBLE},</if>
+      <if test="changes.containsKey('ai_seconds')">`ai_seconds` = #{changes.ai_seconds,jdbcType=DOUBLE},</if>
+      <if test="changes.containsKey('duration_source')">`duration_source` = #{changes.duration_source,jdbcType=VARCHAR},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="sourceReports125_3" resultMap="row">SELECT * FROM `callusage` WHERE tenant_id=#{tenantId} AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id=#{tenantId} AND created_at&gt;=#{p2})</select>
+  <select id="scopedCallLifecycle80" resultMap="row">SELECT * FROM `callusage` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND attempt=#{p1})</select>
+  <select id="rawProductOperations61_1" resultType="java.util.LinkedHashMap">SELECT COUNT(*) AS answered_attempts,COUNT(DISTINCT c.phone) AS answered_phones FROM callusage u JOIN callsession c ON c.id=u.call_session_id WHERE u.tenant_id=#{tenantId} AND u.answered_at&gt;=#{p1}</select>
+</mapper>

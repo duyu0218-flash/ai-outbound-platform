@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.TaskReceiptMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.TaskReceipt">
+    <id column="id" property="id" javaType="java.util.UUID" typeHandler="com.duozhi.outbound.mapper.typehandler.UuidTypeHandler"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="task_type" property="taskType" javaType="java.lang.String"/>
+    <result column="aggregate_id" property="aggregateId" javaType="java.lang.String"/>
+    <result column="idempotency_key" property="idempotencyKey" javaType="java.lang.String"/>
+    <result column="completed_at" property="completedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert">
+    INSERT INTO `taskreceipt`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      `id`,
+      `tenant_id`,
+      `task_type`,
+      `aggregate_id`,
+      `idempotency_key`,
+      `completed_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler},
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.taskType,jdbcType=VARCHAR},
+      #{row.aggregateId,jdbcType=VARCHAR},
+      #{row.idempotencyKey,jdbcType=VARCHAR},
+      #{row.completedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `completed_at` FROM `taskreceipt` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `taskreceipt` SET
+      `task_type` = #{row.taskType,jdbcType=VARCHAR},
+      `aggregate_id` = #{row.aggregateId,jdbcType=VARCHAR},
+      `idempotency_key` = #{row.idempotencyKey,jdbcType=VARCHAR},
+      `completed_at` = #{row.completedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `taskreceipt` WHERE `id` = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `completed_at` FROM `taskreceipt`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `taskreceipt`
+    <set>
+      <if test="changes.containsKey('task_type')">`task_type` = #{changes.task_type,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('aggregate_id')">`aggregate_id` = #{changes.aggregate_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('idempotency_key')">`idempotency_key` = #{changes.idempotency_key,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('completed_at')">`completed_at` = #{changes.completed_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="findByIdempotencyKey" resultMap="row">SELECT * FROM taskreceipt WHERE tenant_id = #{tenantId} AND idempotency_key = #{key}</select>
+</mapper>

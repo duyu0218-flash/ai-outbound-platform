@@ -1,0 +1,2204 @@
+{
+  "tenant": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "name": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "code": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "user": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "username": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "password_hash": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "full_name": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "phone": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "role": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "agent"
+    },
+    "is_supervisor": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "agent_status": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "offline"
+    },
+    "last_seen_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "failed_login_attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "locked_until": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "token_version": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "last_login_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "contact": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "phone": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "name": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "tags": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "consent_state": {
+      "type": "VARCHAR(13)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "CONSENTED": "consented",
+        "NOT_CONSENTED": "not_consented",
+        "REVOKED": "revoked",
+        "UNKNOWN": "unknown"
+      },
+      "default": "unknown"
+    },
+    "consented_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "consented_by": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "dnc": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "dnc_reason": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "timezone": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false,
+      "default": "Asia/Shanghai"
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "scenarioversion": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "campaign_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "policy_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "published_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "conversationstate": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "attempt": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "policy_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "policy_version_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "data_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "generation": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "deadline": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "timer_kind": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "phonesuppression": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "phone": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "reason": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "source_call_id": {
+      "type": "CHAR(32)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callbackappointment": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true,
+      "factory": "uuid"
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "source_call_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "request_key": {
+      "type": "VARCHAR(200)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "scheduled_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "confirmed"
+    },
+    "revision": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "dial_call_id": {
+      "type": "CHAR(32)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "productworkitem": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true,
+      "factory": "uuid"
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "event_key": {
+      "type": "VARCHAR(250)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_id": {
+      "type": "CHAR(32)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "kind": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "open"
+    },
+    "phone": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "detail_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "assigned_to": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "contactimportjob": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true,
+      "factory": "uuid"
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "request_key": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "processing"
+    },
+    "result_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "last_error": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "campaign": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "name": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "script": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "script_template_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "script_flow_version_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "mode": {
+      "type": "VARCHAR(17)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "HUMAN_ONLY": "human_only",
+        "AI_ONLY": "ai_only",
+        "AI_HANDOFF": "ai_handoff",
+        "AI_WITH_SMS": "ai_with_sms",
+        "MIXED_HUMAN_FIRST": "mixed_human_first"
+      },
+      "default": "ai_handoff"
+    },
+    "concurrency": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 5
+    },
+    "retry_limit": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "retry_interval_sec": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 30
+    },
+    "attempt_interval_sec": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1800
+    },
+    "recording_enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "hangup_sms_enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "voice_ai_pipeline": {
+      "type": "VARCHAR(16)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "inherit"
+    },
+    "created_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "status": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "draft"
+    },
+    "dispatch_enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "campaigncontact": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "campaign_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "contact_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "contact_order": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "is_active": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    }
+  },
+  "scripttemplate": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "name": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "content": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "category": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "default"
+    },
+    "description": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "tags": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "is_active": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "version": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "created_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "scriptflowversion": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "script_template_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "version": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "name": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "description": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "status": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "draft"
+    },
+    "graph_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "created_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "published_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "gatewaynode": {
+    "id": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": true
+    },
+    "endpoint": {
+      "type": "VARCHAR(512)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "capacity": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "ready": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "checked_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "next_dial_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    }
+  },
+  "callsession": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true,
+      "factory": "uuid"
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "campaign_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "script_flow_version_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "flow_node_key": {
+      "type": "VARCHAR(128)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "contact_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "campaign_contact_key": {
+      "type": "VARCHAR(128)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "phone": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "mode": {
+      "type": "VARCHAR(17)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "HUMAN_ONLY": "human_only",
+        "AI_ONLY": "ai_only",
+        "AI_HANDOFF": "ai_handoff",
+        "AI_WITH_SMS": "ai_with_sms",
+        "MIXED_HUMAN_FIRST": "mixed_human_first"
+      }
+    },
+    "status": {
+      "type": "VARCHAR(20)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "CREATED": "created",
+        "QUEUED": "queued",
+        "DIALING": "dialing",
+        "ANSWERED": "answered",
+        "IN_AI": "in_ai",
+        "WAITING_HUMAN": "waiting_human",
+        "HANDOFF_TRANSFERRING": "handoff_transferring",
+        "IN_HUMAN": "in_human",
+        "COMPLETED": "completed",
+        "FAILED": "failed",
+        "NO_ANSWER": "no_answer",
+        "BUSY": "busy",
+        "VOICEMAIL": "voicemail"
+      },
+      "default": "created"
+    },
+    "attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "max_attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "last_error": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "human_agent_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "handoff_reason": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "recording_url": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "ai_session_id": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "telephony_call_id": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "telephony_line_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "gateway_node_id": {
+      "type": "VARCHAR(64)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "gateway_endpoint": {
+      "type": "VARCHAR(512)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "conversation_id": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "voice_ai_pipeline": {
+      "type": "VARCHAR(16)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "pending"
+    },
+    "last_transcript": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "summary": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "started_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "finished_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "next_attempt_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callevent": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "event_type": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "source": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "platform"
+    },
+    "payload": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "realtimesession": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "provider_session_id": {
+      "type": "VARCHAR(255)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "attempt": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "state": {
+      "type": "VARCHAR(11)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "CREATED": "created",
+        "LISTENING": "listening",
+        "THINKING": "thinking",
+        "SPEAKING": "speaking",
+        "INTERRUPTED": "interrupted",
+        "CLOSED": "closed"
+      },
+      "default": "created"
+    },
+    "codec": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "pcm_s16le"
+    },
+    "sample_rate": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 16000
+    },
+    "channel_count": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "last_event_sequence": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "turn_sequence": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "playback_id": {
+      "type": "VARCHAR(255)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "started_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "ended_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "speechturn": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "provider_event_key": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "turn_index": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "attempt": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "speaker_role": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "customer"
+    },
+    "channel_id": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "inbound"
+    },
+    "transcript": {
+      "type": "VARCHAR(100000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "normalized_transcript": {
+      "type": "VARCHAR(100000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "is_final": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "confidence": {
+      "type": "FLOAT",
+      "nullable": true,
+      "primary_key": false
+    },
+    "start_ms": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "end_ms": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "asr_provider": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callmetric": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "stage": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "provider": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "duration_ms": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "success": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "error_code": {
+      "type": "VARCHAR(100)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "detail": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "taskoutbox": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true,
+      "factory": "uuid"
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "task_type": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "aggregate_id": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "idempotency_key": {
+      "type": "VARCHAR(255)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "payload_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "state": {
+      "type": "VARCHAR(10)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "PENDING": "pending",
+        "PROCESSING": "processing",
+        "COMPLETED": "completed",
+        "FAILED": "failed",
+        "DEAD": "dead"
+      },
+      "default": "pending"
+    },
+    "attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "max_attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 5
+    },
+    "available_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "locked_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "lease_token": {
+      "type": "VARCHAR(64)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "last_error": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "taskreceipt": {
+    "id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "task_type": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "aggregate_id": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "idempotency_key": {
+      "type": "VARCHAR(255)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "completed_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "recordingasset": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "attempt": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "provider_recording_id": {
+      "type": "VARCHAR(255)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "provider_url": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "storage_uri": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "state": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "available"
+    },
+    "duration_sec": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "media_format": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "channel_count": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "checksum_sha256": {
+      "type": "VARCHAR(64)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "retention_until": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "deleted_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callanalysis": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "result_code": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "unknown"
+    },
+    "sentiment": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "neutral"
+    },
+    "intent": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "unknown"
+    },
+    "summary": {
+      "type": "VARCHAR(10000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "qa_score": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "qa_flags_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "[]"
+    },
+    "structured_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "automatic_result_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "needs_review": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": false
+    },
+    "review_state": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "auto"
+    },
+    "reviewed_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "reviewed_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "knowledgeitem": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "title": {
+      "type": "VARCHAR(300)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "content": {
+      "type": "VARCHAR(50000)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "category": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "default"
+    },
+    "keywords": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "source": {
+      "type": "VARCHAR(2000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "valid_from": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "valid_until": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "campaign_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "is_active": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "version": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "created_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "handoffrequest": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "assigned_agent_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR(9)",
+      "nullable": false,
+      "primary_key": false,
+      "enum": {
+        "WAITING": "waiting",
+        "ACCEPTING": "accepting",
+        "ACCEPTED": "accepted",
+        "REJECTED": "rejected",
+        "COMPLETED": "completed",
+        "EXPIRED": "expired"
+      },
+      "default": "waiting"
+    },
+    "reason": {
+      "type": "VARCHAR(500)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "target_group": {
+      "type": "VARCHAR(200)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "requested_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "responded_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "completed_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "webhookeventingest": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "event_type": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "source": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "provider_event_key": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "repeat_count": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "smslog": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "to_phone": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "template_code": {
+      "type": "VARCHAR",
+      "nullable": true,
+      "primary_key": false
+    },
+    "content": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "pending"
+    },
+    "provider_message_id": {
+      "type": "VARCHAR(255)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "provider_error": {
+      "type": "VARCHAR(2000)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "sent_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "telephonyline": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "name": {
+      "type": "VARCHAR(200)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "provider": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "http"
+    },
+    "gateway_url": {
+      "type": "VARCHAR(1000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "caller_id": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "max_concurrency": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 10
+    },
+    "priority": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 100
+    },
+    "weight": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 1
+    },
+    "credential_ref": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "enabled": {
+      "type": "BOOLEAN",
+      "nullable": false,
+      "primary_key": false,
+      "default": true
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "adminsetting": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "section": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "data_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "{}"
+    },
+    "updated_by": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "updated_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "auditlog": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "actor_user_id": {
+      "type": "INTEGER",
+      "nullable": true,
+      "primary_key": false
+    },
+    "actor_username": {
+      "type": "VARCHAR(200)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "system"
+    },
+    "action": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "resource_type": {
+      "type": "VARCHAR(100)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "resource_id": {
+      "type": "VARCHAR(200)",
+      "nullable": true,
+      "primary_key": false
+    },
+    "detail": {
+      "type": "VARCHAR(4000)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callusage": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "tenant_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_session_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "attempt": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "answered_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "ended_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "ai_ended_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "telephony_seconds": {
+      "type": "FLOAT",
+      "nullable": true,
+      "primary_key": false
+    },
+    "ai_seconds": {
+      "type": "FLOAT",
+      "nullable": true,
+      "primary_key": false
+    },
+    "duration_source": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false,
+      "default": "missing"
+    },
+    "created_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    }
+  },
+  "callbackinboxpartition": {
+    "id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": true
+    },
+    "pending_count": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "pending_bytes": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    }
+  },
+  "callbackinbox": {
+    "id": {
+      "type": "BIGINT",
+      "nullable": false,
+      "primary_key": true
+    },
+    "receipt_key": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "partition_id": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "call_id": {
+      "type": "CHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "kind": {
+      "type": "VARCHAR(32)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "body_json": {
+      "type": "VARCHAR",
+      "nullable": false,
+      "primary_key": false
+    },
+    "body_digest": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": false
+    },
+    "body_bytes": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false
+    },
+    "state": {
+      "type": "VARCHAR(16)",
+      "nullable": false,
+      "primary_key": false,
+      "default": "pending"
+    },
+    "received_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "available_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "completed_at": {
+      "type": "DATETIME",
+      "nullable": true,
+      "primary_key": false
+    },
+    "attempts": {
+      "type": "INTEGER",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    },
+    "error_type": {
+      "type": "VARCHAR(128)",
+      "nullable": false,
+      "primary_key": false,
+      "default": ""
+    }
+  },
+  "callbackinboxworker": {
+    "id": {
+      "type": "VARCHAR(64)",
+      "nullable": false,
+      "primary_key": true
+    },
+    "heartbeat_at": {
+      "type": "DATETIME",
+      "nullable": false,
+      "primary_key": false,
+      "factory": "now"
+    },
+    "processed": {
+      "type": "BIGINT",
+      "nullable": false,
+      "primary_key": false
+    },
+    "max_latency_ms": {
+      "type": "FLOAT",
+      "nullable": false,
+      "primary_key": false,
+      "default": 0
+    }
+  }
+}

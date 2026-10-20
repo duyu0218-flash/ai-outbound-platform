@@ -1,0 +1,278 @@
+export const settingFields={
+  "capacity": [
+    {
+      "key": "max_concurrent_calls",
+      "label": "tenantCallCapacity",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 10000,
+      "hint": "tenantCallCapacityHint"
+    }
+  ],
+  "ai": [
+    {
+      "key": "enabled",
+      "label": "aiEnabled",
+      "type": "boolean"
+    },
+    {
+      "key": "external_llm_enabled",
+      "label": "externalLlmEnabled",
+      "type": "boolean"
+    },
+    {
+      "key": "agent_url",
+      "label": "agentUrl",
+      "required": true,
+      "readonly": true
+    },
+    {
+      "key": "llm_provider",
+      "label": "llmProvider",
+      "options": [
+        "rule",
+        "openai-compatible"
+      ]
+    },
+    {
+      "key": "llm_model",
+      "label": "llmModel"
+    },
+    {
+      "key": "asr_provider",
+      "label": "asrProvider"
+    },
+    {
+      "key": "tts_provider",
+      "label": "ttsProvider"
+    },
+    {
+      "key": "voice",
+      "label": "voice"
+    },
+    {
+      "key": "voice_ai_pipeline",
+      "label": "defaultVoiceAiPipeline",
+      "options": [
+        "legacy",
+        "pipecat"
+      ]
+    },
+    {
+      "key": "pipecat_canary_percent",
+      "label": "pipecatCanaryPercent",
+      "type": "number",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "language",
+      "label": "language",
+      "options": [
+        "zh-CN",
+        "en-US"
+      ]
+    },
+    {
+      "key": "conversation_history_turns",
+      "label": "historyTurns",
+      "type": "number",
+      "min": 1,
+      "max": 50
+    },
+    {
+      "key": "max_reply_chars",
+      "label": "maxReplyChars",
+      "type": "number",
+      "min": 20,
+      "max": 2000
+    },
+    {
+      "key": "forbidden_phrases",
+      "label": "forbiddenPhrases"
+    },
+    {
+      "key": "fallback_reply",
+      "label": "fallbackReply",
+      "required": true,
+      "type": "textarea",
+      "rows": 2
+    }
+  ],
+  "sms": [
+    {
+      "key": "enabled",
+      "label": "smsEnabled",
+      "type": "boolean"
+    },
+    {
+      "key": "provider",
+      "label": "provider",
+      "options": [
+        "mock",
+        "http"
+      ]
+    },
+    {
+      "key": "sender_id",
+      "label": "senderId"
+    },
+    {
+      "key": "endpoint",
+      "label": "endpoint",
+      "readonly": true
+    },
+    {
+      "key": "hangup_template",
+      "label": "hangupTemplate",
+      "type": "textarea",
+      "rows": 4
+    }
+  ],
+  "compliance": [
+    {
+      "key": "dnc_enforced",
+      "label": "dncEnforced",
+      "type": "boolean"
+    },
+    {
+      "key": "require_explicit_consent",
+      "label": "requireExplicitConsent",
+      "type": "boolean"
+    },
+    {
+      "key": "recording_notice",
+      "label": "recordingNotice",
+      "type": "boolean"
+    },
+    {
+      "key": "max_attempts_per_day",
+      "label": "maxAttemptsDay",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 20
+    },
+    {
+      "key": "recording_notice_text",
+      "label": "recordingNoticeText",
+      "required": true,
+      "type": "textarea",
+      "rows": 2,
+      "maxlength": 500
+    },
+    {
+      "key": "allowed_phone_prefixes",
+      "label": "allowedPhonePrefixes",
+      "hint": "allowedPhonePrefixesHint"
+    },
+    {
+      "key": "max_calls_per_day",
+      "label": "maxCallsPerDay",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 10000000
+    },
+    {
+      "key": "min_attempt_interval_sec",
+      "label": "minAttemptInterval",
+      "required": true,
+      "type": "number",
+      "min": 0,
+      "max": 604800,
+      "hint": "minAttemptIntervalHint"
+    },
+    {
+      "key": "recording_retention_days",
+      "label": "recordingRetentionDays",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "partial_transcript_retention_hours",
+      "label": "partialTranscriptRetentionHours",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 720
+    },
+    {
+      "key": "final_transcript_retention_days",
+      "label": "finalTranscriptRetentionDays",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "call_sensitive_data_retention_days",
+      "label": "callSensitiveDataRetentionDays",
+      "required": true,
+      "type": "number",
+      "min": 1,
+      "max": 3650
+    },
+    {
+      "key": "allowed_start_hour",
+      "label": "startHour",
+      "required": true,
+      "type": "number",
+      "min": 0,
+      "max": 23
+    },
+    {
+      "key": "allowed_end_hour",
+      "label": "endHour",
+      "required": true,
+      "type": "number",
+      "min": 0,
+      "max": 23
+    },
+    {
+      "key": "timezone",
+      "label": "timezone",
+      "required": true
+    }
+  ],
+  "integration": [
+    {
+      "key": "callback_enabled",
+      "label": "callbackEnabled",
+      "type": "boolean"
+    },
+    {
+      "key": "webhook_base_url",
+      "label": "webhookBaseUrl"
+    },
+    {
+      "key": "webhook_secret_ref",
+      "label": "webhookSecretRef",
+      "hint": "webhookSecretHint"
+    },
+    {
+      "key": "webhook_timeout_sec",
+      "label": "webhookTimeout",
+      "type": "number",
+      "min": 1,
+      "max": 120
+    },
+    {
+      "key": "webhook_retry_times",
+      "label": "webhookRetryTimes",
+      "type": "number",
+      "min": 0,
+      "max": 10
+    },
+    {
+      "key": "webhook_retry_backoff_sec",
+      "label": "webhookRetryBackoff",
+      "type": "number",
+      "min": 1,
+      "max": 60
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.KnowledgeItemMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.KnowledgeItem">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="title" property="title" javaType="java.lang.String"/>
+    <result column="content" property="content" javaType="java.lang.String"/>
+    <result column="category" property="category" javaType="java.lang.String"/>
+    <result column="keywords" property="keywords" javaType="java.lang.String"/>
+    <result column="source" property="source" javaType="java.lang.String"/>
+    <result column="valid_from" property="validFrom" javaType="java.time.LocalDateTime"/>
+    <result column="valid_until" property="validUntil" javaType="java.time.LocalDateTime"/>
+    <result column="campaign_id" property="campaignId" javaType="java.lang.Integer"/>
+    <result column="is_active" property="isActive" javaType="java.lang.Boolean"/>
+    <result column="version" property="version" javaType="java.lang.Integer"/>
+    <result column="created_by" property="createdBy" javaType="java.lang.Integer"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `knowledgeitem`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `title`,
+      `content`,
+      `category`,
+      `keywords`,
+      `source`,
+      `valid_from`,
+      `valid_until`,
+      `campaign_id`,
+      `is_active`,
+      `version`,
+      `created_by`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.title,jdbcType=VARCHAR},
+      #{row.content,jdbcType=LONGVARCHAR},
+      #{row.category,jdbcType=VARCHAR},
+      #{row.keywords,jdbcType=VARCHAR},
+      #{row.source,jdbcType=VARCHAR},
+      #{row.validFrom,jdbcType=TIMESTAMP},
+      #{row.validUntil,jdbcType=TIMESTAMP},
+      #{row.campaignId,jdbcType=INTEGER},
+      #{row.isActive,jdbcType=BOOLEAN},
+      #{row.version,jdbcType=INTEGER},
+      #{row.createdBy,jdbcType=INTEGER},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `knowledgeitem`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `title`,
+      `content`,
+      `category`,
+      `keywords`,
+      `source`,
+      `valid_from`,
+      `valid_until`,
+      `campaign_id`,
+      `is_active`,
+      `version`,
+      `created_by`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.title,jdbcType=VARCHAR},
+      #{row.content,jdbcType=LONGVARCHAR},
+      #{row.category,jdbcType=VARCHAR},
+      #{row.keywords,jdbcType=VARCHAR},
+      #{row.source,jdbcType=VARCHAR},
+      #{row.validFrom,jdbcType=TIMESTAMP},
+      #{row.validUntil,jdbcType=TIMESTAMP},
+      #{row.campaignId,jdbcType=INTEGER},
+      #{row.isActive,jdbcType=BOOLEAN},
+      #{row.version,jdbcType=INTEGER},
+      #{row.createdBy,jdbcType=INTEGER},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `title`, `content`, `category`, `keywords`, `source`, `valid_from`, `valid_until`, `campaign_id`, `is_active`, `version`, `created_by`, `created_at`, `updated_at` FROM `knowledgeitem` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `knowledgeitem` SET
+      `title` = #{row.title,jdbcType=VARCHAR},
+      `content` = #{row.content,jdbcType=LONGVARCHAR},
+      `category` = #{row.category,jdbcType=VARCHAR},
+      `keywords` = #{row.keywords,jdbcType=VARCHAR},
+      `source` = #{row.source,jdbcType=VARCHAR},
+      `valid_from` = #{row.validFrom,jdbcType=TIMESTAMP},
+      `valid_until` = #{row.validUntil,jdbcType=TIMESTAMP},
+      `campaign_id` = #{row.campaignId,jdbcType=INTEGER},
+      `is_active` = #{row.isActive,jdbcType=BOOLEAN},
+      `version` = #{row.version,jdbcType=INTEGER},
+      `created_by` = #{row.createdBy,jdbcType=INTEGER},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `knowledgeitem` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `title`, `content`, `category`, `keywords`, `source`, `valid_from`, `valid_until`, `campaign_id`, `is_active`, `version`, `created_by`, `created_at`, `updated_at` FROM `knowledgeitem`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `knowledgeitem`
+    <set>
+      <if test="changes.containsKey('title')">`title` = #{changes.title,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('content')">`content` = #{changes.content,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('category')">`category` = #{changes.category,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('keywords')">`keywords` = #{changes.keywords,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('source')">`source` = #{changes.source,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('valid_from')">`valid_from` = #{changes.valid_from,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('valid_until')">`valid_until` = #{changes.valid_until,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('campaign_id')">`campaign_id` = #{changes.campaign_id,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('is_active')">`is_active` = #{changes.is_active,jdbcType=BOOLEAN},</if>
+      <if test="changes.containsKey('version')">`version` = #{changes.version,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('created_by')">`created_by` = #{changes.created_by,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="allKnowledge" resultMap="row">SELECT * FROM knowledgeitem WHERE tenant_id = #{tenantId} ORDER BY updated_at DESC</select>
+  <select id="lockById" resultMap="row">SELECT * FROM knowledgeitem WHERE tenant_id = #{tenantId} AND id=#{id} FOR UPDATE</select>
+  <select id="sourceAiRuntime127_4" resultMap="row">SELECT * FROM `knowledgeitem` WHERE tenant_id=#{tenantId} AND is_active=#{p1} AND (campaign_id=#{p2} OR campaign_id IS NULL)</select>
+  <select id="sourceProductOperations31_2" resultMap="row">SELECT * FROM `knowledgeitem` WHERE tenant_id=#{tenantId} AND is_active=#{p1} AND (campaign_id=#{p2} OR campaign_id IS NULL) ORDER BY id LIMIT 501</select>
+</mapper>
