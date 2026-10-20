@@ -32,7 +32,7 @@
       "log": "outbound-batch-safety10.log",
       "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
     },
-    "latest_changes": "Human routing sweep moved off shared scheduler with one pending sweep; fact queries chunked at 100 in global call lock order; claim mutex acquired before JDBC transaction; callback UUID canonical partition/lookup with original receipt digest/key preserved. New MySQL regressions pending Linux.",
+    "latest_changes": "e6aa0ff full Linux regression passed; phone-fact query plan follow-up forces the existing point-phone index and event FK join, preserving exact full phone equality and matching binary collation; prefix-collision regression added. Final full and capacity rerun pending.",
     "final_follow_up": {
       "unit": 1,
       "integration": 49,
@@ -48,7 +48,7 @@
       "failures": 0,
       "errors": 0,
       "skipped": 0,
-      "log": "outbound-starvation-sorted-final-unit.log"
+      "log": "outbound-facts-index-final-unit.log"
     },
     "linux_f8": {
       "head": "f8ed357a9080068d86f1677beb6367ca7e54f642",
@@ -2819,6 +2819,108 @@
         "count": 0,
         "oldest_age_sec": 0,
         "max_failures": 0
+      },
+      "passed": false,
+      "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-first/result.json ==> expected: <true> but was: <false>"
+    },
+    "linux_e6_first": {
+      "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+      "target_cps": 500,
+      "seconds": 5,
+      "jar_sha256": "fd9ca654561825c2b447f041d9596c4cda85f7485f4d2b36e418c077ca90de33",
+      "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+      "mysql_resource_overrides": {
+        "bufferMiB": 512,
+        "tableCache": 512,
+        "packetMiB": 16,
+        "redoMiB": 256
+      },
+      "mysql_buffer_pool_override_mib": 512,
+      "mysql_actual_variables": {
+        "innodb_buffer_pool_size": "536870912",
+        "innodb_flush_log_at_trx_commit": "1",
+        "innodb_redo_log_capacity": "268435456",
+        "max_allowed_packet": "16777216",
+        "sync_binlog": "1",
+        "table_open_cache": "512",
+        "transaction_isolation": "REPEATABLE-READ"
+      },
+      "mysql_container": "d44236c64d4ce1e8d1fa37c87f5eb36358065be8d9b991a96e3563cd199b1d50",
+      "redis_container": "318eea2d7b33693bc3b6fcf52e7ac010686932bdc18992c616041d98bcbef88f",
+      "mysql_jdbc": "jdbc:mysql://localhost:32769/test?connectTimeout=5000&socketTimeout=15000",
+      "profile_jfr": true,
+      "configuration": {
+        "jvm_heap_max_gib": 2,
+        "db_pool_max": 8,
+        "voice_ledger_pool_max": 4,
+        "model_quota_window": "disabled; rule AI",
+        "http_inflight_limit": 100,
+        "api_rate_limit_rps": 2000,
+        "worker_lanes": 7,
+        "task_executor_threads": 4,
+        "ai_lane_threads_max": 4,
+        "callback_consumer_threads": 2,
+        "external_model": "not used",
+        "audio": "not exercised",
+        "capacity_knobs": 10000,
+        "application_jvms": 1,
+        "dial_batch_size": "500",
+        "gateway_command_batch_max": 100,
+        "callback_batch_size": "250",
+        "voice_callback_batch_enabled": true,
+        "dial_executor_threads": "4",
+        "general_task_executor_threads": 4,
+        "voice_callback_delivery_concurrency": "128",
+        "voice_callback_batch_size": "64",
+        "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+        "callback_consumer_poll_ms": "10"
+      },
+      "application_pid": 3464,
+      "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+      "phase_start_ms": 1792521083535,
+      "db_stats_before": {
+        "Com_commit": 7060,
+        "Com_insert": 20075,
+        "Com_rollback": 0,
+        "Com_select": 20229,
+        "Com_stmt_execute": 25698,
+        "Com_update": 2838,
+        "Innodb_row_lock_time": 0,
+        "Questions": 67405
+      },
+      "queued_pool_size": 10000,
+      "planned_calls": 10000,
+      "warmup_seconds": 10,
+      "measured_seconds": 5,
+      "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+      "submitted_calls": 0,
+      "generator_capacity_misses": 0,
+      "http_codes": {},
+      "error_examples": {},
+      "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+      "dial_accepted_per_second": {},
+      "dial_accepted_within_window": 0,
+      "dial_accepted_at_observation_end": 0,
+      "actual_cps": 0,
+      "real_telephony_verified": false,
+      "db_stats_after": {
+        "Com_commit": 13502,
+        "Com_insert": 20076,
+        "Com_rollback": 1,
+        "Com_select": 36377,
+        "Com_stmt_execute": 47940,
+        "Com_update": 5891,
+        "Innodb_row_lock_time": 161,
+        "Questions": 108984
+      },
+      "call_states_at_observation_end": {
+        "QUEUED": 10000
+      },
+      "callback_receipts": [],
+      "gateway_callback_backlog": {
+        "max_failures": 0,
+        "count": 0,
+        "oldest_age_sec": 0
       },
       "passed": false,
       "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-first/result.json ==> expected: <true> but was: <false>"

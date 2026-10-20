@@ -134,6 +134,17 @@ class OutboundReliabilityIT {
             assertThat(calls).allSatisfy(call->{String key=tenant+":"+call.get("phone");assertThat(scope.contacts.get(key).get("consent_state")).isEqualTo("consented");assertThat(((Number)scope.facts.get(key).get("active")).longValue()).isZero();});
         }return null;});
     }
+    @Test void phoneIndexFactsKeepExactFullPhoneAndAttemptEventCounts(){
+        String prefix="1".repeat(32);var active=call("dialing","ai_only");var queued=call("queued","ai_only");
+        store.update("callsession",tenant,active.get("id"),Map.of("phone",prefix+"A"));store.update("callsession",tenant,queued.get("id"),Map.of("phone",prefix+"B"));
+        store.insert("callevent",JsonSupport.map("call_session_id",active.get("id"),"event_type","dial_attempt_claimed","payload","{\"attempt\":1}"));
+        tx.serialized(()->{try(var scope=new DialBatchScope()){
+            dialDb.prepare(scope,tenant,List.of(active.get("id").toString(),queued.get("id").toString()));
+            var a=scope.facts.get(tenant+":"+prefix+"A");var b=scope.facts.get(tenant+":"+prefix+"B");
+            assertThat(((Number)a.get("active")).longValue()).isEqualTo(1);assertThat(((Number)a.get("legacy_attempts")).longValue()).isEqualTo(1);assertThat(((Number)a.get("event_attempts")).longValue()).isEqualTo(1);
+            for(String field:List.of("active","legacy_attempts","event_attempts"))assertThat(((Number)b.get(field)).longValue()).isZero();
+        }return null;});
+    }
     @Test void oneCohortKeepsPhoneMutualExclusionConsentAndPerAttemptAcknowledgements(){
         var a=call("queued","ai_only");consent(a);var b=call("queued","ai_only");store.update("callsession",tenant,b.get("id"),Map.of("phone",a.get("phone")));
         var denied=call("queued","ai_only");var good=call("queued","ai_only");consent(good);
