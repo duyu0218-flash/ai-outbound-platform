@@ -38,7 +38,7 @@ final class VoiceGateway implements AutoCloseable {
         final String call, uuid, statusUrl;
         final Map<String,Object> metadata;
         volatile String recordingPath = "", failure = "";
-        volatile boolean stopped, human;
+        volatile boolean stopped, human, terminal;
         volatile String pipeline;
         volatile long answeredAt;
         Binding(Map<String,Object> row) {
@@ -373,12 +373,13 @@ final class VoiceGateway implements AutoCloseable {
     }
     private void restoreAi(Binding binding) throws Exception {
         if(!esl.command("uuid_exists "+binding.uuid,false).strip().equals("true"))return;
-        synchronized(binding){if(binding.human)return;binding.metadata.remove("human_target");binding.stopped=false;}
+        synchronized(binding){if(binding.human||binding.terminal)return;binding.metadata.remove("human_target");binding.stopped=false;}
         scheduleMedia(binding);
     }
     private void stopMedia(Binding binding) throws Exception {stopMedia(binding,true);}
     private void stopMedia(Binding binding,boolean notify) throws Exception {
         synchronized (binding) {
+            if(notify)binding.terminal=true;
             binding.stopped = true;
             var task = mediaTasks.remove(binding.uuid); if (task != null) task.cancel(false);
             var notice = notices.remove(binding.uuid); if (notice != null) notice.cancel(false);

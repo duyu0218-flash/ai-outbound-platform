@@ -27,8 +27,9 @@ public class TelephonyClient {
         if (!mock(call) && config.get("VOICE_COMMAND_SECRET", "").isEmpty()) throw new ApiError(503, "real telephony requires a signing secret");
     }
     private Map<String, Object> route(Map<String, Object> call) {
-        Map<String, Object> line = call.get("telephony_line_id") == null ? store.one("telephonyline","sourceTelephonyClient30_0",Store.queryParameters(0,CallLifecycle.tenant(call),true))
-                : store.require("telephonyline", CallLifecycle.tenant(call), call.get("telephony_line_id"));
+        var batch=DialBatchScope.current();List<Map<String,Object>> known=batch==null?null:batch.lines.get(CallLifecycle.tenant(call));
+        Map<String, Object> line = known==null?(call.get("telephony_line_id") == null ? store.one("telephonyline","sourceTelephonyClient30_0",Store.queryParameters(0,CallLifecycle.tenant(call),true))
+                : store.require("telephonyline", CallLifecycle.tenant(call), call.get("telephony_line_id"))):known.stream().filter(l->call.get("telephony_line_id")==null||l.get("id").toString().equals(call.get("telephony_line_id").toString())).findFirst().orElse(null);
         String provider = line == null ? config.get("TELEPHONY_PROVIDER", "mock").trim().transform(Ascii::lower) : line.get("provider").toString().trim().transform(Ascii::lower);
         String endpoint = line == null ? config.get("TELEPHONY_PROVIDER_ENDPOINT", config.get("SIP_PROVIDER_ENDPOINT", "")) : Objects.toString(line.get("gateway_url"), "");
         String credential = line == null ? "" : Objects.toString(line.get("credential_ref"), "");
@@ -52,6 +53,10 @@ public class TelephonyClient {
             if ("hangup".equals(action)) return JsonSupport.map("ended", true, "provider_call_id", "mock-" + call.get("id"));
             return JsonSupport.map("result", "accepted", "provider_call_id", "mock-" + call.get("id"), "state", "accepted");
         }
+        var command=signed(call,action,fields,route);
+        return embedded.command(action,command.body(),command.headers(),Math.max(1, config.number("TELEPHONY_TIMEOUT_SEC", 8)) * 1000);
+    }
+    private com.duozhi.outbound.embedded.VoiceController.Command signed(Map<String,Object> call,String action,Map<String,Object> fields,Map<String,Object> route){
         String secret = config.get("VOICE_COMMAND_SECRET", "");
         if (secret.isEmpty()) throw new ApiError(503, "real telephony requires a signing secret");
         String path = "/v1/call/" + action;
@@ -64,7 +69,17 @@ public class TelephonyClient {
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("x-voice-timestamp", stamp); headers.put("x-voice-nonce", nonce); headers.put("x-voice-signature", signature);
         if (!route.get("bearer").toString().isEmpty()) headers.put("Authorization", "Bearer " + route.get("bearer"));
-        return embedded.command(action,body,headers,Math.max(1, config.number("TELEPHONY_TIMEOUT_SEC", 8)) * 1000);
+        return new com.duozhi.outbound.embedded.VoiceController.Command(action,body,headers);
+    }
+    List<com.duozhi.outbound.embedded.VoiceController.CommandResult> dialBatch(List<Map<String,Object>> entries){
+        TaskWorker.permitted();var commands=new ArrayList<com.duozhi.outbound.embedded.VoiceController.Command>();
+        var routes=new HashMap<String,Map<String,Object>>();String base=config.get("TELEPHONY_WEBHOOK_BASE","http://localhost:8000").replaceAll("/+$","");
+        for(var entry:entries){var call=(Map<String,Object>)entry.get("call");var metadata=(Map<String,Object>)entry.get("metadata");
+            var route=routes.computeIfAbsent(call.get("tenant_id")+":"+call.get("telephony_line_id")+":"+call.get("gateway_node_id"),key->route(call));
+            if("mock".equals(route.get("provider")))throw new IllegalArgumentException("direct mock uses durable mock status tasks");
+            commands.add(signed(call,"dial",JsonSupport.map("phone",call.get("phone"),"caller_id",metadata.getOrDefault("caller_id",""),"webhook_url",base+"/api/v1/webhooks/telephony/status","metadata",metadata),route));
+        }
+        return embedded.commands(commands,Math.max(1,config.number("TELEPHONY_TIMEOUT_SEC",8))*1000);
     }
     public Map<String, Object> post(String endpoint, byte[] body, Map<String, String> headers, int timeoutMs) {
         return post(endpoint, body, headers, timeoutMs, false);

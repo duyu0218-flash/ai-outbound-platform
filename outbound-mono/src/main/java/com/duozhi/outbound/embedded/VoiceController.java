@@ -34,6 +34,21 @@ public class VoiceController {
         if(gateway.real())gateway.security.command("/v1/call/"+action,body,headers.get("x-voice-timestamp"),headers.get("x-voice-nonce"),headers.get("x-voice-signature"));
         return gateway.post(action,Support.object(body));
     }
+    public record Command(String action,byte[] body,Map<String,String> headers){}
+    public record CommandResult(Map<String,Object> response,int status,boolean rejectedBeforeAdmission){}
+    public List<CommandResult> commandsInternalBatch(List<Command> commands){
+        if(commands.isEmpty()||commands.size()>100)throw new Support.Failure(422,"invalid command batch size");
+        var result=new ArrayList<CommandResult>();Runnable work=()->{
+            for(var command:commands){if(Thread.currentThread().isInterrupted())throw new Support.Failure(503,"command batch interrupted");
+                try{result.add(new CommandResult(commandInternal(command.action(),command.body(),command.headers()),200,false));}
+                catch(Support.Failure failure){result.add(new CommandResult(null,failure.status,failure.status==429&&"false".equals(failure.headers.get("X-Voice-Dial-Admitted"))));}
+                catch(Exception failure){result.add(new CommandResult(null,500,false));}
+            }
+        };
+        // Synthetic callbacks use the same durable writer, grouped in one commit.
+        // Real PBX commands retain individual authorization/admission transactions.
+        if(gateway.real())work.run();else gateway.callbacks.atomic(work);return result;
+    }
     private void admin(String auth) { Support.auth(settings, gateway.real() ? "VOICE_SECURITY_ADMIN_TOKEN" : "SERVICE_TOKEN", auth, !gateway.real()); }
     @PostMapping("/v1/admin/drain") Map<String,Object> drain(@RequestParam(defaultValue="true") boolean enabled, @RequestHeader(value="Authorization", required=false) String auth) { admin(auth); gateway.draining = enabled; return Map.of("draining", enabled); }
     @PostMapping("/v1/admin/security/stop") Map<String,Object> stop(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {

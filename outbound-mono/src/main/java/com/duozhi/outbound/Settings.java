@@ -24,9 +24,11 @@ public class Settings {
     private void override(String section,String key,String env){Object old=defaults.get(section).get(key);defaults.get(section).put(key,old instanceof Number?config.number(env,((Number)old).intValue()):config.get(env,old.toString()));}
     public Map<String,Object> defaults(String section){if(!defaults.containsKey(section))throw new ApiError(404,"setting section not found");return new LinkedHashMap<>(defaults.get(section));}
     public Map<String,Object> get(long tenant,String section){
+        var batch=DialBatchScope.current();String cacheKey=tenant+":"+section;
+        if(batch!=null&&batch.settings.containsKey(cacheKey))return new LinkedHashMap<>(batch.settings.get(cacheKey));
         java.util.Map<java.lang.String,java.lang.Object> result=defaults(section);java.util.Map<java.lang.String,java.lang.Object> record=store.one("adminsetting","findBySection",Values.map("tenantId",tenant,"section",section));
         if(record!=null)try{Map<String,Object> saved=mapper.readValue(record.get("data_json").toString(),new TypeReference<Map<String,Object>>(){});saved.forEach((key,value)->{if(result.containsKey(key))result.put(key,value);});}catch(Exception ignored){}
-        if(section.equals("ai"))result.put("agent_url",defaults.get(section).get("agent_url"));if(section.equals("sms"))result.put("endpoint",defaults.get(section).get("endpoint"));return result;
+        if(section.equals("ai"))result.put("agent_url",defaults.get(section).get("agent_url"));if(section.equals("sms"))result.put("endpoint",defaults.get(section).get("endpoint"));if(batch!=null)batch.settings.put(cacheKey,new LinkedHashMap<>(result));return result;
     }
     private void range(Map<String,Object> data,String key,int min,int max){Object value=data.get(key);if(!(value instanceof Number)||((Number)value).longValue()<min||((Number)value).longValue()>max)throw new ApiError(400,"invalid "+key);}
     static String endpoint(String value,boolean origin){

@@ -34,6 +34,14 @@ class VoiceTest {
             security.finish(first.row().get("uuid").toString(), null); assertEquals(20, ((Number)security.lookup("call-a", 1).get("cost")).intValue());
         }
     }
+    @Test void batchedCallbackPostsCommitTogetherDeduplicateAndRollbackTogether()throws Exception{
+        var settings=settings(Map.of());try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){
+            String url="http://127.0.0.1:18000/api/v1/webhooks/telephony/status";var a=Map.<String,Object>of("call_id","a","sequence",1);var b=Map.<String,Object>of("call_id","b","sequence",1);
+            callbacks.atomic(()->{callbacks.post(url,a);callbacks.post(url,b);callbacks.post(url,a);});assertEquals(2,((Number)ledger.summary().get("pending_callbacks")).intValue());
+            assertThrows(IllegalStateException.class,()->callbacks.atomic(()->{callbacks.post(url,Map.of("call_id","c","sequence",1));throw new IllegalStateException("synthetic crash");}));
+            assertEquals(2,((Number)ledger.summary().get("pending_callbacks")).intValue());
+        }
+    }
     @Test void signedCommandReplayIsDurableAcrossRestart() throws Exception {
         var settings = settings(Map.of()); String stamp = Long.toString(System.currentTimeMillis() / 1000), nonce = "nonce-012345678901234567890", path = "/v1/call/dial"; byte[] body = Support.json(dial("a", 1, 1));
         var prefix = (stamp + "." + nonce + "." + path + ".").getBytes(StandardCharsets.UTF_8); var signed = Arrays.copyOf(prefix, prefix.length + body.length); System.arraycopy(body, 0, signed, prefix.length, body.length); String signature = Support.hmac(settings.secret("VOICE_COMMAND_SECRET"), signed);

@@ -26,16 +26,101 @@ class OutboundReliabilityIT {
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
         p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_DISPATCH_ENABLED",()->"true");p.add("TELEPHONY_PROVIDER",()->"mock");
         p.add("OUTBOUND_PLATFORM_MAX_CONCURRENT",()->"500");
+        p.add("JAVA_DIAL_BATCH_SIZE",()->"100");
+        p.add("JAVA_CALLBACK_BATCH_SIZE",()->"100");
     }
     @Autowired Store store;@Autowired OperationsStore db;@Autowired Transactions tx;@Autowired DialService dial;@Autowired Handoffs handoffs;
     @Autowired HumanRouting routing;@Autowired ConversationPolicy conversation;@Autowired CallLifecycle lifecycle;@Autowired JsonSupport json;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
+    @Autowired DialBatchStore dialDb;@Autowired TaskWorker worker;
+    @Autowired CallbackInbox inbox;@Autowired CallbackBatchStore callbackDb;
+    @Test void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection()throws Exception{try(var connection=dataSource.getConnection()){assertThat(connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet().getBooleanProperty(com.mysql.cj.conf.PropertyKey.rewriteBatchedStatements).getValue()).isTrue();}}
     static AtomicInteger sequence=new AtomicInteger(1000);long tenant;
     @BeforeEach void seed(){tenant=sequence.incrementAndGet();store.insert("tenant",JsonSupport.map("id",tenant,"code","reliability-"+tenant,"name","Synthetic reliability"));store.insert("adminsetting",JsonSupport.map("tenant_id",tenant,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));}
     @AfterEach void releaseFixtureCapacity(){for(var c:store.query("callsession","list",JsonSupport.map("tenantId",tenant,"offset",0,"limit",1000)))if(!CallLifecycle.TERMINAL.contains(c.get("status")))store.update("callsession",tenant,c.get("id"),Map.of("status","completed"));}
     Map<String,Object> call(String state,String mode){return store.insert("callsession",JsonSupport.map("tenant_id",tenant,"phone","1555"+String.format("%07d",sequence.incrementAndGet()),"mode",mode,"status",state,"attempts",state.equals("queued")?0:1,"max_attempts",2));}
     Map<String,Object> agent(String state){return store.insert("user",JsonSupport.map("tenant_id",tenant,"username","desk-"+UUID.randomUUID(),"full_name","Synthetic desk","role","agent","agent_status",state,"last_seen_at",Store.now()));}
     void policy(Map<String,Object> call,Map<String,Object> changes){tx.serialized(()->{var state=conversation.state(call);var p=conversation.policy(state);p.putAll(changes);p.put("start_hour",0);p.put("end_hour",24);store.update("conversationstate",tenant,state.get("id"),JsonSupport.map("policy_json",json.json(p)));return null;});}
+    void consent(Map<String,Object> call){store.insert("contact",JsonSupport.map("tenant_id",tenant,"phone",call.get("phone"),"consent_state","consented"));}
+    @Test void bufferedCaseUpdatesKeepWriteOrderAndWrongTenantRollsBackOtherChanges(){
+        var a=call("queued","ai_only");var b=call("queued","ai_only");
+        tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,b.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","answered"));return null;}));
+        assertThat(store.require("callsession",tenant,a.get("id")).get("status")).isEqualTo("answered");assertThat(store.require("callsession",tenant,b.get("id")).get("status")).isEqualTo("dialing");
+        assertThatThrownBy(()->tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","failed"));store.writeLocked("callsession",tenant+100000,b.get("id"),Map.of("status","failed"));return null;}))).isInstanceOfAny(ApiError.class,IllegalStateException.class);
+        assertThat(store.require("callsession",tenant,a.get("id")).get("status")).isEqualTo("answered");assertThat(store.require("callsession",tenant,b.get("id")).get("status")).isEqualTo("dialing");
+    }
+    @Test void bufferedGeneratedKeysReadYourWritesAndRollbackUseTheBusinessTransaction(){
+        var c=call("queued","ai_only");var states=new ArrayList<Map<String,Object>>();
+        assertThatThrownBy(()->tx.serialized(()->{store.bufferWrites(()->{
+            store.writeLocked("callsession",tenant,c.get("id"),Map.of("status","dialing"));
+            for(int attempt:List.of(1,2))states.add(store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",c.get("id"),"attempt",attempt,"policy_json","{}")));
+            store.insert("callevent",JsonSupport.map("call_session_id",c.get("id"),"event_type","synthetic_rollback","payload","{}"));
+            assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("dialing");return null;});
+            assertThat(states).allSatisfy(s->assertThat(s.get("id")).isNotNull());assertThat(states.get(0).get("id")).isNotEqualTo(states.get(1).get("id"));throw new IllegalStateException("synthetic crash before commit");
+        })).isInstanceOf(IllegalStateException.class).hasMessage("synthetic crash before commit");
+        assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("queued");
+        assertThat(store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(tenant,store.encode("callsession","id",c.get("id")),1))).isNull();
+    }
+    @Test void oneCohortKeepsPhoneMutualExclusionConsentAndPerAttemptAcknowledgements(){
+        var a=call("queued","ai_only");consent(a);var b=call("queued","ai_only");store.update("callsession",tenant,b.get("id"),Map.of("phone",a.get("phone")));
+        var denied=call("queued","ai_only");var good=call("queued","ai_only");consent(good);
+        worker.enqueueDue();assertThat(worker.processLane(tenant,0)).isTrue();
+        var statuses=List.of(store.require("callsession",tenant,a.get("id")).get("status"),store.require("callsession",tenant,b.get("id")).get("status"));assertThat(statuses).containsExactlyInAnyOrder("dialing","queued");
+        assertThat(store.require("callsession",tenant,denied.get("id")).get("status")).isEqualTo("failed");assertThat(store.require("callsession",tenant,good.get("id")).get("status")).isEqualTo("dialing");
+        assertThat(dialDb.rows("dialAcks",Map.of("ids",List.of(a.get("id"),b.get("id"),good.get("id"))))).hasSize(2);
+    }
+    @Test void parallelCohortsCannotAdmitTheSamePhoneTwice()throws Exception{
+        var first=call("queued","ai_only");consent(first);var ids=new ArrayList<String>();ids.add(first.get("id").toString());for(int i=0;i<100;i++){var next=call("queued","ai_only");store.update("callsession",tenant,next.get("id"),Map.of("phone",first.get("phone")));ids.add(next.get("id").toString());}
+        worker.enqueueDue();var pool=Executors.newFixedThreadPool(2);var gate=new CountDownLatch(1);try{var a=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});var b=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});gate.countDown();boolean ar=a.get(20,TimeUnit.SECONDS),br=b.get(20,TimeUnit.SECONDS);assertThat(ar||br).isTrue();}finally{pool.shutdownNow();}
+        assertThat(dialDb.rows("dialAcks",Map.of("ids",ids))).hasSize(1);assertThat(store.scalar("callsession","activePhone",JsonSupport.map("tenantId",tenant,"phone",first.get("phone"),"id",UUID.randomUUID()))).isEqualTo(1);
+    }
+    @Test void finishingOneCohortDoesNotWaitForUnrelatedTaskRows()throws Exception{
+        var rows=new ArrayList<Map<String,Object>>();tx.run(()->store.bufferWrites(()->{for(int i=0;i<1000;i++)rows.add(store.insert("taskoutbox",JsonSupport.map("tenant_id",tenant,"task_type","dial_call","aggregate_id","synthetic-lock-scope-"+i,"idempotency_key","synthetic-lock-scope-"+i,"payload_json","{}")));return null;}));
+        rows.sort(Comparator.comparing(r->r.get("id").toString()));var locked=new CountDownLatch(1);var release=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        try{
+            var holder=pool.submit(()->tx.run(()->{assertThat(dialDb.lockedTasks(Map.of("tenantId",tenant,"ids",rows.subList(0,100).stream().map(r->r.get("id").toString()).toList()))).hasSize(100);locked.countDown();try{if(!release.await(10,TimeUnit.SECONDS))throw new IllegalStateException("test lock timeout");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}return null;}));
+            assertThat(locked.await(5,TimeUnit.SECONDS)).isTrue();var other=pool.submit(()->tx.run(()->store.bufferWrites(()->{for(var row:rows.subList(100,200))store.writeLocked("taskoutbox",tenant,row.get("id"),Map.of("last_error","synthetic-disjoint-cohort"));return null;})));
+            other.get(3,TimeUnit.SECONDS);release.countDown();holder.get(5,TimeUnit.SECONDS);
+        }finally{release.countDown();pool.shutdownNow();}
+        assertThat(store.require("taskoutbox",tenant,rows.get(100).get("id")).get("last_error")).isEqualTo("synthetic-disjoint-cohort");
+    }
+    @Test void crashAfterReservationReclaimsFrozenCommandWithoutSpendingAnotherAttempt(){
+        var c=call("queued","ai_only");consent(c);worker.enqueueDue();
+        var tasks=tx.run(()->{var found=dialDb.tasks(JsonSupport.map("tenantId",tenant,"now",Store.now(),"cutoff",Store.now(),"limit",100));for(var task:found)store.update("taskoutbox",tenant,task.get("id"),JsonSupport.map("state","processing","lease_token","synthetic-expired","locked_at",Store.now().minusSeconds(60),"attempts",1));return found;});
+        assertThat(dial.prepareTasks(tasks,dialDb)).hasSize(1);assertThat(store.require("callsession",tenant,c.get("id")).get("attempts")).isEqualTo(1);
+        assertThat(worker.processLane(tenant,0)).isTrue();assertThat(store.require("callsession",tenant,c.get("id")).get("attempts")).isEqualTo(1);
+        var task=store.require("taskoutbox",tenant,tasks.get(0).get("id"));assertThat(task.get("state")).isEqualTo("completed");
+        store.update("taskoutbox",tenant,task.get("id"),Map.of("state","failed","available_at",Store.now()));assertThat(worker.processLane(tenant,0)).isTrue();
+        assertThat(dialDb.rows("dialAcks",Map.of("ids",List.of(c.get("id"))))).hasSize(1);
+    }
+    @Test void batchedStatusReceiptsKeepFifoIdempotencyUsageAndOpeningAiTask(){
+        inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");
+        var events=new ArrayList<Map<String,Object>>();for(String status:List.of("dialing","answered"))events.add(JsonSupport.map("id",status,"kind","status","payload",JsonSupport.map("call_id",c.get("id"),"kind","status","payload",JsonSupport.map("status",status,"attempt",1,"event_id",c.get("id")+":"+status))));
+        inbox.batch(events);inbox.batch(events);
+        assertThat(inbox.consumeBatch(100)).isEqualTo(1);assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("dialing");
+        assertThat(inbox.consumeBatch(100)).isEqualTo(1);assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("answered");assertThat(inbox.consumeBatch(100)).isZero();
+        var tasks=callbackDb.records("tasks","taskoutbox",Map.of("tenantId",tenant,"ids",List.of(c.get("id"))));assertThat(tasks.stream().filter(t->"ai_turn".equals(t.get("task_type"))).toList()).hasSize(1);
+        assertThat(callbackDb.records("usage","callusage",Map.of("tenantId",tenant,"ids",List.of(c.get("id"))))).singleElement().satisfies(u->assertThat(u.get("answered_at")).isNotNull());
+        assertThat(store.query("callbackinboxpartition","list",Map.of("offset",0,"limit",100))).allSatisfy(p->{assertThat(((Number)p.get("pending_count")).longValue()).isZero();assertThat(((Number)p.get("pending_bytes")).longValue()).isZero();});
+        var changed=JsonSupport.map("id","conflict","kind","status","payload",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","answered","attempt",1,"event_id",c.get("id")+":dialing")));
+        assertThatThrownBy(()->inbox.batch(List.of(changed))).isInstanceOf(ApiError.class);
+    }
+    @Test void statusCohortDoesNotLockUnrelatedInboxPartitions()throws Exception{
+        inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");int partition=(int)((java.nio.ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString())).getInt()&0xffffffffL)%64),other=(partition+1)%64;
+        inbox.receive("telephony_status",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","answered","attempt",1,"event_id","partition-isolation")));
+        var locked=new CountDownLatch(1);var release=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);try{
+            var holder=pool.submit(()->tx.run(()->{store.one("callbackinboxpartition","sourceCallbackInbox56_4",Store.queryParameters(-1,other));locked.countDown();try{if(!release.await(10,TimeUnit.SECONDS))throw new IllegalStateException("test lock timeout");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}return null;}));
+            assertThat(locked.await(5,TimeUnit.SECONDS)).isTrue();var consumed=pool.submit(()->inbox.consumeBatch(100));assertThat(consumed.get(3,TimeUnit.SECONDS)).isEqualTo(1);release.countDown();holder.get(5,TimeUnit.SECONDS);
+        }finally{release.countDown();pool.shutdownNow();}
+    }
+    @Test void statusBatchCannotPassEarlierTerminalReceiptOrResurrectItsCall(){
+        inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");
+        inbox.receive("telephony_status",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","completed","attempt",1,"event_id","ended")));
+        inbox.batch(List.of(JsonSupport.map("id","late","kind","status","payload",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","answered","attempt",1,"event_id","late-answer")))));
+        assertThat(inbox.consumeBatch(100)).isZero();int partition=(int)((java.nio.ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString())).getInt()&0xffffffffL)%64);assertThat(inbox.consume(partition)).isTrue();
+        assertThat(inbox.consumeBatch(100)).isEqualTo(1);assertThat(store.require("callsession",tenant,c.get("id")).get("status")).isEqualTo("completed");
+        assertThat(callbackDb.records("tasks","taskoutbox",Map.of("tenantId",tenant,"ids",List.of(c.get("id")))).stream().filter(t->"ai_turn".equals(t.get("task_type"))).toList()).isEmpty();
+    }
     @Test void concurrentDialEntrancesWaitForPlatformBeforeBorrowingConnections()throws Exception{
         var pool=Executors.newFixedThreadPool(4);var started=new CountDownLatch(4);var threads=new CopyOnWriteArrayList<Thread>();var futures=new ArrayList<Future<?>>();
         var phones=new ArrayList<String>();for(int i=0;i<4;i++){String phone="1555"+String.format("%07d",sequence.incrementAndGet());phones.add(phone);store.insert("contact",JsonSupport.map("tenant_id",tenant,"phone",phone,"consent_state","consented"));}

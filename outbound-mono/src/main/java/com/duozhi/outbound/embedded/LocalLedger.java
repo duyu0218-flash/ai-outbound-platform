@@ -31,6 +31,9 @@ final class LocalLedger implements AutoCloseable {
     static void execute(Connection db, String sql, Object... args) throws SQLException {
         try (var statement = db.prepareStatement(dialect(sql))) { for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]); statement.executeUpdate(); }
     }
+    static void executeBatch(Connection db,String sql,List<Object[]> rows)throws SQLException{
+        if(rows.isEmpty())return;try(var statement=db.prepareStatement(dialect(sql))){for(var args:rows){for(int i=0;i<args.length;i++)statement.setObject(i+1,args[i]);statement.addBatch();}for(int changed:statement.executeBatch())if(changed==java.sql.Statement.EXECUTE_FAILED)throw new SQLException("ledger batch write failed");}
+    }
     static void plain(Connection db, String sql) throws SQLException { try (var statement = db.createStatement()) { statement.execute(dialect(sql)); } }
     static double now() { return System.currentTimeMillis() / 1000.0; }
     long commits() { return commits.get(); }
