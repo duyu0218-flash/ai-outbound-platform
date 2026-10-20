@@ -126,6 +126,14 @@ class OutboundReliabilityIT {
         assertThatThrownBy(()->tx.run(()->{store.bufferWrites(()->{for(int i=0;i<160;i++)store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","packet_rollback","payload",payload));return null;});throw new IllegalStateException("rollback after every packet flushed");})).isInstanceOf(IllegalStateException.class).hasMessage("rollback after every packet flushed");
         assertThat(store.query("callevent","list",Map.of("tenantId",tenant,"offset",0,"limit",1000))).hasSize(160);
     }
+    @Test void largerCohortKeepsFactsAndConsentAcrossBoundedReadChunks(){
+        var calls=new ArrayList<Map<String,Object>>();for(int i=0;i<125;i++){var call=call("queued","ai_only");consent(call);calls.add(call);}
+        tx.serialized(()->{try(var scope=new DialBatchScope()){
+            dialDb.prepare(scope,tenant,calls.stream().map(call->call.get("id").toString()).toList());
+            assertThat(scope.calls).hasSize(125);assertThat(scope.facts).hasSize(125);assertThat(scope.contacts).hasSize(125);
+            assertThat(calls).allSatisfy(call->{String key=tenant+":"+call.get("phone");assertThat(scope.contacts.get(key).get("consent_state")).isEqualTo("consented");assertThat(((Number)scope.facts.get(key).get("active")).longValue()).isZero();});
+        }return null;});
+    }
     @Test void oneCohortKeepsPhoneMutualExclusionConsentAndPerAttemptAcknowledgements(){
         var a=call("queued","ai_only");consent(a);var b=call("queued","ai_only");store.update("callsession",tenant,b.get("id"),Map.of("phone",a.get("phone")));
         var denied=call("queued","ai_only");var good=call("queued","ai_only");consent(good);
@@ -183,6 +191,17 @@ class OutboundReliabilityIT {
         }finally{pool.shutdownNow();}
         assertThat(inbox.consumeBatch(250,0,2)+inbox.consumeBatch(250,1,2)).isZero();
         var tasks=callbackDb.records("tasks","taskoutbox",Map.of("tenantId",tenant,"ids",calls.stream().map(call->call.get("id")).toList()));assertThat(tasks.stream().filter(task->"ai_turn".equals(task.get("task_type"))).count()).isEqualTo(48);
+    }
+    @Test void uuidCaseVariantsUseOnePartitionAndStillApplyBothFifoTransitions(){
+        inbox.initialize();inbox.maintenance();var call=call("dialing","ai_only");String lower=call.get("id").toString(),upper=lower.toUpperCase(Locale.ROOT);
+        inbox.batch(List.of(
+            JsonSupport.map("id","upper-dial","kind","status","payload",JsonSupport.map("call_id",upper,"payload",JsonSupport.map("status","dialing","attempt",1,"event_id","upper-dial"))),
+            JsonSupport.map("id","lower-answer","kind","status","payload",JsonSupport.map("call_id",lower,"payload",JsonSupport.map("status","answered","attempt",1,"event_id","lower-answer")))));
+        var receipts=store.query("callbackinbox","list",Map.of("offset",0,"limit",10000)).stream().filter(row->lower.equals(row.get("call_id"))).toList();assertThat(receipts).hasSize(2);assertThat(receipts.stream().map(row->row.get("partition_id")).distinct().count()).isEqualTo(1);
+        int owner=((Number)receipts.get(0).get("partition_id")).intValue()%2;
+        assertThat(inbox.consumeBatch(250,1-owner,2)).isZero();assertThat(inbox.consumeBatch(250,owner,2)).isEqualTo(1);
+        assertThat(store.require("callsession",tenant,lower).get("status")).isEqualTo("dialing");
+        assertThat(inbox.consumeBatch(250,owner,2)).isEqualTo(1);assertThat(store.require("callsession",tenant,lower).get("status")).isEqualTo("answered");
     }
     @Test void statusCohortDoesNotLockUnrelatedInboxPartitions()throws Exception{
         inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");int partition=(int)((java.nio.ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString())).getInt()&0xffffffffL)%64),other=(partition+1)%64;

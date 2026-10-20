@@ -144,6 +144,20 @@ class QueueConcurrencyIT {
             for(var result:futures)assertThat(result.get(5,TimeUnit.SECONDS)).isNotNull();
         }finally{pool.shutdownNow();}
     }
+    @Test void taskClaimMutexWaitersAlsoLeaveTheBusinessPoolAvailable()throws Exception{
+        var pool=Executors.newFixedThreadPool(4);var started=new CountDownLatch(4);var waiting=new CopyOnWriteArrayList<Thread>();var futures=new ArrayList<Future<?>>();
+        long key=java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+        try{
+            try(var held=platformLocks.lock(key)){
+                for(int i=0;i<4;i++)futures.add(pool.submit(()->{waiting.add(Thread.currentThread());started.countDown();return tx.serializedIdentity("java-outbox-claim",()->store.require("tenant",0,1));}));
+                assertThat(started.await(5,TimeUnit.SECONDS)).isTrue();long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+                while(System.nanoTime()<deadline&&!waiting.stream().allMatch(thread->thread.getState()==Thread.State.WAITING))Thread.sleep(10);
+                assertThat(waiting).hasSize(4).allSatisfy(thread->assertThat(thread.getState()).isEqualTo(Thread.State.WAITING));
+                assertThat(((com.alibaba.druid.pool.DruidDataSource)dataSource).getActiveCount()).isZero();
+            }
+            for(var result:futures)assertThat(result.get(5,TimeUnit.SECONDS)).isNotNull();
+        }finally{pool.shutdownNow();}
+    }
     @Test void serializedTransactionsRetainNestedRollbackSemantics(){
         String eventKey=key();
         assertThatThrownBy(()->tx.serialized(()->{

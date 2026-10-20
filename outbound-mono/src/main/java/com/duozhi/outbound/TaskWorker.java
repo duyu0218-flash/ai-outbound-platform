@@ -102,8 +102,7 @@ public class TaskWorker {
         });
     }
     private Map<String, Object> claim(Long tenant, String types) {
-        return tx.run(() -> {
-            tx.identity("java-outbox-claim");
+        return tx.serializedIdentity("java-outbox-claim",() -> {
             Object now = store.encode("taskoutbox", "available_at", Store.now());
             Object cutoff = store.encode("taskoutbox", "locked_at", Store.now().minusSeconds(Math.max(2, config.number("TASK_LEASE_SEC", 30))));
             List<String> allowed=Arrays.asList(types.replace("(","").replace(")","").replace("'","").split(","));

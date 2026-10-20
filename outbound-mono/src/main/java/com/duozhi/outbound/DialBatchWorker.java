@@ -23,7 +23,7 @@ public class DialBatchWorker {
     }
     private Object cutoff(){return Store.now().minusSeconds(Math.max(2,config.number("TASK_LEASE_SEC",30)));}
     private List<Map<String,Object>> claim(Long only){
-        return tx.run(()->{tx.identity("java-outbox-claim");var tenants=new ArrayList<>(store.query("tenant","allForMaintenance",Map.of()));long previous=cursor;
+        return tx.serializedIdentity("java-outbox-claim",()->{var tenants=new ArrayList<>(store.query("tenant","allForMaintenance",Map.of()));long previous=cursor;
             tenants.sort(Comparator.<Map<String,Object>>comparingInt(t->((Number)t.get("id")).longValue()>previous?0:1).thenComparingLong(t->((Number)t.get("id")).longValue()));
             for(var tenant:tenants){long id=((Number)tenant.get("id")).longValue();if(only!=null&&id!=only)continue;
                 var params=JsonSupport.map("tenantId",id,"now",Store.now(),"cutoff",cutoff(),"limit",size());var expired=db.rows("expiredFinalTasks",params);if(!expired.isEmpty()){var expiration=new LinkedHashMap<>(params);expiration.put("ids",expired.stream().map(r->r.get("id").toString()).toList());db.write("expireFinalTasks",expiration);}

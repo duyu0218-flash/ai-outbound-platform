@@ -25,6 +25,7 @@ public class CallbackInbox {
         });
     }
     private final String workerId="java-"+UUID.randomUUID();
+    static String canonicalCallId(Object value){String text=value.toString();try{return UUID.fromString(text).toString();}catch(IllegalArgumentException opaque){return text;}}
     public Map<String,Object> snapshot() {
         Map<String,Object> oldest=store.one("callbackinbox","sourceCallbackInbox28_0",Store.queryParameters(-1));
         double age=oldest==null?0:Math.max(0,java.time.Duration.between(LocalDateTime.parse(oldest.get("received_at").toString()),Store.now()).toMillis()/1000.0);
@@ -47,11 +48,11 @@ public class CallbackInbox {
         String encoded = json.canonical(body, false);
         int size = encoded.getBytes(StandardCharsets.UTF_8).length;
         if (size > config.number("CALLBACK_INBOX_BODY_BYTES", 262144)) throw new ApiError(413, "callback body exceeds durable receipt limit");
-        String callId = body.get("call_id").toString();
+        String rawCallId=body.get("call_id").toString(),callId=canonicalCallId(rawCallId);
         Map<?, ?> payload = (Map<?, ?>)body.getOrDefault("payload", Collections.emptyMap());
         Object eventId = body.get("event_id") == null ? payload.get("event_id") : body.get("event_id");
         String digest = JsonSupport.sha(encoded);
-        String key = JsonSupport.sha(json.json(Arrays.asList(kind, callId, eventId == null || eventId.toString().isEmpty() ? digest : eventId)));
+        String key = JsonSupport.sha(json.json(Arrays.asList(kind, rawCallId, eventId == null || eventId.toString().isEmpty() ? digest : eventId)));
         int partitionId = (int)((ByteBuffer.wrap(JsonSupport.digest(callId)).getInt() & 0xffffffffL) % 64);
         return tx.run(() -> {
             Map<String, Object> partition = store.one("callbackinboxpartition","sourceCallbackInbox56_4",Store.queryParameters(-1,partitionId));
@@ -74,7 +75,7 @@ public class CallbackInbox {
         return tx.run(() -> {
             Set<Integer> partitions=new TreeSet<>();
             for(Map<String,Object> event:events) {
-                Map<?,?> body=(Map<?,?>)event.get("payload");String id=body.get("call_id").toString();
+                Map<?,?> body=(Map<?,?>)event.get("payload");String id=canonicalCallId(body.get("call_id"));
                 partitions.add((int)((ByteBuffer.wrap(JsonSupport.digest(id)).getInt()&0xffffffffL)%64));
             }
             for(Integer id:partitions) {
@@ -92,8 +93,8 @@ public class CallbackInbox {
         var entries=new ArrayList<Map<String,Object>>();var ids=new TreeSet<Integer>();
         for(var event:events){var body=(Map<String,Object>)event.get("payload");String encoded=json.canonical(body,false);int size=encoded.getBytes(StandardCharsets.UTF_8).length;
             if(size>config.number("CALLBACK_INBOX_BODY_BYTES",262144))throw new ApiError(413,"callback body exceeds durable receipt limit");
-            String call=body.get("call_id").toString(),kind="telephony_"+event.get("kind"),digest=JsonSupport.sha(encoded);var payload=(Map<?,?>)body.getOrDefault("payload",Map.of());Object eventId=body.get("event_id")==null?payload.get("event_id"):body.get("event_id");
-            String key=JsonSupport.sha(json.json(Arrays.asList(kind,call,eventId==null||eventId.toString().isEmpty()?digest:eventId)));int partition=(int)((ByteBuffer.wrap(JsonSupport.digest(call)).getInt()&0xffffffffL)%64);ids.add(partition);
+            String rawCall=body.get("call_id").toString(),call=canonicalCallId(rawCall),kind="telephony_"+event.get("kind"),digest=JsonSupport.sha(encoded);var payload=(Map<?,?>)body.getOrDefault("payload",Map.of());Object eventId=body.get("event_id")==null?payload.get("event_id"):body.get("event_id");
+            String key=JsonSupport.sha(json.json(Arrays.asList(kind,rawCall,eventId==null||eventId.toString().isEmpty()?digest:eventId)));int partition=(int)((ByteBuffer.wrap(JsonSupport.digest(call)).getInt()&0xffffffffL)%64);ids.add(partition);
             entries.add(JsonSupport.map("receipt_key",key,"partition_id",partition,"call_id",call,"kind",kind,"body_json",encoded,"body_digest",digest,"body_bytes",size));
         }
         return tx.run(()->{

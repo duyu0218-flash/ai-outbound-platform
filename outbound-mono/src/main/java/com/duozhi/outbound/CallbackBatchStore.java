@@ -12,7 +12,7 @@ public class CallbackBatchStore {
     List<Map<String,Object>> records(String method,String table,Map<String,Object> params){return sql.selectList(statement(method),params).stream().map(raw->store.record(table,raw)).toList();}
     int write(String method,Map<String,Object> params){return sql.update(statement(method),params);}
     void prepare(CallStatusBatchScope scope,List<Map<String,Object>> receipts){
-        var ids=receipts.stream().map(r->r.get("call_id").toString()).distinct().toList();
+        var ids=receipts.stream().map(r->CallbackInbox.canonicalCallId(r.get("call_id"))).distinct().toList();
         for(var tenant:store.query("tenant","allForMaintenance",Map.of())){
             long tid=((Number)tenant.get("id")).longValue();var found=calls.calls(tid,ids);if(found.isEmpty())continue;
             var selected=found.stream().map(c->c.get("id").toString()).toList();for(var call:found)scope.calls.put(call.get("id").toString(),call);

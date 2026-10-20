@@ -116,7 +116,7 @@ public class CallLifecycle {
     public Map<String, Object> status(Map<String, Object> body) {
         var batch=CallStatusBatchScope.current();java.util.function.Supplier<Map<String,Object>> transition=() -> {
             if(batch==null)tx.platform();
-            Map<String, Object> call = batch==null?tx.call(body.get("call_id")):batch.calls.get(body.get("call_id").toString());
+            Map<String, Object> call = batch==null?tx.call(body.get("call_id")):batch.calls.get(CallbackInbox.canonicalCallId(body.get("call_id")));
             if (call == null) return JsonSupport.map("result", "ignore");
             Map<String, Object> payload = (Map<String, Object>)body.getOrDefault("payload", Collections.emptyMap());
             if (event(call, "status", "telephony", payload)) return JsonSupport.map("result", "ok");
