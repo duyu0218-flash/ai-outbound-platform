@@ -47,7 +47,7 @@ final class VoiceCallbacks implements AutoCloseable {
         for (var row : rows) inflight.add((String)row.get("id"));
         int count = rows.size();
         boolean batch = settings.flag("VOICE_CALLBACK_BATCH_ENABLED", false);
-        int batchSize = (int)settings.number("VOICE_CALLBACK_BATCH_SIZE", 16, 1, 16);
+        int batchSize = (int)settings.number("VOICE_CALLBACK_BATCH_SIZE", 16, 1, 64);
         for (int i = 0; i < rows.size();) {
             List<Map<String,Object>> group = new ArrayList<>(); group.add(rows.get(i++));
             String url = Support.str(group.get(0), "url", ""); String prefix = url.substring(0, url.lastIndexOf('/'));
@@ -70,15 +70,15 @@ final class VoiceCallbacks implements AutoCloseable {
     private void deliver(List<Map<String,Object>> rows) {
         try {
             if (rows.size() == 1) { deliverSingle(rows.get(0)); return; }
-            String first = Support.str(rows.get(0), "url", ""), target = first.substring(0, first.lastIndexOf('/')) + "/batch";
+            int version=rows.size()>16?2:1;String first = Support.str(rows.get(0), "url", ""), target = first.substring(0, first.lastIndexOf('/')) + (version==2?"/batch-v2":"/batch");
             List<Map<String,Object>> events = new ArrayList<>();
             for (var row : rows) { String url = Support.str(row, "url", ""); events.add(Map.of("id", row.get("id"), "kind", url.substring(url.lastIndexOf('/') + 1), "payload", Support.object((byte[])row.get("body")))); }
-            var response = send(target, Support.canonical(Map.of("version", 1, "events", events)));
+            var response = send(target, Support.canonical(Map.of("version", version, "events", events)));
             if (Set.of(400, 404, 405, 409, 413, 422).contains(response.statusCode()) || response.headers().firstValue("x-callback-batch-split").orElse("").equals("true")) { for (var row : rows) deliverSingle(row); return; }
             boolean accepted = false;
             if (response.statusCode() == 200) {
                 var ack = Support.object(response.body()); Object ids = ack.get("accepted");
-                accepted = "received".equals(ack.get("result")) && Support.integer(ack, "version", 0) == 1 && ids instanceof List<?> list && list.size() == rows.size() && new HashSet<>(list).equals(new HashSet<>(rows.stream().map(r -> r.get("id")).toList()));
+                accepted = "received".equals(ack.get("result")) && Support.integer(ack, "version", 0) == version && ids instanceof List<?> list && list.size() == rows.size() && new HashSet<>(list).equals(new HashSet<>(rows.stream().map(r -> r.get("id")).toList()));
             }
             if(accepted)ledger.transaction(db->{LocalLedger.execute(db,"DELETE FROM outbox WHERE id IN ("+String.join(",",Collections.nCopies(rows.size(),"?"))+")",rows.stream().map(r->r.get("id")).toArray());return null;});
             else atomic(()->{for (var row : rows) complete(row, false, response.headers().firstValue("Retry-After").orElse("0"));});

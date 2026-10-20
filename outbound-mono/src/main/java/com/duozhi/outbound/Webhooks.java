@@ -67,13 +67,20 @@ public class Webhooks {
     @PostMapping("/telephony/batch")
     @SuppressWarnings("unchecked")
     public Map<String,Object> batch(@RequestBody byte[] raw,HttpServletRequest request){
+        return receiveBatch(raw,request,1);
+    }
+    @PostMapping("/telephony/batch-v2")
+    public Map<String,Object> batchV2(@RequestBody byte[] raw,HttpServletRequest request){return receiveBatch(raw,request,2);}
+    @SuppressWarnings("unchecked")
+    private Map<String,Object> receiveBatch(byte[] raw,HttpServletRequest request,int version){
         verify(raw,request,false);
-        if(raw.length>65536)throw new ApiError(413,"callback batch exceeds 64 KiB");
-        Map<String,Object> input=contract.input("TelephonyBatch",json.object(new String(raw,StandardCharsets.UTF_8)),true);
+        if(version==1&&raw.length>65536)throw new ApiError(413,"callback batch exceeds 64 KiB");
+        if(version==2&&raw.length>262144)throw new ApiError(413,"callback batch exceeds 256 KiB");
+        Map<String,Object> input=contract.input(version==1?"TelephonyBatch":"TelephonyBatchV2",json.object(new String(raw,StandardCharsets.UTF_8)),true);
         if(!config.flag("CALLBACK_INBOX_ENABLED",false))throw new ApiError(409,"durable callback batching is disabled");
         List<Map<String,Object>> events=(List<Map<String,Object>>)input.get("events");Set<Object> ids=new HashSet<>();
         Map<String,String> schemas=Values.map("status","WebhookEvent","transcript","WebhookEvent","speech","SpeechWebhookEvent","dtmf","WebhookEvent","media","MediaWebhookEvent","recording","WebhookEvent");
         for(Map<String,Object> event:events){if(!ids.add(event.get("id")))throw new ApiError(422,"duplicate batch event id");Map<String,Object> body=contract.input(schemas.get(event.get("kind")),(Map<String,Object>)event.get("payload"),true);body.put("call_id",UUID.fromString(body.get("call_id").toString()).toString());if("WebhookEvent".equals(schemas.get(event.get("kind"))))body.putIfAbsent("payload",new LinkedHashMap<>());event.put("payload",body);}
-        return inbox.batch(events);
+        var ack=inbox.batch(events);ack.put("version",version);return ack;
     }
 }

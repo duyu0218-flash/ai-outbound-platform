@@ -1,0 +1,74 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bounded capacity callback extension",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/api/v1/webhooks/telephony/batch-v2": {
+      "post": {
+        "summary": "Receive up to 64 durable telephony callbacks atomically",
+        "description": "Requires the same webhook token, timestamp and HMAC signature as batch v1. Maximum body 256 KiB (or the configured smaller platform limit). The entire envelope is validated before writes; duplicate identities retain their original body digest and same-call FIFO. Returns 200 only after durable receipt commit. The original batch endpoint remains limited to 16 events / 64 KiB.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelephonyBatchV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "version=2, result=received and exactly the accepted event IDs"
+          },
+          "400": {
+            "description": "Invalid envelope or event"
+          },
+          "401": {
+            "description": "Invalid webhook credentials or signature"
+          },
+          "409": {
+            "description": "Event identity/body conflict or durable batching disabled"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "422": {
+            "description": "Duplicate event IDs"
+          },
+          "503": {
+            "description": "Durable receipt capacity unavailable; retry the same identities"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TelephonyBatchV2": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "events"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 2
+          },
+          "events": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/TelephonyBatchItem"
+            }
+          }
+        }
+      }
+    }
+  }
+}

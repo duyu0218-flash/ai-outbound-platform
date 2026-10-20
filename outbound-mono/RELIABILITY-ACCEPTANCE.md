@@ -29,6 +29,7 @@
 | `/admin/operations/teams` | 新增团队接待技能；原成员、组长、启停、统一配置 | Chromium 填写技能并保存回显；原成员及配置链路继续回归 |
 | `/admin/product` → 转人工与时间安排 | 团队、技能、人工压力开关、队列上限、转接比例、超时待办 | Chromium 选择团队、填写上限与比例、发布、刷新回显；后端路由验证 |
 | `/agent` | 被预留坐席的接听按钮、坐席状态 | 原坐席入口、登录退出和异常链路回归；真实耳麦/SIP 未验证 |
+| `/api/v1/webhooks/telephony/batch-v2` | 新增有签名的 64 项/256 KiB 持久回调；v1 16 项/64 KiB 保留 | 实际 HTTP 验证合法确认、签名伪造、超量、重复 ID、超大请求拒绝；无部分写入 |
 | 任务、联系人、话单、质检、线索、报表 | 调度、回执和状态变化影响的已有入口 | 完整浏览器/API 业务回归；见最新 `reliability-validation.json` |
 
 状态包含：排队、拨号、AI 接待、等待人工、坐席预留、转接中、人工接通、无人接听恢复、超时待办、终态释放；鉴权失败、跨租户/角色拒绝、过期 SIP 状态及版本冲突继续回归。浏览器验证按已有的首页/联系人搜索 → 话术/任务 → 外呼 → AI/人工 → 质检 → 线索跟进 → 报表 → 我的配置/退出执行。本系统无门店、房型、购物车、下单或支付入口，商城链路不适用。
@@ -39,11 +40,11 @@
 
 号码池分批生成独立的 `dial_call` 任务，每批最多 100 个；领取先读候选，再按主键锁定和复核租约。准入在同一个平台事务内批量读取号码事实、沿用所有原校验、逐号占用资源，并把该次号码和网关命令元数据冻结到持久任务；提交后才发拨号命令。进程中断后复用同一号码/轮次，网关幂等，不增加一次拨号尝试。成功确认按号码/轮次只追加一次，完成任务清除冻结的号码元数据；未完成任务的敏感负载仍按留存策略清理。
 
-接通/拨号回执可批量提交，但同一通话仍只领取最早一条，分区先于回执加锁；状态、事件去重、用量、AI 开场任务和回执完成在同一事务提交。终态、转人工、语音等其余事件继续走原业务处理。批处理失败整批回滚，再由原逐条处理隔离错误事件。回调过载时停止领取新批次；号码互斥、同意/禁呼、时段、每日次数、平台/租户/线路/活动及人工承接限制均保留。
+接通/拨号回执可批量提交，但同一通话仍只领取最早一条，分区先于回执加锁；状态、事件去重、用量、AI 开场任务和回执完成在同一事务提交。终态、转人工、语音等其余事件继续走原业务处理。批处理失败整批回滚，再由原逐条处理隔离错误事件。批次中的人工承接额度按每个成功准入号码递减，不能重复消费同一份坐席余量。回调过载时停止领取新批次；号码互斥、同意/禁呼、时段、每日次数、平台/租户/线路/活动及人工承接限制均保留。
 
-本地多轮优化后的历史最高五秒窗口平均为 280 CPS，尚未达到每秒至少 500 的标准；后续带采样/不同回调并行度的结果也有回落，不能只报告最高值。所有轮次与对应 jar 记录在 `reliability-validation.json`。最新源码的 Linux 验证与完整回归尚待完成；草稿 PR 不因功能用例通过而提前合并。
+本机最新五秒窗口平均为 623.4 CPS，逐秒为 500、400、700、700、817，因有一秒少于 500，严格验收仍失败。该轮使用 MySQL 512 MiB 缓冲池、4 个拨号线程及 64 项回调批次。Linux 旧候选版本使用默认 16 MiB 缓冲池，两轮均为 60 CPS；全部原始失败保留，不能仅根据工作流步骤显示成功来判断。完整轮次、资源与 jar 记录在 `reliability-validation.json`。最新源码的 Linux 容量与最终功能回归尚待完成；草稿 PR 不因功能用例通过而提前合并。
 
-显式启用批量调度的验证配置为 `JAVA_DIAL_BATCH_SIZE=100`、`JAVA_DIAL_WORKERS=2`、`JAVA_CALLBACK_BATCH_SIZE=100`、`VOICE_CALLBACK_BATCH_ENABLED=true`；回调投递并行度另记实际 `VOICE_CALLBACK_CONCURRENCY`。默认逐条模式不变。独立拨号线程是新增资源，原 4 个通用任务线程与 4+4 个数据库连接池没有被替换为无限并行。GitHub 工作流 `outbound-mono` 可显式选择 `synthetic_capacity=true`，在隔离 Linux/MySQL/Redis 上运行两次 CPS 测试与原 500 在途标准；均无真实号码和云语音。
+显式启用批量调度的验证配置为 `JAVA_DIAL_BATCH_SIZE=100`、`JAVA_DIAL_WORKERS=4`、`JAVA_CALLBACK_BATCH_SIZE=100`、`VOICE_CALLBACK_BATCH_ENABLED=true`、`VOICE_CALLBACK_BATCH_SIZE=64`；回调投递并行度另记实际 `VOICE_CALLBACK_CONCURRENCY`。默认逐条模式不变。独立拨号线程是新增资源，原 4 个通用任务线程与 4+4 个数据库连接池没有被替换为无限并行。GitHub 工作流 `outbound-mono` 可显式选择 `synthetic_capacity=true`，在隔离 Linux/MySQL/Redis 上运行两次 CPS 测试与原 500 在途标准；均无真实号码和云语音。
 
 500 CPS 测试分为号码池和 HTTP 创建两种入口：号码池只预置 queued，实际调度执行全部准入和拨号；HTTP 入口固定每 2 毫秒提交一次请求。应用在途上限明确设为 10000，API 速率设为 2000，避免把“配置只有 500 通在途”误当成 500 CPS。业务连接池 4、账本池 4、通用任务线程 4、回调消费者 1，新增拨号线程及批量参数单列实际值。测量保留每秒拨号确认数、HTTP 错误和发压器延迟；不把未发、排队或超时算成功。短时模拟不能证明长期持续 500 CPS。
 
@@ -51,8 +52,8 @@
 cd outbound-mono
 mvn -B verify
 mvn -B enforcer:enforce
-mvn -B -Dtest=MockDialRate500Probe -Ddial.output=verification/dial500-unique -Ddial.seconds=5 -Dcapacity.mysql.bufferMiB=128 test
-mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.output=verification/queue500-unique -Ddial.seconds=5 -Dcapacity.mysql.bufferMiB=128 test
+mvn -B -Dtest=MockDialRate500Probe -Ddial.output=verification/dial500-unique -Ddial.seconds=5 -Dcapacity.mysql.bufferMiB=512 test
+mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.output=verification/queue500-unique -Ddial.seconds=5 -Dcapacity.mysql.bufferMiB=128 test
 mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.output=verification/ai500-unique -Dcapacity.mysql.bufferMiB=128 test
 ```
 

@@ -73,12 +73,17 @@ public class HumanRouting {
         int ready=0;for(var a:people)if(free(tenant,a))ready++;
         // Campaigns can share the same desks. Tenant-wide pressure is deliberately
         // conservative so separate campaigns cannot each spend the same reserve.
-        var counts=db.one("routingPressure",JsonSupport.map("tenantId",tenant));
+        var counts=pressure(tenant);
         long waiting=((Number)counts.get("waiting")).longValue(),upstream=((Number)counts.get("upstream")).longValue();
         int limit=JsonSupport.integer(policy.get("handoff_queue_limit"),20);double ratio=policy.get("handoff_expected_ratio") instanceof Number n?n.doubleValue():.1;
         // Keep a bounded reserve for expected transfers; hard queue feedback stops
         // new calls even while technical/AI capacity is otherwise available.
         return waiting<limit&&Math.ceil((upstream+1)*ratio)<=ready+limit-waiting;
+    }
+    Map<String,Object> pressure(long tenant){
+        var batch=DialBatchScope.current();String waiting="human-waiting:"+tenant,upstream="human-upstream:"+tenant;
+        if(batch!=null&&batch.counts.containsKey(upstream))return JsonSupport.map("waiting",batch.counts.get(waiting),"upstream",batch.counts.get(upstream));
+        var counts=db.one("routingPressure",JsonSupport.map("tenantId",tenant));if(batch!=null){batch.counts.put(waiting,((Number)counts.get("waiting")).longValue());batch.counts.put(upstream,((Number)counts.get("upstream")).longValue());}return counts;
     }
     public int redistribute(){
         return tx.serialized(()->{

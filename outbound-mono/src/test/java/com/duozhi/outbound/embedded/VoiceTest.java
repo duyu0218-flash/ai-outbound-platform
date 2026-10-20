@@ -86,6 +86,11 @@ class VoiceTest {
             callbacks.tickOnce(); await(() -> received.size() >= 2); Thread.sleep(50); callbacks.tickOnce(); await(() -> received.size() >= 3); assertEquals(List.of(1, 1, 2), received);
         } finally { server.stop(0); }
     }
+    @Test void boundedLargeCallbackBatchUsesV2AndRequiresExactDurableAcknowledgement()throws Exception{
+        var accepted=new AtomicInteger();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/api/v1/webhooks/telephony/batch-v2",request->{var body=Support.object(request.getRequestBody().readAllBytes());assertEquals(2,Support.integer(body,"version",0));var events=(List<Map<String,Object>>)body.get("events");accepted.set(events.size());byte[] reply=Support.json(Map.of("version",2,"result","received","accepted",events.stream().map(e->e.get("id")).toList()));request.sendResponseHeaders(200,reply.length);request.getResponseBody().write(reply);request.close();});server.start();String base="http://127.0.0.1:"+server.getAddress().getPort();var settings=settings(Map.of("VOICE_CALLBACK_BASE_URL",base,"VOICE_CALLBACK_BATCH_ENABLED","true","VOICE_CALLBACK_BATCH_SIZE","64","VOICE_CALLBACK_CONCURRENCY","64"));
+        try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){callbacks.atomic(()->{for(int i=0;i<64;i++)callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id","v2-"+i,"sequence",1));});assertEquals(64,callbacks.tickOnce());await(()->accepted.get()==64);await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==0);}finally{server.stop(0);}
+    }
     @Test void signedSourceCleanupNeedsCompletionChecksumAndRetention() throws Exception {
         var settings = settings(Map.of("VOICE_NODE_ID", "node-a")); var source = new RecordingSource(settings); String filename = "test-call.wav"; byte[] audio = new byte[]{1, 2, 3, 4}; Files.write(directory.resolve(filename), audio);
         long expires = System.currentTimeMillis() / 1000 + 60; assertEquals(directory.resolve(filename).toRealPath(), source.authorized(filename, expires, source.signature(filename, expires)));

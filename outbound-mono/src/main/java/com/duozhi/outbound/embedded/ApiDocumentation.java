@@ -16,7 +16,7 @@ final class ApiDocumentation {
     ApiDocumentation() throws IOException {
         Map<String,Object> root;try(var input=ApiDocumentation.class.getResourceAsStream("/contracts/openapi-baseline.json")){if(input==null)throw new IOException("platform contract is missing");root=new LinkedHashMap<>(Support.object(input.readAllBytes()));}
         var paths=new LinkedHashMap<String,Object>(Support.map(root.get("paths")));var components=new LinkedHashMap<String,Object>(Support.map(root.get("components")));var schemas=new LinkedHashMap<String,Object>(Support.map(components.get("schemas")));
-        for(String role:List.of("agent","voice","media","recording","operations"))try(var input=ApiDocumentation.class.getResourceAsStream("/contracts/openapi-"+role+".json")){
+        for(String role:List.of("agent","voice","media","recording","operations","capacity"))try(var input=ApiDocumentation.class.getResourceAsStream("/contracts/openapi-"+role+".json")){
             if(input==null)throw new IOException("service contract is missing");var contract=Support.object(input.readAllBytes());Support.map(contract.get("paths")).forEach((path,methods)->{if(!Set.of("/health","/readyz","/metrics","/internal/state","/internal/command").contains(path))paths.putIfAbsent(path,methods);});Support.map(Support.map(contract.get("components")).get("schemas")).forEach(schemas::putIfAbsent);
         }
         root.put("paths",paths);components.put("schemas",schemas);root.put("components",components);specification=Support.json(root);

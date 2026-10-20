@@ -90,12 +90,12 @@ public class AiRuntime {
         long started=System.nanoTime();
         Map<String,Object> snapshot=tx.serialized(()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
             String transcript=Objects.toString(payload.get("transcript"),"");
-            Map<String,Object> result=product.prepare(call,transcript),state=product.state(call),policy=product.policy(state);
+            Map<String,Object> state=product.state(call),result=product.prepare(call,transcript,state),policy=product.policy(state);
             if(Boolean.TRUE.equals(json.object(state.get("data_json").toString()).get("failure_handled")))result=ConversationPolicy.reply(policy.get("failure_prompt").toString(),"hangup");
             if(result==null)result=flow(call,state,transcript);
             Map<String,Object> ai=policy.get("_ai") instanceof Map?(Map<String,Object>)policy.get("_ai"):settings.get(CallLifecycle.tenant(call),"ai");
             Map<String,Object> data=json.object(state.get("data_json").toString());data.put("model_pending",result==null);product.save(state,data);
-            return JsonSupport.map("call",call,"policy",policy,"ai",ai,"result",result,"generation",state.get("generation"),"request",agentRequest(call,policy,ai,transcript));
+            return JsonSupport.map("call",call,"policy",policy,"ai",ai,"result",result,"generation",state.get("generation"),"request",result==null?agentRequest(call,policy,ai,transcript):Map.of());
         });
         if(snapshot==null)return;
         Map<String,Object> result=(Map<String,Object>)snapshot.get("result"),ai=(Map<String,Object>)snapshot.get("ai");
@@ -108,7 +108,9 @@ public class AiRuntime {
             catch(TelephonyClient.Failure failure){throw failure;}
         }
         final Map<String,Object> proposed=result;
-        Map<String,Object> accepted=tx.serialized(()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
+        // This phase changes only the locked call's conversation/metrics. It
+        // does not admit calls, allocate agents or release shared capacity.
+        Map<String,Object> accepted=tx.run(()->{Map<String,Object> call=current(payload,true);if(call==null)return null;
             Map<String,Object> state=product.state(call);if(!Objects.equals(state.get("generation"),snapshot.get("generation")))return null;
             Map<String,Object> data=json.object(state.get("data_json").toString());data.put("model_pending",false);product.save(state,data);
             Map<String,Object> guarded=guard(call,new LinkedHashMap<>(proposed),ai);
@@ -149,14 +151,17 @@ public class AiRuntime {
     @SuppressWarnings("unchecked")
     public void apply(Map<String,Object> payload,Map<String,Object> result){
         final Map<String,Object> actionPayload=new LinkedHashMap<>(payload);
-        Map<String,Object> call=current(actionPayload,false);if(call==null)return;long tenant=CallLifecycle.tenant(call);Object id=call.get("id");
-        Map<String,Object> state=tx.serialized(()->{Map<String,Object> c=current(actionPayload,true);return c==null?null:product.state(c);});if(state==null)return;
+        // One locked snapshot immediately before dispatch replaces repeated reads
+        // of the same fence. Never retain it across the external speech command:
+        // the acknowledgement transaction below rechecks attempt/turn/generation.
+        Map<String,Object> dispatch=tx.run(()->{Map<String,Object> c=current(actionPayload,true);if(c==null)return null;
+            return JsonSupport.map("call",c,"state",product.state(c),"media_at",Objects.toString(result.get("tts_text"),"").isEmpty()?null:voice.realtime(c).get("updated_at"));});
+        if(dispatch==null)return;Map<String,Object> call=(Map<String,Object>)dispatch.get("call"),state=(Map<String,Object>)dispatch.get("state");long tenant=CallLifecycle.tenant(call);Object id=call.get("id");
         Map<String,Object> policy=product.policy(state),ai=policy.get("_ai") instanceof Map?(Map<String,Object>)policy.get("_ai"):settings.get(tenant,"ai");
         String text=Objects.toString(result.get("tts_text"),""),action=result.get("action").toString();Map<String,Object> playback=new LinkedHashMap<>();
         if(!text.isEmpty()){
             Map<String,Object> fields=JsonSupport.map("text",text,"language",Objects.toString(policy.get("language"),Objects.toString(ai.get("language"),"zh-CN")),"voice",Objects.toString(policy.get("voice"),"").isEmpty()?ai.get("voice"):policy.get("voice"),"provider",ai.get("tts_provider"),"expected_speech_event_id",actionPayload.get("speech_event_id"),"command_id",JsonSupport.sha(id+":"+call.get("attempts")+":"+actionPayload.get("turn_sequence")+":"+text));
-            if(current(actionPayload,false)==null)return;
-            Object beforeMediaAt=tx.serialized(()->{Map<String,Object> latest=current(actionPayload,true);return latest==null?null:voice.realtime(latest).get("updated_at");});
+            Object beforeMediaAt=dispatch.get("media_at");
             if(beforeMediaAt==null)return;
             long started=System.nanoTime();playback=client.command(call,"speak",fields);
             // Media callbacks may advance timers while the command response is in flight.
@@ -181,21 +186,22 @@ public class AiRuntime {
         finish(actionPayload,result,Boolean.TRUE.equals(playback.get("playback_complete")));
     }
     private void finish(Map<String,Object> payload,Map<String,Object> result,boolean playbackComplete){
-        Map<String,Object> call=current(payload,false);if(call==null)return;
+        Map<String,Object> hangupCall="hangup".equals(result.get("action"))?current(payload,false):null;
         if("hangup".equals(result.get("action"))){
+            if(hangupCall==null)return;var call=hangupCall;
             Map<String,Object> response=client.command(call,"hangup",JsonSupport.map("reason","ai_decision","expected_speech_event_id",payload.get("speech_event_id")));
             tx.serialized(()->{Map<String,Object> latest=current(payload,true);if(latest==null)return null;
                 if(Boolean.TRUE.equals(response.get("ended")))lifecycle.status(JsonSupport.map("call_id",call.get("id"),"payload",JsonSupport.map("status","completed","attempt",call.get("attempts"),"event_id","ai-hangup:"+call.get("id")+":"+call.get("attempts"),"hangup_reason","ai_decision")));
                 else store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("last_error","hangup requested; awaiting PBX termination"));return null;
             });
         }
-        tx.serialized(()->{TaskWorker.permitted();Map<String,Object> latest=tx.call(call.get("id"));if(latest==null||CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(call,"attempts"))return null;
+        tx.serialized(()->{TaskWorker.permitted();Map<String,Object> latest="hangup".equals(result.get("action"))?tx.call(hangupCall.get("id")):current(payload,true);if(latest==null||hangupCall!=null&&CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(hangupCall,"attempts"))return null;var call=latest;
             if(!"hangup".equals(result.get("action"))){
-                if(current(payload,false)==null)return null;
                 if("handoff".equals(result.get("action"))||Boolean.TRUE.equals(result.get("handoff_to_human")))handoffs.queue(latest,"ai_decision");
                 else {latest=store.patchLoaded("callsession",latest,JsonSupport.map("status","in_ai"));if(playbackComplete){Map<String,Object> rt=voice.realtime(latest);store.writeLocked("realtimesession",CallLifecycle.tenant(call),rt.get("id"),JsonSupport.map("state","listening","playback_id",null));product.arm(latest,"silence");}}
             }
-            Map<String,Object> event=store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","ai_decision","source","dispatcher","payload",json.json(JsonSupport.map("action",result.get("action"),"tts_dispatched",!Objects.toString(result.get("tts_text"),"").isEmpty(),"handoff_to_human",result.getOrDefault("handoff_to_human",false),"resulting_status",store.require("callsession",CallLifecycle.tenant(call),call.get("id")).get("status")))));
+            Object resultingStatus=Values.set("continue","speak").contains(result.get("action"))&&!Boolean.TRUE.equals(result.get("handoff_to_human"))?latest.get("status"):store.require("callsession",CallLifecycle.tenant(call),call.get("id")).get("status");
+            Map<String,Object> event=store.insert("callevent",JsonSupport.map("call_session_id",call.get("id"),"event_type","ai_decision","source","dispatcher","payload",json.json(JsonSupport.map("action",result.get("action"),"tts_dispatched",!Objects.toString(result.get("tts_text"),"").isEmpty(),"handoff_to_human",result.getOrDefault("handoff_to_human",false),"resulting_status",resultingStatus))));
             outbox.callback(latest,"call.ai_decision",json.object(event.get("payload").toString()),"callback:ai-decision:"+event.get("id"));
             if(result.get("hangup_sms")!=null&&!result.get("hangup_sms").toString().isEmpty()) {
                 Map<String,Object> campaign=call.get("campaign_id")==null?null:store.require("campaign",CallLifecycle.tenant(call),call.get("campaign_id"));

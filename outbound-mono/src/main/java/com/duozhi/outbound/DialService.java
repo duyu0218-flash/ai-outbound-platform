@@ -143,6 +143,7 @@ public class DialService {
             call = batch==null?store.update("callsession", tenant, id, changes):store.patchLoaded("callsession",call,changes);
             conversation.state(call);
             store.insert("callevent", JsonSupport.map("call_session_id", id, "event_type", "dial_attempt_claimed", "source", "platform", "payload", json.json(JsonSupport.map("attempt", call.get("attempts")))));
+            if(batch!=null&&Values.set("ai_handoff","mixed_human_first").contains(call.get("mode")))batch.counts.merge("human-upstream:"+tenant,1L,Long::sum);
             if(batch!=null){batch.calls.put(id.toString(),call);batch.counts.merge(dailyKey,1L,Long::sum);if(facts!=null){facts.put("active",((Number)facts.get("active")).longValue()+1);facts.put("legacy_attempts",((Number)facts.get("legacy_attempts")).longValue()+1);facts.put("event_attempts",((Number)facts.get("event_attempts")).longValue()+1);}for(var key:new ArrayList<>(batch.counts.keySet()))if(key.equals("active:null:null:null")||key.equals("active:"+tenant+":null:null")||key.equals("active:"+tenant+":"+call.get("telephony_line_id")+":null")||call.get("campaign_id")!=null&&key.equals("active:"+tenant+":null:"+call.get("campaign_id")))batch.counts.merge(key,1L,Long::sum);}
             return call;
         });
@@ -181,6 +182,7 @@ public class DialService {
                 var ids=tasks.stream().map(t->t.get("aggregate_id").toString()).toList();db.prepare(scope,tenant,ids);long facts=System.nanoTime();
                 scope.tenants.put(""+tenant,tx.tenant(tenant));settings.get(tenant,"ai");settings.get(tenant,"capacity");settings.get(tenant,"compliance");
                 scope.lines.put(tenant,store.query("telephonyline","sourceDialService94_3",Store.queryParameters(0,tenant,true)));
+                if(scope.calls.values().stream().anyMatch(c->Values.set("ai_handoff","mixed_human_first").contains(c.get("mode"))))routing.pressure(tenant);
                 active(null,null,null);active(tenant,null,null);for(var line:scope.lines.get(tenant))active(tenant,line.get("id"),null);
                 for(var c:scope.calls.values()){productHours(c);conversation.current(tenant,c.get("campaign_id"));if(c.get("campaign_id")!=null){Object campaignId=c.get("campaign_id");scope.campaigns.computeIfAbsent(tenant+":"+campaignId,k->store.require("campaign",tenant,campaignId));active(tenant,null,campaignId);}}
                 // Resolve shared readiness and daily counters before buffering.
