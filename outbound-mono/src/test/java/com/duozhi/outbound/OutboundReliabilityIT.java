@@ -166,6 +166,19 @@ class OutboundReliabilityIT {
         assertThat(store.require("callsession",tenant,denied.get("id")).get("status")).isEqualTo("failed");assertThat(store.require("callsession",tenant,good.get("id")).get("status")).isEqualTo("dialing");
         assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",List.of(a.get("id"),b.get("id"),good.get("id"))))).hasSize(2);
     }
+    @Test void dialCohortDoesNotWaitForTheGeneralAiClaimMutex()throws Exception{
+        var call=call("queued","ai_only");consent(call);worker.enqueueDue();var pool=Executors.newSingleThreadExecutor();
+        long key=java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+        try{try(var held=platformLocks.lock(key)){assertThat(pool.submit(()->worker.processLane(tenant,0)).get(5,TimeUnit.SECONDS)).isTrue();}}
+        finally{pool.shutdownNow();}
+        assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",List.of(call.get("id"))))).hasSize(1);
+    }
+    @Test void generalAndBatchClaimersStillCannotSpendTheSameDialAttemptTwice()throws Exception{
+        var call=call("queued","ai_only");consent(call);worker.enqueueDue();var pool=Executors.newFixedThreadPool(2);var gate=new CountDownLatch(1);
+        try{var first=pool.submit(()->{gate.await();return worker.processOne(tenant);});var second=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});gate.countDown();boolean a=first.get(10,TimeUnit.SECONDS),b=second.get(10,TimeUnit.SECONDS);assertThat(a||b).isTrue();}
+        finally{pool.shutdownNow();}
+        assertThat(store.require("callsession",tenant,call.get("id")).get("attempts")).isEqualTo(1);assertThat(dialDb.rows("dialAcks",Map.of("tenantId",tenant,"ids",List.of(call.get("id"))))).hasSize(1);
+    }
     @Test void parallelCohortsCannotAdmitTheSamePhoneTwice()throws Exception{
         var first=call("queued","ai_only");consent(first);var ids=new ArrayList<String>();ids.add(first.get("id").toString());for(int i=0;i<100;i++){var next=call("queued","ai_only");store.update("callsession",tenant,next.get("id"),Map.of("phone",first.get("phone")));ids.add(next.get("id").toString());}
         worker.enqueueDue();var pool=Executors.newFixedThreadPool(2);var gate=new CountDownLatch(1);try{var a=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});var b=pool.submit(()->{gate.await();return worker.processLane(tenant,0);});gate.countDown();boolean ar=a.get(20,TimeUnit.SECONDS),br=b.get(20,TimeUnit.SECONDS);assertThat(ar||br).isTrue();}finally{pool.shutdownNow();}
