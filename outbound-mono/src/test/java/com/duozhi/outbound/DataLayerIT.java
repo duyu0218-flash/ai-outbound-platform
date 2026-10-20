@@ -184,8 +184,9 @@ class DataLayerIT {
             tables().forEach(t -> expectedTables.add(meta(t).get("table").asText()));
             assertThat(expectedTables).hasSize(34);
             expectedTables.addAll(Set.of("voice_attempts","voice_flags","voice_nonces","voice_outbox","voice_audit","voice_action_commands","voice_permits","voice_media_owners","voice_model_budgets","voice_model_usage"));
+            expectedTables.addAll(Set.of("ops_team","ops_member","ops_permission","ops_lead","ops_history","ops_view","ops_config","ops_notice","ops_presence","ops_tag_link"));
             expectedTables.add("flyway_schema_history");
-            assertThat(expectedTables).hasSize(45);
+            assertThat(expectedTables).hasSize(55);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {

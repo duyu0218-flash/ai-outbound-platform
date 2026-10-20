@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.OperationsMapper">
+ <sql id="callJoin">FROM callsession c LEFT JOIN callanalysis a ON a.tenant_id=c.tenant_id AND a.call_session_id=c.id LEFT JOIN ops_lead l ON l.tenant_id=c.tenant_id AND l.contact_id=c.contact_id LEFT JOIN campaign g ON g.tenant_id=c.tenant_id AND g.id=c.campaign_id</sql>
+ <sql id="callWhere">
+  AND (#{allScope}=TRUE OR c.human_agent_id=#{userId} OR l.owner_id=#{userId} OR EXISTS(SELECT 1 FROM handoffrequest own_h WHERE own_h.tenant_id=c.tenant_id AND own_h.call_session_id=c.id AND own_h.assigned_agent_id=#{userId} AND own_h.state IN ('WAITING','ACCEPTING','ACCEPTED'))
+   OR EXISTS(SELECT 1 FROM ops_member m JOIN ops_member me ON me.tenant_id=m.tenant_id AND me.team_id=m.team_id AND me.is_lead=TRUE JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=c.tenant_id AND me.user_id=#{userId} AND m.user_id IN (l.owner_id,c.human_agent_id)))
+  <if test="id != null">AND c.id=#{id}</if><if test="phone != null">AND c.phone LIKE CONCAT('%',#{phone},'%')</if>
+  <if test="campaign_id != null">AND c.campaign_id=#{campaign_id}</if><if test="status != null">AND c.status=#{status}</if>
+  <if test="contact_id != null">AND c.contact_id=#{contact_id}</if>
+  <if test="agent_id != null">AND c.human_agent_id=#{agent_id}</if><if test="line_id != null">AND c.telephony_line_id=#{line_id}</if>
+  <if test="intent != null">AND a.intent=#{intent}</if><if test="review_state != null">AND a.review_state=#{review_state}</if>
+  <if test="from != null">AND c.created_at &gt;=#{from}</if><if test="until != null">AND c.created_at &lt;=#{until}</if>
+  <if test="min_seconds != null">AND TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at)&gt;=#{min_seconds}</if>
+  <if test="max_seconds != null">AND TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at)&lt;=#{max_seconds}</if>
+  <if test="handoff != null">AND (c.handoff_reason IS NOT NULL AND c.handoff_reason&lt;&gt;'')=#{handoff}</if>
+  <if test="owner_id != null">AND l.owner_id=#{owner_id}</if><if test="stage != null">AND l.stage=#{stage}</if>
+  <if test="tag != null">AND (JSON_CONTAINS(l.tags_json,JSON_QUOTE(#{tag})) OR EXISTS(SELECT 1 FROM ops_tag_link ot WHERE ot.tenant_id=c.tenant_id AND ot.tag=#{tag} AND ((ot.target_kind='call' AND ot.object_id=c.id) OR (ot.target_kind='campaign' AND ot.object_id=CAST(c.campaign_id AS CHAR)) OR (ot.target_kind='script' AND ot.object_id=CAST(g.script_template_id AS CHAR)))))</if>
+  <if test="team_id != null">AND EXISTS(SELECT 1 FROM ops_member tm WHERE tm.tenant_id=c.tenant_id AND tm.team_id=#{team_id} AND tm.user_id=COALESCE(l.owner_id,c.human_agent_id))</if>
+ </sql>
+ <select id="calls" resultType="java.util.LinkedHashMap">SELECT c.*,a.intent,a.qa_score,a.review_state,a.result_code,g.name AS campaign_name,l.owner_id,l.stage,TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at) AS duration_seconds <include refid="callJoin"/> WHERE c.tenant_id=#{tenantId}<include refid="callWhere"/> ORDER BY c.created_at DESC,c.id DESC LIMIT #{limit} OFFSET #{offset}</select>
+ <select id="callCount" resultType="long">SELECT COUNT(*) <include refid="callJoin"/> WHERE c.tenant_id=#{tenantId}<include refid="callWhere"/></select>
+ <select id="report" resultType="java.util.LinkedHashMap">
+ SELECT CASE #{dimension} WHEN 'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE COALESCE(c.campaign_id,0) END AS dimension_key,
+ CASE #{granularity} WHEN 'hour' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:00') WHEN 'day' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d') ELSE '全部' END AS bucket,
+ COUNT(*) AS sessions,COALESCE(SUM(c.attempts),0) AS attempts,COUNT(DISTINCT c.phone) AS phones,
+ SUM(c.status IN ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED')) AS reached_sessions,
+ COUNT(DISTINCT CASE WHEN c.status IN ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED') THEN c.phone END) AS reached_phones,
+ SUM(c.handoff_reason IS NOT NULL AND c.handoff_reason&lt;&gt;'') AS handoff_requests,SUM(c.status='IN_HUMAN' OR EXISTS(SELECT 1 FROM handoffrequest hr WHERE hr.tenant_id=c.tenant_id AND hr.call_session_id=c.id AND hr.state IN ('ACCEPTED','COMPLETED'))) AS handoff_received,
+ COUNT(DISTINCT CASE WHEN a.result_code='qualified_lead' THEN c.phone END) AS qualified_phones,
+ SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed_sessions
+ <include refid="callJoin"/> WHERE c.tenant_id=#{tenantId}<include refid="callWhere"/> GROUP BY dimension_key,bucket ORDER BY bucket DESC,dimension_key
+ </select>
+ <select id="campaignProgress" resultType="java.util.LinkedHashMap">SELECT g.id,g.name,g.status,g.concurrency,(SELECT COUNT(*) FROM campaigncontact cc WHERE cc.campaign_id=g.id) AS contacts,COUNT(c.id) AS sessions,COUNT(DISTINCT c.phone) AS dialed_phones,COALESCE(SUM(c.attempts),0) AS attempts,SUM(c.status='QUEUED') AS queued,SUM(c.status='WAITING_HUMAN') AS waiting,SUM(c.status='IN_HUMAN') AS in_human,SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed FROM campaign g LEFT JOIN callsession c ON c.tenant_id=g.tenant_id AND c.campaign_id=g.id WHERE g.tenant_id=#{tenantId} AND (#{campaign_id} IS NULL OR g.id=#{campaign_id}) GROUP BY g.id ORDER BY g.id DESC LIMIT 200</select>
+ <select id="teams" resultType="java.util.LinkedHashMap">SELECT * FROM ops_team WHERE tenant_id=#{tenantId} AND (#{allScope}=TRUE OR id IN(SELECT team_id FROM ops_member WHERE tenant_id=#{tenantId} AND user_id=#{userId})) ORDER BY id</select>
+ <select id="team" resultType="java.util.LinkedHashMap">SELECT * FROM ops_team WHERE tenant_id=#{tenantId} AND id=#{team_id} FOR UPDATE</select>
+ <insert id="teamCreate" useGeneratedKeys="true" keyProperty="team_id">INSERT INTO ops_team(tenant_id,name,settings_json) VALUES(#{tenantId},#{name},#{settings_json})</insert>
+ <update id="teamUpdate">UPDATE ops_team SET name=#{name},enabled=#{enabled},settings_json=#{settings_json},revision=revision+1 WHERE tenant_id=#{tenantId} AND id=#{team_id} AND revision=#{revision}</update>
+ <delete id="memberClear">DELETE FROM ops_member WHERE tenant_id=#{tenantId} AND team_id=#{team_id}</delete>
+ <insert id="memberAdd">INSERT INTO ops_member(tenant_id,team_id,user_id,is_lead) VALUES(#{tenantId},#{team_id},#{member_id},#{is_lead})</insert>
+ <insert id="permissionEnroll">INSERT IGNORE INTO ops_permission(tenant_id,user_id) VALUES(#{tenantId},#{member_id})</insert>
+ <select id="members" resultType="java.util.LinkedHashMap">SELECT m.*,u.full_name,u.username,u.role,u.enabled,u.agent_status,u.last_seen_at FROM ops_member m JOIN sys_user u ON u.tenant_id=m.tenant_id AND u.id=m.user_id WHERE m.tenant_id=#{tenantId} AND m.team_id=#{team_id} ORDER BY m.user_id</select>
+ <select id="users" resultType="java.util.LinkedHashMap">SELECT u.id,u.full_name,u.username,u.role,u.enabled,u.agent_status FROM sys_user u WHERE u.tenant_id=#{tenantId} AND (#{allScope}=TRUE OR u.id=#{userId} OR EXISTS(SELECT 1 FROM ops_member m JOIN ops_member me ON me.tenant_id=m.tenant_id AND me.team_id=m.team_id AND me.is_lead=TRUE JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=u.tenant_id AND me.user_id=#{userId} AND m.user_id=u.id)) ORDER BY u.id LIMIT 2000</select>
+ <select id="permissions" resultType="java.util.LinkedHashMap">SELECT * FROM ops_permission WHERE tenant_id=#{tenantId} AND user_id=#{userId}</select>
+ <select id="lookupCalls" resultType="java.util.LinkedHashMap">SELECT DISTINCT c.campaign_id,g.name AS campaign_name,c.telephony_line_id,tl.name AS line_name <include refid="callJoin"/> LEFT JOIN telephonyline tl ON tl.tenant_id=c.tenant_id AND tl.id=c.telephony_line_id WHERE c.tenant_id=#{tenantId}<include refid="callWhere"/> LIMIT 2000</select>
+ <insert id="permissionSave">INSERT INTO ops_permission(tenant_id,user_id,can_export,can_unmask,can_record) VALUES(#{tenantId},#{member_id},#{can_export},#{can_unmask},#{can_record}) ON DUPLICATE KEY UPDATE can_export=VALUES(can_export),can_unmask=VALUES(can_unmask),can_record=VALUES(can_record)</insert>
+ <sql id="leadJoin">FROM contact c LEFT JOIN ops_lead l ON l.tenant_id=c.tenant_id AND l.contact_id=c.id LEFT JOIN sys_user u ON u.tenant_id=c.tenant_id AND u.id=l.owner_id</sql>
+ <sql id="leadWhere">
+  AND (#{allScope}=TRUE OR l.owner_id=#{userId} OR (#{pool}=TRUE AND l.owner_id IS NULL) OR EXISTS(SELECT 1 FROM ops_member m JOIN ops_member me ON me.tenant_id=m.tenant_id AND me.team_id=m.team_id AND me.is_lead=TRUE JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=c.tenant_id AND me.user_id=#{userId} AND m.user_id=l.owner_id))
+  <if test="contact_id != null">AND c.id=#{contact_id}</if><if test="keyword != null">AND (c.phone LIKE CONCAT('%',#{keyword},'%') OR c.name LIKE CONCAT('%',#{keyword},'%'))</if>
+  <if test="pool == true">AND l.owner_id IS NULL</if><if test="mine == true">AND l.owner_id=#{userId}</if>
+  <if test="owner_id != null">AND l.owner_id=#{owner_id}</if><if test="stage != null">AND COALESCE(l.stage,'open')=#{stage}</if>
+  <if test="overdue == true">AND l.next_at &lt; CURRENT_TIMESTAMP(3) AND l.stage NOT IN ('completed','invalid')</if>
+  <if test="tag != null">AND JSON_CONTAINS(l.tags_json,JSON_QUOTE(#{tag}))</if>
+ </sql>
+ <select id="leads" resultType="java.util.LinkedHashMap">SELECT c.id AS contact_id,c.phone,c.name,c.dnc,c.consent_state,COALESCE(l.revision,0) AS revision,COALESCE(l.stage,'open') AS stage,l.owner_id,u.full_name AS owner_name,l.next_at,l.fields_json,l.tags_json,l.form_id,l.form_revision <include refid="leadJoin"/> WHERE c.tenant_id=#{tenantId}<include refid="leadWhere"/> ORDER BY l.next_at IS NULL,l.next_at,c.id DESC LIMIT #{limit} OFFSET #{offset}</select>
+ <select id="leadCount" resultType="long">SELECT COUNT(*) <include refid="leadJoin"/> WHERE c.tenant_id=#{tenantId}<include refid="leadWhere"/></select>
+ <insert id="leadSeed">INSERT IGNORE INTO ops_lead(tenant_id,contact_id,fields_json,tags_json) VALUES(#{tenantId},#{contact_id},'{}','[]')</insert>
+ <select id="leadLock" resultType="java.util.LinkedHashMap">SELECT * FROM ops_lead WHERE tenant_id=#{tenantId} AND contact_id=#{contact_id} FOR UPDATE</select>
+ <update id="leadUpdate">UPDATE ops_lead SET owner_id=#{owner_id},stage=#{stage},next_at=#{next_at},fields_json=#{fields_json},tags_json=#{tags_json},form_id=#{form_id},form_revision=#{form_revision},revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND contact_id=#{contact_id} AND revision=#{revision}</update>
+ <select id="history" resultType="java.util.LinkedHashMap">SELECT h.id,h.actor_id,u.full_name AS actor,h.action,h.detail_json,h.created_at FROM ops_history h LEFT JOIN sys_user u ON u.tenant_id=h.tenant_id AND u.id=h.actor_id WHERE h.tenant_id=#{tenantId} AND h.contact_id=#{contact_id} ORDER BY h.id DESC LIMIT 200</select>
+ <select id="historyEvent" resultType="java.util.LinkedHashMap">SELECT * FROM ops_history WHERE tenant_id=#{tenantId} AND event_key=#{event_key}</select>
+ <insert id="historyAdd">INSERT INTO ops_history(tenant_id,contact_id,actor_id,event_key,payload_hash,action,detail_json) VALUES(#{tenantId},#{contact_id},#{userId},#{event_key},#{payload_hash},#{action},#{detail_json})</insert>
+ <select id="views" resultType="java.util.LinkedHashMap">SELECT * FROM ops_view WHERE tenant_id=#{tenantId} AND user_id=#{userId} ORDER BY id</select>
+ <insert id="viewSave">INSERT INTO ops_view(tenant_id,user_id,kind,name,config_json) VALUES(#{tenantId},#{userId},#{kind},#{name},#{config_json}) ON DUPLICATE KEY UPDATE config_json=VALUES(config_json),revision=revision+1</insert>
+ <delete id="viewDelete">DELETE FROM ops_view WHERE tenant_id=#{tenantId} AND user_id=#{userId} AND id=#{id}</delete>
+ <select id="configs" resultType="java.util.LinkedHashMap">SELECT * FROM ops_config WHERE tenant_id=#{tenantId} AND kind=#{kind} ORDER BY id DESC LIMIT 200</select>
+ <select id="config" resultType="java.util.LinkedHashMap">SELECT * FROM ops_config WHERE tenant_id=#{tenantId} AND id=#{id}</select>
+ <insert id="configAdd">INSERT INTO ops_config(tenant_id,kind,name,revision,config_json) VALUES(#{tenantId},#{kind},#{name},#{revision},#{config_json})</insert>
+ <select id="configLatest" resultType="java.util.LinkedHashMap">SELECT * FROM ops_config WHERE tenant_id=#{tenantId} AND kind=#{kind} AND name=#{name} ORDER BY revision DESC LIMIT 1 FOR UPDATE</select>
+ <insert id="noticeAdd">INSERT IGNORE INTO ops_notice(tenant_id,user_id,event_key,title,path) VALUES(#{tenantId},#{recipient},#{event_key},#{title},#{path})</insert>
+ <insert id="noticeDue">INSERT IGNORE INTO ops_notice(tenant_id,user_id,event_key,title,path) SELECT tenant_id,owner_id,CONCAT('due:',contact_id,':',revision),'线索跟进已到期','/operations/leads' FROM ops_lead WHERE tenant_id=#{tenantId} AND owner_id=#{userId} AND next_at &lt;= CURRENT_TIMESTAMP(3) AND stage NOT IN ('completed','invalid')</insert>
+ <insert id="noticeWork">INSERT IGNORE INTO ops_notice(tenant_id,user_id,event_key,title,path) SELECT tenant_id,#{userId},CONCAT('work:',id),'人工待办尚未处理','/operations/leads' FROM productworkitem WHERE tenant_id=#{tenantId} AND state&lt;&gt;'completed' AND (assigned_to=#{userId} OR (#{allScope}=TRUE AND assigned_to IS NULL))</insert>
+ <insert id="noticeAppointment">INSERT IGNORE INTO ops_notice(tenant_id,user_id,event_key,title,path) SELECT a.tenant_id,#{userId},CONCAT('appointment:',a.id,':',a.revision),'预约回拨即将到期','/operations/leads' FROM callbackappointment a JOIN callsession c ON c.tenant_id=a.tenant_id AND c.id=a.source_call_id LEFT JOIN ops_lead l ON l.tenant_id=c.tenant_id AND l.contact_id=c.contact_id WHERE a.tenant_id=#{tenantId} AND a.state='confirmed' AND a.scheduled_at BETWEEN CURRENT_TIMESTAMP(3) AND DATE_ADD(CURRENT_TIMESTAMP(3),INTERVAL 15 MINUTE) AND (#{allScope}=TRUE OR l.owner_id=#{userId} OR c.human_agent_id=#{userId})</insert>
+ <insert id="noticeDelivery">INSERT IGNORE INTO ops_notice(tenant_id,user_id,event_key,title,path) SELECT tenant_id,#{userId},CONCAT('delivery:',id,':',attempts),'业务回调执行失败','/operations/configs' FROM taskoutbox WHERE tenant_id=#{tenantId} AND task_type='business_callback' AND state='FAILED' AND #{allScope}=TRUE</insert>
+ <select id="notices" resultType="java.util.LinkedHashMap">SELECT * FROM ops_notice WHERE tenant_id=#{tenantId} AND user_id=#{userId} ORDER BY id DESC LIMIT 200</select>
+ <update id="noticeRead">UPDATE ops_notice SET read_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND user_id=#{userId} AND id=#{id}</update>
+ <select id="workItems" resultType="java.util.LinkedHashMap">SELECT * FROM productworkitem WHERE tenant_id=#{tenantId} AND (#{allScope}=TRUE OR assigned_to=#{userId} OR assigned_to IN(SELECT m.user_id FROM ops_member m JOIN ops_member me ON me.tenant_id=m.tenant_id AND me.team_id=m.team_id AND me.is_lead=TRUE JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=#{tenantId} AND me.user_id=#{userId})) ORDER BY created_at DESC LIMIT 200</select>
+ <select id="deliveries" resultType="java.util.LinkedHashMap">SELECT id,aggregate_id AS call_session_id,state,attempts,last_error,available_at,created_at FROM taskoutbox WHERE tenant_id=#{tenantId} AND task_type='business_callback' ORDER BY created_at DESC LIMIT 200</select>
+ <select id="workforceTeams" resultType="java.util.LinkedHashMap">SELECT t.* FROM ops_team t JOIN ops_member m ON m.tenant_id=t.tenant_id AND m.team_id=t.id WHERE t.tenant_id=#{tenantId} AND t.enabled=TRUE AND m.user_id=#{userId} ORDER BY t.id</select>
+ <select id="workspacePersonal" resultType="java.util.LinkedHashMap">SELECT * FROM ops_config WHERE tenant_id=#{tenantId} AND kind='workspace' AND name=#{name} ORDER BY revision DESC LIMIT 1</select>
+ <insert id="wrapup">INSERT INTO ops_presence(tenant_id,user_id,available_after) VALUES(#{tenantId},#{userId},#{available_after}) ON DUPLICATE KEY UPDATE available_after=VALUES(available_after)</insert>
+ <select id="wrapupTime" resultType="java.util.LinkedHashMap">SELECT * FROM ops_presence WHERE tenant_id=#{tenantId} AND user_id=#{userId}</select>
+ <select id="tagLinks" resultType="java.util.LinkedHashMap">SELECT * FROM ops_tag_link WHERE tenant_id=#{tenantId} AND target_kind=#{target_kind} AND object_id=#{object_id}</select>
+ <delete id="tagClear">DELETE FROM ops_tag_link WHERE tenant_id=#{tenantId} AND target_kind=#{target_kind} AND object_id=#{object_id}</delete>
+ <insert id="tagAdd">INSERT INTO ops_tag_link(tenant_id,target_kind,object_id,tag) VALUES(#{tenantId},#{target_kind},#{object_id},#{tag})</insert>
+</mapper>

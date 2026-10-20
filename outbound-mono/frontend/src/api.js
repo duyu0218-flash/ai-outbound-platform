@@ -5,5 +5,5 @@ export async function apiRequest(path,options={},token){
   let response;try{response=await fetch(path,{...options,headers,signal:controller.signal})}catch(error){if(controller.signal.aborted&&!options.signal?.aborted)throw new ApiError(`Request timed out after ${Math.ceil(timeout/1000)} seconds`,504);throw error}finally{clearTimeout(timer);options.signal?.removeEventListener('abort',abort)}
   const body=(response.headers.get('content-type')||'').includes('application/json')?await response.json():await response.text();if(!response.ok)throw new ApiError(typeof body==='object'&&body?(body.message||body.detail||body.error||`HTTP ${response.status}`):String(body||`HTTP ${response.status}`),response.status);return body
 }
-export function formatDate(value){if(!value)return '-';return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value.endsWith('Z')?value:value+'Z'))}
+export function formatDate(value){if(!value)return '-';return new Intl.DateTimeFormat(undefined,{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(typeof value==='number'?value:/(?:Z|[+-]\d{2}:?\d{2})$/.test(value)?value:value+'Z'))}
 export function numberList(raw){return String(raw).split(/[,\s\r\n]+/).map(Number).filter(n=>Number.isInteger(n)&&n>0)}

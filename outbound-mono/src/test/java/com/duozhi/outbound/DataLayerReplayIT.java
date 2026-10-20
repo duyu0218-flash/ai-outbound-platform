@@ -22,8 +22,8 @@ class DataLayerReplayIT {
         var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration").load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(3);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3");
+        assertThat(first.migrationsExecuted).isEqualTo(4);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("4");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -81,16 +81,17 @@ class DataLayerReplayIT {
                 }
             }
         }
-        assertThat(tables).hasSize(45).containsKey("flyway_schema_history");
+        assertThat(tables).hasSize(55).containsKey("flyway_schema_history");
         report.put("totalTablesIncludingFlyway", tables.size());
         report.put("businessTableCount", 34);
         report.put("auxiliaryTableCount", 10);
+        report.put("operationsTableCount", 10);
         report.put("applicationTableCount", tables.size() - 1);
         report.put("tables", tables);
         Path target = Path.of("target", "data-layer-replay.json"); Files.createDirectories(target.getParent());
         new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(target.toFile(), report);
         System.out.println("Flyway first: migrationsExecuted=" + first.migrationsExecuted + ", version=" + first.targetSchemaVersion + ", success=" + first.success);
         System.out.println("Flyway second: migrationsExecuted=" + second.migrationsExecuted + ", version=" + version + ", success=" + second.success);
-        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, totalTables=45");
+        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, operationsTables=10, totalTables=55");
     }
 }
