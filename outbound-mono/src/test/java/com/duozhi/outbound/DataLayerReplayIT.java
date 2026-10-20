@@ -22,8 +22,8 @@ class DataLayerReplayIT {
         var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration").load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(4);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("4");
+        assertThat(first.migrationsExecuted).isEqualTo(6);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("6");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -75,7 +75,7 @@ class DataLayerReplayIT {
             }
         }
         try(var connection=DriverManager.getConnection(MYSQL.getJdbcUrl(),MYSQL.getUsername(),MYSQL.getPassword());var statement=connection.createStatement()) {
-            for(var expected:Map.of("ix_taskoutbox_ready_scope","tenant_id,task_type,state,available_at,id","ix_taskoutbox_stream_scope","tenant_id,aggregate_id,task_type,state,created_at,id","ix_callbackinbox_expiry","state,completed_at,id").entrySet()) {
+            for(var expected:Map.of("ix_taskoutbox_ready_scope","tenant_id,task_type,state,available_at,id","ix_taskoutbox_stream_scope","tenant_id,aggregate_id,task_type,state,created_at,id","ix_callbackinbox_expiry","state,completed_at,id","ix_call_admission_counts","tenant_id,status,telephony_line_id,campaign_id","ix_call_daily_attempts","tenant_id,started_at,attempts","ix_event_attempt_daily","event_type,created_at,call_session_id","ix_callback_pending_global","state,id").entrySet()) {
                 try(var query=connection.prepareStatement("SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND INDEX_NAME=?")) {
                     query.setString(1,expected.getKey());try(var result=query.executeQuery()){assertThat(result.next()).isTrue();assertThat(result.getString(1)).isEqualTo(expected.getValue());}
                 }

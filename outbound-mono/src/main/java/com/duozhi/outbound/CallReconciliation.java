@@ -34,7 +34,7 @@ public class CallReconciliation {
             try { TaskWorker.permitted(); confirmed=Boolean.TRUE.equals(client.command(call,"hangup",JsonSupport.map("reason","provider_status_timeout")).get("ended")); }
             catch (RuntimeException failure) { TaskWorker.permitted(); confirmed=false; }
             final boolean ended=confirmed;
-            boolean changed=tx.run(()->{
+            boolean changed=tx.serialized(()->{
                 tx.platform(); TaskWorker.permitted(); Map<String,Object> latest=tx.call(call.get("id"));
                 if(latest==null || CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(call,"attempts") || CallLifecycle.TERMINAL.contains(latest.get("status")))return false;
                 if(!ended) {

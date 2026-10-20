@@ -60,7 +60,7 @@ public class GatewayCluster {
         return selected;
     }
     void record(Map<String,Object> spec,LocalDateTime started,boolean healthy,int capacity){
-        tx.run(()->{
+        tx.serialized(()->{
             tx.platform();Map<String,Object> node=store.one("gatewaynode","sourceGatewayCluster64_2",Store.queryParameters(-1,spec.get("id")));
             if(node!=null&&LocalDateTime.parse(node.get("checked_at").toString()).isAfter(started))return null;
             if(node!=null&&!Objects.equals(node.get("endpoint"),spec.get("endpoint"))&&store.sumAcross("callsession","scopedGatewayCluster54",Store.queryParameters(-1,spec.get("id")))>0){store.updateInternal("gatewaynode",spec.get("id"),JsonSupport.map("ready",false));return null;}

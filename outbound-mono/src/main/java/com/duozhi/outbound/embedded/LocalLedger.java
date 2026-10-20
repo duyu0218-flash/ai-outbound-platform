@@ -22,14 +22,17 @@ final class LocalLedger implements AutoCloseable {
         try (var statement = db.prepareStatement(dialect(sql))) {
             for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]);
             try (var rows = statement.executeQuery()) {
-                List<Map<String,Object>> result = new ArrayList<>(); int columns = rows.getMetaData().getColumnCount();
-                while (rows.next()) { Map<String,Object> row = new LinkedHashMap<>(); for (int i = 1; i <= columns; i++) row.put(rows.getMetaData().getColumnLabel(i), rows.getObject(i)); result.add(row); } return result;
+                List<Map<String,Object>> result = new ArrayList<>(); var metadata=rows.getMetaData();int columns=metadata.getColumnCount();String[] labels=new String[columns];for(int i=0;i<columns;i++)labels[i]=metadata.getColumnLabel(i+1);
+                while (rows.next()) { Map<String,Object> row = new LinkedHashMap<>(); for (int i = 1; i <= columns; i++) row.put(labels[i-1], rows.getObject(i)); result.add(row); } return result;
             }
         }
     }
     static long scalar(Connection db, String sql, Object... args) throws SQLException { return ((Number)query(db, sql, args).get(0).values().iterator().next()).longValue(); }
     static void execute(Connection db, String sql, Object... args) throws SQLException {
         try (var statement = db.prepareStatement(dialect(sql))) { for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]); statement.executeUpdate(); }
+    }
+    static void executeBatch(Connection db,String sql,List<Object[]> rows)throws SQLException{
+        if(rows.isEmpty())return;try(var statement=db.prepareStatement(dialect(sql))){for(var args:rows){for(int i=0;i<args.length;i++)statement.setObject(i+1,args[i]);statement.addBatch();}for(int changed:statement.executeBatch())if(changed==java.sql.Statement.EXECUTE_FAILED)throw new SQLException("ledger batch write failed");}
     }
     static void plain(Connection db, String sql) throws SQLException { try (var statement = db.createStatement()) { statement.execute(dialect(sql)); } }
     static double now() { return System.currentTimeMillis() / 1000.0; }

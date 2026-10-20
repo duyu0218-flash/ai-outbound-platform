@@ -106,6 +106,16 @@ class AuthHttpIT {
         status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(t),Map.of("status","busy")),200);
         status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(adminToken),Map.of("status","busy")),409);
     }
+    @Test void registeredBrowserCanBecomeReadyAndExpiredMediaCannot()throws Exception{
+        overrides.put("WEBRTC_ENABLED","true");var u=user(1,"agent");String token=token(u),key="ai-outbound:agent-media:1:"+u.getId();
+        status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(token),Map.of("status","ready")),409);
+        media.set(key,"{\"registration_state\":\"registered\",\"microphone_permission\":\"denied\"}",60);
+        status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(token),Map.of("status","ready")),409);
+        media.set(key,"{\"registration_state\":\"registered\",\"microphone_permission\":\"granted\"}",60);
+        status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(token),Map.of("status","ready")),200);
+        assertThat(users.findById(u.getId(),1).getAgentStatus()).isEqualTo("ready");media.delete(key);
+        status(request(HttpMethod.PUT,"/api/v1/auth/presence",bearer(token),Map.of("status","ready")),409);
+    }
     @Test void logoutClearsOnlyMediaAndRevokesJwt()throws Exception{
         SysUser u=user(1,"agent");String t=token(u),mediaKey="ai-outbound:agent-media:1:"+u.getId(),sipKey="ai-outbound:sip-extension:agent_"+u.getId();
         media.set(mediaKey,"registered",60);redis.opsForValue().set(sipKey,"credential",Duration.ofSeconds(60));

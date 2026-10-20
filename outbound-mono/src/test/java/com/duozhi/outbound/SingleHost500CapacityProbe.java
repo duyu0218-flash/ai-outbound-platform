@@ -50,8 +50,8 @@ class SingleHost500CapacityProbe {
         result.put("thresholds",Map.of("all_500_in_ai",true,"http_success_fraction_min",0.999,"scheduled_reply_fraction_min",0.99,"reply_p95_ms_max",1500,"reply_p99_ms_max",3000,"pending_after_drain_max",0));
         result.put("threshold_note","Explicit simulation acceptance assumptions; 500 calls each get a slot every "+(500.0/rate)+" seconds. No next utterance before the previous durable reply. Missed slots remain failures.");
         try(var mysql=new MySQLContainer<>("mysql:8.4");var redis=new GenericContainer<>(DockerImageName.parse("redis:7")).withExposedPorts(6379)) {
-            int bufferMiB=Integer.getInteger("capacity.mysql.bufferMiB",0);if(bufferMiB>0)mysql.withCommand("--innodb-buffer-pool-size="+(bufferMiB*1024L*1024L),"--innodb-flush-log-at-trx-commit=1","--sync-binlog=1","--transaction-isolation=REPEATABLE-READ");result.put("mysql_buffer_pool_override_mib",bufferMiB);
-            mysql.start();redis.start();jdbc=mysql.getJdbcUrl();dbUser=mysql.getUsername();dbPassword=mysql.getPassword();
+            CapacityDatabaseProfile.apply(mysql,result);
+            mysql.start();redis.start();jdbc=mysql.getJdbcUrl()+"?connectTimeout=5000&socketTimeout=15000";dbUser=mysql.getUsername();dbPassword=mysql.getPassword();result.put("mysql_actual_variables",CapacityDatabaseProfile.actual(jdbc,dbUser,dbPassword));
             result.put("mysql_container",mysql.getContainerId());result.put("redis_container",redis.getContainerId());result.put("mysql_jdbc",jdbc);result.put("profile_jfr",Boolean.getBoolean("capacity.jfr"));write();
             try {
                 int port;try(var reservation=new ServerSocket(0,1,InetAddress.getLoopbackAddress())){port=reservation.getLocalPort();}
@@ -59,13 +59,14 @@ class SingleHost500CapacityProbe {
                 var command=new ProcessBuilder(Path.of(System.getProperty("java.home"),"bin/java").toString(),"-Xms512m","-Xmx2g","-XX:+UseG1GC","-XX:MaxGCPauseMillis=20","-XX:NativeMemoryTracking=summary","-Xlog:gc*:file="+folder.resolve("gc.log")+":time,uptime,level,tags","-jar",jar.toString(),"--server.port="+port);
                 command.redirectErrorStream(true).redirectOutput(folder.resolve("application.log").toFile());
                 var env=command.environment();Map<String,String> cfg=new LinkedHashMap<>();
-                cfg.put("ENV","dev");cfg.put("JWT_SECRET",SECRET);cfg.put("DEMO_USERS_ENABLED","false");cfg.put("MYSQL_JDBC_URL",jdbc);cfg.put("MYSQL_USER",dbUser);cfg.put("MYSQL_PASSWORD",dbPassword);
+                int dbPool=Integer.getInteger("capacity.db.pool",4),taskWorkers=Integer.getInteger("capacity.task.workers",4),aiOwners=Integer.getInteger("capacity.ai.owners",4);assertTrue(dbPool>=1&&dbPool<=32&&taskWorkers>=1&&taskWorkers<=16&&aiOwners>=1&&aiOwners<=16);
+                cfg.put("SPRING_DATASOURCE_DRUID_MAX_ACTIVE",""+dbPool);cfg.put("JAVA_TASK_WORKERS",""+taskWorkers);cfg.put("JAVA_AI_TASK_OWNERS",""+aiOwners);cfg.put("ENV","dev");cfg.put("JWT_SECRET",SECRET);cfg.put("DEMO_USERS_ENABLED","false");cfg.put("MYSQL_JDBC_URL",jdbc);cfg.put("MYSQL_USER",dbUser);cfg.put("MYSQL_PASSWORD",dbPassword);
                 cfg.put("REDIS_HOST",redis.getHost());cfg.put("REDIS_PORT",""+redis.getMappedPort(6379));cfg.put("REDIS_URL","redis://"+redis.getHost()+":"+redis.getMappedPort(6379));
                 cfg.put("JAVA_WORKERS_ENABLED","true");cfg.put("JAVA_DISPATCH_ENABLED","true");cfg.put("CALLBACK_INBOX_ENABLED","true");cfg.put("OUTBOUND_PLATFORM_MAX_CONCURRENT","500");cfg.put("MAX_CONCURRENT_CALLS","500");
                 cfg.put("TELEPHONY_PROVIDER","http");cfg.put("TELEPHONY_PROVIDER_ENDPOINT",origin);cfg.put("VOICE_GATEWAY_DRIVER","mock");cfg.put("VOICE_AI_PIPELINE","legacy");cfg.put("VOICE_COMMAND_SECRET",HOOK);cfg.put("VOICE_CALLBACK_BASE_URL",origin);cfg.put("TELEPHONY_WEBHOOK_BASE",origin);cfg.put("TELEPHONY_WEBHOOK_SECRET",HOOK);cfg.put("TELEPHONY_WEBHOOK_TOKEN",HOOK);
                 cfg.put("METRICS_TOKEN",HOOK);cfg.put("LLM_PROVIDER","rule");env.putAll(cfg);
-                // Capacity knobs only; request/queue/DB/worker limits stay at the delivered defaults.
-                result.put("configuration",Values.map("jvm_heap_max_gib",2,"db_pool_max",4,"voice_ledger_pool_max",4,"model_quota_window","disabled; rule AI","http_inflight_limit",100,"api_rate_limit_rps",100,"worker_lanes",7,"task_executor_threads",4,"ai_lane_threads_max",4,"callback_consumer_threads",1,"external_model","not used","audio","not exercised","capacity_knobs",500,"application_jvms",1));
+                // Report each explicit resource override; thresholds and request limits remain unchanged.
+                result.put("configuration",Values.map("jvm_heap_max_gib",2,"db_pool_max",dbPool,"voice_ledger_pool_max",4,"model_quota_window","disabled; rule AI","http_inflight_limit",100,"api_rate_limit_rps",100,"worker_lanes",aiOwners+3,"task_executor_threads",taskWorkers,"ai_lane_threads_max",Math.min(taskWorkers,aiOwners),"callback_consumer_threads",1,"external_model","not used","audio","not exercised","capacity_knobs",500,"application_jvms",1));
                 application=command.start();result.put("application_pid",application.pid());write();
                 long deadline=System.currentTimeMillis()+60000;boolean healthy=false;while(System.currentTimeMillis()<deadline&&application.isAlive()){try{healthy=send("GET","/healthz",null,false).statusCode()==200;if(healthy)break;}catch(Exception starting){}Thread.sleep(200);}assertTrue(healthy,"fat jar startup: "+folder.resolve("application.log"));
                 try(Connection c=connection()){seed(c);}

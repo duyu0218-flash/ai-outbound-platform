@@ -75,6 +75,9 @@
     </set>
     WHERE `id` = #{id}
   </update>
-  <select id="lockForTransaction" resultMap="row">SELECT * FROM tenant WHERE id = #{id} FOR UPDATE</select>
+  <!-- Admission/resource mutations already hold the single-JVM platform lock.
+       Keep the tenant enabled state stable without blocking unrelated child-row
+       inserts that require an InnoDB foreign-key shared lock on this parent. -->
+  <select id="lockForTransaction" resultMap="row">SELECT * FROM tenant WHERE id = #{id} FOR SHARE</select>
   <select id="allForMaintenance" resultMap="row">SELECT * FROM tenant ORDER BY id</select>
 </mapper>

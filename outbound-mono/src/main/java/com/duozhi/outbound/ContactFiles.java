@@ -24,7 +24,7 @@ public class ContactFiles {
         if(file.getSize()>Math.max(1,config.number("CONTACT_IMPORT_MAX_BYTES", 20971520)))throw new ApiError(413,"csv file is too large");
         String text;try{text=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(file.getBytes())).toString();}catch(CharacterCodingException e){throw new ApiError(400,"csv must be UTF-8 encoded");}if(text.startsWith("\ufeff"))text=text.substring(1);
         final String content=text;
-        return tx.run(()->{
+        return tx.serialized(()->{
             tx.platform();tx.tenant(i.tenant());Map<String,Object> job=store.one("contactimportjob","findByRequestKey",Values.map("tenantId",i.tenant(),"requestKey",requestKey));
             if(job!=null&&"completed".equals(job.get("state")))return json.object(job.get("result_json").toString());if(job!=null&&"processing".equals(job.get("state")))throw new ApiError(409,"contact import is already processing");
             if(job==null)job=store.insert("contactimportjob",JsonSupport.map("tenant_id",i.tenant(),"request_key",requestKey));

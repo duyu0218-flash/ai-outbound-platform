@@ -13,6 +13,13 @@ public class ConversationPolicy {
     private final Settings settings;
     private final Outbox outbox;private final OperationsWorkforce workforce;
     private final Map<String,Object> defaults;
+    private final ThreadLocal<Boolean> localPreparation=new ThreadLocal<>();
+    static final class SharedPreparationRequired extends RuntimeException { }
+    <T>T localPreparation(java.util.function.Supplier<T> work){
+        Boolean previous=localPreparation.get();localPreparation.set(true);
+        try{return work.get();}finally{if(previous==null)localPreparation.remove();else localPreparation.set(previous);}
+    }
+    private void sharedPreparation(){if(Boolean.TRUE.equals(localPreparation.get()))throw new SharedPreparationRequired();}
     public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,com.fasterxml.jackson.databind.ObjectMapper mapper,OperationsWorkforce workforce) throws java.io.IOException {
         this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;this.workforce=workforce;
         try(java.io.InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
@@ -20,30 +27,42 @@ public class ConversationPolicy {
         }
     }
     public Map<String,Object> current(long tenant,Object campaign) {
+        var batch=DialBatchScope.current();String key=tenant+":"+campaign;
+        if(batch!=null&&batch.scenarios.containsKey(key)){var cached=batch.scenarios.get(key);return JsonSupport.map("policy",new LinkedHashMap<>((Map<String,Object>)cached.get("policy")),"version",cached.get("version"));}
         Map<String,Object> version=store.one("scenarioversion","sourceConversationPolicy23_0",Store.queryParameters(0,tenant,campaign));
         Map<String,Object> policy=new LinkedHashMap<>(defaults);
         if(version!=null)policy.putAll(json.object(version.get("policy_json").toString()));
-        return JsonSupport.map("policy",policy,"version",version==null?null:version.get("id"));
+        var result=JsonSupport.map("policy",policy,"version",version==null?null:version.get("id"));if(batch!=null)batch.scenarios.put(key,JsonSupport.map("policy",new LinkedHashMap<>(policy),"version",result.get("version")));return result;
     }
     @SuppressWarnings("unchecked")
     public Map<String,Object> state(Map<String,Object> call) {
-        Map<String,Object> state=store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("conversationstate","call_id",call.get("id")),call.get("attempts")));
+        var batch=DialBatchScope.current();String key=DialBatchScope.stateKey(call);
+        Map<String,Object> state=batch!=null&&batch.stateKeys.contains(key)?batch.states.get(key):store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("conversationstate","call_id",call.get("id")),call.get("attempts")));
         if(state!=null)return state;
+        long tenant=CallLifecycle.tenant(call);var initial=initialStatePolicy(call);
+        state=store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",initial.get("version"),"policy_json",initial.get("json")));if(batch!=null){batch.stateKeys.add(key);batch.states.put(key,state);}return state;
+    }
+    @SuppressWarnings("unchecked")
+    Map<String,Object> initialStatePolicy(Map<String,Object> call){
+        var batch=DialBatchScope.current();String key=CallLifecycle.tenant(call)+":"+call.get("campaign_id");
+        if(batch!=null&&batch.initialPolicies.containsKey(key))return batch.initialPolicies.get(key);
         long tenant=CallLifecycle.tenant(call);Map<String,Object> current=current(tenant,call.get("campaign_id"));
         Map<String,Object> policy=(Map<String,Object>)current.get("policy");policy.put("_ai",settings.get(tenant,"ai"));
         String script="";
         if(call.get("campaign_id")!=null) {
-            Map<String,Object> campaign=store.require("campaign",tenant,call.get("campaign_id"));script=Objects.toString(campaign.get("script"),"");
+            Object campaignId=call.get("campaign_id");Map<String,Object> campaign=batch==null?store.require("campaign",tenant,campaignId):batch.campaigns.computeIfAbsent(key,k->store.require("campaign",tenant,campaignId));script=Objects.toString(campaign.get("script"),"");
             if(script.isEmpty()&&campaign.get("script_template_id")!=null) {
                 Map<String,Object> template=store.one("scripttemplate","sourceConversationPolicy38_2",Store.queryParameters(0,tenant,campaign.get("script_template_id")));
                 if(template!=null&&Boolean.TRUE.equals(template.get("is_active")))script=Objects.toString(template.get("content"),"");
             }
         }
         policy.put("_script",script);
-        return store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",current.get("version"),"policy_json",json.json(policy)));
+        var result=JsonSupport.map("version",current.get("version"),"json",json.json(policy));if(batch!=null)batch.initialPolicies.put(key,result);return result;
     }
     public Map<String,Object> policy(Map<String,Object> state) {
-        Map<String,Object> result=new LinkedHashMap<>(defaults);result.putAll(json.object(state.get("policy_json").toString()));return result;
+        String encoded=state.get("policy_json").toString();var batch=DialBatchScope.current();
+        if(batch!=null&&batch.parsedPolicies.containsKey(encoded))return new LinkedHashMap<>(batch.parsedPolicies.get(encoded));
+        Map<String,Object> result=new LinkedHashMap<>(defaults);result.putAll(json.object(encoded));if(batch!=null)batch.parsedPolicies.put(encoded,new LinkedHashMap<>(result));return result;
     }
     public void save(Map<String,Object> state,Map<String,Object> data) {
         state.put("data_json",json.json(data));
@@ -61,7 +80,16 @@ public class ConversationPolicy {
         String eventKey=CallLifecycle.tenant(call)+":"+key;
         if(store.scalar("productworkitem","scopedConversationPolicy62",Store.scopedParameters(CallLifecycle.tenant(call),eventKey))==0)store.insert("productworkitem",JsonSupport.map("tenant_id",CallLifecycle.tenant(call),"call_id",call.get("id"),"phone",call.get("phone"),"kind",kind,"event_key",eventKey,"detail_json",json.json(detail)));
     }
+    public void handoffCallback(Map<String,Object> call,Map<String,Object> policy){
+        long tenant=CallLifecycle.tenant(call);String key=tenant+":handoff-callback:"+call.get("id")+":"+call.get("attempts");
+        if(store.scalar("productworkitem","scopedConversationPolicy62",Store.scopedParameters(tenant,key))>0)return;
+        if(store.scalar("phonesuppression","countPhone",JsonSupport.map("tenantId",tenant,"phone",call.get("phone")))>0)return;
+        Object owner=workforce.callbackOwner(call,policy);
+        store.insert("productworkitem",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"phone",call.get("phone"),"kind","handoff_callback","event_key",key,"assigned_to",owner,
+            "detail_json",json.json(JsonSupport.map("reason","human_queue_timeout","team_ids",policy.getOrDefault("handoff_team_ids",List.of()),"skills",policy.getOrDefault("handoff_skills",List.of()),"customer_time_confirmed",false))));
+    }
     public void suppress(Map<String,Object> call,String reason) {
+        sharedPreparation();
         long tenant=CallLifecycle.tenant(call);Object phone=call.get("phone");
         if(store.scalar("phonesuppression","sourceConversationPolicy66_4",Store.queryParameters(0,tenant,phone))==0)store.insert("phonesuppression",JsonSupport.map("tenant_id",tenant,"phone",phone,"reason",reason,"source_call_id",call.get("id")));
         for(Map<String,Object> c:store.query("contact","sourceConversationPolicy67_5",Store.queryParameters(0,tenant,phone)))store.update("contact",tenant,c.get("id"),JsonSupport.map("dnc",true,"dnc_reason",reason));
@@ -74,6 +102,7 @@ public class ConversationPolicy {
         }
     }
     public void cancelAppointments(Map<String,Object> call) {
+        sharedPreparation();
         for(Map<String,Object> a:store.query("callbackappointment","sourceConversationPolicy77_7",Store.queryParameters(0,CallLifecycle.tenant(call),store.encode("callbackappointment","source_call_id",call.get("id")))))
             store.update("callbackappointment",CallLifecycle.tenant(call),a.get("id"),JsonSupport.map("state","cancelled","revision",CallLifecycle.number(a,"revision")+1));
     }
@@ -144,7 +173,11 @@ public class ConversationPolicy {
     }
     @SuppressWarnings("unchecked")
     public Map<String,Object> prepare(Map<String,Object> call,String transcript) {
-        Map<String,Object> state=state(call),policy=policy(state),data=json.object(state.get("data_json").toString());
+        return prepare(call,transcript,state(call));
+    }
+    @SuppressWarnings("unchecked")
+    Map<String,Object> prepare(Map<String,Object> call,String transcript,Map<String,Object> state) {
+        Map<String,Object> policy=policy(state),data=json.object(state.get("data_json").toString());
         Map<String,Object> realtime=store.one("realtimesession","scopedConversationPolicy144",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("realtimesession","call_session_id",call.get("id"))));
         int sequence=realtime==null?0:CallLifecycle.number(realtime,"turn_sequence");
         if(JsonSupport.integer(data.get("sequence"),-1)==sequence&&transcript.equals(data.get("transcript"))&&data.get("result") instanceof Map)return (Map<String,Object>)data.get("result");
@@ -179,6 +212,7 @@ public class ConversationPolicy {
             data.remove("pending");
             if("deny".equals(intent))result=reply("好的，请您重新说明正确的信息。");
             else if("appointment".equals(pending.get("kind"))) {
+                sharedPreparation();
                 LocalDateTime when=LocalDateTime.parse(pending.get("value").toString());
                 if(!when.isAfter(Store.now())||!inHours(policy,when))result=reply("该时间已不可用，请重新选择回电时间。");
                 else {

@@ -7,11 +7,27 @@ on:
     branches: [main]
     paths: ['outbound-mono/**', '.github/workflows/outbound-mono.yml']
   workflow_dispatch:
+    inputs:
+      synthetic_capacity:
+        description: Run isolated 500 CPS and 500 in-flight capacity probes (no real calls)
+        type: boolean
+        default: false
+      capacity_arch:
+        description: Architecture for the isolated capacity host (results are reported separately)
+        type: choice
+        default: x64
+        options: [x64, arm64]
+      capacity_profile:
+        description: Transaction sizes only; all CPS and AI SLO thresholds remain identical
+        type: choice
+        default: balanced
+        options: [balanced, large]
 permissions:
   contents: read
 jobs:
   mono-functional-tests:
     name: Functional regression (capacity not qualified)
+    if: github.event_name != 'workflow_dispatch' || !inputs.synthetic_capacity
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -56,3 +72,94 @@ jobs:
             outbound-mono/target/failsafe-reports/
             outbound-mono/target/frontend-browser-result.json
             outbound-mono/target/fatjar-smoke/result.json
+  mono-synthetic-capacity:
+    name: Synthetic capacity (500 CPS and 500 in-flight)
+    if: github.event_name == 'workflow_dispatch' && inputs.synthetic_capacity
+    runs-on: ${{ inputs.capacity_arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 25
+    env:
+      CAPACITY_PROFILE: ${{ inputs.capacity_profile == 'large' && 'large' || 'balanced' }}
+      DIAL_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '500' || '100' }}
+      RECEIPT_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '250' || '32' }}
+    concurrency:
+      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}-${{ inputs.capacity_profile || 'balanced' }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: outbound-mono
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: outbound-mono/pom.xml
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Use the locked Maven and frontend versions
+        run: |
+          mkdir -p "$RUNNER_TEMP/mono-maven"
+          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-17
+          docker cp mono-maven-toolchain:/usr/share/maven/. "$RUNNER_TEMP/mono-maven/"
+          docker rm mono-maven-toolchain
+          echo "$RUNNER_TEMP/mono-maven/bin" >> "$GITHUB_PATH"
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm --dir frontend install --frozen-lockfile
+      - name: Record host and build the tested artifact
+        run: |
+          mkdir -p verification/ci-host
+          uname -a > verification/ci-host/uname.txt
+          lscpu > verification/ci-host/cpu.txt
+          free -m > verification/ci-host/memory.txt
+          docker info > verification/ci-host/docker.txt
+          git rev-parse HEAD > verification/ci-host/commit.txt
+          printf '%s\n' "$CAPACITY_PROFILE" > verification/ci-host/profile.txt
+          mvn -B -DskipTests package
+          sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
+      - name: Measure real queued-pool dial acknowledgements (first run)
+        id: cps_first
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
+      - name: Publish first CPS evidence before the longer AI probe
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: outbound-mono-cps-profile-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            outbound-mono/verification/ci-cps-first/result.json
+            outbound-mono/verification/ci-cps-first/profile.jfr
+            outbound-mono/verification/ci-cps-first/application.log
+      - name: Measure real queued-pool dial acknowledgements (repeat)
+        id: cps_repeat
+        if: always()
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-repeat test
+      - name: Hold 500 AI calls with the original throughput and latency thresholds
+        id: ai_capacity
+        if: always()
+        run: mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.output=verification/ci-ai500 test
+      - name: Require every capacity probe to pass
+        if: always()
+        env:
+          CPS_FIRST: ${{ steps.cps_first.outcome }}
+          CPS_REPEAT: ${{ steps.cps_repeat.outcome }}
+          AI_CAPACITY: ${{ steps.ai_capacity.outcome }}
+        run: test "$CPS_FIRST" = success && test "$CPS_REPEAT" = success && test "$AI_CAPACITY" = success
+      - name: Preserve synthetic-only capacity evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: outbound-mono-synthetic-capacity
+          retention-days: 7
+          path: |
+            outbound-mono/verification/ci-host/
+            outbound-mono/verification/ci-*/result.json
+            outbound-mono/verification/ci-*/application.log
+            outbound-mono/verification/ci-*/gc.log
+            outbound-mono/verification/ci-*/turns.csv
+            outbound-mono/verification/ci-*/samples.jsonl
+            outbound-mono/verification/ci-*/database-*.json
+            outbound-mono/verification/ci-*/profile.jfr
+            outbound-mono/target/surefire-reports/

@@ -13,10 +13,14 @@ public class Transactions {
     /** Acquire the existing platform mutex before borrowing a JDBC connection.
      * Nested calls still retain it until the surrounding transaction completes. */
     public <T> T serialized(Supplier<T> action){
+        return serialized(718492061L,action);
+    }
+    public <T>T serializedIdentity(String key,Supplier<T> action){return serialized(java.nio.ByteBuffer.wrap(JsonSupport.digest(key)).getLong(),action);}
+    private <T>T serialized(long key,Supplier<T> action){
         if(TransactionSynchronizationManager.isSynchronizationActive()){
-            platform();return run(action);
+            lock(key);return run(action);
         }
-        try(var held=locks.lock(718492061L)){return run(action);}
+        try(var held=locks.lock(key)){return run(action);}
     }
     public void lock(long key){
         requireTransaction();retainUntilCompletion(locks.lock(key));

@@ -34,6 +34,14 @@ class VoiceTest {
             security.finish(first.row().get("uuid").toString(), null); assertEquals(20, ((Number)security.lookup("call-a", 1).get("cost")).intValue());
         }
     }
+    @Test void batchedCallbackPostsCommitTogetherDeduplicateAndRollbackTogether()throws Exception{
+        var settings=settings(Map.of());try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){
+            String url="http://127.0.0.1:18000/api/v1/webhooks/telephony/status";var a=Map.<String,Object>of("call_id","a","sequence",1);var b=Map.<String,Object>of("call_id","b","sequence",1);
+            callbacks.atomic(()->{callbacks.post(url,a);callbacks.post(url,b);callbacks.post(url,a);});assertEquals(2,((Number)ledger.summary().get("pending_callbacks")).intValue());
+            assertThrows(IllegalStateException.class,()->callbacks.atomic(()->{callbacks.post(url,Map.of("call_id","c","sequence",1));throw new IllegalStateException("synthetic crash");}));
+            assertEquals(2,((Number)ledger.summary().get("pending_callbacks")).intValue());
+        }
+    }
     @Test void signedCommandReplayIsDurableAcrossRestart() throws Exception {
         var settings = settings(Map.of()); String stamp = Long.toString(System.currentTimeMillis() / 1000), nonce = "nonce-012345678901234567890", path = "/v1/call/dial"; byte[] body = Support.json(dial("a", 1, 1));
         var prefix = (stamp + "." + nonce + "." + path + ".").getBytes(StandardCharsets.UTF_8); var signed = Arrays.copyOf(prefix, prefix.length + body.length); System.arraycopy(body, 0, signed, prefix.length, body.length); String signature = Support.hmac(settings.secret("VOICE_COMMAND_SECRET"), signed);
@@ -78,6 +86,11 @@ class VoiceTest {
             callbacks.tickOnce(); await(() -> received.size() >= 2); Thread.sleep(50); callbacks.tickOnce(); await(() -> received.size() >= 3); assertEquals(List.of(1, 1, 2), received);
         } finally { server.stop(0); }
     }
+    @Test void boundedLargeCallbackBatchUsesV2AndRequiresExactDurableAcknowledgement()throws Exception{
+        var accepted=new AtomicInteger();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/api/v1/webhooks/telephony/batch-v2",request->{var body=Support.object(request.getRequestBody().readAllBytes());assertEquals(2,Support.integer(body,"version",0));var events=(List<Map<String,Object>>)body.get("events");accepted.set(events.size());byte[] reply=Support.json(Map.of("version",2,"result","received","accepted",events.stream().map(e->e.get("id")).toList()));request.sendResponseHeaders(200,reply.length);request.getResponseBody().write(reply);request.close();});server.start();String base="http://127.0.0.1:"+server.getAddress().getPort();var settings=settings(Map.of("VOICE_CALLBACK_BASE_URL",base,"VOICE_CALLBACK_BATCH_ENABLED","true","VOICE_CALLBACK_BATCH_SIZE","64","VOICE_CALLBACK_CONCURRENCY","64"));
+        try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){callbacks.atomic(()->{for(int i=0;i<64;i++)callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id","v2-"+i,"sequence",1));});assertEquals(64,callbacks.tickOnce());await(()->accepted.get()==64);await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==0);}finally{server.stop(0);}
+    }
     @Test void signedSourceCleanupNeedsCompletionChecksumAndRetention() throws Exception {
         var settings = settings(Map.of("VOICE_NODE_ID", "node-a")); var source = new RecordingSource(settings); String filename = "test-call.wav"; byte[] audio = new byte[]{1, 2, 3, 4}; Files.write(directory.resolve(filename), audio);
         long expires = System.currentTimeMillis() / 1000 + 60; assertEquals(directory.resolve(filename).toRealPath(), source.authorized(filename, expires, source.signature(filename, expires)));
@@ -99,6 +112,21 @@ class VoiceTest {
             }));
             assertEquals(0L, ledger.<Long>read(db -> LocalLedger.scalar(db, "SELECT COUNT(*) FROM flags WHERE `key` NOT LIKE '\\_\\_%'")).longValue());
         }
+    }
+    @Test void signedCallbackBatchesRespectReceiverPartitionOwnersAndKeepExactAcks()throws Exception{
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);var received=new AtomicInteger();var owners=new CopyOnWriteArrayList<Set<Integer>>();var signatures=new AtomicBoolean(true);
+        server.createContext("/api/v1/webhooks/telephony/",request->{
+            byte[] bytes=request.getRequestBody().readAllBytes();String stamp=request.getRequestHeaders().getFirst("x-webhook-timestamp");byte[] signed=(stamp+"."+new String(bytes,StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+            if(!Support.equals(Support.hmac("partition-signing-test",signed),request.getRequestHeaders().getFirst("x-webhook-signature")))signatures.set(false);
+            var body=Support.object(bytes);var events=(List<Map<String,Object>>)body.get("events");var group=new HashSet<Integer>();
+            for(var event:events){String call=UUID.fromString(((Map<?,?>)event.get("payload")).get("call_id").toString()).toString();long hash=Integer.toUnsignedLong(java.nio.ByteBuffer.wrap(com.duozhi.outbound.JsonSupport.digest(call)).getInt());group.add((int)(hash%64)%2);}
+            owners.add(group);received.addAndGet(events.size());byte[] reply=Support.json(Map.of("version",body.get("version"),"result","received","accepted",events.stream().map(event->event.get("id")).toList()));request.sendResponseHeaders(200,reply.length);request.getResponseBody().write(reply);request.close();
+        });server.start();String base="http://127.0.0.1:"+server.getAddress().getPort();var settings=settings(Map.of("VOICE_CALLBACK_BASE_URL",base,"WEBHOOK_SECRET","partition-signing-test","VOICE_CALLBACK_BATCH_ENABLED","true","VOICE_CALLBACK_BATCH_SIZE","64","VOICE_CALLBACK_CONCURRENCY","128","VOICE_CALLBACK_PARTITION_GROUPS","2"));
+        try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){
+            callbacks.atomic(()->{for(int i=0;i<96;i++){String call=UUID.nameUUIDFromBytes(("partition-fixture-"+i).getBytes(StandardCharsets.UTF_8)).toString();callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id",i%2==0?call:call.toUpperCase(Locale.ROOT),"sequence",1));}});
+            assertEquals(96,callbacks.tickOnce());await(()->received.get()==96);await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==0);
+            assertTrue(signatures.get());assertTrue(owners.size()>=2);assertTrue(owners.stream().allMatch(owner->owner.size()==1));assertEquals(Set.of(0,1),owners.stream().flatMap(Set::stream).collect(java.util.stream.Collectors.toSet()));
+        }finally{server.stop(0);}
     }
     private static void await(java.util.function.BooleanSupplier condition) throws Exception { long deadline = System.nanoTime() + 5_000_000_000L; while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("timed out waiting for asynchronous evidence"); Thread.sleep(10); } }
 }
