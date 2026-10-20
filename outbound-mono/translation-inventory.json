@@ -1,0 +1,1166 @@
+{
+  "baseline_http_operations": 108,
+  "baseline_http_paths": 86,
+  "manual_function_items": 36,
+  "http_operations": [
+    {
+      "method": "GET",
+      "path": "/api/v1/product/policy",
+      "target_path": "/api/v1/product/policy",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_policy_api_v1_product_policy_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/policy",
+      "target_path": "/api/v1/product/policy",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "save_policy_api_v1_product_policy_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/simulate",
+      "target_path": "/api/v1/product/simulate",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "simulate_scenario_api_v1_product_simulate_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/appointments",
+      "target_path": "/api/v1/product/appointments",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_appointments_api_v1_product_appointments_get"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/product/appointments/{appointment_id}",
+      "target_path": "/api/v1/product/appointments/{appointment_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "patch_appointment_api_v1_product_appointments__appointment_id__patch"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/work-items",
+      "target_path": "/api/v1/product/work-items",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "work_items_api_v1_product_work_items_get"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/product/work-items/{item_id}",
+      "target_path": "/api/v1/product/work-items/{item_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "patch_work_api_v1_product_work_items__item_id__patch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/incoming",
+      "target_path": "/api/v1/product/incoming",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "incoming_api_v1_product_incoming_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/outcomes",
+      "target_path": "/api/v1/product/outcomes",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "outcomes_api_v1_product_outcomes_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/knowledge/import",
+      "target_path": "/api/v1/product/knowledge/import",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "import_knowledge_api_v1_product_knowledge_import_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/product/knowledge/search",
+      "target_path": "/api/v1/product/knowledge/search",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "probe_knowledge_api_v1_product_knowledge_search_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/product/funnel",
+      "target_path": "/api/v1/product/funnel",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "funnel_api_v1_product_funnel_get"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "target_path": "/health",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "health_health_get"
+    },
+    {
+      "method": "GET",
+      "path": "/healthz",
+      "target_path": "/healthz",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "healthz_healthz_get"
+    },
+    {
+      "method": "GET",
+      "path": "/readyz",
+      "target_path": "/readyz",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "readyz_readyz_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls",
+      "target_path": "/api/v1/calls",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_call_api_api_v1_calls_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls",
+      "target_path": "/api/v1/calls",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_calls_api_api_v1_calls_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}",
+      "target_path": "/api/v1/calls/{call_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_call_api_api_v1_calls__call_id__get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handover",
+      "target_path": "/api/v1/calls/{call_id}/handover",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "handover_api_api_v1_calls__call_id__handover_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/hangup",
+      "target_path": "/api/v1/calls/{call_id}/hangup",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "hangup_api_api_v1_calls__call_id__hangup_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/events",
+      "target_path": "/api/v1/calls/{call_id}/events",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_call_events_api_v1_calls__call_id__events_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/webhook-events",
+      "target_path": "/api/v1/calls/{call_id}/webhook-events",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_webhook_events_api_v1_calls__call_id__webhook_events_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/webhook-stats",
+      "target_path": "/api/v1/calls/{call_id}/webhook-stats",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_webhook_stats_api_v1_calls__call_id__webhook_stats_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/retry",
+      "target_path": "/api/v1/calls/{call_id}/retry",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "retry_call_api_api_v1_calls__call_id__retry_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns",
+      "target_path": "/api/v1/campaigns",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_campaign_api_v1_campaigns_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/campaigns",
+      "target_path": "/api/v1/campaigns",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_campaigns_api_v1_campaigns_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "target_path": "/api/v1/campaigns/{campaign_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_campaign_api_v1_campaigns__campaign_id__get"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "target_path": "/api/v1/campaigns/{campaign_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_campaign_api_v1_campaigns__campaign_id__put"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/campaigns/{campaign_id}",
+      "target_path": "/api/v1/campaigns/{campaign_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "delete_campaign_api_v1_campaigns__campaign_id__delete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/start",
+      "target_path": "/api/v1/campaigns/{campaign_id}/start",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "start_campaign_api_v1_campaigns__campaign_id__start_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/pause",
+      "target_path": "/api/v1/campaigns/{campaign_id}/pause",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "pause_campaign_api_v1_campaigns__campaign_id__pause_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/resume",
+      "target_path": "/api/v1/campaigns/{campaign_id}/resume",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "resume_campaign_api_v1_campaigns__campaign_id__resume_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/campaigns/{campaign_id}/stop",
+      "target_path": "/api/v1/campaigns/{campaign_id}/stop",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "stop_campaign_api_v1_campaigns__campaign_id__stop_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/contacts/import",
+      "target_path": "/api/v1/contacts/import",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "import_contacts_api_v1_contacts_import_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts/export",
+      "target_path": "/api/v1/contacts/export",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "export_contacts_api_v1_contacts_export_get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/contacts/batch-dnc",
+      "target_path": "/api/v1/contacts/batch-dnc",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "batch_dnc_api_v1_contacts_batch_dnc_patch",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/contacts",
+      "target_path": "/api/v1/contacts",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_contact_api_v1_contacts_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts",
+      "target_path": "/api/v1/contacts",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_contacts_api_v1_contacts_get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/contacts/{contact_id}",
+      "target_path": "/api/v1/contacts/{contact_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_contact_api_v1_contacts__contact_id__get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/contacts/{contact_id}",
+      "target_path": "/api/v1/contacts/{contact_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "patch_contact_api_v1_contacts__contact_id__patch",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/contacts/{contact_id}",
+      "target_path": "/api/v1/contacts/{contact_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "delete_contact_api_v1_contacts__contact_id__delete",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/batch",
+      "target_path": "/api/v1/webhooks/telephony/batch",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_batch_api_v1_webhooks_telephony_batch_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/status",
+      "target_path": "/api/v1/webhooks/telephony/status",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_status_api_v1_webhooks_telephony_status_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/transcript",
+      "target_path": "/api/v1/webhooks/telephony/transcript",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_transcript_api_v1_webhooks_telephony_transcript_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/speech",
+      "target_path": "/api/v1/webhooks/telephony/speech",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_speech_api_v1_webhooks_telephony_speech_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/dtmf",
+      "target_path": "/api/v1/webhooks/telephony/dtmf",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_dtmf_api_v1_webhooks_telephony_dtmf_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/media",
+      "target_path": "/api/v1/webhooks/telephony/media",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_media_api_v1_webhooks_telephony_media_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/telephony/recording",
+      "target_path": "/api/v1/webhooks/telephony/recording",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "telephony_recording_api_v1_webhooks_telephony_recording_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/webhooks/sms/status",
+      "target_path": "/api/v1/webhooks/sms/status",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "sms_status_api_v1_webhooks_sms_status_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "target_path": "/api/v1/auth/login",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "login_api_v1_auth_login_post",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "target_path": "/api/v1/auth/me",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "me_api_v1_auth_me_get",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/auth/presence",
+      "target_path": "/api/v1/auth/presence",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_presence_api_v1_auth_presence_put",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "target_path": "/api/v1/auth/logout",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "logout_api_v1_auth_logout_post",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates",
+      "target_path": "/api/v1/script-templates",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_templates_api_v1_script_templates_get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates",
+      "target_path": "/api/v1/script-templates",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_template_api_v1_script_templates_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}",
+      "target_path": "/api/v1/script-templates/{template_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_template_api_v1_script_templates__template_id__get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/script-templates/{template_id}",
+      "target_path": "/api/v1/script-templates/{template_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_template_api_v1_script_templates__template_id__put",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/script-templates/{template_id}",
+      "target_path": "/api/v1/script-templates/{template_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "delete_template_api_v1_script_templates__template_id__delete",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}/flows",
+      "target_path": "/api/v1/script-templates/{template_id}/flows",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_versions_api_v1_script_templates__template_id__flows_get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows",
+      "target_path": "/api/v1/script-templates/{template_id}/flows",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_version_api_v1_script_templates__template_id__flows_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "target_path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_version_api_v1_script_templates__template_id__flows__version_id__get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "target_path": "/api/v1/script-templates/{template_id}/flows/{version_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_version_api_v1_script_templates__template_id__flows__version_id__put",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "target_path": "/api/v1/script-templates/{template_id}/flows/{version_id}/publish",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "publish_version_api_v1_script_templates__template_id__flows__version_id__publish_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "target_path": "/api/v1/script-templates/{template_id}/flows/{version_id}/simulate",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "simulate_version_api_v1_script_templates__template_id__flows__version_id__simulate_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/tasks/{task_id}/retry",
+      "target_path": "/api/v1/admin/tasks/{task_id}/retry",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "retry_task_api_v1_admin_tasks__task_id__retry_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "target_path": "/api/v1/admin/users",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_users_api_v1_admin_users_get",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users",
+      "target_path": "/api/v1/admin/users",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_user_api_v1_admin_users_post",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{user_id}",
+      "target_path": "/api/v1/admin/users/{user_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_user_api_v1_admin_users__user_id__put",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{user_id}",
+      "target_path": "/api/v1/admin/users/{user_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "disable_user_api_v1_admin_users__user_id__delete",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{user_id}/reset-password",
+      "target_path": "/api/v1/admin/users/{user_id}/reset-password",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "reset_user_password_api_v1_admin_users__user_id__reset_password_post",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{user_id}/unlock",
+      "target_path": "/api/v1/admin/users/{user_id}/unlock",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "unlock_user_api_v1_admin_users__user_id__unlock_post",
+      "evidence": "./outbound-mono/verification/auth-domain-summary.json"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/lines",
+      "target_path": "/api/v1/admin/lines",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_lines_api_v1_admin_lines_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/lines",
+      "target_path": "/api/v1/admin/lines",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_line_api_v1_admin_lines_post"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/lines/{line_id}",
+      "target_path": "/api/v1/admin/lines/{line_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_line_api_v1_admin_lines__line_id__put"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/lines/{line_id}",
+      "target_path": "/api/v1/admin/lines/{line_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "disable_line_api_v1_admin_lines__line_id__delete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/sms-logs",
+      "target_path": "/api/v1/admin/sms-logs",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_sms_logs_api_v1_admin_sms_logs_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
+      "target_path": "/api/v1/admin/sms-logs/{sms_log_id}/retry",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "retry_sms_log_api_v1_admin_sms_logs__sms_log_id__retry_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/settings/{section}",
+      "target_path": "/api/v1/admin/settings/{section}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_setting_api_v1_admin_settings__section__get"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/settings/{section}",
+      "target_path": "/api/v1/admin/settings/{section}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_setting_api_v1_admin_settings__section__put"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/calls/export",
+      "target_path": "/api/v1/admin/calls/export",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "export_calls_csv_api_v1_admin_calls_export_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/audit-logs",
+      "target_path": "/api/v1/admin/audit-logs",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_audit_logs_api_v1_admin_audit_logs_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/call-reports",
+      "target_path": "/api/v1/admin/call-reports",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "call_reports_api_v1_admin_call_reports_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/contact-groups",
+      "target_path": "/api/v1/admin/contact-groups",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "contact_groups_api_v1_admin_contact_groups_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/billing",
+      "target_path": "/api/v1/admin/billing",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "billing_api_v1_admin_billing_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/system-overview",
+      "target_path": "/api/v1/admin/system-overview",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "system_overview_api_v1_admin_system_overview_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/realtime",
+      "target_path": "/api/v1/calls/{call_id}/realtime",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_realtime_session_api_v1_calls__call_id__realtime_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/speech-turns",
+      "target_path": "/api/v1/calls/{call_id}/speech-turns",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_speech_turns_api_v1_calls__call_id__speech_turns_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/metrics",
+      "target_path": "/api/v1/calls/{call_id}/metrics",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_call_metrics_api_v1_calls__call_id__metrics_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/recordings",
+      "target_path": "/api/v1/calls/{call_id}/recordings",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_recordings_api_v1_calls__call_id__recordings_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/interrupt",
+      "target_path": "/api/v1/calls/{call_id}/interrupt",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "interrupt_call_playback_api_v1_calls__call_id__interrupt_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/analysis",
+      "target_path": "/api/v1/calls/{call_id}/analysis",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "get_call_analysis_api_v1_calls__call_id__analysis_get"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/calls/{call_id}/analysis",
+      "target_path": "/api/v1/calls/{call_id}/analysis",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "review_call_analysis_api_v1_calls__call_id__analysis_put"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/calls/{call_id}/handoffs",
+      "target_path": "/api/v1/calls/{call_id}/handoffs",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_handoffs_api_v1_calls__call_id__handoffs_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/handoffs",
+      "target_path": "/api/v1/handoffs",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_handoff_queue_api_v1_handoffs_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quality/reviews",
+      "target_path": "/api/v1/quality/reviews",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_quality_reviews_api_v1_quality_reviews_get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+      "target_path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/accept",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "accept_handoff_api_v1_calls__call_id__handoffs__handoff_id__accept_post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
+      "target_path": "/api/v1/calls/{call_id}/handoffs/{handoff_id}/reject",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "reject_handoff_api_v1_calls__call_id__handoffs__handoff_id__reject_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge",
+      "target_path": "/api/v1/knowledge",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "list_knowledge_api_v1_knowledge_get",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/knowledge",
+      "target_path": "/api/v1/knowledge",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_knowledge_api_v1_knowledge_post",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/knowledge/{item_id}",
+      "target_path": "/api/v1/knowledge/{item_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_knowledge_api_v1_knowledge__item_id__put",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/knowledge/{item_id}",
+      "target_path": "/api/v1/knowledge/{item_id}",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "disable_knowledge_api_v1_knowledge__item_id__delete",
+      "evidence": "CustomerHttpIT / ScriptHttpIT; MySQL + real HTTP; verify 2026-10-19"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/webrtc/session",
+      "target_path": "/api/v1/agent/webrtc/session",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "create_webrtc_session_api_v1_agent_webrtc_session_post"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/media/status",
+      "target_path": "/api/v1/agent/media/status",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "read_media_status_api_v1_agent_media_status_get"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent/media/status",
+      "target_path": "/api/v1/agent/media/status",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "update_media_status_api_v1_agent_media_status_put"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/events/stream",
+      "target_path": "/api/v1/agent/events/stream",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "stream_agent_events_api_v1_agent_events_stream_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runtime",
+      "target_path": "/api/v1/runtime",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "runtime_info_api_v1_runtime_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/dashboard",
+      "target_path": "/api/v1/admin/dashboard",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "admin_dashboard_api_v1_admin_dashboard_get"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/dashboard",
+      "target_path": "/api/v1/agent/dashboard",
+      "translated": true,
+      "source": "./backend-java/src/main/resources/contracts/openapi-baseline.json",
+      "source_operation_id": "agent_dashboard_api_v1_agent_dashboard_get"
+    }
+  ],
+  "manual_functions": [
+    {
+      "chapter": 2,
+      "function": "2. 访问地址与角色",
+      "source": "./docs/operator-manual.md",
+      "source_line": 19,
+      "translated": true
+    },
+    {
+      "chapter": 3,
+      "function": "3. 登录、语言和退出",
+      "source": "./docs/operator-manual.md",
+      "source_line": 35,
+      "translated": true
+    },
+    {
+      "chapter": 4,
+      "function": "4. 管理中心概览",
+      "source": "./docs/operator-manual.md",
+      "source_line": 54,
+      "translated": true
+    },
+    {
+      "chapter": 5,
+      "function": "新增账号",
+      "source": "./docs/operator-manual.md",
+      "source_line": 77,
+      "translated": true
+    },
+    {
+      "chapter": 5,
+      "function": "编辑、停用和改密",
+      "source": "./docs/operator-manual.md",
+      "source_line": 87,
+      "translated": true
+    },
+    {
+      "chapter": 6,
+      "function": "单个客户",
+      "source": "./docs/operator-manual.md",
+      "source_line": 100,
+      "translated": true
+    },
+    {
+      "chapter": 6,
+      "function": "CSV 导入、导出和批量禁打",
+      "source": "./docs/operator-manual.md",
+      "source_line": 122,
+      "translated": true
+    },
+    {
+      "chapter": 7,
+      "function": "新建基础话术",
+      "source": "./docs/operator-manual.md",
+      "source_line": 142,
+      "translated": true
+    },
+    {
+      "chapter": 7,
+      "function": "配置话术画布",
+      "source": "./docs/operator-manual.md",
+      "source_line": 155,
+      "translated": true
+    },
+    {
+      "chapter": 8,
+      "function": "8. 知识库",
+      "source": "./docs/operator-manual.md",
+      "source_line": 176,
+      "translated": true
+    },
+    {
+      "chapter": 9,
+      "function": "9. 外呼线路",
+      "source": "./docs/operator-manual.md",
+      "source_line": 196,
+      "translated": true
+    },
+    {
+      "chapter": 10,
+      "function": "并发容量",
+      "source": "./docs/operator-manual.md",
+      "source_line": 226,
+      "translated": true
+    },
+    {
+      "chapter": 10,
+      "function": "AI 与语音",
+      "source": "./docs/operator-manual.md",
+      "source_line": 233,
+      "translated": true
+    },
+    {
+      "chapter": 10,
+      "function": "短信配置",
+      "source": "./docs/operator-manual.md",
+      "source_line": 239,
+      "translated": true
+    },
+    {
+      "chapter": 10,
+      "function": "合规策略",
+      "source": "./docs/operator-manual.md",
+      "source_line": 245,
+      "translated": true
+    },
+    {
+      "chapter": 10,
+      "function": "接口与回调",
+      "source": "./docs/operator-manual.md",
+      "source_line": 263,
+      "translated": true
+    },
+    {
+      "chapter": 11,
+      "function": "创建任务",
+      "source": "./docs/operator-manual.md",
+      "source_line": 275,
+      "translated": true
+    },
+    {
+      "chapter": 11,
+      "function": "启动前检查",
+      "source": "./docs/operator-manual.md",
+      "source_line": 292,
+      "translated": true
+    },
+    {
+      "chapter": 11,
+      "function": "启动、暂停、恢复和停止",
+      "source": "./docs/operator-manual.md",
+      "source_line": 302,
+      "translated": true
+    },
+    {
+      "chapter": 12,
+      "function": "发起单路呼叫",
+      "source": "./docs/operator-manual.md",
+      "source_line": 327,
+      "translated": true
+    },
+    {
+      "chapter": 12,
+      "function": "通话状态和操作",
+      "source": "./docs/operator-manual.md",
+      "source_line": 336,
+      "translated": true
+    },
+    {
+      "chapter": 13,
+      "function": "座席状态",
+      "source": "./docs/operator-manual.md",
+      "source_line": 350,
+      "translated": true
+    },
+    {
+      "chapter": 13,
+      "function": "接管流程",
+      "source": "./docs/operator-manual.md",
+      "source_line": 358,
+      "translated": true
+    },
+    {
+      "chapter": 14,
+      "function": "14. 质检复核",
+      "source": "./docs/operator-manual.md",
+      "source_line": 380,
+      "translated": true
+    },
+    {
+      "chapter": 15,
+      "function": "运营报表",
+      "source": "./docs/operator-manual.md",
+      "source_line": 396,
+      "translated": true
+    },
+    {
+      "chapter": 15,
+      "function": "分组监控",
+      "source": "./docs/operator-manual.md",
+      "source_line": 402,
+      "translated": true
+    },
+    {
+      "chapter": 15,
+      "function": "账单与计费",
+      "source": "./docs/operator-manual.md",
+      "source_line": 408,
+      "translated": true
+    },
+    {
+      "chapter": 16,
+      "function": "16. 监控与审计",
+      "source": "./docs/operator-manual.md",
+      "source_line": 414,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.1 设置作用范围与异常处理",
+      "source": "./docs/operator-manual.md",
+      "source_line": 461,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.2 配置信息采集",
+      "source": "./docs/operator-manual.md",
+      "source_line": 470,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.3 设置转人工、服务时间与重拨",
+      "source": "./docs/operator-manual.md",
+      "source_line": 479,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.4 发布、刷新、试跑与版本回退",
+      "source": "./docs/operator-manual.md",
+      "source_line": 487,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.5 预约回拨",
+      "source": "./docs/operator-manual.md",
+      "source_line": 501,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.6 人工跟进",
+      "source": "./docs/operator-manual.md",
+      "source_line": 513,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.7 交付统计与交付结果",
+      "source": "./docs/operator-manual.md",
+      "source_line": 521,
+      "translated": true
+    },
+    {
+      "chapter": 19,
+      "function": "19.8 知识导入与检索测试",
+      "source": "./docs/operator-manual.md",
+      "source_line": 529,
+      "translated": true
+    }
+  ],
+  "completion": {
+    "http_translated": 108,
+    "http_total": 108,
+    "manual_translated": 36,
+    "manual_total": 36,
+    "not_applicable": 0
+  },
+  "counting": "接口按方法+路径；手册功能为第2至16及19章的叶级功能章节。父章节导语、正文与交互同属该叶级验收范围，不因合并计数而省略。完成需后端和前端均闭环。"
+}

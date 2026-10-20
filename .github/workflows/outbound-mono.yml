@@ -1,0 +1,58 @@
+name: outbound-mono
+on:
+  push:
+    branches: [main]
+    paths: ['outbound-mono/**', '.github/workflows/outbound-mono.yml']
+  pull_request:
+    branches: [main]
+    paths: ['outbound-mono/**', '.github/workflows/outbound-mono.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mono-functional-tests:
+    name: Functional regression (capacity not qualified)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: outbound-mono
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: outbound-mono/pom.xml
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Use the repository's Maven version
+        run: |
+          mkdir -p "$RUNNER_TEMP/mono-maven"
+          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-17
+          docker cp mono-maven-toolchain:/usr/share/maven/. "$RUNNER_TEMP/mono-maven/"
+          docker rm mono-maven-toolchain
+          echo "$RUNNER_TEMP/mono-maven/bin" >> "$GITHUB_PATH"
+      - name: Install the locked frontend and Chromium
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm --dir frontend install --frozen-lockfile
+          pnpm --dir frontend exec playwright install --with-deps chromium
+      - name: Run the full functional suite and dependency policy
+        run: |
+          mvn -B verify
+          mvn -B enforcer:enforce
+      - name: Preserve functional verification results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: outbound-mono-functional-results
+          retention-days: 7
+          path: |
+            outbound-mono/target/surefire-reports/
+            outbound-mono/target/failsafe-reports/
+            outbound-mono/target/frontend-browser-result.json
+            outbound-mono/target/fatjar-smoke/result.json

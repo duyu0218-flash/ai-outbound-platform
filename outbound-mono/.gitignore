@@ -1,0 +1,10 @@
+/target/
+/.env
+/data/
+/frontend/node_modules/
+/frontend/test-results/
+/frontend/playwright-report/
+# Local evidence, generated assets and historical audit helper are not source delivery.
+/verification/
+/src/main/resources/static/
+/tools/verify_data_layer.py

@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.TelephonyLineMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.TelephonyLine">
+    <id column="id" property="id" javaType="java.lang.Integer"/>
+    <result column="tenant_id" property="tenantId" javaType="java.lang.Integer"/>
+    <result column="name" property="name" javaType="java.lang.String"/>
+    <result column="provider" property="provider" javaType="java.lang.String"/>
+    <result column="gateway_url" property="gatewayUrl" javaType="java.lang.String"/>
+    <result column="caller_id" property="callerId" javaType="java.lang.String"/>
+    <result column="max_concurrency" property="maxConcurrency" javaType="java.lang.Integer"/>
+    <result column="priority" property="priority" javaType="java.lang.Integer"/>
+    <result column="weight" property="weight" javaType="java.lang.Integer"/>
+    <result column="credential_ref" property="credentialRef" javaType="java.lang.String"/>
+    <result column="enabled" property="enabled" javaType="java.lang.Boolean"/>
+    <result column="created_at" property="createdAt" javaType="java.time.LocalDateTime"/>
+    <result column="updated_at" property="updatedAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="row.id" keyColumn="id">
+    INSERT INTO `telephonyline`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `name`,
+      `provider`,
+      `gateway_url`,
+      `caller_id`,
+      `max_concurrency`,
+      `priority`,
+      `weight`,
+      `credential_ref`,
+      `enabled`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.name,jdbcType=VARCHAR},
+      #{row.provider,jdbcType=VARCHAR},
+      #{row.gatewayUrl,jdbcType=VARCHAR},
+      #{row.callerId,jdbcType=VARCHAR},
+      #{row.maxConcurrency,jdbcType=INTEGER},
+      #{row.priority,jdbcType=INTEGER},
+      #{row.weight,jdbcType=INTEGER},
+      #{row.credentialRef,jdbcType=VARCHAR},
+      #{row.enabled,jdbcType=BOOLEAN},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <insert id="insertExplicitId">
+    INSERT INTO `telephonyline`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">`id`,</if>
+      `tenant_id`,
+      `name`,
+      `provider`,
+      `gateway_url`,
+      `caller_id`,
+      `max_concurrency`,
+      `priority`,
+      `weight`,
+      `credential_ref`,
+      `enabled`,
+      `created_at`,
+      `updated_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="row.id != null">#{row.id,jdbcType=INTEGER},</if>
+      #{row.tenantId,jdbcType=INTEGER},
+      #{row.name,jdbcType=VARCHAR},
+      #{row.provider,jdbcType=VARCHAR},
+      #{row.gatewayUrl,jdbcType=VARCHAR},
+      #{row.callerId,jdbcType=VARCHAR},
+      #{row.maxConcurrency,jdbcType=INTEGER},
+      #{row.priority,jdbcType=INTEGER},
+      #{row.weight,jdbcType=INTEGER},
+      #{row.credentialRef,jdbcType=VARCHAR},
+      #{row.enabled,jdbcType=BOOLEAN},
+      #{row.createdAt,jdbcType=TIMESTAMP},
+      #{row.updatedAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `tenant_id`, `name`, `provider`, `gateway_url`, `caller_id`, `max_concurrency`, `priority`, `weight`, `credential_ref`, `enabled`, `created_at`, `updated_at` FROM `telephonyline` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </select>
+  <update id="updateById">
+    UPDATE `telephonyline` SET
+      `name` = #{row.name,jdbcType=VARCHAR},
+      `provider` = #{row.provider,jdbcType=VARCHAR},
+      `gateway_url` = #{row.gatewayUrl,jdbcType=VARCHAR},
+      `caller_id` = #{row.callerId,jdbcType=VARCHAR},
+      `max_concurrency` = #{row.maxConcurrency,jdbcType=INTEGER},
+      `priority` = #{row.priority,jdbcType=INTEGER},
+      `weight` = #{row.weight,jdbcType=INTEGER},
+      `credential_ref` = #{row.credentialRef,jdbcType=VARCHAR},
+      `enabled` = #{row.enabled,jdbcType=BOOLEAN},
+      `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `telephonyline` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `tenant_id`, `name`, `provider`, `gateway_url`, `caller_id`, `max_concurrency`, `priority`, `weight`, `credential_ref`, `enabled`, `created_at`, `updated_at` FROM `telephonyline`
+    WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `telephonyline`
+    <set>
+      <if test="changes.containsKey('name')">`name` = #{changes.name,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('provider')">`provider` = #{changes.provider,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('gateway_url')">`gateway_url` = #{changes.gateway_url,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('caller_id')">`caller_id` = #{changes.caller_id,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('max_concurrency')">`max_concurrency` = #{changes.max_concurrency,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('priority')">`priority` = #{changes.priority,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('weight')">`weight` = #{changes.weight,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('credential_ref')">`credential_ref` = #{changes.credential_ref,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('enabled')">`enabled` = #{changes.enabled,jdbcType=BOOLEAN},</if>
+      <if test="changes.containsKey('updated_at')">`updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+  </update>
+  <select id="countRealEnabled" resultType="long">SELECT COUNT(*) FROM telephonyline WHERE tenant_id = #{tenantId} AND enabled = TRUE AND provider&lt;&gt;'mock'</select>
+  <select id="sourceAdminLines15_0" resultMap="row">SELECT * FROM `telephonyline` WHERE tenant_id=#{tenantId} ORDER BY priority,created_at</select>
+  <select id="sourceDependencyHealth25_1" resultMap="row">SELECT * FROM `telephonyline` WHERE tenant_id=#{tenantId} AND enabled=#{p1} ORDER BY priority,id</select>
+  <select id="sourceDialService94_3" resultMap="row">SELECT * FROM `telephonyline` WHERE tenant_id=#{tenantId} AND enabled=#{p1} ORDER BY priority,created_at,id</select>
+  <select id="sourceSystemOverview32_0" resultMap="row">SELECT * FROM `telephonyline` WHERE tenant_id=#{tenantId} AND enabled=#{p1}</select>
+  <select id="sourceSystemOverview53_7" resultType="long">SELECT COUNT(*) FROM `telephonyline` WHERE tenant_id=#{tenantId}</select>
+  <select id="sourceTelephonyClient30_0" resultMap="row">SELECT * FROM `telephonyline` WHERE tenant_id=#{tenantId} AND enabled=#{p1} ORDER BY priority,created_at,id LIMIT 1</select>
+  <select id="reportLabels" resultMap="row">SELECT * FROM telephonyline WHERE tenant_id = #{tenantId}</select>
+</mapper>

@@ -1,0 +1,4051 @@
+{
+  "tenant": {
+    "table": "tenant",
+    "entity": "Tenant",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "name": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "code": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "name": "LONGTEXT",
+      "code": "VARCHAR(64)",
+      "enabled": "BOOLEAN",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {},
+    "uniques": [
+      [
+        "code"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_tenant_code",
+        "unique": true,
+        "columns": [
+          "code"
+        ]
+      }
+    ],
+    "scoped": false
+  },
+  "gatewaynode": {
+    "table": "gatewaynode",
+    "entity": "GatewayNode",
+    "columns": {
+      "id": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": true
+      },
+      "endpoint": {
+        "type": "VARCHAR(512)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "capacity": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "ready": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "checked_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "next_dial_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      }
+    },
+    "sqlTypes": {
+      "id": "VARCHAR(64)",
+      "endpoint": "VARCHAR(512)",
+      "capacity": "INTEGER",
+      "ready": "BOOLEAN",
+      "checked_at": "DATETIME(3)",
+      "next_dial_at": "DATETIME(3)"
+    },
+    "parents": {},
+    "uniques": [],
+    "indexes": [],
+    "scoped": false
+  },
+  "callbackinboxpartition": {
+    "table": "callbackinboxpartition",
+    "entity": "CallbackInboxPartition",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "pending_count": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "pending_bytes": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "pending_count": "INTEGER",
+      "pending_bytes": "INTEGER"
+    },
+    "parents": {},
+    "uniques": [],
+    "indexes": [],
+    "scoped": false
+  },
+  "callbackinbox": {
+    "table": "callbackinbox",
+    "entity": "CallbackInbox",
+    "columns": {
+      "id": {
+        "type": "BIGINT",
+        "nullable": false,
+        "primary_key": true
+      },
+      "receipt_key": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "partition_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "kind": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "body_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "body_digest": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "body_bytes": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR(16)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "pending"
+      },
+      "received_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "available_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "completed_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "error_type": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      }
+    },
+    "sqlTypes": {
+      "id": "BIGINT",
+      "receipt_key": "VARCHAR(64)",
+      "partition_id": "INTEGER",
+      "call_id": "CHAR(36)",
+      "kind": "VARCHAR(32)",
+      "body_json": "LONGTEXT",
+      "body_digest": "VARCHAR(64)",
+      "body_bytes": "INTEGER",
+      "state": "VARCHAR(16)",
+      "received_at": "DATETIME(3)",
+      "available_at": "DATETIME(3)",
+      "completed_at": "DATETIME(3)",
+      "attempts": "INTEGER",
+      "error_type": "VARCHAR(128)"
+    },
+    "parents": {},
+    "uniques": [
+      [
+        "receipt_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_callback_age",
+        "unique": false,
+        "columns": [
+          "state",
+          "received_at"
+        ]
+      },
+      {
+        "name": "ix_callback_cleanup",
+        "unique": false,
+        "columns": [
+          "state",
+          "completed_at"
+        ]
+      },
+      {
+        "name": "ix_callback_call_order",
+        "unique": false,
+        "columns": [
+          "call_id",
+          "state",
+          "id"
+        ]
+      },
+      {
+        "name": "ix_callback_ready",
+        "unique": false,
+        "columns": [
+          "partition_id",
+          "state",
+          "id"
+        ]
+      }
+    ],
+    "scoped": false
+  },
+  "callbackinboxworker": {
+    "table": "callbackinboxworker",
+    "entity": "CallbackInboxWorker",
+    "columns": {
+      "id": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": true
+      },
+      "heartbeat_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "processed": {
+        "type": "BIGINT",
+        "nullable": false,
+        "primary_key": false
+      },
+      "max_latency_ms": {
+        "type": "FLOAT",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      }
+    },
+    "sqlTypes": {
+      "id": "VARCHAR(64)",
+      "heartbeat_at": "DATETIME(3)",
+      "processed": "BIGINT",
+      "max_latency_ms": "DOUBLE"
+    },
+    "parents": {},
+    "uniques": [],
+    "indexes": [],
+    "scoped": false
+  },
+  "user": {
+    "table": "sys_user",
+    "entity": "SysUser",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "username": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "password_hash": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "full_name": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "phone": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "role": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "agent"
+      },
+      "is_supervisor": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "agent_status": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "offline"
+      },
+      "last_seen_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "failed_login_attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "locked_until": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "token_version": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "last_login_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "username": "VARCHAR(200)",
+      "password_hash": "LONGTEXT",
+      "full_name": "LONGTEXT",
+      "phone": "LONGTEXT",
+      "role": "LONGTEXT",
+      "is_supervisor": "BOOLEAN",
+      "agent_status": "VARCHAR(32)",
+      "last_seen_at": "DATETIME(3)",
+      "failed_login_attempts": "INTEGER",
+      "locked_until": "DATETIME(3)",
+      "token_version": "INTEGER",
+      "last_login_at": "DATETIME(3)",
+      "enabled": "BOOLEAN",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "username"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_user_username",
+        "unique": true,
+        "columns": [
+          "username"
+        ]
+      },
+      {
+        "name": "ix_user_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "contact": {
+    "table": "contact",
+    "entity": "Contact",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "phone": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "name": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "tags": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "consent_state": {
+        "type": "VARCHAR(13)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "CONSENTED": "consented",
+          "NOT_CONSENTED": "not_consented",
+          "REVOKED": "revoked",
+          "UNKNOWN": "unknown"
+        },
+        "default": "unknown"
+      },
+      "consented_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "consented_by": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "dnc": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "dnc_reason": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "timezone": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false,
+        "default": "Asia/Shanghai"
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "phone": "VARCHAR(32)",
+      "name": "LONGTEXT",
+      "tags": "LONGTEXT",
+      "consent_state": "VARCHAR(32)",
+      "consented_at": "DATETIME(3)",
+      "consented_by": "LONGTEXT",
+      "dnc": "BOOLEAN",
+      "dnc_reason": "LONGTEXT",
+      "timezone": "LONGTEXT",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "tenant_id",
+        "phone"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_contact_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_contact_phone",
+        "unique": false,
+        "columns": [
+          "phone"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "phonesuppression": {
+    "table": "phonesuppression",
+    "entity": "PhoneSuppression",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "phone": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "reason": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "source_call_id": {
+        "type": "CHAR(32)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "phone": "VARCHAR(32)",
+      "reason": "LONGTEXT",
+      "source_call_id": "CHAR(36)",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "tenant_id",
+        "phone"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_phonesuppression_phone",
+        "unique": false,
+        "columns": [
+          "phone"
+        ]
+      },
+      {
+        "name": "ix_phonesuppression_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "contactimportjob": {
+    "table": "contactimportjob",
+    "entity": "ContactImportJob",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true,
+        "factory": "uuid"
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "request_key": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "processing"
+      },
+      "result_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "last_error": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "request_key": "VARCHAR(128)",
+      "state": "VARCHAR(32)",
+      "result_json": "LONGTEXT",
+      "last_error": "VARCHAR(2000)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "tenant_id",
+        "request_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_contactimportjob_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_contactimportjob_request_key",
+        "unique": false,
+        "columns": [
+          "request_key"
+        ]
+      },
+      {
+        "name": "ix_contactimportjob_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "taskoutbox": {
+    "table": "taskoutbox",
+    "entity": "TaskOutbox",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true,
+        "factory": "uuid"
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "task_type": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "aggregate_id": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "idempotency_key": {
+        "type": "VARCHAR(255)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "payload_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "state": {
+        "type": "VARCHAR(10)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "PENDING": "pending",
+          "PROCESSING": "processing",
+          "COMPLETED": "completed",
+          "FAILED": "failed",
+          "DEAD": "dead"
+        },
+        "default": "pending"
+      },
+      "attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "max_attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 5
+      },
+      "available_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "locked_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "lease_token": {
+        "type": "VARCHAR(64)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "last_error": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "task_type": "VARCHAR(64)",
+      "aggregate_id": "VARCHAR(128)",
+      "idempotency_key": "VARCHAR(255)",
+      "payload_json": "LONGTEXT",
+      "state": "VARCHAR(32)",
+      "attempts": "INTEGER",
+      "max_attempts": "INTEGER",
+      "available_at": "DATETIME(3)",
+      "locked_at": "DATETIME(3)",
+      "lease_token": "VARCHAR(64)",
+      "last_error": "VARCHAR(2000)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "idempotency_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_taskoutbox_task_type",
+        "unique": false,
+        "columns": [
+          "task_type"
+        ]
+      },
+      {
+        "name": "ix_taskoutbox_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      },
+      {
+        "name": "ix_taskoutbox_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_taskoutbox_aggregate_id",
+        "unique": false,
+        "columns": [
+          "aggregate_id"
+        ]
+      },
+      {
+        "name": "ix_taskoutbox_available_at",
+        "unique": false,
+        "columns": [
+          "available_at"
+        ]
+      },
+      {
+        "name": "ix_taskoutbox_active_stream",
+        "unique": false,
+        "columns": [
+          "aggregate_id",
+          "task_type",
+          "created_at",
+          "id"
+        ],
+        "source_predicate": "state IN ('PENDING','FAILED','PROCESSING')"
+      },
+      {
+        "name": "ix_taskoutbox_ready_tenant",
+        "unique": false,
+        "columns": [
+          "task_type",
+          "tenant_id",
+          "available_at",
+          "id"
+        ],
+        "source_predicate": "state IN ('PENDING','FAILED')"
+      },
+      {
+        "name": "ix_taskoutbox_archive",
+        "unique": false,
+        "columns": [
+          "updated_at",
+          "id"
+        ],
+        "source_predicate": "state = 'COMPLETED'"
+      },
+      {
+        "name": "ix_taskoutbox_ready_type",
+        "unique": false,
+        "columns": [
+          "task_type",
+          "state",
+          "available_at"
+        ],
+        "source_predicate": null
+      },
+      {
+        "name": "ix_taskoutbox_stream_order",
+        "unique": false,
+        "columns": [
+          "aggregate_id",
+          "task_type",
+          "state",
+          "created_at",
+          "id"
+        ],
+        "source_predicate": null
+      }
+    ],
+    "scoped": true
+  },
+  "taskreceipt": {
+    "table": "taskreceipt",
+    "entity": "TaskReceipt",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "task_type": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "aggregate_id": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "idempotency_key": {
+        "type": "VARCHAR(255)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "completed_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "task_type": "VARCHAR(64)",
+      "aggregate_id": "VARCHAR(128)",
+      "idempotency_key": "VARCHAR(255)",
+      "completed_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "idempotency_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_taskreceipt_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "telephonyline": {
+    "table": "telephonyline",
+    "entity": "TelephonyLine",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "name": {
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "provider": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "http"
+      },
+      "gateway_url": {
+        "type": "VARCHAR(1000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "caller_id": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "max_concurrency": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 10
+      },
+      "priority": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 100
+      },
+      "weight": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "credential_ref": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "name": "VARCHAR(200)",
+      "provider": "VARCHAR(100)",
+      "gateway_url": "VARCHAR(1000)",
+      "caller_id": "VARCHAR(64)",
+      "max_concurrency": "INTEGER",
+      "priority": "INTEGER",
+      "weight": "INTEGER",
+      "credential_ref": "VARCHAR(128)",
+      "enabled": "BOOLEAN",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "tenant_id",
+        "name"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_telephonyline_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_telephonyline_name",
+        "unique": false,
+        "columns": [
+          "name"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "scripttemplate": {
+    "table": "scripttemplate",
+    "entity": "ScriptTemplate",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "name": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "content": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "category": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "default"
+      },
+      "description": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "tags": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "is_active": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "version": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "created_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "name": "LONGTEXT",
+      "content": "LONGTEXT",
+      "category": "LONGTEXT",
+      "description": "LONGTEXT",
+      "tags": "LONGTEXT",
+      "is_active": "BOOLEAN",
+      "version": "INTEGER",
+      "created_by": "INTEGER",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "created_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_scripttemplate_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "adminsetting": {
+    "table": "adminsetting",
+    "entity": "AdminSetting",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "section": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "data_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "updated_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "section": "VARCHAR(64)",
+      "data_json": "LONGTEXT",
+      "updated_by": "INTEGER",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "updated_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "tenant_id",
+        "section"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_adminsetting_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_adminsetting_section",
+        "unique": false,
+        "columns": [
+          "section"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "auditlog": {
+    "table": "auditlog",
+    "entity": "AuditLog",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "actor_user_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "actor_username": {
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "system"
+      },
+      "action": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "resource_type": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "resource_id": {
+        "type": "VARCHAR(200)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "detail": {
+        "type": "VARCHAR(4000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "actor_user_id": "INTEGER",
+      "actor_username": "VARCHAR(200)",
+      "action": "VARCHAR(100)",
+      "resource_type": "VARCHAR(100)",
+      "resource_id": "VARCHAR(200)",
+      "detail": "VARCHAR(4000)",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "actor_user_id": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_auditlog_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_auditlog_actor_username",
+        "unique": false,
+        "columns": [
+          "actor_username"
+        ]
+      },
+      {
+        "name": "ix_auditlog_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      },
+      {
+        "name": "ix_auditlog_action",
+        "unique": false,
+        "columns": [
+          "action"
+        ]
+      },
+      {
+        "name": "ix_auditlog_resource_type",
+        "unique": false,
+        "columns": [
+          "resource_type"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "scriptflowversion": {
+    "table": "scriptflowversion",
+    "entity": "ScriptFlowVersion",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "script_template_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "version": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "name": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "description": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "status": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "draft"
+      },
+      "graph_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "created_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "published_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "script_template_id": "INTEGER",
+      "version": "INTEGER",
+      "name": "LONGTEXT",
+      "description": "LONGTEXT",
+      "status": "VARCHAR(32)",
+      "graph_json": "LONGTEXT",
+      "created_by": "INTEGER",
+      "published_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "script_template_id": {
+        "table": "scripttemplate",
+        "column": "id"
+      },
+      "created_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "script_template_id",
+        "version"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_scriptflowversion_status",
+        "unique": false,
+        "columns": [
+          "status"
+        ]
+      },
+      {
+        "name": "ix_scriptflowversion_script_template_id",
+        "unique": false,
+        "columns": [
+          "script_template_id"
+        ]
+      },
+      {
+        "name": "ix_scriptflowversion_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "campaign": {
+    "table": "campaign",
+    "entity": "Campaign",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "name": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "script": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "script_template_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "script_flow_version_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "mode": {
+        "type": "VARCHAR(17)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "HUMAN_ONLY": "human_only",
+          "AI_ONLY": "ai_only",
+          "AI_HANDOFF": "ai_handoff",
+          "AI_WITH_SMS": "ai_with_sms",
+          "MIXED_HUMAN_FIRST": "mixed_human_first"
+        },
+        "default": "ai_handoff"
+      },
+      "concurrency": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 5
+      },
+      "retry_limit": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "retry_interval_sec": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 30
+      },
+      "attempt_interval_sec": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1800
+      },
+      "recording_enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "hangup_sms_enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "voice_ai_pipeline": {
+        "type": "VARCHAR(16)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "inherit"
+      },
+      "created_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "status": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "draft"
+      },
+      "dispatch_enabled": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "name": "LONGTEXT",
+      "script": "LONGTEXT",
+      "script_template_id": "INTEGER",
+      "script_flow_version_id": "INTEGER",
+      "mode": "VARCHAR(32)",
+      "concurrency": "INTEGER",
+      "retry_limit": "INTEGER",
+      "retry_interval_sec": "INTEGER",
+      "attempt_interval_sec": "INTEGER",
+      "recording_enabled": "BOOLEAN",
+      "hangup_sms_enabled": "BOOLEAN",
+      "voice_ai_pipeline": "VARCHAR(16)",
+      "created_by": "INTEGER",
+      "status": "LONGTEXT",
+      "dispatch_enabled": "BOOLEAN",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "script_template_id": {
+        "table": "scripttemplate",
+        "column": "id"
+      },
+      "script_flow_version_id": {
+        "table": "scriptflowversion",
+        "column": "id"
+      },
+      "created_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_campaign_dispatch_enabled",
+        "unique": false,
+        "columns": [
+          "dispatch_enabled"
+        ]
+      },
+      {
+        "name": "ix_campaign_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "scenarioversion": {
+    "table": "scenarioversion",
+    "entity": "ScenarioVersion",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "campaign_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "policy_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "published_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "campaign_id": "INTEGER",
+      "policy_json": "LONGTEXT",
+      "published_by": "INTEGER",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "campaign_id": {
+        "table": "campaign",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_scenarioversion_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_scenarioversion_campaign_id",
+        "unique": false,
+        "columns": [
+          "campaign_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "campaigncontact": {
+    "table": "campaigncontact",
+    "entity": "CampaignContact",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "campaign_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "contact_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "contact_order": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "is_active": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "campaign_id": "INTEGER",
+      "contact_id": "INTEGER",
+      "contact_order": "INTEGER",
+      "is_active": "BOOLEAN"
+    },
+    "parents": {
+      "campaign_id": {
+        "table": "campaign",
+        "column": "id"
+      },
+      "contact_id": {
+        "table": "contact",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_campaigncontact_campaign_id",
+        "unique": false,
+        "columns": [
+          "campaign_id"
+        ]
+      },
+      {
+        "name": "ix_campaigncontact_contact_id",
+        "unique": false,
+        "columns": [
+          "contact_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "callsession": {
+    "table": "callsession",
+    "entity": "CallSession",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true,
+        "factory": "uuid"
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "campaign_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "script_flow_version_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "flow_node_key": {
+        "type": "VARCHAR(128)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "contact_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "campaign_contact_key": {
+        "type": "VARCHAR(128)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "phone": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "mode": {
+        "type": "VARCHAR(17)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "HUMAN_ONLY": "human_only",
+          "AI_ONLY": "ai_only",
+          "AI_HANDOFF": "ai_handoff",
+          "AI_WITH_SMS": "ai_with_sms",
+          "MIXED_HUMAN_FIRST": "mixed_human_first"
+        }
+      },
+      "status": {
+        "type": "VARCHAR(20)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "CREATED": "created",
+          "QUEUED": "queued",
+          "DIALING": "dialing",
+          "ANSWERED": "answered",
+          "IN_AI": "in_ai",
+          "WAITING_HUMAN": "waiting_human",
+          "HANDOFF_TRANSFERRING": "handoff_transferring",
+          "IN_HUMAN": "in_human",
+          "COMPLETED": "completed",
+          "FAILED": "failed",
+          "NO_ANSWER": "no_answer",
+          "BUSY": "busy",
+          "VOICEMAIL": "voicemail"
+        },
+        "default": "created"
+      },
+      "attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "max_attempts": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "last_error": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "human_agent_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "handoff_reason": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "recording_url": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "ai_session_id": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "telephony_call_id": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "telephony_line_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "gateway_node_id": {
+        "type": "VARCHAR(64)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "gateway_endpoint": {
+        "type": "VARCHAR(512)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "conversation_id": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "voice_ai_pipeline": {
+        "type": "VARCHAR(16)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "pending"
+      },
+      "last_transcript": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "summary": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "started_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "finished_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "next_attempt_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "campaign_id": "INTEGER",
+      "script_flow_version_id": "INTEGER",
+      "flow_node_key": "VARCHAR(128)",
+      "contact_id": "INTEGER",
+      "campaign_contact_key": "VARCHAR(128)",
+      "phone": "LONGTEXT",
+      "mode": "VARCHAR(32)",
+      "status": "VARCHAR(32)",
+      "attempts": "INTEGER",
+      "max_attempts": "INTEGER",
+      "last_error": "LONGTEXT",
+      "human_agent_id": "INTEGER",
+      "handoff_reason": "LONGTEXT",
+      "recording_url": "LONGTEXT",
+      "ai_session_id": "LONGTEXT",
+      "telephony_call_id": "LONGTEXT",
+      "telephony_line_id": "INTEGER",
+      "gateway_node_id": "VARCHAR(64)",
+      "gateway_endpoint": "VARCHAR(512)",
+      "conversation_id": "LONGTEXT",
+      "voice_ai_pipeline": "VARCHAR(16)",
+      "last_transcript": "LONGTEXT",
+      "summary": "LONGTEXT",
+      "started_at": "DATETIME(3)",
+      "finished_at": "DATETIME(3)",
+      "next_attempt_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "campaign_id": {
+        "table": "campaign",
+        "column": "id"
+      },
+      "script_flow_version_id": {
+        "table": "scriptflowversion",
+        "column": "id"
+      },
+      "contact_id": {
+        "table": "contact",
+        "column": "id"
+      },
+      "human_agent_id": {
+        "table": "user",
+        "column": "id"
+      },
+      "telephony_line_id": {
+        "table": "telephonyline",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "campaign_contact_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_callsession_gateway_node_id",
+        "unique": false,
+        "columns": [
+          "gateway_node_id"
+        ]
+      },
+      {
+        "name": "ix_callsession_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_callsession_updated_at",
+        "unique": false,
+        "columns": [
+          "updated_at"
+        ]
+      },
+      {
+        "name": "ix_callsession_telephony_line_id",
+        "unique": false,
+        "columns": [
+          "telephony_line_id"
+        ]
+      },
+      {
+        "name": "ix_callsession_status",
+        "unique": false,
+        "columns": [
+          "status"
+        ]
+      },
+      {
+        "name": "ix_callsession_next_attempt_at",
+        "unique": false,
+        "columns": [
+          "next_attempt_at"
+        ]
+      },
+      {
+        "name": "ix_callsession_gateway_capacity",
+        "unique": false,
+        "columns": [
+          "gateway_node_id",
+          "status"
+        ],
+        "source_predicate": null
+      }
+    ],
+    "scoped": true
+  },
+  "knowledgeitem": {
+    "table": "knowledgeitem",
+    "entity": "KnowledgeItem",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "title": {
+        "type": "VARCHAR(300)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "content": {
+        "type": "VARCHAR(50000)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "category": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "default"
+      },
+      "keywords": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "source": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "valid_from": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "valid_until": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "campaign_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "is_active": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "version": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "created_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "title": "VARCHAR(300)",
+      "content": "LONGTEXT",
+      "category": "VARCHAR(100)",
+      "keywords": "VARCHAR(2000)",
+      "source": "VARCHAR(2000)",
+      "valid_from": "DATETIME(3)",
+      "valid_until": "DATETIME(3)",
+      "campaign_id": "INTEGER",
+      "is_active": "BOOLEAN",
+      "version": "INTEGER",
+      "created_by": "INTEGER",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "campaign_id": {
+        "table": "campaign",
+        "column": "id"
+      },
+      "created_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_knowledgeitem_campaign_id",
+        "unique": false,
+        "columns": [
+          "campaign_id"
+        ]
+      },
+      {
+        "name": "ix_knowledgeitem_category",
+        "unique": false,
+        "columns": [
+          "category"
+        ]
+      },
+      {
+        "name": "ix_knowledgeitem_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "conversationstate": {
+    "table": "conversationstate",
+    "entity": "ConversationState",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "attempt": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "policy_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "policy_version_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "data_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "generation": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "deadline": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "timer_kind": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_id": "CHAR(36)",
+      "attempt": "INTEGER",
+      "policy_json": "LONGTEXT",
+      "policy_version_id": "INTEGER",
+      "data_json": "LONGTEXT",
+      "generation": "INTEGER",
+      "deadline": "DATETIME(3)",
+      "timer_kind": "LONGTEXT",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "call_id",
+        "attempt"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_conversationstate_call_id",
+        "unique": false,
+        "columns": [
+          "call_id"
+        ]
+      },
+      {
+        "name": "ix_conversationstate_deadline",
+        "unique": false,
+        "columns": [
+          "deadline"
+        ]
+      },
+      {
+        "name": "ix_conversationstate_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "callbackappointment": {
+    "table": "callbackappointment",
+    "entity": "CallbackAppointment",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true,
+        "factory": "uuid"
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "source_call_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "request_key": {
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "scheduled_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "confirmed"
+      },
+      "revision": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "dial_call_id": {
+        "type": "CHAR(32)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "source_call_id": "CHAR(36)",
+      "request_key": "VARCHAR(200)",
+      "scheduled_at": "DATETIME(3)",
+      "state": "LONGTEXT",
+      "revision": "INTEGER",
+      "dial_call_id": "CHAR(36)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "source_call_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "request_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_callbackappointment_scheduled_at",
+        "unique": false,
+        "columns": [
+          "scheduled_at"
+        ]
+      },
+      {
+        "name": "ix_callbackappointment_source_call_id",
+        "unique": false,
+        "columns": [
+          "source_call_id"
+        ]
+      },
+      {
+        "name": "ix_callbackappointment_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      },
+      {
+        "name": "ix_callbackappointment_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "productworkitem": {
+    "table": "productworkitem",
+    "entity": "ProductWorkItem",
+    "columns": {
+      "id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": true,
+        "factory": "uuid"
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "event_key": {
+        "type": "VARCHAR(250)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_id": {
+        "type": "CHAR(32)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "kind": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "open"
+      },
+      "phone": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "detail_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "assigned_to": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "CHAR(36)",
+      "tenant_id": "INTEGER",
+      "event_key": "VARCHAR(250)",
+      "call_id": "CHAR(36)",
+      "kind": "LONGTEXT",
+      "state": "LONGTEXT",
+      "phone": "LONGTEXT",
+      "detail_json": "LONGTEXT",
+      "assigned_to": "INTEGER",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "event_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_productworkitem_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_productworkitem_kind",
+        "unique": false,
+        "columns": [
+          "kind"
+        ]
+      },
+      {
+        "name": "ix_productworkitem_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "callevent": {
+    "table": "callevent",
+    "entity": "CallEvent",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "event_type": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "source": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "platform"
+      },
+      "payload": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "event_type": "VARCHAR(64)",
+      "source": "LONGTEXT",
+      "payload": "LONGTEXT",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_callevent_event_type",
+        "unique": false,
+        "columns": [
+          "event_type"
+        ]
+      },
+      {
+        "name": "ix_callevent_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "realtimesession": {
+    "table": "realtimesession",
+    "entity": "RealtimeSession",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "provider_session_id": {
+        "type": "VARCHAR(255)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "attempt": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "state": {
+        "type": "VARCHAR(11)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "CREATED": "created",
+          "LISTENING": "listening",
+          "THINKING": "thinking",
+          "SPEAKING": "speaking",
+          "INTERRUPTED": "interrupted",
+          "CLOSED": "closed"
+        },
+        "default": "created"
+      },
+      "codec": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "pcm_s16le"
+      },
+      "sample_rate": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 16000
+      },
+      "channel_count": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "last_event_sequence": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "turn_sequence": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "playback_id": {
+        "type": "VARCHAR(255)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "started_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "ended_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "provider_session_id": "VARCHAR(255)",
+      "attempt": "INTEGER",
+      "state": "VARCHAR(32)",
+      "codec": "VARCHAR(32)",
+      "sample_rate": "INTEGER",
+      "channel_count": "INTEGER",
+      "last_event_sequence": "INTEGER",
+      "turn_sequence": "INTEGER",
+      "playback_id": "VARCHAR(255)",
+      "started_at": "DATETIME(3)",
+      "ended_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "call_session_id"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_realtimesession_provider_session_id",
+        "unique": false,
+        "columns": [
+          "provider_session_id"
+        ]
+      },
+      {
+        "name": "ix_realtimesession_attempt",
+        "unique": false,
+        "columns": [
+          "attempt"
+        ]
+      },
+      {
+        "name": "ix_realtimesession_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_realtimesession_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_realtimesession_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "speechturn": {
+    "table": "speechturn",
+    "entity": "SpeechTurn",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "provider_event_key": {
+        "type": "VARCHAR(128)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "turn_index": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "attempt": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "speaker_role": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "customer"
+      },
+      "channel_id": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "inbound"
+      },
+      "transcript": {
+        "type": "VARCHAR(100000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "normalized_transcript": {
+        "type": "VARCHAR(100000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "is_final": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "confidence": {
+        "type": "FLOAT",
+        "nullable": true,
+        "primary_key": false
+      },
+      "start_ms": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "end_ms": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "asr_provider": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "provider_event_key": "VARCHAR(128)",
+      "turn_index": "INTEGER",
+      "attempt": "INTEGER",
+      "speaker_role": "VARCHAR(32)",
+      "channel_id": "VARCHAR(64)",
+      "transcript": "LONGTEXT",
+      "normalized_transcript": "LONGTEXT",
+      "is_final": "BOOLEAN",
+      "confidence": "DOUBLE",
+      "start_ms": "INTEGER",
+      "end_ms": "INTEGER",
+      "asr_provider": "VARCHAR(100)",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "call_session_id",
+        "provider_event_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_speechturn_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      },
+      {
+        "name": "ix_speechturn_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_speechturn_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_speechturn_turn_index",
+        "unique": false,
+        "columns": [
+          "turn_index"
+        ]
+      },
+      {
+        "name": "ix_speechturn_attempt",
+        "unique": false,
+        "columns": [
+          "attempt"
+        ]
+      },
+      {
+        "name": "ix_speechturn_call_attempt",
+        "unique": false,
+        "columns": [
+          "call_session_id",
+          "attempt",
+          "created_at"
+        ],
+        "source_predicate": null
+      }
+    ],
+    "scoped": true
+  },
+  "callmetric": {
+    "table": "callmetric",
+    "entity": "CallMetric",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "stage": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "provider": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "duration_ms": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "success": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": true
+      },
+      "error_code": {
+        "type": "VARCHAR(100)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "detail": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "stage": "VARCHAR(64)",
+      "provider": "VARCHAR(100)",
+      "duration_ms": "INTEGER",
+      "success": "BOOLEAN",
+      "error_code": "VARCHAR(100)",
+      "detail": "VARCHAR(2000)",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_callmetric_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_callmetric_stage",
+        "unique": false,
+        "columns": [
+          "stage"
+        ]
+      },
+      {
+        "name": "ix_callmetric_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_callmetric_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "recordingasset": {
+    "table": "recordingasset",
+    "entity": "RecordingAsset",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "attempt": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "provider_recording_id": {
+        "type": "VARCHAR(255)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "provider_url": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "storage_uri": {
+        "type": "VARCHAR(2000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "state": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "available"
+      },
+      "duration_sec": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "media_format": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "channel_count": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "checksum_sha256": {
+        "type": "VARCHAR(64)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "retention_until": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "deleted_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "attempt": "INTEGER",
+      "provider_recording_id": "VARCHAR(255)",
+      "provider_url": "VARCHAR(2000)",
+      "storage_uri": "VARCHAR(2000)",
+      "state": "VARCHAR(32)",
+      "duration_sec": "INTEGER",
+      "media_format": "VARCHAR(32)",
+      "channel_count": "INTEGER",
+      "checksum_sha256": "VARCHAR(64)",
+      "retention_until": "DATETIME(3)",
+      "deleted_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_recordingasset_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_recordingasset_created_at",
+        "unique": false,
+        "columns": [
+          "created_at"
+        ]
+      },
+      {
+        "name": "ix_recordingasset_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_recordingasset_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      },
+      {
+        "name": "ix_recordingasset_provider_recording_id",
+        "unique": false,
+        "columns": [
+          "provider_recording_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "callanalysis": {
+    "table": "callanalysis",
+    "entity": "CallAnalysis",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "result_code": {
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "unknown"
+      },
+      "sentiment": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "neutral"
+      },
+      "intent": {
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "unknown"
+      },
+      "summary": {
+        "type": "VARCHAR(10000)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "qa_score": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 0
+      },
+      "qa_flags_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "[]"
+      },
+      "structured_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "automatic_result_json": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "{}"
+      },
+      "needs_review": {
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "default": false
+      },
+      "review_state": {
+        "type": "VARCHAR(32)",
+        "nullable": false,
+        "primary_key": false,
+        "default": "auto"
+      },
+      "reviewed_by": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "reviewed_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "result_code": "VARCHAR(64)",
+      "sentiment": "VARCHAR(32)",
+      "intent": "VARCHAR(100)",
+      "summary": "LONGTEXT",
+      "qa_score": "INTEGER",
+      "qa_flags_json": "LONGTEXT",
+      "structured_json": "LONGTEXT",
+      "automatic_result_json": "LONGTEXT",
+      "needs_review": "BOOLEAN",
+      "review_state": "VARCHAR(32)",
+      "reviewed_by": "INTEGER",
+      "reviewed_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      },
+      "reviewed_by": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "call_session_id"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_callanalysis_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_callanalysis_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_callanalysis_result_code",
+        "unique": false,
+        "columns": [
+          "result_code"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "handoffrequest": {
+    "table": "handoffrequest",
+    "entity": "HandoffRequest",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "assigned_agent_id": {
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR(9)",
+        "nullable": false,
+        "primary_key": false,
+        "enum": {
+          "WAITING": "waiting",
+          "ACCEPTING": "accepting",
+          "ACCEPTED": "accepted",
+          "REJECTED": "rejected",
+          "COMPLETED": "completed",
+          "EXPIRED": "expired"
+        },
+        "default": "waiting"
+      },
+      "reason": {
+        "type": "VARCHAR(500)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "target_group": {
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false,
+        "default": ""
+      },
+      "requested_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "responded_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "completed_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "assigned_agent_id": "INTEGER",
+      "state": "VARCHAR(32)",
+      "reason": "VARCHAR(500)",
+      "target_group": "VARCHAR(200)",
+      "requested_at": "DATETIME(3)",
+      "responded_at": "DATETIME(3)",
+      "completed_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      },
+      "assigned_agent_id": {
+        "table": "user",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_handoffrequest_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_handoffrequest_state",
+        "unique": false,
+        "columns": [
+          "state"
+        ]
+      },
+      {
+        "name": "ix_handoffrequest_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_handoffrequest_assigned_agent_id",
+        "unique": false,
+        "columns": [
+          "assigned_agent_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "webhookeventingest": {
+    "table": "webhookeventingest",
+    "entity": "WebhookEventIngest",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "event_type": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "source": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "provider_event_key": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "repeat_count": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "default": 1
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "event_type": "LONGTEXT",
+      "source": "LONGTEXT",
+      "provider_event_key": "VARCHAR(64)",
+      "repeat_count": "INTEGER",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "provider_event_key"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_webhookeventingest_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      },
+      {
+        "name": "ix_webhookeventingest_source",
+        "unique": false,
+        "columns": [
+          "source"
+        ]
+      },
+      {
+        "name": "ix_webhookeventingest_provider_event_key",
+        "unique": true,
+        "columns": [
+          "provider_event_key"
+        ]
+      },
+      {
+        "name": "ix_webhookeventingest_event_type",
+        "unique": false,
+        "columns": [
+          "event_type"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "smslog": {
+    "table": "smslog",
+    "entity": "SmsLog",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "to_phone": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "template_code": {
+        "type": "VARCHAR",
+        "nullable": true,
+        "primary_key": false
+      },
+      "content": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false
+      },
+      "state": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "pending"
+      },
+      "provider_message_id": {
+        "type": "VARCHAR(255)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "provider_error": {
+        "type": "VARCHAR(2000)",
+        "nullable": true,
+        "primary_key": false
+      },
+      "sent_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      },
+      "updated_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "to_phone": "LONGTEXT",
+      "template_code": "LONGTEXT",
+      "content": "LONGTEXT",
+      "state": "LONGTEXT",
+      "provider_message_id": "VARCHAR(255)",
+      "provider_error": "VARCHAR(2000)",
+      "sent_at": "DATETIME(3)",
+      "created_at": "DATETIME(3)",
+      "updated_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [],
+    "indexes": [
+      {
+        "name": "ix_smslog_to_phone",
+        "unique": false,
+        "columns": [
+          "to_phone"
+        ]
+      },
+      {
+        "name": "ix_smslog_provider_message_id",
+        "unique": false,
+        "columns": [
+          "provider_message_id"
+        ]
+      },
+      {
+        "name": "ix_smslog_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      }
+    ],
+    "scoped": true
+  },
+  "callusage": {
+    "table": "callusage",
+    "entity": "CallUsage",
+    "columns": {
+      "id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true
+      },
+      "tenant_id": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "call_session_id": {
+        "type": "CHAR(32)",
+        "nullable": false,
+        "primary_key": false
+      },
+      "attempt": {
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false
+      },
+      "answered_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "ended_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "ai_ended_at": {
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false
+      },
+      "telephony_seconds": {
+        "type": "FLOAT",
+        "nullable": true,
+        "primary_key": false
+      },
+      "ai_seconds": {
+        "type": "FLOAT",
+        "nullable": true,
+        "primary_key": false
+      },
+      "duration_source": {
+        "type": "VARCHAR",
+        "nullable": false,
+        "primary_key": false,
+        "default": "missing"
+      },
+      "created_at": {
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "factory": "now"
+      }
+    },
+    "sqlTypes": {
+      "id": "INTEGER",
+      "tenant_id": "INTEGER",
+      "call_session_id": "CHAR(36)",
+      "attempt": "INTEGER",
+      "answered_at": "DATETIME(3)",
+      "ended_at": "DATETIME(3)",
+      "ai_ended_at": "DATETIME(3)",
+      "telephony_seconds": "DOUBLE",
+      "ai_seconds": "DOUBLE",
+      "duration_source": "LONGTEXT",
+      "created_at": "DATETIME(3)"
+    },
+    "parents": {
+      "tenant_id": {
+        "table": "tenant",
+        "column": "id"
+      },
+      "call_session_id": {
+        "table": "callsession",
+        "column": "id"
+      }
+    },
+    "uniques": [
+      [
+        "call_session_id",
+        "attempt"
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "ix_callusage_tenant_id",
+        "unique": false,
+        "columns": [
+          "tenant_id"
+        ]
+      },
+      {
+        "name": "ix_callusage_call_session_id",
+        "unique": false,
+        "columns": [
+          "call_session_id"
+        ]
+      }
+    ],
+    "scoped": true
+  }
+}

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.GatewayNodeMapper">
+  <resultMap id="row" type="com.duozhi.outbound.entity.GatewayNode">
+    <id column="id" property="id" javaType="java.lang.String"/>
+    <result column="endpoint" property="endpoint" javaType="java.lang.String"/>
+    <result column="capacity" property="capacity" javaType="java.lang.Integer"/>
+    <result column="ready" property="ready" javaType="java.lang.Boolean"/>
+    <result column="checked_at" property="checkedAt" javaType="java.time.LocalDateTime"/>
+    <result column="next_dial_at" property="nextDialAt" javaType="java.time.LocalDateTime"/>
+  </resultMap>
+  <insert id="insert">
+    INSERT INTO `gatewaynode`
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      `id`,
+      `endpoint`,
+      `capacity`,
+      `ready`,
+      `checked_at`,
+      `next_dial_at`,
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      #{row.id,jdbcType=VARCHAR},
+      #{row.endpoint,jdbcType=VARCHAR},
+      #{row.capacity,jdbcType=INTEGER},
+      #{row.ready,jdbcType=BOOLEAN},
+      #{row.checkedAt,jdbcType=TIMESTAMP},
+      #{row.nextDialAt,jdbcType=TIMESTAMP},
+    </trim>
+  </insert>
+  <select id="findById" resultMap="row">
+    SELECT `id`, `endpoint`, `capacity`, `ready`, `checked_at`, `next_dial_at` FROM `gatewaynode` WHERE `id` = #{id,jdbcType=VARCHAR}
+  </select>
+  <update id="updateById">
+    UPDATE `gatewaynode` SET
+      `endpoint` = #{row.endpoint,jdbcType=VARCHAR},
+      `capacity` = #{row.capacity,jdbcType=INTEGER},
+      `ready` = #{row.ready,jdbcType=BOOLEAN},
+      `checked_at` = #{row.checkedAt,jdbcType=TIMESTAMP},
+      `next_dial_at` = #{row.nextDialAt,jdbcType=TIMESTAMP}
+    WHERE `id` = #{row.id,jdbcType=VARCHAR}
+  </update>
+  <delete id="deleteById">
+    DELETE FROM `gatewaynode` WHERE `id` = #{id,jdbcType=VARCHAR}
+  </delete>
+  <select id="list" resultMap="row">
+    SELECT `id`, `endpoint`, `capacity`, `ready`, `checked_at`, `next_dial_at` FROM `gatewaynode`
+    ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+  </select>
+  <update id="patchFields">
+    UPDATE `gatewaynode`
+    <set>
+      <if test="changes.containsKey('endpoint')">`endpoint` = #{changes.endpoint,jdbcType=VARCHAR},</if>
+      <if test="changes.containsKey('capacity')">`capacity` = #{changes.capacity,jdbcType=INTEGER},</if>
+      <if test="changes.containsKey('ready')">`ready` = #{changes.ready,jdbcType=BOOLEAN},</if>
+      <if test="changes.containsKey('checked_at')">`checked_at` = #{changes.checked_at,jdbcType=TIMESTAMP},</if>
+      <if test="changes.containsKey('next_dial_at')">`next_dial_at` = #{changes.next_dial_at,jdbcType=TIMESTAMP},</if>
+    </set>
+    WHERE `id` = #{id}
+  </update>
+  <select id="sourceDependencyHealth21_0" resultMap="row">SELECT * FROM `gatewaynode` WHERE id=#{p0}</select>
+  <select id="sourceGatewayCluster51_0" resultMap="row">SELECT * FROM `gatewaynode` WHERE id=#{p0} FOR UPDATE</select>
+  <select id="sourceGatewayCluster64_2" resultMap="row">SELECT * FROM `gatewaynode` WHERE id=#{p0} FOR UPDATE</select>
+</mapper>
