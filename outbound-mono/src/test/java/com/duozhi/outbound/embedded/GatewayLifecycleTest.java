@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Real TCP ESL handshake/commands with a synthetic PBX; no telephone line or cloud account. */
 class GatewayLifecycleTest {
     @TempDir Path directory;
-    private Settings settings(Pbx pbx, Map<String,String> extra) {
+    Settings settings(Pbx pbx, Map<String,String> extra) {
         var values = new HashMap<String,String>();
         values.put("VOICE_GATEWAY_DRIVER", "freeswitch_esl");
         values.put("FREESWITCH_RECORDING_DIR", directory.toString());
@@ -100,6 +100,30 @@ class GatewayLifecycleTest {
             }
         }
     }
+    @Test void failedAgentBridgeKeepsCustomerAndRestartsLegacyMedia()throws Exception{
+        try(var pbx=new Pbx();var gateway=new VoiceGateway(settings(pbx,Map.of("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE","uuid_setvar {uuid} synthetic_asr_started true","FREESWITCH_MEDIA_STOP_COMMAND_TEMPLATE","uuid_setvar {uuid} synthetic_asr_stopped true")))){
+            var request=new HashMap<>(dial("transfer-recovery"));request.put("metadata",Map.of("tenant_id",1,"attempt",1,"recording_enabled",false));
+            String uuid=gateway.post("dial",request).get("provider_call_id").toString();gateway.event(Map.of("Event-Name","CHANNEL_ANSWER","Unique-ID",uuid));
+            await(()->pbx.commands.contains("api uuid_setvar "+uuid+" synthetic_asr_started true"));
+            gateway.post("transfer",Map.of("call_id","transfer-recovery","tenant_id",1,"expected_attempt",1,"target_group","agent:7"));assertTrue(gateway.bindings.get(uuid).stopped);
+            gateway.event(Map.of("Event-Name","CHANNEL_EXECUTE_COMPLETE","Unique-ID",uuid,"Application","bridge","Application-Response","NO_ANSWER"));
+            await(()->pbx.commands.stream().filter(c->c.equals("api uuid_setvar "+uuid+" synthetic_asr_started true")).count()==2);
+            assertFalse(gateway.bindings.get(uuid).stopped);assertFalse(gateway.bindings.get(uuid).human);assertEquals(0,pbx.count("api uuid_kill "));
+            gateway.post("transfer",Map.of("call_id","transfer-recovery","tenant_id",1,"expected_attempt",1,"target_group","agent:8"));
+            gateway.event(Map.of("Event-Name","CHANNEL_BRIDGE","Unique-ID",uuid));assertTrue(gateway.bindings.get(uuid).human);
+            gateway.event(Map.of("Event-Name","CHANNEL_UNBRIDGE","Unique-ID",uuid));assertEquals(1,pbx.count("api uuid_kill "));
+        }
+    }
+    @Test void rejectedTransferCommandCancelsBridgeAndRestartsAi()throws Exception{
+        try(var pbx=new Pbx();var gateway=new VoiceGateway(settings(pbx,Map.of("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE","uuid_setvar {uuid} synthetic_asr_started true")))){
+            var request=new HashMap<>(dial("command-recovery"));request.put("metadata",Map.of("tenant_id",1,"attempt",1,"recording_enabled",false));
+            String uuid=gateway.post("dial",request).get("provider_call_id").toString();gateway.event(Map.of("Event-Name","CHANNEL_ANSWER","Unique-ID",uuid));
+            await(()->pbx.count("api uuid_setvar "+uuid+" synthetic_asr_started true")==1);pbx.rejectAgentTransfer=true;
+            assertThrows(IOException.class,()->gateway.post("transfer",Map.of("call_id","command-recovery","tenant_id",1,"expected_attempt",1,"target_group","agent:7")));
+            await(()->pbx.count("api uuid_setvar "+uuid+" synthetic_asr_started true")==2);
+            assertTrue(pbx.commands.contains("api uuid_transfer "+uuid+" park inline"));assertFalse(gateway.bindings.get(uuid).stopped);assertEquals(0,pbx.count("api uuid_kill "));
+        }
+    }
     private static void await(java.util.function.BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("no expected ESL command evidence"); Thread.sleep(10); }
@@ -107,7 +131,7 @@ class GatewayLifecycleTest {
     static final class Pbx implements AutoCloseable {
         final ServerSocket server = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
         final List<String> commands = new CopyOnWriteArrayList<>();
-        final ExecutorService io = Executors.newCachedThreadPool(); volatile boolean running = true, rejectMediaStart;
+        final ExecutorService io = Executors.newCachedThreadPool(); volatile boolean running = true, rejectMediaStart, rejectAgentTransfer;
         volatile long delayKillMillis;
         Pbx() throws IOException { io.submit(() -> { while (running) try { Socket socket = server.accept(); io.submit(() -> connection(socket)); } catch (IOException stopped) { return; } }); }
         int count(String prefix) { return (int)commands.stream().filter(c -> c.startsWith(prefix)).count(); }
@@ -120,7 +144,7 @@ class GatewayLifecycleTest {
                 String command = input.readLine(); input.readLine(); if (command == null) return; commands.add(command);
                 if (command.startsWith("api uuid_kill ") && delayKillMillis > 0) try { Thread.sleep(delayKillMillis); } catch (InterruptedException stopped) { Thread.currentThread().interrupt(); }
                 if (command.startsWith("bgapi ")) output.write(("Content-Type: command/reply\nReply-Text: +OK Job-UUID: " + UUID.randomUUID() + "\n\n").getBytes(StandardCharsets.UTF_8));
-                else { byte[] body = (rejectMediaStart && command.startsWith("api uuid_raw_audio_stream ") && command.contains(" start ") ? "-ERR synthetic module failure" : "+OK").getBytes(StandardCharsets.UTF_8); output.write(("Content-Type: api/response\nContent-Length: " + body.length + "\n\n").getBytes(StandardCharsets.UTF_8)); output.write(body); }
+                else { byte[] body = (rejectAgentTransfer&&command.startsWith("api uuid_transfer ")&&command.contains(" XML agent-restricted") ? "-ERR synthetic transfer failure" : rejectMediaStart && command.startsWith("api uuid_raw_audio_stream ") && command.contains(" start ") ? "-ERR synthetic module failure" : command.startsWith("api uuid_exists ") ? "true" : "+OK").getBytes(StandardCharsets.UTF_8); output.write(("Content-Type: api/response\nContent-Length: " + body.length + "\n\n").getBytes(StandardCharsets.UTF_8)); output.write(body); }
                 output.flush();
             } catch (IOException ignored) { }
         }

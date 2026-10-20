@@ -70,7 +70,7 @@ public class TaskWorker {
 
     public int enqueueDue() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return 0;
-        return tx.run(() -> {
+        return tx.serialized(() -> {
             tx.platform(); int count = 0;
             List<Map<String, Object>> candidates = store.orderedAcross("callsession","scopedTaskWorker70",Store.queryParameters(-1,store.encode("callsession", "next_attempt_at", Store.now())),List.of("updated_at:ASC"),100);
             for (Map<String, Object> call : candidates) {
@@ -145,7 +145,19 @@ public class TaskWorker {
             } catch (RuntimeException e) { lost.set(true); }
         }, period, period, TimeUnit.SECONDS);
         TENANT_HINT.set(CallLifecycle.tenant(task));
-        GUARD.set(() -> { if (lost.get() || Thread.currentThread().isInterrupted() || !owns(task)) throw new IllegalStateException("task lease lost"); });
+        Object proofKey=new Object();
+        GUARD.set(() -> {
+            if(lost.get()||Thread.currentThread().isInterrupted())throw new IllegalStateException("task lease lost");
+            if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()){
+                if(org.springframework.transaction.support.TransactionSynchronizationManager.hasResource(proofKey))return;
+                // Hold the lease row until commit. A concurrent reclaim cannot
+                // invalidate this proof within the transaction. Never cache it
+                // across transactions or external commands.
+                if(store.one("taskoutbox","scopedTaskWorker151",Store.scopedParameters(CallLifecycle.tenant(task),store.encode("taskoutbox","id",task.get("id")),task.get("lease_token"),leaseCutoff()))==null)throw new IllegalStateException("task lease lost");
+                org.springframework.transaction.support.TransactionSynchronizationManager.bindResource(proofKey,Boolean.TRUE);
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){public void afterCompletion(int status){org.springframework.transaction.support.TransactionSynchronizationManager.unbindResourceIfPossible(proofKey);}});
+            }else if(!owns(task))throw new IllegalStateException("task lease lost");
+        });
         String state = "completed", error = ""; boolean deferred = false;
         try {
             permitted();

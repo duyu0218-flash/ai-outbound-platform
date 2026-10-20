@@ -9,18 +9,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class Handoffs {
     private final Store store;private final Transactions tx;private final Contract contract;private final Config config;
-    private final TelephonyClient client;private final ConversationPolicy product;private final JsonSupport json;private final AgentMedia media;private final OperationsAccess operations;
-    public Handoffs(Store store,Transactions tx,Contract contract,Config config,TelephonyClient client,ConversationPolicy product,JsonSupport json,AgentMedia media,OperationsAccess operations){this.store=store;this.tx=tx;this.contract=contract;this.config=config;this.client=client;this.product=product;this.json=json;this.media=media;this.operations=operations;}
+    private final TelephonyClient client;private final ConversationPolicy product;private final JsonSupport json;private final AgentMedia media;private final OperationsAccess operations;private final HumanRouting routing;
+    public Handoffs(Store store,Transactions tx,Contract contract,Config config,TelephonyClient client,ConversationPolicy product,JsonSupport json,AgentMedia media,OperationsAccess operations,HumanRouting routing){this.store=store;this.tx=tx;this.contract=contract;this.config=config;this.client=client;this.product=product;this.json=json;this.media=media;this.operations=operations;this.routing=routing;}
     public void visible(Map<String,Object> call,Identity identity){if(call==null||CallLifecycle.tenant(call)!=identity.tenant())throw new ApiError(404,"call not found");operations.call(identity,call.get("id"));}
     public Map<String,Object> queue(Map<String,Object> call,String reason) {
         long tenant=CallLifecycle.tenant(call);Object id=call.get("id");
         Map<String,Object> existing=store.one("handoffrequest","sourceHandoffs17_0",Store.queryParameters(0,tenant,store.encode("handoffrequest","call_session_id",id)));
         if(existing!=null)return existing;
-        Map<String,Object> state=product.state(call),policy=product.policy(state);List<Object> args=new ArrayList<>();args.add(tenant);args.add(true);args.add(store.encode("user","last_seen_at",Store.now().minusSeconds(Math.max(30,config.number("AGENT_PRESENCE_TIMEOUT_SEC",90)))));
-        String where="WHERE tenant_id=? AND role='agent' AND enabled=? AND agent_status='ready' AND last_seen_at>=?";
-        Collection<?> allowed=(Collection<?>)policy.get("handoff_agent_ids");if(!allowed.isEmpty()){where+=" AND id IN ("+String.join(",",Collections.nCopies(allowed.size(),"?"))+")";args.addAll(allowed);}
-        Map<String,Object> agent=store.one("user","readyHandoffAgent",Values.map("tenantId",tenant,"since",store.encode("user","last_seen_at",Store.now().minusSeconds(Math.max(30,config.number("AGENT_PRESENCE_TIMEOUT_SEC",90)))),"allowed",allowed));
-        if(state.get("policy_version_id")!=null&&!product.inHours(policy,Store.now()))agent=null;
+        Map<String,Object> agent=routing.reserve(call);
         Object agentId=agent==null?null:agent.get("id");
         store.update("callsession",tenant,id,JsonSupport.map("status","waiting_human","human_agent_id",agentId,"handoff_reason",reason));
         if(agent!=null)store.update("user",tenant,agentId,JsonSupport.map("agent_status","busy","last_seen_at",Store.now()));
@@ -30,7 +26,7 @@ public class Handoffs {
     private Map<String,Object> get(long tenant,Object call,Object id){Map<String,Object> row=store.require("handoffrequest",tenant,id);if(!row.get("call_session_id").toString().equals(call.toString()))throw new ApiError(404,"handoff not found");return row;}
     public Map<String,Object> transfer(Identity identity,Object id,Object handoffId,Object agentId,String reason){
         if(agentId==null)throw new ApiError(409,"assigned agent is not available in this tenant");
-        Map<String,Object> snapshot=tx.run(()->{
+        Map<String,Object> snapshot=tx.serialized(()->{
             tx.platform();Map<String,Object> call=tx.call(id);
             boolean pickup=handoffId!=null&&get(identity.tenant(),id,handoffId).get("assigned_agent_id")==null&&operations.legacyPickup(identity,id);
             if(!pickup)visible(call,identity);
@@ -41,6 +37,7 @@ public class Handoffs {
             Map<String,Object> agent=store.one("user","sourceHandoffs39_3",Store.queryParameters(0,identity.tenant(),agentId));
             boolean reserved=handoff!=null&&Objects.toString(handoff.get("assigned_agent_id"),"").equals(agentId.toString());
             if(agent==null||!"agent".equals(agent.get("role"))||!Boolean.TRUE.equals(agent.get("enabled"))||!(reserved?Values.set("ready","busy"):Values.set("ready")).contains(agent.get("agent_status")))throw new ApiError(409,"agent is not ready");
+            if(!routing.eligible(call,agentId))throw new ApiError(409,"agent does not match the call routing policy");
             if(config.flag("WEBRTC_ENABLED",false)&&!media.registered(identity.tenant(),agentId))throw new ApiError(409,"agent browser SIP endpoint is not registered");
             Map<String,Object> change=JsonSupport.map("state","accepting","assigned_agent_id",agentId,"target_group","agent:"+agentId,"reason",reason,"responded_at",null);
             if(handoff==null){change.put("tenant_id",identity.tenant());change.put("call_session_id",id);handoff=store.insert("handoffrequest",change);}else handoff=store.update("handoffrequest",identity.tenant(),handoff.get("id"),change);
@@ -51,22 +48,26 @@ public class Handoffs {
         @SuppressWarnings("unchecked") Map<String,Object> call=(Map<String,Object>)snapshot.get("call"),handoff=(Map<String,Object>)snapshot.get("handoff");
         RuntimeException failure=null;try{client.command(call,"transfer",JsonSupport.map("reason",reason,"target_group","agent:"+agentId));}catch(RuntimeException e){failure=e;}
         final boolean failed=failure!=null;
-        Map<String,Object> result=tx.run(()->{
+        final boolean unknown=failed&&!client.mock(call)&&failure instanceof TelephonyClient.Failure f&&!f.definitive();
+        Map<String,Object> result=tx.serialized(()->{
             tx.platform();Map<String,Object> latest=tx.call(id),h=get(identity.tenant(),id,handoff.get("id"));
             if(CallLifecycle.number(latest,"attempts")==CallLifecycle.number(call,"attempts")&&"accepting".equals(h.get("state"))&&Objects.equals(h.get("updated_at"),handoff.get("updated_at"))) {
+                if(unknown){store.update("callsession",identity.tenant(),id,JsonSupport.map("last_error","transfer outcome unknown; awaiting PBX reconciliation"));return null;}
                 if(failed&&"handoff_transferring".equals(latest.get("status"))) {
                     store.update("callsession",identity.tenant(),id,JsonSupport.map("status","waiting_human","human_agent_id",null,"last_error","handover failed"));
                     store.update("handoffrequest",identity.tenant(),h.get("id"),JsonSupport.map("state","waiting","assigned_agent_id",null,"target_group","default"));
                     store.update("user",identity.tenant(),agentId,JsonSupport.map("agent_status","ready"));return null;
                 }
-                if(Values.set("handoff_transferring","in_human").contains(latest.get("status")))return store.update("handoffrequest",identity.tenant(),h.get("id"),JsonSupport.map("state","accepted","responded_at",Store.now()));
+                // A command acknowledgement is not a media bridge. Only the PBX
+                // human_connected event can mark this request accepted.
+                if("in_human".equals(latest.get("status")))return store.update("handoffrequest",identity.tenant(),h.get("id"),JsonSupport.map("state","accepted","responded_at",Store.now()));
             }
             return h;
         });
         if(result==null)throw new ApiError(502,"telephony transfer failed");return result;
     }
     @PostMapping("/calls/{id}/handoffs/{handoff_id}/accept") public Map<String,Object> accept(@PathVariable UUID id,@PathVariable long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);Map<String,Object> h=get(identity.tenant(),id,handoff_id);Object agent=identity.user()!=null&&"agent".equals(identity.user().get("role"))?identity.userId():h.get("assigned_agent_id");return contract.output("HandoffRequestOut",transfer(identity,id,handoff_id,agent,Objects.toString(h.get("reason"),"agent_accept")));}
-    @PostMapping("/calls/{id}/handoffs/{handoff_id}/reject") public Map<String,Object> reject(@PathVariable UUID id,@PathVariable long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);return tx.run(()->{tx.platform();Map<String,Object> call=tx.call(id);visible(call,identity);Map<String,Object> h=get(identity.tenant(),id,handoff_id);if(!"waiting".equals(h.get("state")))throw new ApiError(409,"handoff is not waiting");if(identity.user()!=null&&!"admin".equals(identity.user().get("role"))&&h.get("assigned_agent_id")!=null&&!h.get("assigned_agent_id").toString().equals(identity.userId().toString()))throw new ApiError(403,"handoff is assigned to another agent");product.releaseWaiting(call);store.update("callsession",identity.tenant(),id,JsonSupport.map("human_agent_id",null));return contract.output("HandoffRequestOut",store.update("handoffrequest",identity.tenant(),handoff_id,JsonSupport.map("state","rejected","responded_at",Store.now())));});}
+    @PostMapping("/calls/{id}/handoffs/{handoff_id}/reject") public Map<String,Object> reject(@PathVariable UUID id,@PathVariable long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);return tx.serialized(()->{tx.platform();Map<String,Object> call=tx.call(id);visible(call,identity);Map<String,Object> h=get(identity.tenant(),id,handoff_id);if(!"waiting".equals(h.get("state")))throw new ApiError(409,"handoff is not waiting");if(identity.user()!=null&&!"admin".equals(identity.user().get("role"))&&h.get("assigned_agent_id")!=null&&!h.get("assigned_agent_id").toString().equals(identity.userId().toString()))throw new ApiError(403,"handoff is assigned to another agent");product.releaseWaiting(call);store.update("callsession",identity.tenant(),id,JsonSupport.map("human_agent_id",null));return contract.output("HandoffRequestOut",store.update("handoffrequest",identity.tenant(),handoff_id,JsonSupport.map("state","rejected","responded_at",Store.now())));});}
     @GetMapping("/calls/{id}/handoffs") public List<Map<String,Object>> callHandoffs(@PathVariable UUID id,HttpServletRequest request){Identity identity=Identity.from(request);visible(store.require("callsession",identity.tenant(),id),identity);List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> row:store.query("handoffrequest","sourceHandoffs68_4",Store.queryParameters(0,identity.tenant(),store.encode("handoffrequest","call_session_id",id))))result.add(contract.output("HandoffRequestOut",row));return result;}
     @GetMapping("/handoffs") public List<Map<String,Object>> queue(@RequestParam(defaultValue="waiting") String state,HttpServletRequest request){
         Identity identity=Identity.from(request);String encoded=store.encode("handoffrequest","state",state).toString();List<Object> args=new ArrayList<>(Arrays.asList(identity.tenant(),encoded));String where="WHERE tenant_id=? AND state=?";

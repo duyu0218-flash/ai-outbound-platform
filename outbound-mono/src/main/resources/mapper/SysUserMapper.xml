@@ -160,4 +160,5 @@
   <select id="scopedOperationalMetrics33" resultType="long">SELECT COUNT(*) FROM `sys_user` WHERE tenant_id = #{tenantId} AND (locked_until&gt;#{p0})</select>
   <select id="readyHandoffAgent" resultMap="row">SELECT * FROM sys_user WHERE tenant_id = #{tenantId} AND role='agent' AND enabled=TRUE AND agent_status='ready' AND last_seen_at &gt;= #{since}<if test="!allowed.isEmpty()"> AND id IN <foreach collection="allowed" item="id" open="(" separator="," close=")">#{id}</foreach></if> ORDER BY (last_seen_at IS NULL) ASC,last_seen_at,id LIMIT 1 FOR UPDATE</select>
   <select id="reportLabels" resultMap="row">SELECT * FROM sys_user WHERE tenant_id = #{tenantId}</select>
+  <select id="activeAgentCalls" resultType="long">SELECT COUNT(*) FROM callsession WHERE tenant_id=#{tenantId} AND human_agent_id=#{agentId} AND status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')</select>
 </mapper>

@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface SysUserMapper {
+    long activeAgentCalls(java.util.Map<String,Object> parameters);
     int insert(@Param("row") SysUser row);
     int insertExplicitId(@Param("row") SysUser row);
     SysUser findById(@Param("id") Integer id, @Param("tenantId") Integer tenantId);

@@ -59,7 +59,7 @@ public class Store {
         values.forEach((column,raw)->{Object value=encode(table,column,raw);Class<?> type=bean.getPropertyType(property(column));if(value!=null&&type.isEnum())value=Enum.valueOf((Class<? extends Enum>)type,value.toString());bean.setPropertyValue(property(column),value);});
         String explicit=namespace(table)+".insertExplicitId";sql.insert(input.get("id")!=null&&sql.getConfiguration().hasStatement(explicit)?explicit:namespace(table)+".insert",Map.of("row",entity));
         long tenant=values.get("tenant_id") instanceof Number n?n.longValue():0;
-        if(!reload||Set.of("campaigncontact","callevent","webhookeventingest").contains(table))return record(table,entity);
+        if(!reload||Set.of("campaigncontact","callevent","webhookeventingest","taskoutbox","speechturn").contains(table))return record(table,entity);
         return record(table,sql.selectOne(namespace(table)+".findById",Map.of("id",bean.getPropertyValue("id"),"tenantId",tenant)));
     }
     public Map<String,Object> require(String table,long tenant,Object id){Object row=sql.selectOne(namespace(table)+".findById",Map.of("id",encode(table,"id",id),"tenantId",tenant));if(row==null)throw new ApiError(404,table+" not found");return record(table,row);}
@@ -80,6 +80,12 @@ public class Store {
         if(tables.get(table).containsKey("updated_at"))changes.put("updated_at",now());
         if(changes.isEmpty()||sql.update(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes))==0)
             require(table,tenant,id);
+    }
+    /** Patch a row already read under the caller's transaction lock. */
+    public Map<String,Object> patchLoaded(String table,Map<String,Object> row,Map<String,Object> input){
+        writeLocked(table,CallLifecycle.tenant(row),row.get("id"),input);
+        var result=new LinkedHashMap<>(row);input.forEach((key,value)->{if(!Set.of("id","tenant_id","created_at").contains(key))result.put(key,value instanceof LocalDateTime||value instanceof UUID?value.toString():value);});
+        if(tables.get(table).containsKey("updated_at"))result.put("updated_at",now().toString());return result;
     }
     public void delete(String table,long tenant,Object id){require(table,tenant,id);sql.delete(namespace(table)+".deleteById",Map.of("id",encode(table,"id",id),"tenantId",tenant));}
     public List<Map<String,Object>> query(String table,String method,Map<String,Object> params){return sql.selectList(namespace(table)+"."+method,params).stream().map(row->record(table,row)).collect(java.util.stream.Collectors.toCollection(ArrayList::new));}

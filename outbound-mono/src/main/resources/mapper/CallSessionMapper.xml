@@ -234,4 +234,5 @@
       AND c.id=#{id,typeHandler=com.duozhi.outbound.mapper.typehandler.UuidTypeHandler}
       <include refid="currentAiFence"/> FOR UPDATE
   </select>
+  <select id="activePhone" resultType="long">SELECT COUNT(*) FROM callsession WHERE tenant_id=#{tenantId} AND phone=#{phone} AND id&lt;&gt;#{id} AND status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')</select>
 </mapper>

@@ -164,7 +164,7 @@ public class Campaigns {
             @RequestParam(defaultValue="true") boolean auto_dial, @RequestParam(defaultValue="true") boolean async_dial,
             @RequestParam(required=false) Integer max_dials) {
         long tenant = tenant(request);
-        Map<String, Object> result = transactions.run(() -> prepare(tenant, id, auto_dial, async_dial, max_dials));
+        Map<String, Object> result = transactions.serialized(() -> prepare(tenant, id, auto_dial, async_dial, max_dials));
         @SuppressWarnings("unchecked") List<Object> selected = (List<Object>)result.remove("_call_ids");
         if (auto_dial && !async_dial) {
             int succeeded = 0;

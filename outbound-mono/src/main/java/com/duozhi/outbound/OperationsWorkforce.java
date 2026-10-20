@@ -17,4 +17,8 @@ public class OperationsWorkforce {
  public void release(long tenant,Object user){long seconds=((Number)effective(tenant,user).get("after_call_seconds")).longValue();if(seconds>0){db.write("wrapup",JsonSupport.map("tenantId",tenant,"userId",user,"available_after",Store.now().plusSeconds(seconds)));store.update("user",tenant,user,JsonSupport.map("agent_status","busy","last_seen_at",Store.now()));}else store.update("user",tenant,user,JsonSupport.map("agent_status","ready","last_seen_at",Store.now()));}
  public void ready(Identity i){if(((Number)effective(i.tenant(),i.userId()).get("remaining_seconds")).longValue()>0)throw new ApiError(409,"仍在通话后整理时间");}
  public int timeout(Map<String,Object> call,int fallback){if(call.get("human_agent_id")==null)return fallback;var conf=effective(CallLifecycle.tenant(call),call.get("human_agent_id"));return Boolean.TRUE.equals(conf.get("configured"))?((Number)conf.get("queue_timeout_seconds")).intValue():fallback;}
+ public Object callbackOwner(Map<String,Object> call,Map<String,Object> policy){
+  var p=JsonSupport.map("tenantId",CallLifecycle.tenant(call),"contactId",call.get("contact_id"),"preferred",call.get("human_agent_id"),"teams",policy.getOrDefault("handoff_team_ids",List.of()),"allowed",policy.getOrDefault("handoff_agent_ids",List.of()),"skills",policy.getOrDefault("handoff_skills",List.of()),"skillsJson",json.json(policy.getOrDefault("handoff_skills",List.of())));
+  var owner=db.one("routingCallbackOwner",p);return owner==null?null:owner.get("id");
+ }
 }
