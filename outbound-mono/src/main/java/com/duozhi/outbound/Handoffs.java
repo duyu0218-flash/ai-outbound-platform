@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1")
 public class Handoffs {
     private final Store store;private final Transactions tx;private final Contract contract;private final Config config;
-    private final TelephonyClient client;private final ConversationPolicy product;private final JsonSupport json;private final AgentMedia media;
-    public Handoffs(Store store,Transactions tx,Contract contract,Config config,TelephonyClient client,ConversationPolicy product,JsonSupport json,AgentMedia media){this.store=store;this.tx=tx;this.contract=contract;this.config=config;this.client=client;this.product=product;this.json=json;this.media=media;}
-    public void visible(Map<String,Object> call,Identity identity){if(call==null||CallLifecycle.tenant(call)!=identity.tenant())throw new ApiError(404,"call not found");if(identity.user()!=null&&"agent".equals(identity.user().get("role"))&&!Boolean.TRUE.equals(identity.user().get("is_supervisor"))&&call.get("human_agent_id")!=null&&!call.get("human_agent_id").toString().equals(identity.userId().toString()))throw new ApiError(403,"call is assigned to another agent");}
+    private final TelephonyClient client;private final ConversationPolicy product;private final JsonSupport json;private final AgentMedia media;private final OperationsAccess operations;
+    public Handoffs(Store store,Transactions tx,Contract contract,Config config,TelephonyClient client,ConversationPolicy product,JsonSupport json,AgentMedia media,OperationsAccess operations){this.store=store;this.tx=tx;this.contract=contract;this.config=config;this.client=client;this.product=product;this.json=json;this.media=media;this.operations=operations;}
+    public void visible(Map<String,Object> call,Identity identity){if(call==null||CallLifecycle.tenant(call)!=identity.tenant())throw new ApiError(404,"call not found");operations.call(identity,call.get("id"));}
     public Map<String,Object> queue(Map<String,Object> call,String reason) {
         long tenant=CallLifecycle.tenant(call);Object id=call.get("id");
         Map<String,Object> existing=store.one("handoffrequest","sourceHandoffs17_0",Store.queryParameters(0,tenant,store.encode("handoffrequest","call_session_id",id)));
@@ -25,13 +25,15 @@ public class Handoffs {
         store.update("callsession",tenant,id,JsonSupport.map("status","waiting_human","human_agent_id",agentId,"handoff_reason",reason));
         if(agent!=null)store.update("user",tenant,agentId,JsonSupport.map("agent_status","busy","last_seen_at",Store.now()));
         Map<String,Object> result=store.insert("handoffrequest",JsonSupport.map("tenant_id",tenant,"call_session_id",id,"assigned_agent_id",agentId,"reason",reason,"target_group",agentId==null?"default":"agent:"+agentId));
-        Map<String,Object> changed=new LinkedHashMap<>(call);changed.put("status","waiting_human");product.arm(changed,"handoff");return result;
+        Map<String,Object> changed=new LinkedHashMap<>(call);changed.put("status","waiting_human");changed.put("human_agent_id",agentId);product.arm(changed,"handoff");return result;
     }
     private Map<String,Object> get(long tenant,Object call,Object id){Map<String,Object> row=store.require("handoffrequest",tenant,id);if(!row.get("call_session_id").toString().equals(call.toString()))throw new ApiError(404,"handoff not found");return row;}
     public Map<String,Object> transfer(Identity identity,Object id,Object handoffId,Object agentId,String reason){
         if(agentId==null)throw new ApiError(409,"assigned agent is not available in this tenant");
         Map<String,Object> snapshot=tx.run(()->{
-            tx.platform();Map<String,Object> call=tx.call(id);visible(call,identity);
+            tx.platform();Map<String,Object> call=tx.call(id);
+            boolean pickup=handoffId!=null&&get(identity.tenant(),id,handoffId).get("assigned_agent_id")==null&&operations.legacyPickup(identity,id);
+            if(!pickup)visible(call,identity);
             if(!Values.set("dialing","answered","in_ai","waiting_human").contains(call.get("status")))throw new ApiError(409,"call status not handover-able");
             Map<String,Object> handoff=handoffId==null?store.one("handoffrequest","sourceHandoffs36_2",Store.queryParameters(0,identity.tenant(),store.encode("handoffrequest","call_session_id",id))):get(identity.tenant(),id,handoffId);
             if(handoff!=null&&!"waiting".equals(handoff.get("state")))throw new ApiError(409,"handoff is not waiting");
@@ -70,7 +72,7 @@ public class Handoffs {
         Identity identity=Identity.from(request);String encoded=store.encode("handoffrequest","state",state).toString();List<Object> args=new ArrayList<>(Arrays.asList(identity.tenant(),encoded));String where="WHERE tenant_id=? AND state=?";
         if(identity.user()!=null&&"agent".equals(identity.user().get("role"))&&!Boolean.TRUE.equals(identity.user().get("is_supervisor"))){where+=" AND (assigned_agent_id IS NULL OR assigned_agent_id=?)";args.add(identity.userId());}
         List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> h:store.query("handoffrequest","handoffQueue",JsonSupport.map("tenantId",identity.tenant(),"state",encoded,"agentId",identity.user()!=null&&"agent".equals(identity.user().get("role"))&&!Boolean.TRUE.equals(identity.user().get("is_supervisor"))?identity.userId():null))) {
-            Map<String,Object> call=store.one("callsession","sourceHandoffs73_6",Store.queryParameters(0,identity.tenant(),store.encode("callsession","id",h.get("call_session_id"))));if(call==null)continue;
+            Map<String,Object> call=store.one("callsession","sourceHandoffs73_6",Store.queryParameters(0,identity.tenant(),store.encode("callsession","id",h.get("call_session_id"))));if(call==null)continue;try{operations.call(identity,call.get("id"));}catch(ApiError denied){continue;}
             Map<String,Object> contact=call.get("contact_id")==null?null:store.one("contact","sourceHandoffs74_7",Store.queryParameters(0,identity.tenant(),call.get("contact_id"))),campaign=call.get("campaign_id")==null?null:store.one("campaign","sourceHandoffs74_8",Store.queryParameters(0,identity.tenant(),call.get("campaign_id")));
             Map<String,Object> analysis=store.one("callanalysis","sourceHandoffs75_9",Store.queryParameters(0,identity.tenant(),store.encode("callanalysis","call_session_id",call.get("id"))));
             Map<String,Object> turn=store.one("speechturn","scopedHandoffs76",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("speechturn","call_session_id",call.get("id")),true));

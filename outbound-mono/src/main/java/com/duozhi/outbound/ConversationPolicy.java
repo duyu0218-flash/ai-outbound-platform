@@ -11,10 +11,10 @@ public class ConversationPolicy {
     private final Store store;
     private final JsonSupport json;
     private final Settings settings;
-    private final Outbox outbox;
+    private final Outbox outbox;private final OperationsWorkforce workforce;
     private final Map<String,Object> defaults;
-    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,com.fasterxml.jackson.databind.ObjectMapper mapper) throws java.io.IOException {
-        this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;
+    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,com.fasterxml.jackson.databind.ObjectMapper mapper,OperationsWorkforce workforce) throws java.io.IOException {
+        this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;this.workforce=workforce;
         try(java.io.InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
             defaults=mapper.readValue(in,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
         }
@@ -226,7 +226,8 @@ public class ConversationPolicy {
         if("silence".equals(kind)&&Boolean.TRUE.equals(data.get("model_pending")))return;
         if(state.get("deadline")!=null&&kind.equals(state.get("timer_kind")))return;
         int seconds=JsonSupport.integer(policy.get("handoff".equals(kind)?"handoff_wait_seconds":Boolean.TRUE.equals(data.remove("extended_wait"))?"wait_seconds":"silence_seconds"),10);
-        int generation=CallLifecycle.number(state,"generation")+1;LocalDateTime deadline=Store.now().plusSeconds(seconds);
+        int generation=CallLifecycle.number(state,"generation")+1;if("handoff".equals(kind))seconds=workforce.timeout(call,seconds);
+        LocalDateTime deadline=Store.now().plusSeconds(seconds);
         state.putAll(JsonSupport.map("generation",generation,"timer_kind",kind,"deadline",deadline));save(state,data);
         Map<String,Object> task=outbox.enqueue(CallLifecycle.tenant(call),"after_playback",call.get("id"),"conversation:"+call.get("id")+":"+call.get("attempts")+":"+generation,JsonSupport.map("product_kind","timer","call_id",call.get("id"),"attempt",call.get("attempts"),"generation",generation,"kind",kind));schedule(task,deadline);
     }

@@ -9,8 +9,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
-    private final AuthService service; private final Crypto crypto;  private final Config config;
-    public AuthController(AuthService service,Crypto crypto,Config config) { this.service=service;this.crypto=crypto;this.config=config; }
+    private final AuthService service; private final Crypto crypto;  private final Config config; private final OperationsWorkforce workforce;
+    public AuthController(AuthService service,Crypto crypto,Config config,OperationsWorkforce workforce) { this.service=service;this.crypto=crypto;this.config=config;this.workforce=workforce; }
     public static class Login {
         @NotNull @Size(min=1,max=200) public String username;
         @NotNull @Size(min=1,max=1024) public String password;
@@ -36,6 +36,7 @@ public class AuthController {
         com.duozhi.outbound.Identity identity=Identity.from(request);java.util.Map<java.lang.String,java.lang.Object> user=identity.requireUser();
         if(!"agent".equals(user.get("role"))) throw new ApiError(409,"presence is only available for agents");
         if(body.status().equals("ready") && config.flag("WEBRTC_ENABLED",false)) throw new ApiError(409,"SIP registration and microphone readiness are required before accepting calls");
+        if(body.status().equals("ready"))workforce.ready(identity);
         return service.presence(identity,body.status());
     }
 }

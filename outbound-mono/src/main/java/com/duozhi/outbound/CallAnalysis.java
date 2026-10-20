@@ -11,14 +11,14 @@ public class CallAnalysis {
     private final JsonSupport json;
     private final Outbox outbox;
     private final Contract contract;
-    public CallAnalysis(Store store, Transactions tx, JsonSupport json, Outbox outbox, Contract contract) {
-        this.store = store; this.tx = tx; this.json = json; this.outbox = outbox; this.contract = contract;
+    private final OperationsAccess operations;
+    public CallAnalysis(Store store, Transactions tx, JsonSupport json, Outbox outbox, Contract contract,OperationsAccess operations) {
+        this.store = store; this.tx = tx; this.json = json; this.outbox = outbox; this.contract = contract;this.operations=operations;
     }
     private Map<String, Object> existing(Object id) { return store.firstAcross("callanalysis","scopedCallAnalysis17",Store.queryParameters(-1,store.encode("callanalysis", "call_session_id", id))); }
     private void visible(Map<String, Object> call, Identity identity) {
         if (call == null || CallLifecycle.tenant(call) != identity.tenant()) throw new ApiError(404, "call not found");
-        if (identity.user() != null && "agent".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor")) && call.get("human_agent_id") != null && !call.get("human_agent_id").toString().equals(identity.userId().toString()))
-            throw new ApiError(403, "call is assigned to another agent");
+        operations.call(identity,call.get("id"));
     }
     public Map<String, Object> analyze(Object id, Integer expectedAttempt) {
         return tx.run(() -> {
