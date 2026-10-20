@@ -42,7 +42,12 @@ final class VoiceCallbacks implements AutoCloseable {
     }
     synchronized int tickOnce() {
         int available = concurrency - inflight.size(); if (available <= 0) return 0;
-        var rows = ledger.read(db -> LocalLedger.query(db, "SELECT o.* FROM outbox o WHERE o.due<=? AND NOT EXISTS(SELECT 1 FROM outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?", LocalLedger.now(), concurrency));
+        // Exclude deliveries already awaiting their HTTP acknowledgement before
+        // fetching their potentially large bodies. Predecessor checks still see
+        // those durable rows, so later events of the same call cannot overtake.
+        var active=new ArrayList<>(inflight);var arguments=new ArrayList<Object>();arguments.add(LocalLedger.now());arguments.addAll(active);arguments.add(available);
+        String exclude=active.isEmpty()?"":" AND o.id NOT IN ("+String.join(",",Collections.nCopies(active.size(),"?"))+")";
+        var rows = ledger.read(db -> LocalLedger.query(db, "SELECT o.* FROM outbox o WHERE o.due<=?"+exclude+" AND NOT EXISTS(SELECT 1 FROM outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?", arguments.toArray()));
         rows.removeIf(row -> inflight.contains(row.get("id"))); if (rows.size() > available) rows = new ArrayList<>(rows.subList(0, available));
         for (var row : rows) inflight.add((String)row.get("id"));
         int count = rows.size();

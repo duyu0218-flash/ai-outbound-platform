@@ -106,7 +106,7 @@ jobs:
           sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
-        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=500 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Ddial.output=verification/ci-cps-first test
+        run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=500 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
       - name: Measure real queued-pool dial acknowledgements (repeat)
         id: cps_repeat
         if: always()
@@ -136,4 +136,5 @@ jobs:
             outbound-mono/verification/ci-*/turns.csv
             outbound-mono/verification/ci-*/samples.json
             outbound-mono/verification/ci-*/database-*.json
+            outbound-mono/verification/ci-*/profile.jfr
             outbound-mono/target/surefire-reports/
