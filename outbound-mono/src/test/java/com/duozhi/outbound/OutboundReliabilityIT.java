@@ -170,6 +170,20 @@ class OutboundReliabilityIT {
         var changed=JsonSupport.map("id","conflict","kind","status","payload",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","answered","attempt",1,"event_id",c.get("id")+":dialing")));
         assertThatThrownBy(()->inbox.batch(List.of(changed))).isInstanceOf(ApiError.class);
     }
+    @Test void twoCallbackOwnersKeepDisjointPartitionsAndPerCallFifo()throws Exception{
+        inbox.initialize();inbox.maintenance();var calls=new ArrayList<Map<String,Object>>();var events=new ArrayList<Map<String,Object>>();
+        for(int i=0;i<48;i++){var call=call("dialing","ai_only");calls.add(call);for(String status:List.of("dialing","answered"))events.add(JsonSupport.map("id",call.get("id")+":"+status,"kind","status","payload",JsonSupport.map("call_id",call.get("id"),"payload",JsonSupport.map("status",status,"attempt",1,"event_id",call.get("id")+":"+status))));}
+        inbox.batch(events);var pool=Executors.newFixedThreadPool(2);
+        try{
+            for(String expected:List.of("dialing","answered")){
+                var gate=new CountDownLatch(1);var first=pool.submit(()->{gate.await();return inbox.consumeBatch(250,0,2);});var second=pool.submit(()->{gate.await();return inbox.consumeBatch(250,1,2);});gate.countDown();
+                int a=first.get(10,TimeUnit.SECONDS),b=second.get(10,TimeUnit.SECONDS);assertThat(a).isPositive();assertThat(b).isPositive();assertThat(a+b).isEqualTo(calls.size());
+                assertThat(calls).allSatisfy(call->assertThat(store.require("callsession",tenant,call.get("id")).get("status")).isEqualTo(expected));
+            }
+        }finally{pool.shutdownNow();}
+        assertThat(inbox.consumeBatch(250,0,2)+inbox.consumeBatch(250,1,2)).isZero();
+        var tasks=callbackDb.records("tasks","taskoutbox",Map.of("tenantId",tenant,"ids",calls.stream().map(call->call.get("id")).toList()));assertThat(tasks.stream().filter(task->"ai_turn".equals(task.get("task_type"))).count()).isEqualTo(48);
+    }
     @Test void statusCohortDoesNotLockUnrelatedInboxPartitions()throws Exception{
         inbox.initialize();inbox.maintenance();var c=call("dialing","ai_only");int partition=(int)((java.nio.ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString())).getInt()&0xffffffffL)%64),other=(partition+1)%64;
         inbox.receive("telephony_status",JsonSupport.map("call_id",c.get("id"),"payload",JsonSupport.map("status","answered","attempt",1,"event_id","partition-isolation")));

@@ -244,7 +244,12 @@ public class DialService {
             boolean mock=routes.computeIfAbsent(call.get("tenant_id")+":"+call.get("telephony_line_id")+":"+call.get("gateway_node_id"),k->client.mock(call));
             if(mock){try{if(!sendClaimed(call,(Map<String,Object>)entry.get("metadata"))){entry.put("deferred",true);((Map<String,Object>)entry.get("payload")).remove("_dial_claimed");}}catch(RuntimeException failure){entry.put("error",failure);}continue;}pending.add(entry);
         }
-        if(pending.isEmpty())return;
+        // Admission can reserve a larger cohort, but the signed gateway
+        // command contract remains at 100 and each chunk is acknowledged now.
+        for(int start=0;start<pending.size();start+=100)sendTaskChunk(new ArrayList<>(pending.subList(start,Math.min(pending.size(),start+100))),db);
+    }
+    @SuppressWarnings("unchecked")
+    private void sendTaskChunk(List<Map<String,Object>> pending,DialBatchStore db){
         List<com.duozhi.outbound.embedded.VoiceController.CommandResult> replies;
         try{replies=client.dialBatch(pending);}catch(RuntimeException failure){for(var entry:pending)entry.put("error",failure);return;}
         if(replies.size()!=pending.size())throw new IllegalStateException("incomplete dial batch acknowledgement");
