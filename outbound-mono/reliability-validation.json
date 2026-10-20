@@ -10,17 +10,19 @@
     "enforcer": "passed explicit local run 2026-10-20T23:59:55+08:00"
   },
   "development_functional": {
-    "status": "375 checks and 27 browser groups passed on pre-follow-up source; final follow-ups passed targeted regression; final full CI pending",
+    "status": "Current backend source passed the full Linux regression; capacity target remains unmet",
     "last_complete": {
-      "unit": 146,
-      "integration": 229,
-      "total": 375,
+      "unit": 151,
+      "integration": 243,
+      "total": 394,
       "failures": 0,
       "errors": 0,
       "skipped": 0,
       "browser_groups": 27,
-      "completed_at": "2026-10-21T00:27:45+08:00",
-      "source_snapshot": "AI snapshot consolidation and V2 callback source; before final per-call transaction/refill follow-ups"
+      "browser_passed": true,
+      "completed_at": "2026-10-21T03:14:51+08:00",
+      "source_snapshot": "e891a06d8bf93b034dfeaaa939d6441cd11b1da1",
+      "run": 39480842313
     },
     "final_fifo_rerun": "passed in targeted local regression; original c30ea75 GitHub functional job also passed",
     "batch_targeted": {
@@ -32,7 +34,7 @@
       "log": "outbound-batch-safety10.log",
       "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
     },
-    "latest_changes": "Dial cohort claim mutex separated from AI/general claims while retaining task row-lock revalidation and fencing; dedicated concurrency regressions added. Final Linux full regression and capacity pending.",
+    "latest_changes": "All current backend changes, including mixed general/batch claim fencing, frozen policy isolation, partition-aligned signed callback batches, UUID normalization, packet rollback and scheduler/pool starvation fixes passed the full Linux regression. Later commit updates validation records only.",
     "final_follow_up": {
       "unit": 1,
       "integration": 49,
@@ -69,10 +71,21 @@
       "errors": 0,
       "skipped": 0,
       "status": "passed including ordinary dialogue rollback boundary and packet chunk rollback; before callback owners/cohort changes"
+    },
+    "previous_local_complete": {
+      "unit": 146,
+      "integration": 229,
+      "total": 375,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "browser_groups": 27,
+      "completed_at": "2026-10-21T00:27:45+08:00",
+      "source_snapshot": "AI snapshot consolidation and V2 callback source; before final per-call transaction/refill follow-ups"
     }
   },
   "capacity": {
-    "status": "500 CPS not qualified; original AI500 SLO passed on 247614e Linux x64; partitioned callback and larger bounded admission follow-ups pending",
+    "status": "500 CPS NOT qualified; x64 AI500 synthetic SLO passed; ARM AI500 SLO failed. PR remains draft and main merge is not performed.",
     "http_500_cps": {
       "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
       "target_cps": 500,
@@ -4030,6 +4043,1743 @@
       },
       "scope": "same backend source, resource bounds, complete signed mock callback path and original SLO; separate complete runs only",
       "status": "balanced pending"
+    },
+    "final_e891": {
+      "source_head": "e891a06d8bf93b034dfeaaa939d6441cd11b1da1",
+      "profiles": {
+        "x64": {
+          "run": 39480835037,
+          "host": {
+            "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.30\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                2 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+            "memory": "               total        used        free      shared  buff/cache   available\nMem:           15989        1589       10716          45        4074       14399\nSwap:           3071           0        3071\n",
+            "profile": "balanced"
+          },
+          "results": {
+            "ci-cps-first": {
+              "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+              "target_cps": 500,
+              "seconds": 5,
+              "jar_sha256": "7171ee1a3cc2e57cda7b294d134f7bc4df91f60947f44e7f4603734b1152952c",
+              "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "03bad5bec8c6dee35255c364e569b5e9a1df6a704eeafa5e79339b88c1055a9f",
+              "redis_container": "a6186636e5b325c33223d45147fdc6d56b13fdb0fb610492d1a27fe756f1ba6a",
+              "mysql_jdbc": "jdbc:mysql://localhost:32769/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": true,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 2000,
+                "worker_lanes": 7,
+                "task_executor_threads": 4,
+                "ai_lane_threads_max": 4,
+                "callback_consumer_threads": 2,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 10000,
+                "application_jvms": 1,
+                "dial_batch_size": "100",
+                "gateway_command_batch_max": 100,
+                "callback_batch_size": "32",
+                "voice_callback_batch_enabled": true,
+                "dial_executor_threads": "4",
+                "general_task_executor_threads": 4,
+                "voice_callback_delivery_concurrency": "128",
+                "voice_callback_batch_size": "64",
+                "voice_callback_partition_groups": "2",
+                "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+                "callback_consumer_poll_ms": "10"
+              },
+              "application_pid": 3517,
+              "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+              "phase_start_ms": 1792523416886,
+              "db_stats_before": {
+                "Com_commit": 6638,
+                "Com_insert": 20075,
+                "Com_rollback": 0,
+                "Com_select": 19032,
+                "Com_stmt_execute": 24139,
+                "Com_update": 2657,
+                "Innodb_row_lock_time": 0,
+                "Questions": 64580
+              },
+              "queued_pool_size": 10000,
+              "planned_calls": 10000,
+              "warmup_seconds": 10,
+              "measured_seconds": 5,
+              "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+              "submitted_calls": 0,
+              "generator_capacity_misses": 0,
+              "http_codes": {},
+              "error_examples": {},
+              "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+              "dial_accepted_per_second": {
+                "1": 100,
+                "2": 200,
+                "3": 200,
+                "4": 100,
+                "8": 100,
+                "9": 200,
+                "10": 200,
+                "11": 200,
+                "14": 100,
+                "15": 200
+              },
+              "dial_accepted_within_window": 500,
+              "dial_accepted_at_observation_end": 1600,
+              "actual_cps": 100,
+              "real_telephony_verified": false,
+              "db_stats_after": {
+                "Com_commit": 11024,
+                "Com_insert": 22305,
+                "Com_rollback": 1,
+                "Com_select": 35587,
+                "Com_stmt_execute": 47176,
+                "Com_update": 5912,
+                "Innodb_row_lock_time": 24506,
+                "Questions": 100797
+              },
+              "mysql_statement_digests": [
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `tenant_id` , `phone` , `name` ) VALUES (...)",
+                  "total_ms": 7369.242,
+                  "count": 10000,
+                  "rows_examined": 0,
+                  "max_ms": 88.7637
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "COMMIT",
+                  "total_ms": 7281.6322,
+                  "count": 11030,
+                  "rows_examined": 0,
+                  "max_ms": 85.7851
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `mode` , `phone` , `tenant_id` ) VALUES (...)",
+                  "total_ms": 2365.23,
+                  "count": 10000,
+                  "rows_examined": 0,
+                  "max_ms": 6.1751
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "SET `autocommit` = ?",
+                  "total_ms": 1534.1126,
+                  "count": 22072,
+                  "rows_examined": 0,
+                  "max_ms": 2.7434
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_gateway_capacity` ON `callsession` ( `gateway_node_id` , `status` )",
+                  "total_ms": 29.2313,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 29.2313
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_call_admission_counts` ON `callsession` ( `tenant_id` , STATUS , `telephony_line_id` , `campaign_id` )",
+                  "total_ms": 28.343,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 28.343
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_call_daily_attempts` ON `callsession` ( `tenant_id` , `started_at` , `attempts` )",
+                  "total_ms": 28.1291,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 28.1291
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_phone_active` ON `callsession` ( `tenant_id` , `phone` (?) , STATUS )",
+                  "total_ms": 27.7586,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 27.7586
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_agent_active` ON `callsession` ( `tenant_id` , `human_agent_id` , STATUS )",
+                  "total_ms": 26.1568,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 26.1568
+                },
+                {
+                  "rows_sent": 26,
+                  "normalized_sql": "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+                  "total_ms": 21.264,
+                  "count": 29,
+                  "rows_examined": 1272,
+                  "max_ms": 1.3918
+                },
+                {
+                  "rows_sent": 10,
+                  "normalized_sql": "SELECT `FLOOR` ( ( `UNIX_TIMESTAMP` ( `e` . `created_at` ) * ? - ? ) / ? ) AS `bucket` , COUNT ( * ) AS `n` FROM `callevent` `e` JOIN `callsession` `c` ON `c` . `id` = `e` . `call_session_id` WHERE `c` . `tenant_id` = ? AND `e` . `event_type` = ? GROUP BY `bucket` ORDER BY `bucket`",
+                  "total_ms": 19.9978,
+                  "count": 1,
+                  "rows_examined": 3210,
+                  "max_ms": 19.9978
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callsession` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `script_flow_version_id` INTEGER , `flow_node_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `contact_id` INTEGER , `campaign_contact_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_mode` CHECK ( `mode` IN (...) ) , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_status` CHECK ( `status` IN (...) ) , `attempts` INTEGER NOT NULL , `max_attempts` INTEGER NOT NULL , `last_error` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `human_agent_id` INTEGER , `handoff_reason` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `recording_url` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `ai_session_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_call_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_line_id` INTEGER , `gateway_node_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `gateway_endpoint` VARCHARACTER (?) CHARACTER SET",
+                  "total_ms": 18.1626,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 18.1626
+                },
+                {
+                  "rows_sent": 166,
+                  "normalized_sql": "SELECT @@SESSION . `transaction_read_only`",
+                  "total_ms": 16.7145,
+                  "count": 166,
+                  "rows_examined": 166,
+                  "max_ms": 0.4992
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `campaign` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script_template_id` INTEGER , `script_flow_version_id` INTEGER , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_campaign_mode` CHECK ( `mode` IN (...) ) , `concurrency` INTEGER NOT NULL , `retry_limit` INTEGER NOT NULL , `retry_interval_sec` INTEGER NOT NULL , `attempt_interval_sec` INTEGER NOT NULL , `recording_enabled` BOOLEAN NOT NULL , `hangup_sms_enabled` BOOLEAN NOT NULL , `voice_ai_pipeline` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `status` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `dispatch_enabled` BOOLEAN NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_campaign_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_campaign_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_campaign_script_flow_version_id` FOREIGN KEY ( `script_flow_version_id` ) REFERENCES `scriptflowversion` ( `id` ) , CONSTRAINT `fk_campaign_created_by` FOREIGN",
+                  "total_ms": 13.221,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 13.221
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `handoffrequest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_agent_id` INTEGER , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_handoffrequest_state` CHECK ( `state` IN (...) ) , `reason` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `target_group` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `requested_at` DATETIME (?) NOT NULL , `responded_at` DATETIME (?) , `completed_at` DATETIME (?) , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_handoffrequest_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_handoffrequest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) , CONSTRAINT `fk_handoffrequest_assigned_agent_id` FOREIGN KEY ( `assigned_agent_id` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 11.4742,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 11.4742
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `sys_user` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `username` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `password_hash` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `full_name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `role` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `is_supervisor` BOOLEAN NOT NULL , `agent_status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `last_seen_at` DATETIME (?) , `failed_login_attempts` INTEGER NOT NULL , `locked_until` DATETIME (?) , `token_version` INTEGER NOT NULL , `last_login_at` DATETIME (?) , `enabled` BOOLEAN NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_user_translated_1` UNIQUE ( `username` ) , CONSTRAINT `fk_user_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 11.1695,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 11.1695
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callanalysis` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `result_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sentiment` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `intent` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `summary` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callanalysis_summary_length` CHECK ( `CHAR_LENGTH` ( `summary` ) <= ? ) , `qa_score` INTEGER NOT NULL , `qa_flags_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `structured_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `automatic_result_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `needs_review` BOOLEAN NOT NULL , `review_state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `reviewed_by` INTEGER , `reviewed_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callanalysis_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_callanalysis_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callanalysis_call_session_id` FOREIGN KEY",
+                  "total_ms": 10.8333,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 10.8333
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `voice_attempts` ( `call_id` VARCHARACTER (?) NOT NULL , `attempt` INT8 NOT NULL , `tenant` INT8 NOT NULL , `line` VARCHARACTER (?) NOT NULL , `uuid` VARCHARACTER (?) NOT NULL , `digest` VARCHARACTER (?) NOT NULL , `payload` LONGTEXT NOT NULL , `created` FLOAT8 NOT NULL , `deadline` FLOAT8 NOT NULL , `cost` INT8 NOT NULL , `rate` INT8 NOT NULL , `multiplier` INT8 NOT NULL , `state` VARCHARACTER (?) NOT NULL DEFAULT ? , `result` LONGTEXT , `ended` FLOAT8 , `observed` INT8 NOT NULL DEFAULT ? , PRIMARY KEY ( `call_id` , `attempt` ) , UNIQUE KEY `attempts_uuid` ( `uuid` ) , KEY `attempts_scope` ( `tenant` , `line` , `created` ) , KEY `attempts_ended` ( `state` , `ended` ) , KEY `attempts_created` ( `created` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_bin`",
+                  "total_ms": 10.5714,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 10.5714
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `conversationstate` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `policy_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `policy_version_id` INTEGER , `data_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `generation` INTEGER NOT NULL , `deadline` DATETIME (?) , `timer_kind` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_conversationstate_translated_1` UNIQUE ( `call_id` , `attempt` ) , CONSTRAINT `fk_conversationstate_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_conversationstate_call_id` FOREIGN KEY ( `call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 10.2836,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 10.2836
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `knowledgeitem` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `title` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_knowledgeitem_content_length` CHECK ( `CHAR_LENGTH` ( `content` ) <= ? ) , `category` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `keywords` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `valid_from` DATETIME (?) , `valid_until` DATETIME (?) , `campaign_id` INTEGER , `is_active` BOOLEAN NOT NULL , `version` INTEGER NOT NULL , `created_by` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_knowledgeitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_knowledgeitem_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) , CONSTRAINT `fk_knowledgeitem_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 10.1147,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 10.1147
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `recordingasset` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `provider_recording_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_url` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `storage_uri` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_sec` INTEGER , `media_format` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_count` INTEGER NOT NULL , `checksum_sha256` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `retention_until` DATETIME (?) , `deleted_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_recordingasset_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_recordingasset_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 9.8772,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 9.8772
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callusage` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `answered_at` DATETIME (?) , `ended_at` DATETIME (?) , `ai_ended_at` DATETIME (?) , `telephony_seconds` FLOAT8 , `ai_seconds` FLOAT8 , `duration_source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callusage_translated_1` UNIQUE ( `call_session_id` , `attempt` ) , CONSTRAINT `fk_callusage_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callusage_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 9.3635,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 9.3635
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_taskoutbox_available_at` ON `taskoutbox` ( `available_at` )",
+                  "total_ms": 9.2885,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 9.2885
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `speechturn` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `turn_index` INTEGER NOT NULL , `attempt` INTEGER NOT NULL , `speaker_role` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_transcript_length` CHECK ( `CHAR_LENGTH` ( `transcript` ) <= ? ) , `normalized_transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_normalized_transcript_length` CHECK ( `CHAR_LENGTH` ( `normalized_transcript` ) <= ? ) , `is_final` BOOLEAN NOT NULL , `confidence` FLOAT8 , `start_ms` INTEGER , `end_ms` INTEGER , `asr_provider` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_speechturn_translated_1` UNIQUE ( `call_session_id` , `provider_event_key` ) , CONSTRAINT `fk_speechturn_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT",
+                  "total_ms": 9.1687,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 9.1687
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_user_tenant_id` ON `sys_user` ( `tenant_id` )",
+                  "total_ms": 8.8914,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.8914
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `scenarioversion` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `policy_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `published_by` INTEGER , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_scenarioversion_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_scenarioversion_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 8.843,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.843
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `contactimportjob` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `request_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `result_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `last_error` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_contactimportjob_translated_1` UNIQUE ( `tenant_id` , `request_key` ) , CONSTRAINT `fk_contactimportjob_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 8.791,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.791
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callbackappointment` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `source_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `request_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `scheduled_at` DATETIME (?) NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `revision` INTEGER NOT NULL , `dial_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callbackappointment_translated_1` UNIQUE ( `request_key` ) , CONSTRAINT `fk_callbackappointment_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callbackappointment_source_call_id` FOREIGN KEY ( `source_call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 8.7342,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.7342
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `realtimesession` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_session_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `attempt` INTEGER NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_realtimesession_state` CHECK ( `state` IN (...) ) , `codec` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sample_rate` INTEGER NOT NULL , `channel_count` INTEGER NOT NULL , `last_event_sequence` INTEGER , `turn_sequence` INTEGER NOT NULL , `playback_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `started_at` DATETIME (?) , `ended_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_realtimesession_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_realtimesession_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_realtimesession_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 8.5926,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.5926
+                },
+                {
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callmetric` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `stage` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_ms` INTEGER , `success` BOOLEAN NOT NULL , `error_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `detail` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_callmetric_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callmetric_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 8.5578,
+                  "count": 1,
+                  "rows_examined": 0,
+                  "max_ms": 8.5578
+                }
+              ],
+              "call_states_at_observation_end": {
+                "ANSWERED": 1136,
+                "DIALING": 285,
+                "IN_AI": 279,
+                "QUEUED": 8300
+              },
+              "callback_receipts": [
+                {
+                  "count": 2906,
+                  "state": "done",
+                  "oldest_age_sec": 14.299
+                },
+                {
+                  "count": 314,
+                  "state": "pending",
+                  "oldest_age_sec": 1.139
+                }
+              ],
+              "gateway_callback_backlog": {
+                "count": 190,
+                "max_failures": 0,
+                "oldest_age_sec": 0.997999906539917
+              },
+              "passed": false,
+              "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-first/result.json ==> expected: <true> but was: <false>"
+            },
+            "ci-cps-repeat": {
+              "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+              "target_cps": 500,
+              "seconds": 5,
+              "jar_sha256": "7171ee1a3cc2e57cda7b294d134f7bc4df91f60947f44e7f4603734b1152952c",
+              "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "25c8648255b1c07fe78d0f83323579a88ca8bfc9032d2a9fdc05f36298422e10",
+              "redis_container": "42e9b78f7d2dc70dec69673b9e4e2875511404fb3b156fbc1ff4612732d81f89",
+              "mysql_jdbc": "jdbc:mysql://localhost:32772/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": false,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 2000,
+                "worker_lanes": 7,
+                "task_executor_threads": 4,
+                "ai_lane_threads_max": 4,
+                "callback_consumer_threads": 2,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 10000,
+                "application_jvms": 1,
+                "dial_batch_size": "100",
+                "gateway_command_batch_max": 100,
+                "callback_batch_size": "32",
+                "voice_callback_batch_enabled": true,
+                "dial_executor_threads": "4",
+                "general_task_executor_threads": 4,
+                "voice_callback_delivery_concurrency": "128",
+                "voice_callback_batch_size": "64",
+                "voice_callback_partition_groups": "2",
+                "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+                "callback_consumer_poll_ms": "10"
+              },
+              "application_pid": 4974,
+              "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+              "phase_start_ms": 1792523491379,
+              "db_stats_before": {
+                "Com_commit": 6561,
+                "Com_insert": 20075,
+                "Com_rollback": 0,
+                "Com_select": 18791,
+                "Com_stmt_execute": 23868,
+                "Com_update": 2642,
+                "Innodb_row_lock_time": 0,
+                "Questions": 64079
+              },
+              "queued_pool_size": 10000,
+              "planned_calls": 10000,
+              "warmup_seconds": 10,
+              "measured_seconds": 5,
+              "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+              "submitted_calls": 0,
+              "generator_capacity_misses": 0,
+              "http_codes": {},
+              "error_examples": {},
+              "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+              "dial_accepted_per_second": {
+                "1": 200,
+                "2": 200,
+                "3": 100,
+                "4": 200,
+                "5": 100,
+                "9": 100,
+                "10": 200,
+                "11": 200,
+                "12": 200,
+                "15": 300
+              },
+              "dial_accepted_within_window": 600,
+              "dial_accepted_at_observation_end": 1800,
+              "actual_cps": 120,
+              "real_telephony_verified": false,
+              "db_stats_after": {
+                "Com_commit": 10874,
+                "Com_insert": 22393,
+                "Com_rollback": 1,
+                "Com_select": 35241,
+                "Com_stmt_execute": 46861,
+                "Com_update": 5915,
+                "Innodb_row_lock_time": 27014,
+                "Questions": 100036
+              },
+              "mysql_statement_digests": [
+                {
+                  "normalized_sql": "COMMIT",
+                  "rows_sent": 0,
+                  "max_ms": 62.8167,
+                  "rows_examined": 0,
+                  "count": 10894,
+                  "total_ms": 7456.6482
+                },
+                {
+                  "normalized_sql": "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `name` , `phone` , `tenant_id` ) VALUES (...)",
+                  "rows_sent": 0,
+                  "max_ms": 13.0783,
+                  "rows_examined": 0,
+                  "count": 10000,
+                  "total_ms": 6939.1903
+                },
+                {
+                  "normalized_sql": "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `mode` , `tenant_id` , `phone` ) VALUES (...)",
+                  "rows_sent": 0,
+                  "max_ms": 8.2805,
+                  "rows_examined": 0,
+                  "count": 10000,
+                  "total_ms": 2251.8843
+                },
+                {
+                  "normalized_sql": "SET `autocommit` = ?",
+                  "rows_sent": 0,
+                  "max_ms": 4.8659,
+                  "rows_examined": 0,
+                  "count": 21802,
+                  "total_ms": 1607.3349
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_callsession_phone_active` ON `callsession` ( `tenant_id` , `phone` (?) , STATUS )",
+                  "rows_sent": 0,
+                  "max_ms": 33.4838,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 33.4838
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_call_admission_counts` ON `callsession` ( `tenant_id` , STATUS , `telephony_line_id` , `campaign_id` )",
+                  "rows_sent": 0,
+                  "max_ms": 29.2295,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 29.2295
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_call_daily_attempts` ON `callsession` ( `tenant_id` , `started_at` , `attempts` )",
+                  "rows_sent": 0,
+                  "max_ms": 27.0548,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 27.0548
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_callsession_agent_active` ON `callsession` ( `tenant_id` , `human_agent_id` , STATUS )",
+                  "rows_sent": 0,
+                  "max_ms": 26.7131,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 26.7131
+                },
+                {
+                  "normalized_sql": "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+                  "rows_sent": 26,
+                  "max_ms": 3.323,
+                  "rows_examined": 1272,
+                  "count": 29,
+                  "total_ms": 26.3011
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_callsession_gateway_capacity` ON `callsession` ( `gateway_node_id` , `status` )",
+                  "rows_sent": 0,
+                  "max_ms": 26.2198,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 26.2198
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `callsession` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `script_flow_version_id` INTEGER , `flow_node_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `contact_id` INTEGER , `campaign_contact_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_mode` CHECK ( `mode` IN (...) ) , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_status` CHECK ( `status` IN (...) ) , `attempts` INTEGER NOT NULL , `max_attempts` INTEGER NOT NULL , `last_error` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `human_agent_id` INTEGER , `handoff_reason` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `recording_url` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `ai_session_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_call_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_line_id` INTEGER , `gateway_node_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `gateway_endpoint` VARCHARACTER (?) CHARACTER SET",
+                  "rows_sent": 0,
+                  "max_ms": 16.8266,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 16.8266
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_recordingasset_state` ON `recordingasset` ( `state` )",
+                  "rows_sent": 0,
+                  "max_ms": 14.3199,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 14.3199
+                },
+                {
+                  "normalized_sql": "SELECT @@SESSION . `transaction_read_only`",
+                  "rows_sent": 166,
+                  "max_ms": 0.1664,
+                  "rows_examined": 166,
+                  "count": 166,
+                  "total_ms": 13.9952
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `handoffrequest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_agent_id` INTEGER , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_handoffrequest_state` CHECK ( `state` IN (...) ) , `reason` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `target_group` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `requested_at` DATETIME (?) NOT NULL , `responded_at` DATETIME (?) , `completed_at` DATETIME (?) , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_handoffrequest_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_handoffrequest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) , CONSTRAINT `fk_handoffrequest_assigned_agent_id` FOREIGN KEY ( `assigned_agent_id` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 13.8888,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 13.8888
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `ix_recordingasset_tenant_id` ON `recordingasset` ( `tenant_id` )",
+                  "rows_sent": 0,
+                  "max_ms": 12.554,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 12.554
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `campaign` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script_template_id` INTEGER , `script_flow_version_id` INTEGER , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_campaign_mode` CHECK ( `mode` IN (...) ) , `concurrency` INTEGER NOT NULL , `retry_limit` INTEGER NOT NULL , `retry_interval_sec` INTEGER NOT NULL , `attempt_interval_sec` INTEGER NOT NULL , `recording_enabled` BOOLEAN NOT NULL , `hangup_sms_enabled` BOOLEAN NOT NULL , `voice_ai_pipeline` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `status` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `dispatch_enabled` BOOLEAN NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_campaign_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_campaign_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_campaign_script_flow_version_id` FOREIGN KEY ( `script_flow_version_id` ) REFERENCES `scriptflowversion` ( `id` ) , CONSTRAINT `fk_campaign_created_by` FOREIGN",
+                  "rows_sent": 0,
+                  "max_ms": 12.083,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 12.083
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `callanalysis` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `result_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sentiment` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `intent` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `summary` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callanalysis_summary_length` CHECK ( `CHAR_LENGTH` ( `summary` ) <= ? ) , `qa_score` INTEGER NOT NULL , `qa_flags_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `structured_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `automatic_result_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `needs_review` BOOLEAN NOT NULL , `review_state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `reviewed_by` INTEGER , `reviewed_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callanalysis_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_callanalysis_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callanalysis_call_session_id` FOREIGN KEY",
+                  "rows_sent": 0,
+                  "max_ms": 10.6616,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 10.6616
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `voice_attempts` ( `call_id` VARCHARACTER (?) NOT NULL , `attempt` INT8 NOT NULL , `tenant` INT8 NOT NULL , `line` VARCHARACTER (?) NOT NULL , `uuid` VARCHARACTER (?) NOT NULL , `digest` VARCHARACTER (?) NOT NULL , `payload` LONGTEXT NOT NULL , `created` FLOAT8 NOT NULL , `deadline` FLOAT8 NOT NULL , `cost` INT8 NOT NULL , `rate` INT8 NOT NULL , `multiplier` INT8 NOT NULL , `state` VARCHARACTER (?) NOT NULL DEFAULT ? , `result` LONGTEXT , `ended` FLOAT8 , `observed` INT8 NOT NULL DEFAULT ? , PRIMARY KEY ( `call_id` , `attempt` ) , UNIQUE KEY `attempts_uuid` ( `uuid` ) , KEY `attempts_scope` ( `tenant` , `line` , `created` ) , KEY `attempts_ended` ( `state` , `ended` ) , KEY `attempts_created` ( `created` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_bin`",
+                  "rows_sent": 0,
+                  "max_ms": 10.3327,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 10.3327
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `recordingasset` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `provider_recording_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_url` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `storage_uri` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_sec` INTEGER , `media_format` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_count` INTEGER NOT NULL , `checksum_sha256` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `retention_until` DATETIME (?) , `deleted_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_recordingasset_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_recordingasset_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 9.9598,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.9598
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `knowledgeitem` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `title` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_knowledgeitem_content_length` CHECK ( `CHAR_LENGTH` ( `content` ) <= ? ) , `category` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `keywords` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `valid_from` DATETIME (?) , `valid_until` DATETIME (?) , `campaign_id` INTEGER , `is_active` BOOLEAN NOT NULL , `version` INTEGER NOT NULL , `created_by` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_knowledgeitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_knowledgeitem_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) , CONSTRAINT `fk_knowledgeitem_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 9.9539,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.9539
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `webhookeventingest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `event_type` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `repeat_count` INTEGER NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_webhookeventingest_translated_1` UNIQUE ( `provider_event_key` ) , CONSTRAINT `fk_webhookeventingest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 9.6517,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.6517
+                },
+                {
+                  "normalized_sql": "CREATE INDEX `flyway_schema_history_s_idx` ON `test` . `flyway_schema_history` ( `success` )",
+                  "rows_sent": 0,
+                  "max_ms": 9.626,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.626
+                },
+                {
+                  "normalized_sql": "SELECT `FLOOR` ( ( `UNIX_TIMESTAMP` ( `e` . `created_at` ) * ? - ? ) / ? ) AS `bucket` , COUNT ( * ) AS `n` FROM `callevent` `e` JOIN `callsession` `c` ON `c` . `id` = `e` . `call_session_id` WHERE `c` . `tenant_id` = ? AND `e` . `event_type` = ? GROUP BY `bucket` ORDER BY `bucket`",
+                  "rows_sent": 10,
+                  "max_ms": 9.3585,
+                  "rows_examined": 3610,
+                  "count": 1,
+                  "total_ms": 9.3585
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `smslog` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `to_phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `template_code` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_message_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_error` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `sent_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_smslog_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_smslog_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 9.1227,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.1227
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `productworkitem` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `kind` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `detail_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_to` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_productworkitem_translated_1` UNIQUE ( `event_key` ) , CONSTRAINT `fk_productworkitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_productworkitem_call_id` FOREIGN KEY ( `call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 9.0092,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 9.0092
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `speechturn` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `turn_index` INTEGER NOT NULL , `attempt` INTEGER NOT NULL , `speaker_role` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_transcript_length` CHECK ( `CHAR_LENGTH` ( `transcript` ) <= ? ) , `normalized_transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_normalized_transcript_length` CHECK ( `CHAR_LENGTH` ( `normalized_transcript` ) <= ? ) , `is_final` BOOLEAN NOT NULL , `confidence` FLOAT8 , `start_ms` INTEGER , `end_ms` INTEGER , `asr_provider` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_speechturn_translated_1` UNIQUE ( `call_session_id` , `provider_event_key` ) , CONSTRAINT `fk_speechturn_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT",
+                  "rows_sent": 0,
+                  "max_ms": 8.9894,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 8.9894
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `scriptflowversion` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `script_template_id` INTEGER NOT NULL , `version` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `description` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `graph_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `published_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_scriptflowversion_translated_1` UNIQUE ( `script_template_id` , `version` ) , CONSTRAINT `fk_scriptflowversion_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_scriptflowversion_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_scriptflowversion_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 8.968,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 8.968
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `callusage` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `answered_at` DATETIME (?) , `ended_at` DATETIME (?) , `ai_ended_at` DATETIME (?) , `telephony_seconds` FLOAT8 , `ai_seconds` FLOAT8 , `duration_source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callusage_translated_1` UNIQUE ( `call_session_id` , `attempt` ) , CONSTRAINT `fk_callusage_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callusage_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 8.6305,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 8.6305
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `callbackappointment` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `source_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `request_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `scheduled_at` DATETIME (?) NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `revision` INTEGER NOT NULL , `dial_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callbackappointment_translated_1` UNIQUE ( `request_key` ) , CONSTRAINT `fk_callbackappointment_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callbackappointment_source_call_id` FOREIGN KEY ( `source_call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 8.5752,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 8.5752
+                },
+                {
+                  "normalized_sql": "CREATE TABLE `callmetric` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `stage` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_ms` INTEGER , `success` BOOLEAN NOT NULL , `error_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `detail` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_callmetric_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callmetric_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 8.5414,
+                  "rows_examined": 0,
+                  "count": 1,
+                  "total_ms": 8.5414
+                }
+              ],
+              "call_states_at_observation_end": {
+                "ANSWERED": 1262,
+                "DIALING": 354,
+                "IN_AI": 284,
+                "QUEUED": 8100
+              },
+              "callback_receipts": [
+                {
+                  "count": 3143,
+                  "oldest_age_sec": 14.461,
+                  "state": "done"
+                },
+                {
+                  "count": 448,
+                  "oldest_age_sec": 1.254,
+                  "state": "pending"
+                }
+              ],
+              "gateway_callback_backlog": {
+                "count": 209,
+                "oldest_age_sec": 0.75,
+                "max_failures": 0
+              },
+              "passed": false,
+              "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-repeat/result.json ==> expected: <true> but was: <false>"
+            },
+            "ci-ai500": {
+              "run_id": "005a318c",
+              "jar_sha256": "7171ee1a3cc2e57cda7b294d134f7bc4df91f60947f44e7f4603734b1152952c",
+              "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+              "target_calls": 500,
+              "target_turns_per_second": 50,
+              "hold_seconds": 120,
+              "thresholds": {
+                "pending_after_drain_max": 0,
+                "reply_p95_ms_max": 1500,
+                "all_500_in_ai": true,
+                "scheduled_reply_fraction_min": 0.99,
+                "reply_p99_ms_max": 3000,
+                "http_success_fraction_min": 0.999
+              },
+              "threshold_note": "Explicit simulation acceptance assumptions; 500 calls each get a slot every 10.0 seconds. No next utterance before the previous durable reply. Missed slots remain failures.",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "03907df587466fb87a077236c5276e3ec28961eff5e57ca9d00abdf520e87163",
+              "redis_container": "14ade2f4318ae0757b387fba71fff784fe8de084a5c219a6175944ce7a919b9d",
+              "mysql_jdbc": "jdbc:mysql://localhost:32775/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": false,
+              "samples": 123,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 100,
+                "worker_lanes": 11,
+                "task_executor_threads": 8,
+                "ai_lane_threads_max": 8,
+                "callback_consumer_threads": 1,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 500,
+                "application_jvms": 1
+              },
+              "application_pid": 6438,
+              "fixtures": "One isolated tenant/admin and 501 explicitly-consented synthetic contacts; calls are all created through the real HTTP dial/admission path, never inserted as IN_AI rows.",
+              "admission": {
+                "p95_ms": 133.266501,
+                "http_status": {
+                  "200": 500
+                },
+                "created": 500,
+                "elapsed_seconds": 34.34725971
+              },
+              "in_ai_at_load_start": 500,
+              "call_501": {
+                "active_count": 500,
+                "status": "queued",
+                "http": 200
+              },
+              "phase_start_ms": 1792523584157,
+              "phase_end_ms": 1792523704157,
+              "delivered_within_steady_window": 5939,
+              "planned_turns": 6000,
+              "sent_turns": 6000,
+              "http_status": {
+                "200": 6000
+              },
+              "generator_missed_slots": 0,
+              "call_waiting_missed_slots": 0,
+              "durable_replies": 6000,
+              "pending_calls_after_drain": 0,
+              "http_p95_ms": 17.966557,
+              "http_p99_ms": 25.978026,
+              "reply_p95_ms": 1031,
+              "reply_p99_ms": 1268,
+              "steady_valid_reply_rps": 49.49166666666667,
+              "max_in_flight_calls": 500,
+              "peak_pending_tasks": 19,
+              "peak_pending_callbacks": 17,
+              "held_500_in_steady_samples": true,
+              "steady_sample_count": 93,
+              "observer_query_p95_ms": 305.310817,
+              "observer_query_p99_ms": 421.660948,
+              "simulation_slo_passed": true,
+              "real_500_audio_capacity_verified": false,
+              "production_capacity_verified": false,
+              "final_database": {
+                "at_ms": 1792523706484,
+                "active_calls": 500,
+                "in_ai": 500,
+                "pending_tasks": 0,
+                "pending_callbacks": 0,
+                "dead_tasks": 0,
+                "voice_pending_callbacks": 0,
+                "durable_replies": 6000,
+                "application_cpu_seconds": 206.75,
+                "application_cpu_percent": 122,
+                "application_rss_kib": 761004,
+                "ai_outbound_jvm_heap_used_bytes": 173868536,
+                "ai_outbound_jvm_threads": 70
+              },
+              "application_alive": true
+            }
+          }
+        },
+        "arm": {
+          "run": 39480840762,
+          "host": {
+            "cpu": "Architecture:                            aarch64\nCPU op-mode(s):                          32-bit, 64-bit\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               ARM\nModel name:                              Neoverse-N2\nModel:                                   0\nThread(s) per core:                      1\nCore(s) per socket:                      4\nSocket(s):                               1\nStepping:                                r0p0\nBogoMIPS:                                2000.00\nFlags:                                   fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 sve asimdfhm uscat ilrcpc flagm sb paca pacg dcpodp sve2 sveaes svebitperm svesha3 svesm4 flagm2 frint svei8mm svebf16 i8mm bf16\nL1d cache:                               256 KiB (4 instances)\nL1i cache:                               256 KiB (4 instances)\nL2 cache:                                4 MiB (4 instances)\nL3 cache:                                128 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; CSV2, BHB\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+            "memory": "               total        used        free      shared  buff/cache   available\nMem:           15941        1662       11079          47        3503       14279\nSwap:           3071           0        3071\n",
+            "profile": "balanced"
+          },
+          "results": {
+            "ci-cps-first": {
+              "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+              "target_cps": 500,
+              "seconds": 5,
+              "jar_sha256": "16395fc753f0b43197f869f98303bef3d0480d41e8f8c2ab5a52622a78874299",
+              "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "6bed2e7027bdb904cc896f8e9491e1b6620dee897e71181d067f73b07089c1e2",
+              "redis_container": "d4cafc1bc52f0030634117fd5935b2a072c5d9b117e344a9561e3523377d29de",
+              "mysql_jdbc": "jdbc:mysql://localhost:32769/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": true,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 2000,
+                "worker_lanes": 7,
+                "task_executor_threads": 4,
+                "ai_lane_threads_max": 4,
+                "callback_consumer_threads": 2,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 10000,
+                "application_jvms": 1,
+                "dial_batch_size": "100",
+                "gateway_command_batch_max": 100,
+                "callback_batch_size": "32",
+                "voice_callback_batch_enabled": true,
+                "dial_executor_threads": "4",
+                "general_task_executor_threads": 4,
+                "voice_callback_delivery_concurrency": "128",
+                "voice_callback_batch_size": "64",
+                "voice_callback_partition_groups": "2",
+                "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+                "callback_consumer_poll_ms": "10"
+              },
+              "application_pid": 3522,
+              "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+              "phase_start_ms": 1792523458246,
+              "db_stats_before": {
+                "Com_commit": 8007,
+                "Com_insert": 20075,
+                "Com_rollback": 0,
+                "Com_select": 22969,
+                "Com_stmt_execute": 29164,
+                "Com_update": 3201,
+                "Innodb_row_lock_time": 0,
+                "Questions": 73711
+              },
+              "queued_pool_size": 10000,
+              "planned_calls": 10000,
+              "warmup_seconds": 10,
+              "measured_seconds": 5,
+              "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+              "submitted_calls": 0,
+              "generator_capacity_misses": 0,
+              "http_codes": {},
+              "error_examples": {},
+              "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+              "dial_accepted_per_second": {
+                "1": 200,
+                "2": 300,
+                "3": 100,
+                "4": 100,
+                "8": 200,
+                "9": 300,
+                "10": 200,
+                "11": 200,
+                "13": 100,
+                "14": 200,
+                "15": 300
+              },
+              "dial_accepted_within_window": 700,
+              "dial_accepted_at_observation_end": 2200,
+              "actual_cps": 140,
+              "real_telephony_verified": false,
+              "db_stats_after": {
+                "Com_commit": 11937,
+                "Com_insert": 22355,
+                "Com_rollback": 1,
+                "Com_select": 37919,
+                "Com_stmt_execute": 50422,
+                "Com_update": 6280,
+                "Innodb_row_lock_time": 27815,
+                "Questions": 106782
+              },
+              "mysql_statement_digests": [
+                {
+                  "total_ms": 13642.2511,
+                  "normalized_sql": "COMMIT",
+                  "rows_sent": 0,
+                  "max_ms": 45.7987,
+                  "rows_examined": 0,
+                  "count": 11938
+                },
+                {
+                  "total_ms": 10244.4885,
+                  "normalized_sql": "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `phone` , `tenant_id` , `name` ) VALUES (...)",
+                  "rows_sent": 0,
+                  "max_ms": 17.4268,
+                  "rows_examined": 0,
+                  "count": 10000
+                },
+                {
+                  "total_ms": 3086.7791,
+                  "normalized_sql": "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `phone` , `mode` , `tenant_id` ) VALUES (...)",
+                  "rows_sent": 0,
+                  "max_ms": 61.7383,
+                  "rows_examined": 0,
+                  "count": 10000
+                },
+                {
+                  "total_ms": 2329.6705,
+                  "normalized_sql": "SET `autocommit` = ?",
+                  "rows_sent": 0,
+                  "max_ms": 2.8677,
+                  "rows_examined": 0,
+                  "count": 23849
+                },
+                {
+                  "total_ms": 28.568,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_phone_active` ON `callsession` ( `tenant_id` , `phone` (?) , STATUS )",
+                  "rows_sent": 0,
+                  "max_ms": 28.568,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 28.2341,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_agent_active` ON `callsession` ( `tenant_id` , `human_agent_id` , STATUS )",
+                  "rows_sent": 0,
+                  "max_ms": 28.2341,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 27.7211,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_gateway_capacity` ON `callsession` ( `gateway_node_id` , `status` )",
+                  "rows_sent": 0,
+                  "max_ms": 27.7211,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 27.282,
+                  "normalized_sql": "CREATE INDEX `ix_call_admission_counts` ON `callsession` ( `tenant_id` , STATUS , `telephony_line_id` , `campaign_id` )",
+                  "rows_sent": 0,
+                  "max_ms": 27.282,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 27.1948,
+                  "normalized_sql": "CREATE INDEX `ix_call_daily_attempts` ON `callsession` ( `tenant_id` , `started_at` , `attempts` )",
+                  "rows_sent": 0,
+                  "max_ms": 27.1948,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 23.5004,
+                  "normalized_sql": "SELECT @@SESSION . `transaction_read_only`",
+                  "rows_sent": 166,
+                  "max_ms": 0.2169,
+                  "rows_examined": 166,
+                  "count": 166
+                },
+                {
+                  "total_ms": 21.0286,
+                  "normalized_sql": "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+                  "rows_sent": 26,
+                  "max_ms": 1.4478,
+                  "rows_examined": 1272,
+                  "count": 29
+                },
+                {
+                  "total_ms": 18.5676,
+                  "normalized_sql": "CREATE TABLE `callsession` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `script_flow_version_id` INTEGER , `flow_node_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `contact_id` INTEGER , `campaign_contact_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_mode` CHECK ( `mode` IN (...) ) , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_status` CHECK ( `status` IN (...) ) , `attempts` INTEGER NOT NULL , `max_attempts` INTEGER NOT NULL , `last_error` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `human_agent_id` INTEGER , `handoff_reason` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `recording_url` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `ai_session_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_call_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_line_id` INTEGER , `gateway_node_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `gateway_endpoint` VARCHARACTER (?) CHARACTER SET",
+                  "rows_sent": 0,
+                  "max_ms": 18.5676,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 14.3272,
+                  "normalized_sql": "CREATE TABLE `handoffrequest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_agent_id` INTEGER , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_handoffrequest_state` CHECK ( `state` IN (...) ) , `reason` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `target_group` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `requested_at` DATETIME (?) NOT NULL , `responded_at` DATETIME (?) , `completed_at` DATETIME (?) , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_handoffrequest_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_handoffrequest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) , CONSTRAINT `fk_handoffrequest_assigned_agent_id` FOREIGN KEY ( `assigned_agent_id` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 14.3272,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 14.1524,
+                  "normalized_sql": "CREATE TABLE `campaign` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script_template_id` INTEGER , `script_flow_version_id` INTEGER , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_campaign_mode` CHECK ( `mode` IN (...) ) , `concurrency` INTEGER NOT NULL , `retry_limit` INTEGER NOT NULL , `retry_interval_sec` INTEGER NOT NULL , `attempt_interval_sec` INTEGER NOT NULL , `recording_enabled` BOOLEAN NOT NULL , `hangup_sms_enabled` BOOLEAN NOT NULL , `voice_ai_pipeline` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `status` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `dispatch_enabled` BOOLEAN NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_campaign_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_campaign_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_campaign_script_flow_version_id` FOREIGN KEY ( `script_flow_version_id` ) REFERENCES `scriptflowversion` ( `id` ) , CONSTRAINT `fk_campaign_created_by` FOREIGN",
+                  "rows_sent": 0,
+                  "max_ms": 14.1524,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 14.034,
+                  "normalized_sql": "CREATE TABLE `callanalysis` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `result_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sentiment` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `intent` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `summary` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callanalysis_summary_length` CHECK ( `CHAR_LENGTH` ( `summary` ) <= ? ) , `qa_score` INTEGER NOT NULL , `qa_flags_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `structured_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `automatic_result_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `needs_review` BOOLEAN NOT NULL , `review_state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `reviewed_by` INTEGER , `reviewed_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callanalysis_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_callanalysis_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callanalysis_call_session_id` FOREIGN KEY",
+                  "rows_sent": 0,
+                  "max_ms": 14.034,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 13.2318,
+                  "normalized_sql": "CREATE TABLE `callbackappointment` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `source_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `request_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `scheduled_at` DATETIME (?) NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `revision` INTEGER NOT NULL , `dial_call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callbackappointment_translated_1` UNIQUE ( `request_key` ) , CONSTRAINT `fk_callbackappointment_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callbackappointment_source_call_id` FOREIGN KEY ( `source_call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 13.2318,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 12.4364,
+                  "normalized_sql": "CREATE TABLE `knowledgeitem` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `title` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_knowledgeitem_content_length` CHECK ( `CHAR_LENGTH` ( `content` ) <= ? ) , `category` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `keywords` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `valid_from` DATETIME (?) , `valid_until` DATETIME (?) , `campaign_id` INTEGER , `is_active` BOOLEAN NOT NULL , `version` INTEGER NOT NULL , `created_by` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_knowledgeitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_knowledgeitem_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) , CONSTRAINT `fk_knowledgeitem_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 12.4364,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 12.414,
+                  "normalized_sql": "CREATE TABLE `recordingasset` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `provider_recording_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_url` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `storage_uri` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_sec` INTEGER , `media_format` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_count` INTEGER NOT NULL , `checksum_sha256` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `retention_until` DATETIME (?) , `deleted_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_recordingasset_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_recordingasset_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 12.414,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 12.245,
+                  "normalized_sql": "CREATE TABLE `smslog` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `to_phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `template_code` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_message_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_error` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `sent_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_smslog_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_smslog_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 12.245,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.3819,
+                  "normalized_sql": "CREATE TABLE `voice_attempts` ( `call_id` VARCHARACTER (?) NOT NULL , `attempt` INT8 NOT NULL , `tenant` INT8 NOT NULL , `line` VARCHARACTER (?) NOT NULL , `uuid` VARCHARACTER (?) NOT NULL , `digest` VARCHARACTER (?) NOT NULL , `payload` LONGTEXT NOT NULL , `created` FLOAT8 NOT NULL , `deadline` FLOAT8 NOT NULL , `cost` INT8 NOT NULL , `rate` INT8 NOT NULL , `multiplier` INT8 NOT NULL , `state` VARCHARACTER (?) NOT NULL DEFAULT ? , `result` LONGTEXT , `ended` FLOAT8 , `observed` INT8 NOT NULL DEFAULT ? , PRIMARY KEY ( `call_id` , `attempt` ) , UNIQUE KEY `attempts_uuid` ( `uuid` ) , KEY `attempts_scope` ( `tenant` , `line` , `created` ) , KEY `attempts_ended` ( `state` , `ended` ) , KEY `attempts_created` ( `created` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_bin`",
+                  "rows_sent": 0,
+                  "max_ms": 11.3819,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.1578,
+                  "normalized_sql": "CREATE TABLE `conversationstate` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `policy_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `policy_version_id` INTEGER , `data_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `generation` INTEGER NOT NULL , `deadline` DATETIME (?) , `timer_kind` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_conversationstate_translated_1` UNIQUE ( `call_id` , `attempt` ) , CONSTRAINT `fk_conversationstate_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_conversationstate_call_id` FOREIGN KEY ( `call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 11.1578,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.1308,
+                  "normalized_sql": "CREATE TABLE `scriptflowversion` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `script_template_id` INTEGER NOT NULL , `version` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `description` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `graph_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `published_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_scriptflowversion_translated_1` UNIQUE ( `script_template_id` , `version` ) , CONSTRAINT `fk_scriptflowversion_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_scriptflowversion_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_scriptflowversion_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 11.1308,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.0862,
+                  "normalized_sql": "CREATE TABLE `webhookeventingest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `event_type` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `repeat_count` INTEGER NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_webhookeventingest_translated_1` UNIQUE ( `provider_event_key` ) , CONSTRAINT `fk_webhookeventingest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 11.0862,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.0351,
+                  "normalized_sql": "CREATE TABLE `speechturn` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `turn_index` INTEGER NOT NULL , `attempt` INTEGER NOT NULL , `speaker_role` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_transcript_length` CHECK ( `CHAR_LENGTH` ( `transcript` ) <= ? ) , `normalized_transcript` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_speechturn_normalized_transcript_length` CHECK ( `CHAR_LENGTH` ( `normalized_transcript` ) <= ? ) , `is_final` BOOLEAN NOT NULL , `confidence` FLOAT8 , `start_ms` INTEGER , `end_ms` INTEGER , `asr_provider` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_speechturn_translated_1` UNIQUE ( `call_session_id` , `provider_event_key` ) , CONSTRAINT `fk_speechturn_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT",
+                  "rows_sent": 0,
+                  "max_ms": 11.0351,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 11.0124,
+                  "normalized_sql": "CREATE TABLE `productworkitem` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `call_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `kind` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `detail_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_to` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_productworkitem_translated_1` UNIQUE ( `event_key` ) , CONSTRAINT `fk_productworkitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_productworkitem_call_id` FOREIGN KEY ( `call_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 11.0124,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 10.6748,
+                  "normalized_sql": "CREATE TABLE `realtimesession` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_session_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `attempt` INTEGER NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_realtimesession_state` CHECK ( `state` IN (...) ) , `codec` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sample_rate` INTEGER NOT NULL , `channel_count` INTEGER NOT NULL , `last_event_sequence` INTEGER , `turn_sequence` INTEGER NOT NULL , `playback_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `started_at` DATETIME (?) , `ended_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_realtimesession_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_realtimesession_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_realtimesession_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 10.6748,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 10.6221,
+                  "normalized_sql": "CREATE TABLE `auditlog` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `actor_user_id` INTEGER , `actor_username` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `action` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `resource_type` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `resource_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `detail` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_auditlog_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_auditlog_actor_user_id` FOREIGN KEY ( `actor_user_id` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 10.6221,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 10.5974,
+                  "normalized_sql": "CREATE TABLE `scenarioversion` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `policy_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `published_by` INTEGER , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_scenarioversion_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_scenarioversion_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 10.5974,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 10.2445,
+                  "normalized_sql": "CREATE TABLE `taskreceipt` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `task_type` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `aggregate_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `idempotency_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `completed_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_taskreceipt_translated_1` UNIQUE ( `idempotency_key` ) , CONSTRAINT `fk_taskreceipt_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 10.2445,
+                  "rows_examined": 0,
+                  "count": 1
+                },
+                {
+                  "total_ms": 10.0801,
+                  "normalized_sql": "CREATE TABLE `callusage` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `answered_at` DATETIME (?) , `ended_at` DATETIME (?) , `ai_ended_at` DATETIME (?) , `telephony_seconds` FLOAT8 , `ai_seconds` FLOAT8 , `duration_source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callusage_translated_1` UNIQUE ( `call_session_id` , `attempt` ) , CONSTRAINT `fk_callusage_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callusage_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "rows_sent": 0,
+                  "max_ms": 10.0801,
+                  "rows_examined": 0,
+                  "count": 1
+                }
+              ],
+              "call_states_at_observation_end": {
+                "ANSWERED": 1681,
+                "DIALING": 295,
+                "IN_AI": 224,
+                "QUEUED": 7800
+              },
+              "callback_receipts": [
+                {
+                  "state": "done",
+                  "count": 3874,
+                  "oldest_age_sec": 14.239
+                },
+                {
+                  "state": "pending",
+                  "count": 479,
+                  "oldest_age_sec": 1.133
+                }
+              ],
+              "gateway_callback_backlog": {
+                "max_failures": 0,
+                "count": 47,
+                "oldest_age_sec": 0.5269999504089355
+              },
+              "passed": false,
+              "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-first/result.json ==> expected: <true> but was: <false>"
+            },
+            "ci-cps-repeat": {
+              "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+              "target_cps": 500,
+              "seconds": 5,
+              "jar_sha256": "16395fc753f0b43197f869f98303bef3d0480d41e8f8c2ab5a52622a78874299",
+              "dial_source": "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "87abaf5e4107c34e709c9b960336b131fd79748b2a1cc9227e081931dbe42d89",
+              "redis_container": "892c900c3230d9e88c9821353ca1c98d027e771094a0fa51a817e97864e9f821",
+              "mysql_jdbc": "jdbc:mysql://localhost:32772/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": false,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 2000,
+                "worker_lanes": 7,
+                "task_executor_threads": 4,
+                "ai_lane_threads_max": 4,
+                "callback_consumer_threads": 2,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 10000,
+                "application_jvms": 1,
+                "dial_batch_size": "100",
+                "gateway_command_batch_max": 100,
+                "callback_batch_size": "32",
+                "voice_callback_batch_enabled": true,
+                "dial_executor_threads": "4",
+                "general_task_executor_threads": 4,
+                "voice_callback_delivery_concurrency": "128",
+                "voice_callback_batch_size": "64",
+                "voice_callback_partition_groups": "2",
+                "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+                "callback_consumer_poll_ms": "10"
+              },
+              "application_pid": 4985,
+              "fixtures": "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+              "phase_start_ms": 1792523534010,
+              "db_stats_before": {
+                "Com_commit": 8195,
+                "Com_insert": 20075,
+                "Com_rollback": 0,
+                "Com_select": 23372,
+                "Com_stmt_execute": 29756,
+                "Com_update": 3296,
+                "Innodb_row_lock_time": 0,
+                "Questions": 74869
+              },
+              "queued_pool_size": 10000,
+              "planned_calls": 10000,
+              "warmup_seconds": 10,
+              "measured_seconds": 5,
+              "measurement_note": "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+              "submitted_calls": 0,
+              "generator_capacity_misses": 0,
+              "http_codes": {},
+              "error_examples": {},
+              "generator": "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+              "dial_accepted_per_second": {
+                "1": 300,
+                "2": 300,
+                "3": 200,
+                "4": 100,
+                "8": 300,
+                "9": 100,
+                "10": 100,
+                "11": 300,
+                "12": 500,
+                "13": 100,
+                "14": 200,
+                "15": 400
+              },
+              "dial_accepted_within_window": 1200,
+              "dial_accepted_at_observation_end": 2900,
+              "actual_cps": 240,
+              "real_telephony_verified": false,
+              "db_stats_after": {
+                "Com_commit": 12482,
+                "Com_insert": 22713,
+                "Com_rollback": 1,
+                "Com_select": 38656,
+                "Com_stmt_execute": 52263,
+                "Com_update": 6688,
+                "Innodb_row_lock_time": 30497,
+                "Questions": 110257
+              },
+              "mysql_statement_digests": [
+                {
+                  "max_ms": 39.5552,
+                  "rows_sent": 0,
+                  "normalized_sql": "COMMIT",
+                  "total_ms": 16826.1645,
+                  "count": 12479,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 12.8711,
+                  "rows_sent": 0,
+                  "normalized_sql": "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `name` , `tenant_id` , `phone` ) VALUES (...)",
+                  "total_ms": 10434.0271,
+                  "count": 10000,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 17.4269,
+                  "rows_sent": 0,
+                  "normalized_sql": "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `tenant_id` , `mode` , `phone` ) VALUES (...)",
+                  "total_ms": 2663.4736,
+                  "count": 10000,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 3.9754,
+                  "rows_sent": 0,
+                  "normalized_sql": "SET `autocommit` = ?",
+                  "total_ms": 2366.3275,
+                  "count": 24944,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 54.1079,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `smslog` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `to_phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `template_code` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_message_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_error` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `sent_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_smslog_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_smslog_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 54.1079,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 42.6877,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callusage` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `answered_at` DATETIME (?) , `ended_at` DATETIME (?) , `ai_ended_at` DATETIME (?) , `telephony_seconds` FLOAT8 , `ai_seconds` FLOAT8 , `duration_source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callusage_translated_1` UNIQUE ( `call_session_id` , `attempt` ) , CONSTRAINT `fk_callusage_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callusage_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 42.6877,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 30.1127,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_call_admission_counts` ON `callsession` ( `tenant_id` , STATUS , `telephony_line_id` , `campaign_id` )",
+                  "total_ms": 30.1127,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 29.0562,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_call_daily_attempts` ON `callsession` ( `tenant_id` , `started_at` , `attempts` )",
+                  "total_ms": 29.0562,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 28.016,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_phone_active` ON `callsession` ( `tenant_id` , `phone` (?) , STATUS )",
+                  "total_ms": 28.016,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 27.378,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_smslog_tenant_id` ON `smslog` ( `tenant_id` )",
+                  "total_ms": 27.378,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 27.1728,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_gateway_capacity` ON `callsession` ( `gateway_node_id` , `status` )",
+                  "total_ms": 27.1728,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 26.6209,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callsession_agent_active` ON `callsession` ( `tenant_id` , `human_agent_id` , STATUS )",
+                  "total_ms": 26.6209,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 26.2211,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_webhookeventingest_event_type` ON `webhookeventingest` ( `event_type` (?) )",
+                  "total_ms": 26.2211,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 0.243,
+                  "rows_sent": 166,
+                  "normalized_sql": "SELECT @@SESSION . `transaction_read_only`",
+                  "total_ms": 25.4477,
+                  "count": 166,
+                  "rows_examined": 166
+                },
+                {
+                  "max_ms": 25.4318,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_smslog_to_phone` ON `smslog` ( `to_phone` (?) )",
+                  "total_ms": 25.4318,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 25.0892,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_webhookeventingest_call_session_id` ON `webhookeventingest` ( `call_session_id` )",
+                  "total_ms": 25.0892,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 24.8923,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_smslog_provider_message_id` ON `smslog` ( `provider_message_id` )",
+                  "total_ms": 24.8923,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 24.5538,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_webhookeventingest_source` ON `webhookeventingest` ( `source` (?) )",
+                  "total_ms": 24.5538,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 1.2908,
+                  "rows_sent": 26,
+                  "normalized_sql": "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+                  "total_ms": 23.4259,
+                  "count": 29,
+                  "rows_examined": 1272
+                },
+                {
+                  "max_ms": 21.4494,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `webhookeventingest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `event_type` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_event_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `repeat_count` INTEGER NOT NULL , `created_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_webhookeventingest_translated_1` UNIQUE ( `provider_event_key` ) , CONSTRAINT `fk_webhookeventingest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 21.4494,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 18.3021,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callsession` ( `id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `tenant_id` INTEGER NOT NULL , `campaign_id` INTEGER , `script_flow_version_id` INTEGER , `flow_node_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `contact_id` INTEGER , `campaign_contact_key` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `phone` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_mode` CHECK ( `mode` IN (...) ) , `status` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callsession_status` CHECK ( `status` IN (...) ) , `attempts` INTEGER NOT NULL , `max_attempts` INTEGER NOT NULL , `last_error` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `human_agent_id` INTEGER , `handoff_reason` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `recording_url` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `ai_session_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_call_id` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `telephony_line_id` INTEGER , `gateway_node_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `gateway_endpoint` VARCHARACTER (?) CHARACTER SET",
+                  "total_ms": 18.3021,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 17.8279,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE INDEX `ix_callback_cleanup` ON `callbackinbox` ( `state` , `completed_at` )",
+                  "total_ms": 17.8279,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 15.4665,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `campaign` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `name` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `script_template_id` INTEGER , `script_flow_version_id` INTEGER , `mode` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_campaign_mode` CHECK ( `mode` IN (...) ) , `concurrency` INTEGER NOT NULL , `retry_limit` INTEGER NOT NULL , `retry_interval_sec` INTEGER NOT NULL , `attempt_interval_sec` INTEGER NOT NULL , `recording_enabled` BOOLEAN NOT NULL , `hangup_sms_enabled` BOOLEAN NOT NULL , `voice_ai_pipeline` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `created_by` INTEGER , `status` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `dispatch_enabled` BOOLEAN NOT NULL , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_campaign_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_campaign_script_template_id` FOREIGN KEY ( `script_template_id` ) REFERENCES `scripttemplate` ( `id` ) , CONSTRAINT `fk_campaign_script_flow_version_id` FOREIGN KEY ( `script_flow_version_id` ) REFERENCES `scriptflowversion` ( `id` ) , CONSTRAINT `fk_campaign_created_by` FOREIGN",
+                  "total_ms": 15.4665,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 14.0207,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `handoffrequest` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `assigned_agent_id` INTEGER , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_handoffrequest_state` CHECK ( `state` IN (...) ) , `reason` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `target_group` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `requested_at` DATETIME (?) NOT NULL , `responded_at` DATETIME (?) , `completed_at` DATETIME (?) , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_handoffrequest_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_handoffrequest_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) , CONSTRAINT `fk_handoffrequest_assigned_agent_id` FOREIGN KEY ( `assigned_agent_id` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 14.0207,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 13.2817,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `callanalysis` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `result_code` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sentiment` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `intent` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `summary` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_callanalysis_summary_length` CHECK ( `CHAR_LENGTH` ( `summary` ) <= ? ) , `qa_score` INTEGER NOT NULL , `qa_flags_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `structured_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `automatic_result_json` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `needs_review` BOOLEAN NOT NULL , `review_state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `reviewed_by` INTEGER , `reviewed_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_callanalysis_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_callanalysis_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_callanalysis_call_session_id` FOREIGN KEY",
+                  "total_ms": 13.2817,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 13.1938,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `knowledgeitem` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `title` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `content` LONGTEXT CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_knowledgeitem_content_length` CHECK ( `CHAR_LENGTH` ( `content` ) <= ? ) , `category` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `keywords` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `source` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `valid_from` DATETIME (?) , `valid_until` DATETIME (?) , `campaign_id` INTEGER , `is_active` BOOLEAN NOT NULL , `version` INTEGER NOT NULL , `created_by` INTEGER , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_knowledgeitem_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_knowledgeitem_campaign_id` FOREIGN KEY ( `campaign_id` ) REFERENCES `campaign` ( `id` ) , CONSTRAINT `fk_knowledgeitem_created_by` FOREIGN KEY ( `created_by` ) REFERENCES `sys_user` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 13.1938,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 12.6726,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `realtimesession` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `provider_session_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `attempt` INTEGER NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , CONSTRAINT `ck_realtimesession_state` CHECK ( `state` IN (...) ) , `codec` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `sample_rate` INTEGER NOT NULL , `channel_count` INTEGER NOT NULL , `last_event_sequence` INTEGER , `turn_sequence` INTEGER NOT NULL , `playback_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `started_at` DATETIME (?) , `ended_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `uq_realtimesession_translated_1` UNIQUE ( `call_session_id` ) , CONSTRAINT `fk_realtimesession_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_realtimesession_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 12.6726,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 12.5327,
+                  "rows_sent": 1,
+                  "normalized_sql": "SELECT SUM ( FOUND ) FROM ( ( SELECT ? AS FOUND FROM `information_schema` . `tables` WHERE `table_schema` = ? ) UNION ALL ( SELECT ? AS FOUND FROM `information_schema` . `views` WHERE `table_schema` = ? LIMIT ? ) UNION ALL ( SELECT ? AS FOUND FROM `information_schema` . `table_constraints` WHERE `table_schema` = ? LIMIT ? ) UNION ALL ( SELECT ? AS FOUND FROM `information_schema` . `triggers` WHERE `event_object_schema` = ? LIMIT ? ) UNION ALL ( SELECT ? AS FOUND FROM `information_schema` . `routines` WHERE `routine_schema` = ? LIMIT ? ) UNION ALL ( SELECT ? AS FOUND FROM `information_schema` . `events` WHERE `event_schema` = ? LIMIT ? ) ) AS `all_found`",
+                  "total_ms": 12.5327,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 12.389,
+                  "rows_sent": 0,
+                  "normalized_sql": "INSERT INTO `tenant` ( `enabled` , `created_at` , `updated_at` , `id` , `name` , `code` ) VALUES (...)",
+                  "total_ms": 12.389,
+                  "count": 1,
+                  "rows_examined": 0
+                },
+                {
+                  "max_ms": 12.3014,
+                  "rows_sent": 0,
+                  "normalized_sql": "CREATE TABLE `recordingasset` ( `id` INTEGER NOT NULL AUTO_INCREMENT , `tenant_id` INTEGER NOT NULL , `call_session_id` CHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `attempt` INTEGER NOT NULL , `provider_recording_id` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `provider_url` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `storage_uri` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `state` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `duration_sec` INTEGER , `media_format` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` NOT NULL , `channel_count` INTEGER NOT NULL , `checksum_sha256` VARCHARACTER (?) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_0900_bin` , `retention_until` DATETIME (?) , `deleted_at` DATETIME (?) , `created_at` DATETIME (?) NOT NULL , `updated_at` DATETIME (?) NOT NULL , PRIMARY KEY ( `id` ) , CONSTRAINT `fk_recordingasset_tenant_id` FOREIGN KEY ( `tenant_id` ) REFERENCES `tenant` ( `id` ) , CONSTRAINT `fk_recordingasset_call_session_id` FOREIGN KEY ( `call_session_id` ) REFERENCES `callsession` ( `id` ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4` COLLATE = `utf8mb4_0900_ai_ci`",
+                  "total_ms": 12.3014,
+                  "count": 1,
+                  "rows_examined": 0
+                }
+              ],
+              "call_states_at_observation_end": {
+                "ANSWERED": 1928,
+                "DIALING": 975,
+                "IN_AI": 197,
+                "QUEUED": 6900
+              },
+              "callback_receipts": [
+                {
+                  "oldest_age_sec": 14.745,
+                  "count": 4327,
+                  "state": "done"
+                },
+                {
+                  "oldest_age_sec": 0.654,
+                  "count": 68,
+                  "state": "pending"
+                }
+              ],
+              "gateway_callback_backlog": {
+                "oldest_age_sec": 3.878999948501587,
+                "count": 1716,
+                "max_failures": 0
+              },
+              "passed": false,
+              "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/ci-cps-repeat/result.json ==> expected: <true> but was: <false>"
+            },
+            "ci-ai500": {
+              "run_id": "ed34add1",
+              "jar_sha256": "16395fc753f0b43197f869f98303bef3d0480d41e8f8c2ab5a52622a78874299",
+              "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+              "target_calls": 500,
+              "target_turns_per_second": 50,
+              "hold_seconds": 120,
+              "thresholds": {
+                "pending_after_drain_max": 0,
+                "reply_p95_ms_max": 1500,
+                "all_500_in_ai": true,
+                "scheduled_reply_fraction_min": 0.99,
+                "reply_p99_ms_max": 3000,
+                "http_success_fraction_min": 0.999
+              },
+              "threshold_note": "Explicit simulation acceptance assumptions; 500 calls each get a slot every 10.0 seconds. No next utterance before the previous durable reply. Missed slots remain failures.",
+              "mysql_resource_overrides": {
+                "bufferMiB": 512,
+                "tableCache": 512,
+                "packetMiB": 16,
+                "redoMiB": 256
+              },
+              "mysql_buffer_pool_override_mib": 512,
+              "mysql_actual_variables": {
+                "innodb_buffer_pool_size": "536870912",
+                "innodb_flush_log_at_trx_commit": "1",
+                "innodb_redo_log_capacity": "268435456",
+                "max_allowed_packet": "16777216",
+                "sync_binlog": "1",
+                "table_open_cache": "512",
+                "transaction_isolation": "REPEATABLE-READ"
+              },
+              "mysql_container": "4ff951d13f63e7ef77753af8997f63e45fbd949cc13a25f69ae3a53bb0d33c32",
+              "redis_container": "08fb62041a5ccd0342cab89b055a8a8158e069cc9f78a41a27ae77d0adb28c2e",
+              "mysql_jdbc": "jdbc:mysql://localhost:32775/test?connectTimeout=5000&socketTimeout=15000",
+              "profile_jfr": false,
+              "samples": 134,
+              "configuration": {
+                "jvm_heap_max_gib": 2,
+                "db_pool_max": 8,
+                "voice_ledger_pool_max": 4,
+                "model_quota_window": "disabled; rule AI",
+                "http_inflight_limit": 100,
+                "api_rate_limit_rps": 100,
+                "worker_lanes": 11,
+                "task_executor_threads": 8,
+                "ai_lane_threads_max": 8,
+                "callback_consumer_threads": 1,
+                "external_model": "not used",
+                "audio": "not exercised",
+                "capacity_knobs": 500,
+                "application_jvms": 1
+              },
+              "application_pid": 6434,
+              "fixtures": "One isolated tenant/admin and 501 explicitly-consented synthetic contacts; calls are all created through the real HTTP dial/admission path, never inserted as IN_AI rows.",
+              "admission": {
+                "elapsed_seconds": 35.853780666,
+                "p95_ms": 126.528909,
+                "http_status": {
+                  "200": 500
+                },
+                "created": 500
+              },
+              "in_ai_at_load_start": 500,
+              "call_501": {
+                "active_count": 500,
+                "status": "queued",
+                "http": 200
+              },
+              "phase_start_ms": 1792523624100,
+              "phase_end_ms": 1792523744100,
+              "delivered_within_steady_window": 5514,
+              "planned_turns": 6000,
+              "sent_turns": 5716,
+              "http_status": {
+                "200": 5716
+              },
+              "generator_missed_slots": 0,
+              "call_waiting_missed_slots": 284,
+              "durable_replies": 5716,
+              "pending_calls_after_drain": 0,
+              "http_p95_ms": 18.491476,
+              "http_p99_ms": 26.908039,
+              "reply_p95_ms": 10059,
+              "reply_p99_ms": 13311,
+              "steady_valid_reply_rps": 45.95,
+              "max_in_flight_calls": 500,
+              "peak_pending_tasks": 18,
+              "peak_pending_callbacks": 219,
+              "held_500_in_steady_samples": true,
+              "steady_sample_count": 97,
+              "observer_query_p95_ms": 199.669435,
+              "observer_query_p99_ms": 239.058342,
+              "simulation_slo_passed": false,
+              "real_500_audio_capacity_verified": false,
+              "production_capacity_verified": false,
+              "final_database": {
+                "at_ms": 1792523749831,
+                "active_calls": 500,
+                "in_ai": 500,
+                "pending_tasks": 0,
+                "pending_callbacks": 0,
+                "dead_tasks": 0,
+                "voice_pending_callbacks": 0,
+                "durable_replies": 5716,
+                "application_cpu_seconds": 209.82,
+                "application_cpu_percent": 121,
+                "application_rss_kib": 765100,
+                "ai_outbound_jvm_heap_used_bytes": 332179456,
+                "ai_outbound_jvm_threads": 72
+              },
+              "application_alive": true,
+              "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/ci-ai500/result.json ==> expected: <true> but was: <false>"
+            }
+          }
+        }
+      },
+      "thresholds_unchanged": true,
+      "merge_performed": false
     }
   },
   "test_environment_released": false,
@@ -4037,10 +5787,18 @@
   "production_released": false,
   "release_gate_enabled": false,
   "known_open": [
-    "500 CPS throughput",
-    "500 in-flight AI dialogue throughput and latency",
-    "real SIP/RTP/PCM/cloud voice/recording/device/long-run validation",
-    "single JVM deployment only"
+    "500 CPS target: x64 repetitions 100/120 CPS; ARM repetitions 140/240 CPS, all failed",
+    "AI opening backlog during concurrent dialing; combined sustained throughput remains unqualified",
+    "ARM AI500 simulation missed its latency/throughput SLO; x64 rule-AI simulation passed",
+    "Real SIP/RTP/PCM/ASR/LLM/TTS/recording/device and long-run acceptance not verified",
+    "Single JVM deployment only"
   ],
-  "evidence": "Raw logs and outputs retained locally in outbound-mono/verification and target; deliberately not committed"
+  "evidence": "Raw logs and outputs retained locally in outbound-mono/verification and target; deliberately not committed",
+  "environment_limits": {
+    "local_docker": "Initial API 500; latest read-only _ping timed out after 5 seconds. No restart performed.",
+    "local_disk_free_gib": 2.2,
+    "restart_permission": "Pending explicit user response because restart interrupts running local containers",
+    "isolated_test_host": "No additional machine information supplied",
+    "github_host": "Actual hardware recorded separately for each run; no inferred production capacity"
+  }
 }
