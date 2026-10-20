@@ -34,7 +34,9 @@ public class Store {
         var factory=((org.mybatis.spring.SqlSessionTemplate)sql).getSqlSessionFactory();
         for(var iterator=groups.values().iterator();iterator.hasNext();){var group=iterator.next();var first=group.get(0);String combined=first.statement().replaceAll("\\.patchFields$",".patchBatch");
             if(!first.insert()&&group.size()>1&&sql.getConfiguration().hasStatement(combined)){
-                var params=(Map<?,?>)first.parameters();int changed=sql.update(combined,Map.of("tenantId",params.get("tenantId"),"rows",group.stream().map(BufferedWrite::parameters).toList()));if(changed!=group.size())throw new IllegalStateException("locked batch row was not written");iterator.remove();
+                var params=(Map<?,?>)first.parameters();var changes=(Map<?,?>)params.get("changes");var constants=new HashSet<String>();
+                for(var field:changes.keySet())if(group.stream().allMatch(op->Objects.equals(changes.get(field),((Map<?,?>)((Map<?,?>)op.parameters()).get("changes")).get(field))))constants.add(field.toString());
+                int changed=sql.update(combined,Map.of("tenantId",params.get("tenantId"),"rows",group.stream().map(BufferedWrite::parameters).toList(),"constants",constants));if(changed!=group.size())throw new IllegalStateException("locked batch row was not written");iterator.remove();
             }
         }
         try(var batch=factory.openSession(org.apache.ibatis.session.ExecutorType.BATCH)){

@@ -30,14 +30,14 @@ public class TaskWorker {
     private final DialBatchWorker dialBatch;
     private final ExecutorService dialExecutor;
     private final AtomicBoolean[] dialLanes;
-    private final ExecutorService executor = Executors.newFixedThreadPool(4, r -> { Thread t = new Thread(r, "java-outbox"); t.setDaemon(true); return t; });
+    private final ExecutorService executor;
     private final ScheduledExecutorService heartbeat = Executors.newScheduledThreadPool(1, r -> { Thread t = new Thread(r, "java-outbox-lease"); t.setDaemon(true); return t; });
-    // Logical AI owners share the existing four threads with the other task lanes.
+    // Logical AI owners share a bounded executor with the other task lanes.
     // Claim's same-stream predecessor predicate and lease fencing still serialize each call.
-    private final AtomicBoolean[] lanes = java.util.stream.IntStream.range(0,7).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
+    private final AtomicBoolean[] lanes;
     private final AtomicBoolean receiving = new AtomicBoolean();
     private final ExecutorService receipts = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "java-callback-inbox"); t.setDaemon(true); return t; });
-    private static final String[] LANE_TYPES = {"('dial_call','mock_status')", "('ai_turn')", "('after_playback','interrupt_playback','call_analysis')", "('business_callback','recording_ingest','recording_delete','send_sms')", "('ai_turn')", "('ai_turn')", "('ai_turn')"};
+    private final String[] laneTypes;
     private volatile boolean ready;
     private volatile long aiProgress;
     private final ArrayDeque<long[]> aiDelays = new ArrayDeque<>();
@@ -45,6 +45,10 @@ public class TaskWorker {
     private int callbackCursor=-1;
     public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations,DialBatchWorker dialBatch) {
         this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;this.dialBatch=dialBatch;
+        int taskWorkers=Math.max(1,Math.min(16,config.number("JAVA_TASK_WORKERS",4))),aiOwners=Math.max(1,Math.min(16,config.number("JAVA_AI_TASK_OWNERS",4)));
+        executor=Executors.newFixedThreadPool(taskWorkers,r->{Thread thread=new Thread(r,"java-outbox");thread.setDaemon(true);return thread;});
+        var types=new ArrayList<>(List.of("('dial_call','mock_status')","('ai_turn')","('after_playback','interrupt_playback','call_analysis')","('business_callback','recording_ingest','recording_delete','send_sms')"));
+        for(int i=1;i<aiOwners;i++)types.add("('ai_turn')");laneTypes=types.toArray(String[]::new);lanes=java.util.stream.IntStream.range(0,laneTypes.length).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
         int dialWorkers=Math.max(1,Math.min(4,config.number("JAVA_DIAL_WORKERS",1)));dialLanes=java.util.stream.IntStream.range(0,dialWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
         dialExecutor=Executors.newFixedThreadPool(dialWorkers,r->{var thread=new Thread(r,"java-dial-batch");thread.setDaemon(true);return thread;});
     }
@@ -139,7 +143,7 @@ public class TaskWorker {
     public static class Deferred extends RuntimeException { }
     public boolean processOne() { return processOne(null); }
     boolean processOne(Long tenant) { return processOne(tenant, TYPES); }
-    boolean processLane(Long tenant,int lane) { return lane==0&&dialBatch.size()>1?dialBatch.process(tenant,heartbeat)||processOne(tenant,"('mock_status')"):processOne(tenant,LANE_TYPES[lane]); }
+    boolean processLane(Long tenant,int lane) { return lane==0&&dialBatch.size()>1?dialBatch.process(tenant,heartbeat)||processOne(tenant,"('mock_status')"):processOne(tenant,laneTypes[lane]); }
     private boolean processOne(Long tenant, String types) {
         Map<String, Object> task = claim(tenant, types); if (task == null) return false;
         AtomicBoolean lost = new AtomicBoolean();
@@ -211,7 +215,7 @@ public class TaskWorker {
     @Scheduled(fixedDelayString="${JAVA_WORKER_POLL_MS:250}")
     public void tick() {
         if (!ready || !config.flag("JAVA_WORKERS_ENABLED", false)) return;
-        for (int lane=0;lane<LANE_TYPES.length;lane++) {
+        for (int lane=0;lane<laneTypes.length;lane++) {
             final int index=lane;
             if(index==0&&dialBatch.size()>1){for(int i=0;i<dialLanes.length;i++)if(dialLanes[i].compareAndSet(false,true))submitDialLane(i,true);continue;}
             if (!lanes[index].compareAndSet(false,true)) continue;
