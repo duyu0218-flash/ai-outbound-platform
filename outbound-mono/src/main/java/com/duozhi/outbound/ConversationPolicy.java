@@ -13,6 +13,13 @@ public class ConversationPolicy {
     private final Settings settings;
     private final Outbox outbox;private final OperationsWorkforce workforce;
     private final Map<String,Object> defaults;
+    private final ThreadLocal<Boolean> localPreparation=new ThreadLocal<>();
+    static final class SharedPreparationRequired extends RuntimeException { }
+    <T>T localPreparation(java.util.function.Supplier<T> work){
+        Boolean previous=localPreparation.get();localPreparation.set(true);
+        try{return work.get();}finally{if(previous==null)localPreparation.remove();else localPreparation.set(previous);}
+    }
+    private void sharedPreparation(){if(Boolean.TRUE.equals(localPreparation.get()))throw new SharedPreparationRequired();}
     public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,com.fasterxml.jackson.databind.ObjectMapper mapper,OperationsWorkforce workforce) throws java.io.IOException {
         this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;this.workforce=workforce;
         try(java.io.InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
@@ -73,6 +80,7 @@ public class ConversationPolicy {
             "detail_json",json.json(JsonSupport.map("reason","human_queue_timeout","team_ids",policy.getOrDefault("handoff_team_ids",List.of()),"skills",policy.getOrDefault("handoff_skills",List.of()),"customer_time_confirmed",false))));
     }
     public void suppress(Map<String,Object> call,String reason) {
+        sharedPreparation();
         long tenant=CallLifecycle.tenant(call);Object phone=call.get("phone");
         if(store.scalar("phonesuppression","sourceConversationPolicy66_4",Store.queryParameters(0,tenant,phone))==0)store.insert("phonesuppression",JsonSupport.map("tenant_id",tenant,"phone",phone,"reason",reason,"source_call_id",call.get("id")));
         for(Map<String,Object> c:store.query("contact","sourceConversationPolicy67_5",Store.queryParameters(0,tenant,phone)))store.update("contact",tenant,c.get("id"),JsonSupport.map("dnc",true,"dnc_reason",reason));
@@ -85,6 +93,7 @@ public class ConversationPolicy {
         }
     }
     public void cancelAppointments(Map<String,Object> call) {
+        sharedPreparation();
         for(Map<String,Object> a:store.query("callbackappointment","sourceConversationPolicy77_7",Store.queryParameters(0,CallLifecycle.tenant(call),store.encode("callbackappointment","source_call_id",call.get("id")))))
             store.update("callbackappointment",CallLifecycle.tenant(call),a.get("id"),JsonSupport.map("state","cancelled","revision",CallLifecycle.number(a,"revision")+1));
     }
@@ -194,6 +203,7 @@ public class ConversationPolicy {
             data.remove("pending");
             if("deny".equals(intent))result=reply("好的，请您重新说明正确的信息。");
             else if("appointment".equals(pending.get("kind"))) {
+                sharedPreparation();
                 LocalDateTime when=LocalDateTime.parse(pending.get("value").toString());
                 if(!when.isAfter(Store.now())||!inHours(policy,when))result=reply("该时间已不可用，请重新选择回电时间。");
                 else {
