@@ -173,7 +173,14 @@ public class CallbackInbox {
         });if(consumed>0&&config.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(CallbackInbox.class).info("callback_batch size={} wait_ms={} claim_ms={} facts_ms={} apply_flush_ms={} finish_ms={}",consumed,(stages[0]-started)/1_000_000.0,(stages[1]-stages[0])/1_000_000.0,(stages[2]-stages[1])/1_000_000.0,(stages[3]-stages[2])/1_000_000.0,(System.nanoTime()-stages[3])/1_000_000.0);return consumed;}catch(RuntimeException failure){
             // The entire cohort rolled back, including event dedupe and tasks.
             // Existing per-receipt handling isolates/retries a malformed event.
-            org.slf4j.LoggerFactory.getLogger(CallbackInbox.class).warn("callback batch rolled back error_type={}",failure.getClass().getSimpleName());return 0;
+            org.slf4j.LoggerFactory.getLogger(CallbackInbox.class).warn("callback batch rolled back error_type={} cause_codes={}",failure.getClass().getSimpleName(),failureCodes(failure));return 0;
         }
+    }
+    // Keep SQL text, bound parameters and callback bodies out of diagnostics.
+    static String failureCodes(Throwable failure){
+        var codes=new ArrayList<String>();var seen=Collections.newSetFromMap(new IdentityHashMap<Throwable,Boolean>());
+        for(Throwable cause=failure;cause!=null&&seen.add(cause)&&codes.size()<12;cause=cause.getCause()){
+            codes.add(cause.getClass().getSimpleName()+(cause instanceof java.sql.SQLException sql?":"+sql.getSQLState()+":"+sql.getErrorCode():cause instanceof org.apache.ibatis.executor.BatchExecutorException batch?":"+batch.getFailingStatementId():""));
+        }return String.join("/",codes);
     }
 }
