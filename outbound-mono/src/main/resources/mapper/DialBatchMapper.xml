@@ -7,10 +7,10 @@
  <select id="facts" resultType="java.util.LinkedHashMap">
  SELECT p.phone,
  (SELECT COUNT(*) FROM phonesuppression s WHERE s.tenant_id=#{tenantId} AND s.phone=p.phone) AS suppressed,
- (SELECT COALESCE(SUM(c.attempts),0) FROM callsession c WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.created_at&gt;=p.day_start) AS legacy_attempts,
- (SELECT COUNT(*) FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND e.event_type='dial_attempt_claimed' AND e.created_at&gt;=p.day_start) AS event_attempts,
- (SELECT COUNT(*) FROM callsession c WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')) AS active
- FROM (<foreach collection="phones" item="p" separator=" UNION ALL ">SELECT #{p.phone} AS phone,#{p.day} AS day_start</foreach>) p
+ (SELECT COALESCE(SUM(c.attempts),0) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.created_at&gt;=p.day_start) AS legacy_attempts,
+ (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) STRAIGHT_JOIN callevent e FORCE INDEX(ix_callevent_call_session_id) ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND e.event_type='dial_attempt_claimed' AND e.created_at&gt;=p.day_start) AS event_attempts,
+ (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')) AS active
+ FROM (<foreach collection="phones" item="p" separator=" UNION ALL ">SELECT CONVERT(#{p.phone} USING utf8mb4) COLLATE utf8mb4_0900_bin AS phone,#{p.day} AS day_start</foreach>) p
  </select>
  <select id="queuedCandidates" resultType="java.util.LinkedHashMap">
  SELECT c.id,c.tenant_id,c.attempts
