@@ -17,6 +17,55 @@ public class Store {
     private final javax.sql.DataSource dataSource;
     private final Map<String,Map<String,Map<String,Object>>> tables;
     private final Map<String,String> mappers=new HashMap<>();
+    private record BufferedWrite(String statement,Object parameters,boolean insert,Runnable after,long estimatedBytes){}
+    private static long insertBytes(Map<String,Object> values){
+        long bytes=512L+64L*values.size();
+        for(Object value:values.values())if(value instanceof String text)bytes+=2L*text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;else if(value instanceof byte[] data)bytes+=2L*data.length;else bytes+=64;
+        return bytes;
+    }
+    private final ThreadLocal<List<BufferedWrite>> buffered=new ThreadLocal<>();
+    /** Only used for locked admission rows; flushes before every subsequent read.
+     * SpringManagedTransaction keeps the JDBC batch in the caller's transaction. */
+    public <T>T bufferWrites(java.util.function.Supplier<T> work){
+        if(buffered.get()!=null)return work.get();
+        if(!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())throw new IllegalStateException("buffered writes require transaction");
+        buffered.set(new ArrayList<>());try{T result=work.get();flushBuffered();return result;}finally{buffered.remove();}
+    }
+    private void flushBuffered(){
+        var pending=buffered.get();if(pending==null||pending.isEmpty())return;
+        var writes=new ArrayList<>(pending);pending.clear();
+        var groups=new LinkedHashMap<String,List<BufferedWrite>>();
+        for(var op:writes){String shape=op.statement();if(op.parameters() instanceof Map<?,?> m&&m.get("changes") instanceof Map<?,?> changes)shape+=":"+m.get("tenantId")+":"+changes.keySet();groups.computeIfAbsent(shape,k->new ArrayList<>()).add(op);}
+        var factory=((org.mybatis.spring.SqlSessionTemplate)sql).getSqlSessionFactory();
+        for(var iterator=groups.values().iterator();iterator.hasNext();){var group=iterator.next();var first=group.get(0);String combined=first.statement().replaceAll("\\.patchFields$",".patchBatch");
+            if(!first.insert()&&group.size()>1&&sql.getConfiguration().hasStatement(combined)){
+                for(int start=0;start<group.size();){int end=start;long bytes=0;
+                    while(end<group.size()&&end-start<100&&(end==start||bytes+group.get(end).estimatedBytes()<=512*1024)){bytes+=group.get(end).estimatedBytes();end++;}
+                    writeCombined(combined,group.subList(start,end));start=end;
+                }iterator.remove();
+            }
+        }
+        try(var batch=factory.openSession(org.apache.ibatis.session.ExecutorType.BATCH)){
+            long bytes=0;
+            for(var group:groups.values())for(var op:group){
+                // Connector/J rewrites inserts into one packet. Keep cohorts below
+                // even the test container's 1 MiB limit; all chunks still share
+                // the caller's transaction and generated-key/rollback semantics.
+                if(bytes>0&&bytes+op.estimatedBytes()>512*1024){flushJdbcBatch(batch);bytes=0;}
+                if(op.insert())batch.insert(op.statement(),op.parameters());else batch.update(op.statement(),op.parameters());bytes+=op.estimatedBytes();
+            }
+            flushJdbcBatch(batch);
+        }
+        sql.clearCache();for(var op:writes)if(op.after()!=null)op.after().run();
+    }
+    private void writeCombined(String statement,List<BufferedWrite> group){
+        var params=(Map<?,?>)group.get(0).parameters();var changes=(Map<?,?>)params.get("changes");var constants=new HashSet<String>();
+        for(var field:changes.keySet())if(group.stream().allMatch(op->Objects.equals(changes.get(field),((Map<?,?>)((Map<?,?>)op.parameters()).get("changes")).get(field))))constants.add(field.toString());
+        int changed=sql.update(statement,Map.of("tenantId",params.get("tenantId"),"rows",group.stream().map(BufferedWrite::parameters).toList(),"constants",constants));if(changed!=group.size())throw new IllegalStateException("locked batch row was not written");
+    }
+    private static void flushJdbcBatch(org.apache.ibatis.session.SqlSession batch){
+        for(var result:batch.flushStatements())for(int count:result.getUpdateCounts())if(count==java.sql.Statement.EXECUTE_FAILED||count==0)throw new IllegalStateException("buffered locked row was not written");
+    }
     public Store(SqlSession sql,ObjectMapper json,javax.sql.DataSource dataSource)throws IOException{
         this.dataSource=dataSource;
         this.sql=sql;
@@ -57,12 +106,16 @@ public class Store {
         try{entity=Class.forName(namespace(table).replace(".mapper.",".entity.").replaceAll("Mapper$","")).getConstructor().newInstance();}catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
         var bean=new BeanWrapperImpl(entity);
         values.forEach((column,raw)->{Object value=encode(table,column,raw);Class<?> type=bean.getPropertyType(property(column));if(value!=null&&type.isEnum())value=Enum.valueOf((Class<? extends Enum>)type,value.toString());bean.setPropertyValue(property(column),value);});
-        String explicit=namespace(table)+".insertExplicitId";sql.insert(input.get("id")!=null&&sql.getConfiguration().hasStatement(explicit)?explicit:namespace(table)+".insert",Map.of("row",entity));
+        String explicit=namespace(table)+".insertExplicitId",statement=input.get("id")!=null&&sql.getConfiguration().hasStatement(explicit)?explicit:namespace(table)+".insert";
+        if(buffered.get()!=null&&Set.of("callevent","conversationstate","webhookeventingest","callusage","taskoutbox","callbackinbox").contains(table)){
+            var result=record(table,entity);final Object saved=entity;buffered.get().add(new BufferedWrite(statement,Map.of("row",entity),true,()->result.putAll(record(table,saved)),insertBytes(values)));return result;
+        }
+        flushBuffered();sql.insert(statement,Map.of("row",entity));
         long tenant=values.get("tenant_id") instanceof Number n?n.longValue():0;
-        if(!reload||Set.of("campaigncontact","callevent","webhookeventingest").contains(table))return record(table,entity);
+        if(!reload||Set.of("campaigncontact","callevent","webhookeventingest","taskoutbox","speechturn").contains(table))return record(table,entity);
         return record(table,sql.selectOne(namespace(table)+".findById",Map.of("id",bean.getPropertyValue("id"),"tenantId",tenant)));
     }
-    public Map<String,Object> require(String table,long tenant,Object id){Object row=sql.selectOne(namespace(table)+".findById",Map.of("id",encode(table,"id",id),"tenantId",tenant));if(row==null)throw new ApiError(404,table+" not found");return record(table,row);}
+    public Map<String,Object> require(String table,long tenant,Object id){flushBuffered();Object row=sql.selectOne(namespace(table)+".findById",Map.of("id",encode(table,"id",id),"tenantId",tenant));if(row==null)throw new ApiError(404,table+" not found");return record(table,row);}
     public Map<String,Object> update(String table,long tenant,Object id,Map<String,Object> input){
         Map<String,Object> previous=require(table,tenant,id);var changes=new LinkedHashMap<String,Object>();input.forEach((column,value)->{if(!Set.of("id","tenant_id","created_at").contains(column))changes.put(column,encode(table,column,value));});
         if(tables.get(table).containsKey("updated_at"))changes.put("updated_at",now());
@@ -78,14 +131,25 @@ public class Store {
             if(!Set.of("id","tenant_id","created_at").contains(column))changes.put(column,encode(table,column,value));
         });
         if(tables.get(table).containsKey("updated_at"))changes.put("updated_at",now());
+        if(buffered.get()!=null&&Set.of("callsession","taskoutbox","callusage").contains(table)&&!changes.isEmpty()){
+            String statement=namespace(table)+".patchFields";Object encoded=encode(table,"id",id);
+            if(buffered.get().stream().anyMatch(op->!op.insert()&&op.statement().equals(statement)&&op.parameters() instanceof Map<?,?> previous&&Objects.equals(previous.get("id"),encoded)&&Objects.equals(previous.get("tenantId"),tenant)))flushBuffered();
+            buffered.get().add(new BufferedWrite(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes),false,null,insertBytes(changes)));return;
+        }
         if(changes.isEmpty()||sql.update(namespace(table)+".patchFields",Map.of("id",encode(table,"id",id),"tenantId",tenant,"changes",changes))==0)
             require(table,tenant,id);
     }
+    /** Patch a row already read under the caller's transaction lock. */
+    public Map<String,Object> patchLoaded(String table,Map<String,Object> row,Map<String,Object> input){
+        writeLocked(table,CallLifecycle.tenant(row),row.get("id"),input);
+        var result=new LinkedHashMap<>(row);input.forEach((key,value)->{if(!Set.of("id","tenant_id","created_at").contains(key))result.put(key,value instanceof LocalDateTime||value instanceof UUID?value.toString():value);});
+        if(tables.get(table).containsKey("updated_at"))result.put("updated_at",now().toString());return result;
+    }
     public void delete(String table,long tenant,Object id){require(table,tenant,id);sql.delete(namespace(table)+".deleteById",Map.of("id",encode(table,"id",id),"tenantId",tenant));}
-    public List<Map<String,Object>> query(String table,String method,Map<String,Object> params){return sql.selectList(namespace(table)+"."+method,params).stream().map(row->record(table,row)).collect(java.util.stream.Collectors.toCollection(ArrayList::new));}
+    public List<Map<String,Object>> query(String table,String method,Map<String,Object> params){flushBuffered();return sql.selectList(namespace(table)+"."+method,params).stream().map(row->record(table,row)).collect(java.util.stream.Collectors.toCollection(ArrayList::new));}
     public Map<String,Object> one(String table,String method,Map<String,Object> params){var rows=query(table,method,params);return rows.isEmpty()?null:rows.get(0);}
-    public int execute(String table,String method,Map<String,Object> params){return sql.update(namespace(table)+"."+method,params);}
-    public long scalar(String table,String method,Map<String,Object> params){Number value=sql.selectOne(namespace(table)+"."+method,params);return value==null?0:value.longValue();}
+    public int execute(String table,String method,Map<String,Object> params){flushBuffered();return sql.update(namespace(table)+"."+method,params);}
+    public long scalar(String table,String method,Map<String,Object> params){flushBuffered();Number value=sql.selectOne(namespace(table)+"."+method,params);return value==null?0:value.longValue();}
 
     public static Map<String,Object> queryParameters(int tenantPosition,Object... values){
         var result=new LinkedHashMap<String,Object>();for(int index=0;index<values.length;index++)result.put("p"+index,values[index]);if(tenantPosition>=0)result.put("tenantId",values[tenantPosition]);return result;
@@ -118,9 +182,9 @@ public class Store {
     }
     public Map<String,Object> firstAcrossOrdered(String table,String method,Map<String,Object> input,List<String> order){var rows=orderedAcross(table,method,input,order,1);return rows.isEmpty()?null:rows.get(0);}
 
-    public <T> T value(String table,String method,Map<String,Object> input,Class<T> type){return sql.selectOne(namespace(table)+"."+method,input);}
-    public List<Map<String,Object>> projection(String table,String method,Map<String,Object> input){return sql.selectList(namespace(table)+"."+method,input);}
-    public Map<String,Object> projectOne(String table,String method,Map<String,Object> input){return sql.selectOne(namespace(table)+"."+method,input);}
+    public <T> T value(String table,String method,Map<String,Object> input,Class<T> type){flushBuffered();return sql.selectOne(namespace(table)+"."+method,input);}
+    public List<Map<String,Object>> projection(String table,String method,Map<String,Object> input){flushBuffered();return sql.selectList(namespace(table)+"."+method,input);}
+    public Map<String,Object> projectOne(String table,String method,Map<String,Object> input){flushBuffered();return sql.selectOne(namespace(table)+"."+method,input);}
     public int ping(){try(var connection=dataSource.getConnection()){if(!connection.isValid(3))throw new java.sql.SQLException("database validation failed");return 1;}catch(java.sql.SQLException e){throw new org.springframework.dao.DataAccessResourceFailureException("database unavailable",e);}}
 
     public List<Map<String,Object>> groupedAcross(String table,String method,Map<String,Object> input){

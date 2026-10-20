@@ -44,8 +44,8 @@
     "pending_calls_after_drain": 0,
     "call_waiting_missed_slots": 508,
     "generator_missed_slots": 0,
-    "reply_p95_ms": 10110.0,
-    "reply_p99_ms": 10496.0,
+    "reply_p95_ms": 10110,
+    "reply_p99_ms": 10496,
     "steady_valid_reply_rps": 42.9,
     "peak_pending_tasks": 483,
     "peak_pending_callbacks": 34,
@@ -66,5 +66,6 @@
     "springdoc": "2.8.16"
   },
   "deployment_updated": false,
-  "raw_evidence": "Retained locally in outbound-mono/verification/; deliberately excluded from Git"
+  "raw_evidence": "Retained locally in outbound-mono/verification/; deliberately excluded from Git",
+  "record_scope": "Historical baseline for the recorded jar only; superseded by reliability-validation.json for current source"
 }

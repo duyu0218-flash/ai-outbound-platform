@@ -17,6 +17,7 @@ public class Contract {
     public Contract(ObjectMapper mapper) throws IOException {
         this.mapper=mapper;
         try(java.io.InputStream in=new ClassPathResource("contracts/openapi-baseline.json").getInputStream()) { schemas=mapper.readTree(in).path("components").path("schemas"); }
+        try(var in=new ClassPathResource("contracts/openapi-capacity.json").getInputStream()){var additions=mapper.readTree(in).path("components").path("schemas");for(var entry:additions.properties()){if(schemas.has(entry.getKey()))throw new IOException("capacity contract cannot override baseline schema");((com.fasterxml.jackson.databind.node.ObjectNode)schemas).set(entry.getKey(),entry.getValue());}}
     }
     private JsonNode resolve(JsonNode schema) {
         if(schema.has("$ref")) return schemas.path(schema.get("$ref").asText().replace("#/components/schemas/",""));

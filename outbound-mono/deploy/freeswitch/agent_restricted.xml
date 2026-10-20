@@ -1,0 +1,37 @@
+<include>
+  <!-- Load as a TOP-LEVEL dialplan file, NOT inside default/*.xml.
+       Only trusted ESL transfers enter this context. Browser credentials use
+       browser-no-outbound below and cannot originate a second paid call. -->
+  <context name="agent-restricted">
+    <!-- Only the trusted gateway sets this variable from its approved roster.
+         The target PBX must accept this private SIP leg and locate its local
+         registered browser; it must not forward it back through the roster. -->
+    <extension name="authorized-remote-agent-transfer">
+      <condition field="destination_number" expression="^agent_[0-9]+$"/>
+      <condition field="${platform_agent_route}" expression="^(sofia/internal/agent_[0-9]+@[A-Za-z0-9.-]+:[0-9]{1,5})$">
+        <action application="set" data="hangup_after_bridge=false"/>
+        <action application="set" data="continue_on_fail=true"/>
+        <action application="set" data="call_timeout=25"/>
+        <action application="bridge" data="$1"/>
+        <action application="park"/>
+      </condition>
+    </extension>
+    <extension name="authorized-agent-transfer">
+      <condition field="destination_number" expression="^(agent_[0-9]+)$">
+        <action application="set" data="hangup_after_bridge=false"/>
+        <action application="set" data="continue_on_fail=true"/>
+        <action application="set" data="call_timeout=25"/>
+        <action application="bridge" data="user/$1@$${domain}"/>
+        <action application="park"/>
+      </condition>
+    </extension>
+    <extension name="deny-unlisted-destination">
+      <condition><action application="hangup" data="CALL_REJECTED"/></condition>
+    </extension>
+  </context>
+  <context name="browser-no-outbound">
+    <extension name="deny-browser-originated-calls">
+      <condition><action application="hangup" data="CALL_REJECTED"/></condition>
+    </extension>
+  </context>
+</include>

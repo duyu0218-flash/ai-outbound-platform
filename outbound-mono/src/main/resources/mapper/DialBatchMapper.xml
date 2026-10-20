@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.mapper.DialBatchMapper">
+ <select id="calls" resultMap="com.duozhi.outbound.mapper.CallSessionMapper.row">SELECT * FROM callsession FORCE INDEX(PRIMARY) WHERE tenant_id=#{tenantId} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach> ORDER BY id FOR UPDATE</select>
+ <select id="contacts" resultMap="com.duozhi.outbound.mapper.ContactMapper.row">SELECT * FROM contact WHERE tenant_id=#{tenantId} AND phone IN <foreach collection="phones" item="phone" open="(" separator="," close=")">#{phone}</foreach></select>
+ <select id="states" resultMap="com.duozhi.outbound.mapper.ConversationStateMapper.row">SELECT s.* FROM conversationstate s JOIN callsession c ON c.tenant_id=s.tenant_id AND c.id=s.call_id WHERE s.tenant_id=#{tenantId} AND s.attempt IN (c.attempts,c.attempts+1) AND c.id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></select>
+ <select id="facts" resultType="java.util.LinkedHashMap">
+ SELECT p.phone,
+ (SELECT COUNT(*) FROM phonesuppression s WHERE s.tenant_id=#{tenantId} AND s.phone=p.phone) AS suppressed,
+ (SELECT COALESCE(SUM(c.attempts),0) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.created_at&gt;=p.day_start) AS legacy_attempts,
+ (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) STRAIGHT_JOIN callevent e FORCE INDEX(ix_callevent_call_session_id) ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND e.event_type='dial_attempt_claimed' AND e.created_at&gt;=p.day_start) AS event_attempts,
+ (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')) AS active
+ FROM (<foreach collection="phones" item="p" separator=" UNION ALL ">SELECT CONVERT(#{p.phone} USING utf8mb4) COLLATE utf8mb4_0900_bin AS phone,#{p.day} AS day_start</foreach>) p
+ </select>
+ <select id="queuedCandidates" resultType="java.util.LinkedHashMap">
+ SELECT c.id,c.tenant_id,c.attempts
+ FROM callsession c LEFT JOIN campaign p ON p.tenant_id=c.tenant_id AND p.id=c.campaign_id
+ WHERE c.tenant_id=#{tenantId} AND c.status='QUEUED' AND c.attempts&lt;c.max_attempts AND (c.campaign_id IS NULL OR(p.status='RUNNING' AND p.dispatch_enabled=TRUE))
+ AND NOT EXISTS(SELECT 1 FROM taskreceipt r WHERE r.tenant_id=c.tenant_id AND r.idempotency_key=CONCAT('dial:',c.id,':',c.attempts+1))
+ AND NOT EXISTS(SELECT 1 FROM taskoutbox t WHERE t.tenant_id=c.tenant_id AND t.idempotency_key=CONCAT('dial:',c.id,':',c.attempts+1))
+ ORDER BY c.updated_at,c.id LIMIT #{limit}
+ </select>
+ <select id="readyTaskCount" resultType="long">SELECT COUNT(*) FROM (SELECT id FROM taskoutbox WHERE tenant_id=#{tenantId} AND task_type='dial_call' AND state IN ('PENDING','FAILED') AND available_at&lt;=#{now} LIMIT 1000) ready</select>
+ <insert id="enqueueRows">INSERT IGNORE INTO taskoutbox(id,tenant_id,task_type,aggregate_id,idempotency_key,payload_json,state,attempts,max_attempts,available_at,created_at,updated_at) VALUES <foreach collection="rows" item="r" separator=",">(#{r.id},#{r.tenant_id},'dial_call',#{r.call_id},#{r.key},#{r.payload},'PENDING',0,5,#{now},#{now},#{now})</foreach></insert>
+ <select id="taskCandidates" resultMap="com.duozhi.outbound.mapper.TaskOutboxMapper.row">SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_ready_scope) WHERE t.tenant_id=#{tenantId} AND t.task_type='dial_call' AND t.available_at&lt;=#{now} AND t.attempts&lt;t.max_attempts AND (t.state IN ('PENDING','FAILED') OR(t.state='PROCESSING' AND t.locked_at&lt;=#{cutoff})) AND NOT EXISTS(SELECT 1 FROM taskoutbox older WHERE older.tenant_id=t.tenant_id AND older.aggregate_id=t.aggregate_id AND older.task_type=t.task_type AND older.state IN ('PENDING','FAILED','PROCESSING') AND (older.created_at&lt;t.created_at OR(older.created_at=t.created_at AND older.id&lt;t.id))) ORDER BY t.available_at,t.id LIMIT #{limit}</select>
+ <update id="claimTasks">UPDATE taskoutbox FORCE INDEX(PRIMARY) SET state='PROCESSING',attempts=attempts+1,locked_at=#{now},lease_token=#{lease},updated_at=#{now} WHERE tenant_id=#{tenantId} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></update>
+ <select id="expiredFinalTasks" resultType="java.util.LinkedHashMap">SELECT id FROM taskoutbox WHERE tenant_id=#{tenantId} AND task_type='dial_call' AND state='PROCESSING' AND locked_at&lt;=#{cutoff} AND attempts&gt;=max_attempts LIMIT 100</select>
+ <select id="lockTasks" resultMap="com.duozhi.outbound.mapper.TaskOutboxMapper.row">SELECT * FROM taskoutbox FORCE INDEX(PRIMARY) WHERE tenant_id=#{tenantId} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach> ORDER BY id FOR UPDATE</select>
+ <update id="expireFinalTasks">UPDATE taskoutbox FORCE INDEX(PRIMARY) SET state='DEAD',lease_token=NULL,locked_at=NULL,last_error='worker stopped during final dial attempt',updated_at=#{now} WHERE tenant_id=#{tenantId} AND task_type='dial_call' AND state='PROCESSING' AND locked_at&lt;=#{cutoff} AND attempts&gt;=max_attempts AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></update>
+ <select id="ownedTasks" resultType="java.util.LinkedHashMap">SELECT id FROM taskoutbox FORCE INDEX(PRIMARY) WHERE tenant_id=#{tenantId} AND state='PROCESSING' AND lease_token=#{lease} AND locked_at&gt;#{cutoff} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach> FOR UPDATE</select>
+ <select id="ownedCount" resultType="long">SELECT COUNT(*) FROM taskoutbox WHERE tenant_id=#{tenantId} AND state='PROCESSING' AND lease_token=#{lease} AND locked_at&gt;#{cutoff} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></select>
+ <update id="renewTasks">UPDATE taskoutbox FORCE INDEX(PRIMARY) SET locked_at=#{now},updated_at=#{now} WHERE tenant_id=#{tenantId} AND state='PROCESSING' AND lease_token=#{lease} AND locked_at&gt;#{cutoff} AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></update>
+ <select id="dialAcks" resultType="java.util.LinkedHashMap">SELECT e.call_session_id,JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt')) AS attempt FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND e.event_type='dial_command_accepted' AND e.call_session_id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></select>
+</mapper>

@@ -20,7 +20,7 @@ public class VoiceCallbacks {
     }
     public Map<String,Object> handle(String kind, Map<String,Object> body) {
         if ("telephony_status".equals(kind)) return lifecycle.status(body);
-        return tx.run(() -> {
+        return tx.serialized(() -> {
             tx.platform();
             if ("sms_status".equals(kind)) return sms(body);
             Map<String,Object> call=tx.call(body.get("call_id"));

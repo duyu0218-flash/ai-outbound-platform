@@ -34,14 +34,15 @@ public class CallPolicy {
     }
 
     public String check(long tenant, String phone, boolean campaign, Object excludeCall) {
-        return checkAt(tenant, phone, campaign, excludeCall, Instant.now());
+        return checkAt(tenant, phone, campaign, excludeCall, DialBatchScope.current()==null?Instant.now():DialBatchScope.current().instant);
     }
 
     String checkAt(long tenant, String phone, boolean campaign, Object excludeCall, Instant instant) {
-        if (store.scalar("phonesuppression","countPhone",Values.map("tenantId",tenant,"phone",phone)) > 0)
+        var batch=DialBatchScope.current();String cacheKey=tenant+":"+phone;var facts=batch==null?null:batch.facts.get(cacheKey);
+        if ((facts==null?store.scalar("phonesuppression","countPhone",Values.map("tenantId",tenant,"phone",phone)):((Number)facts.get("suppressed")).longValue()) > 0)
             return "contact_dnc";
         Map<String, Object> policy = settings.get(tenant, "compliance");
-        Map<String, Object> contact = store.one("contact","findByPhone",Values.map("tenantId",tenant,"phone",phone));
+        Map<String, Object> contact = batch!=null&&batch.contacts.containsKey(cacheKey)?batch.contacts.get(cacheKey):store.one("contact","findByPhone",Values.map("tenantId",tenant,"phone",phone));
         if (!allowed(phone, config.get("OUTBOUND_ALLOWED_PHONE_PREFIXES", ""))) return "platform_destination_not_allowed";
         if (!allowed(phone, policy.get("allowed_phone_prefixes"))) return "destination_not_allowed";
         if (contact != null) {
@@ -62,8 +63,8 @@ public class CallPolicy {
         if (start != end && !(start <= local.getHour() && local.getHour() < end)) return "outside_calling_hours";
         LocalDateTime utcStart = LocalDateTime.ofInstant(local.toLocalDate().atStartOfDay(local.getZone()).toInstant(), ZoneOffset.UTC);
         Object bound = store.encode("callsession", "created_at", utcStart);
-        Long legacy = store.scalar("callsession","dailyAttempts",Values.map("tenantId",tenant,"phone",phone,"start",bound));
-        Long events = store.scalar("callevent","dailyAttemptEvents",Values.map("tenantId",tenant,"phone",phone,"start",bound));
+        Long legacy = facts==null?store.scalar("callsession","dailyAttempts",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("legacy_attempts")).longValue();
+        Long events = facts==null?store.scalar("callevent","dailyAttemptEvents",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("event_attempts")).longValue();
         if (Math.max(legacy == null ? 0 : legacy, events == null ? 0 : events) >= number(policy, "max_attempts_per_day", 3, 1, 20))
             return "daily_attempt_limit";
         int interval = number(policy, "min_attempt_interval_sec", 0, 0, 604800);

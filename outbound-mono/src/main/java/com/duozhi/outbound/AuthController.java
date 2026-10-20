@@ -35,7 +35,6 @@ public class AuthController {
     public Map<String,Object> presence(@Valid @RequestBody Presence body,HttpServletRequest request) {
         com.duozhi.outbound.Identity identity=Identity.from(request);java.util.Map<java.lang.String,java.lang.Object> user=identity.requireUser();
         if(!"agent".equals(user.get("role"))) throw new ApiError(409,"presence is only available for agents");
-        if(body.status().equals("ready") && config.flag("WEBRTC_ENABLED",false)) throw new ApiError(409,"SIP registration and microphone readiness are required before accepting calls");
         if(body.status().equals("ready"))workforce.ready(identity);
         return service.presence(identity,body.status());
     }

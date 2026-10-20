@@ -12,7 +12,10 @@ class DirectAudioDispatcherTest {
             dispatcher.register("socket",frame->{assertTrue(frame.isDirect());assertTrue(frame.isReadOnly());threads.add(Thread.currentThread().getName());int value=frame.getShort();if(value==0){entered.countDown();assertTrue(release.await(3,TimeUnit.SECONDS));}seen.add(value);done.countDown();},error->fail(error));
             dispatcher.offer("socket",ByteBuffer.allocate(2).putShort((short)0).flip());assertTrue(entered.await(2,TimeUnit.SECONDS));
             assertTimeoutPreemptively(Duration.ofSeconds(1),()->{for(short value=1;value<=20;value++)dispatcher.offer("socket",ByteBuffer.allocate(2).putShort(value).flip());});
-            release.countDown();assertTrue(done.await(3,TimeUnit.SECONDS));assertEquals(List.of(0,17,18,19,20),seen);assertEquals(16,dispatcher.dropped());assertEquals(5,dispatcher.processed());assertTrue(threads.stream().allMatch(name->name.startsWith("mono-media-pcm")));dispatcher.disconnect("socket");assertEquals(5,dispatcher.retainedBuffers());
+            release.countDown();assertTrue(done.await(3,TimeUnit.SECONDS));
+            // The sink signals before drain increments processed and returns its direct buffer.
+            assertTimeoutPreemptively(Duration.ofSeconds(3),()->{while(dispatcher.processed()!=5||dispatcher.retainedBuffers()!=5)Thread.sleep(1);});
+            assertEquals(List.of(0,17,18,19,20),seen);assertEquals(16,dispatcher.dropped());assertEquals(5,dispatcher.processed());assertTrue(threads.stream().allMatch(name->name.startsWith("mono-media-pcm")));dispatcher.disconnect("socket");assertEquals(5,dispatcher.retainedBuffers());
         }finally{release.countDown();}
     }
     @Test void queuedTaskOverloadDropsAndReturnsBuffers()throws Exception{

@@ -84,4 +84,21 @@
  <select id="tagLinks" resultType="java.util.LinkedHashMap">SELECT * FROM ops_tag_link WHERE tenant_id=#{tenantId} AND target_kind=#{target_kind} AND object_id=#{object_id}</select>
  <delete id="tagClear">DELETE FROM ops_tag_link WHERE tenant_id=#{tenantId} AND target_kind=#{target_kind} AND object_id=#{object_id}</delete>
  <insert id="tagAdd">INSERT INTO ops_tag_link(tenant_id,target_kind,object_id,tag) VALUES(#{tenantId},#{target_kind},#{object_id},#{tag})</insert>
+ <select id="routingAgents" resultType="java.util.LinkedHashMap">
+ SELECT u.* FROM sys_user u WHERE u.tenant_id=#{tenantId} AND u.role='agent' AND u.enabled=TRUE AND u.agent_status IN ('ready','busy') AND u.last_seen_at&gt;=#{since}
+ <if test="!allowed.isEmpty()">AND u.id IN <foreach collection="allowed" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+ <if test="!teams.isEmpty() or !skills.isEmpty()">AND EXISTS(SELECT 1 FROM ops_member m JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=u.tenant_id AND m.user_id=u.id
+ <if test="!teams.isEmpty()">AND t.id IN <foreach collection="teams" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+ <if test="!skills.isEmpty()">AND JSON_CONTAINS(COALESCE(JSON_EXTRACT(t.settings_json,'$.routing_skills'),JSON_ARRAY()),CAST(#{skillsJson} AS JSON))</if>)</if>
+ ORDER BY u.last_seen_at,u.id FOR UPDATE
+ </select>
+ <select id="routingAgentActive" resultType="long">SELECT COUNT(*) FROM callsession WHERE tenant_id=#{tenantId} AND human_agent_id=#{agentId} AND status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')<if test="exclude != null"> AND id&lt;&gt;#{exclude}</if></select>
+ <select id="routingPressure" resultType="java.util.LinkedHashMap">SELECT COALESCE(SUM(status IN ('WAITING_HUMAN','HANDOFF_TRANSFERRING')),0) AS waiting,COALESCE(SUM(status IN ('DIALING','ANSWERED','IN_AI')),0) AS upstream FROM callsession WHERE tenant_id=#{tenantId} AND mode IN ('AI_HANDOFF','MIXED_HUMAN_FIRST')</select>
+ <select id="routingWaiting" resultType="java.util.LinkedHashMap">SELECT * FROM handoffrequest WHERE tenant_id=#{tenantId} AND state='WAITING'<if test="afterTime != null"> AND (requested_at&gt;#{afterTime} OR (requested_at=#{afterTime} AND id&gt;#{afterId}))</if> ORDER BY requested_at,id LIMIT 100</select>
+ <select id="routingCallbackOwner" resultType="java.util.LinkedHashMap">SELECT u.id FROM sys_user u LEFT JOIN ops_lead l ON l.tenant_id=u.tenant_id AND l.contact_id=#{contactId} WHERE u.tenant_id=#{tenantId} AND u.role='agent' AND u.enabled=TRUE
+ <if test="!allowed.isEmpty()">AND u.id IN <foreach collection="allowed" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+ <if test="!teams.isEmpty() or !skills.isEmpty()">AND EXISTS(SELECT 1 FROM ops_member m JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=TRUE WHERE m.tenant_id=u.tenant_id AND m.user_id=u.id
+ <if test="!teams.isEmpty()">AND t.id IN <foreach collection="teams" item="id" open="(" separator="," close=")">#{id}</foreach></if>
+ <if test="!skills.isEmpty()">AND JSON_CONTAINS(COALESCE(JSON_EXTRACT(t.settings_json,'$.routing_skills'),JSON_ARRAY()),CAST(#{skillsJson} AS JSON))</if>)</if>
+ ORDER BY (u.id=#{preferred}) DESC,(u.id=l.owner_id) DESC,u.id LIMIT 1</select>
 </mapper>
