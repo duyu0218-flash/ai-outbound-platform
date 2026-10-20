@@ -83,8 +83,10 @@ class OutboundReliabilityIT {
     }
     @Test void bufferedCaseUpdatesKeepWriteOrderAndWrongTenantRollsBackOtherChanges(){
         var a=call("queued","ai_only");var b=call("queued","ai_only");
-        tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,b.get("id"),Map.of("status","dialing"));store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","answered"));return null;}));
+        store.update("callsession",tenant,a.get("id"),Map.of("last_error","fixture"));store.update("callsession",tenant,b.get("id"),Map.of("last_error","fixture"));
+        tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),JsonSupport.map("status","dialing","last_error",null));store.writeLocked("callsession",tenant,b.get("id"),JsonSupport.map("status","dialing","last_error",null));store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","answered"));return null;}));
         assertThat(store.require("callsession",tenant,a.get("id")).get("status")).isEqualTo("answered");assertThat(store.require("callsession",tenant,b.get("id")).get("status")).isEqualTo("dialing");
+        assertThat(store.require("callsession",tenant,a.get("id")).get("last_error")).isNull();assertThat(store.require("callsession",tenant,b.get("id")).get("last_error")).isNull();
         assertThatThrownBy(()->tx.serialized(()->store.bufferWrites(()->{store.writeLocked("callsession",tenant,a.get("id"),Map.of("status","failed"));store.writeLocked("callsession",tenant+100000,b.get("id"),Map.of("status","failed"));return null;}))).isInstanceOfAny(ApiError.class,IllegalStateException.class);
         assertThat(store.require("callsession",tenant,a.get("id")).get("status")).isEqualTo("answered");assertThat(store.require("callsession",tenant,b.get("id")).get("status")).isEqualTo("dialing");
     }

@@ -41,9 +41,7 @@ public class JsonSupport {
         catch (Exception e) { throw new IllegalStateException(e); }
     }
     public static String hex(byte[] bytes) {
-        StringBuilder out = new StringBuilder();
-        for (byte b : bytes) out.append(String.format(Locale.ROOT, "%02x", b & 255));
-        return out.toString();
+        return HexFormat.of().formatHex(bytes);
     }
     public static String sha(String value) { return hex(digest(value)); }
     public static String hmac(String secret, byte[] value) {

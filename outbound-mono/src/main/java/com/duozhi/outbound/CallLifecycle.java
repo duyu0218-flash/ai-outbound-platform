@@ -99,7 +99,7 @@ public class CallLifecycle {
             }
         }
         Map<String,Object> saved;if (record == null) { changes.put("tenant_id", tenant(call)); changes.put("call_session_id", call.get("id")); changes.put("attempt", call.get("attempts")); saved=store.insert("callusage", changes); }
-        else saved=batch==null?store.update("callusage", tenant(call), record.get("id"), changes):store.patchLoaded("callusage",record,changes);
+        else {var delta=new LinkedHashMap<String,Object>();var original=record;changes.forEach((key,value)->{if(!Objects.equals(original.get(key),value))delta.put(key,value);});saved=store.patchLoaded("callusage",record,delta);}
         if(batch!=null)batch.usage.put(usageKey,saved);
     }
     private double seconds(Object start, Object end) {

@@ -12,6 +12,11 @@ on:
         description: Run isolated 500 CPS and 500 in-flight capacity probes (no real calls)
         type: boolean
         default: false
+      capacity_arch:
+        description: Architecture for the isolated capacity host (results are reported separately)
+        type: choice
+        default: x64
+        options: [x64, arm64]
 permissions:
   contents: read
 jobs:
@@ -65,10 +70,10 @@ jobs:
   mono-synthetic-capacity:
     name: Synthetic capacity (500 CPS and 500 in-flight)
     if: github.event_name == 'workflow_dispatch' && inputs.synthetic_capacity
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.capacity_arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 25
     concurrency:
-      group: mono-synthetic-capacity-${{ github.ref }}
+      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}
       cancel-in-progress: true
     defaults:
       run:
@@ -124,7 +129,7 @@ jobs:
       - name: Hold 500 AI calls with the original throughput and latency thresholds
         id: ai_capacity
         if: always()
-        run: mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.mysql.bufferMiB=512 -Dcapacity.output=verification/ci-ai500 test
+        run: mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.output=verification/ci-ai500 test
       - name: Require every capacity probe to pass
         if: always()
         env:
@@ -144,7 +149,7 @@ jobs:
             outbound-mono/verification/ci-*/application.log
             outbound-mono/verification/ci-*/gc.log
             outbound-mono/verification/ci-*/turns.csv
-            outbound-mono/verification/ci-*/samples.json
+            outbound-mono/verification/ci-*/samples.jsonl
             outbound-mono/verification/ci-*/database-*.json
             outbound-mono/verification/ci-*/profile.jfr
             outbound-mono/target/surefire-reports/
