@@ -35,6 +35,18 @@ class GatewayLifecycleTest {
     private static Map<String,Object> dial(String call) {
         return Map.of("call_id", call, "phone", "+8613900139000", "webhook_url", "http://127.0.0.1:18000/api/v1/webhooks/telephony/status", "metadata", Map.of("tenant_id", 1, "attempt", 1, "recording_notice", true));
     }
+    private static VoiceController.Command signed(Settings settings,Map<String,Object> payload){
+        byte[] body=Support.json(payload);String stamp=Long.toString(System.currentTimeMillis()/1000),nonce=UUID.randomUUID().toString();byte[] prefix=(stamp+"."+nonce+"./v1/call/dial.").getBytes(StandardCharsets.UTF_8),message=Arrays.copyOf(prefix,prefix.length+body.length);System.arraycopy(body,0,message,prefix.length,body.length);
+        return new VoiceController.Command("dial",body,Map.of("Authorization","Bearer "+settings.secret("SERVICE_TOKEN"),"x-voice-timestamp",stamp,"x-voice-nonce",nonce,"x-voice-signature",Support.hmac(settings.secret("VOICE_COMMAND_SECRET"),message)));
+    }
+    @Test void batchedRealDriverCommandsStillAuthorizeEachCallAndRetryIdempotently()throws Exception{
+        try(var pbx=new Pbx()){var settings=settings(pbx,Map.of());var controller=new VoiceController(settings);try{
+            var valid=signed(settings,dial("batch-authorized"));var denied=new HashMap<>(dial("batch-denied"));denied.put("phone","+33123456789");
+            var unauthorized=new VoiceController.Command("dial",Support.json(dial("batch-unsigned")),Map.of());
+            var results=controller.commandsInternalBatch(List.of(valid,signed(settings,denied),unauthorized));assertEquals(List.of(200,403,401),results.stream().map(VoiceController.CommandResult::status).toList());
+            assertEquals(1,pbx.count("bgapi originate "));assertEquals(200,controller.commandsInternalBatch(List.of(signed(settings,dial("batch-authorized")))).get(0).status());assertEquals(1,pbx.count("bgapi originate "));
+        }finally{controller.close();}}
+    }
     @Test void pendingNoticesDoNotOccupyStartupWorkersAndHangupFencesLateCompletion() throws Exception {
         try (var pbx = new Pbx(); var gateway = new VoiceGateway(settings(pbx, Map.of("JAVA_VOICE_LIFECYCLE_THREADS", "4")))) {
             List<String> ids = new ArrayList<>();
@@ -124,6 +136,18 @@ class GatewayLifecycleTest {
             assertTrue(pbx.commands.contains("api uuid_transfer "+uuid+" park inline"));assertFalse(gateway.bindings.get(uuid).stopped);assertEquals(0,pbx.count("api uuid_kill "));
         }
     }
+    @Test void customerHangupWhileRecoveryChecksPbxCannotReopenMedia()throws Exception{
+        try(var pbx=new Pbx();var gateway=new VoiceGateway(settings(pbx,Map.of("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE","uuid_setvar {uuid} synthetic_asr_started true")))){
+            var request=new HashMap<>(dial("recovery-hangup-fence"));request.put("metadata",Map.of("tenant_id",1,"attempt",1,"recording_enabled",false));
+            String uuid=gateway.post("dial",request).get("provider_call_id").toString();gateway.event(Map.of("Event-Name","CHANNEL_ANSWER","Unique-ID",uuid));
+            await(()->pbx.count("api uuid_setvar "+uuid+" synthetic_asr_started true")==1);
+            gateway.post("transfer",Map.of("call_id","recovery-hangup-fence","tenant_id",1,"expected_attempt",1,"target_group","agent:7"));
+            pbx.existsEntered=new CountDownLatch(1);pbx.existsRelease=new CountDownLatch(1);
+            var recovery=CompletableFuture.runAsync(()->{try{gateway.event(Map.of("Event-Name","CHANNEL_EXECUTE_COMPLETE","Unique-ID",uuid,"Application","bridge","Application-Response","NO_ANSWER"));}catch(Exception error){throw new CompletionException(error);}});
+            assertTrue(pbx.existsEntered.await(3,TimeUnit.SECONDS));gateway.event(Map.of("Event-Name","CHANNEL_HANGUP","Unique-ID",uuid));pbx.existsRelease.countDown();recovery.get(5,TimeUnit.SECONDS);
+            assertTrue(gateway.bindings.get(uuid).terminal);assertTrue(gateway.bindings.get(uuid).stopped);assertEquals(1,pbx.count("api uuid_setvar "+uuid+" synthetic_asr_started true"));
+        }
+    }
     private static void await(java.util.function.BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("no expected ESL command evidence"); Thread.sleep(10); }
@@ -133,6 +157,7 @@ class GatewayLifecycleTest {
         final List<String> commands = new CopyOnWriteArrayList<>();
         final ExecutorService io = Executors.newCachedThreadPool(); volatile boolean running = true, rejectMediaStart, rejectAgentTransfer;
         volatile long delayKillMillis;
+        volatile CountDownLatch existsEntered,existsRelease;
         Pbx() throws IOException { io.submit(() -> { while (running) try { Socket socket = server.accept(); io.submit(() -> connection(socket)); } catch (IOException stopped) { return; } }); }
         int count(String prefix) { return (int)commands.stream().filter(c -> c.startsWith(prefix)).count(); }
         void connection(Socket socket) {
@@ -142,6 +167,7 @@ class GatewayLifecycleTest {
                 String auth = input.readLine(); input.readLine(); if (auth == null || !auth.startsWith("auth FREESWITCH_ESL_PASSWORD-")) return;
                 output.write("Content-Type: command/reply\nReply-Text: +OK accepted\n\n".getBytes(StandardCharsets.UTF_8)); output.flush();
                 String command = input.readLine(); input.readLine(); if (command == null) return; commands.add(command);
+                if(command.startsWith("api uuid_exists ")&&existsEntered!=null){existsEntered.countDown();try{existsRelease.await(5,TimeUnit.SECONDS);}catch(InterruptedException stopped){Thread.currentThread().interrupt();}}
                 if (command.startsWith("api uuid_kill ") && delayKillMillis > 0) try { Thread.sleep(delayKillMillis); } catch (InterruptedException stopped) { Thread.currentThread().interrupt(); }
                 if (command.startsWith("bgapi ")) output.write(("Content-Type: command/reply\nReply-Text: +OK Job-UUID: " + UUID.randomUUID() + "\n\n").getBytes(StandardCharsets.UTF_8));
                 else { byte[] body = (rejectAgentTransfer&&command.startsWith("api uuid_transfer ")&&command.contains(" XML agent-restricted") ? "-ERR synthetic transfer failure" : rejectMediaStart && command.startsWith("api uuid_raw_audio_stream ") && command.contains(" start ") ? "-ERR synthetic module failure" : command.startsWith("api uuid_exists ") ? "true" : "+OK").getBytes(StandardCharsets.UTF_8); output.write(("Content-Type: api/response\nContent-Length: " + body.length + "\n\n").getBytes(StandardCharsets.UTF_8)); output.write(body); }

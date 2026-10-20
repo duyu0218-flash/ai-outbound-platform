@@ -27,6 +27,9 @@ public class TaskWorker {
     private final CallbackInbox inbox;
     private final AiRuntime ai;
     private final IntegrationTasks integrations;
+    private final DialBatchWorker dialBatch;
+    private final ExecutorService dialExecutor;
+    private final AtomicBoolean[] dialLanes;
     private final ExecutorService executor = Executors.newFixedThreadPool(4, r -> { Thread t = new Thread(r, "java-outbox"); t.setDaemon(true); return t; });
     private final ScheduledExecutorService heartbeat = Executors.newScheduledThreadPool(1, r -> { Thread t = new Thread(r, "java-outbox-lease"); t.setDaemon(true); return t; });
     // Logical AI owners share the existing four threads with the other task lanes.
@@ -40,12 +43,15 @@ public class TaskWorker {
     private final ArrayDeque<long[]> aiDelays = new ArrayDeque<>();
     private long cursor;
     private int callbackCursor=-1;
-    public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations) {
-        this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;
+    public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations,DialBatchWorker dialBatch) {
+        this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;this.dialBatch=dialBatch;
+        int dialWorkers=Math.max(1,Math.min(4,config.number("JAVA_DIAL_WORKERS",1)));dialLanes=java.util.stream.IntStream.range(0,dialWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
+        dialExecutor=Executors.newFixedThreadPool(dialWorkers,r->{var thread=new Thread(r,"java-dial-batch");thread.setDaemon(true);return thread;});
     }
     public static void permitted() { Runnable guard = GUARD.get(); if (guard != null) guard.run(); }
+    static <T>T guarded(long tenant,Runnable guard,java.util.function.Supplier<T> work){var previous=GUARD.get();var oldTenant=TENANT_HINT.get();GUARD.set(guard);TENANT_HINT.set(tenant);try{permitted();return work.get();}finally{if(previous==null)GUARD.remove();else GUARD.set(previous);if(oldTenant==null)TENANT_HINT.remove();else TENANT_HINT.set(oldTenant);}}
     @EventListener(ApplicationReadyEvent.class) public void ready() { ready = true; }
-    @PreDestroy public void close() { ready = false; executor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
+    @PreDestroy public void close() { ready = false; executor.shutdownNow();dialExecutor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
     private void aiProgress(long queued) {
         long now=System.nanoTime();
         synchronized(aiDelays){
@@ -71,8 +77,8 @@ public class TaskWorker {
     public int enqueueDue() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return 0;
         return tx.serialized(() -> {
-            tx.platform(); int count = 0;
-            List<Map<String, Object>> candidates = store.orderedAcross("callsession","scopedTaskWorker70",Store.queryParameters(-1,store.encode("callsession", "next_attempt_at", Store.now())),List.of("updated_at:ASC"),100);
+            tx.platform(); int count = dialBatch.size()>1?dialBatch.enqueue():0;
+            List<Map<String, Object>> candidates = store.orderedAcross("callsession",dialBatch.size()>1?"retryDueForBatch":"scopedTaskWorker70",Store.queryParameters(-1,store.encode("callsession", "next_attempt_at", Store.now())),List.of("updated_at:ASC"),100);
             for (Map<String, Object> call : candidates) {
                 if (call.get("campaign_id") != null) {
                     Map<String, Object> campaign = store.require("campaign", CallLifecycle.tenant(call), call.get("campaign_id"));
@@ -133,7 +139,7 @@ public class TaskWorker {
     public static class Deferred extends RuntimeException { }
     public boolean processOne() { return processOne(null); }
     boolean processOne(Long tenant) { return processOne(tenant, TYPES); }
-    boolean processLane(Long tenant,int lane) { return processOne(tenant,LANE_TYPES[lane]); }
+    boolean processLane(Long tenant,int lane) { return lane==0&&dialBatch.size()>1?dialBatch.process(tenant,heartbeat)||processOne(tenant,"('mock_status')"):processOne(tenant,LANE_TYPES[lane]); }
     private boolean processOne(Long tenant, String types) {
         Map<String, Object> task = claim(tenant, types); if (task == null) return false;
         AtomicBoolean lost = new AtomicBoolean();
@@ -171,7 +177,9 @@ public class TaskWorker {
             else if ("call_analysis".equals(type)) analysis.analyze(payload.get("call_id"), JsonSupport.integer(payload.get("attempt"), -1));
             else if ("dial_call".equals(type)) {
                 Map<String, Object> call = store.locate("callsession",store.encode("callsession", "id", payload.get("call_id")),false);
-                if (call != null && "queued".equals(call.get("status")) && CallLifecycle.number(call, "attempts") == JsonSupport.integer(payload.get("attempt"), -1)) {
+                if(payload.get("_dial_claimed") instanceof Map<?,?> frozen&&call!=null&&!CallLifecycle.TERMINAL.contains(call.get("status"))&&frozen.get("call") instanceof Map<?,?> old&&CallLifecycle.number(call,"attempts")==CallLifecycle.number((Map<String,Object>)old,"attempts")){
+                    if(!dial.sendClaimed((Map<String,Object>)old,(Map<String,Object>)frozen.get("metadata"))){payload.remove("_dial_claimed");store.update("taskoutbox",CallLifecycle.tenant(task),task.get("id"),JsonSupport.map("payload_json",json.json(payload)));throw new Deferred();}
+                }else if (call != null && "queued".equals(call.get("status")) && CallLifecycle.number(call, "attempts") == JsonSupport.integer(payload.get("attempt"), -1)) {
                     if (!dial.dispatch(call.get("id"))) {
                         Map<String, Object> latest = store.require("callsession", CallLifecycle.tenant(call), call.get("id"));
                         if ("queued".equals(latest.get("status"))) throw new Deferred();
@@ -205,9 +213,16 @@ public class TaskWorker {
         if (!ready || !config.flag("JAVA_WORKERS_ENABLED", false)) return;
         for (int lane=0;lane<LANE_TYPES.length;lane++) {
             final int index=lane;
+            if(index==0&&dialBatch.size()>1){for(int i=0;i<dialLanes.length;i++)if(dialLanes[i].compareAndSet(false,true))submitDialLane(i,true);continue;}
             if (!lanes[index].compareAndSet(false,true)) continue;
             submitLane(index,System.nanoTime(),true);
         }
+    }
+    private void submitDialLane(int lane,boolean dispatch){
+        dialExecutor.submit(()->{boolean full=false;try{
+            if(dispatch)enqueueDue();int processed=0;while(processed<16&&!Thread.currentThread().isInterrupted()){if(!processLane(null,0))break;processed++;}full=processed==16;
+        }catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("batch dial lane={} error_type={}",lane,error.getClass().getSimpleName());}
+        finally{if(full&&ready&&!dialExecutor.isShutdown())submitDialLane(lane,false);else dialLanes[lane].set(false);}});
     }
     private void submitLane(int index,long queued,boolean dispatch) {
         executor.submit(() -> {
@@ -217,7 +232,7 @@ public class TaskWorker {
                 if(index==0&&dispatch)enqueueDue();
                 int processed=0;
                 while(processed<16&&!Thread.currentThread().isInterrupted()) {
-                    boolean next=processOne(null,LANE_TYPES[index]);if(index==1||index>=4)aiProgress(0);
+                    boolean next=processLane(null,index);if(index==1||index>=4)aiProgress(0);
                     if(!next)break;processed++;
                 }
                 full=processed==16;
@@ -237,6 +252,8 @@ public class TaskWorker {
                 inbox.maintenance();long deadline=System.nanoTime()+250000000L;
                 do {
                     boolean progress=false;
+                    int batchSize=config.number("JAVA_CALLBACK_BATCH_SIZE",1);
+                    if(batchSize>1&&inbox.consumeBatch(batchSize)>0)continue;
                     List<Map<String,Object>> partitions=new ArrayList<>(store.projection("callbackinbox","rawTaskWorker192_1",Store.queryParameters(-1)));
                     int previous=callbackCursor;
                     partitions.sort(Comparator.comparingInt(p->Math.floorMod(((Number)p.get("partition_id")).intValue()-previous-1,64)));

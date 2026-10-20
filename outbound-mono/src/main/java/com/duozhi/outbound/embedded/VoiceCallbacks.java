@@ -28,12 +28,17 @@ final class VoiceCallbacks implements AutoCloseable {
         poll.scheduleWithFixedDelay(this::tick, 0, interval, TimeUnit.MILLISECONDS);
         poll.scheduleWithFixedDelay(this::purge, 60, 60, TimeUnit.SECONDS);
     }
-    void atomic(Runnable work) { ledger.transaction(db -> { work.run(); return null; }); }
+    private final ThreadLocal<List<Object[]>> bufferedPosts=new ThreadLocal<>();
+    void atomic(Runnable work) {
+        if(bufferedPosts.get()!=null){work.run();return;}
+        ledger.transaction(db -> {var posts=new ArrayList<Object[]>();bufferedPosts.set(posts);try{work.run();LocalLedger.executeBatch(db,"INSERT IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)",posts);return null;}finally{bufferedPosts.remove();}});
+    }
     int inflight() { return inflight.size(); }
     void post(String url, Map<String,Object> payload) {
         security.callback(url); byte[] body = Support.canonical(payload); byte[] target = (url + "\0").getBytes(StandardCharsets.UTF_8); byte[] identity = Arrays.copyOf(target, target.length + body.length); System.arraycopy(body, 0, identity, target.length, body.length);
         String id = Support.hex(Support.sha(identity)); String stream = Support.str(payload, "call_id", id);
-        ledger.transaction(db -> { double now = LocalLedger.now(); LocalLedger.execute(db, "INSERT IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)", id, url, body, now, now, stream); return null; });
+        double now=LocalLedger.now();var posts=bufferedPosts.get();if(posts!=null){posts.add(new Object[]{id,url,body,now,now,stream});return;}
+        ledger.transaction(db -> { LocalLedger.execute(db, "INSERT IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)", id, url, body, now, now, stream); return null; });
     }
     synchronized int tickOnce() {
         int available = concurrency - inflight.size(); if (available <= 0) return 0;
@@ -75,7 +80,8 @@ final class VoiceCallbacks implements AutoCloseable {
                 var ack = Support.object(response.body()); Object ids = ack.get("accepted");
                 accepted = "received".equals(ack.get("result")) && Support.integer(ack, "version", 0) == 1 && ids instanceof List<?> list && list.size() == rows.size() && new HashSet<>(list).equals(new HashSet<>(rows.stream().map(r -> r.get("id")).toList()));
             }
-            for (var row : rows) complete(row, accepted, response.headers().firstValue("Retry-After").orElse("0"));
+            if(accepted)ledger.transaction(db->{LocalLedger.execute(db,"DELETE FROM outbox WHERE id IN ("+String.join(",",Collections.nCopies(rows.size(),"?"))+")",rows.stream().map(r->r.get("id")).toArray());return null;});
+            else atomic(()->{for (var row : rows) complete(row, false, response.headers().firstValue("Retry-After").orElse("0"));});
         } catch (Exception error) { for (var row : rows) { try { complete(row, false, "0"); } catch (Exception ignored) { } } }
         finally { for (var row : rows) inflight.remove((String)row.get("id")); }
     }

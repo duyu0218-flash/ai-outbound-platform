@@ -10,7 +10,7 @@
     "enforcer": "pending final explicit run"
   },
   "development_functional": {
-    "status": "previous complete source passed; final FIFO pagination change rerun in progress",
+    "status": "Batch implementation in progress; targeted regressions passed, final full regression pending",
     "last_complete": {
       "unit": 142,
       "integration": 215,
@@ -21,7 +21,16 @@
       "browser_groups": 27,
       "completed_at": "2026-10-20T22:36:53+08:00"
     },
-    "final_fifo_rerun": "pending"
+    "final_fifo_rerun": "passed in targeted local regression; original c30ea75 GitHub functional job also passed",
+    "batch_targeted": {
+      "unit": 1,
+      "integration": 29,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "outbound-batch-safety10.log",
+      "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
+    }
   },
   "capacity": {
     "status": "failed; not qualified",
@@ -71,7 +80,412 @@
       "real_telephony_verified": false
     },
     "queued_pool_500_cps": {
-      "status": "pending"
+      "status": "not qualified; newer source awaiting final test",
+      "history": [
+        {
+          "run": "p0p1-dial500-queue-final-r2",
+          "jar_sha256": "59199b8b76dd07af30875cc8926841d0db8a6204e2469a86adfc86d984b07dbf",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 3500,
+          "dial_accepted_per_second": {
+            "0": 10,
+            "1": 16,
+            "2": 20,
+            "3": 20,
+            "4": 20,
+            "5": 14,
+            "6": 19,
+            "7": 1
+          },
+          "dial_accepted_within_window": 90,
+          "actual_cps": 18,
+          "call_states_at_observation_end": {
+            "ANSWERED": 2,
+            "DIALING": 4,
+            "IN_AI": 114,
+            "QUEUED": 3380
+          },
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-queue-final-r2/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r2",
+          "jar_sha256": "43c5c1c6bf1708f8004431e8b8842fde2957b23174a00daae63951451a2f8673",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "voice_callback_batch_enabled": true
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 3500,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 200
+          },
+          "dial_accepted_within_window": 200,
+          "actual_cps": 40,
+          "call_states_at_observation_end": {
+            "ANSWERED": 2,
+            "DIALING": 333,
+            "IN_AI": 65,
+            "QUEUED": 3100
+          },
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r2/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r3",
+          "jar_sha256": "2a26de36f9404fff3c8751b3a15ee16059f5dd6663453dc371625a8367778c87",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 3500,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 200,
+            "2": 200,
+            "3": 200,
+            "4": 200,
+            "6": 100
+          },
+          "dial_accepted_within_window": 800,
+          "actual_cps": 160,
+          "call_states_at_observation_end": {
+            "ANSWERED": 939,
+            "DIALING": 200,
+            "IN_AI": 61,
+            "QUEUED": 2300
+          },
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r3/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r4",
+          "jar_sha256": "6873b27af90d2ca6ff5366d2c366dc47f5d0841b22e75f29395c9f6101707270",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 3500,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 200,
+            "2": 300,
+            "3": 200,
+            "4": 100,
+            "6": 200
+          },
+          "dial_accepted_within_window": 800,
+          "actual_cps": 160,
+          "call_states_at_observation_end": {
+            "ANSWERED": 969,
+            "DIALING": 168,
+            "IN_AI": 63,
+            "QUEUED": 2300
+          },
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r4/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r5",
+          "jar_sha256": "dd67ff9deb69914c3b9f2a790ae9c0fd20b79fbf4ec4ba8589c03b9f5130c89d",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "2",
+            "general_task_executor_threads": 4
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 10000,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 200,
+            "2": 300,
+            "3": 100
+          },
+          "dial_accepted_within_window": 600,
+          "actual_cps": 120,
+          "call_states_at_observation_end": {
+            "ANSWERED": 704,
+            "DIALING": 84,
+            "IN_AI": 12,
+            "QUEUED": 9200
+          },
+          "real_telephony_verified": false,
+          "probe_error": "java.sql.SQLSyntaxErrorException: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation"
+        },
+        {
+          "run": "p0p1-dial500-batch-r6",
+          "jar_sha256": "47c875fe91864fb7af1d3c46878c8abe6ae49b810a2aadf72132a521892adeea",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "2",
+            "general_task_executor_threads": 4
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 10000,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 200,
+            "2": 100,
+            "6": 200
+          },
+          "dial_accepted_within_window": 300,
+          "actual_cps": 60,
+          "call_states_at_observation_end": {
+            "ANSWERED": 544,
+            "DIALING": 136,
+            "IN_AI": 20,
+            "QUEUED": 9300
+          },
+          "callback_receipts": [
+            {
+              "count": 1164,
+              "state": "done",
+              "oldest_age_sec": 6.37
+            },
+            {
+              "count": 172,
+              "state": "pending",
+              "oldest_age_sec": 0.694
+            }
+          ],
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r6/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r7",
+          "jar_sha256": "bcb6578e72112ba0f898d099100637495b5905d2e7d7c6b355c0fffb492c77d5",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "2",
+            "general_task_executor_threads": 4
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 10000,
+          "dial_accepted_per_second": {
+            "0": 200,
+            "1": 300,
+            "2": 300,
+            "3": 300,
+            "4": 300,
+            "5": 200,
+            "6": 200
+          },
+          "dial_accepted_within_window": 1400,
+          "actual_cps": 280,
+          "call_states_at_observation_end": {
+            "ANSWERED": 825,
+            "DIALING": 1160,
+            "IN_AI": 15,
+            "QUEUED": 8000
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 6.495,
+              "count": 1704,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 0.656,
+              "count": 120,
+              "state": "pending"
+            }
+          ],
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r7/result.json ==> expected: <true> but was: <false>"
+        },
+        {
+          "run": "p0p1-dial500-batch-r8-profile",
+          "jar_sha256": "dfc5ea91f2458e96b2a57df9025d5676018b947bca654cfe28633e81067ccb22",
+          "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+          "configuration": {
+            "jvm_heap_max_gib": 2,
+            "db_pool_max": 4,
+            "voice_ledger_pool_max": 4,
+            "model_quota_window": "disabled; rule AI",
+            "http_inflight_limit": 100,
+            "api_rate_limit_rps": 2000,
+            "worker_lanes": 7,
+            "task_executor_threads": 4,
+            "ai_lane_threads_max": 4,
+            "callback_consumer_threads": 1,
+            "external_model": "not used",
+            "audio": "not exercised",
+            "capacity_knobs": 10000,
+            "application_jvms": 1,
+            "dial_batch_size": "100",
+            "callback_batch_size": 100,
+            "voice_callback_batch_enabled": true,
+            "dial_executor_threads": "2",
+            "general_task_executor_threads": 4,
+            "voice_callback_delivery_concurrency": "64"
+          },
+          "target_cps": 500,
+          "seconds": 5,
+          "queued_pool_size": 10000,
+          "dial_accepted_per_second": {
+            "0": 100,
+            "1": 300,
+            "2": 200,
+            "5": 200,
+            "6": 100,
+            "7": 100
+          },
+          "dial_accepted_within_window": 700,
+          "actual_cps": 140,
+          "call_states_at_observation_end": {
+            "ANSWERED": 784,
+            "DIALING": 200,
+            "IN_AI": 16,
+            "QUEUED": 9000
+          },
+          "callback_receipts": [
+            {
+              "oldest_age_sec": 6.164,
+              "count": 1600,
+              "state": "done"
+            },
+            {
+              "oldest_age_sec": 0.666,
+              "count": 400,
+              "state": "pending"
+            }
+          ],
+          "passed": false,
+          "real_telephony_verified": false,
+          "probe_error": "org.opentest4j.AssertionFailedError: 500 CPS NOT achieved; evidence verification/p0p1-dial500-batch-r8-profile/result.json ==> expected: <true> but was: <false>"
+        }
+      ]
     },
     "ai_500_inflight": {
       "jar_sha256": "301464e2856f615682d83414727268dfb1429a5e459604c8386dae939f1cf731",
@@ -135,7 +549,16 @@
       "real_500_audio_capacity_verified": false,
       "production_capacity_verified": false
     },
-    "final_fifo_build_capacity_rerun": "pending"
+    "final_fifo_build_capacity_rerun": "pending",
+    "batch_work_in_progress": {
+      "default_enabled": false,
+      "dial_batch_max": 100,
+      "dial_workers_max": 4,
+      "callback_batch_max": 100,
+      "admission_and_callback_backpressure_retained": true,
+      "migration": "V6 nonunique covering indexes; no existing migration changed",
+      "linux_capacity": "pending; explicit workflow dispatch, two 500 CPS runs and original 500 in-flight test"
+    }
   },
   "test_environment_released": false,
   "real_device_verified": false,

@@ -16,7 +16,7 @@ transaction-isolation=REPEATABLE-READ
 
 应用启动用独立 voiceLedgerDataSource 实测上述全局参数/连接隔离级别，未满足拒绝启动。全局 RR 仍应配置，以保证维护工具的一致性。硬件/文件系统必须正确履行 fsync；应用参数不能补偿断电不持久的存储。
 
-独立语音池使用 MYSQL_JDBC_URL / MYSQL_USER / MYSQL_PASSWORD，同库不同池，不加入业务事务。Flyway 按序执行 V1—V5；当前应用表 54 张加迁移元数据 1 张。V4 增加运营表，V5 只增加号码准入、坐席占用和人工排队的三个非唯一索引。允许单独配置 FLYWAY_JDBC_URL / FLYWAY_USER / FLYWAY_PASSWORD，指向同一目标库。业务凭证须能读写新增辅助表。上线前独立执行迁移并备份，禁止编辑已执行迁移。
+独立语音池使用 MYSQL_JDBC_URL / MYSQL_USER / MYSQL_PASSWORD，同库不同池，不加入业务事务。Flyway 按序执行 V1—V6；当前应用表 54 张加迁移元数据 1 张。V4 增加运营表，V5 增加号码准入、坐席占用和人工排队的三个非唯一索引，V6 增加准入/每日计数及全局待处理回执的四个非唯一索引。允许单独配置 FLYWAY_JDBC_URL / FLYWAY_USER / FLYWAY_PASSWORD，指向同一目标库。业务凭证须能读写新增辅助表。上线前独立执行迁移并备份，禁止编辑已执行迁移。
 
 模型配额启用开关映射：原来已配置持久路径的部署设置 `LLM_QUOTA_ENABLED=true`；原来未配置的保持 false（默认），仅保留原连接数限制。LLM_QUOTA_SCOPE/RPM/TPM/RPS 名称及默认值不变。
 
@@ -27,6 +27,8 @@ transaction-isolation=REPEATABLE-READ
 填充 `.env.example`，由部署环境导出变量/注入密钥。不要将示例当生产配置。生产环境演示账号关闭、密钥与 CORS 满足原启动检查；主服务仅监听 SERVER_PORT，录音回调与媒体 WebSocket 指向该进程。真实语音还需 FreeSWITCH ESL、拨号路由、录音目录权限及上游凭证。
 
 JDK 17 使用 `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`，选择理由是保留锁定 JDK 的默认收集器并明确暂停目标；它不是实测音频保证。专属媒体线程池、全局有界队列、每连接帧上限、过载丢最旧帧、堆外 DirectByteBuffer 保留。媒体压测/真机验证是原阶段 6 验收项，尚未完成。目标 Linux、真实 PBX/音频/云模型的 500 总在途容量须另测。
+
+批量调度默认关闭（`JAVA_DIAL_BATCH_SIZE=1`）。启用时单批上限 100，`JAVA_DIAL_WORKERS` 为 1—4 个独立拨号线程，原通用任务线程仍为 4 个；批次之间仍共用平台准入锁，每个号码保留独立任务、租约和幂等键。`JAVA_CALLBACK_BATCH_SIZE=1` 保留逐回执消费，设为 2—100 时可批量提交初始拨号/接通事件，其余事件沿用原处理；网关批量投递另需 `VOICE_CALLBACK_BATCH_ENABLED=true`。同一通话依旧按回执顺序消费，回执积压保护继续生效。启用参数本身不代表容量验收通过，最新实测见 `reliability-validation.json`；回退到逐条模式前应排空在途任务，恢复中的冻结拨号尝试也保留兼容处理。
 
 ## 单体版转人工拨号计划
 
@@ -41,7 +43,7 @@ JDK 17 使用 `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`，选择理由是保留锁�
 1. 备份 MySQL 与对象存储，记录旧 jar、配置版本和恢复点；暂停入口/任务调度。
 2. 向旧应用发送正常停止信号，等待 graceful shutdown。
 3. **确认旧 PID 已退出且服务端口不再由旧进程监听**；不能只根据发出了停止命令判断退出。
-4. 在没有应用写入时执行/核验 Flyway 迁移，确认 54 应用表及 V1—V5 迁移记录。保留旧迁移校验和。
+4. 在没有应用写入时执行/核验 Flyway 迁移，确认 54 应用表及 V1—V6 迁移记录。保留旧迁移校验和。
 5. 启动唯一新 jar。检查日志中的 MySQL 参数验证、Flyway、GET /healthz 200，以及真实配置下的 /readyz。
 6. 恢复入口/调度，验证登录、数据回显、mock 或已批准真实语音链路。回退同样先停止新进程并确认退出；不得两个版本重叠。数据库回退需按已备份恢复方案操作，不能直接删除 V2 或盲目回退 jar。
 

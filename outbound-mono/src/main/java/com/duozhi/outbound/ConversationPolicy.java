@@ -20,14 +20,17 @@ public class ConversationPolicy {
         }
     }
     public Map<String,Object> current(long tenant,Object campaign) {
+        var batch=DialBatchScope.current();String key=tenant+":"+campaign;
+        if(batch!=null&&batch.scenarios.containsKey(key)){var cached=batch.scenarios.get(key);return JsonSupport.map("policy",new LinkedHashMap<>((Map<String,Object>)cached.get("policy")),"version",cached.get("version"));}
         Map<String,Object> version=store.one("scenarioversion","sourceConversationPolicy23_0",Store.queryParameters(0,tenant,campaign));
         Map<String,Object> policy=new LinkedHashMap<>(defaults);
         if(version!=null)policy.putAll(json.object(version.get("policy_json").toString()));
-        return JsonSupport.map("policy",policy,"version",version==null?null:version.get("id"));
+        var result=JsonSupport.map("policy",policy,"version",version==null?null:version.get("id"));if(batch!=null)batch.scenarios.put(key,JsonSupport.map("policy",new LinkedHashMap<>(policy),"version",result.get("version")));return result;
     }
     @SuppressWarnings("unchecked")
     public Map<String,Object> state(Map<String,Object> call) {
-        Map<String,Object> state=store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("conversationstate","call_id",call.get("id")),call.get("attempts")));
+        var batch=DialBatchScope.current();String key=DialBatchScope.stateKey(call);
+        Map<String,Object> state=batch!=null&&batch.stateKeys.contains(key)?batch.states.get(key):store.one("conversationstate","scopedConversationPolicy30",Store.scopedParameters(CallLifecycle.tenant(call),store.encode("conversationstate","call_id",call.get("id")),call.get("attempts")));
         if(state!=null)return state;
         long tenant=CallLifecycle.tenant(call);Map<String,Object> current=current(tenant,call.get("campaign_id"));
         Map<String,Object> policy=(Map<String,Object>)current.get("policy");policy.put("_ai",settings.get(tenant,"ai"));
@@ -40,7 +43,7 @@ public class ConversationPolicy {
             }
         }
         policy.put("_script",script);
-        return store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",current.get("version"),"policy_json",json.json(policy)));
+        state=store.insert("conversationstate",JsonSupport.map("tenant_id",tenant,"call_id",call.get("id"),"attempt",call.get("attempts"),"policy_version_id",current.get("version"),"policy_json",json.json(policy)));if(batch!=null){batch.stateKeys.add(key);batch.states.put(key,state);}return state;
     }
     public Map<String,Object> policy(Map<String,Object> state) {
         Map<String,Object> result=new LinkedHashMap<>(defaults);result.putAll(json.object(state.get("policy_json").toString()));return result;

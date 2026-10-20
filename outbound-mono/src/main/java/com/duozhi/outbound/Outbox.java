@@ -16,9 +16,10 @@ public class Outbox {
     public Map<String, Object> enqueue(long tenant, String type, Object aggregate, String key, Map<String, Object> payload) {
         return tx.run(() -> {
             tx.identity(key);
-            Map<String, Object> receipt = store.one("taskreceipt","findByIdempotencyKey",Values.map("tenantId",tenant,"key",key));
+            var batch=CallStatusBatchScope.current();boolean cached=batch!=null&&batch.calls.containsKey(aggregate.toString());String cacheKey=tenant+":"+key;
+            Map<String, Object> receipt = cached?batch.receipts.get(cacheKey):store.one("taskreceipt","findByIdempotencyKey",Values.map("tenantId",tenant,"key",key));
             if (receipt != null) return receipt;
-            Map<String, Object> existing = store.one("taskoutbox","findByIdempotencyKey",Values.map("tenantId",tenant,"key",key));
+            Map<String, Object> existing = cached?batch.tasks.get(cacheKey):store.one("taskoutbox","findByIdempotencyKey",Values.map("tenantId",tenant,"key",key));
             if (existing != null) return existing;
             if ("ai_turn".equals(type) && payload.get("turn_sequence") instanceof Number) {
                 int sequence = ((Number)payload.get("turn_sequence")).intValue();
@@ -30,7 +31,7 @@ public class Outbox {
                         store.update("taskoutbox", tenant, previous.get("id"), JsonSupport.map("state", "completed", "last_error", "superseded by newer final transcript"));
                 }
             }
-            return store.insert("taskoutbox", JsonSupport.map("tenant_id", tenant, "task_type", type, "aggregate_id", aggregate.toString(), "idempotency_key", key, "payload_json", json.json(payload)));
+            var saved=store.insert("taskoutbox", JsonSupport.map("tenant_id", tenant, "task_type", type, "aggregate_id", aggregate.toString(), "idempotency_key", key, "payload_json", json.json(payload)));if(cached)batch.tasks.put(cacheKey,saved);return saved;
         });
     }
     public void callback(Map<String, Object> call, String event, Map<String, Object> data, String key) {

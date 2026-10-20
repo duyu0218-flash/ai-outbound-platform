@@ -41,13 +41,13 @@ public class CallLifecycle {
         String encoded = json.canonical(payload, true);
         String explicit = Objects.toString(payload.get("event_id"), "");
         String key = JsonSupport.sha(call.get("id") + ":" + (explicit.isEmpty() ? type + ":" + source + ":" + encoded : source + ":event_id:" + explicit));
-        Map<String, Object> existing = store.one("webhookeventingest","scopedCallLifecycle43",Store.scopedParameters(tenant(call),store.encode("webhookeventingest", "call_session_id", call.get("id")),key));
+        var batch=CallStatusBatchScope.current();Map<String, Object> existing = batch==null?store.one("webhookeventingest","scopedCallLifecycle43",Store.scopedParameters(tenant(call),store.encode("webhookeventingest", "call_session_id", call.get("id")),key)):batch.events.get(call.get("id")+":"+key);
         if (existing != null) {
             store.update("webhookeventingest",tenant(call), existing.get("id"), JsonSupport.map("repeat_count", number(existing, "repeat_count") + 1));
             return true;
         }
         store.insert("callevent", JsonSupport.map("call_session_id", call.get("id"), "event_type", type, "source", source, "payload", encoded));
-        store.insert("webhookeventingest", JsonSupport.map("call_session_id", call.get("id"), "event_type", type, "source", source, "provider_event_key", key));
+        var saved=store.insert("webhookeventingest", JsonSupport.map("call_session_id", call.get("id"), "event_type", type, "source", source, "provider_event_key", key));if(batch!=null)batch.events.put(call.get("id")+":"+key,saved);
         return false;
     }
     public void completeCampaign(Map<String, Object> call) {
@@ -78,7 +78,7 @@ public class CallLifecycle {
         return Store.now().plusSeconds(Math.max(1, delay));
     }
     private void usage(Map<String, Object> call, String state, Map<String, Object> payload) {
-        Map<String, Object> record = store.one("callusage","scopedCallLifecycle80",Store.scopedParameters(tenant(call),store.encode("callusage", "call_session_id", call.get("id")),call.get("attempts")));
+        var batch=CallStatusBatchScope.current();String usageKey=call.get("id")+":"+call.get("attempts");Map<String, Object> record = batch==null?store.one("callusage","scopedCallLifecycle80",Store.scopedParameters(tenant(call),store.encode("callusage", "call_session_id", call.get("id")),call.get("attempts"))):batch.usage.get(usageKey);
         Map<String, Object> changes = record == null ? store.defaults("callusage") : new LinkedHashMap<>(record);
         LocalDateTime now = Store.now();
         if (Values.set("answered", "in_ai").contains(state) && changes.get("answered_at") == null && changes.get("ended_at") == null) changes.put("answered_at", now);
@@ -98,8 +98,9 @@ public class CallLifecycle {
                 changes.put("telephony_seconds", 0.0); changes.put("ai_seconds", 0.0); changes.put("duration_source", "unanswered");
             }
         }
-        if (record == null) { changes.put("tenant_id", tenant(call)); changes.put("call_session_id", call.get("id")); changes.put("attempt", call.get("attempts")); store.insert("callusage", changes); }
-        else store.update("callusage", tenant(call), record.get("id"), changes);
+        Map<String,Object> saved;if (record == null) { changes.put("tenant_id", tenant(call)); changes.put("call_session_id", call.get("id")); changes.put("attempt", call.get("attempts")); saved=store.insert("callusage", changes); }
+        else saved=batch==null?store.update("callusage", tenant(call), record.get("id"), changes):store.patchLoaded("callusage",record,changes);
+        if(batch!=null)batch.usage.put(usageKey,saved);
     }
     private double seconds(Object start, Object end) {
         return Math.max(0, Duration.between(LocalDateTime.parse(start.toString()), LocalDateTime.parse(end.toString())).toMillis() / 1000.0);
@@ -115,7 +116,7 @@ public class CallLifecycle {
     public Map<String, Object> status(Map<String, Object> body) {
         return tx.serialized(() -> {
             tx.platform();
-            Map<String, Object> call = tx.call(body.get("call_id"));
+            var batch=CallStatusBatchScope.current();Map<String, Object> call = batch==null?tx.call(body.get("call_id")):batch.calls.get(body.get("call_id").toString());
             if (call == null) return JsonSupport.map("result", "ignore");
             Map<String, Object> payload = (Map<String, Object>)body.getOrDefault("payload", Collections.emptyMap());
             if (event(call, "status", "telephony", payload)) return JsonSupport.map("result", "ok");
@@ -153,7 +154,7 @@ public class CallLifecycle {
             }
             Map<String, Object> updated = new LinkedHashMap<>(call); updated.putAll(changes);
             if (applied) changes.put("next_attempt_at", retryAt(updated, target));
-            updated = store.update("callsession", tenant(call), call.get("id"), changes);
+            updated = batch==null?store.update("callsession", tenant(call), call.get("id"), changes):store.patchLoaded("callsession",call,changes);if(batch!=null)batch.calls.put(call.get("id").toString(),updated);
             if (applied) usage(updated, target, payload);
             if (target != null && TERMINAL.contains(target)) {
                 completeCampaign(updated);
