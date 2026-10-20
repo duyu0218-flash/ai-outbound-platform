@@ -107,6 +107,16 @@ jobs:
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
         run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=500 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
+      - name: Publish first CPS evidence before the longer AI probe
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: outbound-mono-cps-profile-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            outbound-mono/verification/ci-cps-first/result.json
+            outbound-mono/verification/ci-cps-first/profile.jfr
+            outbound-mono/verification/ci-cps-first/application.log
       - name: Measure real queued-pool dial acknowledgements (repeat)
         id: cps_repeat
         if: always()
