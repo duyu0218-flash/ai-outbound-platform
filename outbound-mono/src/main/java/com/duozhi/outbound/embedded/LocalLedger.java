@@ -22,8 +22,8 @@ final class LocalLedger implements AutoCloseable {
         try (var statement = db.prepareStatement(dialect(sql))) {
             for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]);
             try (var rows = statement.executeQuery()) {
-                List<Map<String,Object>> result = new ArrayList<>(); int columns = rows.getMetaData().getColumnCount();
-                while (rows.next()) { Map<String,Object> row = new LinkedHashMap<>(); for (int i = 1; i <= columns; i++) row.put(rows.getMetaData().getColumnLabel(i), rows.getObject(i)); result.add(row); } return result;
+                List<Map<String,Object>> result = new ArrayList<>(); var metadata=rows.getMetaData();int columns=metadata.getColumnCount();String[] labels=new String[columns];for(int i=0;i<columns;i++)labels[i]=metadata.getColumnLabel(i+1);
+                while (rows.next()) { Map<String,Object> row = new LinkedHashMap<>(); for (int i = 1; i <= columns; i++) row.put(labels[i-1], rows.getObject(i)); result.add(row); } return result;
             }
         }
     }

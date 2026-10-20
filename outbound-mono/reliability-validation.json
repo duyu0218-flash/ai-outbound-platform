@@ -32,7 +32,7 @@
       "log": "outbound-batch-safety10.log",
       "scope": "OutboundReliabilityIT and QueueConcurrencyIT; separate GatewayLifecycleTest and VoiceTest runs passed"
     },
-    "latest_changes": "Batch acceptance lock follow-up compiled with dependency enforcer; new concurrent acceptance integration test pending Linux. Previous runtime source passed 1+49 targeted checks before local Docker failure.",
+    "latest_changes": "Callback ledger polling/metadata follow-up compiled with dependency enforcer; full Linux regression pending. c17bbd1 capacity workflow failed; raw artifact review in progress.",
     "final_follow_up": {
       "unit": 1,
       "integration": 49,
@@ -1483,7 +1483,7 @@
       "callback_batch_max": 500,
       "admission_and_callback_backpressure_retained": true,
       "migration": "V6 nonunique covering indexes; no existing migration changed",
-      "linux_capacity": "e733e29 failed both CPS steps; AI step still running. Follow-up removes shared admission lock only from recording already accepted batch commands.",
+      "linux_capacity": "c17bbd1 failed capacity workflow 39463748398; callback ledger profiling follow-up pending",
       "business_jdbc_profile": "Default 4; high-load CPS profile explicitly uses 8, ledger stays 4"
     },
     "linux_candidate_ecc34a4": {
