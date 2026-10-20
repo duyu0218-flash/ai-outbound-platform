@@ -256,7 +256,15 @@ public class DialService {
             else{mutateAttempt(call,JsonSupport.map("last_error","dial outcome unknown; awaiting idempotent retry/PBX reconciliation"));entry.put("error",failure);}
         }
         var successful=pending.stream().filter(e->e.containsKey("response")).toList();if(successful.isEmpty())return;
-        tx.serialized(()->{TaskWorker.permitted();long tenant=CallLifecycle.tenant((Map<String,Object>)successful.get(0).get("call"));var ids=successful.stream().map(e->((Map<?,?>)e.get("call")).get("id").toString()).toList();
+        acknowledgeTasks(successful,db);
+    }
+    @SuppressWarnings("unchecked")
+    void acknowledgeTasks(List<Map<String,Object>> successful,DialBatchStore db){
+        if(successful.isEmpty())return;
+        // Only provider IDs and the durable acceptance event change here. Lock
+        // calls before the first consistent read so concurrent acknowledgements
+        // see the previous commit; waiting for a callback must not hold admission.
+        tx.run(()->{TaskWorker.permitted();long tenant=CallLifecycle.tenant((Map<String,Object>)successful.get(0).get("call"));var ids=successful.stream().map(e->((Map<?,?>)e.get("call")).get("id").toString()).toList();
             var current=new HashMap<String,Map<String,Object>>();for(var raw:db.calls(tenant,ids))current.put(raw.get("id").toString(),raw);
             var acknowledged=new HashSet<String>();for(var ack:db.rows("dialAcks",JsonSupport.map("tenantId",tenant,"ids",ids)))acknowledged.add(ack.get("call_session_id")+":"+ack.get("attempt"));
             return store.bufferWrites(()->{for(var entry:successful){var call=(Map<String,Object>)entry.get("call");var latest=current.get(call.get("id").toString());if(latest==null||CallLifecycle.number(latest,"attempts")!=CallLifecycle.number(call,"attempts"))continue;

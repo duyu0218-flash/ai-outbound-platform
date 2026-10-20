@@ -62,6 +62,15 @@ class OutboundReliabilityIT {
             lifecycle.status(body);assertThat(store.require("callsession",tenant,call.get("id")).get("status")).isEqualTo("no_answer");
         }finally{environment.getPropertySources().remove(property);}
     }
+    @Test void concurrentAcceptanceIsIdempotentAndDoesNotHoldTheSharedAdmissionLock()throws Exception{
+        var call=call("dialing","ai_only");var entries=List.of(JsonSupport.map("call",call,"response",JsonSupport.map("provider_call_id","synthetic-ack")));var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        try(var held=platformLocks.lock(718492061L)){
+            var futures=new ArrayList<Future<?>>();for(int i=0;i<2;i++)futures.add(pool.submit(()->{try{start.await();dial.acknowledgeTasks(entries,dialDb);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}}));
+            start.countDown();for(var future:futures)future.get(3,TimeUnit.SECONDS);
+        }finally{start.countDown();pool.shutdownNow();}
+        assertThat(store.scalar("callevent","dialAcceptedAttempt",JsonSupport.map("tenantId",tenant,"id",store.encode("callsession","id",call.get("id")),"attempt",1))).isEqualTo(1);
+        assertThat(store.require("callsession",tenant,call.get("id")).get("telephony_call_id")).isEqualTo("synthetic-ack");
+    }
     @BeforeEach void seed(){tenant=sequence.incrementAndGet();store.insert("tenant",JsonSupport.map("id",tenant,"code","reliability-"+tenant,"name","Synthetic reliability"));store.insert("adminsetting",JsonSupport.map("tenant_id",tenant,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));}
     @AfterEach void releaseFixtureCapacity(){for(var c:store.query("callsession","list",JsonSupport.map("tenantId",tenant,"offset",0,"limit",1000)))if(!CallLifecycle.TERMINAL.contains(c.get("status")))store.update("callsession",tenant,c.get("id"),Map.of("status","completed"));}
     Map<String,Object> call(String state,String mode){return store.insert("callsession",JsonSupport.map("tenant_id",tenant,"phone","1555"+String.format("%07d",sequence.incrementAndGet()),"mode",mode,"status",state,"attempts",state.equals("queued")?0:1,"max_attempts",2));}
