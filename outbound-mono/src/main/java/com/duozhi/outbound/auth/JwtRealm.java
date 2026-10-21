@@ -37,7 +37,7 @@ public final class JwtRealm extends AuthorizingRealm {
         // Original generic production write scopes remain for non-administrative routes.
         // Administrative routes now use their explicit permission under the approved API-key correction.
         if(config.production()&&!Set.of("GET","HEAD","OPTIONS").contains(token.method)&&!token.path.startsWith("/api/v1/admin/")){
-            String path=token.path.replaceFirst("^/api/v1/","");String scope=path.equals("calls")?"calls:dial":path.startsWith("calls/")?"calls:control":path.split("/")[0]+":write";
+            String path=token.path.replaceFirst("^/api/v1/","");String scope=Set.of("calls","calls/batch","calls/async").contains(path)?"calls:dial":path.startsWith("calls/")?"calls:control":path.split("/")[0]+":write";
             if(!scopes(tenant).contains(scope))throw new ApiError(403,"machine API key lacks scope: "+scope);
         }
         return new Identity(tenant,null,()->scopes(selectedTenant));

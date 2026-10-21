@@ -125,7 +125,7 @@ public class CallLifecycle {
             // A provider mapping may redefine an otherwise initial raw status.
             // Roll back that cohort and let the ordinary locked consumer handle
             // it; never release shared resources through the local batch path.
-            if(batch!=null&&!Values.set("dialing","answered").contains(target))throw new IllegalStateException("non-initial mapped status requires platform transaction");
+            if(batch!=null&&!batch.sharedResourcesLocked&&!Values.set("dialing","answered").contains(target))throw new IllegalStateException("non-initial mapped status requires platform transaction");
             if ("human_unavailable".equals(Objects.toString(payload.get("status"), "").trim().transform(Ascii::lower))) {
                 Map<String, Object> handoff = store.one("handoffrequest","sourceCallLifecycle124_10",Store.queryParameters(0,tenant(call),store.encode("handoffrequest", "call_session_id", call.get("id"))));
                 if (!"handoff_transferring".equals(current) || handoff == null) return JsonSupport.map("result", "ignored", "reason", "inactive_handoff");
@@ -153,7 +153,7 @@ public class CallLifecycle {
             if (payload.get("summary") != null) changes.put("summary", Objects.toString(call.get("summary"), "") + "\n" + payload.get("summary"));
             if (applied && TERMINAL.contains(target)) {
                 changes.put("finished_at", Store.now()); releaseAgent(call);
-                for (Map<String, Object> handoff : store.query("handoffrequest","scopedCallLifecycle146",Store.scopedParameters(tenant(call),store.encode("handoffrequest", "call_session_id", call.get("id")))))
+                for (Map<String, Object> handoff : batch!=null&&batch.sharedResourcesLocked?batch.handoffs.getOrDefault(call.get("id").toString(),List.of()):store.query("handoffrequest","scopedCallLifecycle146",Store.scopedParameters(tenant(call),store.encode("handoffrequest", "call_session_id", call.get("id")))))
                     store.update("handoffrequest", tenant(call), handoff.get("id"), JsonSupport.map("state", "accepted".equals(handoff.get("state")) ? "completed" : "expired", "completed_at", Store.now()));
             }
             Map<String, Object> updated = new LinkedHashMap<>(call); updated.putAll(changes);

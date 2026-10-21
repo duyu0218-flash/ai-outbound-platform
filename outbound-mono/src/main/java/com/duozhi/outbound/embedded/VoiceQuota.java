@@ -35,7 +35,14 @@ final class VoiceQuota {
     void reserve(Connection db, String call, long attempt) throws Exception {
         Budget budget = budget("asr"); requireScope(db, budget.scope, "asr"); budget("tts");
         if (used(db, budget, "asr") >= budget.concurrency) throw new Support.Failure(429, "ASR call reservation budget exhausted", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "1"));
-        LocalLedger.execute(db, "INSERT INTO voice_permits VALUES (?,?,?,?,?,?,?,?)", "reserve:" + call + ":" + attempt, budget.scope, "reserve", call, attempt, "controller", "active", LocalLedger.now());
+        String id="reserve:"+call+":"+attempt;
+        var previous=LocalLedger.query(db,"SELECT * FROM voice_permits WHERE id=? FOR UPDATE",id);
+        if(previous.isEmpty())LocalLedger.execute(db,"INSERT INTO voice_permits VALUES (?,?,?,?,?,?,?,?)",id,budget.scope,"reserve",call,attempt,"controller","active",LocalLedger.now());
+        else{
+            var old=previous.get(0);
+            if(!budget.scope.equals(old.get("scope"))||!"closed".equals(old.get("state"))||LocalLedger.scalar(db,"SELECT COUNT(*) FROM voice_permits WHERE call_id=? AND attempt=? AND kind IN ('asr','tts') AND state!='closed'",call,attempt)!=0)throw new Support.Failure(409,"previous voice permits cannot be reserved again");
+            if(LocalLedger.update(db,"UPDATE voice_permits SET state='active',created=? WHERE id=? AND state='closed'",LocalLedger.now(),id)!=1)throw new Support.Failure(409,"voice reservation replacement lost its fence");
+        }
     }
     void acquire(Connection db, String id, String kind, String call, long attempt, String owner) throws Exception {
         if (!Set.of("asr", "tts").contains(kind)) throw new Support.Failure(422, "invalid voice permit kind");

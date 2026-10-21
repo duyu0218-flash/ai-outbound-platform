@@ -6,10 +6,15 @@ final class LocalLedger implements AutoCloseable {
     interface Work<T> { T run(Connection connection) throws Exception; }
     private final LedgerDatabase database; private final boolean owned;
     private final java.util.concurrent.atomic.AtomicLong commits=new java.util.concurrent.atomic.AtomicLong();
+    private final Object callbackReceipts=new Object();
     LocalLedger(Settings settings)throws Exception{this(LedgerDatabase.from(settings),true);}
     LocalLedger(LedgerDatabase database){this(database,false);}
     private LocalLedger(LedgerDatabase database,boolean owned){this.database=database;this.owned=owned;}
     synchronized <T>T transaction(Work<T> work){T result=database.transaction("__voice_writer__",work);commits.incrementAndGet();return result;}
+    void consumeNonce(String nonce,double expires){database.consumeNonce(nonce,expires);commits.incrementAndGet();}
+    /** Only acknowledge/reschedule existing callback rows. Call reservations,
+     * authorization and originating remain in the original writer domain. */
+    <T>T callbackReceipt(Work<T> work){synchronized(callbackReceipts){T result=database.transaction("__voice_callback_receipts__",work);commits.incrementAndGet();return result;}}
     <T>T read(Work<T> work){return database.read(work);}
     private static String dialect(String sql){
         String result=sql.replace("INSERT OR IGNORE","INSERT IGNORE");
@@ -30,6 +35,9 @@ final class LocalLedger implements AutoCloseable {
     static long scalar(Connection db, String sql, Object... args) throws SQLException { return ((Number)query(db, sql, args).get(0).values().iterator().next()).longValue(); }
     static void execute(Connection db, String sql, Object... args) throws SQLException {
         try (var statement = db.prepareStatement(dialect(sql))) { for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]); statement.executeUpdate(); }
+    }
+    static int update(Connection db,String sql,Object...args)throws SQLException{
+        try(var statement=db.prepareStatement(dialect(sql))){for(int i=0;i<args.length;i++)statement.setObject(i+1,args[i]);return statement.executeUpdate();}
     }
     static void executeBatch(Connection db,String sql,List<Object[]> rows)throws SQLException{
         if(rows.isEmpty())return;try(var statement=db.prepareStatement(dialect(sql))){for(var args:rows){for(int i=0;i<args.length;i++)statement.setObject(i+1,args[i]);statement.addBatch();}for(int changed:statement.executeBatch())if(changed==java.sql.Statement.EXECUTE_FAILED)throw new SQLException("ledger batch write failed");}

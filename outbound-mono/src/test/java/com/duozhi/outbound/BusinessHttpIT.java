@@ -1,4 +1,6 @@
 package com.duozhi.outbound;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 import com.duozhi.outbound.auth.UserRecords;
 import com.duozhi.outbound.entity.*;
@@ -31,7 +33,7 @@ class BusinessHttpIT {
     @DynamicPropertySource static void properties(DynamicPropertyRegistry p){
         p.add("JWT_SECRET",()->"customer-http-secret-at-least-thirty-two-characters");
         p.add("spring.datasource.url",MYSQL::getJdbcUrl);p.add("spring.datasource.username",MYSQL::getUsername);p.add("spring.datasource.password",MYSQL::getPassword);
-        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",MYSQL::getUsername);p.add("spring.flyway.password",MYSQL::getPassword);
+        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",()->"root");p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
         p.add("JAVA_DISPATCH_ENABLED",()->"true");p.add("OUTBOUND_PLATFORM_MAX_CONCURRENT",()->"200");p.add("JAVA_WORKERS_ENABLED",()->"false");
         p.add("spring.ai.model.chat",()->"none");p.add("TENANT_API_KEYS_JSON",()->"{\"1\":\"customer-test-key\"}");
@@ -39,7 +41,9 @@ class BusinessHttpIT {
     @Autowired TestRestTemplate http;@Autowired ObjectMapper json;@Autowired Crypto crypto;@Autowired Store store;
     @Autowired SysUserMapper users;@Autowired TenantMapper tenants;@Autowired AuditLogMapper audits;
     @Autowired ConfigurableEnvironment environment;@Autowired CallPolicy policy;@Autowired Transactions tx;@Autowired DataRetention retention;@Autowired Outbox outbox;
-    private final Map<String,Object> overrides=new HashMap<>();private String token;private SysUser user;
+    private final Map<String,Object> overrides=new HashMap<>();private String token;private SysUser user;private Object temporaryAsyncPolicy;
+    private final List<String> temporaryAsyncCalls=new ArrayList<>();
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @org.springframework.boot.test.mock.mockito.SpyBean TelephonyClient telephony;
     @Autowired ConversationPolicy conversation;@Autowired AiRuntime aiRuntime;
     @Autowired TaskWorker worker;@Autowired CallbackInbox inbox;
@@ -50,7 +54,10 @@ class BusinessHttpIT {
         for(int id:List.of(1,2))if(tenants.findById(id)==null){Tenant t=new Tenant();t.setId(id);t.setCode("customer-tenant-"+id);t.setName("Customer tenant "+id);tenants.insert(t);}
         user=new SysUser();user.setTenantId(1);user.setUsername("customer"+UUID.randomUUID().toString().replace("-",""));user.setFullName("Customer test admin");user.setRole("admin");users.insert(user);token=crypto.token(UserRecords.map(user));
     }
-    @AfterEach void reset(){environment.getPropertySources().remove("business-scenario");}
+    @AfterEach void reset(){
+        for(String id:temporaryAsyncCalls){jdbc.update("DELETE FROM taskoutbox WHERE tenant_id=1 AND aggregate_id=?",id);store.delete("callsession",1,id);}temporaryAsyncCalls.clear();
+        if(temporaryAsyncPolicy!=null){store.delete("adminsetting",1,temporaryAsyncPolicy);temporaryAsyncPolicy=null;}environment.getPropertySources().remove("business-scenario");
+    }
     HttpHeaders auth(){var h=new HttpHeaders();h.setBearerAuth(token);return h;}
     ResponseEntity<JsonNode> request(HttpMethod method,String path,Object body){var h=auth();h.setContentType(MediaType.APPLICATION_JSON);return http.exchange(path,method,new HttpEntity<>(body,h),JsonNode.class);}
     JsonNode ok(ResponseEntity<JsonNode> r){assertThat(r.getStatusCode().value()).as(String.valueOf(r.getBody())).isEqualTo(200);return r.getBody();}
@@ -65,6 +72,61 @@ class BusinessHttpIT {
     Map<String,Object> node(String id,String type,String prompt){return JsonSupport.map("id",id,"type",type,"label",id,"prompt",prompt,"position",Map.of("x",100,"y",100));}
     Map<String,Object> twoTurnGraph(){
         var nodes=List.of(node("start","start",""),node("opening","message","您好，我们想向您介绍服务。"),node("listen1","listen",""),node("answer1","message","我们的服务提供预约咨询。"),node("listen2","listen",""),node("answer2","message","您可以继续了解或要求转人工。"),node("listen3","listen",""),node("human","handoff","正在转接人工。"));var edges=new ArrayList<Map<String,Object>>();for(int i=1;i<nodes.size();i++)edges.add(JsonSupport.map("id","edge"+i,"source",nodes.get(i-1).get("id"),"target",nodes.get(i).get("id"),"condition","always"));return Map.of("nodes",nodes,"edges",edges);
+    }
+    @Test void asyncBatchIsAtomicIdempotentQueryableAndDoesNotDialSynchronously(){
+        overrides.put("JAVA_DIAL_ASYNC_API_ENABLED","true");overrides.put("JAVA_DISPATCH_ENABLED","true");
+        var policy=store.one("adminsetting","findBySection",JsonSupport.map("tenantId",1,"section","compliance"));
+        if(policy==null)temporaryAsyncPolicy=store.insert("adminsetting",Map.of("tenant_id",1,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}")).get("id");
+        String first=phone(),second=phone();contact(first);contact(second);
+        var headers=auth();headers.setContentType(MediaType.APPLICATION_JSON);headers.set("Idempotency-Key","atomic-"+UUID.randomUUID());
+        var invalid=Map.of("items",List.of(Map.of("phone",first,"mode","ai_only"),Map.of("phone","invalid-number","mode","ai_only")));
+        var rejected=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(invalid,headers),JsonNode.class);
+        assertThat(rejected.getStatusCode().value()).isEqualTo(422);assertThat(rejected.getBody().path("errors").get(0).path("index").asInt()).isEqualTo(1);
+        var body=Map.of("items",List.of(Map.of("phone",first,"mode","ai_only"),Map.of("phone",second,"mode","ai_only")));
+        var accepted=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,headers),JsonNode.class);
+        assertThat(accepted.getStatusCode().value()).as(String.valueOf(accepted.getBody())).isEqualTo(202);
+        for(var id:accepted.getBody().path("call_ids"))temporaryAsyncCalls.add(id.asText());
+        assertThat(accepted.getBody().path("accepted_count").asInt()).isEqualTo(2);assertThat(accepted.getBody().path("status").asText()).isEqualTo("queued");
+        var replay=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,headers),JsonNode.class);
+        assertThat(replay.getStatusCode().value()).isEqualTo(202);assertThat(replay.getBody()).isEqualTo(accepted.getBody());
+        var conflict=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(invalid,headers),JsonNode.class);
+        assertThat(conflict.getStatusCode().value()).isEqualTo(409);
+        var status=ok(request(HttpMethod.GET,accepted.getBody().path("status_url").asText(),null));
+        assertThat(status.path("counts").path("queued").asInt()).isEqualTo(2);
+        for(var id:accepted.getBody().path("call_ids"))assertThat(store.require("callsession",1,id.asText())).containsEntry("attempts",0).containsEntry("status","queued");
+        verify(telephony,never()).command(anyMap(),eq("dial"),anyMap());
+        assertThat(request(HttpMethod.GET,"/api/v1/calls/batches/"+UUID.randomUUID(),null).getStatusCode().value()).isEqualTo(404);
+    }
+    @Test void asyncApiHasAnExplicitFeatureGateAndBoundedRequestBody(){
+        overrides.put("JAVA_DIAL_ASYNC_API_ENABLED","false");
+        assertThat(request(HttpMethod.POST,"/api/v1/calls/async",Map.of("phone",phone(),"mode","ai_only")).getStatusCode().value()).isEqualTo(404);
+        overrides.put("JAVA_DIAL_ASYNC_API_ENABLED","true");var headers=auth();headers.setContentType(MediaType.APPLICATION_JSON);headers.set("Idempotency-Key","body-limit");
+        var oversized=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(" ".repeat(1048577),headers),JsonNode.class);
+        assertThat(oversized.getStatusCode().value()).isEqualTo(413);
+        assertThat(request(HttpMethod.POST,"/api/v1/calls/batch",Map.of("items",List.of())).getStatusCode().value()).isEqualTo(422);
+    }
+    @Test void asyncBatchEnforcesCallerTenantAndMachineDialScope(){
+        overrides.put("JAVA_DIAL_ASYNC_API_ENABLED","true");
+        var policy=store.one("adminsetting","findBySection",JsonSupport.map("tenantId",1,"section","compliance"));
+        if(policy==null)temporaryAsyncPolicy=store.insert("adminsetting",Map.of("tenant_id",1,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}")).get("id");
+        String number=phone();contact(number);var body=Map.of("items",List.of(Map.of("phone",number,"mode","ai_only")));
+        var creator=auth();creator.setContentType(MediaType.APPLICATION_JSON);creator.set("Idempotency-Key","actor-"+UUID.randomUUID());
+        var accepted=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,creator),JsonNode.class);assertThat(accepted.getStatusCode().value()).isEqualTo(202);
+        for(var id:accepted.getBody().path("call_ids"))temporaryAsyncCalls.add(id.asText());String status=accepted.getBody().path("status_url").asText();
+        for(int tenant:List.of(1,2)){
+            var other=new SysUser();other.setTenantId(tenant);other.setUsername("batch-other-"+UUID.randomUUID());other.setFullName("Batch isolation fixture");other.setRole("agent");users.insert(other);
+            var headers=new HttpHeaders();headers.setBearerAuth(crypto.token(UserRecords.map(other)));headers.setContentType(MediaType.APPLICATION_JSON);headers.set("Idempotency-Key",creator.getFirst("Idempotency-Key"));
+            assertThat(http.exchange(status,HttpMethod.GET,new HttpEntity<>(headers),JsonNode.class).getStatusCode().value()).isEqualTo(tenant==1?403:404);
+            if(tenant==1)assertThat(http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,headers),JsonNode.class).getStatusCode().value()).isEqualTo(403);
+        }
+        overrides.put("ENV","prod");overrides.put("TRUSTED_HOSTS","localhost,127.0.0.1");overrides.put("TENANT_API_SCOPES_JSON","{\"1\":[\"calls:control\"]}");
+        var machine=new HttpHeaders();machine.set("x-api-key","customer-test-key");machine.setContentType(MediaType.APPLICATION_JSON);machine.set("Idempotency-Key","machine-"+UUID.randomUUID());
+        var forbidden=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,machine),JsonNode.class);assertThat(forbidden.getStatusCode().value()).as(String.valueOf(forbidden.getBody())).isEqualTo(403);assertThat(forbidden.getBody().path("detail").asText()).contains("calls:dial");
+        overrides.put("TENANT_API_SCOPES_JSON","{\"1\":[\"calls:dial\"]}");
+        var allowed=http.exchange("/api/v1/calls/batch",HttpMethod.POST,new HttpEntity<>(body,machine),JsonNode.class);assertThat(allowed.getStatusCode().value()).isEqualTo(202);
+        for(var id:allowed.getBody().path("call_ids"))temporaryAsyncCalls.add(id.asText());
+        assertThat(http.exchange(allowed.getBody().path("status_url").asText(),HttpMethod.GET,new HttpEntity<>(machine),JsonNode.class).getStatusCode().value()).isEqualTo(200);
+        machine.set("x-tenant-id","2");assertThat(http.exchange(allowed.getBody().path("status_url").asText(),HttpMethod.GET,new HttpEntity<>(machine),JsonNode.class).getStatusCode().value()).isEqualTo(403);
     }
     @Test void repeatableMockOutboundLifecycleProducesQualityReportsAndBilling()throws Exception{
         store.insert("adminsetting",Values.map("tenant_id",1,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));
@@ -125,8 +187,24 @@ class BusinessHttpIT {
     }
     @Test void retryRejectedWhenAttemptsExhausted(){var call=retryFixture("completed");store.update("callsession",2,call.get("id"),Values.map("attempts",3));var rejected=request(HttpMethod.POST,"/api/v1/calls/"+call.get("id")+"/retry",null);assertThat(rejected.getStatusCode().value()).isEqualTo(409);assertThat(rejected.getBody().get("detail").asText()).isEqualTo("reach max attempts");assertThat(store.require("callsession",2,call.get("id")).get("attempts")).isEqualTo(3);}
     @Test void scheduledRetryRequeuesTerminalCall(){var call=retryFixture("busy");store.update("callsession",2,call.get("id"),Values.map("next_attempt_at",Store.now().minusSeconds(1)));worker.enqueueDue();assertThat(store.require("callsession",2,call.get("id")).get("status")).isEqualTo("queued");assertThat(store.query("taskoutbox","list",Values.map("tenantId",2,"offset",0,"limit",1000))).anyMatch(t->call.get("id").equals(t.get("aggregate_id"))&&"dial_call".equals(t.get("task_type")));}
+    @Test void ordinaryQueuedSelectionCannotBypassADeferredRetryTime(){
+        var call=retryFixture("queued");store.update("callsession",2,call.get("id"),Values.map("next_attempt_at",Store.now().plusHours(1)));worker.enqueueDue();
+        assertThat(store.query("taskoutbox","list",Values.map("tenantId",2,"offset",0,"limit",1000))).noneMatch(t->call.get("id").equals(t.get("aggregate_id"))&&"dial_call".equals(t.get("task_type")));
+        store.update("callsession",2,call.get("id"),Values.map("next_attempt_at",Store.now().minusSeconds(1)));worker.enqueueDue();
+        assertThat(store.query("taskoutbox","list",Values.map("tenantId",2,"offset",0,"limit",1000))).anyMatch(t->call.get("id").equals(t.get("aggregate_id"))&&"dial_call".equals(t.get("task_type")));
+    }
     @Test void campaignRestartReusesFailedCallInsteadOfCreatingNew(){tenantTwo();var contact=store.insert("contact",Values.map("tenant_id",2,"phone",phone(),"consent_state","consented"));var campaign=ok(request(HttpMethod.POST,"/api/v1/campaigns",Map.of("name","retry reuse","mode","ai_only","contact_ids",List.of(contact.get("id")),"retry_limit",2)));String route="/api/v1/campaigns/"+campaign.get("id").asInt()+"/start?auto_dial=false";ok(request(HttpMethod.POST,route,null));var calls=ok(request(HttpMethod.GET,"/api/v1/calls?campaign_id="+campaign.get("id").asInt(),null));String id=calls.get(0).get("id").asText();store.update("callsession",2,id,Values.map("status","failed","attempts",1));ok(request(HttpMethod.POST,route,null));var again=ok(request(HttpMethod.GET,"/api/v1/calls?campaign_id="+campaign.get("id").asInt(),null));assertThat(again).hasSize(1);assertThat(again.get(0).get("id").asText()).isEqualTo(id);assertThat(again.get(0).get("status").asText()).isEqualTo("created");assertThat(again.get(0).get("attempts").asInt()).isEqualTo(1);}
-    @Test void preAdmissionRejectionRollsBackAttempt(){var call=retryFixture("queued");store.update("callsession",2,call.get("id"),Values.map("attempts",0));org.mockito.Mockito.doThrow(new TelephonyClient.Failure(429,true)).when(telephony).command(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.eq("dial"),org.mockito.ArgumentMatchers.anyMap());var dial=org.springframework.test.util.ReflectionTestUtils.getField(worker,"dial");assertThat(((DialService)dial).dispatch(call.get("id"))).isFalse();var after=store.require("callsession",2,call.get("id"));assertThat(after.get("status")).isEqualTo("queued");assertThat(after.get("attempts")).isEqualTo(0);assertThat(after.get("started_at")).isNull();assertThat(after.get("telephony_call_id")).isNull();assertThat(after.get("ai_session_id")).isNull();}
+    @Test void unprovenPreAdmissionHeaderRetainsOriginalAttempt(){
+        var call=retryFixture("queued");store.update("callsession",2,call.get("id"),Values.map("attempts",0));
+        doThrow(new TelephonyClient.Failure(429,true)).when(telephony).command(anyMap(),eq("dial"),anyMap());
+        var dial=(DialService)org.springframework.test.util.ReflectionTestUtils.getField(worker,"dial");
+        assertThatThrownBy(()->dial.dispatch(call.get("id"))).isInstanceOf(DialService.PendingConfirmation.class);
+        var after=store.require("callsession",2,call.get("id"));
+        assertThat(after).containsEntry("status","dialing").containsEntry("attempts",1);assertThat(after.get("started_at")).isNotNull();
+        assertThat(after.get("telephony_call_id")).isNull();assertThat(after.get("ai_session_id")).isNull();
+        // The isolated stub issued no external command; remove fixture pressure.
+        store.update("callsession",2,call.get("id"),Values.map("status","failed"));
+    }
     SysUser handoffAgent(){var agent=new SysUser();agent.setTenantId(2);agent.setUsername("handoff"+UUID.randomUUID());agent.setFullName("Handoff fixture");agent.setRole("agent");agent.setAgentStatus("ready");agent.setLastSeenAt(Store.now());users.insert(agent);return agent;}
     @Test void handoffTransferFailureReturnsToWaitingHuman(){tenantTwo();var call=stateCall("waiting_human");var agent=handoffAgent();var handoff=store.insert("handoffrequest",Values.map("tenant_id",2,"call_session_id",call.get("id"),"state","waiting","assigned_agent_id",agent.getId()));org.mockito.Mockito.doThrow(new TelephonyClient.Failure(503,false)).when(telephony).command(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.eq("transfer"),org.mockito.ArgumentMatchers.anyMap());var h=new HttpHeaders();h.setBearerAuth(crypto.token(UserRecords.map(agent)));var response=http.exchange("/api/v1/calls/"+call.get("id")+"/handoffs/"+handoff.get("id")+"/accept",HttpMethod.POST,new HttpEntity<>(h),JsonNode.class);assertThat(response.getStatusCode().value()).isEqualTo(502);var after=store.require("callsession",2,call.get("id"));assertThat(after.get("status")).isEqualTo("waiting_human");assertThat(after.get("human_agent_id")).isNull();assertThat(after.get("last_error")).isEqualTo("handover failed");assertThat(users.findById(agent.getId(),2).getAgentStatus()).isEqualTo("ready");assertThat(store.require("handoffrequest",2,handoff.get("id")).get("state")).isEqualTo("waiting");}
     @Test void handoffTimeoutReturnsToAi()throws Exception{tenantTwo();for(String fallback:List.of("continue","end")){var call=stateCall("waiting_human");var h=store.insert("handoffrequest",Values.map("tenant_id",2,"call_session_id",call.get("id"),"state","waiting"));var state=conversation.state(call);var policy=json.readValue(state.get("policy_json").toString(),Map.class);policy.put("handoff_fallback",fallback);policy.put("handoff_timeout_prompt","超时提示文本");store.update("conversationstate",2,state.get("id"),Values.map("policy_json",json.writeValueAsString(policy),"timer_kind","handoff","deadline",Store.now().minusSeconds(1)));aiRuntime.afterPlayback(Values.map("product_kind","timer","call_id",call.get("id"),"attempt",1,"generation",state.get("generation"),"kind","handoff"));var after=store.require("callsession",2,call.get("id"));assertThat(after.get("status")).isEqualTo(fallback.equals("end")?"completed":"in_ai");assertThat(store.require("handoffrequest",2,h.get("id")).get("state")).isEqualTo("rejected");assertThat(ok(request(HttpMethod.GET,"/api/v1/calls/"+call.get("id")+"/speech-turns",null))).anySatisfy(turn->assertThat(turn.get("transcript").asText()).isEqualTo("超时提示文本"));assertThat(store.require("conversationstate",2,state.get("id")).get("data_json").toString()).doesNotContain("_ai_resumed");}}

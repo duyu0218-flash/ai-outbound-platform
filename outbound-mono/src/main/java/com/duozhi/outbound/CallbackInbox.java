@@ -155,18 +155,30 @@ public class CallbackInbox {
     int consumeBatch(int limit,int owner,int owners){
         if(owners<1||owners>4||owner<0||owner>=owners)throw new IllegalArgumentException("invalid callback ownership");
         long started=System.nanoTime();long[] stages=new long[4];
-        try{int consumed=tx.run(()->{stages[0]=System.nanoTime();
+        boolean terminalBatch=config.flag("JAVA_CALLBACK_TERMINAL_BATCH_ENABLED",false);
+        if(terminalBatch){
+            // Pick the oldest eligible stream head first, then batch only its
+            // resource class. Enabling terminal batching must not move ordinary
+            // dialing/answered receipts back under the global resource mutex.
+            var oldest=batchDb.rows("nextStatusClass",JsonSupport.map("now",Store.now(),"owner",owner,"owners",owners));
+            if(oldest.isEmpty())return 0;
+            terminalBatch=!Values.set("dialing","answered").contains(oldest.get(0).get("status"));
+        }
+        final boolean sharedResources=terminalBatch;
+        java.util.function.Function<java.util.function.Supplier<Integer>,Integer> transaction=terminalBatch?tx::serialized:tx::run;
+        try{int consumed=transaction.apply(()->{stages[0]=System.nanoTime();
             // Initial dialing/answered transitions preserve shared active counts.
             // Partition ownership + sorted call row locks serialize each call;
             // receivers append after its earliest pending receipt. Resource-
             // releasing and human transitions remain on the platform-locked path.
-            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(500,limit)),"owner",owner,"owners",owners));if(candidates.isEmpty())return 0;
+            var candidates=batchDb.records("initialStatuses","callbackinbox",JsonSupport.map("now",Store.now(),"limit",Math.max(1,Math.min(500,limit)),"owner",owner,"owners",owners,"terminalBatch",sharedResources));if(candidates.isEmpty())return 0;
             var partitions=candidates.stream().map(r->((Number)r.get("partition_id")).intValue()).distinct().sorted().toList();
             for(int id:partitions)if(!tx.tryLock(19483921,id))return 0;
             if(batchDb.rows("partitions",Map.of("ids",partitions)).size()!=partitions.size())throw new ApiError(503,"callback partitions are not initialized");
             var receipts=batchDb.records("lockReceipts","callbackinbox",Map.of("ids",candidates.stream().map(r->r.get("id")).toList())).stream().filter(r->"pending".equals(r.get("state"))&&!LocalDateTime.parse(r.get("available_at").toString()).isAfter(Store.now())).toList();if(receipts.isEmpty())return 0;
             stages[1]=System.nanoTime();
             try(var scope=new CallStatusBatchScope()){
+                scope.sharedResourcesLocked=sharedResources;
                 batchDb.prepare(scope,receipts);stages[2]=System.nanoTime();
                 store.bufferWrites(()->{for(var receipt:receipts)callbacks.handle(receipt.get("kind").toString(),json.object(receipt.get("body_json").toString()));return null;});
                 stages[3]=System.nanoTime();

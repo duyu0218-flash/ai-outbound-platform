@@ -22,6 +22,49 @@ class VoiceTest {
         values.put("VOICE_CPS", "100"); values.putAll(overrides); return new Settings(LedgerTestDatabase.settings(values));
     }
     private Map<String,Object> dial(String call, int tenant, int attempt) { return Map.of("call_id", call, "phone", "+8613900139000", "webhook_url", "http://127.0.0.1:18000/api/v1/webhooks/telephony/status", "metadata", Map.of("tenant_id", tenant, "attempt", attempt, "mode", "ai_only", "recording_enabled", false)); }
+    @Test void transactionLocalAdmissionProjectionPreservesSharedHardLimits()throws Exception {
+        var cfg=settings(Map.of("VOICE_MAX_CONCURRENT","2"));
+        try(var ledger=new LocalLedger(cfg)){
+            var security=new VoiceSecurity(cfg,ledger);
+            try(var projection=new VoiceAdmissionBatchScope()){
+                ledger.transaction(db->{
+                    for(String id:List.of("batch-limit-a","batch-limit-b")){var request=dial(id,1,1);assertTrue(security.admit(request,security.policy(request),true,10).fresh());}
+                    return null;
+                });
+            }
+            var request=dial("batch-limit-c",1,1);
+            assertEquals(429,assertThrows(Support.Failure.class,()->security.admit(request,security.policy(request),true,10)).status);
+            assertEquals(2L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM attempts")));
+        }
+    }
+    @Test void registeredCommandCanBeClaimedOnlyOnceAcrossLedgerOwners()throws Exception {
+        var config=settings(Map.of());
+        try(var first=new LocalLedger(config);var second=new LocalLedger(config)) {
+            var security=new VoiceSecurity(config,first);var payload=dial("v5-send-once",1,1);
+            String uuid=security.admit(payload,security.policy(payload),true,10).row().get("uuid").toString();
+            var workers=Executors.newFixedThreadPool(2);
+            try {
+                var a=workers.submit(()->new VoiceSendJournal(first).claim(uuid));
+                var b=workers.submit(()->new VoiceSendJournal(second).claim(uuid));
+                assertNotEquals(a.get(5,TimeUnit.SECONDS),b.get(5,TimeUnit.SECONDS));
+                assertFalse(new VoiceSendJournal(second).claim(uuid));
+            }finally{workers.shutdownNow();}
+        }
+    }
+    @Test void ambiguousIntentEscalatesDurablyAndLateAcceptanceCannotReviveEndedCall()throws Exception {
+        var config=settings(Map.of());
+        try(var ledger=new LocalLedger(config)) {
+            var security=new VoiceSecurity(config,ledger);var payload=dial("v5-hold",1,1);
+            String uuid=security.admit(payload,security.policy(payload),true,10).row().get("uuid").toString();
+            var journal=new VoiceSendJournal(ledger);assertTrue(journal.claim(uuid));journal.uncertain(uuid);
+            ledger.transaction(db->{LocalLedger.execute(db,"UPDATE attempts SET send_intent_at=? WHERE uuid=?",LocalLedger.now()-61,uuid);return null;});
+            journal.escalate();journal.escalate();
+            assertEquals("MANUAL_HOLD",security.lookup("v5-hold",1).get("send_state"));
+            assertFalse(journal.claim(uuid));assertEquals(1L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM audit WHERE action='send-manual-hold'")));
+            security.finish(uuid,0L);journal.accepted(uuid,Map.of("result","accepted","provider_call_id",uuid));
+            assertEquals("ENDED",security.lookup("v5-hold",1).get("send_state"));assertEquals("ended",security.lookup("v5-hold",1).get("state"));
+        }
+    }
     @Test void admissionIdempotencyBudgetAndTenantFences() throws Exception {
         var settings = settings(Map.of()); try (var ledger = new LocalLedger(settings)) {
             var security = new VoiceSecurity(settings, ledger); var request = dial("call-a", 1, 1); var route = security.policy(request);
@@ -50,6 +93,68 @@ class VoiceTest {
             var security = new VoiceSecurity(settings, ledger); assertEquals(409, assertThrows(Support.Failure.class, () -> security.command(path, body, stamp, nonce, signature)).status);
             assertEquals(401, assertThrows(Support.Failure.class, () -> security.command(path, new byte[0], stamp, nonce, signature)).status);
         }
+    }
+    private Map<String,String> commandPermit(Settings config,String path,byte[] body,String nonce){
+        String stamp=Long.toString(System.currentTimeMillis()/1000);byte[] prefix=(stamp+"."+nonce+"."+path+".").getBytes(StandardCharsets.UTF_8);byte[] signed=Arrays.copyOf(prefix,prefix.length+body.length);System.arraycopy(body,0,signed,prefix.length,body.length);
+        return Map.of("x-voice-timestamp",stamp,"x-voice-nonce",nonce,"x-voice-signature",Support.hmac(config.secret("VOICE_COMMAND_SECRET"),signed));
+    }
+    @Test void batchedNonceClaimsCommitTogetherAndReplayCannotSurviveRollback()throws Exception{
+        var config=settings(Map.of());String path="/v1/call/dial";byte[] body=Support.json(dial("nonce-batch",1,1));
+        var permits=List.of(commandPermit(config,path,body,"batch-first-0000000000000000"),commandPermit(config,path,body,"batch-second-000000000000000"));
+        var commands=permits.stream().map(headers->new VoiceController.Command("dial",body,headers)).toList();
+        try(var ledger=new LocalLedger(config)){
+            var security=new VoiceSecurity(config,ledger);
+            ledger.transaction(db->{try(var scope=new VoiceAdmissionBatchScope()){
+                scope.preload(ledger,commands);for(var headers:permits)security.command(path,body,headers.get("x-voice-timestamp"),headers.get("x-voice-nonce"),headers.get("x-voice-signature"));
+                assertEquals(0L,LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces"));scope.flush(ledger);return null;
+            }});
+            assertEquals(2L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces")));
+            var repeat=permits.get(0);assertEquals(409,assertThrows(Support.Failure.class,()->security.command(path,body,repeat.get("x-voice-timestamp"),repeat.get("x-voice-nonce"),repeat.get("x-voice-signature"))).status);
+            var fresh=commandPermit(config,path,body,"batch-rollback-0000000000000");var duplicated=List.of(new VoiceController.Command("dial",body,fresh),new VoiceController.Command("dial",body,fresh));
+            assertThrows(Support.Failure.class,()->ledger.transaction(db->{try(var scope=new VoiceAdmissionBatchScope()){
+                scope.preload(ledger,duplicated);security.command(path,body,fresh.get("x-voice-timestamp"),fresh.get("x-voice-nonce"),fresh.get("x-voice-signature"));
+                assertEquals(409,assertThrows(Support.Failure.class,()->security.command(path,body,fresh.get("x-voice-timestamp"),fresh.get("x-voice-nonce"),fresh.get("x-voice-signature"))).status);
+                scope.flush(ledger);return null;
+            }}));
+            assertEquals(0L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces WHERE nonce=?",fresh.get("x-voice-nonce"))));
+            security.command(path,body,fresh.get("x-voice-timestamp"),fresh.get("x-voice-nonce"),fresh.get("x-voice-signature"));
+        }
+    }
+    @Test void signedNoncesCommitWhileTheResourceWriterIsHeldAndConcurrentReplayHasOneWinner()throws Exception{
+        var config=settings(Map.of());String path="/v1/call/play";byte[] body=Support.json(Map.of("call_id","nonce-concurrency"));
+        var permit=commandPermit(config,path,body,"nonce-concurrent-000000000000000");var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try(var ledger=new LocalLedger(config)){
+            var security=new VoiceSecurity(config,ledger);
+            ledger.transaction(db->{
+                var start=new java.util.concurrent.CountDownLatch(1);var replies=new ArrayList<java.util.concurrent.Future<Integer>>();
+                for(int i=0;i<2;i++)replies.add(pool.submit(()->{start.await();try{security.command(path,body,permit.get("x-voice-timestamp"),permit.get("x-voice-nonce"),permit.get("x-voice-signature"));return 200;}catch(Support.Failure failure){return failure.status;}}));
+                start.countDown();var codes=new ArrayList<Integer>();for(var reply:replies)codes.add(reply.get(5,java.util.concurrent.TimeUnit.SECONDS));
+                java.util.Collections.sort(codes);assertEquals(List.of(200,409),codes);return null;
+            });
+            assertEquals(1L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces WHERE nonce=?",permit.get("x-voice-nonce"))));
+            var rollback=commandPermit(config,path,body,"nonce-noncached-rollback-00000000");
+            assertThrows(Support.Failure.class,()->ledger.transaction(db->{
+                security.command(path,body,rollback.get("x-voice-timestamp"),rollback.get("x-voice-nonce"),rollback.get("x-voice-signature"));
+                assertEquals(409,assertThrows(Support.Failure.class,()->security.command(path,body,rollback.get("x-voice-timestamp"),rollback.get("x-voice-nonce"),rollback.get("x-voice-signature"))).status);return null;
+            }));
+            assertEquals(0L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces WHERE nonce=?",rollback.get("x-voice-nonce"))));
+        }finally{pool.shutdownNow();}
+    }
+    @Test void concurrentNonceConsumptionInvalidatesTheWholePreloadedBatch()throws Exception{
+        var config=settings(Map.of());String path="/v1/call/dial";byte[] body=Support.json(dial("nonce-race",1,1));
+        var permit=commandPermit(config,path,body,"nonce-preloaded-race-0000000000");var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try(var ledger=new LocalLedger(config)){
+            var security=new VoiceSecurity(config,ledger);
+            assertThrows(Support.Failure.class,()->ledger.transaction(db->{try(var scope=new VoiceAdmissionBatchScope()){
+                scope.preload(ledger,List.of(new VoiceController.Command("dial",body,permit)));
+                security.command(path,body,permit.get("x-voice-timestamp"),permit.get("x-voice-nonce"),permit.get("x-voice-signature"));
+                LocalLedger.execute(db,"INSERT INTO flags (`key`,value) VALUES ('nonce_batch_side_effect','pending')");
+                pool.submit(()->security.command(path,body,permit.get("x-voice-timestamp"),permit.get("x-voice-nonce"),permit.get("x-voice-signature"))).get(5,java.util.concurrent.TimeUnit.SECONDS);
+                scope.flush(ledger);return null;
+            }}));
+            assertEquals(0L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM flags WHERE `key`='nonce_batch_side_effect'")));
+            assertEquals(1L,ledger.<Long>read(db->LocalLedger.scalar(db,"SELECT COUNT(*) FROM nonces WHERE nonce=?",permit.get("x-voice-nonce"))));
+        }finally{pool.shutdownNow();}
     }
     @Test void unsafeRoutesTargetsAndDuplicateOwnerFailClosed() throws Exception {
         var settings = settings(Map.of()); try (var ledger = new LocalLedger(settings)) {
@@ -91,6 +196,24 @@ class VoiceTest {
         server.createContext("/api/v1/webhooks/telephony/batch-v2",request->{var body=Support.object(request.getRequestBody().readAllBytes());assertEquals(2,Support.integer(body,"version",0));var events=(List<Map<String,Object>>)body.get("events");accepted.set(events.size());byte[] reply=Support.json(Map.of("version",2,"result","received","accepted",events.stream().map(e->e.get("id")).toList()));request.sendResponseHeaders(200,reply.length);request.getResponseBody().write(reply);request.close();});server.start();String base="http://127.0.0.1:"+server.getAddress().getPort();var settings=settings(Map.of("VOICE_CALLBACK_BASE_URL",base,"VOICE_CALLBACK_BATCH_ENABLED","true","VOICE_CALLBACK_BATCH_SIZE","64","VOICE_CALLBACK_CONCURRENCY","64"));
         try(var ledger=new LocalLedger(settings);var callbacks=new VoiceCallbacks(settings,ledger,new VoiceSecurity(settings,ledger))){callbacks.atomic(()->{for(int i=0;i<64;i++)callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id","v2-"+i,"sequence",1));});assertEquals(64,callbacks.tickOnce());await(()->accepted.get()==64);await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==0);}finally{server.stop(0);}
     }
+    @Test void callbackRequestSlotsAndEventBudgetAreIndependentlyBounded()throws Exception{
+        var entered=new CountDownLatch(2);var release=new CountDownLatch(1);
+        var executor=Executors.newCachedThreadPool();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);server.setExecutor(executor);
+        server.createContext("/api/v1/webhooks/telephony/batch",request->{
+            var body=Support.object(request.getRequestBody().readAllBytes());var events=(List<Map<String,Object>>)body.get("events");
+            entered.countDown();try{if(!release.await(5,TimeUnit.SECONDS))throw new IOException("fixture release timeout");}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IOException(interrupted);}
+            byte[] reply=Support.json(Map.of("version",1,"result","received","accepted",events.stream().map(e->e.get("id")).toList()));request.sendResponseHeaders(200,reply.length);request.getResponseBody().write(reply);request.close();
+        });server.start();String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var config=settings(Map.of("VOICE_CALLBACK_BASE_URL",base,"VOICE_CALLBACK_BATCH_ENABLED","true","VOICE_CALLBACK_BATCH_SIZE","16","VOICE_CALLBACK_CONCURRENCY","2","VOICE_CALLBACK_MAX_INFLIGHT_EVENTS","64"));
+        try(var ledger=new LocalLedger(config);var callbacks=new VoiceCallbacks(config,ledger,new VoiceSecurity(config,ledger))){
+            callbacks.atomic(()->{for(int i=0;i<64;i++)callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id","bounded-"+i,"sequence",1));});
+            assertEquals(32,callbacks.tickOnce());assertTrue(entered.await(3,TimeUnit.SECONDS));
+            assertEquals(2,callbacks.deliveries());assertEquals(32,callbacks.inflight());assertEquals(0,callbacks.tickOnce());
+            assertEquals(64,((Number)ledger.summary().get("pending_callbacks")).intValue());
+            release.countDown();await(()->callbacks.deliveries()==0);assertEquals(32,((Number)ledger.summary().get("pending_callbacks")).intValue());
+            assertEquals(32,callbacks.tickOnce());await(()->callbacks.deliveries()==0);assertEquals(0,callbacks.inflight());assertEquals(0,((Number)ledger.summary().get("pending_callbacks")).intValue());
+        }finally{release.countDown();server.stop(0);executor.shutdownNow();}
+    }
     @Test void signedSourceCleanupNeedsCompletionChecksumAndRetention() throws Exception {
         var settings = settings(Map.of("VOICE_NODE_ID", "node-a")); var source = new RecordingSource(settings); String filename = "test-call.wav"; byte[] audio = new byte[]{1, 2, 3, 4}; Files.write(directory.resolve(filename), audio);
         long expires = System.currentTimeMillis() / 1000 + 60; assertEquals(directory.resolve(filename).toRealPath(), source.authorized(filename, expires, source.signature(filename, expires)));
@@ -129,4 +252,21 @@ class VoiceTest {
         }finally{server.stop(0);}
     }
     private static void await(java.util.function.BooleanSupplier condition) throws Exception { long deadline = System.nanoTime() + 5_000_000_000L; while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("timed out waiting for asynchronous evidence"); Thread.sleep(10); } }
+    @Test void callbackReceiptsCanDrainWhileAdmissionWriterIsBusyWithoutBreakingFifo()throws Exception{
+        var received=new CopyOnWriteArrayList<Integer>();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/api/v1/webhooks/telephony/status",request->{received.add(((Number)Support.object(request.getRequestBody().readAllBytes()).get("sequence")).intValue());request.sendResponseHeaders(200,-1);request.close();});server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();var cfg=settings(Map.of("VOICE_CALLBACK_BASE_URL",base));var worker=Executors.newSingleThreadExecutor();
+        try(var ledger=new LocalLedger(cfg);var callbacks=new VoiceCallbacks(cfg,ledger,new VoiceSecurity(cfg,ledger))){
+            for(int sequence:List.of(1,2))callbacks.post(base+"/api/v1/webhooks/telephony/status",Map.of("call_id","writer-contention","sequence",sequence));
+            var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
+            var held=worker.submit(()->ledger.transaction(db->{entered.countDown();if(!release.await(10,TimeUnit.SECONDS))throw new IllegalStateException("fixture release timeout");return null;}));
+            try{
+                assertTrue(entered.await(3,TimeUnit.SECONDS));assertEquals(1,callbacks.tickOnce());
+                await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==1);
+                assertFalse(held.isDone());assertEquals(List.of(1),received);
+                assertEquals(1,callbacks.tickOnce());await(()->((Number)ledger.summary().get("pending_callbacks")).longValue()==0);
+                assertEquals(List.of(1,2),received);assertFalse(held.isDone());
+            }finally{release.countDown();held.get(3,TimeUnit.SECONDS);}
+        }finally{worker.shutdownNow();server.stop(0);}
+    }
 }

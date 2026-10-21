@@ -21,6 +21,10 @@ public class CallbackBatchStore {
             for(var event:records("events","webhookeventingest",params))scope.events.put(event.get("call_session_id")+":"+event.get("provider_event_key"),event);
             for(var task:records("tasks","taskoutbox",params))scope.tasks.put(tid+":"+task.get("idempotency_key"),task);
             for(var task:records("taskReceipts","taskreceipt",params))scope.receipts.put(tid+":"+task.get("idempotency_key"),task);
+            if(scope.sharedResourcesLocked){
+                for(String id:selected)scope.handoffs.put(id,new ArrayList<>());
+                for(var handoff:records("handoffs","handoffrequest",params))scope.handoffs.computeIfAbsent(handoff.get("call_session_id").toString(),k->new ArrayList<>()).add(handoff);
+            }
             settings.get(tid,"integration");
         }
     }

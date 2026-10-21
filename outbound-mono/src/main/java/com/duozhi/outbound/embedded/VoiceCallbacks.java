@@ -16,6 +16,7 @@ final class VoiceCallbacks implements AutoCloseable {
     private final ExecutorService delivery;
     private final ScheduledExecutorService poll;
     private final int concurrency;
+    private final java.util.concurrent.atomic.AtomicInteger deliveries = new java.util.concurrent.atomic.AtomicInteger();
     VoiceCallbacks(Settings settings, LocalLedger ledger, VoiceSecurity security) {
         this.settings = settings; this.ledger = ledger; this.security = security;
         concurrency = (int)settings.number("VOICE_CALLBACK_CONCURRENCY", 16, 1, 128);
@@ -34,14 +35,23 @@ final class VoiceCallbacks implements AutoCloseable {
         ledger.transaction(db -> {var posts=new ArrayList<Object[]>();bufferedPosts.set(posts);try{work.run();LocalLedger.executeBatch(db,"INSERT IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)",posts);return null;}finally{bufferedPosts.remove();}});
     }
     int inflight() { return inflight.size(); }
+    int deliveries() { return deliveries.get(); }
     void post(String url, Map<String,Object> payload) {
         security.callback(url); byte[] body = Support.canonical(payload); byte[] target = (url + "\0").getBytes(StandardCharsets.UTF_8); byte[] identity = Arrays.copyOf(target, target.length + body.length); System.arraycopy(body, 0, identity, target.length, body.length);
         String id = Support.hex(Support.sha(identity)); String stream = Support.str(payload, "call_id", id);
-        double now=LocalLedger.now();var posts=bufferedPosts.get();if(posts!=null){posts.add(new Object[]{id,url,body,now,now,stream});return;}
+        double now=LocalLedger.now();var projection=VoiceAdmissionBatchScope.current();if(projection!=null)projection.noteCallback(now);var posts=bufferedPosts.get();if(posts!=null){posts.add(new Object[]{id,url,body,now,now,stream});return;}
         ledger.transaction(db -> { LocalLedger.execute(db, "INSERT IGNORE INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,?,?,?)", id, url, body, now, now, stream); return null; });
     }
     synchronized int tickOnce() {
-        int available = concurrency - inflight.size(); if (available <= 0) return 0;
+        boolean batch = settings.flag("VOICE_CALLBACK_BATCH_ENABLED", false);
+        int batchSize = batch ? (int)settings.number("VOICE_CALLBACK_BATCH_SIZE", 16, 1, 64) : 1;
+        // Bound HTTP requests and event bodies independently. The compatibility
+        // default is still concurrency events; an explicit larger event budget
+        // lets a slow batch occupy one request slot rather than 64 request slots.
+        int eventBudget = (int)settings.number("VOICE_CALLBACK_MAX_INFLIGHT_EVENTS", concurrency, 1, 8192);
+        int slots = concurrency - deliveries.get();
+        int available = Math.min(eventBudget - inflight.size(), slots * batchSize);
+        if (available <= 0) return 0;
         // Exclude deliveries already awaiting their HTTP acknowledgement before
         // fetching their potentially large bodies. Predecessor checks still see
         // those durable rows, so later events of the same call cannot overtake.
@@ -49,18 +59,23 @@ final class VoiceCallbacks implements AutoCloseable {
         String exclude=active.isEmpty()?"":" AND o.id NOT IN ("+String.join(",",Collections.nCopies(active.size(),"?"))+")";
         var rows = ledger.read(db -> LocalLedger.query(db, "SELECT o.* FROM outbox o WHERE o.due<=?"+exclude+" AND NOT EXISTS(SELECT 1 FROM outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?", arguments.toArray()));
         rows.removeIf(row -> inflight.contains(row.get("id"))); if (rows.size() > available) rows = new ArrayList<>(rows.subList(0, available));
-        for (var row : rows) inflight.add((String)row.get("id"));
-        int count = rows.size();
-        boolean batch = settings.flag("VOICE_CALLBACK_BATCH_ENABLED", false);
-        int batchSize = (int)settings.number("VOICE_CALLBACK_BATCH_SIZE", 16, 1, 64);
+        int count = 0;
         int partitionGroups=(int)settings.number("VOICE_CALLBACK_PARTITION_GROUPS",1,1,4);var owners=new IdentityHashMap<Map<String,Object>,Integer>();
         if(batch&&partitionGroups>1){for(var row:rows)owners.put(row,partitionOwner(row,partitionGroups));rows.sort(Comparator.comparingInt(owners::get));}
-        for (int i = 0; i < rows.size();) {
+        for (int i = 0; i < rows.size() && slots > 0; slots--) {
             List<Map<String,Object>> group = new ArrayList<>(); group.add(rows.get(i++));
             String url = Support.str(group.get(0), "url", ""); String prefix = url.substring(0, url.lastIndexOf('/'));
             int owner=owners.getOrDefault(group.get(0),0);
             if (batch) while (i < rows.size() && group.size() < batchSize && owners.getOrDefault(rows.get(i),0)==owner && Support.str(rows.get(i), "url", "").startsWith(prefix + "/")) group.add(rows.get(i++));
-            delivery.submit(() -> deliver(group));
+            for (var row : group) inflight.add((String)row.get("id"));
+            deliveries.incrementAndGet();
+            try { delivery.submit(() -> deliver(group)); }
+            catch (RejectedExecutionException closed) {
+                for (var row : group) inflight.remove((String)row.get("id"));
+                deliveries.decrementAndGet();
+                throw closed;
+            }
+            count += group.size();
         }
         return count;
     }
@@ -92,18 +107,21 @@ final class VoiceCallbacks implements AutoCloseable {
                 var ack = Support.object(response.body()); Object ids = ack.get("accepted");
                 accepted = "received".equals(ack.get("result")) && Support.integer(ack, "version", 0) == version && ids instanceof List<?> list && list.size() == rows.size() && new HashSet<>(list).equals(new HashSet<>(rows.stream().map(r -> r.get("id")).toList()));
             }
-            if(accepted)ledger.transaction(db->{LocalLedger.execute(db,"DELETE FROM outbox WHERE id IN ("+String.join(",",Collections.nCopies(rows.size(),"?"))+")",rows.stream().map(r->r.get("id")).toArray());return null;});
-            else atomic(()->{for (var row : rows) complete(row, false, response.headers().firstValue("Retry-After").orElse("0"));});
+            if(accepted)ledger.callbackReceipt(db->{LocalLedger.execute(db,"DELETE FROM outbox WHERE id IN ("+String.join(",",Collections.nCopies(rows.size(),"?"))+")",rows.stream().map(r->r.get("id")).toArray());return null;});
+            else ledger.callbackReceipt(db->{var changes=new ArrayList<Object[]>();for(var row:rows)changes.add(new Object[]{LocalLedger.now()+retryDelay(row,response.headers().firstValue("Retry-After").orElse("0")),row.get("id")});LocalLedger.executeBatch(db,"UPDATE outbox SET failures=failures+1,due=? WHERE id=?",changes);return null;});
         } catch (Exception error) { for (var row : rows) { try { complete(row, false, "0"); } catch (Exception ignored) { } } }
-        finally { for (var row : rows) inflight.remove((String)row.get("id")); }
+        finally { for (var row : rows) inflight.remove((String)row.get("id")); deliveries.decrementAndGet(); }
     }
     private void deliverSingle(Map<String,Object> row) throws Exception {
         var response = send(Support.str(row, "url", ""), (byte[])row.get("body")); complete(row, response.statusCode() == 200, response.headers().firstValue("Retry-After").orElse("0"));
     }
     private void complete(Map<String,Object> row, boolean accepted, String retry) {
+        double delay=retryDelay(row,retry);
+        ledger.callbackReceipt(db -> { if (accepted) LocalLedger.execute(db, "DELETE FROM outbox WHERE id=?", row.get("id")); else LocalLedger.execute(db, "UPDATE outbox SET failures=failures+1,due=? WHERE id=?", LocalLedger.now() + delay, row.get("id")); return null; });
+    }
+    private double retryDelay(Map<String,Object> row,String retry){
         double after = 0; try { after = Double.parseDouble(retry); if (!Double.isFinite(after)) after = 0; } catch (NumberFormatException ignored) { }
-        double delay = Math.max(Math.min(300, after), Math.min(60, Math.pow(2, Support.integer(row, "failures", 0)))) + ThreadLocalRandom.current().nextDouble(.25);
-        ledger.transaction(db -> { if (accepted) LocalLedger.execute(db, "DELETE FROM outbox WHERE id=?", row.get("id")); else LocalLedger.execute(db, "UPDATE outbox SET failures=failures+1,due=? WHERE id=?", LocalLedger.now() + delay, row.get("id")); return null; });
+        return Math.max(Math.min(300, after), Math.min(60, Math.pow(2, Support.integer(row, "failures", 0)))) + ThreadLocalRandom.current().nextDouble(.25);
     }
     private void purge() {
         try { ledger.transaction(db -> {

@@ -52,7 +52,9 @@ final class VoiceSecurity {
         byte[] prefix = (stamp + "." + nonce + "." + path + ".").getBytes(StandardCharsets.UTF_8);
         byte[] value = Arrays.copyOf(prefix, prefix.length + body.length); System.arraycopy(body, 0, value, prefix.length, body.length);
         if (!Support.equals(Support.hmac(settings.secret("VOICE_COMMAND_SECRET"), value), signature == null ? "" : signature)) throw new Support.Failure(401, "invalid voice command permit");
-        ledger.transaction(db -> { LocalLedger.execute(db, "DELETE FROM nonces WHERE expires<?", now); if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM nonces WHERE nonce=?", nonce) != 0) throw new Support.Failure(409, "voice command permit was already used"); LocalLedger.execute(db, "INSERT INTO nonces VALUES (?,?)", nonce, now + 125); return null; });
+        var projection=VoiceAdmissionBatchScope.current();
+        if(projection!=null&&projection.preloaded())ledger.transaction(db->{if(!projection.claimNonce(db,nonce,now+125))throw new Support.Failure(409,"voice command permit was already used");return null;});
+        else ledger.consumeNonce(nonce,now+125);
     }
     Map<String,Object> policy(Map<String,Object> payload) {
         Map<String,Object> metadata = Support.map(payload.get("metadata")); long tenant = Support.integer(metadata, "tenant_id", 0), attempt = Support.integer(metadata, "attempt", 0);
@@ -74,43 +76,89 @@ final class VoiceSecurity {
     record Admission(Map<String,Object> row, boolean fresh) { }
     Admission admit(Map<String,Object> payload, Map<String,Object> route, boolean diskSafe, int capacity) {
         var metadata = Support.map(payload.get("metadata")); long tenant = Support.integer(metadata, "tenant_id", 0), attempt = Support.integer(metadata, "attempt", 0); String line = Long.toString(Support.integer(metadata, "telephony_line_id", 0));
-        String call = Support.required(payload, "call_id", 128), digest = Support.hex(Support.sha(Support.canonical(payload))); double now = LocalLedger.now();
+        byte[] frozenBytes=Support.canonical(payload);String frozen=new String(frozenBytes,StandardCharsets.UTF_8);
+        int protocol=VoiceAuthorizations.version(payload);
+        String call = Support.required(payload, "call_id", 128), digest = VoiceAuthorizations.digest(payload); double now = LocalLedger.now();
         long duration = Math.min(Support.integer(route, "max_duration_sec", 300), settings.number("VOICE_MAX_DURATION_SEC", 300, 1, 3600));
         long multiplier = Support.integer(route, "billing_multiplier", 2), rate = Support.integer(route, "rate_minor_per_minute", 1), cost = Math.multiplyExact(Math.multiplyExact((duration + 59) / 60, rate), multiplier);
         return ledger.transaction(db -> {
-            var prior = LocalLedger.query(db, "SELECT * FROM attempts WHERE call_id=? AND attempt=?", call, attempt);
-            if (!prior.isEmpty()) { var row = prior.get(0); if (Support.integer(row, "tenant", 0) != tenant || !row.get("digest").equals(digest)) throw new Support.Failure(409, "idempotency key has different payload"); return new Admission(row, false); }
+            var projection=VoiceAdmissionBatchScope.current();
+            var cached=projection!=null&&projection.preloaded()?projection.prior(db,call,attempt):null;
+            var prior=projection!=null&&projection.preloaded()?(cached==null?List.<Map<String,Object>>of():List.of(cached)):LocalLedger.query(db,"SELECT * FROM attempts WHERE call_id=? AND attempt=?",call,attempt);
+            Map<String,Object> auth=protocol==2?VoiceAuthorizations.requireInstalled(db,payload):null;
+            Map<String,Object> replaced=null;
+            if (!prior.isEmpty()) {
+                var row=prior.get(0);if(Support.integer(row,"tenant",0)!=tenant||!row.get("digest").equals(digest))throw new Support.Failure(409,"idempotency key has different payload");
+                if(protocol==2&&row.get("send_state").equals("REJECTED")&&row.get("state").equals("ended")&&row.get("result")==null&&auth!=null&&!Objects.equals(auth.get("reservation_id"),row.get("registration_id")))replaced=row;
+                else{if(auth!=null&&!Objects.equals(auth.get("reservation_id"),row.get("registration_id")))throw new Support.Failure(409,"original registration has not been conditionally replaced");return new Admission(row,false);}
+            }
+            if(protocol==1&&"db".equals(LocalLedger.query(db,"SELECT admission_mode FROM dial_admission_control WHERE id=1 FOR SHARE").get(0).get("admission_mode")))throw new Support.Failure(503,"DB admission requires the installed authorization protocol");
+            if(projection!=null)projection.begin();
+            if(!DialSendGate.permitted(db,call,tenant,attempt))throw new Support.Failure(429,"dial send barrier is closed",Map.of("X-Voice-Dial-Admitted","false"));
             if (!diskSafe) throw new Support.Failure(429, "recording source disk below reserve; new dialing stopped", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "5"));
-            if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM attempts WHERE call_id=? AND (state!='ended' OR tenant!=?)", call, tenant) != 0) throw new Support.Failure(409, "previous attempt is active or belongs to another tenant");
-            if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM flags WHERE key='stopped' AND value='1'") != 0) throw new Support.Failure(503, "emergency stop is active");
-            if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM outbox WHERE created<?", now - settings.number("VOICE_CALLBACK_FAILURE_STOP_SEC", 30, 1, 60)) != 0) throw new Support.Failure(503, "callback delivery unhealthy; new calls stopped");
-            checkScope(db, "1=1", List.of(), now, cost, Math.min(capacity, settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000)), settings.number("VOICE_CPS", 2, 1, 1000), settings.number("VOICE_DAILY_CALL_LIMIT", 1000, 1, 10000000), settings.number("VOICE_HOUR_BUDGET_MINOR", 10000, 1, Long.MAX_VALUE), settings.number("VOICE_DAY_BUDGET_MINOR", 50000, 1, Long.MAX_VALUE));
-            checkScope(db, "tenant=?", List.of(tenant), now, cost, settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000), settings.number("VOICE_CPS", 2, 1, 1000), settings.number("VOICE_DAILY_CALL_LIMIT", 1000, 1, 10000000), settings.number("VOICE_HOUR_BUDGET_MINOR", 10000, 1, Long.MAX_VALUE), settings.number("VOICE_DAY_BUDGET_MINOR", 50000, 1, Long.MAX_VALUE));
+            if ((projection!=null&&projection.preloaded()?projection.activeFor(db,call,tenant):LocalLedger.scalar(db,"SELECT COUNT(*) FROM attempts WHERE call_id=? AND (state!='ended' OR tenant!=?)",call,tenant))!=0)throw new Support.Failure(409,"previous attempt is active or belongs to another tenant");
+            if (count(projection,db,"__stopped","SELECT COUNT(*) FROM flags WHERE key='stopped' AND value='1'") != 0) throw new Support.Failure(503, "emergency stop is active");
+            boolean overdue;
+            if(projection==null)overdue=LocalLedger.scalar(db,"SELECT COUNT(*) FROM outbox WHERE created<?",now-settings.number("VOICE_CALLBACK_FAILURE_STOP_SEC",30,1,60))!=0;
+            else{double oldest=projection.oldestCallback(db);overdue=oldest!=0&&oldest<now-settings.number("VOICE_CALLBACK_FAILURE_STOP_SEC",30,1,60);}
+            if(overdue)throw new Support.Failure(503,"callback delivery unhealthy; new calls stopped");
+            checkScope(db, "1=1", List.of(), now, cost, Math.min(capacity, settings.number("VOICE_MAX_CONCURRENT", 20, 1, 100000)), settings.number("VOICE_CPS", 2, 1, 1000), settings.number("VOICE_DAILY_CALL_LIMIT", 1000, 1, 10000000), settings.number("VOICE_HOUR_BUDGET_MINOR", 10000, 1, Long.MAX_VALUE), settings.number("VOICE_DAY_BUDGET_MINOR", 50000, 1, Long.MAX_VALUE));
+            checkScope(db, "tenant=?", List.of(tenant), now, cost, settings.number("VOICE_MAX_CONCURRENT", 20, 1, 100000), settings.number("VOICE_CPS", 2, 1, 1000), settings.number("VOICE_DAILY_CALL_LIMIT", 1000, 1, 10000000), settings.number("VOICE_HOUR_BUDGET_MINOR", 10000, 1, Long.MAX_VALUE), settings.number("VOICE_DAY_BUDGET_MINOR", 50000, 1, Long.MAX_VALUE));
             checkScope(db, "tenant=? AND line=?", List.of(tenant, line), now, cost, Support.integer(route, "max_concurrent", 1), Support.integer(route, "cps", 1), Support.integer(route, "calls_per_day", 1), Support.integer(route, "hour_budget_minor", 1), Support.integer(route, "day_budget_minor", 1));
             if (settings.flag("VOICE_QUOTA_ENABLED", false)) new VoiceQuota(settings, ledger).reserve(db, call, attempt);
-            String uuid = UUID.randomUUID().toString();
-            LocalLedger.execute(db, "INSERT INTO attempts(call_id,attempt,tenant,line,uuid,digest,payload,created,deadline,cost,rate,multiplier) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", call, attempt, tenant, line, uuid, digest, new String(Support.canonical(payload), StandardCharsets.UTF_8), now, now + settings.number("FREESWITCH_ORIGINATE_TIMEOUT_SEC", 45, 5, 300) + duration + 10, cost, rate, multiplier);
-            return new Admission(LocalLedger.query(db, "SELECT * FROM attempts WHERE uuid=?", uuid).get(0), true);
+            String uuid = replaced==null?UUID.randomUUID().toString():replaced.get("uuid").toString();
+            double deadline=now+settings.number("FREESWITCH_ORIGINATE_TIMEOUT_SEC",45,5,300)+duration+10;
+            if(replaced==null)LocalLedger.execute(db, "INSERT INTO attempts(call_id,attempt,tenant,line,uuid,digest,payload,created,deadline,cost,rate,multiplier,send_state,protocol_version,registration_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'REGISTERED',?,?)", call, attempt, tenant, line, uuid, digest, frozen, now, deadline, cost, rate, multiplier,protocol,auth==null?null:auth.get("reservation_id"));
+            else if(LocalLedger.update(db,"UPDATE attempts SET payload=?,created=?,deadline=?,cost=?,rate=?,multiplier=?,send_state='REGISTERED',state='pending',registration_id=?,ended=NULL,send_intent_at=NULL,send_fence=0 WHERE uuid=? AND send_state='REJECTED' AND state='ended' AND result IS NULL AND registration_id=?",frozen,now,deadline,cost,rate,multiplier,auth.get("reservation_id"),uuid,replaced.get("registration_id"))!=1)throw new Support.Failure(409,"registration replacement lost its rejection proof");
+            if(projection!=null)projection.accepted();
+            var row=new LinkedHashMap<String,Object>();row.put("call_id",call);row.put("attempt",attempt);row.put("tenant",tenant);row.put("line",line);row.put("uuid",uuid);row.put("digest",digest);row.put("payload",frozen);row.put("created",now);row.put("deadline",deadline);row.put("cost",cost);row.put("rate",rate);row.put("multiplier",multiplier);row.put("state","pending");row.put("send_state","REGISTERED");row.put("observed",0);row.put("result",null);
+            row.put("protocol_version",protocol);row.put("registration_id",auth==null?null:auth.get("reservation_id"));
+            if(projection!=null&&projection.preloaded())projection.remember(row);
+            return new Admission(row,true);
         });
     }
     private void checkScope(Connection db, String where, List<Object> args, double now, long cost, long concurrency, long cps, long daily, long hourlyBudget, long dailyBudget) throws Exception {
+        var projection=VoiceAdmissionBatchScope.current();String prefix=where+args;
+        var compact=settings.flag("VOICE_MATERIALIZED_LIMITS_ENABLED",false)?(projection==null?VoiceScopeFacts.read(db,where,args,now):projection.compact(db,where,args,now)):null;
         // The three where clauses are fixed literals above; all values are bound parameters.
-        if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM attempts WHERE " + where + " AND state!='ended'", args.toArray()) >= concurrency) throw new Support.Failure(429, "voice concurrency/CPS hard limit reached", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "1"));
+        if (fact(compact,"active",projection,db,prefix+":active","SELECT COUNT(*) FROM attempts WHERE " + where + " AND state!='ended'", args.toArray()) >= concurrency) throw new Support.Failure(429, "voice concurrency/CPS hard limit reached", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "1"));
         List<Object> recent = new ArrayList<>(args); recent.add(now - 1);
-        if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM attempts WHERE " + where + " AND created>=?", recent.toArray()) >= cps) throw new Support.Failure(429, "voice concurrency/CPS hard limit reached", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "1"));
+        if (count(projection,db,prefix+":recent","SELECT COUNT(*) FROM attempts WHERE " + where + " AND send_state!='REJECTED' AND created>=?", recent.toArray()) >= cps) throw new Support.Failure(429, "voice concurrency/CPS hard limit reached", Map.of("X-Voice-Dial-Admitted", "false", "Retry-After", "1"));
         recent.set(recent.size() - 1, Math.floor(now / 86400) * 86400);
-        if (LocalLedger.scalar(db, "SELECT COUNT(*) FROM attempts WHERE " + where + " AND created>=?", recent.toArray()) >= daily) throw new Support.Failure(429, "voice daily call limit reached");
+        String dayKey=prefix+":day:"+recent.get(recent.size()-1);
+        if (fact(compact,"daily",projection,db,dayKey,"SELECT COUNT(*) FROM attempts WHERE " + where + " AND send_state!='REJECTED' AND created>=?", recent.toArray()) >= daily) throw new Support.Failure(429, "voice daily call limit reached");
         for (long window : new long[]{3600, 86400}) {
             double start = Math.floor(now / window) * window; List<Object> params = new ArrayList<>(args); params.add(start); params.add(start);
-            long spent = LocalLedger.scalar(db, "SELECT COALESCE(SUM(cost),0) FROM attempts WHERE " + where + " AND (created>=? OR ended>=? OR state!='ended')", params.toArray());
+            String budgetKey=prefix+":budget:"+window+":"+start;
+            long spent = fact(compact,window==3600?"hour_budget":"day_budget",projection,db,budgetKey,"SELECT COALESCE(SUM(cost),0) FROM attempts WHERE " + where + " AND (created>=? OR ended>=? OR state!='ended')", params.toArray());
             if (spent > (window == 3600 ? hourlyBudget : dailyBudget) - cost) throw new Support.Failure(429, "voice budget hard limit reached");
+            if(projection!=null)projection.add(budgetKey,cost);
         }
+        if(projection!=null){projection.add(prefix+":active",1);projection.add(prefix+":recent",1);projection.add(dayKey,1);}
     }
+    private static long count(VoiceAdmissionBatchScope projection,Connection db,String key,String sql,Object...args)throws Exception{return projection==null?LocalLedger.scalar(db,sql,args):projection.count(db,key,sql,args);}
+    private static long fact(Map<String,Object> compact,String field,VoiceAdmissionBatchScope projection,Connection db,String key,String sql,Object...args)throws Exception{if(compact==null)return count(projection,db,key,sql,args);long initial=((Number)compact.get(field)).longValue();return projection==null?initial:projection.projected(key,initial);}
     Map<String,Object> lookup(String call, long tenant) { return ledger.read(db -> { var rows = LocalLedger.query(db, "SELECT * FROM attempts WHERE call_id=? AND tenant=? ORDER BY attempt DESC LIMIT 1", call, tenant); if (rows.isEmpty()) throw new Support.Failure(404, "call not found in tenant"); return rows.get(0); }); }
+    /** Only the durable synthetic schedule calls this with rows already locked
+     * by the ledger writer. Preserves finish(uuid,null), including reserved cost
+     * and cleanup of this exact attempt; physical ASR/TTS permits stay untouched. */
+    void finishMockBatch(Connection db,List<Map<String,Object>> lockedRows,double endedAt)throws Exception{
+        if(!settings.get("VOICE_GATEWAY_DRIVER","mock").equals("mock"))throw new IllegalStateException("synthetic completion requires mock driver");
+        var rows=lockedRows.stream().filter(row->!row.get("state").equals("ended")).toList();if(rows.isEmpty())return;
+        for(var row:rows){
+            var evidence=row.get("result")==null?Map.<String,Object>of():Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+            if(!"PBX_STARTED".equals(row.get("send_state"))||!"synthetic_executor".equals(evidence.get("evidence_source"))||!row.get("uuid").equals(evidence.get("provider_call_id")))throw new Support.Failure(503,"synthetic completion lacks its original accepted evidence");
+        }
+        var ids=rows.stream().map(row->row.get("uuid")).toList();String slots=String.join(",",Collections.nCopies(ids.size(),"?"));
+        var args=new ArrayList<Object>();args.add(endedAt);args.addAll(ids);
+        if(LocalLedger.update(db,"UPDATE attempts SET state='ended',send_state='ENDED',ended=? WHERE uuid IN ("+slots+") AND state!='ended' AND send_state='PBX_STARTED'",args.toArray())!=rows.size())throw new Support.Failure(503,"synthetic completion lost its original attempt");
+        LocalLedger.execute(db,"DELETE c FROM voice_action_commands c JOIN attempts a ON a.call_id=c.call_id AND a.attempt=c.attempt WHERE a.uuid IN ("+slots+")",ids.toArray());
+        LocalLedger.execute(db,"UPDATE voice_permits p JOIN attempts a ON a.call_id=p.call_id AND a.attempt=p.attempt SET p.state='closed' WHERE a.uuid IN ("+slots+") AND p.kind='reserve'",ids.toArray());
+    }
     void finish(String uuid, Long billsec) { ledger.transaction(db -> {
         var rows = LocalLedger.query(db, "SELECT * FROM attempts WHERE uuid=?", uuid); if (rows.isEmpty() || rows.get(0).get("state").equals("ended")) return null;
         var row = rows.get(0); long charge = billsec == null ? Support.integer(row, "cost", 0) : Math.max(1, (billsec + 59) / 60) * Support.integer(row, "rate", 1) * Support.integer(row, "multiplier", 2);
-        LocalLedger.execute(db, "UPDATE attempts SET state='ended',cost=?,ended=? WHERE uuid=?", charge, LocalLedger.now(), uuid);
+        LocalLedger.execute(db, "UPDATE attempts SET state='ended',send_state='ENDED',cost=?,ended=? WHERE uuid=?", charge, LocalLedger.now(), uuid);
         LocalLedger.execute(db, "DELETE FROM voice_action_commands WHERE call_id=? AND attempt=?", row.get("call_id"), row.get("attempt"));
         LocalLedger.execute(db, "UPDATE voice_permits SET state='closed' WHERE call_id=? AND attempt=? AND kind='reserve'", row.get("call_id"), row.get("attempt")); return null;
     }); }

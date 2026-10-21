@@ -12,6 +12,8 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RestController
 
 public class VoiceController {
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.beans.factory.ObjectProvider<com.duozhi.outbound.DialDrainControl> dialControl;
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.beans.factory.ObjectProvider<com.duozhi.outbound.DialDailyCounters> dailyCounters;
     private final Settings settings;
     final VoiceGateway gateway;
     private final Semaphore downloads = new Semaphore(2);
@@ -23,7 +25,7 @@ public class VoiceController {
     }
     public Map<String,Object> ready() {
         if (!gateway.ready()) throw new Support.Failure(503, "voice gateway is not ready");
-        return Map.of("status", "ready", "node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", Math.min(settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000), gateway.media == null ? Integer.MAX_VALUE : gateway.media.capacity()), "driver", settings.get("VOICE_GATEWAY_DRIVER", "mock"), "voice_ai_pipeline", settings.get("VOICE_AI_PIPELINE", "legacy"), "callback_oldest_age_sec", gateway.ledger.summary().get("oldest_callback_age_sec"));
+        return Map.of("status", "ready", "node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", Math.min(settings.number("VOICE_MAX_CONCURRENT", 20, 1, 100000), gateway.media == null ? Integer.MAX_VALUE : gateway.media.capacity()), "driver", settings.get("VOICE_GATEWAY_DRIVER", "mock"), "voice_ai_pipeline", settings.get("VOICE_AI_PIPELINE", "legacy"), "callback_oldest_age_sec", gateway.ledger.summary().get("oldest_callback_age_sec"));
     }
     @PostMapping("/v1/call/{action}") public Map<String,Object> call(@PathVariable String action, @RequestBody byte[] body, HttpServletRequest request) throws Exception {
         return commandInternal(action,body,Map.of("Authorization",Objects.toString(request.getHeader("Authorization"),""),"x-voice-timestamp",Objects.toString(request.getHeader("x-voice-timestamp"),""),"x-voice-nonce",Objects.toString(request.getHeader("x-voice-nonce"),""),"x-voice-signature",Objects.toString(request.getHeader("x-voice-signature"),"")));
@@ -31,8 +33,9 @@ public class VoiceController {
     }
     public Map<String,Object> commandInternal(String action,byte[] body,Map<String,String> headers)throws Exception{
         Support.auth(settings,"SERVICE_TOKEN",headers.get("Authorization"),!gateway.real());
-        if(gateway.real())gateway.security.command("/v1/call/"+action,body,headers.get("x-voice-timestamp"),headers.get("x-voice-nonce"),headers.get("x-voice-signature"));
-        return gateway.post(action,Support.object(body));
+        var payload=Support.object(body);boolean signed=gateway.real()||VoiceAuthorizations.version(payload)==2||action.equals("dial-authorize");
+        if(signed){if(settings.secret("VOICE_COMMAND_SECRET").length()<32)throw new Support.Failure(503,"dial protocol requires an independent strong signing secret");gateway.security.command("/v1/call/"+action,body,headers.get("x-voice-timestamp"),headers.get("x-voice-nonce"),headers.get("x-voice-signature"));}
+        return gateway.post(action,payload);
     }
     public record Command(String action,byte[] body,Map<String,String> headers){}
     public record CommandResult(Map<String,Object> response,int status,boolean rejectedBeforeAdmission){}
@@ -41,27 +44,43 @@ public class VoiceController {
         var result=new ArrayList<CommandResult>();Runnable work=()->{
             for(var command:commands){if(Thread.currentThread().isInterrupted())throw new Support.Failure(503,"command batch interrupted");
                 try{result.add(new CommandResult(commandInternal(command.action(),command.body(),command.headers()),200,false));}
-                catch(Support.Failure failure){result.add(new CommandResult(null,failure.status,failure.status==429&&"false".equals(failure.headers.get("X-Voice-Dial-Admitted"))));}
+                catch(Support.Failure failure){if(settings.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(getClass()).info("voice_command_rejected action={} status={} reason={}",command.action(),failure.status,failure.getMessage());result.add(new CommandResult(null,failure.status,failure.status==429&&"false".equals(failure.headers.get("X-Voice-Dial-Admitted"))));}
                 catch(Exception failure){result.add(new CommandResult(null,500,false));}
             }
         };
         // Synthetic callbacks use the same durable writer, grouped in one commit.
         // Real PBX commands retain individual authorization/admission transactions.
-        if(gateway.real())work.run();else gateway.callbacks.atomic(work);return result;
+        if(gateway.real())work.run();else gateway.callbacks.atomic(()->{
+            if(settings.flag("VOICE_ADMISSION_BATCH_CACHE_ENABLED",false)&&(commands.stream().allMatch(c->c.action().equals("dial"))||commands.stream().allMatch(c->c.action().equals("dial-authorize"))))try(var scope=new VoiceAdmissionBatchScope()){scope.preload(gateway.ledger,commands);work.run();scope.flush(gateway.ledger);}
+            else work.run();
+        });return result;
     }
     private void admin(String auth) { Support.auth(settings, gateway.real() ? "VOICE_SECURITY_ADMIN_TOKEN" : "SERVICE_TOKEN", auth, !gateway.real()); }
+    @PostMapping("/v1/admin/dial-control/{action}") public Map<String,Object> dialControl(@PathVariable String action,@RequestHeader(value="Authorization",required=false) String auth) {
+        // A global maintenance operation always requires the independent global
+        // credential, including in development; a tenant admin is insufficient.
+        Support.auth(settings,"VOICE_SECURITY_ADMIN_TOKEN",auth,false);
+        if(dialControl==null)throw new Support.Failure(503,"monolith dial control unavailable");
+        var control=dialControl.getObject();
+        return switch(action){case "begin"->control.begin();case "close-sending"->control.closeSending();case "freeze-mock"->control.freezeMockFacts();case "cancel"->control.cancelDrain();case "status"->control.snapshot();default->throw new Support.Failure(404,"unknown dial control action");};
+    }
+    @PostMapping("/v1/admin/dial-counters/{action}") public Map<String,Object> dialCounters(@PathVariable String action,@RequestParam(defaultValue="0") long generation,@RequestParam(defaultValue="false") boolean read,@RequestHeader(value="Authorization",required=false) String auth){
+        Support.auth(settings,"VOICE_SECURITY_ADMIN_TOKEN",auth,false);
+        if(dailyCounters==null)throw new Support.Failure(503,"monolith counters unavailable");var counters=dailyCounters.getObject();
+        return switch(action){case "build"->counters.build(java.time.Instant.now());case "verify"->counters.verify(generation);case "publish"->counters.publish(generation,read);default->throw new Support.Failure(404,"unknown daily counter action");};
+    }
     @PostMapping("/v1/admin/drain") Map<String,Object> drain(@RequestParam(defaultValue="true") boolean enabled, @RequestHeader(value="Authorization", required=false) String auth) { admin(auth); gateway.draining = enabled; return Map.of("draining", enabled); }
     @PostMapping("/v1/admin/security/stop") Map<String,Object> stop(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {
         admin(auth); if (!(payload.get("stopped") instanceof Boolean stopped)) throw new Support.Failure(422, "stopped must be a boolean"); gateway.ledger.stopped(stopped, Support.required(payload, "reason", 300)); return gateway.ledger.summary();
     }
     @GetMapping("/v1/admin/security") Map<String,Object> security(@RequestHeader(value="Authorization", required=false) String auth) { admin(auth); return gateway.ledger.summary(); }
     @GetMapping("/v1/admin/capacity") Map<String,Object> capacity(@RequestHeader(value="Authorization", required=false) String auth) {
-        admin(auth); return Map.of("node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", settings.number("VOICE_MAX_CONCURRENT", 20, 1, 10000), "cps", settings.number("VOICE_CPS", 2, 1, 1000), "routes", gateway.security.routes, "recording_disk", gateway.recordings.disk());
+        admin(auth); return Map.of("node_id", settings.get("VOICE_NODE_ID", ""), "call_capacity", settings.number("VOICE_MAX_CONCURRENT", 20, 1, 100000), "cps", settings.number("VOICE_CPS", 2, 1, 1000), "routes", gateway.security.routes, "recording_disk", gateway.recordings.disk());
     }
     public Map<String,Map<String,?>> metricValues(){
         Map<String,Map<String,?>> result=new LinkedHashMap<>();var state=gateway.ledger.summary();
         result.put("ai_outbound_voice_gateway_",Map.of("ready",gateway.ready()?1:0,"draining",gateway.draining?1:0,"active_calls",state.get("active_attempts"),"pending_callbacks",state.get("pending_callbacks"),"calls",gateway.bindings.size()));
-        result.put("ai_outbound_voice_security_",state);result.put("ai_outbound_voice_esl_",gateway.eventMetrics());result.put("ai_outbound_voice_callback_",Map.of("http_inflight",gateway.callbacks.inflight()));result.put("ai_outbound_voice_ledger_",Map.of("commits_total",gateway.ledger.commits()));result.put("ai_outbound_pipecat_",Map.of("sessions",gateway.media==null?0:gateway.media.sessions().size(),"session_capacity",settings.number("PIPECAT_MAX_ACTIVE_SESSIONS",100,1,10000)));if(gateway.media!=null)result.put("ai_outbound_voice_",gateway.media.metrics());return result;
+        result.put("ai_outbound_voice_security_",state);result.put("ai_outbound_voice_esl_",gateway.eventMetrics());result.put("ai_outbound_voice_callback_",Map.of("http_inflight",gateway.callbacks.deliveries(),"events_inflight",gateway.callbacks.inflight()));result.put("ai_outbound_voice_ledger_",Map.of("commits_total",gateway.ledger.commits()));result.put("ai_outbound_pipecat_",Map.of("sessions",gateway.media==null?0:gateway.media.sessions().size(),"session_capacity",settings.number("PIPECAT_MAX_ACTIVE_SESSIONS",100,1,10000)));if(gateway.media!=null)result.put("ai_outbound_voice_",gateway.media.metrics());return result;
     }
     @GetMapping("/v1/recordings/{filename}") ResponseEntity<StreamingResponseBody> recording(@PathVariable String filename, @RequestParam long expires, @RequestParam String signature) throws Exception {
         var path = gateway.recordings.authorized(filename, expires, signature);
