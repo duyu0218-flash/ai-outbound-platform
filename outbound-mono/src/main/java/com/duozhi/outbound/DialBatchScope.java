@@ -5,12 +5,19 @@ import java.util.*;
 
 /** Transaction-local admission facts. Never shared across commits or JVMs. */
 final class DialBatchScope implements AutoCloseable {
+    Long dailyGeneration;
+    boolean journalPrepared;
+    final Map<String,Map<String,Object>> commands=new HashMap<>();
+    final List<Object[]> pendingCommands=new ArrayList<>();
+    final List<Object[]> readmissions=new ArrayList<>();
     private static final ThreadLocal<DialBatchScope> CURRENT=new ThreadLocal<>();
     final Instant instant=Instant.now();
     final Map<String,Map<String,Object>> calls=new HashMap<>(),tenants=new HashMap<>(),settings=new HashMap<>(),scenarios=new HashMap<>(),states=new HashMap<>(),contacts=new HashMap<>(),facts=new HashMap<>(),campaigns=new HashMap<>();
     final Map<String,Map<String,Object>> initialPolicies=new HashMap<>(),parsedPolicies=new HashMap<>();
     final Map<Long,List<Map<String,Object>>> lines=new HashMap<>();
     final Map<String,Long> counts=new HashMap<>();final Map<String,Boolean> hours=new HashMap<>();
+    final Map<String,DailyAttemptCount> dailyCounts=new HashMap<>();
+    final Map<String,java.time.LocalDateTime> phoneDayStarts=new HashMap<>();
     final Set<String> stateKeys=new HashSet<>();
     private final DialBatchScope previous;
     DialBatchScope(){previous=CURRENT.get();CURRENT.set(this);}

@@ -19,11 +19,11 @@ class DataLayerReplayIT {
             .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci");
 
     @Test void emptyDatabaseThenUnchangedReplay() throws Exception {
-        var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+        var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword())
                 .locations("classpath:db/migration").load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(6);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("6");
+        assertThat(first.migrationsExecuted).isEqualTo(18);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("18");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -81,17 +81,18 @@ class DataLayerReplayIT {
                 }
             }
         }
-        assertThat(tables).hasSize(55).containsKey("flyway_schema_history");
+        assertThat(tables).hasSize(72).containsKeys("flyway_schema_history","dial_admission_control","dial_drain_member","dial_migration_generation","dial_daily_counter","dial_fact_revision","dial_fact_head","dial_command_journal","voice_mock_schedule","dial_async_batch","capacity_commit_evidence","capacity_identity_evidence","dial_reservation","dial_phone_guard","dial_quota_counter","voice_dial_authorization","voice_dial_authorization_history","voice_scope_counter");
         report.put("totalTablesIncludingFlyway", tables.size());
         report.put("businessTableCount", 34);
         report.put("auxiliaryTableCount", 10);
         report.put("operationsTableCount", 10);
+        report.put("dialControlTableCount",16);
         report.put("applicationTableCount", tables.size() - 1);
         report.put("tables", tables);
         Path target = Path.of("target", "data-layer-replay.json"); Files.createDirectories(target.getParent());
         new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(target.toFile(), report);
         System.out.println("Flyway first: migrationsExecuted=" + first.migrationsExecuted + ", version=" + first.targetSchemaVersion + ", success=" + first.success);
         System.out.println("Flyway second: migrationsExecuted=" + second.migrationsExecuted + ", version=" + version + ", success=" + second.success);
-        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, operationsTables=10, totalTables=55");
+        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, operationsTables=10, dialControlTables=17, totalTables=72");
     }
 }

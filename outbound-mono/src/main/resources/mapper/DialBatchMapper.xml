@@ -7,15 +7,20 @@
  <select id="facts" resultType="java.util.LinkedHashMap">
  SELECT p.phone,
  (SELECT COUNT(*) FROM phonesuppression s WHERE s.tenant_id=#{tenantId} AND s.phone=p.phone) AS suppressed,
+ <choose><when test="dailyGeneration != null">
+ (SELECT d.legacy_component FROM dial_daily_counter d WHERE d.generation_id=#{dailyGeneration} AND d.scope_type='phone' AND d.tenant_id=#{tenantId} AND d.phone_digest=UNHEX(SHA2(p.phone,256)) AND d.phone=p.phone AND d.window_start=p.day_start AND d.timezone_revision=p.zone AND d.ready=TRUE) AS legacy_attempts,
+ (SELECT d.event_component FROM dial_daily_counter d WHERE d.generation_id=#{dailyGeneration} AND d.scope_type='phone' AND d.tenant_id=#{tenantId} AND d.phone_digest=UNHEX(SHA2(p.phone,256)) AND d.phone=p.phone AND d.window_start=p.day_start AND d.timezone_revision=p.zone AND d.ready=TRUE) AS event_attempts,
+ </when><otherwise>
  (SELECT COALESCE(SUM(c.attempts),0) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.created_at&gt;=p.day_start) AS legacy_attempts,
  (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) STRAIGHT_JOIN callevent e FORCE INDEX(ix_callevent_call_session_id) ON c.id=e.call_session_id WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND e.event_type='dial_attempt_claimed' AND e.created_at&gt;=p.day_start) AS event_attempts,
+ </otherwise></choose>
  (SELECT COUNT(*) FROM callsession c FORCE INDEX(ix_callsession_phone_active) WHERE c.tenant_id=#{tenantId} AND c.phone=p.phone AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')) AS active
- FROM (<foreach collection="phones" item="p" separator=" UNION ALL ">SELECT CONVERT(#{p.phone} USING utf8mb4) COLLATE utf8mb4_0900_bin AS phone,#{p.day} AS day_start</foreach>) p
+ FROM (<foreach collection="phones" item="p" separator=" UNION ALL ">SELECT CONVERT(#{p.phone} USING utf8mb4) COLLATE utf8mb4_0900_bin AS phone,#{p.day} AS day_start,CONVERT(#{p.zone} USING utf8mb4) COLLATE utf8mb4_0900_bin AS zone</foreach>) p
  </select>
  <select id="queuedCandidates" resultType="java.util.LinkedHashMap">
  SELECT c.id,c.tenant_id,c.attempts
  FROM callsession c LEFT JOIN campaign p ON p.tenant_id=c.tenant_id AND p.id=c.campaign_id
- WHERE c.tenant_id=#{tenantId} AND c.status='QUEUED' AND c.attempts&lt;c.max_attempts AND (c.campaign_id IS NULL OR(p.status='RUNNING' AND p.dispatch_enabled=TRUE))
+ WHERE c.tenant_id=#{tenantId} AND c.status='QUEUED' AND c.attempts&lt;c.max_attempts AND (c.next_attempt_at IS NULL OR c.next_attempt_at&lt;=#{now}) AND (c.campaign_id IS NULL OR(p.status='RUNNING' AND p.dispatch_enabled=TRUE))
  AND NOT EXISTS(SELECT 1 FROM taskreceipt r WHERE r.tenant_id=c.tenant_id AND r.idempotency_key=CONCAT('dial:',c.id,':',c.attempts+1))
  AND NOT EXISTS(SELECT 1 FROM taskoutbox t WHERE t.tenant_id=c.tenant_id AND t.idempotency_key=CONCAT('dial:',c.id,':',c.attempts+1))
  ORDER BY c.updated_at,c.id LIMIT #{limit}

@@ -11,6 +11,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class Errors {
+    @ExceptionHandler(AsyncDialService.Rejected.class)
+    ResponseEntity<?> batchRejected(AsyncDialService.Rejected e){return ResponseEntity.status(e.status).body(Map.of("detail",e.getMessage(),"errors",e.errors));}
     @ExceptionHandler(ApiError.class)
     ResponseEntity<?> api(ApiError e) { return ResponseEntity.status(e.status).body(Values.map("detail", e.getMessage())); }
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})

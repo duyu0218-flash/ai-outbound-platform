@@ -18,6 +18,11 @@ public class StorageConfiguration {
     DruidDataSource voiceLedgerDataSource(DataSourceProperties properties){
         var pool=properties.initializeDataSourceBuilder().type(DruidDataSource.class).build();pool.setName("voiceLedgerDataSource");pool.setInitialSize(0);pool.setMinIdle(0);pool.setMaxActive(4);pool.setMaxWait(5000);pool.setDefaultTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);configureDriver(pool);return pool;
     }
+    @Bean(name="capacityEvidenceDataSource",destroyMethod="close")
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="JAVA_CAPACITY_EVIDENCE_ENABLED",havingValue="true")
+    DruidDataSource capacityEvidenceDataSource(DataSourceProperties properties){
+        var pool=properties.initializeDataSourceBuilder().type(DruidDataSource.class).build();pool.setName("capacityEvidenceDataSource");pool.setInitialSize(0);pool.setMinIdle(0);pool.setMaxActive(2);pool.setMaxWait(5000);configureDriver(pool);return pool;
+    }
     private static void configureDriver(DruidDataSource pool){
         pool.addConnectionProperty("useLocalSessionState","true");pool.addConnectionProperty("rewriteBatchedStatements","true");
         // Bounded per-connection cache for the fixed MyBatis statements. Reuse

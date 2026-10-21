@@ -22,7 +22,7 @@ class OutboundReliabilityIT {
     @DynamicPropertySource static void config(DynamicPropertyRegistry p){
         p.add("JWT_SECRET",()->"outbound-reliability-test-secret-more-than-32-chars");
         p.add("spring.datasource.url",MYSQL::getJdbcUrl);p.add("spring.datasource.username",MYSQL::getUsername);p.add("spring.datasource.password",MYSQL::getPassword);
-        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",MYSQL::getUsername);p.add("spring.flyway.password",MYSQL::getPassword);
+        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",()->"root");p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
         p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_DISPATCH_ENABLED",()->"true");p.add("TELEPHONY_PROVIDER",()->"mock");
         p.add("OUTBOUND_PLATFORM_MAX_CONCURRENT",()->"500");
@@ -33,6 +33,7 @@ class OutboundReliabilityIT {
     @Autowired HumanRouting routing;@Autowired ConversationPolicy conversation;@Autowired CallLifecycle lifecycle;@Autowired JsonSupport json;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired DialBatchStore dialDb;@Autowired TaskWorker worker;
+    @Autowired DialCommandJournal journal;
     @Autowired CallbackInbox inbox;@Autowired CallbackBatchStore callbackDb;
     @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
     @Test void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection()throws Exception{try(var connection=dataSource.getConnection()){
@@ -79,7 +80,7 @@ class OutboundReliabilityIT {
         }finally{environment.getPropertySources().remove(property);}
     }
     @Test void concurrentAcceptanceIsIdempotentAndDoesNotHoldTheSharedAdmissionLock()throws Exception{
-        var call=call("dialing","ai_only");var entries=List.of(JsonSupport.map("call",call,"response",JsonSupport.map("provider_call_id","synthetic-ack")));var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        var call=call("dialing","ai_only");tx.serialized(()->{journal.freeze(call,Map.of("voice_ai_pipeline","legacy"));return null;});var entries=List.of(JsonSupport.map("call",call,"response",JsonSupport.map("result","accepted","provider_call_id","synthetic-ack")));var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
         try(var held=platformLocks.lock(718492061L)){
             var futures=new ArrayList<Future<?>>();for(int i=0;i<2;i++)futures.add(pool.submit(()->{try{start.await();dial.acknowledgeTasks(entries,dialDb);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}}));
             start.countDown();for(var future:futures)future.get(3,TimeUnit.SECONDS);

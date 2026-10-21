@@ -41,7 +41,7 @@ class DataLayerIT {
         p.add("spring.datasource.username", MYSQL::getUsername);
         p.add("spring.datasource.password", MYSQL::getPassword);
         p.add("spring.flyway.url", MYSQL::getJdbcUrl);
-        p.add("spring.flyway.user", MYSQL::getUsername);
+        p.add("spring.flyway.user", ()->"root");
         p.add("spring.flyway.password", MYSQL::getPassword);
         p.add("spring.data.redis.host", () -> "127.0.0.1");
         p.add("spring.data.redis.port", () -> 9);
@@ -186,7 +186,15 @@ class DataLayerIT {
             expectedTables.addAll(Set.of("voice_attempts","voice_flags","voice_nonces","voice_outbox","voice_audit","voice_action_commands","voice_permits","voice_media_owners","voice_model_budgets","voice_model_usage"));
             expectedTables.addAll(Set.of("ops_team","ops_member","ops_permission","ops_lead","ops_history","ops_view","ops_config","ops_notice","ops_presence","ops_tag_link"));
             expectedTables.add("flyway_schema_history");
-            assertThat(expectedTables).hasSize(55);
+            expectedTables.addAll(Set.of("dial_admission_control","dial_drain_member"));
+            expectedTables.addAll(Set.of("dial_migration_generation","dial_daily_counter","dial_fact_revision","dial_fact_head"));
+            expectedTables.addAll(Set.of("dial_command_journal","voice_mock_schedule"));
+            expectedTables.add("dial_async_batch");
+            expectedTables.addAll(Set.of("capacity_commit_evidence","capacity_identity_evidence"));
+            expectedTables.addAll(Set.of("dial_reservation","dial_phone_guard","dial_quota_counter"));
+            expectedTables.addAll(Set.of("voice_dial_authorization","voice_dial_authorization_history"));
+            expectedTables.add("voice_scope_counter");
+            assertThat(expectedTables).hasSize(72);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {
