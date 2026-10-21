@@ -5,7 +5,7 @@ import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class LedgerMySqlTest {
-    @Test void allTenTablesAndFifoTieOrdinalPersistAcrossRestart()throws Exception{
+    @Test void allVoiceTablesAndFifoTieOrdinalPersistAcrossRestart()throws Exception{
         var settings=new Settings(LedgerTestDatabase.settings(Map.of()));
         try(var ledger=new LocalLedger(settings)){
             ledger.transaction(db->{
@@ -13,7 +13,8 @@ class LedgerMySqlTest {
                 LocalLedger.execute(db,"INSERT INTO media_owners VALUES ('call','worker','epoch','{}','pending') ON DUPLICATE KEY UPDATE epoch=VALUES(epoch)");
                 LocalLedger.execute(db,"INSERT INTO media_owners VALUES ('call','worker','next','{}','pending') ON DUPLICATE KEY UPDATE epoch=VALUES(epoch)");
                 for(String id:List.of("z-first","a-second"))LocalLedger.execute(db,"INSERT INTO outbox(id,url,body,created,due,stream_key) VALUES (?,?,?,1,1,'same-call')",id,"http://test",new byte[]{1,2});
-                assertEquals(10,LocalLedger.scalar(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'voice_%'"));return null;
+                var tables=LocalLedger.query(db,"SELECT table_name AS fact_table FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'voice_%'").stream().map(r->r.get("fact_table").toString()).collect(java.util.stream.Collectors.toSet());
+                assertEquals(Set.of("voice_attempts","voice_flags","voice_nonces","voice_outbox","voice_audit","voice_action_commands","voice_permits","voice_media_owners","voice_model_budgets","voice_model_usage","voice_mock_schedule","voice_dial_authorization","voice_dial_authorization_history","voice_scope_counter"),tables);return null;
             });
         }
         try(var ledger=new LocalLedger(settings)){

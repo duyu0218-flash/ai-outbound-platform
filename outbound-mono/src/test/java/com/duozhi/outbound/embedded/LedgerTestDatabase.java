@@ -10,7 +10,7 @@ final class LedgerTestDatabase {
         try{var mysql=Server.MYSQL;String name="ledger_"+UUID.randomUUID().toString().replace("-","");
             String root="jdbc:mysql://"+mysql.getHost()+":"+mysql.getMappedPort(3306)+"/";
             try(var c=DriverManager.getConnection(root,mysql.getUsername().equals("root")?mysql.getUsername():"root",mysql.getPassword());var q=c.createStatement()){q.execute("CREATE DATABASE `"+name+"` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin");q.execute("GRANT ALL ON `"+name+"`.* TO '"+mysql.getUsername()+"'@'%'");}
-            String url=root+name;Flyway.configure().dataSource(url,mysql.getUsername(),mysql.getPassword()).locations("classpath:db/migration").load().migrate();
+            String url=root+name;Flyway.configure().dataSource(url,"root",mysql.getPassword()).locations("classpath:db/migration").load().migrate();
             var result=new HashMap<>(input);result.put("MYSQL_JDBC_URL",url);result.put("MYSQL_USER",mysql.getUsername());result.put("MYSQL_PASSWORD",mysql.getPassword());return result;
         }catch(Exception error){throw new IllegalStateException("Real ledger test database initialization failed",error);}
     }

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/calls")
 public class Calls {
+    @org.springframework.beans.factory.annotation.Autowired private AsyncDialService async;
+    @org.springframework.beans.factory.annotation.Autowired private JsonSupport json;
     private final Store store;
     private final Contract contract;
     private final DialService dial;
@@ -18,6 +20,24 @@ public class Calls {
     @PostMapping
     public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         return contract.output("CallSessionOut", dial.create(Identity.from(request), contract.input("StartCallRequest", body, true)));
+    }
+
+    @PostMapping("/batch")
+    public org.springframework.http.ResponseEntity<?> batch(HttpServletRequest request,@RequestHeader(value="Idempotency-Key",required=false) String key)throws java.io.IOException{
+        var body=asyncBody(request);
+        if(!(body.get("items") instanceof List<?> items)||body.size()!=1)throw new ApiError(422,"body must contain only an items array");
+        return org.springframework.http.ResponseEntity.status(202).body(async.submit(Identity.from(request),key,items,"batch"));
+    }
+    @PostMapping("/async")
+    public org.springframework.http.ResponseEntity<?> async(HttpServletRequest request,@RequestHeader(value="Idempotency-Key",required=false) String key)throws java.io.IOException{
+        return org.springframework.http.ResponseEntity.status(202).body(async.submit(Identity.from(request),key,List.of(asyncBody(request)),"single"));
+    }
+    @GetMapping("/batches/{id}")
+    public Map<String,Object> batchStatus(@PathVariable UUID id,HttpServletRequest request){return async.status(Identity.from(request),id);}
+    private Map<String,Object> asyncBody(HttpServletRequest request)throws java.io.IOException{
+        async.enabled();byte[] body=request.getInputStream().readNBytes(AsyncDialService.MAX_BYTES+1);
+        if(body.length>AsyncDialService.MAX_BYTES)throw new ApiError(413,"async call request exceeds 1 MiB");
+        return json.object(new String(body,java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @PostMapping("/{id}/retry")

@@ -31,7 +31,7 @@ class ScriptHttpIT {
     @DynamicPropertySource static void properties(DynamicPropertyRegistry p){
         p.add("JWT_SECRET",()->"customer-http-secret-at-least-thirty-two-characters");
         p.add("spring.datasource.url",MYSQL::getJdbcUrl);p.add("spring.datasource.username",MYSQL::getUsername);p.add("spring.datasource.password",MYSQL::getPassword);
-        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",MYSQL::getUsername);p.add("spring.flyway.password",MYSQL::getPassword);
+        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",()->"root");p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
         p.add("spring.ai.model.chat",()->"none");p.add("TENANT_API_KEYS_JSON",()->"{\"1\":\"customer-test-key\"}");
     }

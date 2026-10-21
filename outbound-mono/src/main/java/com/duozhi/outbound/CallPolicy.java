@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 /** The same preflight rules as Python can_call_contact_sync. No outbound side effects. */
 @Service
 public class CallPolicy {
+    @org.springframework.beans.factory.annotation.Autowired private DialDailyCounters daily;
     private final Store store;
     private final Settings settings;
     private final Config config;
@@ -63,8 +64,10 @@ public class CallPolicy {
         if (start != end && !(start <= local.getHour() && local.getHour() < end)) return "outside_calling_hours";
         LocalDateTime utcStart = LocalDateTime.ofInstant(local.toLocalDate().atStartOfDay(local.getZone()).toInstant(), ZoneOffset.UTC);
         Object bound = store.encode("callsession", "created_at", utcStart);
-        Long legacy = facts==null?store.scalar("callsession","dailyAttempts",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("legacy_attempts")).longValue();
-        Long events = facts==null?store.scalar("callevent","dailyAttemptEvents",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("event_attempts")).longValue();
+        Long generation=daily==null?null:batch==null?daily.readGeneration():batch.dailyGeneration;
+        DailyAttemptCount count=facts==null&&generation!=null?daily.read(generation,tenant,phone,utcStart,zone):null;
+        Long legacy = count!=null?count.legacy():facts==null?store.scalar("callsession","dailyAttempts",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("legacy_attempts")).longValue();
+        Long events = count!=null?count.events():facts==null?store.scalar("callevent","dailyAttemptEvents",Values.map("tenantId",tenant,"phone",phone,"start",bound)):((Number)facts.get("event_attempts")).longValue();
         if (Math.max(legacy == null ? 0 : legacy, events == null ? 0 : events) >= number(policy, "max_attempts_per_day", 3, 1, 20))
             return "daily_attempt_limit";
         int interval = number(policy, "min_attempt_interval_sec", 0, 0, 604800);

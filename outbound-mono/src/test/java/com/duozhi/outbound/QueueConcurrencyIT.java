@@ -26,14 +26,16 @@ class QueueConcurrencyIT {
     @DynamicPropertySource static void properties(DynamicPropertyRegistry p){
         p.add("JWT_SECRET",()->"queue-regression-fixture-secret-with-more-than-32-characters");
         p.add("spring.datasource.url",MYSQL::getJdbcUrl);p.add("spring.datasource.username",MYSQL::getUsername);p.add("spring.datasource.password",MYSQL::getPassword);
-        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",MYSQL::getUsername);p.add("spring.flyway.password",MYSQL::getPassword);
+        p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",()->"root");p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));
         p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
-        p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("spring.ai.model.chat",()->"none");
+        p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_ANALYSIS_TASK_OWNERS",()->"2");p.add("spring.ai.model.chat",()->"none");
     }
     @Autowired Store store;@Autowired Transactions tx;@Autowired Outbox outbox;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired TaskWorker worker;@Autowired CallbackInbox inbox;@Autowired TestRestTemplate http;
+    @org.springframework.boot.test.mock.mockito.SpyBean CallAnalysis analysis;
+    @Autowired ConversationPolicy conversation;@Autowired VoiceCallbacks businessVoice;
     @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
     @org.springframework.boot.test.mock.mockito.SpyBean AiRuntime runtime;
     @org.springframework.boot.test.mock.mockito.SpyBean TelephonyClient telephony;
@@ -143,6 +145,194 @@ class QueueConcurrencyIT {
             }
             for(var result:futures)assertThat(result.get(5,TimeUnit.SECONDS)).isNotNull();
         }finally{pool.shutdownNow();}
+    }
+    @Test void enablingTerminalBatchesKeepsInitialReceiptsIndependentAndTerminalReleaseLocked()throws Exception{
+        var properties=new org.springframework.core.env.MapPropertySource("callback-resource-classes",Map.of("JAVA_CALLBACK_TERMINAL_BATCH_ENABLED","true"));
+        environment.getPropertySources().addFirst(properties);var pool=Executors.newFixedThreadPool(2);
+        var call=store.insert("callsession",Values.map("tenant_id",1,"phone","15500002222","mode","ai_only","status","dialing","attempts",1,"max_attempts",1,"started_at",Store.now()));
+        String id=call.get("id").toString();
+        inbox.receive("telephony_status",Values.map("call_id",id,"payload",Values.map("status","answered","attempt",1,"event_id",key())));
+        inbox.receive("telephony_status",Values.map("call_id",id,"payload",Values.map("status","completed","attempt",1,"event_id",key())));
+        Future<Integer> terminal;
+        try{
+            try(var held=platformLocks.lock(718492061L)){
+                assertThat(pool.submit(()->inbox.consumeBatch(100)).get(5,TimeUnit.SECONDS)).isEqualTo(1);
+                assertThat(store.require("callsession",1,id).get("status")).isEqualTo("answered");
+                var entered=new CountDownLatch(1);terminal=pool.submit(()->{entered.countDown();return inbox.consumeBatch(100);});
+                assertThat(entered.await(3,TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(()->terminal.get(200,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+                assertThat(store.require("callsession",1,id).get("status")).isEqualTo("answered");
+            }
+            assertThat(terminal.get(5,TimeUnit.SECONDS)).isEqualTo(1);assertThat(store.require("callsession",1,id).get("status")).isEqualTo("completed");
+            var rows=store.query("callbackinbox","list",Values.map("offset",0,"limit",1000)).stream().filter(r->id.equals(r.get("call_id"))).toList();
+            assertThat(rows).hasSize(2).allSatisfy(row->assertThat(row.get("state")).isEqualTo("done"));
+        }finally{environment.getPropertySources().remove(properties.getName());pool.shutdownNow();}
+    }
+    @Test void concurrentAnalysisOfOneCallRemainsUniqueWhileResourceMutexIsHeld()throws Exception{
+        var call=store.insert("callsession",Values.map("tenant_id",1,"phone","15500003333","mode","ai_only","status","completed","attempts",1,"max_attempts",1,"finished_at",Store.now()));
+        store.insert("speechturn",Values.map("tenant_id",1,"call_session_id",call.get("id"),"provider_event_key",key(),"speaker_role","customer","is_final",true,"attempt",1,"turn_index",1,"transcript","并发复验唯一转写证据","normalized_transcript","并发复验唯一转写证据"));
+        var pool=Executors.newFixedThreadPool(2);
+        try(var held=platformLocks.lock(718492061L)){
+            var first=pool.submit(()->analysis.analyze(call.get("id"),1));var second=pool.submit(()->analysis.analyze(call.get("id"),1));
+            var one=first.get(5,TimeUnit.SECONDS);var two=second.get(5,TimeUnit.SECONDS);
+            assertThat(one).isNotNull();assertThat(two.get("id")).isEqualTo(one.get("id"));assertThat(one.get("summary")).isEqualTo("并发复验唯一转写证据");assertThat(two.get("summary")).isEqualTo("并发复验唯一转写证据");
+            assertThat(store.query("callanalysis","scopedCallAnalysis17",Store.scopedParameters(1,store.encode("callanalysis","call_session_id",call.get("id"))))).hasSize(1);
+            assertThat(analysis.analyze(call.get("id"),2)).isNull();
+        }finally{pool.shutdownNow();}
+    }
+    @Test void analysisWaitsForItsParentWithoutBlockingOtherCallsAndReadsTheCommittedResult()throws Exception{
+        var first=store.insert("callsession",Values.map("tenant_id",1,"phone","15500003334","mode","ai_only","status","completed","attempts",1,"max_attempts",1,"finished_at",Store.now()));
+        var other=store.insert("callsession",Values.map("tenant_id",1,"phone","15500003335","mode","ai_only","status","no_answer","attempts",1,"max_attempts",1,"finished_at",Store.now()));
+        var pool=Executors.newFixedThreadPool(3);var locked=new CountDownLatch(1);var release=new CountDownLatch(1);
+        try{
+            var holding=pool.submit(()->tx.run(()->{
+                store.one("callsession","lockById",Values.map("tenantId",1,"id",store.encode("callsession","id",first.get("id"))));locked.countDown();
+                try{if(!release.await(10,TimeUnit.SECONDS))throw new AssertionError("parent lock release timed out");}catch(InterruptedException e){throw new RuntimeException(e);}
+                return analysis.analyze(first.get("id"),1);
+            }));
+            assertThat(locked.await(3,TimeUnit.SECONDS)).isTrue();
+            var waiting=pool.submit(()->analysis.analyze(first.get("id"),1));
+            assertThatThrownBy(()->waiting.get(200,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            assertThat(pool.submit(()->analysis.analyze(other.get("id"),1)).get(5,TimeUnit.SECONDS).get("result_code")).isEqualTo("no_answer");
+            release.countDown();var committed=holding.get(5,TimeUnit.SECONDS);var refreshed=waiting.get(5,TimeUnit.SECONDS);
+            assertThat(refreshed.get("id")).isEqualTo(committed.get("id"));
+            assertThat(store.query("callanalysis","scopedCallAnalysis17",Store.scopedParameters(1,store.encode("callanalysis","call_session_id",first.get("id"))))).hasSize(1);
+        }finally{release.countDown();pool.shutdownNow();}
+    }
+    @Test void boundedAtomicAnalysisOwnersCommitIndependentResultsAndTasksExactlyOnce()throws Exception{
+        long tid=93;store.insert("tenant",Values.map("id",tid,"code","atomic-analysis-fixture","name","Isolated atomic analysis fixture"));
+        var property=new org.springframework.core.env.MapPropertySource("atomic-analysis-claims",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);
+        org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",16);
+        String[] types=(String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes");var indexes=new ArrayList<Integer>();for(int i=0;i<types.length;i++)if(types[i].equals("('call_analysis')"))indexes.add(i);
+        var pool=Executors.newFixedThreadPool(2);
+        try{
+            for(int i=0;i<24;i++){var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","15500006"+String.format("%03d",i),"mode","ai_only","status","no_answer","attempts",1,"max_attempts",1));outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1));}
+            try(var held=platformLocks.lock(718492061L)){
+                for(int round=0;round<4;round++){var gate=new CountDownLatch(1);var replies=new ArrayList<Future<Boolean>>();for(int index:indexes)replies.add(pool.submit(()->{gate.await();return worker.processLane(tid,index);}));gate.countDown();for(var reply:replies)reply.get(10,TimeUnit.SECONDS);}
+            }
+            var tasks=store.query("taskoutbox","list",Values.map("tenantId",tid,"offset",0,"limit",100));assertThat(tasks).hasSize(24).allSatisfy(task->assertThat(task).containsEntry("state","completed").containsEntry("attempts",1).containsEntry("lease_token",null));
+            assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSize(24);
+        }finally{org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",1);environment.getPropertySources().remove(property.getName());pool.shutdownNow();}
+    }
+    @Test void analysisCohortFailureRollsBackBeforeSingleTaskRetryAndDoesNotDiscardHealthyCalls()throws Exception{
+        long tid=94;store.insert("tenant",Values.map("id",tid,"code","analysis-rollback-fixture","name","Isolated analysis rollback fixture"));
+        var property=new org.springframework.core.env.MapPropertySource("analysis-rollback-claims",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",16);
+        int lane=Arrays.asList((String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes")).indexOf("('call_analysis')");
+        try{
+            var tasks=new ArrayList<Map<String,Object>>();var calls=new HashMap<String,Object>();
+            for(int i=0;i<4;i++){var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","1550000777"+i,"mode","ai_only","status","no_answer","attempts",1,"max_attempts",1));var task=outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1));tasks.add(task);calls.put(task.get("id").toString(),call.get("id"));}
+            tasks.sort(Comparator.comparing(t->t.get("id").toString()));Object poison=calls.get(tasks.get(3).get("id").toString());var injected=new java.util.concurrent.atomic.AtomicBoolean();
+            org.mockito.Mockito.doAnswer(invocation->{Map<String,Object> call=invocation.getArgument(0);if(call!=null&&poison.equals(call.get("id"))){if(injected.compareAndSet(false,true))assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSize(3);throw new IllegalStateException("isolated analysis cohort SQL failure");}return invocation.callRealMethod();}).when(analysis).analyzeLocked(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.anyInt());
+            worker.processLane(tid,lane);assertThat(injected.get()).isTrue();assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSizeLessThanOrEqualTo(1);
+            for(int i=0;i<6;i++)worker.processLane(tid,lane);
+            var persisted=store.query("taskoutbox","list",Values.map("tenantId",tid,"offset",0,"limit",100));
+            assertThat(persisted).hasSize(4).allSatisfy(task->{assertThat(task.get("attempts")).isEqualTo(1);Object call=calls.get(task.get("id").toString());assertThat(task.get("state")).isEqualTo(poison.equals(call)?"failed":"completed");});
+            assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSize(3).noneMatch(row->poison.equals(row.get("call_session_id")));
+        }finally{org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",1);environment.getPropertySources().remove(property.getName());}
+    }
+    @Test void atomicAnalysisReclaimsAnExpiredHeadBeforeTheNextAttemptAndFencesTheOldOwner(){
+        long tid=95;store.insert("tenant",Values.map("id",tid,"code","analysis-fifo-fixture","name","Isolated analysis FIFO fixture"));
+        var property=new org.springframework.core.env.MapPropertySource("analysis-fifo-claims",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",16);
+        int lane=Arrays.asList((String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes")).indexOf("('call_analysis')");
+        try{
+            var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","15500008880","mode","ai_only","status","no_answer","attempts",2,"max_attempts",2));
+            var old=outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1));
+            var head=store.update("taskoutbox",tid,old.get("id"),Values.map("state","processing","attempts",1,"locked_at",Store.now().minusSeconds(60),"lease_token","expired-analysis-owner"));
+            var next=outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",2));
+            assertThat(worker.processLane(tid,lane)).isTrue();assertThat(worker.owns(head)).isFalse();assertThat(store.require("taskoutbox",tid,next.get("id")).get("state")).isEqualTo("pending");
+            assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).isEmpty();
+            assertThat(worker.processLane(tid,lane)).isTrue();assertThat(store.require("taskoutbox",tid,next.get("id")).get("state")).isEqualTo("completed");assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSize(1);
+        }finally{org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",1);environment.getPropertySources().remove(property.getName());}
+    }
+    @Test void analysisBatchDoesNotPassAnOlderDeadTaskBeingReactivated()throws Exception{
+        long tid=96;store.insert("tenant",Values.map("id",tid,"code","analysis-reactivation-fixture","name","Isolated reactivation fixture"));
+        var property=new org.springframework.core.env.MapPropertySource("analysis-reactivation-claims",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",16);
+        int lane=Arrays.asList((String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes")).indexOf("('call_analysis')");var pool=Executors.newSingleThreadExecutor();
+        try{
+            var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","15500008881","mode","ai_only","status","no_answer","attempts",2,"max_attempts",2));
+            var old=outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1));store.update("taskoutbox",tid,old.get("id"),Map.of("state","dead"));
+            var next=outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",2));
+            tx.run(()->{
+                store.one("taskoutbox","lockById",Values.map("tenantId",tid,"id",store.encode("taskoutbox","id",old.get("id"))));
+                store.update("taskoutbox",tid,old.get("id"),Map.of("state","pending"));
+                try{assertThat(pool.submit(()->worker.processLane(tid,lane)).get(5,TimeUnit.SECONDS)).isFalse();}catch(Exception error){throw new RuntimeException(error);}return null;
+            });
+            assertThat(store.require("taskoutbox",tid,next.get("id")).get("state")).isEqualTo("pending");
+            assertThat(worker.processLane(tid,lane)).isTrue();assertThat(store.require("taskoutbox",tid,next.get("id")).get("state")).isEqualTo("pending");
+            assertThat(worker.processLane(tid,lane)).isTrue();assertThat(store.query("callanalysis","list",Values.map("tenantId",tid,"offset",0,"limit",100))).hasSize(1);
+        }finally{org.springframework.test.util.ReflectionTestUtils.setField(worker,"analysisBatchSize",1);environment.getPropertySources().remove(property.getName());pool.shutdownNow();}
+    }
+    @Test void localTimerPreparationAndCleanupDoNotWaitForResourceMutexAndStaleTimersHaveNoEffect()throws Exception{
+        org.mockito.Mockito.doNothing().when(runtime).apply(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.anyMap());
+        var pool=Executors.newSingleThreadExecutor();
+        try{
+            for(String kind:List.of("silence","failure")){
+                var call=store.insert("callsession",Values.map("tenant_id",1,"phone","1550000555"+(kind.equals("silence")?1:2),"mode","ai_only","status","in_ai","attempts",1,"max_attempts",1));
+                var state=conversation.state(call);var media=businessVoice.realtime(call);store.update("realtimesession",1,media.get("id"),Map.of("state","listening"));
+                store.update("conversationstate",1,state.get("id"),Values.map("timer_kind",kind,"deadline",Store.now().minusSeconds(1)));
+                Map<String,Object> payload=Values.map("product_kind","timer","call_id",call.get("id"),"attempt",1,"generation",state.get("generation"),"kind",kind);
+                try(var held=platformLocks.lock(718492061L)){pool.submit(()->runtime.afterPlayback(payload)).get(5,TimeUnit.SECONDS);}
+                var saved=store.require("conversationstate",1,state.get("id"));assertThat(saved.get("timer_kind")).isEqualTo("");assertThat(saved.get("deadline")).isNull();
+                assertThat(((Number)saved.get("generation")).intValue()).isGreaterThan(((Number)state.get("generation")).intValue());
+                runtime.afterPlayback(payload);var stale=new LinkedHashMap<>(payload);stale.put("attempt",2);runtime.afterPlayback(stale);
+                assertThat(store.require("conversationstate",1,state.get("id"))).containsEntry("generation",saved.get("generation")).containsEntry("data_json",saved.get("data_json"));
+                org.mockito.Mockito.verify(runtime).apply(org.mockito.ArgumentMatchers.argThat(p->call.get("id").equals(p.get("call_id"))),org.mockito.ArgumentMatchers.anyMap());
+            }
+        }finally{pool.shutdownNow();}
+    }
+    @Test void handoffTimerStillWaitsForTheSharedResourceMutex()throws Exception{
+        org.mockito.Mockito.doNothing().when(runtime).apply(org.mockito.ArgumentMatchers.anyMap(),org.mockito.ArgumentMatchers.anyMap());
+        var call=store.insert("callsession",Values.map("tenant_id",1,"phone","15500005553","mode","ai_handoff","status","waiting_human","attempts",1,"max_attempts",1));
+        var state=conversation.state(call);store.update("conversationstate",1,state.get("id"),Values.map("timer_kind","handoff","deadline",Store.now().minusSeconds(1)));
+        Map<String,Object> payload=Values.map("product_kind","timer","call_id",call.get("id"),"attempt",1,"generation",state.get("generation"),"kind","handoff");
+        var pool=Executors.newSingleThreadExecutor();Future<?> waiting;
+        try{
+            try(var held=platformLocks.lock(718492061L)){waiting=pool.submit(()->runtime.afterPlayback(payload));assertThatThrownBy(()->waiting.get(200,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);assertThat(store.require("callsession",1,call.get("id")).get("status")).isEqualTo("waiting_human");}
+            waiting.get(5,TimeUnit.SECONDS);
+        }finally{pool.shutdownNow();}
+    }
+    @Test void independentAnalysisOwnersCompleteWhileAnotherControlTaskIsPending()throws Exception{
+        long tid=92;store.insert("tenant",Values.map("id",tid,"code","analysis-owner-fixture","name","Isolated analysis owner fixture"));
+        var config=new org.springframework.core.env.MapPropertySource("analysis-owner-parallel",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(config);
+        String[] types=(String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes");var indexes=new ArrayList<Integer>();
+        for(int i=0;i<types.length;i++)if(types[i].equals("('call_analysis')"))indexes.add(i);
+        assertThat(indexes).hasSize(2);assertThat(types[2]).doesNotContain("call_analysis");var pool=Executors.newFixedThreadPool(2);var rows=new ArrayList<Map<String,Object>>();
+        var control=outbox.enqueue(tid,"after_playback",key(),key(),Map.of());
+        try{
+            for(int i=0;i<2;i++){
+                var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","1550000444"+i,"mode","ai_only","status","no_answer","attempts",1,"max_attempts",1,"finished_at",Store.now()));rows.add(call);
+                outbox.enqueue(tid,"call_analysis",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1));
+            }
+            var start=new CountDownLatch(1);var results=new ArrayList<Future<Boolean>>();
+            for(int index:indexes)results.add(pool.submit(()->{start.await();return worker.processLane(tid,index);}));start.countDown();
+            for(var result:results)assertThat(result.get(10,TimeUnit.SECONDS)).isTrue();
+            for(var call:rows)assertThat(store.query("callanalysis","scopedCallAnalysis17",Store.scopedParameters(tid,store.encode("callanalysis","call_session_id",call.get("id"))))).hasSize(1);
+            assertThat(store.require("taskoutbox",tid,control.get("id")).get("state")).isEqualTo("pending");
+            assertThat(store.query("taskoutbox","list",Values.map("tenantId",tid,"offset",0,"limit",100)).stream().filter(r->"call_analysis".equals(r.get("task_type")))).allSatisfy(task->assertThat(task.get("state")).isEqualTo("completed"));
+        }finally{store.update("taskoutbox",tid,control.get("id"),Map.of("state","completed"));environment.getPropertySources().remove(config.getName());pool.shutdownNow();}
+    }
+    @Test void parallelTaskClaimsSkipBusyRowsKeepStreamOrderAndFenceExpiredOwners()throws Exception{
+        long tid=91;store.insert("tenant",Values.map("id",tid,"code","parallel-claim-fixture","name","Isolated parallel claim fixture"));
+        var property=new org.springframework.core.env.MapPropertySource("parallel-task-claim-fixture",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);
+        var pool=Executors.newFixedThreadPool(4);var method=TaskWorker.class.getDeclaredMethod("claim",Long.class,String.class);method.setAccessible(true);
+        var tasks=new ArrayList<Map<String,Object>>();
+        try{
+            for(int i=0;i<4;i++)tasks.add(outbox.enqueue(tid,"call_analysis",key(),key(),Map.of()));
+            long mutex=java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+            try(var held=platformLocks.lock(mutex)){
+                var ready=new CountDownLatch(4);var start=new CountDownLatch(1);var pending=new ArrayList<Future<Map<String,Object>>>();
+                for(int i=0;i<4;i++)pending.add(pool.submit(()->{ready.countDown();start.await();return (Map<String,Object>)method.invoke(worker,tid,"('call_analysis')");}));
+                assertThat(ready.await(3,TimeUnit.SECONDS)).isTrue();start.countDown();var ids=new HashSet<Object>();
+                for(var future:pending){var task=future.get(5,TimeUnit.SECONDS);assertThat(task).isNotNull();assertThat(worker.owns(task)).isTrue();ids.add(task.get("id"));}
+                assertThat(ids).hasSize(4);for(var task:tasks)store.update("taskoutbox",tid,task.get("id"),Values.map("state","completed"));
+                tasks.clear();String aggregate=key();for(int i=0;i<4;i++)tasks.add(outbox.enqueue(tid,"call_analysis",aggregate,key(),Map.of()));
+                var next=new ArrayList<Future<Map<String,Object>>>();for(int i=0;i<4;i++)next.add(pool.submit(()->(Map<String,Object>)method.invoke(worker,tid,"('call_analysis')")));
+                var claimed=new ArrayList<Map<String,Object>>();for(var future:next){var task=future.get(5,TimeUnit.SECONDS);if(task!=null)claimed.add(task);}
+                assertThat(claimed).hasSize(1);var old=claimed.get(0);store.update("taskoutbox",tid,old.get("id"),Values.map("locked_at",Store.now().minusSeconds(60)));
+                var recovered=(Map<String,Object>)method.invoke(worker,tid,"('call_analysis')");assertThat(recovered.get("id")).isEqualTo(old.get("id"));assertThat(recovered.get("lease_token")).isNotEqualTo(old.get("lease_token"));
+                assertThat(worker.owns(old)).isFalse();assertThat(worker.owns(recovered)).isTrue();
+            }
+        }finally{for(var task:tasks)store.update("taskoutbox",tid,task.get("id"),Values.map("state","completed"));environment.getPropertySources().remove(property.getName());pool.shutdownNow();}
     }
     @Test void taskClaimMutexWaitersAlsoLeaveTheBusinessPoolAvailable()throws Exception{
         var pool=Executors.newFixedThreadPool(4);var started=new CountDownLatch(4);var waiting=new CopyOnWriteArrayList<Thread>();var futures=new ArrayList<Future<?>>();

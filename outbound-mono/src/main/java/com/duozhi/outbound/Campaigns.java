@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AdminPermission("campaigns:write")
 @RequestMapping("/api/v1/campaigns")
 public class Campaigns {
+    @org.springframework.beans.factory.annotation.Autowired private DialQuotaCounters quotas;
     private final Store store;
     private final Contract contract;
     private final CallPolicy policy;
@@ -30,6 +30,7 @@ public class Campaigns {
 
     private Map<String, Object> locked(long tenant, long id) {
         transactions.platform();
+        transactions.tenant(tenant);
         // Reserve the same transaction-scoped writer before reading the state.
         Map<String, Object> row = store.one("campaign","sourceCampaigns34_0",Store.queryParameters(0,tenant,id));
         if (row == null) throw new ApiError(404, "campaign not found");
@@ -104,7 +105,7 @@ public class Campaigns {
     }
 
     @PostMapping
-    @Transactional
+    @PolicyWrite
     public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
@@ -129,16 +130,20 @@ public class Campaigns {
     }
 
     @PutMapping("/{id}")
-    @Transactional
+    @PolicyWrite
     public Map<String, Object> update(@PathVariable long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> data = contract.input("CampaignCreate", body, true);
         Map<String, Object> existing = locked(tenant, id);
         if (Values.set("deleted", "running", "paused").contains(existing.get("status"))) throw new ApiError(409, "stop campaign before editing");
         List<Long> contacts = validate(tenant, data); data.remove("contact_ids");
+        quotas.assertLimit(tenant,null,id,((Number)data.get("concurrency")).longValue());
         data.put("script", script(tenant, data));
         Map<String, Object> row = store.update("campaign", tenant, id, data);
         replaceRelations(tenant,id, contacts);
         for (Map<String, Object> call : store.query("callsession","sourceCampaigns141_7",Store.queryParameters(0,tenant,id))) {
+            // Stopping a campaign does not end its existing calls. Editing its
+            // future contact set must preserve attempted calls and frozen K.
+            if(CallLifecycle.number(call,"attempts")>0)continue;
             Object contactId = call.get("contact_id");
             if (contactId != null && contacts.contains(((Number)contactId).longValue())) sync(tenant, row, call, store.require("contact", tenant, contactId));
             else {
@@ -151,7 +156,7 @@ public class Campaigns {
     }
 
     @DeleteMapping("/{id}")
-    @Transactional
+    @PolicyWrite
     public Map<String, String> delete(@PathVariable long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if (Values.set("running", "paused").contains(row.get("status"))) throw new ApiError(409, "stop campaign before deleting");
@@ -262,7 +267,7 @@ public class Campaigns {
     }
 
     @PostMapping("/{id}/pause")
-    @Transactional
+    @PolicyWrite
     public Map<String, Object> pause(@PathVariable long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
@@ -271,7 +276,7 @@ public class Campaigns {
     }
 
     @PostMapping("/{id}/resume")
-    @Transactional
+    @PolicyWrite
     public Map<String, Object> resume(@PathVariable long id, HttpServletRequest request) {
         Map<String, Object> row = locked(tenant(request), id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
@@ -287,7 +292,7 @@ public class Campaigns {
     }
 
     @PostMapping("/{id}/stop")
-    @Transactional
+    @PolicyWrite
     public Map<String, Object> stop(@PathVariable long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");

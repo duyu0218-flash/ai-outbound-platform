@@ -1,7 +1,6 @@
 package com.duozhi.outbound;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.time.DateTimeException;
 import java.time.ZoneId;
@@ -23,6 +22,7 @@ public class Contacts {
         try {ZoneId.of(value.toString());} catch(DateTimeException e) {throw new ApiError(400,"invalid contact timezone");}
     }
     private Identity actor(HttpServletRequest request) {com.duozhi.outbound.Identity identity=Identity.from(request);identity.admin("contacts:write");return identity;}
+    private void lockPolicy(Identity actor){if(store.one("tenant","lockForTransaction",Values.map("id",actor.tenant()))==null)throw new ApiError(404,"tenant not found");}
     private void consent(Map<String,Object> data,Identity actor) {
         if(data.containsKey("consent_state")) {
             boolean yes="consented".equals(data.get("consent_state"));
@@ -30,9 +30,10 @@ public class Contacts {
         }
     }
     @PostMapping
-    @Transactional
+    @PolicyWrite
     public Map<String,Object> create(@RequestBody Map<String,Object> body,HttpServletRequest request) {
         com.duozhi.outbound.Identity actor=actor(request);java.util.Map<java.lang.String,java.lang.Object> values=contract.input("ContactCreate",body,true);
+        lockPolicy(actor);
         values.put("phone",phone(values.get("phone")));timezone(values.get("timezone"));
         values.put("tenant_id",actor.tenant());consent(values,actor);
         if("".equals(values.get("dnc_reason"))) values.put("dnc_reason",null);
@@ -51,24 +52,26 @@ public class Contacts {
     @GetMapping("/{id}")
     public Map<String,Object> get(@PathVariable long id,HttpServletRequest request) {return contract.output("ContactOut",store.require("contact",actor(request).tenant(),id));}
     @PatchMapping("/{id}")
-    @Transactional
+    @PolicyWrite
     public Map<String,Object> update(@PathVariable long id,@RequestBody Map<String,Object> body,HttpServletRequest request) {
         com.duozhi.outbound.Identity actor=actor(request);java.util.Map<java.lang.String,java.lang.Object> data=contract.input("ContactPatch",body,false);timezone(data.get("timezone"));consent(data,actor);
+        lockPolicy(actor);
         java.util.Map<java.lang.String,java.lang.Object> row=store.update("contact",actor.tenant(),id,data);audit.record(actor,"update","contact",id,"fields="+data.keySet());
         return contract.output("ContactOut",row);
     }
     @DeleteMapping("/{id}")
-    @Transactional
+    @PolicyWrite
     public Map<String,String> delete(@PathVariable long id,HttpServletRequest request) {
-        com.duozhi.outbound.Identity actor=actor(request);store.require("contact",actor.tenant(),id);
+        com.duozhi.outbound.Identity actor=actor(request);lockPolicy(actor);store.require("contact",actor.tenant(),id);
         long campaignReferences=store.scalar("contact","campaignReferences",Values.map("id",id,"tenantId",actor.tenant()));
         if(campaignReferences>0||store.scalar("callsession","countContactReferences",Values.map("tenantId",actor.tenant(),"contactId",id))>0) throw new ApiError(409,"contact is referenced by campaign or call history; mark it DNC instead");
         audit.record(actor,"delete","contact",id,"contact deleted");store.delete("contact",actor.tenant(),id);return Values.map("result","deleted");
     }
     @PatchMapping("/batch-dnc")
-    @Transactional
+    @PolicyWrite
     public Map<String,Object> batch(@RequestBody Map<String,Object> body,HttpServletRequest request) {
         com.duozhi.outbound.Identity actor=actor(request);java.util.Map<java.lang.String,java.lang.Object> input=contract.input("ContactBatchDncPatch",body,true);
+        lockPolicy(actor);
         java.util.TreeSet<java.lang.Long> ids=new TreeSet<Long>();for(Object id:(List<?>)input.get("contact_ids"))ids.add(((Number)id).longValue());
         java.util.ArrayList<java.lang.Long> missing=new ArrayList<Long>();int updated=0;
         for(long id:ids){

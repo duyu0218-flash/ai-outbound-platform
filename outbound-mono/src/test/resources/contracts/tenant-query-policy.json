@@ -276,10 +276,15 @@
       "table": "callbackinbox",
       "reason": "Platform receipt dedupe by canonical event hash under its partition lock; not exposed as a tenant data query."
     },
+    "com.duozhi.outbound.mapper.CallbackBatchMapper.nextStatusClass": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Internal platform queue with no tenant_id: return only the oldest eligible status class in owned callback partitions to select the transaction lock domain; no call payload or tenant response is returned. Business call rows remain tenant-scoped and locked during processing."
+    },
     "com.duozhi.outbound.mapper.CallbackBatchMapper.initialStatuses": {
       "category": "A",
       "table": "callbackinbox",
-      "reason": "Platform worker selects FIFO initial statuses within its owned callback partitions; business call rows are subsequently resolved with explicit tenant predicates and call row locks."
+      "reason": "Platform worker selects one FIFO status resource class in its owned callback partitions; business call rows are subsequently tenant-scoped and row-locked. Terminal batches additionally retain the global resource lock."
     },
     "com.duozhi.outbound.mapper.CallbackBatchMapper.lockReceipts": {
       "category": "A",

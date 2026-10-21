@@ -224,7 +224,12 @@ public class AiRuntime {
         Map<String,Object> result=new LinkedHashMap<>((Map<String,Object>)payload.get("result"));result.put("tts_text",null);finish(payload,result,true);
     }
     private void timer(Map<String,Object> payload){
-        Map<String,Object> snapshot=tx.serialized(()->{TaskWorker.permitted();Map<String,Object> call=tx.call(payload.get("call_id"));
+        TaskWorker.permitted();
+        Long hint=TaskWorker.tenantHint();var identity=hint==null?null:store.one("callsession","findById",JsonSupport.map("tenantId",hint,"id",store.encode("callsession","id",payload.get("call_id"))));
+        if(identity==null)identity=store.locate("callsession",payload.get("call_id"),false);if(identity==null)return;
+        long timerTenant=CallLifecycle.tenant(identity);
+        java.util.function.Supplier<Map<String,Object>> lockedCall=()->store.one("callsession","lockById",JsonSupport.map("tenantId",timerTenant,"id",store.encode("callsession","id",payload.get("call_id"))));
+        java.util.function.Supplier<Map<String,Object>> prepare=()->{TaskWorker.permitted();Map<String,Object> call=lockedCall.get();
             if(call==null||CallLifecycle.number(call,"attempts")!=JsonSupport.integer(payload.get("attempt"),-1)||!Values.set("answered","in_ai","waiting_human").contains(call.get("status")))return null;
             Map<String,Object> state=product.state(call),policy=product.policy(state),data=json.object(state.get("data_json").toString());
             if(CallLifecycle.number(state,"generation")!=JsonSupport.integer(payload.get("generation"),-1)||!Objects.equals(state.get("timer_kind"),payload.get("kind"))||state.get("deadline")==null||LocalDateTime.parse(state.get("deadline").toString()).isAfter(Store.now()))return null;
@@ -238,10 +243,14 @@ public class AiRuntime {
             else {int count=JsonSupport.integer(data.get("silence_count"),0)+1;data.put("silence_count",count);boolean exhausted=count>JsonSupport.integer(policy.get("max_clarifications"),2);result=ConversationPolicy.reply(exhausted?"暂时没有收到您的回复，本次先结束，再见。":policy.get("silence_prompt").toString(),exhausted?"hangup":"speak");if(exhausted)data.put("outcome","no_response");}
             data.put("timer_action",JsonSupport.map("generation",state.get("generation"),"result",result));product.save(state,data);
             Map<String,Object> action=new LinkedHashMap<>(payload);action.put("turn_sequence",rt.get("turn_sequence"));action.put("speech_event_id",data.get("speech_event_id"));return JsonSupport.map("payload",action,"result",result);
-        });
+        };
+        // Handoff timers allocate/release shared agent ownership. Silence and
+        // media failure preparation change only this locked call's state/work.
+        // Any later hangup/handoff action retains apply/finish's resource locks.
+        Map<String,Object> snapshot="handoff".equals(payload.get("kind"))?tx.serialized(prepare):tx.run(prepare);
         if(snapshot==null)return;
         @SuppressWarnings("unchecked") Map<String,Object> p=(Map<String,Object>)snapshot.get("payload"),r=(Map<String,Object>)snapshot.get("result");apply(p,r);
-        tx.serialized(()->{Map<String,Object> call=tx.call(payload.get("call_id"));if(call!=null&&CallLifecycle.number(call,"attempts")==JsonSupport.integer(payload.get("attempt"),-1)){Map<String,Object> state=product.state(call);if(CallLifecycle.number(state,"generation")==JsonSupport.integer(payload.get("generation"),-1)){state.putAll(JsonSupport.map("generation",CallLifecycle.number(state,"generation")+1,"deadline",null,"timer_kind",""));product.save(state,json.object(state.get("data_json").toString()));}}return null;});
+        tx.run(()->{TaskWorker.permitted();Map<String,Object> call=lockedCall.get();if(call!=null&&CallLifecycle.number(call,"attempts")==JsonSupport.integer(payload.get("attempt"),-1)){Map<String,Object> state=product.state(call);if(CallLifecycle.number(state,"generation")==JsonSupport.integer(payload.get("generation"),-1)){state.putAll(JsonSupport.map("generation",CallLifecycle.number(state,"generation")+1,"deadline",null,"timer_kind",""));product.save(state,json.object(state.get("data_json").toString()));}}return null;});
     }
     @SuppressWarnings("unchecked") private void appointment(Map<String,Object> payload){
         Map<String,Object> ready=tx.serialized(()->{TaskWorker.permitted();Map<String,Object> a=store.firstAcross("callbackappointment","scopedAiRuntime228",Store.queryParameters(-1,store.encode("callbackappointment","id",payload.get("appointment_id"))));

@@ -44,7 +44,7 @@ class StackCompatibilityIT {
         properties.add("spring.datasource.username", MYSQL::getUsername);
         properties.add("spring.datasource.password", MYSQL::getPassword);
         properties.add("spring.flyway.url", MYSQL::getJdbcUrl);
-        properties.add("spring.flyway.user", MYSQL::getUsername);
+        properties.add("spring.flyway.user", ()->"root");
         properties.add("spring.flyway.password", MYSQL::getPassword);
         properties.add("spring.data.redis.host", REDIS::getHost);
         properties.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));

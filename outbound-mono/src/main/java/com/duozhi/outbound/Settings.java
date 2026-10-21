@@ -49,7 +49,7 @@ public class Settings {
             if(value instanceof String&&((String)value).length()>4000)throw new ApiError(400,"setting value too large: "+entry.getKey());data.put(entry.getKey(),value);
         }
         try{if(mapper.writeValueAsString(data).length()>20000)throw new ApiError(400,"setting payload too large");}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new ApiError(400,"invalid settings");}
-        if(section.equals("capacity"))range(data,"max_concurrent_calls",1,10000);
+        if(section.equals("capacity"))range(data,"max_concurrent_calls",1,100000);
         if(section.equals("compliance")){
             range(data,"allowed_start_hour",0,23);range(data,"allowed_end_hour",0,23);range(data,"max_attempts_per_day",1,20);range(data,"min_attempt_interval_sec",0,604800);range(data,"max_calls_per_day",1,10000000);
             range(data,"recording_retention_days",1,3650);range(data,"partial_transcript_retention_hours",1,720);range(data,"final_transcript_retention_days",1,3650);range(data,"call_sensitive_data_retention_days",1,3650);Contacts.timezone(data.get("timezone"));
