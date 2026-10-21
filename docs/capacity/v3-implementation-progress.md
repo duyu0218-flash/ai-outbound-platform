@@ -49,3 +49,5 @@ F02 分区 epoch 与全部相关网关安装屏障、F03 实时任务独立期�
 原始记录：本机 `outbound-mono/verification/v3-s1-full-r1/` 与 `verification/v3-s1-accepted/summary.json`；后者保存逐类来源、源码哈希、运行时一致性、浏览器结果及明确的capacity_qualified=false。完整日志 `/private/tmp/v3-full-verify-r1.log`，修复复验 `/private/tmp/v3-inventory-retest.log`。仅采纳本轮实际执行阶段的测试报告，排除target中历史显式执行留下的报告。
 
 已知限制：新协调器暂未绑定分区所有权/发送安装屏障、旧配额桥及实际准入；当前架构的全局串行瓶颈仍在。下一阶段先完成S0归因、F02安装屏障及两套权威之间的接线合同。未达到全写入者和故障门禁前保留lock_compat，不签署持续500 CPS或上线资格。
+
+补充S0有限诊断：2,000次20%模拟接通、完整20秒占线、真实MySQL/Redis全部完成且身份和最终资源守恒通过。已采集JFR及批次/SQL耗时；本地容器缓冲池16MiB、表缓存4，不能外推目标服务器。详见[v3-s0-local-profile.md](v3-s0-local-profile.md)。这项有限诊断不加入523项功能回归计数，不算持续容量通过，S0退出仍未签署。
