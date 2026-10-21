@@ -152,11 +152,21 @@ class GatewayLifecycleTest {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("no expected ESL command evidence"); Thread.sleep(10); }
     }
+    @Test void missingLiveUuidAndExpiredDeadlineDoNotProveTerminalState()throws Exception {
+        try(var pbx=new Pbx();var gateway=new VoiceGateway(settings(pbx,Map.of()))) {
+            String uuid=gateway.post("dial",dial("v5-missing-live-channel")).get("provider_call_id").toString();
+            gateway.ledger.transaction(db->{LocalLedger.execute(db,"UPDATE attempts SET observed=1,deadline=? WHERE uuid=?",LocalLedger.now()-1,uuid);return null;});
+            pbx.channelExists=false;
+            assertEquals(false,gateway.post("status",Map.of("call_id","v5-missing-live-channel","tenant_id",1)).get("ended"));
+            assertNotEquals("ended",gateway.security.lookup("v5-missing-live-channel",1).get("state"));
+        }
+    }
     static final class Pbx implements AutoCloseable {
         final ServerSocket server = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
         final List<String> commands = new CopyOnWriteArrayList<>();
         final ExecutorService io = Executors.newCachedThreadPool(); volatile boolean running = true, rejectMediaStart, rejectAgentTransfer;
         volatile long delayKillMillis;
+        volatile boolean channelExists=true;
         volatile CountDownLatch existsEntered,existsRelease;
         Pbx() throws IOException { io.submit(() -> { while (running) try { Socket socket = server.accept(); io.submit(() -> connection(socket)); } catch (IOException stopped) { return; } }); }
         int count(String prefix) { return (int)commands.stream().filter(c -> c.startsWith(prefix)).count(); }
@@ -170,7 +180,7 @@ class GatewayLifecycleTest {
                 if(command.startsWith("api uuid_exists ")&&existsEntered!=null){existsEntered.countDown();try{existsRelease.await(5,TimeUnit.SECONDS);}catch(InterruptedException stopped){Thread.currentThread().interrupt();}}
                 if (command.startsWith("api uuid_kill ") && delayKillMillis > 0) try { Thread.sleep(delayKillMillis); } catch (InterruptedException stopped) { Thread.currentThread().interrupt(); }
                 if (command.startsWith("bgapi ")) output.write(("Content-Type: command/reply\nReply-Text: +OK Job-UUID: " + UUID.randomUUID() + "\n\n").getBytes(StandardCharsets.UTF_8));
-                else { byte[] body = (rejectAgentTransfer&&command.startsWith("api uuid_transfer ")&&command.contains(" XML agent-restricted") ? "-ERR synthetic transfer failure" : rejectMediaStart && command.startsWith("api uuid_raw_audio_stream ") && command.contains(" start ") ? "-ERR synthetic module failure" : command.startsWith("api uuid_exists ") ? "true" : "+OK").getBytes(StandardCharsets.UTF_8); output.write(("Content-Type: api/response\nContent-Length: " + body.length + "\n\n").getBytes(StandardCharsets.UTF_8)); output.write(body); }
+                else { byte[] body = (rejectAgentTransfer&&command.startsWith("api uuid_transfer ")&&command.contains(" XML agent-restricted") ? "-ERR synthetic transfer failure" : rejectMediaStart && command.startsWith("api uuid_raw_audio_stream ") && command.contains(" start ") ? "-ERR synthetic module failure" : command.startsWith("api uuid_exists ") ? Boolean.toString(channelExists) : "+OK").getBytes(StandardCharsets.UTF_8); output.write(("Content-Type: api/response\nContent-Length: " + body.length + "\n\n").getBytes(StandardCharsets.UTF_8)); output.write(body); }
                 output.flush();
             } catch (IOException ignored) { }
         }

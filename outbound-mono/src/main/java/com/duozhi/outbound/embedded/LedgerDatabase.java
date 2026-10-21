@@ -26,11 +26,20 @@ public final class LedgerDatabase implements AutoCloseable {
         }
     }
     <T>T transaction(String key,LocalLedger.Work<T> work){
-        Active previous=active.get();if(previous!=null&&previous.key.equals(key)){try{return work.run(previous.db);}catch(Exception error){previous.rollbackOnly.set(true);throw failure(error);}}
+        return transaction(key,work,false);
+    }
+    /** A nonce has its own database UNIQUE key and allocates no resources.
+     * Join an enclosing command batch so rollback still covers its nonce;
+     * otherwise its INSERT commits without waiting for the resource sentinel. */
+    void consumeNonce(String nonce,double expires){
+        transaction(null,db->{if(LocalLedger.update(db,"INSERT IGNORE INTO nonces(nonce,expires) VALUES(?,?)",nonce,expires)!=1)throw new Support.Failure(409,"voice command permit was already used");return null;},true);
+    }
+    private <T>T transaction(String key,LocalLedger.Work<T> work,boolean joinExisting){
+        Active previous=active.get();if(previous!=null&&(joinExisting||java.util.Objects.equals(previous.key,key))){try{return work.run(previous.db);}catch(Exception error){previous.rollbackOnly.set(true);throw failure(error);}}
         try(var db=source.getConnection()){
             db.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);db.setAutoCommit(false);var state=new Active(key,db,new java.util.concurrent.atomic.AtomicBoolean());active.set(state);
             try{
-                try(var lock=db.prepareStatement("SELECT value FROM voice_flags WHERE `key`=? FOR UPDATE")){lock.setString(1,key);try(var rows=lock.executeQuery()){if(!rows.next())throw new SQLException("ledger writer sentinel missing; apply Flyway V2");}}
+                if(key!=null)try(var lock=db.prepareStatement("SELECT value FROM voice_flags WHERE `key`=? FOR UPDATE")){lock.setString(1,key);try(var rows=lock.executeQuery()){if(!rows.next())throw new SQLException("ledger writer sentinel missing; apply Flyway V2");}}
                 T result=work.run(db);if(state.rollbackOnly.get())throw new Support.Failure(503,"ledger transaction marked for rollback");db.commit();return result;
             }catch(Exception error){try{db.rollback();}catch(SQLException ignored){}throw failure(error);}finally{if(previous==null)active.remove();else active.set(previous);}
         }catch(SQLException error){throw new Support.Failure(503,"independent ledger unavailable");}

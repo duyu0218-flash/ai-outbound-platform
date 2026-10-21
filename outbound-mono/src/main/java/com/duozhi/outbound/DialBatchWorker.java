@@ -10,6 +10,8 @@ import org.springframework.transaction.support.*;
  * No JDBC transaction is held across the gateway command. */
 @Service
 public class DialBatchWorker {
+    @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
+    @org.springframework.beans.factory.annotation.Autowired private DialRateControl rate;
     private final Store store;private final DialBatchStore db;private final Transactions tx;private final DialService dial;private final Config config;private final JsonSupport json;private final CallbackInbox inbox;
     private long cursor;
     public DialBatchWorker(Store store,DialBatchStore db,Transactions tx,DialService dial,Config config,JsonSupport json,CallbackInbox inbox){this.store=store;this.db=db;this.tx=tx;this.dial=dial;this.config=config;this.json=json;this.inbox=inbox;}
@@ -19,6 +21,7 @@ public class DialBatchWorker {
             if(db.count("readyTaskCount",JsonSupport.map("tenantId",tenant.get("id"),"now",Store.now()))>=1000)continue;
             var pending=db.rows("queuedCandidates",JsonSupport.map("tenantId",tenant.get("id"),"now",Store.now(),"limit",1000));if(pending.isEmpty())continue;
             var rows=pending.stream().map(c->JsonSupport.map("id",UUID.randomUUID().toString(),"tenant_id",tenant.get("id"),"call_id",c.get("id"),"key","dial:"+c.get("id")+":"+(((Number)c.get("attempts")).intValue()+1),"payload",json.json(JsonSupport.map("call_id",c.get("id"),"attempt",c.get("attempts"))))).toList();total+=db.write("enqueueRows",JsonSupport.map("rows",rows,"now",Store.now()));
+            timing.recordBatch("queue",pending.stream().map(c->new Object[]{tenant.get("id"),c.get("id"),((Number)c.get("attempts")).intValue()+1}).toList());
         }return total;});
     }
     private Object cutoff(){return Store.now().minusSeconds(Math.max(2,config.number("TASK_LEASE_SEC",30)));}
@@ -40,7 +43,7 @@ public class DialBatchWorker {
     }
     boolean process(Long tenant,ScheduledExecutorService heartbeat){
         if(!config.flag("JAVA_DISPATCH_ENABLED",false))return false;
-        if(config.flag("CALLBACK_INBOX_ENABLED",false)&&!Boolean.TRUE.equals(inbox.snapshot().get("ready")))return false;
+        if(config.flag("CALLBACK_INBOX_ENABLED",false)&&!rate.healthyForAdmission())return false;
         long started=System.nanoTime();var tasks=claim(tenant);if(tasks.isEmpty())return false;long claimed=System.nanoTime();long owner=CallLifecycle.tenant(tasks.get(0));
         var ids=tasks.stream().map(t->t.get("id").toString()).toList();String lease=tasks.get(0).get("lease_token").toString();var lost=new AtomicBoolean();Object proof=new Object();
         java.util.function.Supplier<Map<String,Object>> params=()->JsonSupport.map("tenantId",owner,"ids",ids,"lease",lease,"cutoff",cutoff(),"now",Store.now());
@@ -56,7 +59,7 @@ public class DialBatchWorker {
         };
         List<Map<String,Object>> entries=new ArrayList<>();RuntimeException failure=null;
         long[] stages=new long[2];try{
-            entries=TaskWorker.guarded(owner,guard,()->{var prepared=dial.prepareTasks(tasks,db);stages[0]=System.nanoTime();dial.sendTasks(prepared,db);stages[1]=System.nanoTime();return prepared;});
+            entries=TaskWorker.guarded(owner,"batch:"+lease,guard,()->{var prepared=dial.prepareTasks(tasks,db);stages[0]=System.nanoTime();dial.sendTasks(prepared,db);stages[1]=System.nanoTime();return prepared;});
         }catch(RuntimeException error){failure=error;}
         finally{renewal.cancel(false);}
         if(lost.get())return true;
@@ -65,10 +68,10 @@ public class DialBatchWorker {
             var owned=new HashSet<String>();for(var row:db.rows("ownedTasks",params.get()))owned.add(row.get("id").toString());
             return store.bufferWrites(()->{
                 for(int i=0;i<tasks.size();i++){var task=tasks.get(i);if(!owned.contains(task.get("id").toString()))continue;
-                    var entry=completed.size()==tasks.size()?completed.get(i):null;boolean deferred=entry!=null&&Boolean.TRUE.equals(entry.get("deferred"));Object error=thrown!=null?thrown:entry==null?new IllegalStateException("incomplete cohort"):entry.get("error");
+                    var entry=completed.size()==tasks.size()?completed.get(i):null;boolean deferred=entry!=null&&(Boolean.TRUE.equals(entry.get("deferred"))||Boolean.TRUE.equals(entry.get("pending_confirmation")));Object error=thrown!=null?thrown:entry==null?new IllegalStateException("incomplete cohort"):entry.get("error");
                     String state=deferred?"pending":error==null?"completed":CallLifecycle.number(task,"attempts")>=CallLifecycle.number(task,"max_attempts")?"dead":"failed";
                     var changes=JsonSupport.map("state",state,"locked_at",null,"lease_token",null,"last_error",deferred?"waiting for dial admission":error==null?"":error.getClass().getSimpleName());
-                    if(!"completed".equals(state))changes.put("available_at",Store.now().plusSeconds(deferred?1:Math.min(300,1L<<Math.min(8,CallLifecycle.number(task,"attempts")))));
+                    if(!"completed".equals(state))changes.put("available_at",deferred?Store.now().plusNanos(ThreadLocalRandom.current().nextLong(50,201)*1_000_000L):Store.now().plusSeconds(Math.min(300,1L<<Math.min(8,CallLifecycle.number(task,"attempts")))));
                     if(deferred)changes.put("attempts",Math.max(0,CallLifecycle.number(task,"attempts")-1));
                     if(entry!=null){var payload=new LinkedHashMap<>((Map<String,Object>)entry.get("payload"));if("completed".equals(state))payload.remove("_dial_claimed");changes.put("payload_json",json.json(payload));}
                     store.writeLocked("taskoutbox",owner,task.get("id"),changes);

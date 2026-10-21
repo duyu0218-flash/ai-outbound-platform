@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 /** Enqueue joins the caller's transaction; no external work occurs before commit. */
 @Service
 public class Outbox {
+    @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -31,7 +32,9 @@ public class Outbox {
                         store.update("taskoutbox", tenant, previous.get("id"), JsonSupport.map("state", "completed", "last_error", "superseded by newer final transcript"));
                 }
             }
-            var saved=store.insert("taskoutbox", JsonSupport.map("tenant_id", tenant, "task_type", type, "aggregate_id", aggregate.toString(), "idempotency_key", key, "payload_json", json.json(payload)));if(cached)batch.tasks.put(cacheKey,saved);return saved;
+            var saved=store.insert("taskoutbox", JsonSupport.map("tenant_id", tenant, "task_type", type, "aggregate_id", aggregate.toString(), "idempotency_key", key, "payload_json", json.json(payload)));if(cached)batch.tasks.put(cacheKey,saved);
+            if("dial_call".equals(type)&&timing!=null)timing.record("queue",tenant,aggregate,JsonSupport.integer(payload.get("attempt"),0)+1);
+            return saved;
         });
     }
     public void callback(Map<String, Object> call, String event, Map<String, Object> data, String key) {

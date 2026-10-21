@@ -50,6 +50,11 @@ final class VoiceGateway implements AutoCloseable {
     VoiceGateway(Settings settings,LedgerDatabase database) throws Exception {
         this.settings = settings;
         String driver = settings.get("VOICE_GATEWAY_DRIVER", "mock"); if (!Set.of("mock", "freeswitch_esl").contains(driver)) throw new IllegalArgumentException("unsupported or unverified voice driver");
+        if (driver.equals("mock")) {
+            settings.number("VOICE_MOCK_ANSWER_PERCENT",100,0,100);
+            String seed=settings.get("VOICE_MOCK_DISTRIBUTION_SEED","synthetic-default");
+            if(seed.isEmpty()||seed.length()>128)throw new IllegalArgumentException("invalid synthetic distribution seed");
+        }
         if (!Set.of("legacy", "pipecat", "hybrid").contains(settings.get("VOICE_AI_PIPELINE", "legacy"))) throw new IllegalArgumentException("invalid media pipeline");
         if (settings.flag("PIPECAT_FALLBACK_TO_LEGACY", false) && settings.get("FREESWITCH_MEDIA_START_COMMAND_TEMPLATE", "").isBlank()) throw new IllegalArgumentException("native media fallback requires an explicit legacy start command");
         if (!driver.equals("freeswitch_esl") && !settings.get("VOICE_AI_PIPELINE", "legacy").equals("legacy")) throw new IllegalArgumentException("realtime media requires FreeSWITCH driver");
@@ -73,7 +78,7 @@ final class VoiceGateway implements AutoCloseable {
     }
     private static Thread daemon(Runnable run, String name) { Thread thread = new Thread(run, name); thread.setDaemon(true); return thread; }
     boolean real() { return settings.get("VOICE_GATEWAY_DRIVER", "mock").equals("freeswitch_esl"); }
-    void start() { callbacks.start(); if (real()) { listener.submit(this::listen); maintenance.scheduleWithFixedDelay(this::reconcile, 2, 2, TimeUnit.SECONDS); } }
+    void start() { callbacks.start();maintenance.scheduleWithFixedDelay(()->{try{ledger.transaction(db->{LocalLedger.execute(db,"DELETE FROM nonces WHERE expires<?",LocalLedger.now());return null;});}catch(RuntimeException unavailable){}},2,2,TimeUnit.SECONDS); if (real()) { listener.submit(this::listen); maintenance.scheduleWithFixedDelay(this::reconcile, 2, 2, TimeUnit.SECONDS); } else {maintenance.scheduleWithFixedDelay(this::mockTick,50,50,TimeUnit.MILLISECONDS);maintenance.scheduleWithFixedDelay(()->{try{new VoiceSendJournal(ledger).escalate();}catch(RuntimeException unavailable){}},2,2,TimeUnit.SECONDS);} }
     boolean ready() {
         if (draining || !Boolean.TRUE.equals(recordings.disk().get("safe"))) return false;
         try {
@@ -83,17 +88,124 @@ final class VoiceGateway implements AutoCloseable {
     }
     Map<String,Object> post(String action, Map<String,Object> payload) throws Exception {
         Support.required(payload, "call_id", 128);
-        if (!Set.of("dial", "speak", "stop-speaking", "transfer", "hangup", "status").contains(action)) throw new Support.Failure(404, "unsupported call action");
+        if (!Set.of("dial", "dial-authorize", "dial-cancel", "dial-confirmation", "speak", "stop-speaking", "transfer", "hangup", "status").contains(action)) throw new Support.Failure(404, "unsupported call action");
+        if(action.equals("dial-authorize"))return new VoiceAuthorizations(ledger).install(payload);
+        if(action.equals("dial-cancel"))return new VoiceAuthorizations(ledger).reject(payload,settings.secret("VOICE_COMMAND_SECRET"));
+        if(action.equals("dial-confirmation"))return confirmation(payload);
+        if(action.equals("dial")){var previous=priorDialResult(payload);if(previous!=null)return previous;}
         if (action.equals("dial") && draining) throw new Support.Failure(503, "voice gateway is draining");
-        if (!real()) {
-            if (action.equals("dial")) {
-                String url = Support.required(payload, "webhook_url", 8192); security.callback(url);
-                for (String status : List.of("dialing", "answered")) { Map<String,Object> data = new HashMap<>(Support.map(payload.get("metadata"))); data.put("status", status); callbacks.post(url, Map.of("call_id", payload.get("call_id"), "kind", "status", "payload", data)); }
-            }
-            return Map.of("result", "accepted", "action", action, "provider_call_id", "gateway-" + payload.get("call_id"));
-        }
+        if (!real()) return mockPost(action,payload);
         try { return realPost(action, payload); }
         catch (Support.Failure error) { ledger.transaction(db -> { LocalLedger.execute(db, "INSERT INTO audit(at,action,detail) VALUES (?,'reject',?)", LocalLedger.now(), error.getMessage()); return null; }); throw error; }
+    }
+    private Map<String,Object> priorDialResult(Map<String,Object> payload){
+        var metadata=Support.map(payload.get("metadata"));long tenant=Support.integer(metadata,"tenant_id",0),attempt=Support.integer(metadata,"attempt",0);
+        if(tenant<=0||attempt<=0)return null;
+        String digest=VoiceAuthorizations.digest(payload);
+        return ledger.read(db->{
+            var projection=VoiceAdmissionBatchScope.current();var cached=projection!=null&&projection.preloaded()?projection.prior(db,payload.get("call_id").toString(),attempt):null;
+            var rows=projection!=null&&projection.preloaded()?(cached==null?List.<Map<String,Object>>of():List.of(cached)):LocalLedger.query(db,"SELECT uuid,tenant,digest,result,send_state FROM attempts WHERE tenant=? AND call_id=? AND attempt=?",tenant,payload.get("call_id"),attempt);
+            if(rows.isEmpty())return null;var row=rows.get(0);
+            if(((Number)row.get("tenant")).longValue()!=tenant)throw new Support.Failure(409,"original dial identity belongs to another tenant");
+            if(!digest.equals(row.get("digest")))throw new Support.Failure(409,"original dial identity has different semantics");
+            if(row.get("result")!=null)return Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+            return Set.of("REGISTERED","REJECTED").contains(row.get("send_state"))?null:Map.of("result","pending_reconciliation","provider_call_id",row.get("uuid"));
+        });
+    }
+    private Map<String,Object> confirmation(Map<String,Object> payload) {
+        var metadata=Support.map(payload.get("metadata"));
+        long tenant=Support.integer(metadata,"tenant_id",0),attempt=Support.integer(metadata,"attempt",0);
+        if(tenant<=0||attempt<=0||Support.integer(payload,"tenant_id",tenant)!=tenant)throw new Support.Failure(403,"confirmation requires the original tenant and attempt");
+        String digest=VoiceAuthorizations.digest(payload);
+        return ledger.read(db->{
+            var rows=LocalLedger.query(db,"SELECT * FROM attempts WHERE tenant=? AND call_id=? AND attempt=?",tenant,payload.get("call_id"),attempt);
+            if(rows.isEmpty())return Map.of("result","pending_reconciliation");
+            var row=rows.get(0);
+            if(!digest.equals(row.get("digest")))throw new Support.Failure(409,"confirmation payload differs from its original command");
+            if(row.get("result")!=null)return Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+            return Map.of("result","pending_reconciliation","provider_call_id",row.get("uuid"));
+        });
+    }
+    private Map<String,Object> mockPost(String action,Map<String,Object> payload) {
+        if(!action.equals("dial")){
+            long tenant=Support.integer(payload,"tenant_id",0);if(tenant<=0)throw new Support.Failure(403,"call control requires tenant identity");
+            var controlled=security.lookup(Support.required(payload,"call_id",128),tenant);
+            if(payload.get("expected_attempt")!=null&&Support.integer(payload,"expected_attempt",-1)!=Support.integer(controlled,"attempt",0))throw new Support.Failure(409,"stale call attempt");
+            if(payload.get("provider_call_id")!=null&&!controlled.get("uuid").equals(payload.get("provider_call_id")))throw new Support.Failure(409,"stale provider call");
+            if(controlled.get("state").equals("ended")&&!Set.of("status","hangup").contains(action))throw new Support.Failure(409,"call has ended");
+            if(action.equals("speak"))return Map.of("result","accepted","playback_complete",true);
+            if(action.equals("hangup")||action.equals("status")){
+                var row=controlled;
+                Object originalUuid=row.get("uuid");
+                if(action.equals("hangup")&&!row.get("state").equals("ended")){
+                    ledger.transaction(db->{LocalLedger.execute(db,"UPDATE voice_mock_schedule SET due=?,end_at=?,phase='COMPLETED' WHERE uuid=?",LocalLedger.now(),LocalLedger.now(),originalUuid);return null;});
+                    mockTick();
+                }
+                row=ledger.read(db->LocalLedger.query(db,"SELECT * FROM attempts WHERE uuid=?",originalUuid).get(0));
+                return Map.of("result",row.get("state").equals("ended")?"hungup":"pending","ended",row.get("state").equals("ended"),"provider_call_id",row.get("uuid"));
+            }
+            return Map.of("result","accepted","action",action);
+        }
+        var metadata=Support.map(payload.get("metadata"));
+        long tenant=Support.integer(metadata,"tenant_id",0),attempt=Support.integer(metadata,"attempt",0);
+        if(tenant<=0||attempt<=0)throw new Support.Failure(403,"synthetic execution requires tenant and attempt identity");
+        security.callback(Support.required(payload,"webhook_url",8192));
+        var route=security.routes.isEmpty()?new LinkedHashMap<String,Object>():security.policy(payload);
+        if(route.isEmpty()){
+            for(var pair:Map.of("max_concurrent","VOICE_MAX_CONCURRENT","cps","VOICE_CPS","calls_per_day","VOICE_DAILY_CALL_LIMIT","hour_budget_minor","VOICE_HOUR_BUDGET_MINOR","day_budget_minor","VOICE_DAY_BUDGET_MINOR").entrySet())
+                route.put(pair.getKey(),settings.number(pair.getValue(),pair.getKey().equals("max_concurrent")?20:pair.getKey().equals("cps")?2:pair.getKey().equals("calls_per_day")?1000:50000,1,Long.MAX_VALUE));
+            route.put("rate_minor_per_minute",1);route.put("billing_multiplier",2);route.put("max_duration_sec",settings.number("VOICE_MOCK_OCCUPANCY_SEC",3,2,3600));
+        }
+        var admission=security.admit(payload,route,true,Integer.MAX_VALUE);var row=admission.row();
+        if(row.get("result")!=null)return Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+        String uuid=row.get("uuid").toString();
+        if(!new VoiceSendJournal(ledger).claim(row,payload))return Map.of("result","pending_reconciliation","provider_call_id",uuid);
+        int answerPercent=(int)settings.number("VOICE_MOCK_ANSWER_PERCENT",100,0,100);
+        boolean answered=simulatedAnswer(payload,answerPercent,settings.get("VOICE_MOCK_DISTRIBUTION_SEED","synthetic-default"));
+        var result=Map.<String,Object>of("result","pbx_accepted","provider_call_id",uuid,"evidence_source","synthetic_executor","mock_answered",answered,"mock_answer_percent",answerPercent);
+        ledger.transaction(db->{
+            double now=LocalLedger.now(),duration=settings.number("VOICE_MOCK_OCCUPANCY_SEC",3,2,3600);
+            String encoded=new String(Support.canonical(result),StandardCharsets.UTF_8);
+            LocalLedger.execute(db,"CALL voice_mock_accept(?,?,?,?)",uuid,encoded,now,duration);
+            // Persist the outcome and original lifetime in the acceptance
+            // transaction. Restart/configuration changes cannot redraw it.
+            if(!answered){var scope=VoiceAdmissionBatchScope.current();if(scope!=null&&scope.preloaded())scope.unanswered(uuid);else LocalLedger.execute(db,"UPDATE voice_mock_schedule SET phase='NO_ANSWER',due=end_at WHERE uuid=?",uuid);}
+            row.put("result",encoded);row.put("send_state","PBX_STARTED");row.put("state","active");row.put("observed",1);
+            mockStatus(row,payload,"dialing");return null;
+        });
+        return result;
+    }
+    static boolean simulatedAnswer(Map<String,Object> payload,int percent,String seed){
+        if(percent<0||percent>100)throw new IllegalArgumentException("invalid synthetic answer percentage");
+        var metadata=Support.map(payload.get("metadata"));
+        byte[] hash=Support.sha(Support.canonical(Map.of("seed",seed,"tenant",Support.integer(metadata,"tenant_id",0),"call",Support.str(payload,"call_id",""),"attempt",Support.integer(metadata,"attempt",0))));
+        return Integer.toUnsignedLong(java.nio.ByteBuffer.wrap(hash).getInt())%100<percent;
+    }
+    private void mockStatus(Map<String,Object> row,Map<String,Object> payload,String state){
+        var data=new LinkedHashMap<>(Support.map(payload.get("metadata")));
+        data.put("status",state);data.put("provider_call_id",row.get("uuid"));
+        data.put("event_id","synthetic:"+row.get("uuid")+":"+state);
+        callbacks.post(Support.required(payload,"webhook_url",8192),Map.of("call_id",row.get("call_id"),"kind","status","payload",data));
+    }
+    void mockTick(){
+        if(!running||real())return;
+        try{
+            callbacks.atomic(()->ledger.transaction(db->{
+                var rows=LocalLedger.query(db,"SELECT a.*,s.phase AS mock_phase,s.end_at AS mock_end FROM voice_mock_schedule s JOIN attempts a ON a.uuid=s.uuid WHERE s.due<=? ORDER BY s.due LIMIT 200 FOR UPDATE",LocalLedger.now());
+                var finished=new ArrayList<Map<String,Object>>();var answered=new ArrayList<Object>();
+                for(var row:rows){
+                    var payload=Support.object(row.get("payload").toString().getBytes(StandardCharsets.UTF_8));
+                    boolean unanswered="NO_ANSWER".equals(row.get("mock_phase"));
+                    boolean ended=unanswered||"COMPLETED".equals(row.get("mock_phase"));
+                    if(!row.get("state").equals("ended"))mockStatus(row,payload,unanswered?"no_answer":ended?"completed":"answered");
+                    if(ended)finished.add(row);else answered.add(row.get("uuid"));
+                }
+                security.finishMockBatch(db,finished,LocalLedger.now());
+                if(!finished.isEmpty())LocalLedger.execute(db,"DELETE FROM voice_mock_schedule WHERE uuid IN ("+String.join(",",Collections.nCopies(finished.size(),"?"))+")",finished.stream().map(row->row.get("uuid")).toArray());
+                if(!answered.isEmpty())LocalLedger.execute(db,"UPDATE voice_mock_schedule SET phase='COMPLETED',due=end_at WHERE uuid IN ("+String.join(",",Collections.nCopies(answered.size(),"?"))+")",answered.toArray());
+                return null;
+            }));
+        }catch(RuntimeException unavailable){/* Rows and their due times remain durable; readiness observes the backlog. */}
     }
     private Map<String,Object> realPost(String action, Map<String,Object> payload) throws Exception {
         if (action.equals("dial")) {
@@ -101,7 +213,10 @@ final class VoiceGateway implements AutoCloseable {
             String pipeline = pipeline(Support.map(payload.get("metadata")));
             if ("human_only".equals(Support.map(payload.get("metadata")).get("mode")) && Support.integer(Support.map(payload.get("metadata")), "human_agent_id", 0) > 0) agent(Support.map(payload.get("metadata")), Support.integer(Support.map(payload.get("metadata")), "human_agent_id", 0));
             var admission = security.admit(payload, route, Boolean.TRUE.equals(recordings.disk().get("safe")), media == null ? Integer.MAX_VALUE : media.ready() ? media.capacity() : 0);
-            var row = admission.row(); if (!admission.fresh()) return row.get("result") == null ? Map.of("result", "pending_reconciliation", "provider_call_id", row.get("uuid")) : Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+            var row = admission.row();
+            if (!admission.fresh() && row.get("result") != null) return Support.object(row.get("result").toString().getBytes(StandardCharsets.UTF_8));
+            var sends=new VoiceSendJournal(ledger);
+            if(!sends.claim(row,payload)) return Map.of("result","pending_reconciliation","provider_call_id",row.get("uuid"));
             var binding = new Binding(row); binding.pipeline = pipeline; bindings.put(binding.uuid, binding);
             Map<String,String> vars = new LinkedHashMap<>();
             vars.put("origination_uuid", binding.uuid); vars.put("originate_timeout", settings.get("FREESWITCH_ORIGINATE_TIMEOUT_SEC", "45")); vars.put("ignore_early_media", "true");
@@ -113,9 +228,11 @@ final class VoiceGateway implements AutoCloseable {
             String block = "{" + String.join(",", vars.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).toList()) + "}";
             String destination = "sofia/gateway/" + Support.str(route, "gateway", "") + "/" + Support.required(payload, "phone", 32);
             String command = "originate " + block + ("human_only".equals(binding.metadata.get("mode")) && Support.integer(binding.metadata, "human_agent_id", 0) > 0 ? agent(binding.metadata, Support.integer(binding.metadata, "human_agent_id", 0)) + " &bridge(" + quote(destination) + ")" : destination + " &park()");
-            String job = esl.command(command, true);
+            String job;
+            try { job=esl.command(command,true); }
+            catch(Exception unknown) { sends.uncertain(binding.uuid); throw unknown; }
             Map<String,Object> result = Map.of("result", "accepted", "provider_call_id", binding.uuid, "job_uuid", job, "voice_ai_pipeline", binding.pipeline);
-            ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE attempts SET result=?,state=CASE WHEN state='ended' THEN state ELSE 'active' END WHERE uuid=?", new String(Support.canonical(result), StandardCharsets.UTF_8), binding.uuid); return null; }); return result;
+            sends.accepted(binding.uuid,result); return result;
         }
         long tenant = Support.integer(payload, "tenant_id", 0); if (tenant <= 0) throw new Support.Failure(403, "call control requires tenant identity");
         var row = security.lookup(Support.required(payload, "call_id", 128), tenant); String uuid = Support.str(row, "uuid", "");
@@ -128,13 +245,10 @@ final class VoiceGateway implements AutoCloseable {
             if (action.equals("hangup")) try { esl.command("uuid_kill " + uuid + " NORMAL_CLEARING", false); } catch (IOException ambiguous) { }
             String exists = Support.asciiLower(esl.command("uuid_exists " + uuid, false).strip());
             if (exists.equals("true")) ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE attempts SET observed=1 WHERE uuid=?", uuid); return null; });
-            boolean ended = exists.equals("false") && Support.integer(row, "observed", 0) != 0 && LocalLedger.now() >= ((Number)row.get("deadline")).doubleValue();
-            if (ended) {
-                Binding finished = bindings.get(uuid);
-                if (finished != null) stopMedia(finished);
-                security.finish(uuid, null); bindings.remove(uuid);
-            }
-            return Map.of("result", ended ? "hungup" : "pending", "ended", ended, "provider_call_id", uuid);
+            // Absence in the live channel set, even after a deadline, is not
+            // reliable terminal evidence. Only a correlated PBX terminal event
+            // (or a separately verified history adapter) releases this attempt.
+            return Map.of("result","pending","ended",false,"provider_call_id",uuid);
         }
         if (row.get("state").equals("ended")) throw new Support.Failure(409, "call has ended");
         Binding binding = bindings.get(uuid); if (binding == null) throw new Support.Failure(409, "call binding requires authenticated PBX reconstruction");
@@ -261,7 +375,7 @@ final class VoiceGateway implements AutoCloseable {
         }
         var rows = ledger.read(db -> LocalLedger.query(db, "SELECT * FROM attempts WHERE uuid=? AND state!='ended'", uuid)); if (rows.isEmpty()) return;
         Binding binding = bindings.computeIfAbsent(uuid, key -> { Binding restored = new Binding(rows.get(0)); restored.pipeline = pipeline(restored.metadata); return restored; });
-        if (Set.of("CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA", "CHANNEL_ANSWER", "CHANNEL_HANGUP", "CHANNEL_HANGUP_COMPLETE").contains(name)) ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE attempts SET observed=1 WHERE uuid=?", uuid); return null; });
+        if (Set.of("CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA", "CHANNEL_ANSWER", "CHANNEL_HANGUP", "CHANNEL_HANGUP_COMPLETE").contains(name)) ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE attempts SET observed=1,send_state=CASE WHEN state='ended' THEN 'ENDED' ELSE 'PBX_STARTED' END WHERE uuid=?", uuid); return null; });
         switch(name) {
             case "CHANNEL_CREATE", "CHANNEL_PROGRESS", "CHANNEL_PROGRESS_MEDIA" -> status(binding, "dialing", event, "");
             case "CHANNEL_ANSWER" -> { binding.answeredAt = System.currentTimeMillis(); boolean human = "human_only".equals(binding.metadata.get("mode")) && Support.integer(binding.metadata, "human_agent_id", 0) > 0; status(binding, human ? "agent_answered" : "answered", event, ""); if (!human) scheduleMedia(binding); }
@@ -397,6 +511,7 @@ final class VoiceGateway implements AutoCloseable {
         callbacks.post(target, Map.of("call_id", binding.call, "kind", "recording", "payload", data));
     }
     private void reconcile() {
+        try { new VoiceSendJournal(ledger).escalate(); } catch(RuntimeException unavailable) { }
         try { var rows = ledger.read(db -> LocalLedger.query(db, "SELECT call_id,tenant FROM attempts WHERE state!='ended' AND deadline<=? LIMIT 200", LocalLedger.now())); for (var row : rows) try { post("hangup", Map.of("call_id", row.get("call_id"), "tenant_id", row.get("tenant"))); } catch (Exception unavailable) { } }
         catch (Exception unavailable) { }
         if (media != null) for (var session : media.sessions()) {

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 /** Shared controller for Java worker progress and retained baseline signal contracts. */
 @Service
 public class StabilityAdmission {
+    @org.springframework.beans.factory.annotation.Autowired private DialRateControl dialRate;
     private final Config config;private final ExpiringValues redis;private final JsonSupport json;private final CallbackInbox inbox;
     public StabilityAdmission(Config config,ExpiringValues redis,JsonSupport json,CallbackInbox inbox){this.config=config;this.redis=redis;this.json=json;this.inbox=inbox;}
     private static double number(Object value){if(!(value instanceof Number)||!Double.isFinite(((Number)value).doubleValue()))throw new IllegalArgumentException("invalid observation");return ((Number)value).doubleValue();}
@@ -27,6 +28,7 @@ public class StabilityAdmission {
         catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(StabilityAdmission.class).warn("stability telemetry unavailable");}
     }
     @SuppressWarnings("unchecked") public double fraction(List<Map<String,Object>> nodes){
+        if(dialRate!=null&&dialRate.adaptive())return dialRate.fraction();
         if(!config.flag("STABILITY_ADMISSION_ENABLED",false))return 1;
         try{
             double now=System.currentTimeMillis()/1000.0;int ttl=config.number("STABILITY_SIGNAL_TTL_SEC",15);Object raw=redis.shared("HGETALL",prefix()+":signals");if(!(raw instanceof List)||((List<?>)raw).size()%2!=0)return 0;
