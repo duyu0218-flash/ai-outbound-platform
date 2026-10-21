@@ -6,6 +6,17 @@ import java.util.*;
  * This validates exported facts; it does not generate a passing capacity result. */
 public final class CapacityEvidenceValidator {
     public static final long SECOND=1_000_000L;
+    /** R500 is a separate real-line operating qualification, never a replacement
+     * for the original P650/v5 G3 margin requirement. Callers must label it. */
+    public enum Profile {
+        P650(650),R500(500);
+        private final int averageMinimum;
+        Profile(int averageMinimum){this.averageMinimum=averageMinimum;}
+        public int averageMinimum(){return averageMinimum;}
+    }
+    public record ProfileResult(Profile profile,RateResult rates) {
+        public boolean passed(){return rates.passed();}
+    }
     public record Event(String identity,long lo,long hi) {
         public Event { if(identity==null||identity.isBlank()||lo>hi)throw new IllegalArgumentException("invalid event evidence"); }
     }
@@ -16,6 +27,12 @@ public final class CapacityEvidenceValidator {
     private CapacityEvidenceValidator() { }
 
     public static RateResult rates(List<Event> evidence,long t0,int seconds) {
+        return calculateRates(evidence,t0,seconds,Profile.P650);
+    }
+    public static ProfileResult rates(List<Event> evidence,long t0,int seconds,Profile profile) {
+        return new ProfileResult(Objects.requireNonNull(profile),calculateRates(evidence,t0,seconds,profile));
+    }
+    private static RateResult calculateRates(List<Event> evidence,long t0,int seconds,Profile profile) {
         if(seconds<1||seconds>7*86400)throw new IllegalArgumentException("explicit bounded run duration required");
         long t1=Math.addExact(t0,Math.multiplyExact((long)seconds,SECOND));
         long lastStart=t1-SECOND;
@@ -47,7 +64,7 @@ public final class CapacityEvidenceValidator {
         for(int k=0;k<fixed.length;k++)if(fixed[k]<500){errors.add("fixed second below 500: "+k);break;}
         if(min<500)errors.add("sliding second below 500 at "+worst);
         double average=total/(double)seconds;
-        if(average<650)errors.add("whole-window average below 650");
+        if(average<profile.averageMinimum())errors.add("whole-window average below "+profile.averageMinimum());
         return new RateResult(fixed,min,worst,total,average,List.copyOf(errors));
     }
 

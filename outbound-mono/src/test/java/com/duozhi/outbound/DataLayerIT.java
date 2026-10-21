@@ -194,7 +194,8 @@ class DataLayerIT {
             expectedTables.addAll(Set.of("dial_reservation","dial_phone_guard","dial_quota_counter"));
             expectedTables.addAll(Set.of("voice_dial_authorization","voice_dial_authorization_history"));
             expectedTables.add("voice_scope_counter");
-            assertThat(expectedTables).hasSize(72);
+            expectedTables.addAll(Set.of("dial_v3_coordinator","dial_v3_quota_scope","dial_v3_quota_grant","dial_v3_quota_grant_scope","dial_v3_quota_allocation"));
+            assertThat(expectedTables).hasSize(77);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {
