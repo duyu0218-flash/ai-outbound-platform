@@ -18,12 +18,38 @@ class DataLayerReplayIT {
     @Container static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
             .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci");
 
+    @Test void v18UpgradePreservesLiveCompatibilityReservationsAndMode() throws Exception {
+        String schema="v3_upgrade";
+        try(var connection=DriverManager.getConnection(MYSQL.getJdbcUrl(),"root",MYSQL.getPassword());var statement=connection.createStatement()){
+            statement.execute("CREATE DATABASE "+schema+" CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin");
+        }
+        String url="jdbc:mysql://"+MYSQL.getHost()+":"+MYSQL.getMappedPort(3306)+"/"+schema;
+        var old=Flyway.configure().dataSource(url,"root",MYSQL.getPassword()).locations("classpath:db/migration").target("18").load();
+        assertThat(old.migrate().migrationsExecuted).isEqualTo(18);
+        try(var connection=DriverManager.getConnection(url,"root",MYSQL.getPassword());var statement=connection.createStatement()){
+            statement.executeUpdate("INSERT INTO tenant(id,name,code,enabled,created_at,updated_at) VALUES(1,'upgrade fixture','upgrade',TRUE,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+            statement.executeUpdate("INSERT INTO callsession(id,tenant_id,phone,mode,status,attempts,max_attempts,voice_ai_pipeline,created_at,updated_at) VALUES('11111111-1111-1111-1111-111111111111',1,'13900000001','AI_ONLY','DIALING',1,3,'legacy',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+            try(var rows=statement.executeQuery("SELECT COUNT(*) FROM dial_reservation WHERE state='RESERVED'")){rows.next();assertThat(rows.getLong(1)).isEqualTo(1);}
+        }
+        var upgrade=Flyway.configure().dataSource(url,"root",MYSQL.getPassword()).locations("classpath:db/migration").load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);assertThat(upgrade.migrate().migrationsExecuted).isZero();
+        try(var connection=DriverManager.getConnection(url,"root",MYSQL.getPassword());var statement=connection.createStatement()){
+            try(var rows=statement.executeQuery("SELECT COUNT(*) FROM dial_reservation WHERE state='RESERVED'")){rows.next();assertThat(rows.getLong(1)).isEqualTo(1);}
+            try(var rows=statement.executeQuery("SELECT admission_mode FROM dial_admission_control WHERE id=1")){rows.next();assertThat(rows.getString(1)).isEqualTo("lock_compat");}
+            try(var rows=statement.executeQuery("SELECT COUNT(*) FROM dial_v3_quota_grant")){rows.next();assertThat(rows.getLong(1)).isZero();}
+            // Existing terminal writer still releases its original reservation;
+            // the unused new ledger neither double-counts nor takes ownership.
+            statement.executeUpdate("UPDATE callsession SET status='COMPLETED' WHERE id='11111111-1111-1111-1111-111111111111'");
+            try(var rows=statement.executeQuery("SELECT COUNT(*) FROM dial_reservation WHERE state='RESERVED'")){rows.next();assertThat(rows.getLong(1)).isZero();}
+        }
+    }
+
     @Test void emptyDatabaseThenUnchangedReplay() throws Exception {
         var flyway = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword())
                 .locations("classpath:db/migration").load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(18);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("18");
+        assertThat(first.migrationsExecuted).isEqualTo(19);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("19");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -81,18 +107,18 @@ class DataLayerReplayIT {
                 }
             }
         }
-        assertThat(tables).hasSize(72).containsKeys("flyway_schema_history","dial_admission_control","dial_drain_member","dial_migration_generation","dial_daily_counter","dial_fact_revision","dial_fact_head","dial_command_journal","voice_mock_schedule","dial_async_batch","capacity_commit_evidence","capacity_identity_evidence","dial_reservation","dial_phone_guard","dial_quota_counter","voice_dial_authorization","voice_dial_authorization_history","voice_scope_counter");
+        assertThat(tables).hasSize(77).containsKeys("flyway_schema_history","dial_admission_control","dial_drain_member","dial_migration_generation","dial_daily_counter","dial_fact_revision","dial_fact_head","dial_command_journal","voice_mock_schedule","dial_async_batch","capacity_commit_evidence","capacity_identity_evidence","dial_reservation","dial_phone_guard","dial_quota_counter","voice_dial_authorization","voice_dial_authorization_history","voice_scope_counter","dial_v3_coordinator","dial_v3_quota_scope","dial_v3_quota_grant","dial_v3_quota_grant_scope","dial_v3_quota_allocation");
         report.put("totalTablesIncludingFlyway", tables.size());
         report.put("businessTableCount", 34);
         report.put("auxiliaryTableCount", 10);
         report.put("operationsTableCount", 10);
-        report.put("dialControlTableCount",16);
+        report.put("dialControlTableCount",22);
         report.put("applicationTableCount", tables.size() - 1);
         report.put("tables", tables);
         Path target = Path.of("target", "data-layer-replay.json"); Files.createDirectories(target.getParent());
         new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(target.toFile(), report);
         System.out.println("Flyway first: migrationsExecuted=" + first.migrationsExecuted + ", version=" + first.targetSchemaVersion + ", success=" + first.success);
         System.out.println("Flyway second: migrationsExecuted=" + second.migrationsExecuted + ", version=" + version + ", success=" + second.success);
-        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, operationsTables=10, dialControlTables=17, totalTables=72");
+        System.out.println("MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1, operationsTables=10, dialControlTables=22, totalTables=77");
     }
 }
