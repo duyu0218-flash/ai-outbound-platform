@@ -6,14 +6,15 @@
 2026-10-21 用户补充确认模拟接通率 20%。占线周期沿用前述每通 20 秒；未接通也保留完整周期，不用缩短寿命换取吞吐。以固定 seed 与原始 K 的摘要决定接通，结果和生命周期阶段在同一接受事务中持久化，重启或变更配置不重新抽样。目标接通率与实际观测接通率分别记录；开场与后续轮分开验收。
 
 ## 当前状态
-- 源代码已修改：是，仍在开发。
+- 源代码已修改：是；已推送功能修复提交 0cb40fb，PR #83。当前仅允许以功能回归和必需 CI 通过作为合并条件，不赋予容量或上线资格。
 - 完整静态/功能回归第四轮通过：199 项单元 + 273 项真实 MySQL/Redis/HTTP、浏览器和 Fat Jar 集成，无失败/跳过，日志 /private/tmp/v5-full-current-verify-r4.log，测试包 SHA-256 为 2944168368848fd1667672524e629e71206221733d01bddcf224535cbba35b2a。该快照在后续模拟终态合并写入之前；新变更仍须定向和全量复验，不能把这轮结果外推到新包。
 - 完整回归第五轮通过：203 项单元 + 279 项真实 MySQL/Redis/HTTP、浏览器、迁移重放和 Fat Jar 集成，无失败/错误/跳过；日志 /private/tmp/v5-full-current-verify-r5.log，测试包 SHA-256 为 0d847d99754af3c09e70c234092ff1fdc44952d1272b31340cb010b606530265。该快照包含独立防重放、分析所有者及计时锁范围；后续批处理改动不沿用这轮通过资格。
 - 最新定向回归：V16 下 25 项单元 + 4 项真实 MySQL/Redis/HTTP 集成通过，日志 /private/tmp/v5-voice-counter-verify.log。V15 下另外验证了预留并发、原始身份恢复及排空协议，共 9 项单元 + 16 项集成通过，日志 /private/tmp/v5-authorization-recovery-verify-r2.log；两批存在重叠，不相加当作当前完整回归。
 - 当前完整回归第六轮通过：210 项单元 + 285 项真实 MySQL/Redis/HTTP、浏览器、迁移重放和 Fat Jar 集成，无失败/错误/跳过；日志 /private/tmp/v5-full-current-verify-r6.log，包 SHA-256 b87085e68436857ae540a98330b43c23c4b3962fa03a2ba1eb8a02355c8f3322。当前新增分析批处理、排空历史、日志恢复/重放和 7 项 AI 同窗反例已纳入。当前轮次按日志列出的实际测试类单独归档到 verification/v5-full-current-r6/；target 中以前显式 Probe 留下的 XML 不混入本轮计数。
 - 当前完整回归第七轮通过：210 项单元 + 291 项真实 MySQL/Redis/HTTP、浏览器、迁移重放、崩溃恢复和 Fat Jar 集成；失败/错误/跳过为 0。包含全部最新政策写入者补丁。包 SHA-256 829e98f05046ba618a60bd937088a01b513447bb1ff77b7ba485a1e44b5a5542，逐测试类清单归档于 verification/v5-full-current-r7/。
 - 模拟容量正式验收：两轮一小时均尚未开始。
-- GitHub 推送、PR、main 合并：按最新授权准备执行；以实际 PR/CI 记录为准。
+- 当前后端短时诊断第十九轮：预置 QUEUED 池 60,000、40 秒预热 + 30 秒测量、20% 合成接通、20 秒占线；测量接受 3,735 次，平均 124.5 CPS，固定秒最小 0、最大 291，passed=false、capacity_qualified=false。这是短时预置队列诊断，非完整 HTTP 流式混合供给或正式提交窗口证明，不能据此承诺持续吞吐。
+- GitHub：功能修复已推送，PR [#83](https://github.com/duyu0218-flash/ai-outbound-platform/pull/83)；main 尚待全部必需 CI 通过后合并。初轮 frontend-and-tools 依赖审计失败，正在补丁升级后重新验证，不绕过门禁。
 - 测试环境发布、真机、生产部署：未执行。
 - 商城“首页—搜索—门店/房型—购物车—下单—支付—订单—我的”链路不适用于本外呼项目。
 
@@ -109,6 +110,14 @@
 固定 K 存储四组复验全部通过（5000/10000 × binlog 压缩关闭/开启），同规模接通数一致，资源守恒零残留；当前完整回归第六轮包及探针编译类指纹独立保存，详细数值与不足见存储预算。此后开始政策写入者补丁，因此该快照不外推到后续代码。
 
 新增政策修复正在定向复验：设置在首次普通查询前取得租户行锁；租户/线路/活动的容量修改不得小于现有 active 或持久预留计数；活动编辑按相同租户锁参与竞争；联系人删除先锁再读。停止活动后仍有在途电话，编辑关系集合时保留已尝试通话及原 K，不再把这些电话改成失败。新增 PolicyCapacityIT 覆盖实际 HTTP 保存/拒绝/回显和正在提交准入的锁竞争。首次命令只因误写不存在的 StaticPolicyTest 而在测试前停止，日志保留 /private/tmp/v5-policy-capacity-verify-r1.log；已更正为 TenantMapperPolicyTest，无跳过门禁，第二轮 35 项集成中竞争用例失败，实际 200 而非 409；租户 lockForTransaction 实为 FOR SHARE，不能作为政策互斥锁。新增 PolicyWrite 组合事务注解和 Spring advisor，在事务/连接借用前取得既有平台锁，覆盖联系人、线路、设置和活动全部事务型写入口。修复后第三轮 1 项静态 + 35 项集成无失败/错误/跳过，日志 /private/tmp/v5-policy-capacity-verify-r3.log。新加仅两连接下的政策等待反例、跨租户不互相扣额度和活动终态历史保留，完整回归第七轮通过：210 项单元 + 291 项集成，无失败/错误/跳过，含新连接池和跨租户竞争用例；日志 /private/tmp/v5-full-current-verify-r7.log，包 SHA-256 829e98f05046ba618a60bd937088a01b513447bb1ff77b7ba485a1e44b5a5542。独立清单与本轮测试类 XML 留在 verification/v5-full-current-r7/。
+
+## 最新提交的诊断与合并检查
+
+第十九轮使用后端提交 0cb40fb 的重新打包产物，SHA-256 e067953bd492f4047a4a469ff40036ca61bde267b3234366636d47ff1692d532；证据 verification/v5-diagnostic-full-lifecycle-r19/result.json，日志 /private/tmp/v5-diagnostic-full-lifecycle-r19.log。相同 20%/20 秒生命周期与 40 + 30 秒诊断，显式启用 binlog 事务压缩，保留双 1 和 RR；平均 124.5 CPS，未达标。观察结束 call_analysis 完成 8,628、等待 3,534，最老约 20.3 秒；after_playback 完成 1,840、等待 979，最老约 27.7 秒，排队期限也未通过。平台接受数与网关快照取样时点不同，不把快照差额解释为丢失或最终守恒。此轮不是正式长稳、完整排空或存储校准，不能替代两轮一小时验收。
+
+GitHub 初轮 CI 的根前端依赖审计发现 Vite 6.4.3 公告项。两套前端均升级同稳定分支至 6.4.4；扩展本地审计还发现现有 Vue 的 server-renderer 公告项，单体前端 Vue 从 3.5.22 升至 3.5.42，相关锁文件同步，不修改页面业务实现。补丁后根前端构建及 11 项测试已通过、审计未发现已知漏洞；单体前端构建和审计通过（无已知漏洞）；补丁后的 1 项静态规则及 2 项真实 MySQL/浏览器/Fat Jar 集成通过，失败/错误/跳过为 0，日志 /private/tmp/v5-patched-browser-verify.log。浏览器逐入口验证了表单保存回显、登录退出、角色权限、话单/详情和重试链路。审计结果只代表本次工具输出，不作为不存在其他安全问题的保证。公告依据：[Vite](https://github.com/advisories/GHSA-587h-7wmj-h5pm)、[Vue](https://github.com/advisories/GHSA-g2v6-rqmx-r4w6)。
+
+静态与工具最终复验：当前跟踪源码与未提交补丁的隔离快照通过无解释器源码扫描、82 项工具测试、冻结契约及 4 组 Java Compose 配置检查。原工作目录的旧 target/verification 中有历史 Python 取证文件，直接目录扫描会失败；这些文件保留且未上传，没有通过删除历史或放宽扫描规则取得通过。隔离快照 /private/tmp/v5-clean-source-final-20261021，日志 /private/tmp/v5-clean-final-*.log。
 
 ## 新配置的安全默认值与数据库前置
 - daily_read 默认 legacy；admission_mode 保留 lock_compat；没有完成写入者协议前保留平台/账本串行安全边界。
