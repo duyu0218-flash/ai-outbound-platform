@@ -62,6 +62,10 @@ public class DialDrainControl {
         });
     }
 
+    boolean sendingClosed() {
+        return java.util.Set.of("SEND_CLOSED","FROZEN").contains(jdbc.queryForObject("SELECT phase FROM dial_admission_control WHERE id=1",String.class));
+    }
+
     public boolean frozen() { return "FROZEN".equals(jdbc.queryForObject("SELECT phase FROM dial_admission_control WHERE id=1",String.class)); }
 
     public Map<String,Object> freezeMockFacts() {

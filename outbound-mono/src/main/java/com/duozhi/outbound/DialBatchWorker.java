@@ -12,6 +12,7 @@ import org.springframework.transaction.support.*;
 public class DialBatchWorker {
     @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
     @org.springframework.beans.factory.annotation.Autowired private DialRateControl rate;
+    @org.springframework.beans.factory.annotation.Autowired private DialDrainControl drain;
     private final Store store;private final DialBatchStore db;private final Transactions tx;private final DialService dial;private final Config config;private final JsonSupport json;private final CallbackInbox inbox;
     private long cursor;
     public DialBatchWorker(Store store,DialBatchStore db,Transactions tx,DialService dial,Config config,JsonSupport json,CallbackInbox inbox){this.store=store;this.db=db;this.tx=tx;this.dial=dial;this.config=config;this.json=json;this.inbox=inbox;}
@@ -31,7 +32,7 @@ public class DialBatchWorker {
         return tx.serializedIdentity("java-dial-batch-claim",()->{var tenants=new ArrayList<>(store.query("tenant","allForMaintenance",Map.of()));long previous=cursor;
             tenants.sort(Comparator.<Map<String,Object>>comparingInt(t->((Number)t.get("id")).longValue()>previous?0:1).thenComparingLong(t->((Number)t.get("id")).longValue()));
             for(var tenant:tenants){long id=((Number)tenant.get("id")).longValue();if(only!=null&&id!=only)continue;
-                var params=JsonSupport.map("tenantId",id,"now",Store.now(),"cutoff",cutoff(),"limit",size());var expired=db.rows("expiredFinalTasks",params);if(!expired.isEmpty()){var expiration=new LinkedHashMap<>(params);expiration.put("ids",expired.stream().map(r->r.get("id").toString()).toList());db.write("expireFinalTasks",expiration);}
+                var params=JsonSupport.map("tenantId",id,"now",Store.now(),"cutoff",cutoff(),"limit",size(),"recoverOnly",drain.sendingClosed());var expired=db.rows("expiredFinalTasks",params);if(!expired.isEmpty()){var expiration=new LinkedHashMap<>(params);expiration.put("ids",expired.stream().map(r->r.get("id").toString()).toList());db.write("expireFinalTasks",expiration);}
                 var candidates=db.tasks(params);if(candidates.isEmpty())continue;
                 var locked=new LinkedHashMap<>(params);locked.put("ids",candidates.stream().map(t->t.get("id").toString()).toList());
                 var tasks=db.lockedTasks(locked).stream().filter(t->CallLifecycle.number(t,"attempts")<CallLifecycle.number(t,"max_attempts")&&!java.time.LocalDateTime.parse(t.get("available_at").toString()).isAfter((java.time.LocalDateTime)params.get("now"))&&(Values.set("pending","failed").contains(t.get("state"))||"processing".equals(t.get("state"))&&t.get("locked_at")!=null&&!java.time.LocalDateTime.parse(t.get("locked_at").toString()).isAfter((java.time.LocalDateTime)params.get("cutoff")))).toList();if(tasks.isEmpty())continue;

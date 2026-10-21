@@ -8,10 +8,10 @@ import com.duozhi.outbound.embedded.VoiceController;
 /** A single age controller; hard health checks are independent of soft throttling. */
 @Service
 public class DialRateControl {
- private final Config config;private final CallbackInbox inbox;private final JdbcTemplate jdbc;private final ObjectProvider<VoiceController> voice;
+ private final Config config;private final CallbackInbox inbox;private final JdbcTemplate jdbc;private final ObjectProvider<VoiceController> voice;private final RealtimeTaskPressure pressure;private long pressureLoggedAt;
  private volatile long sampledAt;private long tokenAt;private volatile double fraction;private double tokens;
  private java.util.concurrent.ScheduledExecutorService sampler;
- public DialRateControl(Config config,CallbackInbox inbox,JdbcTemplate jdbc,ObjectProvider<VoiceController> voice){this.config=config;this.inbox=inbox;this.jdbc=jdbc;this.voice=voice;}
+ public DialRateControl(Config config,CallbackInbox inbox,JdbcTemplate jdbc,ObjectProvider<VoiceController> voice,RealtimeTaskPressure pressure){this.config=config;this.inbox=inbox;this.jdbc=jdbc;this.voice=voice;this.pressure=pressure;}
  boolean adaptive(){return "adaptive".equals(config.get("JAVA_DIAL_RATE_CONTROL","legacy"));}
  static double target(double age,boolean healthy){
   if(!healthy||!Double.isFinite(age)||age<0||age>=5)return 0;
@@ -50,7 +50,9 @@ public class DialRateControl {
    var state=gateway.get("ai_outbound_voice_security_");
    healthy&=!Boolean.TRUE.equals(state.get("stopped"));
    double age=Math.max(((Number)receipt.get("oldest_age_sec")).doubleValue(),((Number)state.get("oldest_callback_age_sec")).doubleValue());
-   fraction=advance(fraction,target(age,healthy),elapsed);
+   var realtime=this.pressure.snapshot();
+   fraction=advance(fraction,Math.min(target(age,healthy),RealtimeTaskPressure.fraction(realtime)),elapsed);
+   if(config.flag("JAVA_DIAL_PROFILE",false)&&now-pressureLoggedAt>=1_000_000_000L){pressureLoggedAt=now;org.slf4j.LoggerFactory.getLogger(DialRateControl.class).info("dial_pressure callback_age_sec={} control_age_sec={} ai_age_sec={} fraction={}",age,realtime.get("control_age_sec"),realtime.get("ai_age_sec"),fraction);}
   }catch(RuntimeException unavailable){fraction=0;}
   // Query time is part of the signal age. A blocked read must neither freshen
   // old health nor earn a large recovery jump after an outage.

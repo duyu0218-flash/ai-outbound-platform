@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class CallbackInbox {
+    @org.springframework.beans.factory.annotation.Autowired private RealtimeTaskCleanup taskCleanup;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -181,6 +182,7 @@ public class CallbackInbox {
                 scope.sharedResourcesLocked=sharedResources;
                 batchDb.prepare(scope,receipts);stages[2]=System.nanoTime();
                 store.bufferWrites(()->{for(var receipt:receipts)callbacks.handle(receipt.get("kind").toString(),json.object(receipt.get("body_json").toString()));return null;});
+                taskCleanup.complete(scope);
                 stages[3]=System.nanoTime();
                 if(batchDb.write("complete",JsonSupport.map("ids",receipts.stream().map(r->r.get("id")).toList(),"now",Store.now()))!=receipts.size())throw new IllegalStateException("callback batch ownership changed");
                 var deltas=new TreeMap<Integer,Map<String,Object>>();double latency=0;

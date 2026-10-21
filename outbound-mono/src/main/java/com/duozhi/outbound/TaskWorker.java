@@ -34,9 +34,13 @@ public class TaskWorker {
     private final ExecutorService dialExecutor;
     private final AtomicBoolean[] dialLanes;
     private final ExecutorService executor;
+    private final ExecutorService aiExecutor, controlExecutor, analysisExecutor;
+    private final int controlOwners;
     private final ScheduledExecutorService heartbeat = Executors.newScheduledThreadPool(1, r -> { Thread t = new Thread(r, "java-outbox-lease"); t.setDaemon(true); return t; });
-    // Logical AI owners share a bounded executor with the other task lanes.
-    // Claim's same-stream predecessor predicate and lease fencing still serialize each call.
+    // Each workload has a separate bounded executor. One outstanding slice per
+    // logical owner bounds queued submissions; playback owners partition by call.
+    // AI stream predecessors and task leases retain their existing fences.
+    // Control partitions serialize each call within this single-JVM compatibility path.
     private final AtomicBoolean[] lanes;
     private final AtomicBoolean[] receiving;
     private final ExecutorService receipts;
@@ -50,25 +54,43 @@ public class TaskWorker {
     public TaskWorker(Store store, Transactions tx, Config config, JsonSupport json, Outbox outbox, DialService dial, CallLifecycle lifecycle, CallAnalysis analysis, CallbackInbox inbox, AiRuntime ai, IntegrationTasks integrations,DialBatchWorker dialBatch) {
         this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;this.dialBatch=dialBatch;
         int taskWorkers=Math.max(1,Math.min(16,config.number("JAVA_TASK_WORKERS",4))),aiOwners=Math.max(1,Math.min(16,config.number("JAVA_AI_TASK_OWNERS",4)));
-        int analysisOwners=Math.max(0,Math.min(16,config.number("JAVA_ANALYSIS_TASK_OWNERS",0)));
+        int analysisOwners=Math.max(1,Math.min(16,config.number("JAVA_ANALYSIS_TASK_OWNERS",1)));
+        controlOwners=Math.max(1,Math.min(16,config.number("JAVA_CONTROL_TASK_OWNERS",4)));
         analysisBatchSize=config.number("JAVA_ANALYSIS_BATCH_SIZE",1);
-        if(analysisBatchSize<1||analysisBatchSize>16||analysisBatchSize>1&&analysisOwners==0)throw new IllegalArgumentException("analysis batches require 1..16 rows and independent analysis owners");
-        executor=Executors.newFixedThreadPool(taskWorkers,r->{Thread thread=new Thread(r,"java-outbox");thread.setDaemon(true);return thread;});
+        if(analysisBatchSize<1||analysisBatchSize>16)throw new IllegalArgumentException("analysis batches require 1..16 rows");
+        executor=pool(taskWorkers,"java-outbox");
+        aiExecutor=pool(Math.max(1,Math.min(aiOwners,config.number("JAVA_AI_TASK_WORKERS",4))),"java-ai-turn");
+        controlExecutor=pool(Math.max(1,Math.min(controlOwners,config.number("JAVA_CONTROL_TASK_WORKERS",4))),"java-call-control");
+        analysisExecutor=pool(Math.max(1,Math.min(analysisOwners,config.number("JAVA_ANALYSIS_TASK_WORKERS",2))),"java-call-analysis");
         int callbackWorkers=Math.max(1,Math.min(4,config.number("JAVA_CALLBACK_WORKERS",1)));
         receiving=java.util.stream.IntStream.range(0,callbackWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);callbackCursors=new int[callbackWorkers];Arrays.fill(callbackCursors,-1);
         receipts=Executors.newFixedThreadPool(callbackWorkers,r->{Thread thread=new Thread(r,"java-callback-inbox");thread.setDaemon(true);return thread;});
-        var types=new ArrayList<>(List.of("('dial_call','mock_status')","('ai_turn')",analysisOwners==0?"('after_playback','interrupt_playback','call_analysis')":"('after_playback','interrupt_playback')","('business_callback','recording_ingest','recording_delete','send_sms')"));
+        var types=new ArrayList<>(List.of("('dial_call','mock_status')","('ai_turn')","('after_playback','interrupt_playback')","('business_callback','recording_ingest','recording_delete','send_sms')"));
         for(int i=1;i<aiOwners;i++)types.add("('ai_turn')");
         for(int i=0;i<analysisOwners;i++)types.add("('call_analysis')");
+        for(int i=1;i<controlOwners;i++)types.add("('after_playback','interrupt_playback')");
         laneTypes=types.toArray(String[]::new);lanes=java.util.stream.IntStream.range(0,laneTypes.length).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
         int dialWorkers=Math.max(1,Math.min(4,config.number("JAVA_DIAL_WORKERS",1)));dialLanes=java.util.stream.IntStream.range(0,dialWorkers).mapToObj(i->new AtomicBoolean()).toArray(AtomicBoolean[]::new);
         dialExecutor=Executors.newFixedThreadPool(dialWorkers,r->{var thread=new Thread(r,"java-dial-batch");thread.setDaemon(true);return thread;});
+    }
+    private static ExecutorService pool(int threads,String name) {
+        // At most 50 logical owners exist, each with one outstanding slice.
+        return new ThreadPoolExecutor(threads,threads,0L,TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(64),r->{var thread=new Thread(r,name);thread.setDaemon(true);return thread;});
+    }
+    int analysisLane(){return Arrays.asList(laneTypes).indexOf("('call_analysis')");}
+    private ExecutorService executorFor(int lane) {
+        String type=laneTypes[lane];
+        if(type.equals("('ai_turn')"))return aiExecutor;
+        if(type.equals("('after_playback','interrupt_playback')"))return controlExecutor;
+        if(type.equals("('call_analysis')"))return analysisExecutor;
+        return executor;
     }
     public static void permitted() { Runnable guard = GUARD.get(); if (guard != null) guard.run(); }
     static <T>T guarded(long tenant,Runnable guard,java.util.function.Supplier<T> work){return guarded(tenant,OWNER_TOKEN.get(),guard,work);}
     static <T>T guarded(long tenant,String owner,Runnable guard,java.util.function.Supplier<T> work){var previous=GUARD.get();var oldTenant=TENANT_HINT.get();var oldOwner=OWNER_TOKEN.get();GUARD.set(guard);TENANT_HINT.set(tenant);if(owner==null)OWNER_TOKEN.remove();else OWNER_TOKEN.set(owner);try{permitted();return work.get();}finally{if(previous==null)GUARD.remove();else GUARD.set(previous);if(oldTenant==null)TENANT_HINT.remove();else TENANT_HINT.set(oldTenant);if(oldOwner==null)OWNER_TOKEN.remove();else OWNER_TOKEN.set(oldOwner);}}
     @EventListener(ApplicationReadyEvent.class) public void ready() { ready = true; }
-    @PreDestroy public void close() { ready = false; executor.shutdownNow();dialExecutor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
+    @PreDestroy public void close() { ready = false; executor.shutdownNow();aiExecutor.shutdownNow();controlExecutor.shutdownNow();analysisExecutor.shutdownNow();dialExecutor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
     private void aiProgress(long queued) {
         long now=System.nanoTime();
         synchronized(aiDelays){
@@ -94,7 +116,8 @@ public class TaskWorker {
     public int enqueueDue() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return 0;
         return tx.serialized(() -> {
-            tx.platform(); int count = dialBatch.size()>1?dialBatch.enqueue():0;
+            tx.platform(); if(!dialControl.acceptingInTransaction())return 0;
+            int count = dialBatch.size()>1?dialBatch.enqueue():0;
             List<Map<String, Object>> candidates = store.orderedAcross("callsession",dialBatch.size()>1?"retryDueForBatch":"scopedTaskWorker70",Store.queryParameters(-1,store.encode("callsession", "next_attempt_at", Store.now())),List.of("updated_at:ASC"),100);
             for (Map<String, Object> call : candidates) {
                 if (call.get("campaign_id") != null) {
@@ -111,13 +134,14 @@ public class TaskWorker {
             return count;
         });
     }
-    private Map<String, Object> claim(Long tenant, String types) {
+    private Map<String, Object> claim(Long tenant, String types) { return claim(tenant,types,0,1); }
+    private Map<String, Object> claim(Long tenant, String types,int partition,int partitions) {
         boolean parallel=config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED",false);
         java.util.function.Supplier<Map<String,Object>> work=() -> {
             Object now = store.encode("taskoutbox", "available_at", Store.now());
             Object cutoff = store.encode("taskoutbox", "locked_at", Store.now().minusSeconds(Math.max(2, config.number("TASK_LEASE_SEC", 30))));
             List<String> allowed=Arrays.asList(types.replace("(","").replace(")","").replace("'","").split(","));
-            Map<String,Object> filters=JsonSupport.map("types",allowed,"now",now,"cutoff",cutoff,"parallelClaim",parallel);
+            Map<String,Object> filters=JsonSupport.map("types",allowed,"now",now,"cutoff",cutoff,"parallelClaim",parallel,"controlPartition",partition,"controlPartitions",partitions,"recoverOnly",types.contains("'dial_call'")&&dialControl.sendingClosed());
             for(var candidate:store.orderedAcross("taskoutbox","abandonedLeases",filters,List.of(),10)) {
                 var abandoned=store.one("taskoutbox",parallel?"lockByIdSkipLocked":"lockById",Values.map("tenantId",CallLifecycle.tenant(candidate),"id",store.encode("taskoutbox","id",candidate.get("id"))));
                 if(abandoned!=null && "processing".equals(abandoned.get("state")) && expired(abandoned,cutoff)
@@ -159,8 +183,18 @@ public class TaskWorker {
     public boolean processOne() { return processOne(null); }
     boolean processOne(Long tenant) { return processOne(tenant, TYPES); }
     boolean processLane(Long tenant,int lane) {
+        String type=laneTypes[lane];
+        var route=type.equals("('call_analysis')")?WorkloadDataSource.Lane.ANALYSIS:
+                type.equals("('ai_turn')")||type.equals("('after_playback','interrupt_playback')")?WorkloadDataSource.Lane.REALTIME:WorkloadDataSource.Lane.DEFAULT;
+        try(var routing=WorkloadDataSource.use(route)){return processRoutedLane(tenant,lane);}
+    }
+    private boolean processRoutedLane(Long tenant,int lane) {
         if(lane==0&&dialBatch.size()>1)return dialBatch.process(tenant,heartbeat)||processOne(tenant,"('mock_status')");
         if(analysisBatchSize>1&&laneTypes[lane].equals("('call_analysis')"))return processAnalysisBatch(tenant);
+        if(laneTypes[lane].equals("('after_playback','interrupt_playback')")) {
+            int partition=0;for(int i=0;i<lane;i++)if(laneTypes[i].equals(laneTypes[lane]))partition++;
+            return processOne(tenant,laneTypes[lane],partition,controlOwners);
+        }
         return processOne(tenant,laneTypes[lane]);
     }
     /** Analysis has no external I/O. Its task ownership, call results and task
@@ -211,8 +245,9 @@ public class TaskWorker {
         }
         return false;
     }
-    private boolean processOne(Long tenant, String types) {
-        Map<String, Object> task = claim(tenant, types); if (task == null) return false;
+    private boolean processOne(Long tenant, String types) { return processOne(tenant,types,0,1); }
+    private boolean processOne(Long tenant,String types,int partition,int partitions) {
+        Map<String, Object> task = claim(tenant, types,partition,partitions); if (task == null) return false;
         AtomicBoolean lost = new AtomicBoolean();
         int period = Math.max(1, config.number("TASK_LEASE_SEC", 30) / 3);
         ScheduledFuture<?> renewal = heartbeat.scheduleAtFixedRate(() -> {
@@ -251,7 +286,7 @@ public class TaskWorker {
                 Map<String, Object> call = store.locate("callsession",store.encode("callsession", "id", payload.get("call_id")),false);
                 if(!payload.containsKey("_dial_claimed")&&call!=null){var recovered=dial.frozenTask(call,payload);if(recovered!=null)payload.put("_dial_claimed",recovered);}
                 if(payload.get("_dial_claimed") instanceof Map<?,?> frozen&&call!=null&&frozen.get("call") instanceof Map<?,?> old){
-                    boolean queryOnly=CallLifecycle.TERMINAL.contains(call.get("status"))||CallLifecycle.number(call,"attempts")!=CallLifecycle.number((Map<String,Object>)old,"attempts");
+                    boolean queryOnly=dialControl.sendingClosed()||CallLifecycle.TERMINAL.contains(call.get("status"))||CallLifecycle.number(call,"attempts")!=CallLifecycle.number((Map<String,Object>)old,"attempts");
                     boolean complete=queryOnly?dial.confirmClaimed((Map<String,Object>)old,(Map<String,Object>)frozen.get("metadata")):dial.sendClaimed((Map<String,Object>)old,(Map<String,Object>)frozen.get("metadata"));
                     if(!complete){payload.remove("_dial_claimed");store.update("taskoutbox",CallLifecycle.tenant(task),task.get("id"),JsonSupport.map("payload_json",json.json(payload)));throw new Deferred();}
                 }else if (call != null && "queued".equals(call.get("status")) && CallLifecycle.number(call, "attempts") == JsonSupport.integer(payload.get("attempt"), -1)) {
@@ -303,7 +338,7 @@ public class TaskWorker {
         finally{if(full&&ready&&!dialExecutor.isShutdown())submitDialLane(lane,true);else dialLanes[lane].set(false);}});
     }
     private void submitLane(int index,long queued,boolean dispatch) {
-        executor.submit(() -> {
+        executorFor(index).submit(() -> {
             boolean full=false;
             try {
                 if(laneTypes[index].equals("('ai_turn')"))aiProgress(queued);
@@ -316,7 +351,7 @@ public class TaskWorker {
                 full=processed==16;
             } catch(RuntimeException e) { org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("worker lane={} error_type={}",index,e.getClass().getSimpleName()); }
             finally {
-                if(full&&ready&&!executor.isShutdown())submitLane(index,System.nanoTime(),false);
+                if(full&&ready&&!executorFor(index).isShutdown())submitLane(index,System.nanoTime(),false);
                 else lanes[index].set(false);
             }
         });

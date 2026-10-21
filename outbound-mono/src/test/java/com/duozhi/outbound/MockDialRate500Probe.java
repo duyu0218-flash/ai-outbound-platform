@@ -12,13 +12,15 @@ class MockDialRate500Probe {
  @Test void dialPathActuallyStarts500NewMockCallsPerSecond()throws Exception{
     run(false);
  }
- void run(boolean calibration)throws Exception{
+ void run(boolean calibration)throws Exception{run(calibration,false);}
+ void run(boolean calibration,boolean drainDiagnostic)throws Exception{
   assertTrue(dbPool>=1&&dbPool<=32,"Bounded explicit business JDBC pool");assertTrue(seconds>=1&&seconds<=300&&warmup>=0&&warmup<=60,"Explicit bounded measurement and warmup durations");
   boolean queued="queue".equals(System.getProperty("dial.source","http"));assertTrue(Set.of("queue","http").contains(System.getProperty("dial.source","http")));
+  if(drainDiagnostic){assertTrue(queued,"stop-and-drain diagnostic requires an explicit queued cohort");assertFalse(calibration,"calibration and stop-and-drain are separate workloads");}
   folder=Path.of(System.getProperty("dial.output","verification/dial500-"+run));assertFalse(Files.exists(folder));Files.createDirectories(folder);Path jar=Path.of("target/outbound-mono.jar");
   result.put("scope",(queued?"Preloaded number pool with real durable scheduling":"Full HTTP creation and admission")+" / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.");result.put("target_cps",500);result.put("seconds",seconds);result.put("jar_sha256",HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(jar))));
   result.put("dial_source",queued?"Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests":"Fixed-rate full HTTP call creation/admission/mock gateway");
-  result.put("calibration_only",calibration);result.put("capacity_qualified",false);if(calibration)assertTrue(queued,"storage calibration requires a finite queued cohort");
+  result.put("drain_diagnostic_only",drainDiagnostic);result.put("calibration_only",calibration);result.put("capacity_qualified",false);if(calibration)assertTrue(queued,"storage calibration requires a finite queued cohort");
   var futures=new ArrayList<CompletableFuture<?>>();var codes=new ConcurrentHashMap<Integer,AtomicInteger>();var missed=new AtomicInteger();var errors=new ConcurrentHashMap<String,String>();
   try{
         try(var mysql=new MySQLContainer<>("mysql:8.4");var redis=new GenericContainer<>(DockerImageName.parse("redis:7")).withExposedPorts(6379)) {
@@ -48,13 +50,18 @@ class MockDialRate500Probe {
                 env.put("VOICE_MATERIALIZED_LIMITS_ENABLED",System.getProperty("dial.voice.materialized","true"));
                 env.put("VOICE_SECURITY_ADMIN_TOKEN",HOOK);
                 // Explicit higher call ceiling and API rate allowance; worker and DB pools remain at delivered defaults.
-                result.put("configuration",Values.map("jvm_heap_max_gib",2,"db_pool_max",dbPool,"voice_ledger_pool_max",4,"model_quota_window","disabled; rule AI","http_inflight_limit",100,"api_rate_limit_rps",2000,"worker_lanes",7,"task_executor_threads",4,"ai_lane_threads_max",4,"callback_consumer_threads",1,"external_model","not used","audio","not exercised","capacity_knobs",20000,"application_jvms",1));
+                result.put("configuration",Values.map("jvm_heap_max_gib",2,"db_pool_max",dbPool,"voice_ledger_pool_max",4,"model_quota_window","disabled; rule AI","http_inflight_limit",100,"api_rate_limit_rps",2000,"ai_lane_threads_max",4,"callback_consumer_threads",1,"external_model","not used","audio","not exercised","capacity_knobs",20000,"application_jvms",1));
                 var actualConfiguration=new LinkedHashMap<>((Map<String,Object>)result.get("configuration"));actualConfiguration.put("dial_batch_size",cfg.get("JAVA_DIAL_BATCH_SIZE"));actualConfiguration.put("gateway_command_batch_max",100);actualConfiguration.put("callback_batch_size",cfg.get("JAVA_CALLBACK_BATCH_SIZE"));actualConfiguration.put("voice_callback_batch_enabled",true);result.put("configuration",actualConfiguration);
                 for(String key:List.of("VOICE_MAX_CONCURRENT","VOICE_CPS","VOICE_DAILY_CALL_LIMIT","VOICE_HOUR_BUDGET_MINOR","VOICE_DAY_BUDGET_MINOR","VOICE_MOCK_OCCUPANCY_SEC","OUTBOUND_DAILY_CALL_LIMIT","JAVA_CALLBACK_TERMINAL_BATCH_ENABLED","VOICE_ADMISSION_BATCH_CACHE_ENABLED","JAVA_DIAL_RATE_CONTROL"))actualConfiguration.put(key,env.get(key));
                 for(String key:List.of("JAVA_DIAL_AUTH_PROTOCOL","VOICE_MATERIALIZED_LIMITS_ENABLED","JAVA_DIAL_TOKEN_BURST"))actualConfiguration.put(key,env.get(key));
                 env.put("JAVA_DIAL_WORKERS",System.getProperty("dial.workers","2"));actualConfiguration.put("dial_executor_threads",env.get("JAVA_DIAL_WORKERS"));actualConfiguration.put("general_task_executor_threads",4);
                 env.put("JAVA_TASK_WORKERS",System.getProperty("dial.task.workers","4"));env.put("JAVA_TASK_CLAIM_PARALLEL_ENABLED",System.getProperty("dial.task.parallel","false"));actualConfiguration.put("general_task_executor_threads",env.get("JAVA_TASK_WORKERS"));actualConfiguration.put("JAVA_TASK_CLAIM_PARALLEL_ENABLED",env.get("JAVA_TASK_CLAIM_PARALLEL_ENABLED"));
                 env.put("JAVA_ANALYSIS_TASK_OWNERS",System.getProperty("dial.analysis.owners","0"));actualConfiguration.put("JAVA_ANALYSIS_TASK_OWNERS",env.get("JAVA_ANALYSIS_TASK_OWNERS"));
+                for(var knob:Map.of("JAVA_AI_TASK_WORKERS","dial.ai.workers","JAVA_CONTROL_TASK_WORKERS","dial.control.workers","JAVA_CONTROL_TASK_OWNERS","dial.control.owners","JAVA_ANALYSIS_TASK_WORKERS","dial.analysis.workers").entrySet()){
+                    env.put(knob.getKey(),System.getProperty(knob.getValue(),knob.getKey().equals("JAVA_ANALYSIS_TASK_WORKERS")?"2":"4"));actualConfiguration.put(knob.getKey(),env.get(knob.getKey()));
+                }
+                actualConfiguration.put("realtime_jdbc_pool_max",4);actualConfiguration.put("analysis_jdbc_pool_max",1);actualConfiguration.put("total_business_jdbc_pool_max",dbPool+5);
+                actualConfiguration.put("logical_task_lanes",2+4+Integer.parseInt(env.get("JAVA_CONTROL_TASK_OWNERS"))+Math.max(1,Integer.parseInt(env.get("JAVA_ANALYSIS_TASK_OWNERS"))));
                 env.put("JAVA_ANALYSIS_BATCH_SIZE",System.getProperty("dial.analysis.batch","1"));actualConfiguration.put("JAVA_ANALYSIS_BATCH_SIZE",env.get("JAVA_ANALYSIS_BATCH_SIZE"));
                 int callbackWorkers=Integer.getInteger("dial.callback.workers",1);assertTrue(callbackWorkers>=1&&callbackWorkers<=4);env.put("JAVA_CALLBACK_WORKERS",""+callbackWorkers);actualConfiguration.put("callback_consumer_threads",callbackWorkers);
                 env.put("VOICE_CALLBACK_CONCURRENCY",System.getProperty("dial.callback.concurrency","64"));actualConfiguration.put("voice_callback_delivery_concurrency",env.get("VOICE_CALLBACK_CONCURRENCY"));
@@ -92,7 +99,7 @@ class MockDialRate500Probe {
                     result.put("db_stats_before",databaseStats());phase=System.currentTimeMillis();result.put("phase_start_ms",phase);c.commit();
                   }
                   result.put("mysql_physical_after_queue_commit",physicalSample(mysql));result.put("fixtures","Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.");result.put("queued_pool_size",poolSize);
-                  if(calibration){phase=System.currentTimeMillis();result.put("phase_start_ms",phase);admin("/v1/admin/dial-control/cancel");awaitFiniteDrain();}else Thread.sleep((seconds+warmup+1)*1000L);
+                  if(calibration){phase=System.currentTimeMillis();result.put("phase_start_ms",phase);admin("/v1/admin/dial-control/cancel");awaitFiniteDrain();}else {Thread.sleep((seconds+warmup+1)*1000L);if(drainDiagnostic)stopAndDrain();}
                 }
                 for(int i=0;!queued&&i<500*(seconds+warmup+1);i++){
                   final int index=i;long due=begin+i*2_000_000L;while(System.nanoTime()<due)java.util.concurrent.locks.LockSupport.parkNanos(due-System.nanoTime());
@@ -123,7 +130,7 @@ class MockDialRate500Probe {
                 try(var c=DriverManager.getConnection(jdbc,"root",dbPassword);var q=c.createStatement();var rows=q.executeQuery("SHOW ENGINE INNODB STATUS")){if(rows.next())Files.writeString(folder.resolve("innodb-final.txt"),rows.getString(3));}catch(SQLException diagnostic){result.put("innodb_diagnostic_error",diagnostic.getMessage());}
                 try(var c=connection();var q=c.createStatement();var rows=q.executeQuery("SELECT state,COUNT(*),MAX(TIMESTAMPDIFF(MICROSECOND,received_at,UTC_TIMESTAMP(3)))/1000000 FROM callbackinbox GROUP BY state")){var receipts=new ArrayList<Map<String,Object>>();while(rows.next())receipts.add(Map.of("state",rows.getString(1),"count",rows.getLong(2),"oldest_age_sec",rows.getDouble(3)));result.put("callback_receipts",receipts);}
                 try(var c=connection();var q=c.createStatement();var rows=q.executeQuery("SELECT COUNT(*),COALESCE(UNIX_TIMESTAMP(UTC_TIMESTAMP(3))-MIN(created),0),COALESCE(MAX(failures),0) FROM voice_outbox")){if(rows.next())result.put("gateway_callback_backlog",Map.of("count",rows.getLong(1),"oldest_age_sec",rows.getDouble(2),"max_failures",rows.getLong(3)));}
-                boolean passed=!calibration&&within>=500L*seconds&&missed.get()==0&&java.util.stream.LongStream.range(warmup,warmup+seconds).allMatch(bucket->buckets.getOrDefault(bucket,0L)>=500);result.put("passed",passed);json.writerWithDefaultPrettyPrinter().writeValue(folder.resolve("result.json").toFile(),result);
+                boolean passed=!calibration&&within>=500L*seconds&&missed.get()==0&&java.util.stream.LongStream.range(warmup,warmup+seconds).allMatch(bucket->buckets.getOrDefault(bucket,0L)>=500);result.put("passed",passed);if(drainDiagnostic){assertEquals(true,result.get("stop_drain_verified"),"no diagnostic pass without actual drain");var lifetime=(Map<String,Object>)result.get("observed_synthetic_lifetimes");assertEquals(((Number)lifetime.get("accepted")).longValue(),((Number)lifetime.get("ended")).longValue(),"all mock attempts ended");if(Integer.getInteger("dial.occupancy.seconds",20)>=20)assertEquals(0L,((Number)lifetime.get("ended_under_19_9_sec")).longValue(),"do not shorten the 20-second occupancy to clear queues");result.put("backlog_drain_passed",true);result.put("diagnostic_passed",true);}json.writerWithDefaultPrettyPrinter().writeValue(folder.resolve("result.json").toFile(),result);
                 if(calibration){
                     assertEquals(poolSize,accepted,"every finite attempt must have one durable acknowledgement");
                     var conservation=new LinkedHashMap<String,Long>();conservation.put("planned",(long)poolSize);conservation.put("accepted",accepted);
@@ -136,11 +143,78 @@ class MockDialRate500Probe {
                     }
                     result.put("finite_identity_conservation",conservation);
                     result.put("storage_calibration_passed",true);
-                }else assertTrue(passed,"500 CPS NOT achieved; evidence "+folder.resolve("result.json"));
+                }else if(!drainDiagnostic)assertTrue(passed,"500 CPS NOT achieved; evidence "+folder.resolve("result.json"));
             }finally{if(application!=null){application.destroy();if(!application.waitFor(10,TimeUnit.SECONDS))application.destroyForcibly();}}
         }
   }catch(Throwable error){result.put("probe_error",error.toString());throw error;}finally{json.writerWithDefaultPrettyPrinter().writeValue(folder.resolve("result.json").toFile(),result);}
  }
+    Map<String,Object> backlogSample()throws Exception {
+        var sample=new LinkedHashMap<String,Object>();sample.put("at_ms",System.currentTimeMillis());
+        // A read-only transaction provides one consistent snapshot; observers do not join production writes.
+        try(var db=connection();var q=db.createStatement()){
+            db.setAutoCommit(false);
+            for(var check:Map.ofEntries(
+                Map.entry("business_active","SELECT COUNT(*) FROM callsession WHERE status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')"),
+                Map.entry("gateway_active","SELECT COUNT(*) FROM voice_attempts WHERE state!='ended'"),
+                Map.entry("mock_schedules_remaining","SELECT COUNT(*) FROM voice_mock_schedule"),
+                Map.entry("receipts_remaining","SELECT COUNT(*) FROM callbackinbox WHERE state NOT IN ('done','ignored')"),
+                Map.entry("gateway_callbacks_remaining","SELECT COUNT(*) FROM voice_outbox"),
+                Map.entry("lifecycle_tasks_remaining","SELECT COUNT(*) FROM taskoutbox t WHERE t.state!='COMPLETED' AND (t.task_type!='dial_call' OR EXISTS(SELECT 1 FROM dial_command_journal j WHERE j.tenant_id=t.tenant_id AND j.call_id=t.aggregate_id AND j.attempt=JSON_EXTRACT(t.payload_json,'$.attempt')+1))"),
+                Map.entry("dial_processing","SELECT COUNT(*) FROM taskoutbox WHERE task_type='dial_call' AND state='PROCESSING'"),
+                Map.entry("dead_tasks","SELECT COUNT(*) FROM taskoutbox WHERE state='DEAD'"),
+                Map.entry("reserved","SELECT COUNT(*) FROM dial_reservation WHERE state='RESERVED'"),
+                Map.entry("phone_guards","SELECT COUNT(*) FROM dial_phone_guard"),
+                Map.entry("platform_counter_active","SELECT COALESCE(SUM(active),0) FROM dial_quota_counter"),
+                Map.entry("voice_counter_active","SELECT COALESCE(SUM(fact_count),0) FROM voice_scope_counter WHERE bucket_kind='active'")
+            ).entrySet())try(var rows=q.executeQuery(check.getValue())){rows.next();sample.put(check.getKey(),rows.getLong(1));}
+            var tasks=new ArrayList<Map<String,Object>>();
+            try(var rows=q.executeQuery("SELECT task_type,state,COUNT(*),SUM(available_at<=UTC_TIMESTAMP(3)),SUM(available_at>UTC_TIMESTAMP(3)),GREATEST(0,COALESCE(MAX(TIMESTAMPDIFF(MICROSECOND,available_at,UTC_TIMESTAMP(3))),0))/1000000 FROM taskoutbox WHERE state!='COMPLETED' GROUP BY task_type,state")){
+                while(rows.next())tasks.add(Values.map("type",rows.getString(1),"state",rows.getString(2),"count",rows.getLong(3),"due",rows.getLong(4),"future",rows.getLong(5),"oldest_due_age_sec",rows.getDouble(6)));
+            }sample.put("task_backlog",tasks);db.commit();
+        }return sample;
+    }
+    void stopAndDrain()throws Exception {
+        long stopped=System.nanoTime();result.put("stop_requested_at_ms",System.currentTimeMillis());result.put("backlog_at_stop_request",backlogSample());
+        var begin=admin("/v1/admin/dial-control/begin");result.put("drain_begin",begin);
+        // The begin transaction captures admitted/sending K identities while closing new admission.
+        // QUEUED/unadmitted rows remain durable but never become a second load phase.
+        long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(180);boolean closed=false;
+        while(System.nanoTime()<deadline){
+            var reply=http.send(HttpRequest.newBuilder(URI.create(origin+"/v1/admin/dial-control/close-sending")).timeout(Duration.ofSeconds(30)).header("Authorization","Bearer "+HOOK).POST(HttpRequest.BodyPublishers.ofString("{}")).build(),HttpResponse.BodyHandlers.ofString());
+            if(reply.statusCode()==200){result.put("sending_closed",json.readValue(reply.body(),Map.class));closed=true;break;}
+            assertEquals(409,reply.statusCode(),"only unresolved sending may postpone the barrier: "+reply.body());Thread.sleep(200);
+        }assertTrue(closed,"sending barrier must close before drain deadline");
+        long accepted;
+        try(var db=connection();var q=db.createStatement();var rows=q.executeQuery("SELECT COUNT(*) FROM voice_attempts")){rows.next();accepted=rows.getLong(1);}
+        result.put("fixed_attempt_count_after_sending_closed",accepted);var samples=new ArrayList<Map<String,Object>>();int stable=0;
+        while(System.nanoTime()<deadline){
+            var sample=backlogSample();samples.add(sample);result.put("stop_drain_samples",samples);write();
+            boolean empty=sample.entrySet().stream().filter(e->e.getValue() instanceof Number&&!e.getKey().equals("at_ms")).allMatch(e->((Number)e.getValue()).longValue()==0);
+            stable=empty?stable+1:0;
+            if(stable==3)break;Thread.sleep(1000);
+        }
+        assertEquals(3,stable,"stopped cohort must drain without dead tasks, unknown sends or resource leaks");
+        result.put("stop_drain_elapsed_sec",(System.nanoTime()-stopped)/1e9);result.put("stop_drain_final",admin("/v1/admin/dial-control/freeze-mock"));
+        try(var db=connection();var q=db.createStatement()){
+            // Full bidirectional identity match, not just equal total counts.
+            String invalid="SELECT COUNT(*) FROM voice_attempts v LEFT JOIN callsession c ON c.tenant_id=v.tenant AND REPLACE(c.id,'-','')=REPLACE(v.call_id,'-','') AND c.attempts=v.attempt WHERE c.id IS NULL OR v.state!='ended' OR v.send_state!='ENDED' OR c.status NOT IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL') OR (SELECT COUNT(*) FROM callevent e WHERE e.call_session_id=c.id AND e.event_type='dial_command_accepted' AND JSON_EXTRACT(e.payload,'$.attempt')=v.attempt)<>1 OR NOT EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=v.tenant AND u.call_session_id=c.id AND u.attempt=v.attempt AND u.ended_at IS NOT NULL)";
+            try(var rows=q.executeQuery(invalid)){rows.next();long n=rows.getLong(1);result.put("drain_invalid_identities",n);assertEquals(0,n,"gateway/business/acceptance/usage K reconciliation");}
+            try(var rows=q.executeQuery("SELECT COUNT(*) FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE e.event_type='dial_command_accepted' AND NOT EXISTS(SELECT 1 FROM voice_attempts v WHERE v.tenant=c.tenant_id AND REPLACE(v.call_id,'-','')=REPLACE(c.id,'-','') AND v.attempt=JSON_EXTRACT(e.payload,'$.attempt'))")){rows.next();assertEquals(0,rows.getLong(1),"no business acknowledgement without voice identity");}
+            try(var rows=q.executeQuery("SELECT COUNT(*),COUNT(DISTINCT tenant,call_id,attempt) FROM voice_attempts")){rows.next();assertEquals(accepted,rows.getLong(1),"no new attempts after SEND_CLOSED");assertEquals(accepted,rows.getLong(2),"unique K");}
+            try(var rows=q.executeQuery("SELECT COUNT(*) FROM callsession WHERE attempts=0 AND status='QUEUED'")){rows.next();result.put("unadmitted_queued_preserved",rows.getLong(1));}
+            try(var rows=q.executeQuery("SELECT task_type,COUNT(*),SUM(updated_at>available_at),GREATEST(0,MAX(TIMESTAMPDIFF(MICROSECOND,available_at,updated_at)))/1000.0 FROM taskoutbox WHERE last_error='superseded by terminal attempt' GROUP BY task_type")){
+                var cancelled=new ArrayList<Map<String,Object>>();while(rows.next())cancelled.add(Values.map("type",rows.getString(1),"count",rows.getLong(2),"superseded_after_due",rows.getLong(3),"max_superseded_after_due_ms",rows.getDouble(4)));result.put("superseded_control_tasks",cancelled);
+                result.put("superseded_note","Kept as original durable task rows, never treated as successful control dispatch. Supersession after due is reported separately and cannot erase earlier SLO misses; validity at each deadline needs independent event evidence.");
+            }
+
+            try(var rows=q.executeQuery("SELECT task_type,TIMESTAMPDIFF(MICROSECOND,available_at,updated_at)/1000.0 FROM taskoutbox WHERE task_type IN ('ai_turn','after_playback','interrupt_playback') AND state='COMPLETED' AND last_error='' AND available_at>=FROM_UNIXTIME("+( ((Number)result.get("phase_start_ms")).longValue()/1000.0)+") ORDER BY task_type")){
+                var latency=new TreeMap<String,List<Double>>();while(rows.next())latency.computeIfAbsent(rows.getString(1),key->new ArrayList<>()).add(Math.max(0,rows.getDouble(2)));var summaries=new TreeMap<String,Object>();
+                for(var entry:latency.entrySet()){var values=entry.getValue();Collections.sort(values);summaries.put(entry.getKey(),Values.map("count",values.size(),"p99_ms",values.get((int)Math.ceil(values.size()*.99)-1),"max_ms",values.get(values.size()-1),"over_2000ms",values.stream().filter(v->v>2000).count()));}
+                result.put("task_due_to_completion_latency",summaries);result.put("task_latency_note","Upper-bound diagnostic includes execution and commit; excludes superseded tasks, is not independently collected action-dispatch evidence or a formal V3 SLO pass.");
+            }
+        }
+        result.put("stop_drain_verified",true);write();
+    }
     void awaitFiniteDrain()throws Exception{
         long limit=System.nanoTime()+TimeUnit.SECONDS.toNanos(240);var samples=new ArrayList<Map<String,Object>>();int stable=0;
         while(System.nanoTime()<limit){

@@ -29,13 +29,13 @@ class QueueConcurrencyIT {
         p.add("spring.flyway.url",MYSQL::getJdbcUrl);p.add("spring.flyway.user",()->"root");p.add("spring.flyway.password",MYSQL::getPassword);
         p.add("spring.data.redis.host",REDIS::getHost);p.add("spring.data.redis.port",()->REDIS.getMappedPort(6379));
         p.add("REDIS_URL",()->"redis://"+REDIS.getHost()+":"+REDIS.getMappedPort(6379));
-        p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_ANALYSIS_TASK_OWNERS",()->"2");p.add("spring.ai.model.chat",()->"none");
+        p.add("JAVA_ANALYSIS_DB_POOL",()->"1");p.add("JAVA_WORKERS_ENABLED",()->"false");p.add("JAVA_ANALYSIS_TASK_OWNERS",()->"2");p.add("spring.ai.model.chat",()->"none");
     }
-    @Autowired Store store;@Autowired Transactions tx;@Autowired Outbox outbox;
+    @Autowired Store store;@Autowired Transactions tx;@Autowired Outbox outbox;@Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;@Autowired RealtimeTaskCleanup taskCleanup;@Autowired RealtimeTaskPressure taskPressure;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired TaskWorker worker;@Autowired CallbackInbox inbox;@Autowired TestRestTemplate http;
     @org.springframework.boot.test.mock.mockito.SpyBean CallAnalysis analysis;
-    @Autowired ConversationPolicy conversation;@Autowired VoiceCallbacks businessVoice;
+    @Autowired CallLifecycle lifecycle;@Autowired ConversationPolicy conversation;@Autowired VoiceCallbacks businessVoice;
     @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
     @org.springframework.boot.test.mock.mockito.SpyBean AiRuntime runtime;
     @org.springframework.boot.test.mock.mockito.SpyBean TelephonyClient telephony;
@@ -442,4 +442,83 @@ class QueueConcurrencyIT {
     @RestController static class FaultController {
         @GetMapping("/v1/call/queue-fault-probe") void fail(){throw new org.springframework.dao.CannotAcquireLockException("isolated database-failure regression fixture");}
     }
+    @Test void playbackOwnersRunDifferentCallsInParallelWithoutOverlappingTheSameCall()throws Exception {
+        long tid=194;store.insert("tenant",Values.map("id",tid,"code","control-partitions","name","Isolated playback owners"));
+        var property=new org.springframework.core.env.MapPropertySource("control-parallel",Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED","true"));environment.getPropertySources().addFirst(property);
+        String[] types=(String[])org.springframework.test.util.ReflectionTestUtils.getField(worker,"laneTypes");var owners=new ArrayList<Integer>();for(int i=0;i<types.length;i++)if(types[i].equals("('after_playback','interrupt_playback')"))owners.add(i);
+        assertThat(owners).hasSize(4);var active=new ConcurrentHashMap<String,java.util.concurrent.atomic.AtomicInteger>();var overlap=new java.util.concurrent.atomic.AtomicBoolean();var concurrent=new java.util.concurrent.atomic.AtomicInteger();var peak=new java.util.concurrent.atomic.AtomicInteger();
+        var rows=new ArrayList<Map<String,Object>>();var future=new ArrayList<Map<String,Object>>();var pool=Executors.newFixedThreadPool(4);
+        org.mockito.Mockito.doAnswer(invocation->{Map<String,Object> payload=invocation.getArgument(0);String id=payload.get("call_id").toString();if(active.computeIfAbsent(id,k->new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet()>1)overlap.set(true);int n=concurrent.incrementAndGet();peak.accumulateAndGet(n,Math::max);try{Thread.sleep(30);}finally{concurrent.decrementAndGet();active.get(id).decrementAndGet();}return null;}).when(runtime).afterPlayback(org.mockito.ArgumentMatchers.argThat(p->p!=null&&Boolean.TRUE.equals(p.get("partition_fixture"))));
+        try {
+            for(int i=0;i<24;i++){
+                String aggregate=key();future.add(outbox.enqueue(tid,"after_playback",aggregate,key(),Values.map("partition_fixture",true,"call_id",aggregate)));
+                store.update("taskoutbox",tid,future.get(future.size()-1).get("id"),Values.map("available_at",Store.now().plusHours(1)));
+                for(int j=0;j<2;j++)rows.add(outbox.enqueue(tid,"after_playback",aggregate,key(),Values.map("partition_fixture",true,"call_id",aggregate)));
+            }
+            var start=new CountDownLatch(1);var results=new ArrayList<Future<?>>();
+            for(int owner:owners)results.add(pool.submit(()->{start.await();for(int n=0;n<60&&worker.processLane(tid,owner);n++){}return null;}));start.countDown();for(var result:results)result.get(20,TimeUnit.SECONDS);
+            assertThat(overlap.get()).isFalse();assertThat(peak.get()).isGreaterThan(1);
+            for(var task:rows)assertThat(store.require("taskoutbox",tid,task.get("id"))).containsEntry("state","completed").containsEntry("attempts",1);
+            for(var task:future)assertThat(store.require("taskoutbox",tid,task.get("id"))).containsEntry("state","pending").containsEntry("attempts",0);
+        }finally{for(var task:future)store.update("taskoutbox",tid,task.get("id"),Values.map("state","completed"));environment.getPropertySources().remove(property.getName());pool.shutdownNow();}
+    }
+    @Test void terminalCleanupPreservesAppointmentsOtherAttemptsOwnedAndDeadTasks() {
+        long tid=195;store.insert("tenant",Values.map("id",tid,"code","terminal-controls","name","Isolated terminal controls"));
+        var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","15500009501","mode","ai_only","status","in_ai","attempts",2,"max_attempts",2));var tasks=new ArrayList<Map<String,Object>>();
+        for(String type:List.of("after_playback","ai_turn","interrupt_playback"))tasks.add(outbox.enqueue(tid,type,call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",2,"product_kind","timer")));
+        var appt=outbox.enqueue(tid,"after_playback",call.get("id"),key(),Values.map("attempt",2,"product_kind","appointment"));
+        var other=outbox.enqueue(tid,"after_playback",call.get("id"),key(),Values.map("attempt",1,"product_kind","timer"));
+        var owned=outbox.enqueue(tid,"after_playback",call.get("id"),key(),Values.map("attempt",2,"product_kind","timer"));store.update("taskoutbox",tid,owned.get("id"),Values.map("state","processing","lease_token","still-owned","locked_at",Store.now()));
+        var dead=outbox.enqueue(tid,"after_playback",call.get("id"),key(),Values.map("attempt",2,"product_kind","timer"));store.update("taskoutbox",tid,dead.get("id"),Values.map("state","dead"));
+        lifecycle.status(Values.map("call_id",call.get("id"),"payload",Values.map("attempt",2,"event_id",key(),"status","completed")));
+        for(var task:tasks)assertThat(store.require("taskoutbox",tid,task.get("id"))).containsEntry("state","completed").containsEntry("last_error","superseded by terminal attempt");
+        for(var task:List.of(appt,other))assertThat(store.require("taskoutbox",tid,task.get("id"))).containsEntry("state","pending");
+        assertThat(store.require("taskoutbox",tid,owned.get("id"))).containsEntry("state","processing").containsEntry("lease_token","still-owned");assertThat(store.require("taskoutbox",tid,dead.get("id"))).containsEntry("state","dead");
+    }
+
+    @Test void exhaustedColdConnectionPoolCannotBorrowRealtimeOrDefaultReservations()throws Exception {
+        var pool=Executors.newSingleThreadExecutor();java.sql.Connection held;
+        try(var route=WorkloadDataSource.use(WorkloadDataSource.Lane.ANALYSIS)){held=dataSource.getConnection();}
+        try {
+            var waiting=pool.submit(()->{try(var route=WorkloadDataSource.use(WorkloadDataSource.Lane.ANALYSIS);var c=dataSource.getConnection()){return c.isValid(1);}});
+            assertThatThrownBy(()->waiting.get(200,TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            for(var lane:List.of(WorkloadDataSource.Lane.REALTIME,WorkloadDataSource.Lane.DEFAULT))
+                try(var route=WorkloadDataSource.use(lane);var independent=dataSource.getConnection()){assertThat(independent.isValid(1)).isTrue();}
+            held.close();assertThat(waiting.get(3,TimeUnit.SECONDS)).isTrue();
+            // A lane hint change inside a transaction must not split business facts across connections.
+            String code="route-rollback-"+key();
+            try(var route=WorkloadDataSource.use(WorkloadDataSource.Lane.REALTIME)){
+                assertThatThrownBy(()->tx.run(()->{long connection=jdbc.queryForObject("SELECT CONNECTION_ID()",Long.class);
+                    jdbc.update("INSERT INTO tenant(code,name,enabled,created_at,updated_at) VALUES(?,?,TRUE,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))",code,"Rollback routing fixture");
+                    try(var nested=WorkloadDataSource.use(WorkloadDataSource.Lane.ANALYSIS)){assertThat(jdbc.queryForObject("SELECT CONNECTION_ID()",Long.class)).isEqualTo(connection);}
+                    throw new IllegalStateException("route rollback fixture");
+                })).isInstanceOf(IllegalStateException.class).hasMessage("route rollback fixture");
+            }
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant WHERE code=?",Long.class,code)).isZero();
+        }finally{held.close();pool.shutdownNow();}
+    }
+    @Test void batchedTerminalCleanupCommitsAndRollsBackWithTheTerminalFacts(){
+        long tid=196;store.insert("tenant",Values.map("id",tid,"code","batch-control-rollback","name","Batched cleanup atomicity"));
+        var call=store.insert("callsession",Values.map("tenant_id",tid,"phone","15500009601","mode","ai_only","status","in_ai","attempts",1,"max_attempts",1));
+        var control=outbox.enqueue(tid,"after_playback",call.get("id"),key(),Values.map("call_id",call.get("id"),"attempt",1,"product_kind","timer"));
+        java.util.function.Supplier<Object> transition=()->{try(var scope=new CallStatusBatchScope()){
+            scope.sharedResourcesLocked=true;scope.calls.put(call.get("id").toString(),store.one("callsession","lockById",Values.map("tenantId",tid,"id",store.encode("callsession","id",call.get("id")))));
+            store.bufferWrites(()->lifecycle.status(Values.map("call_id",call.get("id"),"payload",Values.map("status","completed","attempt",1,"event_id","atomic-terminal"))));
+            taskCleanup.complete(scope);return null;
+        }};
+        assertThatThrownBy(()->tx.serialized(()->{transition.get();assertThat(store.require("taskoutbox",tid,control.get("id"))).containsEntry("state","completed");throw new IllegalStateException("after-cleanup rollback");})).isInstanceOf(IllegalStateException.class);
+        assertThat(store.require("callsession",tid,call.get("id"))).containsEntry("status","in_ai");assertThat(store.require("taskoutbox",tid,control.get("id"))).containsEntry("state","pending");
+        tx.serialized(transition);assertThat(store.require("callsession",tid,call.get("id"))).containsEntry("status","completed");assertThat(store.require("taskoutbox",tid,control.get("id"))).containsEntry("state","completed");
+    }
+
+    @Test void realtimePressureIgnoresFutureTimersAndColdWorkButCountsOwnedDueAndDeadControls(){
+        long tid=297;store.insert("tenant",Values.map("id",tid,"code","realtime-pressure","name","Realtime deadline pressure fixture"));
+        var timer=outbox.enqueue(tid,"after_playback",key(),key(),Map.of());store.update("taskoutbox",tid,timer.get("id"),Values.map("available_at",Store.now().plusHours(1)));
+        var cold=outbox.enqueue(tid,"call_analysis",key(),key(),Map.of());store.update("taskoutbox",tid,cold.get("id"),Values.map("available_at",Store.now().minusHours(1)));
+        assertThat(RealtimeTaskPressure.fraction(taskPressure.snapshot(tid))).isEqualTo(1);
+        store.update("taskoutbox",tid,timer.get("id"),Values.map("state","processing","available_at",Store.now().minusSeconds(1),"locked_at",Store.now(),"lease_token","pressure-owner"));
+        assertThat(taskPressure.snapshot(tid).get("control_age_sec")).isGreaterThanOrEqualTo(1);assertThat(RealtimeTaskPressure.fraction(taskPressure.snapshot(tid))).isZero();
+        store.update("taskoutbox",tid,timer.get("id"),Values.map("state","dead"));assertThat(taskPressure.snapshot(tid).get("dead")).isEqualTo(1d);
+    }
+
 }

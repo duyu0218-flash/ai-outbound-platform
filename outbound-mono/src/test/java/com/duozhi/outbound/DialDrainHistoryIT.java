@@ -32,7 +32,7 @@ class DialDrainHistoryIT {
         drain.begin();drain.closeSending();assertThat(drain.snapshot()).containsEntry("pending_inbox",1L);
         assertThatThrownBy(drain::freezeMockFacts).isInstanceOf(ApiError.class).hasMessageContaining("pending_inbox");
         assertThat(inbox.consumeBatch(100)).isEqualTo(1);assertThat(drain.snapshot()).containsEntry("pending_inbox",0L);
-        for(int i=0;i<4&&worker.processLane(1L,2);i++){}
+        for(int i=0;i<4&&worker.processLane(1L,worker.analysisLane());i++){}
         assertThat(drain.freezeMockFacts()).containsEntry("phase","FROZEN").containsEntry("pending_inbox",0L).containsEntry("external_pbx_verified",false);
         assertThat(counters.build(java.time.Instant.now())).containsEntry("state","VERIFIED");
     }
