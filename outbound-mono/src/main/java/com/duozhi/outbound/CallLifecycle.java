@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class CallLifecycle {
+    @org.springframework.beans.factory.annotation.Autowired private RealtimeTaskCleanup taskCleanup;
     public static final Set<String> TERMINAL = Values.set("completed", "failed", "no_answer", "busy", "voicemail");
     public static final String ACTIVE_SQL = "('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')";
     private static final List<String> ORDER = Arrays.asList("created", "queued", "dialing", "answered", "in_ai", "waiting_human", "in_human");
@@ -161,6 +162,8 @@ public class CallLifecycle {
             updated = batch==null?store.update("callsession", tenant(call), call.get("id"), changes):store.patchLoaded("callsession",call,changes);if(batch!=null)batch.calls.put(call.get("id").toString(),updated);
             if (applied) usage(updated, target, payload);
             if (target != null && TERMINAL.contains(target)) {
+                if(batch==null)taskCleanup.complete(tenant(call),List.of(call.get("id").toString()));
+                else batch.terminalControls.computeIfAbsent(tenant(call),key->new TreeSet<>()).add(call.get("id").toString());
                 completeCampaign(updated);
                 outbox.enqueue(tenant(call), "call_analysis", call.get("id"), "analysis:" + call.get("id") + ":" + call.get("attempts"), JsonSupport.map("call_id", call.get("id"), "attempt", call.get("attempts")));
             }

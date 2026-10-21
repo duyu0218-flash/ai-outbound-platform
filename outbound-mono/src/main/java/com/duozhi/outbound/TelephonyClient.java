@@ -112,6 +112,7 @@ public class TelephonyClient {
     }
     List<com.duozhi.outbound.embedded.VoiceController.CommandResult> dialBatch(List<Map<String,Object>> entries){
         TaskWorker.permitted();
+        if(drain.sendingClosed())throw new TaskWorker.Deferred();
         var payloads=new ArrayList<Map<String,Object>>();var resolvedRoutes=new ArrayList<Map<String,Object>>();
         var installRequests=new ArrayList<DialAuthorizationService.Request>();var installRoutes=new ArrayList<Map<String,Object>>();
         var routes=new HashMap<String,Map<String,Object>>();String base=config.get("TELEPHONY_WEBHOOK_BASE","http://localhost:8000").replaceAll("/+$","");
@@ -132,6 +133,7 @@ public class TelephonyClient {
         }
         TaskWorker.permitted();var commands=new ArrayList<com.duozhi.outbound.embedded.VoiceController.Command>();
         for(int i=0;i<payloads.size();i++)commands.add(signedPayload("dial",payloads.get(i),resolvedRoutes.get(i)));
+        if(drain.sendingClosed())throw new TaskWorker.Deferred();
         long sent=System.nanoTime();var replies=new ArrayList<>(embedded.commands(commands,timeout));profile("gateway_dispatch",commands.size(),sent);
         if(replies.size()!=commands.size())return replies;
         for(int i=0;i<replies.size();i++)if(replies.get(i).status()!=200&&payloads.get(i).get("protocol_version") instanceof Number version&&version.intValue()==2){
