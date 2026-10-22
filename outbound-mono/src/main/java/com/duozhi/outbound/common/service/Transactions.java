@@ -3,6 +3,7 @@ package com.duozhi.outbound.common.service;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,7 @@ public class Transactions {
     }
 
     public <T> T serializedIdentity(String key, Supplier<T> action) {
-        return serialized(java.nio.ByteBuffer.wrap(JsonSupport.digest(key)).getLong(), action);
+        return serialized(ByteBuffer.wrap(JsonSupport.digest(key)).getLong(), action);
     }
 
     private <T> T serialized(long key, Supplier<T> action) {
@@ -73,7 +74,7 @@ public class Transactions {
     }
 
     public void identity(String key) {
-        lock(java.nio.ByteBuffer.wrap(JsonSupport.digest(key)).getLong());
+        lock(ByteBuffer.wrap(JsonSupport.digest(key)).getLong());
     }
 
     public void platform() {

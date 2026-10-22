@@ -4,14 +4,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.support.Support;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.http.converter.autoconfigure.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.jackson2.autoconfigure.Jackson2AutoConfiguration;
+import org.springframework.boot.tomcat.autoconfigure.servlet.TomcatServletWebServerAutoConfiguration;
 import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.boot.webmvc.autoconfigure.DispatcherServletAutoConfiguration;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.*;
 import org.springframework.web.bind.annotation.*;
@@ -45,15 +53,12 @@ class MediaTest {
 
     @Configuration(proxyBeanMethods = false)
     @Import({
-        org.springframework.boot.tomcat.autoconfigure.servlet
-                .TomcatServletWebServerAutoConfiguration.class,
-        org.springframework.boot.tomcat.autoconfigure.servlet
-                .TomcatServletWebServerAutoConfiguration.class,
-        org.springframework.boot.webmvc.autoconfigure.DispatcherServletAutoConfiguration.class,
-        org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration.class,
-        org.springframework.boot.http.converter.autoconfigure.HttpMessageConvertersAutoConfiguration
-                .class,
-        org.springframework.boot.jackson2.autoconfigure.Jackson2AutoConfiguration.class
+        TomcatServletWebServerAutoConfiguration.class,
+        TomcatServletWebServerAutoConfiguration.class,
+        DispatcherServletAutoConfiguration.class,
+        WebMvcAutoConfiguration.class,
+        HttpMessageConvertersAutoConfiguration.class,
+        Jackson2AutoConfiguration.class
     })
     @EnableWebSocket
     static class SpeechFixture implements WebSocketConfigurer {
@@ -139,7 +144,8 @@ class MediaTest {
     @RestController
     static class SpeechController {
         @PostMapping(value = "/v1/audio/speech", produces = "application/octet-stream")
-        byte[] tts(@RequestBody Map<String, Object> payload) {
+        byte[] tts(@RequestBody
+        Map<String, Object> payload) {
             assertEquals("pcm", payload.get("response_format"));
             assertEquals("gpt-4o-mini-tts", payload.get("model"));
             byte[] pcm = new byte[4800];
@@ -322,7 +328,7 @@ class MediaTest {
                             });
             assertTrue(SpeechFixture.pendingStartup.await(3, TimeUnit.SECONDS));
             assertTimeoutPreemptively(
-                    java.time.Duration.ofSeconds(2), () -> media.closeSession(session.call, false));
+                    Duration.ofSeconds(2), () -> media.closeSession(session.call, false));
             assertTrue(connecting.get(1, TimeUnit.SECONDS));
             assertTrue(session.terminated.isDone());
             assertEquals(1, permits.stream().filter(p -> p.startsWith("asr:false:")).count());
@@ -350,13 +356,11 @@ class MediaTest {
                             "async-pending", "", "http://controller/media", Map.of("attempt", 1));
             var socket = socket(new CopyOnWriteArrayList<>());
             assertTimeoutPreemptively(
-                    java.time.Duration.ofSeconds(1),
-                    () -> media.connectAsync(socket, session.token));
+                    Duration.ofSeconds(1), () -> media.connectAsync(socket, session.token));
             assertTrue(SpeechFixture.pendingStartup.await(3, TimeUnit.SECONDS));
             assertFalse(session.started.isDone(), "unacknowledged provider must remain pending");
             media.enqueueAudio(socket, ByteBuffer.allocateDirect(320));
-            assertTimeoutPreemptively(
-                    java.time.Duration.ofSeconds(1), () -> media.disconnected(socket));
+            assertTimeoutPreemptively(Duration.ofSeconds(1), () -> media.disconnected(socket));
             assertTrue(
                     session.terminated.isDone(),
                     "disconnect fences the generation before returning");
@@ -434,8 +438,7 @@ class MediaTest {
             try {
                 media.connectAsync(socket, session.token);
                 assertTrue(callbackEntered.await(3, TimeUnit.SECONDS));
-                assertTimeoutPreemptively(
-                        java.time.Duration.ofSeconds(1), () -> media.disconnected(socket));
+                assertTimeoutPreemptively(Duration.ofSeconds(1), () -> media.disconnected(socket));
                 assertTrue(session.terminated.isDone());
                 callbackRelease.countDown();
                 await(() -> media.session(session.call) == null);
@@ -453,11 +456,11 @@ class MediaTest {
         byte[] pcm = new byte[4800];
         new Random(42).nextBytes(pcm);
         var whole = new NativeMedia.PcmResampler(24000, 8000);
-        var expected = new java.io.ByteArrayOutputStream();
+        var expected = new ByteArrayOutputStream();
         expected.writeBytes(whole.convert(pcm));
         expected.writeBytes(whole.finish());
         var resampler = new NativeMedia.PcmResampler(24000, 8000);
-        var output = new java.io.ByteArrayOutputStream();
+        var output = new ByteArrayOutputStream();
         for (int offset = 0; offset < pcm.length; offset += 37)
             output.writeBytes(
                     resampler.convert(
@@ -482,7 +485,7 @@ class MediaTest {
             pcm[2 * i + 1] = (byte) (sample >> 8);
         }
         var converter = new NativeMedia.PcmResampler(24000, 8000);
-        var bytes = new java.io.ByteArrayOutputStream();
+        var bytes = new ByteArrayOutputStream();
         bytes.writeBytes(converter.convert(pcm));
         bytes.writeBytes(converter.finish());
         byte[] output = bytes.toByteArray();
@@ -496,7 +499,7 @@ class MediaTest {
         return Math.sqrt(energy / count);
     }
 
-    private static void await(java.util.function.BooleanSupplier condition) throws Exception {
+    private static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() >= deadline) fail("timed out waiting for media evidence");

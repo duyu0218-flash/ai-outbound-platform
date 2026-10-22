@@ -6,12 +6,25 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.*;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import javax.sql.DataSource;
+import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
+import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Source record semantics backed by fixed, per-table MyBatis statements. No SQL is accepted here.
@@ -19,7 +32,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class Store {
     private final SqlSession sql;
-    private final javax.sql.DataSource dataSource;
+    private final DataSource dataSource;
     private final Map<String, Map<String, Map<String, Object>>> tables;
     private final Map<String, String> mappers = new HashMap<>();
 
@@ -34,7 +47,7 @@ public class Store {
         long bytes = 512L + 64L * values.size();
         for (Object value : values.values())
             if (value instanceof String text)
-                bytes += 2L * text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+                bytes += 2L * text.getBytes(StandardCharsets.UTF_8).length;
             else if (value instanceof byte[] data) bytes += 2L * data.length;
             else bytes += 64;
         return bytes;
@@ -46,10 +59,9 @@ public class Store {
      * Only used for locked admission rows; flushes before every subsequent read.
      * SpringManagedTransaction keeps the JDBC batch in the caller's transaction.
      */
-    public <T> T bufferWrites(java.util.function.Supplier<T> work) {
+    public <T> T bufferWrites(Supplier<T> work) {
         if (buffered.get() != null) return work.get();
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (!TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("buffered writes require transaction");
         buffered.set(new ArrayList<>());
         try {
@@ -74,7 +86,7 @@ public class Store {
                 shape += ":" + m.get("tenantId") + ":" + changes.keySet();
             groups.computeIfAbsent(shape, k -> new ArrayList<>()).add(op);
         }
-        var factory = ((org.mybatis.spring.SqlSessionTemplate) sql).getSqlSessionFactory();
+        var factory = ((SqlSessionTemplate) sql).getSqlSessionFactory();
         for (var iterator = groups.values().iterator(); iterator.hasNext(); ) {
             var group = iterator.next();
             var first = group.get(0);
@@ -98,7 +110,7 @@ public class Store {
                 iterator.remove();
             }
         }
-        try (var batch = factory.openSession(org.apache.ibatis.session.ExecutorType.BATCH)) {
+        try (var batch = factory.openSession(ExecutorType.BATCH)) {
             long bytes = 0;
             for (var group : groups.values())
                 for (var op : group) {
@@ -147,15 +159,14 @@ public class Store {
             throw new IllegalStateException("locked batch row was not written");
     }
 
-    private static void flushJdbcBatch(org.apache.ibatis.session.SqlSession batch) {
+    private static void flushJdbcBatch(SqlSession batch) {
         for (var result : batch.flushStatements())
             for (int count : result.getUpdateCounts())
-                if (count == java.sql.Statement.EXECUTE_FAILED || count == 0)
+                if (count == Statement.EXECUTE_FAILED || count == 0)
                     throw new IllegalStateException("buffered locked row was not written");
     }
 
-    public Store(SqlSession sql, ObjectMapper json, javax.sql.DataSource dataSource)
-            throws IOException {
+    public Store(SqlSession sql, ObjectMapper json, DataSource dataSource) throws IOException {
         this.dataSource = dataSource;
         this.sql = sql;
         try (var in = new ClassPathResource("contracts/tables.json").getInputStream()) {
@@ -206,7 +217,7 @@ public class Store {
     }
 
     public static LocalDateTime now() {
-        return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
     }
 
     private String namespace(String table) {
@@ -237,12 +248,12 @@ public class Store {
                 text = text.replace(' ', 'T');
                 try {
                     return LocalDateTime.parse(text);
-                } catch (java.time.format.DateTimeParseException e) {
+                } catch (DateTimeParseException e) {
                     try {
                         return OffsetDateTime.parse(text)
                                 .withOffsetSameInstant(ZoneOffset.UTC)
                                 .toLocalDateTime();
-                    } catch (java.time.format.DateTimeParseException invalid) {
+                    } catch (DateTimeParseException invalid) {
                         throw new ApiError(422, "invalid " + column);
                     }
                 }
@@ -280,7 +291,7 @@ public class Store {
                             if (value instanceof Enum<?>)
                                 value = value.toString().toLowerCase(Locale.ROOT);
                             else if (value instanceof UUID) value = value.toString();
-                            else if (value instanceof java.sql.Timestamp t)
+                            else if (value instanceof Timestamp t)
                                 value = t.toLocalDateTime().toString();
                             else if (value instanceof LocalDateTime t) value = t.toString();
                             result.put(column, value);
@@ -415,8 +426,7 @@ public class Store {
      * two read-backs whose results these callers discard.
      */
     public void writeLocked(String table, long tenant, Object id, Map<String, Object> input) {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (!TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("known-row write requires transaction");
         var changes = new LinkedHashMap<String, Object>();
         input.forEach(
@@ -498,7 +508,7 @@ public class Store {
         flushBuffered();
         return sql.selectList(namespace(table) + "." + method, params).stream()
                 .map(row -> record(table, row))
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     public Map<String, Object> one(String table, String method, Map<String, Object> params) {
@@ -643,12 +653,10 @@ public class Store {
 
     public int ping() {
         try (var connection = dataSource.getConnection()) {
-            if (!connection.isValid(3))
-                throw new java.sql.SQLException("database validation failed");
+            if (!connection.isValid(3)) throw new SQLException("database validation failed");
             return 1;
-        } catch (java.sql.SQLException e) {
-            throw new org.springframework.dao.DataAccessResourceFailureException(
-                    "database unavailable", e);
+        } catch (SQLException e) {
+            throw new DataAccessResourceFailureException("database unavailable", e);
         }
     }
 

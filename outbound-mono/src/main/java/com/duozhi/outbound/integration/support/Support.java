@@ -1,15 +1,23 @@
 package com.duozhi.outbound.integration.support;
 
 import com.duozhi.outbound.integration.config.Settings;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.*;
+import java.io.IOException;
 import java.net.*;
+import java.net.SocketTimeoutException;
 import java.net.http.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.*;
@@ -18,12 +26,11 @@ import org.springframework.web.bind.annotation.*;
 public final class Support {
     private Support() {}
 
-    private static final java.util.concurrent.ScheduledThreadPoolExecutor READ_TIMEOUTS =
-            timeouts();
+    private static final ScheduledThreadPoolExecutor READ_TIMEOUTS = timeouts();
 
-    private static java.util.concurrent.ScheduledThreadPoolExecutor timeouts() {
+    private static ScheduledThreadPoolExecutor timeouts() {
         var executor =
-                new java.util.concurrent.ScheduledThreadPoolExecutor(
+                new ScheduledThreadPoolExecutor(
                         1,
                         run -> {
                             Thread thread = new Thread(run, "service-read-timeouts");
@@ -39,7 +46,7 @@ public final class Support {
     public static byte[] json(Object value) {
         try {
             return JSON.writeValueAsBytes(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("invalid JSON", e);
         }
     }
@@ -74,7 +81,7 @@ public final class Support {
         try {
             Object value = JSON.readValue(bytes, Object.class);
             if (value instanceof Map<?, ?> map) return (Map<String, Object>) map;
-        } catch (java.io.IOException invalid) {
+        } catch (IOException invalid) {
             throw new Failure(422, "invalid JSON object");
         }
         throw new Failure(422, "invalid JSON object");
@@ -131,8 +138,8 @@ public final class Support {
         return new FilterInputStream(input) {
             private volatile boolean expired;
 
-            private int bounded(java.util.concurrent.Callable<Integer> read) throws IOException {
-                if (expired) throw new java.net.SocketTimeoutException("upstream read timed out");
+            private int bounded(Callable<Integer> read) throws IOException {
+                if (expired) throw new SocketTimeoutException("upstream read timed out");
                 var task =
                         READ_TIMEOUTS.schedule(
                                 () -> {
@@ -143,11 +150,10 @@ public final class Support {
                                     }
                                 },
                                 milliseconds,
-                                java.util.concurrent.TimeUnit.MILLISECONDS);
+                                TimeUnit.MILLISECONDS);
                 try {
                     int result = read.call();
-                    if (expired)
-                        throw new java.net.SocketTimeoutException("upstream read timed out");
+                    if (expired) throw new SocketTimeoutException("upstream read timed out");
                     return result;
                 } catch (IOException error) {
                     throw error;
@@ -243,9 +249,8 @@ public final class Support {
     public static void persist(Path path, byte[] bytes) throws IOException {
         Path temporary = Files.createTempFile(path.getParent(), ".pending-", ".tmp");
         try {
-            try (var channel =
-                    java.nio.channels.FileChannel.open(temporary, StandardOpenOption.WRITE)) {
-                var buffer = java.nio.ByteBuffer.wrap(bytes);
+            try (var channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
+                var buffer = ByteBuffer.wrap(bytes);
                 while (buffer.hasRemaining()) channel.write(buffer);
                 channel.force(true);
             }
@@ -254,8 +259,7 @@ public final class Support {
                     path,
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING);
-            try (var directory =
-                    java.nio.channels.FileChannel.open(path.getParent(), StandardOpenOption.READ)) {
+            try (var directory = FileChannel.open(path.getParent(), StandardOpenOption.READ)) {
                 directory.force(true);
             }
         } finally {

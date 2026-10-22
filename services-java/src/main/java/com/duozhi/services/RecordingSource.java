@@ -1,8 +1,10 @@
 package com.duozhi.services;
 
-import java.nio.file.*;
+import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.util.*;
 
@@ -45,11 +47,11 @@ final class RecordingSource {
                 throw new Support.Failure(409, "missing source without matching deletion receipt");
             }
             if (LocalLedger.now() - ((Number)receipt.get("completed_at")).doubleValue() < settings.number("VOICE_RECORDING_RETENTION_SEC", 0, 0, 315360000)) throw new Support.Failure(409, "source retention period has not elapsed");
-            var before = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            var before = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
             MessageDigest digest = MessageDigest.getInstance("SHA-256"); try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) { byte[] buffer = new byte[65536]; for (int n; (n = input.read(buffer)) != -1;) digest.update(buffer, 0, n); }
             if (before.size() != size || Support.integer(receipt, "size_bytes", 0) != size || !Support.hex(digest.digest()).equals(checksum)) throw new Support.Failure(409, "source differs from verified object");
-            receipt.put("checksum_sha256", checksum); byte[] bytes = Support.json(receipt); channel.position(0); channel.truncate(0); var buffer = java.nio.ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
-            var after = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            receipt.put("checksum_sha256", checksum); byte[] bytes = Support.json(receipt); channel.position(0); channel.truncate(0); var buffer = ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
+            var after = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
             if (!Objects.equals(before.fileKey(), after.fileKey()) || !before.lastModifiedTime().equals(after.lastModifiedTime()) || after.size() != before.size()) throw new Support.Failure(409, "source changed during verification");
             Files.delete(path); try (var directory = FileChannel.open(path.getParent(), StandardOpenOption.READ)) { directory.force(true); } return Map.of("deleted", true);
         }

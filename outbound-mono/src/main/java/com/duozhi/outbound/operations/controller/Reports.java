@@ -154,9 +154,12 @@ public class Reports {
 
     @GetMapping("/admin/call-reports")
     public Map<String, Object> report(
-            @RequestParam(defaultValue = "campaign") String dimension,
-            @RequestParam(defaultValue = "day") String granularity,
-            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(defaultValue = "campaign")
+            String dimension,
+            @RequestParam(defaultValue = "day")
+            String granularity,
+            @RequestParam(defaultValue = "30")
+            int days,
             HttpServletRequest request) {
         long tenant = admin(request).tenant();
         dimension(dimension);
@@ -211,7 +214,8 @@ public class Reports {
 
     @GetMapping("/admin/contact-groups")
     public Map<String, Object> groups(
-            @RequestParam(defaultValue = "30") int days, HttpServletRequest request) {
+            @RequestParam(defaultValue = "30")
+            int days, HttpServletRequest request) {
         long tenant = admin(request).tenant();
         LocalDateTime since = since(days);
         Map<String, String> contactGroups = new HashMap<>();
@@ -310,11 +314,16 @@ public class Reports {
 
     @GetMapping("/admin/billing")
     public Map<String, Object> billing(
-            @RequestParam(defaultValue = "campaign") String dimension,
-            @RequestParam(defaultValue = "30") int days,
-            @RequestParam(defaultValue = "0") double ai_unit_price_per_minute,
-            @RequestParam(defaultValue = "0") double telephony_unit_price_per_minute,
-            @RequestParam(defaultValue = "0") double sms_unit_price,
+            @RequestParam(defaultValue = "campaign")
+            String dimension,
+            @RequestParam(defaultValue = "30")
+            int days,
+            @RequestParam(defaultValue = "0")
+            double ai_unit_price_per_minute,
+            @RequestParam(defaultValue = "0")
+            double telephony_unit_price_per_minute,
+            @RequestParam(defaultValue = "0")
+            double sms_unit_price,
             HttpServletRequest request) {
         long tenant = admin(request).tenant();
         dimension(dimension);
@@ -413,10 +422,14 @@ public class Reports {
     @AdminPermission(value = "quality:review", supervisor = true)
     @GetMapping("/quality/reviews")
     public List<Map<String, Object>> reviews(
-            @RequestParam(required = false) String review_state,
-            @RequestParam(required = false) Integer max_score,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false)
+            String review_state,
+            @RequestParam(required = false)
+            Integer max_score,
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "50")
+            int size,
             HttpServletRequest request) {
         Identity identity = Identity.from(request);
         if (identity.user() != null
@@ -500,8 +513,10 @@ public class Reports {
 
     @GetMapping("/admin/calls/export")
     public ResponseEntity<StreamingResponseBody> export(
-            @RequestParam(defaultValue = "30") int days,
-            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(defaultValue = "30")
+            int days,
+            @RequestParam(value = "status", required = false)
+            String status,
             HttpServletRequest request) {
         Identity identity = admin(request);
         LocalDateTime since = since(days);

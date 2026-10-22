@@ -15,7 +15,8 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 class EmbeddedAgentTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
     HttpServer upstream;
     String base;
     final AtomicInteger requests = new AtomicInteger();

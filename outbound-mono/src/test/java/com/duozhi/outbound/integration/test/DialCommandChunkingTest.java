@@ -13,6 +13,8 @@ import com.duozhi.outbound.voice.controller.VoiceController.CommandResult;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class DialCommandChunkingTest {
     @Test
@@ -33,8 +35,7 @@ class DialCommandChunkingTest {
                         new DialService(
                                 null, null, null, null, null, null, client, null, null, null, null,
                                 null, null, null));
-        org.springframework.test.util.ReflectionTestUtils.setField(
-                service, "drain", mock(DialDrainControl.class));
+        ReflectionTestUtils.setField(service, "drain", mock(DialDrainControl.class));
         var sent = new ArrayList<Integer>();
         var acknowledged = new ArrayList<String>();
         var sequence = new AtomicInteger();
@@ -124,8 +125,7 @@ class DialCommandChunkingTest {
                 new DialService(
                         null, null, null, null, null, null, client, null, null, null, null, null,
                         null, null);
-        org.springframework.test.util.ReflectionTestUtils.setField(
-                service, "drain", mock(DialDrainControl.class));
+        ReflectionTestUtils.setField(service, "drain", mock(DialDrainControl.class));
         when(client.dialBatch(anyList())).thenReturn(List.of());
         var entry =
                 JsonSupport.map(
@@ -150,7 +150,7 @@ class DialCommandChunkingTest {
                         new DialService(
                                 null, null, null, null, null, null, client, null, null, null, null,
                                 null, null, null));
-        org.springframework.test.util.ReflectionTestUtils.setField(service, "drain", drain);
+        ReflectionTestUtils.setField(service, "drain", drain);
         doReturn(true).when(service).confirmClaimed(anyMap(), anyMap());
         var call = JsonSupport.map("id", "synthetic", "tenant_id", 1, "attempts", 1);
         var metadata = Map.<String, Object>of();
@@ -164,7 +164,7 @@ class DialCommandChunkingTest {
                                 "payload",
                                 new LinkedHashMap<>())),
                 db);
-        org.mockito.Mockito.verify(service).confirmClaimed(same(call), same(metadata));
+        Mockito.verify(service).confirmClaimed(same(call), same(metadata));
         verifyNoInteractions(client, db);
     }
 }

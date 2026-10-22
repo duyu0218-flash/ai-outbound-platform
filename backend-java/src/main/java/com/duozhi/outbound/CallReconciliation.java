@@ -1,13 +1,14 @@
 package com.duozhi.outbound;
 
+import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import jakarta.annotation.PreDestroy;
-import org.springframework.stereotype.Service;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.context.event.EventListener;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 /** A database timeout alone is never evidence that the PBX released a call. */
 @Service
@@ -23,8 +24,10 @@ public class CallReconciliation {
     public CallReconciliation(Store store, Transactions tx, Config config, TelephonyClient client, CallLifecycle lifecycle) {
         this.store=store; this.tx=tx; this.config=config; this.client=client; this.lifecycle=lifecycle;
     }
-    @EventListener(ApplicationReadyEvent.class) public void ready() { ready=true; }
-    @PreDestroy public void close() { ready=false; executor.shutdownNow(); }
+    @EventListener(ApplicationReadyEvent.class)
+    public void ready() { ready=true; }
+    @PreDestroy
+    public void close() { ready=false; executor.shutdownNow(); }
     public int reconcile(int limit) {
         if (limit < 1 || limit > 200) throw new IllegalArgumentException("invalid reconciliation batch size");
         List<Map<String,Object>> stale=store.list("callsession", "WHERE status IN " + CallLifecycle.ACTIVE_SQL + " AND updated_at<=? ORDER BY updated_at,id LIMIT ?",
@@ -50,8 +53,9 @@ public class CallReconciliation {
         }
         return released;
     }
-    @Scheduled(fixedDelayString="${JAVA_RECONCILE_POLL_MS:5000}") public void tick() {
+    @Scheduled(fixedDelayString="${JAVA_RECONCILE_POLL_MS:5000}")
+    public void tick() {
         if(!ready || !config.flag("JAVA_WORKERS_ENABLED",false) || !running.compareAndSet(false,true))return;
-        executor.submit(()->{ try { reconcile(20); } catch(RuntimeException e) { org.slf4j.LoggerFactory.getLogger(CallReconciliation.class).warn("call reconciliation error_type={}",e.getClass().getSimpleName()); } finally { running.set(false); } });
+        executor.submit(()->{ try { reconcile(20); } catch(RuntimeException e) { LoggerFactory.getLogger(CallReconciliation.class).warn("call reconciliation error_type={}",e.getClass().getSimpleName()); } finally { running.set(false); } });
     }
 }

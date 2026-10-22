@@ -317,7 +317,9 @@ public class Handoffs {
 
     @PostMapping("/calls/{id}/handoffs/{handoff_id}/accept")
     public Map<String, Object> accept(
-            @PathVariable UUID id, @PathVariable long handoff_id, HttpServletRequest request) {
+            @PathVariable
+            UUID id, @PathVariable
+            long handoff_id, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         Map<String, Object> h = get(identity.tenant(), id, handoff_id);
         Object agent =
@@ -336,7 +338,9 @@ public class Handoffs {
 
     @PostMapping("/calls/{id}/handoffs/{handoff_id}/reject")
     public Map<String, Object> reject(
-            @PathVariable UUID id, @PathVariable long handoff_id, HttpServletRequest request) {
+            @PathVariable
+            UUID id, @PathVariable
+            long handoff_id, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         return tx.serialized(
                 () -> {
@@ -372,7 +376,8 @@ public class Handoffs {
 
     @GetMapping("/calls/{id}/handoffs")
     public List<Map<String, Object>> callHandoffs(
-            @PathVariable UUID id, HttpServletRequest request) {
+            @PathVariable
+            UUID id, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         visible(store.require("callsession", identity.tenant(), id), identity);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -390,7 +395,8 @@ public class Handoffs {
 
     @GetMapping("/handoffs")
     public List<Map<String, Object>> queue(
-            @RequestParam(defaultValue = "waiting") String state, HttpServletRequest request) {
+            @RequestParam(defaultValue = "waiting")
+            String state, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         String encoded = store.encode("handoffrequest", "state", state).toString();
         List<Object> args = new ArrayList<>(Arrays.asList(identity.tenant(), encoded));
@@ -527,9 +533,12 @@ public class Handoffs {
 
     @PostMapping("/calls/{id}/handover")
     public Map<String, Object> handover(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "operator_request") String reason,
-            @RequestParam(required = false) String target_group,
+            @PathVariable
+            UUID id,
+            @RequestParam(defaultValue = "operator_request")
+            String reason,
+            @RequestParam(required = false)
+            String target_group,
             HttpServletRequest request) {
         Identity identity = Identity.from(request);
         Object agent =

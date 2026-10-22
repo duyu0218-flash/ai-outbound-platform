@@ -7,6 +7,7 @@ import com.duozhi.outbound.voice.service.VoiceQuota;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -307,7 +308,7 @@ public final class MediaCluster implements MediaManager {
                                             new Support.Failure(
                                                     503, "no media process has capacity"));
             byte[] secret = new byte[32];
-            new java.security.SecureRandom().nextBytes(secret);
+            new SecureRandom().nextBytes(secret);
             Session session =
                     new Session(
                             Map.of(

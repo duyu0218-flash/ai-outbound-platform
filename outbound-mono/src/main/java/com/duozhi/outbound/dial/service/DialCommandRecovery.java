@@ -7,6 +7,7 @@ import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import java.util.*;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,7 @@ public class DialCommandRecovery {
             try {
                 processOne();
             } catch (RuntimeException failed) {
-                org.slf4j.LoggerFactory.getLogger(getClass())
+                LoggerFactory.getLogger(getClass())
                         .warn(
                                 "Durable dial recovery deferred: {}",
                                 failed.getClass().getSimpleName());

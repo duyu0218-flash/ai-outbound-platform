@@ -5,6 +5,7 @@ import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.recording.controller.RecordingController;
 import com.duozhi.outbound.voice.controller.VoiceController;
 import java.util.*;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
             VoiceController.class,
             RecordingController.class
         })
-@org.springframework.core.annotation.Order(-10)
+@Order(-10)
 public class EmbeddedServiceErrors {
     @ExceptionHandler(Support.Failure.class)
     ResponseEntity<?> failure(Support.Failure error) {

@@ -1,15 +1,19 @@
 package com.duozhi.outbound.customer.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class PhoneSuppression {
     private Integer id;
     private Integer tenantId;
     private String phone;
     private String reason = "";
-    private java.util.UUID sourceCallId;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private UUID sourceCallId;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -43,19 +47,19 @@ public class PhoneSuppression {
         this.reason = value;
     }
 
-    public java.util.UUID getSourceCallId() {
+    public UUID getSourceCallId() {
         return sourceCallId;
     }
 
-    public void setSourceCallId(java.util.UUID value) {
+    public void setSourceCallId(UUID value) {
         this.sourceCallId = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 }

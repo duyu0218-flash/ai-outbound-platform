@@ -1,6 +1,8 @@
 package com.duozhi.outbound.integration.config;
 
 import com.duozhi.outbound.integration.support.Support;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -56,9 +58,9 @@ public class Settings {
                 byte[] bytes = input.readNBytes(4097);
                 if (bytes.length > 4096)
                     throw new IllegalArgumentException("secret exceeds limit: " + key);
-                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8).strip();
+                return new String(bytes, StandardCharsets.UTF_8).strip();
             }
-        } catch (java.io.IOException error) {
+        } catch (IOException error) {
             throw new IllegalArgumentException("unable to read secret: " + key);
         }
     }

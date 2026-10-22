@@ -1,10 +1,20 @@
 package com.duozhi.outbound;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.*;
-import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class ConversationPolicy {
@@ -13,10 +23,10 @@ public class ConversationPolicy {
     private final Settings settings;
     private final Outbox outbox;
     private final Map<String,Object> defaults;
-    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,tools.jackson.databind.ObjectMapper mapper) throws java.io.IOException {
+    public ConversationPolicy(Store store,JsonSupport json,Settings settings,Outbox outbox,ObjectMapper mapper) throws IOException {
         this.store=store;this.json=json;this.settings=settings;this.outbox=outbox;
-        try(java.io.InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
-            defaults=mapper.readValue(in,new tools.jackson.core.type.TypeReference<Map<String,Object>>(){});
+        try(InputStream in=new ClassPathResource("contracts/scenario-defaults.json").getInputStream()) {
+            defaults=mapper.readValue(in,new TypeReference<Map<String,Object>>(){});
         }
     }
     public Map<String,Object> current(long tenant,Object campaign) {
@@ -108,7 +118,8 @@ public class ConversationPolicy {
                 data.put("active_slot",slot.get("key"));Map<String,Object> proposed=dict(data,"proposed_slots");
                 Object candidate=proposed.remove(slot.get("key"));
                 if(candidate instanceof Map) {
-                    @SuppressWarnings("unchecked") Map<String,Object> p=(Map<String,Object>)candidate;
+                    @SuppressWarnings("unchecked")
+                    Map<String,Object> p=(Map<String,Object>)candidate;
                     return collect(data,policy,p.get("value").toString(),p.get("evidence"));
                 }
                 return reply(slot.get("question").toString());
@@ -130,7 +141,7 @@ public class ConversationPolicy {
         if("date".equals(kind))try{LocalDate.parse(value);}catch(DateTimeException e){return reply("请按年-月-日说明日期。");}
         if("choice".equals(kind)) {
             List<String> matches=new ArrayList<>();for(Object option:(List<?>)slot.get("choices"))if(DialogueRules.keyword(value,option.toString()))matches.add(option.toString());
-            if(matches.size()!=1)return reply(slot.get("question")+" 可选："+String.join("、",((List<?>)slot.get("choices")).stream().map(Object::toString).collect(java.util.stream.Collectors.toList())));
+            if(matches.size()!=1)return reply(slot.get("question")+" 可选："+String.join("、",((List<?>)slot.get("choices")).stream().map(Object::toString).collect(Collectors.toList())));
             value=matches.get(0);
         }
         if(value.codePointCount(0,value.length())>500)return clarify(data,policy);
@@ -166,7 +177,7 @@ public class ConversationPolicy {
             LocalDateTime when=DialogueRules.callbackTime(transcript,Instant.now(),policy.get("timezone").toString());
             if(when==null) {data.put("pending",JsonSupport.map("kind","callback_time_request"));result=reply("请告诉我具体日期和上午或下午几点回电。");}
             else if(!inHours(policy,when)) {data.put("pending",JsonSupport.map("kind","callback_time_request"));result=reply("这个时间不在服务时段，请您换一个时间，我会再次确认。");}
-            else {data.put("pending",JsonSupport.map("kind","appointment","value",when.toString(),"evidence",evidence));String display=when.atOffset(ZoneOffset.UTC).atZoneSameInstant(ZoneId.of(policy.get("timezone").toString())).format(java.time.format.DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"));result=reply("您希望在"+display+"回电，对吗？");}
+            else {data.put("pending",JsonSupport.map("kind","appointment","value",when.toString(),"evidence",evidence));String display=when.atOffset(ZoneOffset.UTC).atZoneSameInstant(ZoneId.of(policy.get("timezone").toString())).format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"));result=reply("您希望在"+display+"回电，对吗？");}
         }else if("machine_candidate".equals(intent)) {
             int hits=JsonSupport.integer(data.get("machine_hits"),0)+1;data.put("machine_hits",hits);data.put("answer_kind","unknown");
             if("end".equals(policy.get("machine_action"))||hits>=2) {data.putAll(JsonSupport.map("answer_kind","machine","outcome","non_human","pending",null));result=reply("本次通话先结束，再见。","hangup");}
@@ -234,10 +245,10 @@ public class ConversationPolicy {
     }
     public static UUID uuid5(String name) {
         try {
-            UUID ns=UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");java.security.MessageDigest md=java.security.MessageDigest.getInstance("SHA-1");
-            md.update(java.nio.ByteBuffer.allocate(16).putLong(ns.getMostSignificantBits()).putLong(ns.getLeastSignificantBits()).array());
-            byte[] hash=md.digest(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));hash[6]=(byte)((hash[6]&15)|80);hash[8]=(byte)((hash[8]&63)|128);
-            java.nio.ByteBuffer buffer=java.nio.ByteBuffer.wrap(hash);return new UUID(buffer.getLong(),buffer.getLong());
-        }catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
+            UUID ns=UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");MessageDigest md=MessageDigest.getInstance("SHA-1");
+            md.update(ByteBuffer.allocate(16).putLong(ns.getMostSignificantBits()).putLong(ns.getLeastSignificantBits()).array());
+            byte[] hash=md.digest(name.getBytes(StandardCharsets.UTF_8));hash[6]=(byte)((hash[6]&15)|80);hash[8]=(byte)((hash[8]&63)|128);
+            ByteBuffer buffer=ByteBuffer.wrap(hash);return new UUID(buffer.getLong(),buffer.getLong());
+        }catch(NoSuchAlgorithmException e){throw new IllegalStateException(e);}
     }
 }

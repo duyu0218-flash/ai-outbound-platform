@@ -6,10 +6,13 @@ import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.voice.security.VoiceSecurity;
 import java.net.URI;
 import java.net.http.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.net.ssl.SSLSession;
 
 public final class VoiceCallbacks implements AutoCloseable {
     private final Settings settings;
@@ -20,8 +23,7 @@ public final class VoiceCallbacks implements AutoCloseable {
     private final ExecutorService delivery;
     private final ScheduledExecutorService poll;
     private final int concurrency;
-    private final java.util.concurrent.atomic.AtomicInteger deliveries =
-            new java.util.concurrent.atomic.AtomicInteger();
+    private final AtomicInteger deliveries = new AtomicInteger();
 
     VoiceCallbacks(Settings settings, LocalLedger ledger, VoiceSecurity security) {
         this.settings = settings;
@@ -206,8 +208,7 @@ public final class VoiceCallbacks implements AutoCloseable {
         }
         long hash =
                 Integer.toUnsignedLong(
-                        java.nio.ByteBuffer.wrap(
-                                        Support.sha(stream.getBytes(StandardCharsets.UTF_8)))
+                        ByteBuffer.wrap(Support.sha(stream.getBytes(StandardCharsets.UTF_8)))
                                 .getInt());
         return (int) (hash % 64) % groups;
     }
@@ -459,7 +460,7 @@ public final class VoiceCallbacks implements AutoCloseable {
             return original.headers();
         }
 
-        public Optional<javax.net.ssl.SSLSession> sslSession() {
+        public Optional<SSLSession> sslSession() {
             return original.sslSession();
         }
 

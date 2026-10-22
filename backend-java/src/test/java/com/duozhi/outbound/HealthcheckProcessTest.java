@@ -1,12 +1,13 @@
 package com.duozhi.outbound;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.Test;
 import java.net.*;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class HealthcheckProcessTest {
     private int check(String port) throws Exception {
@@ -16,7 +17,8 @@ class HealthcheckProcessTest {
         Process child=command.start();
         try{assertTrue(child.waitFor(10,TimeUnit.SECONDS));return child.exitValue();}finally{if(child.isAlive())child.destroyForcibly();}
     }
-    @Test void cliHealthcheckOnlyAcceptsNumericLoopbackPortAndNeverFollowsRedirects() throws Exception {
+    @Test
+    void cliHealthcheckOnlyAcceptsNumericLoopbackPortAndNeverFollowsRedirects() throws Exception {
         AtomicInteger redirected=new AtomicInteger();
         HttpServer target=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0),probe=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         target.createContext("/",exchange->{redirected.incrementAndGet();exchange.sendResponseHeaders(200,-1);exchange.close();});

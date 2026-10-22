@@ -8,6 +8,8 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.system.service.DependencyHealth;
 import java.util.Map;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,8 +22,7 @@ public class RuntimeController {
     private final CallbackInbox inbox;
     private volatile boolean started;
 
-    @org.springframework.context.event.EventListener(
-            org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     public void started() {
         started = true;
     }

@@ -58,9 +58,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Map<String, Object> login(@Valid @RequestBody Login body) {
-        java.util.Map<java.lang.String, java.lang.Object> user =
-                service.login(body.username(), body.password());
+    public Map<String, Object> login(@Valid
+    @RequestBody
+    Login body) {
+        Map<String, Object> user = service.login(body.username(), body.password());
         if (user == null) throw new ApiError(401, "invalid username or password");
         return Values.map(
                 "access_token",
@@ -88,9 +89,11 @@ public class AuthController {
 
     @PutMapping("/presence")
     public Map<String, Object> presence(
-            @Valid @RequestBody Presence body, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity identity = Identity.from(request);
-        java.util.Map<java.lang.String, java.lang.Object> user = identity.requireUser();
+            @Valid
+            @RequestBody
+            Presence body, HttpServletRequest request) {
+        Identity identity = Identity.from(request);
+        Map<String, Object> user = identity.requireUser();
         if (!"agent".equals(user.get("role")))
             throw new ApiError(409, "presence is only available for agents");
         if (body.status().equals("ready")) workforce.ready(identity);

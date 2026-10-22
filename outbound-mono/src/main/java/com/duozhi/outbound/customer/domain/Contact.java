@@ -1,5 +1,10 @@
 package com.duozhi.outbound.customer.domain;
 
+import com.duozhi.outbound.customer.domain.enums.ConsentState;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class Contact {
     private Integer id;
@@ -7,19 +12,16 @@ public class Contact {
     private String phone;
     private String name;
     private String tags = "";
-    private com.duozhi.outbound.customer.domain.enums.ConsentState consentState =
-            com.duozhi.outbound.customer.domain.enums.ConsentState.UNKNOWN;
-    private java.time.LocalDateTime consentedAt;
+    private ConsentState consentState = ConsentState.UNKNOWN;
+    private LocalDateTime consentedAt;
     private String consentedBy;
     private Boolean dnc = false;
     private String dncReason;
     private String timezone = "Asia/Shanghai";
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -61,19 +63,19 @@ public class Contact {
         this.tags = value;
     }
 
-    public com.duozhi.outbound.customer.domain.enums.ConsentState getConsentState() {
+    public ConsentState getConsentState() {
         return consentState;
     }
 
-    public void setConsentState(com.duozhi.outbound.customer.domain.enums.ConsentState value) {
+    public void setConsentState(ConsentState value) {
         this.consentState = value;
     }
 
-    public java.time.LocalDateTime getConsentedAt() {
+    public LocalDateTime getConsentedAt() {
         return consentedAt;
     }
 
-    public void setConsentedAt(java.time.LocalDateTime value) {
+    public void setConsentedAt(LocalDateTime value) {
         this.consentedAt = value;
     }
 
@@ -109,19 +111,19 @@ public class Contact {
         this.timezone = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

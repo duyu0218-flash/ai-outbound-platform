@@ -5,9 +5,10 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.lang.management.ManagementFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.stereotype.Component;
 
 /** Original metric names and dimensions exported by the same Micrometer registry as Actuator. */
-@org.springframework.stereotype.Component
+@Component
 public class MetricsRegistry {
     private record Key(String name, List<String> labels) {}
 

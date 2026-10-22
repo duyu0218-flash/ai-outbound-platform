@@ -4,6 +4,7 @@ import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.voice.controller.VoiceController;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 
 /**
@@ -102,7 +103,7 @@ public final class VoiceAdmissionBatchScope implements AutoCloseable {
         unansweredSchedules.add(uuid);
     }
 
-    void flushAuthorizations(Connection db) throws java.sql.SQLException {
+    void flushAuthorizations(Connection db) throws SQLException {
         bind(db);
         LocalLedger.executeBatch(
                 db,
@@ -182,7 +183,7 @@ public final class VoiceAdmissionBatchScope implements AutoCloseable {
                 .count();
     }
 
-    Map<String, Object> control(Connection db) throws java.sql.SQLException {
+    Map<String, Object> control(Connection db) throws SQLException {
         bind(db);
         if (control == null)
             control =
@@ -194,7 +195,7 @@ public final class VoiceAdmissionBatchScope implements AutoCloseable {
         return control;
     }
 
-    public double oldestCallback(Connection db) throws java.sql.SQLException {
+    public double oldestCallback(Connection db) throws SQLException {
         bind(db);
         if (oldestCallback == null) {
             Object oldest =

@@ -1,11 +1,14 @@
 package com.duozhi.outbound.callback.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallbackInboxWorker {
     private String id;
-    private java.time.LocalDateTime heartbeatAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime heartbeatAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
     private Long processed;
     private Double maxLatencyMs = 0d;
 
@@ -17,11 +20,11 @@ public class CallbackInboxWorker {
         this.id = value;
     }
 
-    public java.time.LocalDateTime getHeartbeatAt() {
+    public LocalDateTime getHeartbeatAt() {
         return heartbeatAt;
     }
 
-    public void setHeartbeatAt(java.time.LocalDateTime value) {
+    public void setHeartbeatAt(LocalDateTime value) {
         this.heartbeatAt = value;
     }
 

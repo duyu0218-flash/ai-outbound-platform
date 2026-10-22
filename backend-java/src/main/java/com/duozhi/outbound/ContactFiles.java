@@ -1,15 +1,15 @@
 package com.duozhi.outbound;
 
-import java.util.*;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
-import jakarta.servlet.http.HttpServletRequest;
+import java.util.*;
+import org.apache.commons.csv.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-import org.apache.commons.csv.*;
 
 @RestController
 @RequestMapping("/api/v1/contacts")
@@ -17,7 +17,11 @@ public class ContactFiles {
     private final Store store;private final Transactions tx;private final Config config;private final JsonSupport json;private final Audit audit;
     public ContactFiles(Store store,Transactions tx,Config config,JsonSupport json,Audit audit){this.store=store;this.tx=tx;this.config=config;this.json=json;this.audit=audit;}
     private Identity actor(HttpServletRequest r){Identity i=Identity.from(r);i.admin();return i;}
-    @PostMapping("/import") public Map<String,Object> importCsv(@RequestParam MultipartFile file,@RequestParam(defaultValue="true") boolean upsert,@RequestHeader(value="Idempotency-Key",required=false) String key,HttpServletRequest request)throws IOException {
+    @PostMapping("/import")
+    public Map<String,Object> importCsv(@RequestParam
+    MultipartFile file,@RequestParam(defaultValue="true")
+    boolean upsert,@RequestHeader(value="Idempotency-Key",required=false)
+    String key,HttpServletRequest request)throws IOException {
         Identity i=actor(request);if(config.production()&&key==null)throw new ApiError(400,"Idempotency-Key is required in production");String requestKey=key==null?UUID.randomUUID().toString():key.trim();
         if(!requestKey.matches("[\\p{L}\\p{N}._:-]{1,128}"))throw new ApiError(400,"invalid Idempotency-Key");
         if(file.getSize()>Math.max(1,config.number("CONTACT_IMPORT_MAX_BYTES", 20971520)))throw new ApiError(413,"csv file is too large");
@@ -48,7 +52,11 @@ public class ContactFiles {
         });
     }
     static String safe(Object value){String text=Objects.toString(value,"");return (!text.trim().isEmpty()&&"=+@-".indexOf(text.trim().charAt(0))>=0||text.startsWith("\t")||text.startsWith("\r"))?"'"+text:text;}
-    @GetMapping("/export") public ResponseEntity<StreamingResponseBody> export(@RequestParam(required=false) Boolean dnc,@RequestParam(required=false) String consent,@RequestParam(required=false) String keyword,HttpServletRequest request){
+    @GetMapping("/export")
+    public ResponseEntity<StreamingResponseBody> export(@RequestParam(required=false)
+    Boolean dnc,@RequestParam(required=false)
+    String consent,@RequestParam(required=false)
+    String keyword,HttpServletRequest request){
         Identity i=actor(request);List<Object> args=new ArrayList<>(Collections.singletonList(i.tenant()));String where="WHERE tenant_id=?";
         if(keyword!=null&&!keyword.isEmpty()){where+=" AND (phone LIKE ? OR name LIKE ?)";args.add("%"+keyword+"%");args.add("%"+keyword+"%");}if(dnc!=null){where+=" AND dnc=?";args.add(dnc);}if(consent!=null&&!consent.isEmpty()){where+=" AND consent_state=?";args.add(store.encode("contact","consent_state",consent));}
         final String filters=where;audit.record(i,"export","contact",null,"contacts CSV");

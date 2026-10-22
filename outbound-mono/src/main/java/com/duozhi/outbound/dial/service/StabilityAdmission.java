@@ -6,12 +6,15 @@ import com.duozhi.outbound.common.service.ExpiringValues;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import java.util.*;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Shared controller for Java worker progress and retained baseline signal contracts. */
 @Service
 public class StabilityAdmission {
-    @org.springframework.beans.factory.annotation.Autowired private DialRateControl dialRate;
+    @Autowired
+    private DialRateControl dialRate;
     private final Config config;
     private final ExpiringValues redis;
     private final JsonSupport json;
@@ -126,7 +129,7 @@ public class StabilityAdmission {
                                     age == null ? 1 : age)));
             redis.shared("EXPIRE", prefix() + ":signals", "60");
         } catch (RuntimeException e) {
-            org.slf4j.LoggerFactory.getLogger(StabilityAdmission.class)
+            LoggerFactory.getLogger(StabilityAdmission.class)
                     .warn("stability telemetry unavailable");
         }
     }

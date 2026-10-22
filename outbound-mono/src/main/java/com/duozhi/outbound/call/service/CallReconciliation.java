@@ -10,6 +10,7 @@ import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -156,7 +157,7 @@ public class CallReconciliation {
                     try {
                         reconcile(20);
                     } catch (RuntimeException e) {
-                        org.slf4j.LoggerFactory.getLogger(CallReconciliation.class)
+                        LoggerFactory.getLogger(CallReconciliation.class)
                                 .warn(
                                         "call reconciliation error_type={}",
                                         e.getClass().getSimpleName());

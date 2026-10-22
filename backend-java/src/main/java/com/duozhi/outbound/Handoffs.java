@@ -1,8 +1,8 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.*;
+import java.util.*;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,7 +46,8 @@ public class Handoffs {
             store.update("user",identity.tenant(),agentId,JsonSupport.map("agent_status","busy","last_seen_at",Store.now()));
             return JsonSupport.map("call",call,"handoff",handoff);
         });
-        @SuppressWarnings("unchecked") Map<String,Object> call=(Map<String,Object>)snapshot.get("call"),handoff=(Map<String,Object>)snapshot.get("handoff");
+        @SuppressWarnings("unchecked")
+        Map<String,Object> call=(Map<String,Object>)snapshot.get("call"),handoff=(Map<String,Object>)snapshot.get("handoff");
         RuntimeException failure=null;try{client.command(call,"transfer",JsonSupport.map("reason",reason,"target_group","agent:"+agentId));}catch(RuntimeException e){failure=e;}
         final boolean failed=failure!=null;
         Map<String,Object> result=tx.run(()->{
@@ -63,10 +64,20 @@ public class Handoffs {
         });
         if(result==null)throw new ApiError(502,"telephony transfer failed");return result;
     }
-    @PostMapping("/calls/{id}/handoffs/{handoff_id}/accept") public Map<String,Object> accept(@PathVariable UUID id,@PathVariable long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);Map<String,Object> h=get(identity.tenant(),id,handoff_id);Object agent=identity.user()!=null&&"agent".equals(identity.user().get("role"))?identity.userId():h.get("assigned_agent_id");return contract.output("HandoffRequestOut",transfer(identity,id,handoff_id,agent,Objects.toString(h.get("reason"),"agent_accept")));}
-    @PostMapping("/calls/{id}/handoffs/{handoff_id}/reject") public Map<String,Object> reject(@PathVariable UUID id,@PathVariable long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);return tx.run(()->{tx.platform();Map<String,Object> call=tx.call(id);visible(call,identity);Map<String,Object> h=get(identity.tenant(),id,handoff_id);if(!"waiting".equals(h.get("state")))throw new ApiError(409,"handoff is not waiting");if(identity.user()!=null&&!"admin".equals(identity.user().get("role"))&&h.get("assigned_agent_id")!=null&&!h.get("assigned_agent_id").toString().equals(identity.userId().toString()))throw new ApiError(403,"handoff is assigned to another agent");product.releaseWaiting(call);store.update("callsession",identity.tenant(),id,JsonSupport.map("status","waiting_human","human_agent_id",null));return contract.output("HandoffRequestOut",store.update("handoffrequest",identity.tenant(),handoff_id,JsonSupport.map("state","rejected","responded_at",Store.now())));});}
-    @GetMapping("/calls/{id}/handoffs") public List<Map<String,Object>> callHandoffs(@PathVariable UUID id,HttpServletRequest request){Identity identity=Identity.from(request);visible(store.require("callsession",identity.tenant(),id),identity);List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> row:store.list("handoffrequest","WHERE tenant_id=? AND call_session_id=? ORDER BY requested_at DESC",identity.tenant(),store.encode("handoffrequest","call_session_id",id)))result.add(contract.output("HandoffRequestOut",row));return result;}
-    @GetMapping("/handoffs") public List<Map<String,Object>> queue(@RequestParam(defaultValue="waiting") String state,HttpServletRequest request){
+    @PostMapping("/calls/{id}/handoffs/{handoff_id}/accept")
+    public Map<String,Object> accept(@PathVariable
+    UUID id,@PathVariable
+    long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);Map<String,Object> h=get(identity.tenant(),id,handoff_id);Object agent=identity.user()!=null&&"agent".equals(identity.user().get("role"))?identity.userId():h.get("assigned_agent_id");return contract.output("HandoffRequestOut",transfer(identity,id,handoff_id,agent,Objects.toString(h.get("reason"),"agent_accept")));}
+    @PostMapping("/calls/{id}/handoffs/{handoff_id}/reject")
+    public Map<String,Object> reject(@PathVariable
+    UUID id,@PathVariable
+    long handoff_id,HttpServletRequest request){Identity identity=Identity.from(request);return tx.run(()->{tx.platform();Map<String,Object> call=tx.call(id);visible(call,identity);Map<String,Object> h=get(identity.tenant(),id,handoff_id);if(!"waiting".equals(h.get("state")))throw new ApiError(409,"handoff is not waiting");if(identity.user()!=null&&!"admin".equals(identity.user().get("role"))&&h.get("assigned_agent_id")!=null&&!h.get("assigned_agent_id").toString().equals(identity.userId().toString()))throw new ApiError(403,"handoff is assigned to another agent");product.releaseWaiting(call);store.update("callsession",identity.tenant(),id,JsonSupport.map("status","waiting_human","human_agent_id",null));return contract.output("HandoffRequestOut",store.update("handoffrequest",identity.tenant(),handoff_id,JsonSupport.map("state","rejected","responded_at",Store.now())));});}
+    @GetMapping("/calls/{id}/handoffs")
+    public List<Map<String,Object>> callHandoffs(@PathVariable
+    UUID id,HttpServletRequest request){Identity identity=Identity.from(request);visible(store.require("callsession",identity.tenant(),id),identity);List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> row:store.list("handoffrequest","WHERE tenant_id=? AND call_session_id=? ORDER BY requested_at DESC",identity.tenant(),store.encode("handoffrequest","call_session_id",id)))result.add(contract.output("HandoffRequestOut",row));return result;}
+    @GetMapping("/handoffs")
+    public List<Map<String,Object>> queue(@RequestParam(defaultValue="waiting")
+    String state,HttpServletRequest request){
         Identity identity=Identity.from(request);String encoded=store.encode("handoffrequest","state",state).toString();List<Object> args=new ArrayList<>(Arrays.asList(identity.tenant(),encoded));String where="WHERE tenant_id=? AND state=?";
         if(identity.user()!=null&&"agent".equals(identity.user().get("role"))&&!Boolean.TRUE.equals(identity.user().get("is_supervisor"))){where+=" AND (assigned_agent_id IS NULL OR assigned_agent_id=?)";args.add(identity.userId());}
         List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> h:store.list("handoffrequest",where+" ORDER BY requested_at",args.toArray())) {
@@ -80,7 +91,11 @@ public class Handoffs {
             h.putAll(JsonSupport.map("phone",call.get("phone"),"mode",call.get("mode"),"campaign_id",call.get("campaign_id"),"contact_name",contact==null?null:contact.get("name"),"campaign_name",campaign==null?null:campaign.get("name"),"intent",analysis==null?null:analysis.get("intent"),"summary",summary,"last_customer_utterance",Objects.toString(turn==null?call.get("last_transcript"):turn.get("transcript"),""),"wait_seconds",Math.max(0,Duration.between(LocalDateTime.parse(h.get("requested_at").toString()),Store.now()).getSeconds())));result.add(contract.output("HandoffQueueItemOut",h));
         }return result;
     }
-    @PostMapping("/calls/{id}/handover") public Map<String,Object> handover(@PathVariable UUID id,@RequestParam(defaultValue="operator_request") String reason,@RequestParam(required=false) String target_group,HttpServletRequest request){
+    @PostMapping("/calls/{id}/handover")
+    public Map<String,Object> handover(@PathVariable
+    UUID id,@RequestParam(defaultValue="operator_request")
+    String reason,@RequestParam(required=false)
+    String target_group,HttpServletRequest request){
         Identity identity=Identity.from(request);Object agent=identity.user()!=null&&"agent".equals(identity.user().get("role"))?identity.userId():null;
         if(target_group!=null&&!target_group.equals("default")){if(!target_group.matches("agent:[1-9][0-9]*"))throw new ApiError(409,"transfer target must be an authorized agent ID");long requested=Long.parseLong(target_group.substring(6));if(agent!=null&&!agent.toString().equals(""+requested))throw new ApiError(409,"transfer target does not match assigned agent");agent=requested;}
         transfer(identity,id,null,agent,reason);return contract.output("CallSessionOut",store.require("callsession",identity.tenant(),id));

@@ -15,13 +15,18 @@ import com.duozhi.outbound.system.service.Audit;
 import com.duozhi.outbound.system.service.Settings;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AdminPermission("admin:lines")
 @RequestMapping("/api/v1/admin/lines")
 public class AdminLines {
-    @org.springframework.beans.factory.annotation.Autowired private DialQuotaCounters quotas;
+    @Autowired
+    private DialQuotaCounters quotas;
     private final Store store;
     private final Contract contract;
     private final Config config;
@@ -43,7 +48,7 @@ public class AdminLines {
                         Store.queryParameters(0, Identity.from(request).tenant()))
                 .stream()
                 .map(row -> contract.output("TelephonyLineOut", row))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     private void validate(Map<String, Object> values) {
@@ -83,15 +88,15 @@ public class AdminLines {
     @PostMapping
     @PolicyWrite
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
+        Identity actor = Identity.from(request);
         lockPolicy(actor);
-        java.util.Map<java.lang.String, java.lang.Object> data =
-                contract.input("TelephonyLineCreate", body, true);
+        Map<String, Object> data = contract.input("TelephonyLineCreate", body, true);
         validate(data);
         approval(request, !"mock".equals(data.get("provider")));
         data.put("tenant_id", actor.tenant());
-        java.util.Map<java.lang.String, java.lang.Object> row = store.insert("telephonyline", data);
+        Map<String, Object> row = store.insert("telephonyline", data);
         audit.record(actor, "create", "telephony_line", row.get("id"), "line created");
         return contract.output("TelephonyLineOut", row);
     }
@@ -99,17 +104,16 @@ public class AdminLines {
     @PutMapping("/{id}")
     @PolicyWrite
     public Map<String, Object> update(
-            @PathVariable long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+        Identity actor = Identity.from(request);
         lockPolicy(actor);
-        java.util.Map<java.lang.String, java.lang.Object> data =
-                contract.input("TelephonyLineUpdate", body, false);
-        java.util.Map<java.lang.String, java.lang.Object> row =
-                store.require("telephonyline", actor.tenant(), id);
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> combined =
-                new LinkedHashMap<>(row);
+        Map<String, Object> data = contract.input("TelephonyLineUpdate", body, false);
+        Map<String, Object> row = store.require("telephonyline", actor.tenant(), id);
+        LinkedHashMap<String, Object> combined = new LinkedHashMap<>(row);
         combined.putAll(data);
         validate(combined);
         approval(
@@ -117,16 +121,16 @@ public class AdminLines {
                 !"mock".equals(row.get("provider")) || !"mock".equals(combined.get("provider")));
         quotas.assertLimit(
                 actor.tenant(), id, null, ((Number) combined.get("max_concurrency")).longValue());
-        java.util.Map<java.lang.String, java.lang.Object> result =
-                store.update("telephonyline", actor.tenant(), id, data);
+        Map<String, Object> result = store.update("telephonyline", actor.tenant(), id, data);
         audit.record(actor, "update", "telephony_line", id, "fields=" + data.keySet());
         return contract.output("TelephonyLineOut", result);
     }
 
     @DeleteMapping("/{id}")
     @PolicyWrite
-    public Map<String, String> disable(@PathVariable long id, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+    public Map<String, String> disable(@PathVariable
+    long id, HttpServletRequest request) {
+        Identity actor = Identity.from(request);
         lockPolicy(actor);
         store.update("telephonyline", actor.tenant(), id, Values.map("enabled", false));
         audit.record(actor, "disable", "telephony_line", id, "line disabled");

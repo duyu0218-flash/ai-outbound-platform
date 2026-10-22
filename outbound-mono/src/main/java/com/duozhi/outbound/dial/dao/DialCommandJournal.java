@@ -6,15 +6,19 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import java.sql.Statement;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /** One immutable business identity survives terminal status and later attempts. */
 @Service
 public class DialCommandJournal {
-    @org.springframework.beans.factory.annotation.Autowired private Config config;
-    @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
+    @Autowired
+    private Config config;
+    @Autowired
+    private CapacityCommitEvidence timing;
     private final JdbcTemplate jdbc;
     private final JsonSupport json;
 
@@ -85,7 +89,7 @@ public class DialCommandJournal {
                                     + " dial_command_journal(tenant_id,call_id,attempt,semantic_digest,frozen_payload,protocol_version)"
                                     + " VALUES(?,?,?,?,?,?)",
                             scope.pendingCommands))
-                if (changed == 0 || changed == java.sql.Statement.EXECUTE_FAILED)
+                if (changed == 0 || changed == Statement.EXECUTE_FAILED)
                     throw new IllegalStateException("command identity batch was not persisted");
         scope.pendingCommands.clear();
         if (!scope.readmissions.isEmpty()) jdbc.batchUpdate(readmissionSql(), scope.readmissions);

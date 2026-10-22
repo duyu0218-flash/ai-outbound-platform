@@ -8,6 +8,7 @@ import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -55,7 +56,7 @@ public final class JavaWorkerSignals {
                         try {
                             publish();
                         } catch (RuntimeException unavailable) {
-                            org.slf4j.LoggerFactory.getLogger(JavaWorkerSignals.class)
+                            LoggerFactory.getLogger(JavaWorkerSignals.class)
                                     .warn("worker telemetry unavailable");
                         } finally {
                             busy.set(false);

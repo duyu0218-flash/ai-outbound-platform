@@ -1,6 +1,8 @@
 package com.duozhi.outbound.integration.config;
 
 import com.duozhi.outbound.common.config.Config;
+import java.util.Map;
+import java.util.Set;
 
 /** Keeps the original role's SERVICE_TOKEN mapping while all roles share the same JVM. */
 public final class UnifiedServiceSettings extends Settings {
@@ -8,7 +10,7 @@ public final class UnifiedServiceSettings extends Settings {
     private final String role;
 
     public UnifiedServiceSettings(Config config, String role) {
-        super(java.util.Map.of());
+        super(Map.of());
         this.config = config;
         this.role = role;
     }
@@ -18,8 +20,7 @@ public final class UnifiedServiceSettings extends Settings {
         // Preserve the old Compose role-to-environment bindings inside one process.
         String base = key.endsWith("_FILE") ? key.substring(0, key.length() - 5) : key,
                 suffix = key.endsWith("_FILE") ? "_FILE" : "";
-        if (role.equals("voice")
-                && java.util.Set.of("WEBHOOK_TOKEN", "WEBHOOK_SECRET").contains(base))
+        if (role.equals("voice") && Set.of("WEBHOOK_TOKEN", "WEBHOOK_SECRET").contains(base))
             return config.get("TELEPHONY_" + base + suffix, config.get(key, fallback)).strip();
         if (role.equals("recording")) {
             String alias =

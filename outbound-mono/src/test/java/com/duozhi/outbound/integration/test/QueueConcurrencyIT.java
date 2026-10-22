@@ -2,12 +2,14 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import com.duozhi.outbound.ai.service.AiRuntime;
 import com.duozhi.outbound.ai.service.ConversationPolicy;
 import com.duozhi.outbound.call.controller.VoiceCallbacks;
 import com.duozhi.outbound.call.domain.CallStatusBatchScope;
 import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.callback.service.CallbackInbox;
+import com.duozhi.outbound.common.dao.MapperRegistry;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import com.duozhi.outbound.common.exception.ApiError;
@@ -21,27 +23,48 @@ import com.duozhi.outbound.job.service.RealtimeTaskCleanup;
 import com.duozhi.outbound.job.service.RealtimeTaskPressure;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.operations.controller.CallAnalysis;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.sql.Connection;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import javax.sql.DataSource;
+import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
+import org.apache.ibatis.session.SqlSession;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.web.bind.annotation.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class QueueConcurrencyIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -65,26 +88,44 @@ class QueueConcurrencyIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired Store store;
-    @Autowired Transactions tx;
-    @Autowired Outbox outbox;
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
-    @Autowired RealtimeTaskCleanup taskCleanup;
-    @Autowired RealtimeTaskPressure taskPressure;
-    @Autowired PlatformLock platformLocks;
-    @Autowired javax.sql.DataSource dataSource;
-    @Autowired TaskWorker worker;
-    @Autowired CallbackInbox inbox;
-    @Autowired TestRestTemplate http;
-    @Autowired org.apache.ibatis.session.SqlSession sqlSession;
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean CallAnalysis analysis;
-    @Autowired CallLifecycle lifecycle;
-    @Autowired ConversationPolicy conversation;
-    @Autowired VoiceCallbacks businessVoice;
-    @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean AiRuntime runtime;
+    @Autowired
+    Store store;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    Outbox outbox;
+    @Autowired
+    JdbcTemplate jdbc;
+    @Autowired
+    RealtimeTaskCleanup taskCleanup;
+    @Autowired
+    RealtimeTaskPressure taskPressure;
+    @Autowired
+    PlatformLock platformLocks;
+    @Autowired
+    DataSource dataSource;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    SqlSession sqlSession;
+    @MockitoSpyBean
+    CallAnalysis analysis;
+    @Autowired
+    CallLifecycle lifecycle;
+    @Autowired
+    ConversationPolicy conversation;
+    @Autowired
+    VoiceCallbacks businessVoice;
+    @Autowired
+    ConfigurableEnvironment environment;
+    @MockitoSpyBean
+    AiRuntime runtime;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    @MockitoSpyBean
     TelephonyClient telephony;
 
     @BeforeEach
@@ -130,22 +171,16 @@ class QueueConcurrencyIT {
                 var statement =
                         sqlSession
                                 .getConfiguration()
-                                .getMappedStatement(
-                                        com.duozhi.outbound.common.dao.MapperRegistry.statement(
-                                                mapper));
+                                .getMappedStatement(MapperRegistry.statement(mapper));
                 var bound = statement.getBoundSql(params);
                 try (var connection = dataSource.getConnection();
                         var explain =
                                 connection.prepareStatement(
                                         "EXPLAIN FORMAT=JSON " + bound.getSql())) {
-                    new org.apache.ibatis.scripting.defaults.DefaultParameterHandler(
-                                    statement, params, bound)
-                            .setParameters(explain);
+                    new DefaultParameterHandler(statement, params, bound).setParameters(explain);
                     try (var rows = explain.executeQuery()) {
                         assertThat(rows.next()).isTrue();
-                        var plan =
-                                new com.fasterxml.jackson.databind.ObjectMapper()
-                                        .readTree(rows.getString(1));
+                        var plan = new ObjectMapper().readTree(rows.getString(1));
                         var tables =
                                 plan.findParents("table_name").stream()
                                         .filter(
@@ -400,10 +435,10 @@ class QueueConcurrencyIT {
         String marker = key();
         var entered = new CountDownLatch(4);
         var release = new CountDownLatch(1);
-        var active = new java.util.concurrent.atomic.AtomicInteger();
-        var peak = new java.util.concurrent.atomic.AtomicInteger();
+        var active = new AtomicInteger();
+        var peak = new AtomicInteger();
         var tasks = new ArrayList<Map<String, Object>>();
-        org.mockito.Mockito.doAnswer(
+        Mockito.doAnswer(
                         invocation -> {
                             assertThat(TaskWorker.tenantHint()).isEqualTo(1L);
                             int concurrent = active.incrementAndGet();
@@ -419,7 +454,7 @@ class QueueConcurrencyIT {
                         })
                 .when(runtime)
                 .turn(
-                        org.mockito.ArgumentMatchers.argThat(
+                        ArgumentMatchers.argThat(
                                 payload ->
                                         payload != null
                                                 && marker.equals(
@@ -442,7 +477,7 @@ class QueueConcurrencyIT {
             environment
                     .getPropertySources()
                     .addFirst(
-                            new org.springframework.core.env.MapPropertySource(
+                            new MapPropertySource(
                                     "queue-parallel-fixture",
                                     Map.of("JAVA_WORKERS_ENABLED", "true")));
             worker.tick();
@@ -496,7 +531,7 @@ class QueueConcurrencyIT {
                 assertThat(waiting)
                         .hasSize(4)
                         .allSatisfy(t -> assertThat(t.getState()).isEqualTo(Thread.State.WAITING));
-                assertThat(((com.alibaba.druid.pool.DruidDataSource) dataSource).getActiveCount())
+                assertThat(((DruidDataSource) dataSource).getActiveCount())
                         .as("Mutex waiters must leave every JDBC connection available")
                         .isZero();
                 assertThat(futures).allSatisfy(f -> assertThat(f.isDone()).isFalse());
@@ -511,7 +546,7 @@ class QueueConcurrencyIT {
     void enablingTerminalBatchesKeepsInitialReceiptsIndependentAndTerminalReleaseLocked()
             throws Exception {
         var properties =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "callback-resource-classes",
                         Map.of("JAVA_CALLBACK_TERMINAL_BATCH_ENABLED", "true"));
         environment.getPropertySources().addFirst(properties);
@@ -764,15 +799,12 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated atomic analysis fixture"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "atomic-analysis-claims",
                         Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
-        org.springframework.test.util.ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
-        String[] types =
-                (String[])
-                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                worker, "laneTypes");
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        String[] types = (String[]) ReflectionTestUtils.getField(worker, "laneTypes");
         var indexes = new ArrayList<Integer>();
         for (int i = 0; i < types.length; i++)
             if (types[i].equals("('call_analysis')")) indexes.add(i);
@@ -837,8 +869,7 @@ class QueueConcurrencyIT {
                                     Values.map("tenantId", tid, "offset", 0, "limit", 100)))
                     .hasSize(24);
         } finally {
-            org.springframework.test.util.ReflectionTestUtils.setField(
-                    worker, "analysisBatchSize", 1);
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
             environment.getPropertySources().remove(property.getName());
             pool.shutdownNow();
         }
@@ -858,16 +889,13 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated analysis rollback fixture"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "analysis-rollback-claims",
                         Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
-        org.springframework.test.util.ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
         int lane =
-                Arrays.asList(
-                                (String[])
-                                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                                worker, "laneTypes"))
+                Arrays.asList((String[]) ReflectionTestUtils.getField(worker, "laneTypes"))
                         .indexOf("('call_analysis')");
         try {
             var tasks = new ArrayList<Map<String, Object>>();
@@ -901,8 +929,8 @@ class QueueConcurrencyIT {
             }
             tasks.sort(Comparator.comparing(t -> t.get("id").toString()));
             Object poison = calls.get(tasks.get(3).get("id").toString());
-            var injected = new java.util.concurrent.atomic.AtomicBoolean();
-            org.mockito.Mockito.doAnswer(
+            var injected = new AtomicBoolean();
+            Mockito.doAnswer(
                             invocation -> {
                                 Map<String, Object> call = invocation.getArgument(0);
                                 if (call != null && poison.equals(call.get("id"))) {
@@ -925,9 +953,7 @@ class QueueConcurrencyIT {
                                 return invocation.callRealMethod();
                             })
                     .when(analysis)
-                    .analyzeLocked(
-                            org.mockito.ArgumentMatchers.anyMap(),
-                            org.mockito.ArgumentMatchers.anyInt());
+                    .analyzeLocked(ArgumentMatchers.anyMap(), ArgumentMatchers.anyInt());
             worker.processLane(tid, lane);
             assertThat(injected.get()).isTrue();
             assertThat(
@@ -959,8 +985,7 @@ class QueueConcurrencyIT {
                     .hasSize(3)
                     .noneMatch(row -> poison.equals(row.get("call_session_id")));
         } finally {
-            org.springframework.test.util.ReflectionTestUtils.setField(
-                    worker, "analysisBatchSize", 1);
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
             environment.getPropertySources().remove(property.getName());
         }
     }
@@ -978,15 +1003,12 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated analysis FIFO fixture"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "analysis-fifo-claims", Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
-        org.springframework.test.util.ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
         int lane =
-                Arrays.asList(
-                                (String[])
-                                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                                worker, "laneTypes"))
+                Arrays.asList((String[]) ReflectionTestUtils.getField(worker, "laneTypes"))
                         .indexOf("('call_analysis')");
         try {
             var call =
@@ -1053,8 +1075,7 @@ class QueueConcurrencyIT {
                                     Values.map("tenantId", tid, "offset", 0, "limit", 100)))
                     .hasSize(1);
         } finally {
-            org.springframework.test.util.ReflectionTestUtils.setField(
-                    worker, "analysisBatchSize", 1);
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
             environment.getPropertySources().remove(property.getName());
         }
     }
@@ -1072,16 +1093,13 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated reactivation fixture"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "analysis-reactivation-claims",
                         Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
-        org.springframework.test.util.ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
         int lane =
-                Arrays.asList(
-                                (String[])
-                                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                                worker, "laneTypes"))
+                Arrays.asList((String[]) ReflectionTestUtils.getField(worker, "laneTypes"))
                         .indexOf("('call_analysis')");
         var pool = Executors.newSingleThreadExecutor();
         try {
@@ -1150,8 +1168,7 @@ class QueueConcurrencyIT {
                                     Values.map("tenantId", tid, "offset", 0, "limit", 100)))
                     .hasSize(1);
         } finally {
-            org.springframework.test.util.ReflectionTestUtils.setField(
-                    worker, "analysisBatchSize", 1);
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
             environment.getPropertySources().remove(property.getName());
             pool.shutdownNow();
         }
@@ -1160,11 +1177,9 @@ class QueueConcurrencyIT {
     @Test
     void localTimerPreparationAndCleanupDoNotWaitForResourceMutexAndStaleTimersHaveNoEffect()
             throws Exception {
-        org.mockito.Mockito.doNothing()
+        Mockito.doNothing()
                 .when(runtime)
-                .apply(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.anyMap());
+                .apply(ArgumentMatchers.anyMap(), ArgumentMatchers.anyMap());
         var pool = Executors.newSingleThreadExecutor();
         try {
             for (String kind : List.of("silence", "failure")) {
@@ -1219,11 +1234,11 @@ class QueueConcurrencyIT {
                 assertThat(store.require("conversationstate", 1, state.get("id")))
                         .containsEntry("generation", saved.get("generation"))
                         .containsEntry("data_json", saved.get("data_json"));
-                org.mockito.Mockito.verify(runtime)
+                Mockito.verify(runtime)
                         .apply(
-                                org.mockito.ArgumentMatchers.argThat(
+                                ArgumentMatchers.argThat(
                                         p -> call.get("id").equals(p.get("call_id"))),
-                                org.mockito.ArgumentMatchers.anyMap());
+                                ArgumentMatchers.anyMap());
             }
         } finally {
             pool.shutdownNow();
@@ -1232,11 +1247,9 @@ class QueueConcurrencyIT {
 
     @Test
     void handoffTimerStillWaitsForTheSharedResourceMutex() throws Exception {
-        org.mockito.Mockito.doNothing()
+        Mockito.doNothing()
                 .when(runtime)
-                .apply(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.anyMap());
+                .apply(ArgumentMatchers.anyMap(), ArgumentMatchers.anyMap());
         var call =
                 store.insert(
                         "callsession",
@@ -1300,14 +1313,11 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated analysis owner fixture"));
         var config =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "analysis-owner-parallel",
                         Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(config);
-        String[] types =
-                (String[])
-                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                worker, "laneTypes");
+        String[] types = (String[]) ReflectionTestUtils.getField(worker, "laneTypes");
         var indexes = new ArrayList<Integer>();
         for (int i = 0; i < types.length; i++)
             if (types[i].equals("('call_analysis')")) indexes.add(i);
@@ -1398,7 +1408,7 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated parallel claim fixture"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "parallel-task-claim-fixture",
                         Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
@@ -1409,8 +1419,7 @@ class QueueConcurrencyIT {
         try {
             for (int i = 0; i < 4; i++)
                 tasks.add(outbox.enqueue(tid, "call_analysis", key(), key(), Map.of()));
-            long mutex =
-                    java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+            long mutex = ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
             try (var held = platformLocks.lock(mutex)) {
                 var ready = new CountDownLatch(4);
                 var start = new CountDownLatch(1);
@@ -1482,7 +1491,7 @@ class QueueConcurrencyIT {
         var started = new CountDownLatch(4);
         var waiting = new CopyOnWriteArrayList<Thread>();
         var futures = new ArrayList<Future<?>>();
-        long key = java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+        long key = ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
         try {
             try (var held = platformLocks.lock(key)) {
                 for (int i = 0; i < 4; i++)
@@ -1507,8 +1516,7 @@ class QueueConcurrencyIT {
                                 thread ->
                                         assertThat(thread.getState())
                                                 .isEqualTo(Thread.State.WAITING));
-                assertThat(((com.alibaba.druid.pool.DruidDataSource) dataSource).getActiveCount())
-                        .isZero();
+                assertThat(((DruidDataSource) dataSource).getActiveCount()).isZero();
             }
             for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
         } finally {
@@ -1541,7 +1549,7 @@ class QueueConcurrencyIT {
                                             }
                                             return null;
                                         }))
-                .isInstanceOf(org.springframework.transaction.UnexpectedRollbackException.class);
+                .isInstanceOf(UnexpectedRollbackException.class);
         assertThat(
                         store.query(
                                 "taskoutbox",
@@ -1781,8 +1789,7 @@ class QueueConcurrencyIT {
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Object> currentLookup(
-            java.lang.reflect.Method method, Map<String, Object> payload, boolean locked) {
+    Map<String, Object> currentLookup(Method method, Map<String, Object> payload, boolean locked) {
         return tx.serialized(
                 () -> {
                     try {
@@ -1834,12 +1841,12 @@ class QueueConcurrencyIT {
                         "_generation",
                         2);
         runtime.apply(stale, ConversationPolicy.reply("stale reply", "speak"));
-        org.mockito.Mockito.verify(telephony, org.mockito.Mockito.never())
+        Mockito.verify(telephony, Mockito.never())
                 .command(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.eq("speak"),
-                        org.mockito.ArgumentMatchers.anyMap());
-        org.mockito.Mockito.doAnswer(
+                        ArgumentMatchers.anyMap(),
+                        ArgumentMatchers.eq("speak"),
+                        ArgumentMatchers.anyMap());
+        Mockito.doAnswer(
                         invocation -> {
                             tx.serialized(
                                     () -> {
@@ -1855,9 +1862,9 @@ class QueueConcurrencyIT {
                         })
                 .when(telephony)
                 .command(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.eq("speak"),
-                        org.mockito.ArgumentMatchers.anyMap());
+                        ArgumentMatchers.anyMap(),
+                        ArgumentMatchers.eq("speak"),
+                        ArgumentMatchers.anyMap());
         runtime.apply(
                 JsonSupport.map(
                         "call_id",
@@ -1869,11 +1876,11 @@ class QueueConcurrencyIT {
                         "_generation",
                         2),
                 ConversationPolicy.reply("superseded reply", "speak"));
-        org.mockito.Mockito.verify(telephony, org.mockito.Mockito.times(1))
+        Mockito.verify(telephony, Mockito.times(1))
                 .command(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.eq("speak"),
-                        org.mockito.ArgumentMatchers.anyMap());
+                        ArgumentMatchers.anyMap(),
+                        ArgumentMatchers.eq("speak"),
+                        ArgumentMatchers.anyMap());
         assertThat(
                         store.query(
                                 "speechturn",
@@ -1912,8 +1919,7 @@ class QueueConcurrencyIT {
     static class FaultController {
         @GetMapping("/v1/call/queue-fault-probe")
         void fail() {
-            throw new org.springframework.dao.CannotAcquireLockException(
-                    "isolated database-failure regression fixture");
+            throw new CannotAcquireLockException("isolated database-failure regression fixture");
         }
     }
 
@@ -1930,33 +1936,26 @@ class QueueConcurrencyIT {
                         "name",
                         "Isolated playback owners"));
         var property =
-                new org.springframework.core.env.MapPropertySource(
+                new MapPropertySource(
                         "control-parallel", Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
         environment.getPropertySources().addFirst(property);
-        String[] types =
-                (String[])
-                        org.springframework.test.util.ReflectionTestUtils.getField(
-                                worker, "laneTypes");
+        String[] types = (String[]) ReflectionTestUtils.getField(worker, "laneTypes");
         var owners = new ArrayList<Integer>();
         for (int i = 0; i < types.length; i++)
             if (types[i].equals("('after_playback','interrupt_playback')")) owners.add(i);
         assertThat(owners).hasSize(4);
-        var active = new ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>();
-        var overlap = new java.util.concurrent.atomic.AtomicBoolean();
-        var concurrent = new java.util.concurrent.atomic.AtomicInteger();
-        var peak = new java.util.concurrent.atomic.AtomicInteger();
+        var active = new ConcurrentHashMap<String, AtomicInteger>();
+        var overlap = new AtomicBoolean();
+        var concurrent = new AtomicInteger();
+        var peak = new AtomicInteger();
         var rows = new ArrayList<Map<String, Object>>();
         var future = new ArrayList<Map<String, Object>>();
         var pool = Executors.newFixedThreadPool(4);
-        org.mockito.Mockito.doAnswer(
+        Mockito.doAnswer(
                         invocation -> {
                             Map<String, Object> payload = invocation.getArgument(0);
                             String id = payload.get("call_id").toString();
-                            if (active.computeIfAbsent(
-                                                    id,
-                                                    k ->
-                                                            new java.util.concurrent.atomic
-                                                                    .AtomicInteger())
+                            if (active.computeIfAbsent(id, k -> new AtomicInteger())
                                             .incrementAndGet()
                                     > 1) overlap.set(true);
                             int n = concurrent.incrementAndGet();
@@ -1971,7 +1970,7 @@ class QueueConcurrencyIT {
                         })
                 .when(runtime)
                 .afterPlayback(
-                        org.mockito.ArgumentMatchers.argThat(
+                        ArgumentMatchers.argThat(
                                 p -> p != null && Boolean.TRUE.equals(p.get("partition_fixture"))));
         try {
             for (int i = 0; i < 24; i++) {
@@ -2134,7 +2133,7 @@ class QueueConcurrencyIT {
     @Test
     void exhaustedColdConnectionPoolCannotBorrowRealtimeOrDefaultReservations() throws Exception {
         var pool = Executors.newSingleThreadExecutor();
-        java.sql.Connection held;
+        Connection held;
         try (var route = WorkloadDataSource.use(WorkloadDataSource.Lane.ANALYSIS)) {
             held = dataSource.getConnection();
         }
@@ -2240,7 +2239,7 @@ class QueueConcurrencyIT {
                         key(),
                         Values.map(
                                 "call_id", call.get("id"), "attempt", 1, "product_kind", "timer"));
-        java.util.function.Supplier<Object> transition =
+        Supplier<Object> transition =
                 () -> {
                     try (var scope = new CallStatusBatchScope()) {
                         scope.sharedResourcesLocked = true;

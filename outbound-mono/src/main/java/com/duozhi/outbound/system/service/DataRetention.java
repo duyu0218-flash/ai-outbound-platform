@@ -13,6 +13,7 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -407,7 +408,7 @@ public class DataRetention {
                         purge(limit);
                         archive(limit);
                     } catch (RuntimeException e) {
-                        org.slf4j.LoggerFactory.getLogger(DataRetention.class)
+                        LoggerFactory.getLogger(DataRetention.class)
                                 .warn("retention error_type={}", e.getClass().getSimpleName());
                     } finally {
                         running.set(false);

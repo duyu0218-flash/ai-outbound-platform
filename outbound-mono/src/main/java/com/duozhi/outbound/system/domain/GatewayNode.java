@@ -1,15 +1,18 @@
 package com.duozhi.outbound.system.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class GatewayNode {
     private String id;
     private String endpoint;
     private Integer capacity = 0;
     private Boolean ready = false;
-    private java.time.LocalDateTime checkedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime nextDialAt;
+    private LocalDateTime checkedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime nextDialAt;
 
     public String getId() {
         return id;
@@ -43,19 +46,19 @@ public class GatewayNode {
         this.ready = value;
     }
 
-    public java.time.LocalDateTime getCheckedAt() {
+    public LocalDateTime getCheckedAt() {
         return checkedAt;
     }
 
-    public void setCheckedAt(java.time.LocalDateTime value) {
+    public void setCheckedAt(LocalDateTime value) {
         this.checkedAt = value;
     }
 
-    public java.time.LocalDateTime getNextDialAt() {
+    public LocalDateTime getNextDialAt() {
         return nextDialAt;
     }
 
-    public void setNextDialAt(java.time.LocalDateTime value) {
+    public void setNextDialAt(LocalDateTime value) {
         this.nextDialAt = value;
     }
 }

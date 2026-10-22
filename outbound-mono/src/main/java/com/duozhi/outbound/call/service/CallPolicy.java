@@ -11,12 +11,14 @@ import com.duozhi.outbound.dial.service.DialDailyCounters;
 import com.duozhi.outbound.system.service.Settings;
 import java.time.*;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** The same preflight rules as Python can_call_contact_sync. No outbound side effects. */
 @Service
 public class CallPolicy {
-    @org.springframework.beans.factory.annotation.Autowired private DialDailyCounters daily;
+    @Autowired
+    private DialDailyCounters daily;
     private final Store store;
     private final Settings settings;
     private final Config config;

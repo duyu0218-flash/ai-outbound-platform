@@ -2,11 +2,13 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.duozhi.outbound.common.dao.MapperRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Stream;
 import org.apache.ibatis.session.SqlSession;
@@ -16,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,8 +31,7 @@ import org.testcontainers.mysql.MySQLContainer;
 
 /** Real MySQL persistence checks against declarations copied from the original contracts. */
 @Testcontainers
-@org.springframework.test.annotation.DirtiesContext(
-        classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
 class DataLayerIT {
@@ -58,8 +60,10 @@ class DataLayerIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired SqlSessionFactory sessions;
-    @Autowired PlatformTransactionManager transactions;
+    @Autowired
+    SqlSessionFactory sessions;
+    @Autowired
+    PlatformTransactionManager transactions;
 
     static JsonNode baseline() {
         try (var input =
@@ -137,8 +141,7 @@ class DataLayerIT {
     void sourceDefaults(String table) throws Exception {
         Class<?> type =
                 Class.forName(
-                        com.duozhi.outbound.common.dao.MapperRegistry.namespace(
-                                        meta(table).get("entity").asText() + "Mapper")
+                        MapperRegistry.namespace(meta(table).get("entity").asText() + "Mapper")
                                 .replace(".dao.", ".domain.")
                                 .replaceAll("Mapper$", ""));
         Object row = type.getConstructor().newInstance();
@@ -159,8 +162,8 @@ class DataLayerIT {
             else if (info.path("factory").asText().equals("now")) {
                 assertThat((LocalDateTime) value)
                         .isBetween(
-                                LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(5),
-                                LocalDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(1));
+                                LocalDateTime.now(ZoneOffset.UTC).minusSeconds(5),
+                                LocalDateTime.now(ZoneOffset.UTC).plusSeconds(1));
             } else assertThat(value).isNull();
             if (info.has("enum")) {
                 Class<?> enumType = type.getMethod("get" + suffix(col)).getReturnType();
@@ -532,8 +535,7 @@ class DataLayerIT {
         Object fresh(String table) throws Exception {
             Class<?> type =
                     Class.forName(
-                            com.duozhi.outbound.common.dao.MapperRegistry.namespace(
-                                            meta(table).get("entity").asText() + "Mapper")
+                            MapperRegistry.namespace(meta(table).get("entity").asText() + "Mapper")
                                     .replace(".dao.", ".domain.")
                                     .replaceAll("Mapper$", ""));
             Object row = type.getConstructor().newInstance();
@@ -597,9 +599,7 @@ class DataLayerIT {
         }
 
         Object raw(String table, String method, Object... args) throws Exception {
-            Class<?> type =
-                    com.duozhi.outbound.common.dao.MapperRegistry.type(
-                            meta(table).get("entity").asText() + "Mapper");
+            Class<?> type = MapperRegistry.type(meta(table).get("entity").asText() + "Mapper");
             Object mapper = session.getMapper(type);
             var target =
                     Arrays.stream(type.getMethods())

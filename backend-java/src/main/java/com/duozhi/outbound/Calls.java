@@ -15,17 +15,21 @@ public class Calls {
     public Calls(Store store, Contract contract, DialService dial) { this.store = store; this.contract = contract; this.dial = dial; }
 
     @PostMapping
-    public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Map<String, Object> create(@RequestBody
+    Map<String, Object> body, HttpServletRequest request) {
         return contract.output("CallSessionOut", dial.create(Identity.from(request), contract.input("StartCallRequest", body, true)));
     }
 
     @PostMapping("/{id}/retry")
-    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> retry(@PathVariable
+    UUID id, HttpServletRequest request) {
         return contract.output("CallSessionOut", dial.retry(visible(Identity.from(request), id)));
     }
 
     @PostMapping("/{id}/hangup")
-    public Map<String, Object> hangup(@PathVariable UUID id, @RequestParam(defaultValue="hangup") String reason, HttpServletRequest request) {
+    public Map<String, Object> hangup(@PathVariable
+    UUID id, @RequestParam(defaultValue="hangup")
+    String reason, HttpServletRequest request) {
         return contract.output("CallSessionOut", dial.hangup(visible(Identity.from(request), id), reason));
     }
 
@@ -42,9 +46,13 @@ public class Calls {
 
     @GetMapping
     public List<Map<String, Object>> list(HttpServletRequest request,
-            @RequestParam(name="status", required=false) String status,
-            @RequestParam(required=false) Long campaign_id,
-            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+            @RequestParam(name="status", required=false)
+            String status,
+            @RequestParam(required=false)
+            Long campaign_id,
+            @RequestParam(defaultValue="1")
+            int page, @RequestParam(defaultValue="50")
+            int size) {
         Identity identity = Identity.from(request); int offset = Contract.page(page, size);
         List<Object> args = new ArrayList<>(); args.add(identity.tenant()); String where = "WHERE tenant_id=?";
         if (restricted(identity)) { where += " AND human_agent_id=?"; args.add(identity.userId()); }
@@ -60,28 +68,36 @@ public class Calls {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    UUID id, HttpServletRequest request) {
         return contract.output("CallSessionOut", visible(Identity.from(request), id));
     }
 
     @GetMapping("/{id}/events")
-    public List<Map<String, Object>> events(@PathVariable UUID id, HttpServletRequest request,
-            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+    public List<Map<String, Object>> events(@PathVariable
+    UUID id, HttpServletRequest request,
+            @RequestParam(defaultValue="1")
+            int page, @RequestParam(defaultValue="50")
+            int size) {
         visible(Identity.from(request), id);
         return store.list("callevent", "WHERE call_session_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?", store.encode("callevent", "call_session_id", id), size, Contract.page(page, size))
                 .stream().map(row -> contract.output("CallEventOut", row)).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}/webhook-events")
-    public List<Map<String, Object>> webhookEvents(@PathVariable UUID id, HttpServletRequest request,
-            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+    public List<Map<String, Object>> webhookEvents(@PathVariable
+    UUID id, HttpServletRequest request,
+            @RequestParam(defaultValue="1")
+            int page, @RequestParam(defaultValue="50")
+            int size) {
         visible(Identity.from(request), id);
         return store.list("webhookeventingest", "WHERE call_session_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?", store.encode("webhookeventingest", "call_session_id", id), size, Contract.page(page, size))
                 .stream().map(row -> contract.output("WebhookEventIngestOut", row)).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}/webhook-stats")
-    public Map<String, Object> webhookStats(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> webhookStats(@PathVariable
+    UUID id, HttpServletRequest request) {
         visible(Identity.from(request), id);
         Object boundId = store.encode("webhookeventingest", "call_session_id", id);
         List<Map<String, Object>> groups = store.jdbc().queryForList("SELECT source,event_type,COUNT(*) AS count FROM webhookeventingest WHERE call_session_id=? GROUP BY source,event_type ORDER BY source,event_type", boundId);

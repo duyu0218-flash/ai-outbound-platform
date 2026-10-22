@@ -16,6 +16,7 @@ import com.duozhi.outbound.common.web.Contract;
 import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.job.service.Outbox;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import org.springframework.web.bind.annotation.*;
@@ -130,7 +131,8 @@ public class ProductOperations {
 
     @GetMapping("/policy")
     public Map<String, Object> policy(
-            @RequestParam(required = false) Long campaign_id, HttpServletRequest request) {
+            @RequestParam(required = false)
+            Long campaign_id, HttpServletRequest request) {
         Identity i = admin(request);
         campaign(i.tenant(), campaign_id);
         Map<String, Object> current = product.current(i.tenant(), campaign_id);
@@ -164,7 +166,8 @@ public class ProductOperations {
 
     @PostMapping("/policy")
     public Map<String, Object> savePolicy(
-            @RequestBody Map<String, Object> raw, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> raw, HttpServletRequest request) {
         Identity i = admin(request);
         Map<String, Object> input = contract.input("ScenarioSave", raw, true),
                 policy = normalize(cast(input.get("policy")));
@@ -199,10 +202,8 @@ public class ProductOperations {
                                             0, i.tenant(), true, input.get("campaign_id")));
                     snapshot.put("_knowledge", knowledge);
                     if (knowledge.size() > 500
-                            || json.json(snapshot)
-                                            .getBytes(java.nio.charset.StandardCharsets.UTF_8)
-                                            .length
-                                    > 600000) throw new ApiError(422, "知识内容过多，请按活动拆分适用范围后发布");
+                            || json.json(snapshot).getBytes(StandardCharsets.UTF_8).length > 600000)
+                        throw new ApiError(422, "知识内容过多，请按活动拆分适用范围后发布");
                     Map<String, String> samples =
                             Values.map(
                                     "不用转人工",
@@ -247,7 +248,8 @@ public class ProductOperations {
 
     @PostMapping("/simulate")
     public Map<String, Object> simulate(
-            @RequestBody Map<String, Object> raw, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> raw, HttpServletRequest request) {
         admin(request);
         Map<String, Object> input = contract.input("ScenarioProbe", raw, true),
                 policy = normalize(cast(input.get("policy")));
@@ -359,7 +361,8 @@ public class ProductOperations {
 
     @GetMapping("/appointments")
     public List<Map<String, Object>> appointments(
-            @RequestParam(defaultValue = "1") int page, HttpServletRequest request) {
+            @RequestParam(defaultValue = "1")
+            int page, HttpServletRequest request) {
         long tenant = admin(request).tenant();
         List<Map<String, Object>> result =
                 store.query(
@@ -386,8 +389,10 @@ public class ProductOperations {
 
     @PatchMapping("/appointments/{id}")
     public Map<String, Object> appointment(
-            @PathVariable UUID id,
-            @RequestBody Map<String, Object> raw,
+            @PathVariable
+            UUID id,
+            @RequestBody
+            Map<String, Object> raw,
             HttpServletRequest request) {
         Identity i = admin(request);
         Map<String, Object> input = contract.input("AppointmentPatch", raw, true);
@@ -446,7 +451,8 @@ public class ProductOperations {
 
     @GetMapping("/work-items")
     public List<Map<String, Object>> work(
-            @RequestParam(defaultValue = "1") int page, HttpServletRequest request) {
+            @RequestParam(defaultValue = "1")
+            int page, HttpServletRequest request) {
         return store.query(
                 "productworkitem",
                 "sourceProductOperations51_4",
@@ -455,8 +461,10 @@ public class ProductOperations {
 
     @PatchMapping("/work-items/{id}")
     public Map<String, Object> work(
-            @PathVariable UUID id,
-            @RequestBody Map<String, Object> raw,
+            @PathVariable
+            UUID id,
+            @RequestBody
+            Map<String, Object> raw,
             HttpServletRequest request) {
         Identity i = admin(request);
         Map<String, Object> input = contract.input("WorkPatch", raw, true);
@@ -475,7 +483,8 @@ public class ProductOperations {
 
     @PostMapping("/incoming")
     public Map<String, Object> incoming(
-            @RequestBody Map<String, Object> raw, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> raw, HttpServletRequest request) {
         Identity i = Identity.from(request);
         i.admin("product:write");
         Map<String, Object> input = contract.input("Incoming", raw, true);
@@ -547,7 +556,8 @@ public class ProductOperations {
 
     @GetMapping("/outcomes")
     public List<Map<String, Object>> outcomes(
-            @RequestParam(defaultValue = "1") int page, HttpServletRequest request) {
+            @RequestParam(defaultValue = "1")
+            int page, HttpServletRequest request) {
         long tenant = admin(request).tenant();
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> state :
@@ -576,7 +586,8 @@ public class ProductOperations {
 
     @PostMapping("/knowledge/import")
     public Map<String, Object> importKnowledge(
-            @RequestBody Map<String, Object> raw, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> raw, HttpServletRequest request) {
         Identity i = admin(request);
         Map<String, Object> input = contract.input("KnowledgeImport", raw, true);
         campaign(i.tenant(), input.get("campaign_id"));
@@ -594,7 +605,8 @@ public class ProductOperations {
 
     @PostMapping("/knowledge/search")
     public List<Map<String, Object>> knowledge(
-            @RequestBody Map<String, Object> raw, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> raw, HttpServletRequest request) {
         Identity i = admin(request);
         Map<String, Object> input = contract.input("KnowledgeProbe", raw, true);
         campaign(i.tenant(), input.get("campaign_id"));
@@ -606,7 +618,8 @@ public class ProductOperations {
 
     @GetMapping("/funnel")
     public Map<String, Object> funnel(
-            @RequestParam(defaultValue = "7") int days, HttpServletRequest request) {
+            @RequestParam(defaultValue = "7")
+            int days, HttpServletRequest request) {
         long tenant = admin(request).tenant();
         if (days < 1 || days > 90) throw new ApiError(400, "invalid days");
         Object since = store.encode("conversationstate", "updated_at", Store.now().minusDays(days));

@@ -1,16 +1,19 @@
 package com.duozhi.services;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
 import java.net.*;
 import java.nio.file.*;
 import java.util.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 
 class RealS3Test {
-    @TempDir Path directory;
-    @Test void realS3SigV4UploadReadAndDelete() throws Exception {
+    @TempDir
+    Path directory;
+    @Test
+    void realS3SigV4UploadReadAndDelete() throws Exception {
         String endpoint = System.getenv("JAVA_TEST_S3_ENDPOINT");
         Assumptions.assumeTrue(endpoint != null, "requires a dedicated local SeaweedFS test instance");
         URI uri = URI.create(endpoint);

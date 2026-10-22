@@ -48,9 +48,12 @@ public class ContactFiles {
 
     @PostMapping("/import")
     public Map<String, Object> importCsv(
-            @RequestParam MultipartFile file,
-            @RequestParam(defaultValue = "true") boolean upsert,
-            @RequestHeader(value = "Idempotency-Key", required = false) String key,
+            @RequestParam
+            MultipartFile file,
+            @RequestParam(defaultValue = "true")
+            boolean upsert,
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String key,
             HttpServletRequest request)
             throws IOException {
         Identity i = actor(request);
@@ -252,9 +255,12 @@ public class ContactFiles {
 
     @GetMapping("/export")
     public ResponseEntity<StreamingResponseBody> export(
-            @RequestParam(required = false) Boolean dnc,
-            @RequestParam(required = false) String consent,
-            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false)
+            Boolean dnc,
+            @RequestParam(required = false)
+            String consent,
+            @RequestParam(required = false)
+            String keyword,
             HttpServletRequest request) {
         Identity i = actor(request);
         var filters = new LinkedHashMap<String, Object>();

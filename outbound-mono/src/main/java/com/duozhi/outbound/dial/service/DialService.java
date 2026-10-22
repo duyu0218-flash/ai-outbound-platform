@@ -23,20 +23,30 @@ import com.duozhi.outbound.integration.service.TelephonyClient;
 import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
+import com.duozhi.outbound.voice.controller.VoiceController;
+import java.nio.ByteBuffer;
 import java.time.*;
+import java.time.LocalDateTime;
 import java.util.*;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DialService {
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private DialAuthorizationService authorizations;
 
-    @org.springframework.beans.factory.annotation.Autowired private DialQuotaCounters quotas;
-    @org.springframework.beans.factory.annotation.Autowired private DialRateControl rate;
-    @org.springframework.beans.factory.annotation.Autowired private DialCommandJournal journal;
-    @org.springframework.beans.factory.annotation.Autowired private DialDailyCounters daily;
-    @org.springframework.beans.factory.annotation.Autowired private DialDrainControl drain;
+    @Autowired
+    private DialQuotaCounters quotas;
+    @Autowired
+    private DialRateControl rate;
+    @Autowired
+    private DialCommandJournal journal;
+    @Autowired
+    private DialDailyCounters daily;
+    @Autowired
+    private DialDrainControl drain;
 
     public static final class PendingConfirmation extends TaskWorker.Deferred {}
 
@@ -518,10 +528,7 @@ public class DialService {
                         if (Values.set("legacy", "pipecat").contains(override)) pipeline = override;
                         else {
                             long bucket =
-                                    (java.nio.ByteBuffer.wrap(
-                                                                    JsonSupport.digest(
-                                                                            call.get("id")
-                                                                                    .toString()))
+                                    (ByteBuffer.wrap(JsonSupport.digest(call.get("id").toString()))
                                                             .getInt()
                                                     & 0xffffffffL)
                                             % 100;
@@ -571,9 +578,9 @@ public class DialService {
                     if (batch != null) {
                         batch.calls.put(id.toString(), call);
                         var tenantDay =
-                                day instanceof java.time.LocalDateTime value
+                                day instanceof LocalDateTime value
                                         ? value
-                                        : java.time.LocalDateTime.parse(day.toString());
+                                        : LocalDateTime.parse(day.toString());
                         batch.dailyCounts.put(
                                 dailyKey,
                                 dailyCount.changed(beforeClaim, call, "started_at", tenantDay, 1));
@@ -886,7 +893,7 @@ public class DialService {
                                         });
                         journal.flush(scope);
                         if (config.flag("JAVA_DIAL_PROFILE", false))
-                            org.slf4j.LoggerFactory.getLogger(DialService.class)
+                            LoggerFactory.getLogger(DialService.class)
                                     .info(
                                             "dial_prepare size={} lock_wait_ms={} facts_ms={}"
                                                     + " config_ms={} loop_ms={} flush_ms={}",
@@ -1132,7 +1139,7 @@ public class DialService {
 
     @SuppressWarnings("unchecked")
     private void sendTaskChunk(List<Map<String, Object>> pending, DialBatchStore db) {
-        List<com.duozhi.outbound.voice.controller.VoiceController.CommandResult> replies;
+        List<VoiceController.CommandResult> replies;
         try {
             replies = client.dialBatch(pending);
         } catch (RuntimeException failure) {

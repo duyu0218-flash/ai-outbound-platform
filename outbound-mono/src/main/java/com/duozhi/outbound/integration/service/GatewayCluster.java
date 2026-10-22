@@ -1,5 +1,6 @@
 package com.duozhi.outbound.integration.service;
 
+import com.duozhi.outbound.ai.service.EmbeddedAgent;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
@@ -17,6 +18,7 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,7 +32,7 @@ public class GatewayCluster {
     private final JsonSupport json;
     private final TelephonyClient client;
     private final StabilityAdmission stability;
-    private final com.duozhi.outbound.ai.service.EmbeddedAgent agent;
+    private final EmbeddedAgent agent;
     private final EmbeddedServiceTransport embedded;
     private final ExecutorService executor =
             Executors.newSingleThreadExecutor(
@@ -49,7 +51,7 @@ public class GatewayCluster {
             JsonSupport json,
             TelephonyClient client,
             StabilityAdmission stability,
-            com.duozhi.outbound.ai.service.EmbeddedAgent agent,
+            EmbeddedAgent agent,
             EmbeddedServiceTransport embedded) {
         this.store = store;
         this.tx = tx;
@@ -295,7 +297,7 @@ public class GatewayCluster {
                     try {
                         probe();
                     } catch (RuntimeException e) {
-                        org.slf4j.LoggerFactory.getLogger(GatewayCluster.class)
+                        LoggerFactory.getLogger(GatewayCluster.class)
                                 .warn("gateway probe error_type={}", e.getClass().getSimpleName());
                     } finally {
                         probing.set(false);

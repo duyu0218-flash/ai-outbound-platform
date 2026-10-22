@@ -14,12 +14,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Real TCP ESL handshake/commands with a synthetic PBX; no telephone line or cloud account. */
 class GatewayLifecycleTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
 
     Settings settings(Pbx pbx, Map<String, String> extra) {
         var values = new HashMap<String, String>();
@@ -464,7 +466,7 @@ class GatewayLifecycleTest {
         }
     }
 
-    private static void await(java.util.function.BooleanSupplier condition) throws Exception {
+    private static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() > deadline) fail("no expected ESL command evidence");

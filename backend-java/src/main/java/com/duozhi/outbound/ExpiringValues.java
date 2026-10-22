@@ -1,11 +1,12 @@
 package com.duozhi.outbound;
 
-import java.net.*;
 import java.io.*;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Redis-compatible media keys; development-only in-process fallback. */
@@ -15,7 +16,7 @@ public class ExpiringValues {
     private final SSLSocketFactory tlsFactory;
     private final Map<String,Entry> memory=new ConcurrentHashMap<>();
     private static class Entry{final String value;final long expires;Entry(String value,int ttl){this.value=value;this.expires=System.currentTimeMillis()+1000L*ttl;}}
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public ExpiringValues(Config config){this(config,(SSLSocketFactory)SSLSocketFactory.getDefault());}
     ExpiringValues(Config config,SSLSocketFactory tlsFactory){this.config=config;this.tlsFactory=tlsFactory;}
     public String get(String key){String endpoint=config.get("REDIS_URL","");if(!endpoint.isEmpty())try{return (String)command(endpoint,"GET",key);}catch(RuntimeException e){if(config.production())throw new ApiError(503,"Redis is required for WebRTC media sessions");}else if(config.production())throw new ApiError(503,"Redis is required for WebRTC media sessions");Entry e=memory.get(key);if(e==null)return null;if(e.expires<=System.currentTimeMillis()){memory.remove(key,e);return null;}return e.value;}

@@ -18,6 +18,9 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.*;
 import org.springframework.stereotype.Service;
 
@@ -231,8 +234,8 @@ public class IntegrationTasks {
                         .anyMatch(origin::equals);
         String host = uri.getHost();
         int port = uri.getPort() < 0 ? ("https".equals(uri.getScheme()) ? 443 : 80) : uri.getPort();
-        java.util.concurrent.ExecutorService resolver =
-                java.util.concurrent.Executors.newSingleThreadExecutor(
+        ExecutorService resolver =
+                Executors.newSingleThreadExecutor(
                         r -> {
                             Thread t = new Thread(r, "callback-dns");
                             t.setDaemon(true);
@@ -241,8 +244,7 @@ public class IntegrationTasks {
         Socket socket = null;
         try {
             InetAddress[] addresses =
-                    resolver.submit(() -> InetAddress.getAllByName(host))
-                            .get(3, java.util.concurrent.TimeUnit.SECONDS);
+                    resolver.submit(() -> InetAddress.getAllByName(host)).get(3, TimeUnit.SECONDS);
             if (addresses.length == 0
                     || !privateAllowed && Arrays.stream(addresses).anyMatch(a -> !publicAddress(a)))
                 throw new ApiError(422, "callback DNS resolved to an unauthorized network");

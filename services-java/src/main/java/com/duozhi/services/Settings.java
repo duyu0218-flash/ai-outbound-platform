@@ -1,5 +1,7 @@
 package com.duozhi.services;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -37,9 +39,9 @@ public class Settings {
             try (var input = Files.newInputStream(path)) {
                 byte[] bytes = input.readNBytes(4097);
                 if (bytes.length > 4096) throw new IllegalArgumentException("secret exceeds limit: " + key);
-                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8).strip();
+                return new String(bytes, StandardCharsets.UTF_8).strip();
             }
-        } catch (java.io.IOException error) { throw new IllegalArgumentException("unable to read secret: " + key); }
+        } catch (IOException error) { throw new IllegalArgumentException("unable to read secret: " + key); }
     }
     public Set<String> list(String key) {
         Set<String> result = new HashSet<>();

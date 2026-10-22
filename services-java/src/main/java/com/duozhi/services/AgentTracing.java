@@ -54,7 +54,8 @@ final class AgentTracing implements AutoCloseable {
         void result(Map<String,Object> result) { metadata.put("action", result.get("action")); metadata.put("handoff", result.get("handoff_to_human")); }
         void generation(String name) { if (name.matches("[A-Za-z0-9_.:/-]{1,128}")) model = name; }
         void error(Exception error) { errorType = error.getClass().getSimpleName(); }
-        @Override public void close() {
+        @Override
+        public void close() {
             current.set(parent); if (!sampled) return;
             List<Map<String,Object>> attributes = new ArrayList<>();
             attributes.add(attribute("langfuse.observation.type", name.equals("llm.reply") ? "generation" : "span"));
@@ -91,5 +92,6 @@ final class AgentTracing implements AutoCloseable {
             } catch (Exception error) { if (error instanceof InterruptedException) Thread.currentThread().interrupt(); return; }
         }
     }
-    @Override public void close() { if (exporter != null) exporter.shutdownNow(); flush(); }
+    @Override
+    public void close() { if (exporter != null) exporter.shutdownNow(); flush(); }
 }

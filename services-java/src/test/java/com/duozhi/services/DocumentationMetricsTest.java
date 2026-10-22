@@ -1,14 +1,17 @@
 package com.duozhi.services;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Path;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.file.Path;
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 class DocumentationMetricsTest {
-    @TempDir Path directory;
-    @Test void allRoleContractsResolveReferencesAndDescribeAuthentication() throws Exception {
+    @TempDir
+    Path directory;
+    @Test
+    void allRoleContractsResolveReferencesAndDescribeAuthentication() throws Exception {
         for (String role : List.of("agent", "recording", "voice", "media")) {
             var documentation = new ApiDocumentation(role);
             Map<String,Object> spec = Support.object(documentation.openapi());
@@ -32,7 +35,8 @@ class DocumentationMetricsTest {
             map.values().forEach(value -> references(value, spec));
         } else if (node instanceof List<?> list) list.forEach(value -> references(value, spec));
     }
-    @Test void monitoringOmitsUnknownValuesAndRecordsOnlySuccessfulRootTransactions() throws Exception {
+    @Test
+    void monitoringOmitsUnknownValuesAndRecordsOnlySuccessfulRootTransactions() throws Exception {
         StringBuilder output = new StringBuilder();
         Metrics.append(output, "test_", Map.of("valid", 2, "enabled", true, "unknown", "secret", "invalid", Double.NaN));
         assertTrue(output.toString().contains("test_valid 2\n")); assertTrue(output.toString().contains("test_enabled 1\n"));

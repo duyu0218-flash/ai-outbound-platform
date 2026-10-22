@@ -2,51 +2,59 @@ package com.duozhi.outbound.call.dao;
 
 import com.duozhi.outbound.call.domain.ConversationState;
 import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface ConversationStateMapper {
-    int insert(@Param("row") ConversationState row);
+    int insert(@Param("row")
+    ConversationState row);
 
-    int insertExplicitId(@Param("row") ConversationState row);
+    int insertExplicitId(@Param("row")
+    ConversationState row);
 
-    ConversationState findById(@Param("id") Integer id, @Param("tenantId") Integer tenantId);
+    ConversationState findById(@Param("id")
+    Integer id, @Param("tenantId")
+    Integer tenantId);
 
-    int updateById(@Param("row") ConversationState row, @Param("tenantId") Integer tenantId);
+    int updateById(@Param("row")
+    ConversationState row, @Param("tenantId")
+    Integer tenantId);
 
-    int deleteById(@Param("id") Integer id, @Param("tenantId") Integer tenantId);
+    int deleteById(@Param("id")
+    Integer id, @Param("tenantId")
+    Integer tenantId);
 
     List<ConversationState> list(
-            @Param("tenantId") Integer tenantId,
-            @Param("offset") int offset,
-            @Param("limit") int limit);
+            @Param("tenantId")
+            Integer tenantId,
+            @Param("offset")
+            int offset,
+            @Param("limit")
+            int limit);
 
     int patchFields(
-            @org.apache.ibatis.annotations.Param("id") Object id,
-            @org.apache.ibatis.annotations.Param("tenantId") long tenantId,
-            @org.apache.ibatis.annotations.Param("changes") java.util.Map<String, Object> changes);
+            @Param("id")
+            Object id,
+            @Param("tenantId")
+            long tenantId,
+            @Param("changes")
+            Map<String, Object> changes);
 
-    int redactCallEvidence(java.util.Map<String, Object> parameters);
+    int redactCallEvidence(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> sourceProductOperations58_7(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> sourceProductOperations58_7(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> scopedAiRuntime22(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> scopedAiRuntime22(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> scopedCallAnalysis33(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> scopedCallAnalysis33(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> scopedConversationPolicy30(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> scopedConversationPolicy30(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> scopedHandoffs78(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> scopedHandoffs78(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.call.domain.ConversationState> scopedVoiceCallbacks72(
-            java.util.Map<String, Object> parameters);
+    List<ConversationState> scopedVoiceCallbacks72(Map<String, Object> parameters);
 
-    java.util.List<java.util.Map<String, Object>> deliveryFunnel(
-            java.util.Map<String, Object> parameters);
+    List<Map<String, Object>> deliveryFunnel(Map<String, Object> parameters);
 }

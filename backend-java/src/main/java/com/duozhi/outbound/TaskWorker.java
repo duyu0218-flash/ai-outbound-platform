@@ -1,14 +1,16 @@
 package com.duozhi.outbound;
 
+import jakarta.annotation.PreDestroy;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import jakarta.annotation.PreDestroy;
-import org.springframework.stereotype.Service;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.context.event.EventListener;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
 public class TaskWorker {
@@ -39,8 +41,10 @@ public class TaskWorker {
         this.store = store; this.tx = tx; this.config = config; this.json = json; this.outbox = outbox; this.dial = dial; this.lifecycle = lifecycle; this.analysis = analysis; this.inbox = inbox; this.ai = ai; this.integrations = integrations;
     }
     public static void permitted() { Runnable guard = GUARD.get(); if (guard != null) guard.run(); }
-    @EventListener(ApplicationReadyEvent.class) public void ready() { ready = true; }
-    @PreDestroy public void close() { ready = false; executor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
+    @EventListener(ApplicationReadyEvent.class)
+    public void ready() { ready = true; }
+    @PreDestroy
+    public void close() { ready = false; executor.shutdownNow(); receipts.shutdownNow(); heartbeat.shutdownNow(); }
     private void aiProgress(long queued) {
         long now=System.nanoTime();
         synchronized(aiDelays){
@@ -58,7 +62,7 @@ public class TaskWorker {
             p95=delays.length==0?0:delays[(int)Math.ceil(delays.length*.95)-1]/1_000_000.0;
         }
         Map<String,Object> oldest=store.one("taskoutbox","WHERE task_type='ai_turn' AND state IN ('PENDING','FAILED') AND available_at<=? ORDER BY available_at LIMIT 1",store.encode("taskoutbox","available_at",Store.now()));
-        double age=oldest==null?0:Math.max(0,java.time.Duration.between(LocalDateTime.parse(oldest.get("available_at").toString()),Store.now()).toMillis());
+        double age=oldest==null?0:Math.max(0,Duration.between(LocalDateTime.parse(oldest.get("available_at").toString()),Store.now()).toMillis());
         // Include time spent reading the queue; a slow database must not freshen old progress.
         return JsonSupport.map("at",System.currentTimeMillis()/1000.0-(System.nanoTime()-progress)/1_000_000_000.0,"queue_p95_ms",p95,"oldest_wait_ms",age);
     }
@@ -176,7 +180,7 @@ public class TaskWorker {
                     if(index==1)aiProgress(queued);
                     if(index==0)enqueueDue();
                     for(int i=0;i<16&&!Thread.currentThread().isInterrupted();i++){boolean processed=processOne(null,LANE_TYPES[index]);if(index==1)aiProgress(0);if(!processed)break;}
-                } catch(RuntimeException e) { org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("worker lane={} error_type={}",index,e.getClass().getSimpleName()); }
+                } catch(RuntimeException e) { LoggerFactory.getLogger(TaskWorker.class).warn("worker lane={} error_type={}",index,e.getClass().getSimpleName()); }
                 finally { lanes[index].set(false); }
             });
         }
@@ -195,7 +199,7 @@ public class TaskWorker {
                     }
                     if(!progress)break;
                 }while(System.nanoTime()<deadline&&!Thread.currentThread().isInterrupted());
-            }catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(TaskWorker.class).warn("callback consumer error_type={}",e.getClass().getSimpleName());}
+            }catch(RuntimeException e){LoggerFactory.getLogger(TaskWorker.class).warn("callback consumer error_type={}",e.getClass().getSimpleName());}
             finally{receiving.set(false);}
         });
     }

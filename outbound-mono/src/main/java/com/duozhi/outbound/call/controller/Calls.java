@@ -11,15 +11,21 @@ import com.duozhi.outbound.dial.service.AsyncDialService;
 import com.duozhi.outbound.dial.service.DialService;
 import com.duozhi.outbound.operations.service.OperationsAccess;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/calls")
 public class Calls {
-    @org.springframework.beans.factory.annotation.Autowired private AsyncDialService async;
-    @org.springframework.beans.factory.annotation.Autowired private JsonSupport json;
+    @Autowired
+    private AsyncDialService async;
+    @Autowired
+    private JsonSupport json;
     private final Store store;
     private final Contract contract;
     private final DialService dial;
@@ -34,7 +40,8 @@ public class Calls {
 
     @PostMapping
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
         return contract.output(
                 "CallSessionOut",
                 dial.create(
@@ -42,23 +49,25 @@ public class Calls {
     }
 
     @PostMapping("/batch")
-    public org.springframework.http.ResponseEntity<?> batch(
+    public ResponseEntity<?> batch(
             HttpServletRequest request,
-            @RequestHeader(value = "Idempotency-Key", required = false) String key)
-            throws java.io.IOException {
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String key)
+            throws IOException {
         var body = asyncBody(request);
         if (!(body.get("items") instanceof List<?> items) || body.size() != 1)
             throw new ApiError(422, "body must contain only an items array");
-        return org.springframework.http.ResponseEntity.status(202)
+        return ResponseEntity.status(202)
                 .body(async.submit(Identity.from(request), key, items, "batch"));
     }
 
     @PostMapping("/async")
-    public org.springframework.http.ResponseEntity<?> async(
+    public ResponseEntity<?> async(
             HttpServletRequest request,
-            @RequestHeader(value = "Idempotency-Key", required = false) String key)
-            throws java.io.IOException {
-        return org.springframework.http.ResponseEntity.status(202)
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String key)
+            throws IOException {
+        return ResponseEntity.status(202)
                 .body(
                         async.submit(
                                 Identity.from(request),
@@ -68,27 +77,31 @@ public class Calls {
     }
 
     @GetMapping("/batches/{id}")
-    public Map<String, Object> batchStatus(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> batchStatus(@PathVariable
+    UUID id, HttpServletRequest request) {
         return async.status(Identity.from(request), id);
     }
 
-    private Map<String, Object> asyncBody(HttpServletRequest request) throws java.io.IOException {
+    private Map<String, Object> asyncBody(HttpServletRequest request) throws IOException {
         async.enabled();
         byte[] body = request.getInputStream().readNBytes(AsyncDialService.MAX_BYTES + 1);
         if (body.length > AsyncDialService.MAX_BYTES)
             throw new ApiError(413, "async call request exceeds 1 MiB");
-        return json.object(new String(body, java.nio.charset.StandardCharsets.UTF_8));
+        return json.object(new String(body, StandardCharsets.UTF_8));
     }
 
     @PostMapping("/{id}/retry")
-    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> retry(@PathVariable
+    UUID id, HttpServletRequest request) {
         return contract.output("CallSessionOut", dial.retry(visible(Identity.from(request), id)));
     }
 
     @PostMapping("/{id}/hangup")
     public Map<String, Object> hangup(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "hangup") String reason,
+            @PathVariable
+            UUID id,
+            @RequestParam(defaultValue = "hangup")
+            String reason,
             HttpServletRequest request) {
         return contract.output(
                 "CallSessionOut", dial.hangup(visible(Identity.from(request), id), reason));
@@ -109,10 +122,14 @@ public class Calls {
     @GetMapping
     public List<Map<String, Object>> list(
             HttpServletRequest request,
-            @RequestParam(name = "status", required = false) String status,
-            @RequestParam(required = false) Long campaign_id,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(name = "status", required = false)
+            String status,
+            @RequestParam(required = false)
+            Long campaign_id,
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "50")
+            int size) {
         Identity identity = Identity.from(request);
         int offset = Contract.page(page, size);
         Object encoded = null;
@@ -149,16 +166,20 @@ public class Calls {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    UUID id, HttpServletRequest request) {
         return contract.output("CallSessionOut", visible(Identity.from(request), id));
     }
 
     @GetMapping("/{id}/events")
     public List<Map<String, Object>> events(
-            @PathVariable UUID id,
+            @PathVariable
+            UUID id,
             HttpServletRequest request,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "50")
+            int size) {
         visible(Identity.from(request), id);
         return store
                 .across(
@@ -176,10 +197,13 @@ public class Calls {
 
     @GetMapping("/{id}/webhook-events")
     public List<Map<String, Object>> webhookEvents(
-            @PathVariable UUID id,
+            @PathVariable
+            UUID id,
             HttpServletRequest request,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "50")
+            int size) {
         visible(Identity.from(request), id);
         return store
                 .across(
@@ -196,7 +220,8 @@ public class Calls {
     }
 
     @GetMapping("/{id}/webhook-stats")
-    public Map<String, Object> webhookStats(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> webhookStats(@PathVariable
+    UUID id, HttpServletRequest request) {
         visible(Identity.from(request), id);
         Object boundId = store.encode("webhookeventingest", "call_session_id", id);
         List<Map<String, Object>> groups =

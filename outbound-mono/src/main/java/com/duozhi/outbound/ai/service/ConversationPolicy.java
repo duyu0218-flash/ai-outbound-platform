@@ -8,9 +8,21 @@ import com.duozhi.outbound.dial.domain.DialBatchScope;
 import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.operations.controller.OperationsWorkforce;
 import com.duozhi.outbound.system.service.Settings;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.regex.*;
+import java.util.stream.Collectors;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +38,7 @@ public class ConversationPolicy {
 
     public static final class SharedPreparationRequired extends RuntimeException {}
 
-    public <T> T localPreparation(java.util.function.Supplier<T> work) {
+    public <T> T localPreparation(Supplier<T> work) {
         Boolean previous = localPreparation.get();
         localPreparation.set(true);
         try {
@@ -46,23 +58,18 @@ public class ConversationPolicy {
             JsonSupport json,
             Settings settings,
             Outbox outbox,
-            com.fasterxml.jackson.databind.ObjectMapper mapper,
+            ObjectMapper mapper,
             OperationsWorkforce workforce)
-            throws java.io.IOException {
+            throws IOException {
         this.store = store;
         this.json = json;
         this.settings = settings;
         this.outbox = outbox;
         this.workforce = workforce;
-        try (java.io.InputStream in =
-                new ClassPathResource("scenario-defaults.yaml").getInputStream()) {
+        try (InputStream in = new ClassPathResource("scenario-defaults.yaml").getInputStream()) {
             defaults =
-                    new com.fasterxml.jackson.databind.ObjectMapper(
-                                    new com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
-                            .readValue(
-                                    in,
-                                    new com.fasterxml.jackson.core.type.TypeReference<
-                                            Map<String, Object>>() {});
+                    new ObjectMapper(new YAMLFactory())
+                            .readValue(in, new TypeReference<Map<String, Object>>() {});
         }
     }
 
@@ -502,9 +509,7 @@ public class ConversationPolicy {
                                         ((List<?>) slot.get("choices"))
                                                 .stream()
                                                         .map(Object::toString)
-                                                        .collect(
-                                                                java.util.stream.Collectors
-                                                                        .toList())));
+                                                        .collect(Collectors.toList())));
             value = matches.get(0);
         }
         if (value.codePointCount(0, value.length()) > 500) return clarify(data, policy);
@@ -638,9 +643,7 @@ public class ConversationPolicy {
                 String display =
                         when.atOffset(ZoneOffset.UTC)
                                 .atZoneSameInstant(ZoneId.of(policy.get("timezone").toString()))
-                                .format(
-                                        java.time.format.DateTimeFormatter.ofPattern(
-                                                "yyyy年MM月dd日 HH:mm"));
+                                .format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 HH:mm"));
                 result = reply("您希望在" + display + "回电，对吗？");
             }
         } else if ("machine_candidate".equals(intent)) {
@@ -885,18 +888,18 @@ public class ConversationPolicy {
     public static UUID uuid5(String name) {
         try {
             UUID ns = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");
-            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
             md.update(
-                    java.nio.ByteBuffer.allocate(16)
+                    ByteBuffer.allocate(16)
                             .putLong(ns.getMostSignificantBits())
                             .putLong(ns.getLeastSignificantBits())
                             .array());
-            byte[] hash = md.digest(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] hash = md.digest(name.getBytes(StandardCharsets.UTF_8));
             hash[6] = (byte) ((hash[6] & 15) | 80);
             hash[8] = (byte) ((hash[8] & 63) | 128);
-            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(hash);
+            ByteBuffer buffer = ByteBuffer.wrap(hash);
             return new UUID(buffer.getLong(), buffer.getLong());
-        } catch (java.security.NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }

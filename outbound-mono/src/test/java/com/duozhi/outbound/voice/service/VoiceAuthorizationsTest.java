@@ -7,13 +7,18 @@ import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.service.LedgerTestDatabase;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class VoiceAuthorizationsTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
 
     Settings settings() {
         return new Settings(
@@ -110,8 +115,8 @@ class VoiceAuthorizationsTest {
                 nonce = UUID.randomUUID().toString();
         String prefix = stamp + "." + nonce + "./v1/call/" + action + ".";
         byte[] bytes =
-                (prefix + new String(body, java.nio.charset.StandardCharsets.UTF_8))
-                        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                (prefix + new String(body, StandardCharsets.UTF_8))
+                        .getBytes(StandardCharsets.UTF_8);
         return new VoiceController.Command(
                 action,
                 body,
@@ -401,14 +406,14 @@ class VoiceAuthorizationsTest {
     @Test
     void independentOwnersCannotBothCommitDispatchAndNegativeProof() throws Exception {
         var cfg = settings();
-        var workers = java.util.concurrent.Executors.newFixedThreadPool(2);
+        var workers = Executors.newFixedThreadPool(2);
         try (var first = new VoiceGateway(cfg);
                 var second = new VoiceGateway(cfg)) {
             for (int index = 0; index < 5; index++) {
                 var payload = named("race-" + index);
                 new VoiceAuthorizations(first.ledger).install(payload);
                 var row = first.security.admit(payload, route(), true, 100).row();
-                var start = new java.util.concurrent.CountDownLatch(1);
+                var start = new CountDownLatch(1);
                 var dispatch =
                         workers.submit(
                                 () -> {
@@ -429,8 +434,8 @@ class VoiceAuthorizationsTest {
                                             .reject(payload, cfg.secret("VOICE_COMMAND_SECRET"));
                                 });
                 start.countDown();
-                boolean sent = dispatch.get(10, java.util.concurrent.TimeUnit.SECONDS);
-                var response = cancel.get(10, java.util.concurrent.TimeUnit.SECONDS);
+                boolean sent = dispatch.get(10, TimeUnit.SECONDS);
+                var response = cancel.get(10, TimeUnit.SECONDS);
                 boolean proof = "rejected_before_dispatch".equals(response.get("result"));
                 assertThat(sent).isNotEqualTo(proof);
                 assertThat(first.security.lookup("race-" + index, 1))

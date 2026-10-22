@@ -3,9 +3,11 @@ package com.duozhi.outbound.recording.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.support.Support;
+import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.util.*;
 
@@ -125,9 +127,7 @@ public final class RecordingSource {
                 throw new Support.Failure(409, "source retention period has not elapsed");
             var before =
                     Files.readAttributes(
-                            path,
-                            java.nio.file.attribute.BasicFileAttributes.class,
-                            LinkOption.NOFOLLOW_LINKS);
+                            path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
                 byte[] buffer = new byte[65536];
@@ -141,14 +141,12 @@ public final class RecordingSource {
             byte[] bytes = Support.json(receipt);
             channel.position(0);
             channel.truncate(0);
-            var buffer = java.nio.ByteBuffer.wrap(bytes);
+            var buffer = ByteBuffer.wrap(bytes);
             while (buffer.hasRemaining()) channel.write(buffer);
             channel.force(true);
             var after =
                     Files.readAttributes(
-                            path,
-                            java.nio.file.attribute.BasicFileAttributes.class,
-                            LinkOption.NOFOLLOW_LINKS);
+                            path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
             if (!Objects.equals(before.fileKey(), after.fileKey())
                     || !before.lastModifiedTime().equals(after.lastModifiedTime())
                     || after.size() != before.size())

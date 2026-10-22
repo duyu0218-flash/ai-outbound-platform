@@ -1,24 +1,29 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import org.springframework.web.bind.annotation.*;
+import java.time.*;
+import java.util.*;
 import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
 
 /** Database metrics are separate from DB-independent process diagnostics. */
 @RestController
 public class OperationalMetrics {
     private final Store store;private final Config config;private final CallbackInbox inbox;private final StabilityAdmission stability;
     public OperationalMetrics(Store store,Config config,CallbackInbox inbox,StabilityAdmission stability){this.store=store;this.config=config;this.inbox=inbox;this.stability=stability;}
-    private void authorize(String header){String token=config.get("METRICS_TOKEN","");String file=config.get("METRICS_TOKEN_FILE","");if(!file.isEmpty())try{token=ConfigFiles.readUtf8(file,4096).trim();}catch(java.io.IOException e){throw new ApiError(401,"invalid metrics token");}if(token.isEmpty()||!Crypto.equal("Bearer "+token,header))throw new ApiError(401,"invalid metrics token");}
+    private void authorize(String header){String token=config.get("METRICS_TOKEN","");String file=config.get("METRICS_TOKEN_FILE","");if(!file.isEmpty())try{token=ConfigFiles.readUtf8(file,4096).trim();}catch(IOException e){throw new ApiError(401,"invalid metrics token");}if(token.isEmpty()||!Crypto.equal("Bearer "+token,header))throw new ApiError(401,"invalid metrics token");}
     private String label(Object v){return Objects.toString(v,"").replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n");}
     private void metric(StringBuilder out,String name,Object value){out.append(name).append(' ').append(value).append('\n');}
     private ResponseEntity<String> response(StringBuilder body){return ResponseEntity.ok().header("Content-Type","text/plain; version=0.0.4; charset=utf-8").body(body.toString());}
-    @GetMapping("/metrics/runtime") public ResponseEntity<String> runtime(@RequestHeader(value="Authorization",required=false) String token){authorize(token);StringBuilder out=new StringBuilder();
+    @GetMapping("/metrics/runtime")
+    public ResponseEntity<String> runtime(@RequestHeader(value="Authorization",required=false)
+    String token){authorize(token);StringBuilder out=new StringBuilder();
         String process=ManagementFactory.getRuntimeMXBean().getName().split("@")[0];metric(out,"ai_outbound_process_id",process);metric(out,"ai_outbound_jvm_threads",ManagementFactory.getThreadMXBean().getThreadCount());metric(out,"ai_outbound_jvm_heap_used_bytes",ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed());metric(out,"ai_outbound_jvm_uptime_seconds",ManagementFactory.getRuntimeMXBean().getUptime()/1000.0);return response(out);
     }
-    @GetMapping("/metrics") public ResponseEntity<String> metrics(@RequestHeader(value="Authorization",required=false) String token){authorize(token);StringBuilder out=new StringBuilder();metric(out,"ai_outbound_up",1);
+    @GetMapping("/metrics")
+    public ResponseEntity<String> metrics(@RequestHeader(value="Authorization",required=false)
+    String token){authorize(token);StringBuilder out=new StringBuilder();metric(out,"ai_outbound_up",1);
         for(String[] group:new String[][]{{"callsession","status","ai_outbound_calls","status"},{"callsession","voice_ai_pipeline","ai_outbound_calls_by_pipeline","pipeline"},{"taskoutbox","state","ai_outbound_tasks","state"}})
             for(Map<String,Object> row:store.jdbc().queryForList("SELECT "+group[1]+" AS value,COUNT(*) AS total FROM "+group[0]+" GROUP BY "+group[1]))metric(out,group[2]+"{"+group[3]+"=\""+label(Objects.toString(row.get("value"),"").transform(Ascii::lower))+"\"}",row.get("total"));
         for(String kind:Arrays.asList("ai_turn","business_callback","recording_ingest","recording_delete","dial_call","after_playback","send_sms","interrupt_playback")){

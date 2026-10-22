@@ -1,6 +1,7 @@
 package com.duozhi.outbound.capacity.service;
 
 import com.duozhi.outbound.common.config.Config;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.*;
 import javax.sql.DataSource;
@@ -31,7 +32,8 @@ public class CapacityCommitEvidence {
     public CapacityCommitEvidence(
             Config config,
             JdbcTemplate jdbc,
-            @Qualifier("capacityEvidenceDataSource") ObjectProvider<DataSource> evidencePool) {
+            @Qualifier("capacityEvidenceDataSource")
+            ObjectProvider<DataSource> evidencePool) {
         this.config = config;
         this.jdbc = jdbc;
         this.evidencePool = evidencePool;
@@ -103,7 +105,7 @@ public class CapacityCommitEvidence {
                                 ps.setLong(6, errorUs);
                                 ps.setBoolean(7, valid);
                                 ps.executeUpdate();
-                            } catch (java.sql.SQLException failure) {
+                            } catch (SQLException failure) {
                                 throw new IllegalStateException(
                                         "post-commit timing evidence unavailable", failure);
                             }

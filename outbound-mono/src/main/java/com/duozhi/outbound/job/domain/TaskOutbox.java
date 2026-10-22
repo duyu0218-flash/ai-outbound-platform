@@ -1,35 +1,37 @@
 package com.duozhi.outbound.job.domain;
 
+import com.duozhi.outbound.job.domain.enums.TaskState;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class TaskOutbox {
-    private java.util.UUID id = java.util.UUID.randomUUID();
+    private UUID id = UUID.randomUUID();
     private Integer tenantId;
     private String taskType;
     private String aggregateId;
     private String idempotencyKey;
     private String payloadJson = "{}";
-    private com.duozhi.outbound.job.domain.enums.TaskState state =
-            com.duozhi.outbound.job.domain.enums.TaskState.PENDING;
+    private TaskState state = TaskState.PENDING;
     private Integer attempts = 0;
     private Integer maxAttempts = 5;
-    private java.time.LocalDateTime availableAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime lockedAt;
+    private LocalDateTime availableAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime lockedAt;
     private String leaseToken;
     private String lastError = "";
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
-    public java.util.UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(java.util.UUID value) {
+    public void setId(UUID value) {
         this.id = value;
     }
 
@@ -73,11 +75,11 @@ public class TaskOutbox {
         this.payloadJson = value;
     }
 
-    public com.duozhi.outbound.job.domain.enums.TaskState getState() {
+    public TaskState getState() {
         return state;
     }
 
-    public void setState(com.duozhi.outbound.job.domain.enums.TaskState value) {
+    public void setState(TaskState value) {
         this.state = value;
     }
 
@@ -97,19 +99,19 @@ public class TaskOutbox {
         this.maxAttempts = value;
     }
 
-    public java.time.LocalDateTime getAvailableAt() {
+    public LocalDateTime getAvailableAt() {
         return availableAt;
     }
 
-    public void setAvailableAt(java.time.LocalDateTime value) {
+    public void setAvailableAt(LocalDateTime value) {
         this.availableAt = value;
     }
 
-    public java.time.LocalDateTime getLockedAt() {
+    public LocalDateTime getLockedAt() {
         return lockedAt;
     }
 
-    public void setLockedAt(java.time.LocalDateTime value) {
+    public void setLockedAt(LocalDateTime value) {
         this.lockedAt = value;
     }
 
@@ -129,19 +131,19 @@ public class TaskOutbox {
         this.lastError = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

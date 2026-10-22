@@ -7,27 +7,27 @@ import com.duozhi.outbound.auth.service.AuthStartupPolicy;
 import com.duozhi.outbound.auth.service.Crypto;
 import com.duozhi.outbound.common.config.Config;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.DispatcherType;
 import java.util.*;
 import org.apache.shiro.mgt.DefaultSubjectDAO;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.subject.*;
 import org.apache.shiro.web.mgt.*;
 import org.apache.shiro.web.mgt.DefaultWebSubjectFactory;
+import org.apache.shiro.web.servlet.AbstractShiroFilter;
 import org.apache.shiro.web.session.mgt.DefaultWebSessionManager;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.*;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-@org.springframework.transaction.annotation.EnableTransactionManagement(proxyTargetClass = true)
+@EnableTransactionManagement(proxyTargetClass = true)
 @Configuration(proxyBeanMethods = false)
 public class JwtSecurityConfiguration {
     @Bean(name = "filterShiroFilterRegistrationBean")
-    org.springframework.boot.web.servlet.FilterRegistrationBean<
-                    org.apache.shiro.web.servlet.AbstractShiroFilter>
-            shiroRegistration(ShiroFilterFactoryBean factory) throws Exception {
-        var registration =
-                new org.springframework.boot.web.servlet.FilterRegistrationBean<
-                        org.apache.shiro.web.servlet.AbstractShiroFilter>();
-        registration.setFilter(
-                (org.apache.shiro.web.servlet.AbstractShiroFilter) factory.getObject());
+    FilterRegistrationBean<AbstractShiroFilter> shiroRegistration(ShiroFilterFactoryBean factory)
+            throws Exception {
+        var registration = new FilterRegistrationBean<AbstractShiroFilter>();
+        registration.setFilter((AbstractShiroFilter) factory.getObject());
         registration.setName("shiroFilter");
         registration.setOrder(1);
         registration.setAsyncSupported(true);
@@ -35,10 +35,10 @@ public class JwtSecurityConfiguration {
         // /error via the fallback Basic chain hides server failures as spurious 401 responses.
         // Direct REQUEST/FORWARD to /error still passes the normal security chain.
         registration.setDispatcherTypes(
-                jakarta.servlet.DispatcherType.REQUEST,
-                jakarta.servlet.DispatcherType.ASYNC,
-                jakarta.servlet.DispatcherType.FORWARD,
-                jakarta.servlet.DispatcherType.INCLUDE);
+                DispatcherType.REQUEST,
+                DispatcherType.ASYNC,
+                DispatcherType.FORWARD,
+                DispatcherType.INCLUDE);
         return registration;
     }
 

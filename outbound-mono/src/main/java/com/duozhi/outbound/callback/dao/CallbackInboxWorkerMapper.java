@@ -2,32 +2,41 @@ package com.duozhi.outbound.callback.dao;
 
 import com.duozhi.outbound.callback.domain.CallbackInboxWorker;
 import java.util.List;
+import java.util.Map;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface CallbackInboxWorkerMapper {
-    int insert(@Param("row") CallbackInboxWorker row);
+    int insert(@Param("row")
+    CallbackInboxWorker row);
 
-    CallbackInboxWorker findById(@Param("id") String id);
+    CallbackInboxWorker findById(@Param("id")
+    String id);
 
-    int updateById(@Param("row") CallbackInboxWorker row);
+    int updateById(@Param("row")
+    CallbackInboxWorker row);
 
-    int deleteById(@Param("id") String id);
+    int deleteById(@Param("id")
+    String id);
 
-    List<CallbackInboxWorker> list(@Param("offset") int offset, @Param("limit") int limit);
+    List<CallbackInboxWorker> list(@Param("offset")
+    int offset, @Param("limit")
+    int limit);
 
     int patchFields(
-            @org.apache.ibatis.annotations.Param("id") Object id,
-            @org.apache.ibatis.annotations.Param("tenantId") long tenantId,
-            @org.apache.ibatis.annotations.Param("changes") java.util.Map<String, Object> changes);
+            @Param("id")
+            Object id,
+            @Param("tenantId")
+            long tenantId,
+            @Param("changes")
+            Map<String, Object> changes);
 
-    long sourceCallbackInbox30_2(java.util.Map<String, Object> parameters);
+    long sourceCallbackInbox30_2(Map<String, Object> parameters);
 
-    java.util.List<com.duozhi.outbound.callback.domain.CallbackInboxWorker> sourceCallbackInbox36_3(
-            java.util.Map<String, Object> parameters);
+    List<CallbackInboxWorker> sourceCallbackInbox36_3(Map<String, Object> parameters);
 
-    int rawCallbackInbox40_2(java.util.Map<String, Object> parameters);
+    int rawCallbackInbox40_2(Map<String, Object> parameters);
 
-    int rawCallbackInbox108_8(java.util.Map<String, Object> parameters);
+    int rawCallbackInbox108_8(Map<String, Object> parameters);
 }

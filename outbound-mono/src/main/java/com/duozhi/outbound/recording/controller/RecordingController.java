@@ -1,23 +1,27 @@
 package com.duozhi.outbound.recording.controller;
 
+import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.recording.service.RecordingStorage;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@org.springframework.context.annotation.Lazy
+@Lazy
 public class RecordingController {
     private final Settings settings;
     private final RecordingStorage storage;
     private final Map<String, LongAdder> counts = new ConcurrentHashMap<>();
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public RecordingController(com.duozhi.outbound.common.config.Config config) throws Exception {
+    @Autowired
+    public RecordingController(Config config) throws Exception {
         this(new UnifiedServiceSettings(config, "recording"));
     }
 
@@ -38,8 +42,10 @@ public class RecordingController {
 
     @PostMapping("/v1/recordings/ingest")
     public Map<String, Object> ingest(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth)
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth)
             throws Exception {
         Support.auth(settings, "SERVICE_TOKEN", auth, false);
         try {
@@ -58,8 +64,10 @@ public class RecordingController {
 
     @PostMapping("/v1/recordings/delete")
     public Map<String, Object> delete(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth)
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth)
             throws Exception {
         Support.auth(settings, "SERVICE_TOKEN", auth, false);
         try {
@@ -82,7 +90,7 @@ public class RecordingController {
         return result;
     }
 
-    @jakarta.annotation.PreDestroy
+    @PreDestroy
     void close() {
         storage.close();
     }

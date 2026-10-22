@@ -7,6 +7,7 @@ import jakarta.annotation.PreDestroy;
 import java.net.*;
 import java.net.http.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.web.bind.annotation.*;
 
 public class MediaWorkerRuntime {
@@ -23,8 +24,7 @@ public class MediaWorkerRuntime {
     }
 
     private final Map<String, String> closed = new LinkedHashMap<>();
-    private final Map<String, MediaManager.Session> registered =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, MediaManager.Session> registered = new ConcurrentHashMap<>();
 
     MediaWorkerRuntime(Settings settings, Control control) {
         this.settings = settings;
@@ -48,7 +48,8 @@ public class MediaWorkerRuntime {
 
     @GetMapping("/readyz")
     Map<String, Object> ready(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         auth(auth);
         if (!manager.ready()) throw new Support.Failure(503, "media runtime unavailable");
         return Map.of("status", "ready");
@@ -56,7 +57,8 @@ public class MediaWorkerRuntime {
 
     @GetMapping("/internal/state")
     Map<String, Object> state(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         auth(auth);
         Map<String, Object> sessions = new LinkedHashMap<>();
         for (var session : registered.values()) sessions.put(session.call, session.state());
@@ -77,8 +79,10 @@ public class MediaWorkerRuntime {
 
     @PostMapping("/internal/command")
     Map<String, Object> command(
-            @RequestBody Map<String, Object> command,
-            @RequestHeader(value = "Authorization", required = false) String auth)
+            @RequestBody
+            Map<String, Object> command,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth)
             throws Exception {
         auth(auth);
         if (!epoch.equals(command.get("epoch")))

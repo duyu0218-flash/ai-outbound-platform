@@ -1,23 +1,26 @@
 package com.duozhi.outbound.callback.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallbackInbox {
     private Long id;
     private String receiptKey;
     private Integer partitionId;
-    private java.util.UUID callId;
+    private UUID callId;
     private String kind;
     private String bodyJson;
     private String bodyDigest;
     private Integer bodyBytes;
     private String state = "pending";
-    private java.time.LocalDateTime receivedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime availableAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime completedAt;
+    private LocalDateTime receivedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime availableAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime completedAt;
     private Integer attempts = 0;
     private String errorType = "";
 
@@ -45,11 +48,11 @@ public class CallbackInbox {
         this.partitionId = value;
     }
 
-    public java.util.UUID getCallId() {
+    public UUID getCallId() {
         return callId;
     }
 
-    public void setCallId(java.util.UUID value) {
+    public void setCallId(UUID value) {
         this.callId = value;
     }
 
@@ -93,27 +96,27 @@ public class CallbackInbox {
         this.state = value;
     }
 
-    public java.time.LocalDateTime getReceivedAt() {
+    public LocalDateTime getReceivedAt() {
         return receivedAt;
     }
 
-    public void setReceivedAt(java.time.LocalDateTime value) {
+    public void setReceivedAt(LocalDateTime value) {
         this.receivedAt = value;
     }
 
-    public java.time.LocalDateTime getAvailableAt() {
+    public LocalDateTime getAvailableAt() {
         return availableAt;
     }
 
-    public void setAvailableAt(java.time.LocalDateTime value) {
+    public void setAvailableAt(LocalDateTime value) {
         this.availableAt = value;
     }
 
-    public java.time.LocalDateTime getCompletedAt() {
+    public LocalDateTime getCompletedAt() {
         return completedAt;
     }
 
-    public void setCompletedAt(java.time.LocalDateTime value) {
+    public void setCompletedAt(LocalDateTime value) {
         this.completedAt = value;
     }
 

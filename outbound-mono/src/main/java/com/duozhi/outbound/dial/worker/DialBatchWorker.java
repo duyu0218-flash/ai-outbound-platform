@@ -13,9 +13,13 @@ import com.duozhi.outbound.dial.service.DialDrainControl;
 import com.duozhi.outbound.dial.service.DialRateControl;
 import com.duozhi.outbound.dial.service.DialService;
 import com.duozhi.outbound.job.worker.TaskWorker;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.*;
 
@@ -25,9 +29,12 @@ import org.springframework.transaction.support.*;
  */
 @Service
 public class DialBatchWorker {
-    @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
-    @org.springframework.beans.factory.annotation.Autowired private DialRateControl rate;
-    @org.springframework.beans.factory.annotation.Autowired private DialDrainControl drain;
+    @Autowired
+    private CapacityCommitEvidence timing;
+    @Autowired
+    private DialRateControl rate;
+    @Autowired
+    private DialDrainControl drain;
     private final Store store;
     private final DialBatchStore db;
     private final Transactions tx;
@@ -198,14 +205,12 @@ public class DialBatchWorker {
                                                                             < CallLifecycle.number(
                                                                                     t,
                                                                                     "max_attempts")
-                                                                    && !java.time.LocalDateTime
-                                                                            .parse(
+                                                                    && !LocalDateTime.parse(
                                                                                     t.get(
                                                                                                     "available_at")
                                                                                             .toString())
                                                                             .isAfter(
-                                                                                    (java.time
-                                                                                                    .LocalDateTime)
+                                                                                    (LocalDateTime)
                                                                                             params
                                                                                                     .get(
                                                                                                             "now"))
@@ -223,16 +228,13 @@ public class DialBatchWorker {
                                                                                     && t.get(
                                                                                                     "locked_at")
                                                                                             != null
-                                                                                    && !java.time
-                                                                                            .LocalDateTime
+                                                                                    && !LocalDateTime
                                                                                             .parse(
                                                                                                     t.get(
                                                                                                                     "locked_at")
                                                                                                             .toString())
                                                                                             .isAfter(
-                                                                                                    (java
-                                                                                                                    .time
-                                                                                                                    .LocalDateTime)
+                                                                                                    (LocalDateTime)
                                                                                                             params
                                                                                                                     .get(
                                                                                                                             "cutoff"))))
@@ -261,7 +263,7 @@ public class DialBatchWorker {
             long end = System.nanoTime();
             if (config.flag("JAVA_DIAL_PROFILE", false)
                     && (count[0] > 0 || end - begin > 100_000_000L))
-                org.slf4j.LoggerFactory.getLogger(DialBatchWorker.class)
+                LoggerFactory.getLogger(DialBatchWorker.class)
                         .info(
                                 "dial_claim size={} enter_ms={} tenants_ms={} expire_ms={}"
                                         + " candidate_ms={} lock_rows_ms={} update_ms={} commit_ms={}",
@@ -294,7 +296,7 @@ public class DialBatchWorker {
         String lease = tasks.get(0).get("lease_token").toString();
         var lost = new AtomicBoolean();
         Object proof = new Object();
-        java.util.function.Supplier<Map<String, Object>> params =
+        Supplier<Map<String, Object>> params =
                 () ->
                         JsonSupport.map(
                                 "tenantId",
@@ -459,7 +461,7 @@ public class DialBatchWorker {
                             });
                 });
         if (config.flag("JAVA_DIAL_PROFILE", false))
-            org.slf4j.LoggerFactory.getLogger(DialBatchWorker.class)
+            LoggerFactory.getLogger(DialBatchWorker.class)
                     .info(
                             "dial_batch size={} admitted={} claim_ms={} prepare_ms={}"
                                     + " send_ack_ms={} finish_ms={} error={}",

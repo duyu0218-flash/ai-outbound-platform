@@ -1,8 +1,15 @@
 package com.duozhi.outbound.call.domain;
 
+import com.duozhi.outbound.call.domain.enums.CallMode;
+import com.duozhi.outbound.call.domain.enums.CallStatus;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallSession {
-    private java.util.UUID id = java.util.UUID.randomUUID();
+    private UUID id = UUID.randomUUID();
     private Integer tenantId;
     private Integer campaignId;
     private Integer scriptFlowVersionId;
@@ -10,9 +17,8 @@ public class CallSession {
     private Integer contactId;
     private String campaignContactKey;
     private String phone;
-    private com.duozhi.outbound.call.domain.enums.CallMode mode;
-    private com.duozhi.outbound.call.domain.enums.CallStatus status =
-            com.duozhi.outbound.call.domain.enums.CallStatus.CREATED;
+    private CallMode mode;
+    private CallStatus status = CallStatus.CREATED;
     private Integer attempts = 0;
     private Integer maxAttempts = 1;
     private String lastError;
@@ -28,21 +34,19 @@ public class CallSession {
     private String voiceAiPipeline = "pending";
     private String lastTranscript;
     private String summary;
-    private java.time.LocalDateTime startedAt;
-    private java.time.LocalDateTime finishedAt;
-    private java.time.LocalDateTime nextAttemptAt;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime startedAt;
+    private LocalDateTime finishedAt;
+    private LocalDateTime nextAttemptAt;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
-    public java.util.UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(java.util.UUID value) {
+    public void setId(UUID value) {
         this.id = value;
     }
 
@@ -102,19 +106,19 @@ public class CallSession {
         this.phone = value;
     }
 
-    public com.duozhi.outbound.call.domain.enums.CallMode getMode() {
+    public CallMode getMode() {
         return mode;
     }
 
-    public void setMode(com.duozhi.outbound.call.domain.enums.CallMode value) {
+    public void setMode(CallMode value) {
         this.mode = value;
     }
 
-    public com.duozhi.outbound.call.domain.enums.CallStatus getStatus() {
+    public CallStatus getStatus() {
         return status;
     }
 
-    public void setStatus(com.duozhi.outbound.call.domain.enums.CallStatus value) {
+    public void setStatus(CallStatus value) {
         this.status = value;
     }
 
@@ -238,43 +242,43 @@ public class CallSession {
         this.summary = value;
     }
 
-    public java.time.LocalDateTime getStartedAt() {
+    public LocalDateTime getStartedAt() {
         return startedAt;
     }
 
-    public void setStartedAt(java.time.LocalDateTime value) {
+    public void setStartedAt(LocalDateTime value) {
         this.startedAt = value;
     }
 
-    public java.time.LocalDateTime getFinishedAt() {
+    public LocalDateTime getFinishedAt() {
         return finishedAt;
     }
 
-    public void setFinishedAt(java.time.LocalDateTime value) {
+    public void setFinishedAt(LocalDateTime value) {
         this.finishedAt = value;
     }
 
-    public java.time.LocalDateTime getNextAttemptAt() {
+    public LocalDateTime getNextAttemptAt() {
         return nextAttemptAt;
     }
 
-    public void setNextAttemptAt(java.time.LocalDateTime value) {
+    public void setNextAttemptAt(LocalDateTime value) {
         this.nextAttemptAt = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

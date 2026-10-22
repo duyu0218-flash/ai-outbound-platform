@@ -2,23 +2,31 @@ package com.duozhi.services;
 
 import java.io.*;
 import java.net.*;
+import java.net.SocketTimeoutException;
 import java.net.http.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import tools.jackson.databind.json.JsonMapper;
 import org.springframework.http.*;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 public final class Support {
     private Support() {}
-    private static final java.util.concurrent.ScheduledThreadPoolExecutor READ_TIMEOUTS = timeouts();
-    private static java.util.concurrent.ScheduledThreadPoolExecutor timeouts() {
-        var executor = new java.util.concurrent.ScheduledThreadPoolExecutor(1, run -> { Thread thread = new Thread(run, "service-read-timeouts"); thread.setDaemon(true); return thread; });
+    private static final ScheduledThreadPoolExecutor READ_TIMEOUTS = timeouts();
+    private static ScheduledThreadPoolExecutor timeouts() {
+        var executor = new ScheduledThreadPoolExecutor(1, run -> { Thread thread = new Thread(run, "service-read-timeouts"); thread.setDaemon(true); return thread; });
         executor.setRemoveOnCancelPolicy(true); return executor;
     }
     public static final JsonMapper JSON = JsonMapper.builder().build();
@@ -37,7 +45,7 @@ public final class Support {
     @SuppressWarnings("unchecked")
     public static Map<String,Object> object(byte[] bytes) {
         try { Object value = JSON.readValue(bytes, Object.class); if (value instanceof Map<?,?> map) return (Map<String,Object>)map; }
-        catch (tools.jackson.core.JacksonException invalid) { throw new Failure(422, "invalid JSON object"); }
+        catch (JacksonException invalid) { throw new Failure(422, "invalid JSON object"); }
         throw new Failure(422, "invalid JSON object");
     }
     @SuppressWarnings("unchecked")
@@ -73,15 +81,17 @@ public final class Support {
         if (milliseconds < 1) throw new IllegalArgumentException("invalid read timeout");
         return new FilterInputStream(input) {
             private volatile boolean expired;
-            private int bounded(java.util.concurrent.Callable<Integer> read) throws IOException {
-                if (expired) throw new java.net.SocketTimeoutException("upstream read timed out");
-                var task = READ_TIMEOUTS.schedule(() -> { expired = true; try { input.close(); } catch (IOException ignored) { } }, milliseconds, java.util.concurrent.TimeUnit.MILLISECONDS);
-                try { int result = read.call(); if (expired) throw new java.net.SocketTimeoutException("upstream read timed out"); return result; }
+            private int bounded(Callable<Integer> read) throws IOException {
+                if (expired) throw new SocketTimeoutException("upstream read timed out");
+                var task = READ_TIMEOUTS.schedule(() -> { expired = true; try { input.close(); } catch (IOException ignored) { } }, milliseconds, TimeUnit.MILLISECONDS);
+                try { int result = read.call(); if (expired) throw new SocketTimeoutException("upstream read timed out"); return result; }
                 catch (IOException error) { throw error; } catch (Exception error) { throw new IOException("upstream read failed"); }
                 finally { task.cancel(false); }
             }
-            @Override public int read() throws IOException { return bounded(input::read); }
-            @Override public int read(byte[] bytes, int offset, int count) throws IOException { return bounded(() -> input.read(bytes, offset, count)); }
+            @Override
+            public int read() throws IOException { return bounded(input::read); }
+            @Override
+            public int read(byte[] bytes, int offset, int count) throws IOException { return bounded(() -> input.read(bytes, offset, count)); }
         };
     }
     public static byte[] sha(byte[] bytes) { try { return MessageDigest.getInstance("SHA-256").digest(bytes); } catch (GeneralSecurityException error) { throw new IllegalStateException(error); } }
@@ -115,11 +125,11 @@ public final class Support {
     public static void persist(Path path, byte[] bytes) throws IOException {
         Path temporary = Files.createTempFile(path.getParent(), ".pending-", ".tmp");
         try {
-            try (var channel = java.nio.channels.FileChannel.open(temporary, StandardOpenOption.WRITE)) {
-                var buffer = java.nio.ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
+            try (var channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
+                var buffer = ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
             }
             Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            try (var directory = java.nio.channels.FileChannel.open(path.getParent(), StandardOpenOption.READ)) { directory.force(true); }
+            try (var directory = FileChannel.open(path.getParent(), StandardOpenOption.READ)) { directory.force(true); }
         } finally { Files.deleteIfExists(temporary); }
     }
     public static void auth(Settings settings, String key, String supplied, boolean optionalDev) {
@@ -139,6 +149,6 @@ public final class Support {
 class ServiceErrors {
     @ExceptionHandler(Support.Failure.class)
     ResponseEntity<?> failure(Support.Failure error) { var response = ResponseEntity.status(error.status); error.headers.forEach(response::header); return response.body(Map.of("detail", error.getMessage())); }
-    @ExceptionHandler({IllegalArgumentException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
+    @ExceptionHandler({IllegalArgumentException.class, HttpMessageNotReadableException.class})
     ResponseEntity<?> invalid(Exception error) { return ResponseEntity.unprocessableEntity().body(Map.of("detail", "invalid request")); }
 }
