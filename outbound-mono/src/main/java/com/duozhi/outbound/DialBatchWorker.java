@@ -29,22 +29,25 @@ public class DialBatchWorker {
     private List<Map<String,Object>> claim(Long only){
         // Dial cohorts have their own row-lock/revalidation path. Do not hold
         // the AI/general claim mutex while reading hundreds of dial tasks.
-        return tx.serializedIdentity("java-dial-batch-claim",()->{var tenants=new ArrayList<>(store.query("tenant","allForMaintenance",Map.of()));long previous=cursor;
+        long begin=System.nanoTime();long[] stages=new long[6];int[] count={0};
+        try{return tx.serializedIdentity("java-dial-batch-claim",()->{stages[0]=System.nanoTime();var tenants=new ArrayList<>(store.query("tenant","allForMaintenance",Map.of()));stages[1]=System.nanoTime();long previous=cursor;
             tenants.sort(Comparator.<Map<String,Object>>comparingInt(t->((Number)t.get("id")).longValue()>previous?0:1).thenComparingLong(t->((Number)t.get("id")).longValue()));
             for(var tenant:tenants){long id=((Number)tenant.get("id")).longValue();if(only!=null&&id!=only)continue;
                 var params=JsonSupport.map("tenantId",id,"now",Store.now(),"cutoff",cutoff(),"limit",size(),"recoverOnly",drain.sendingClosed());var expired=db.rows("expiredFinalTasks",params);if(!expired.isEmpty()){var expiration=new LinkedHashMap<>(params);expiration.put("ids",expired.stream().map(r->r.get("id").toString()).toList());db.write("expireFinalTasks",expiration);}
-                var candidates=db.tasks(params);if(candidates.isEmpty())continue;
+                stages[2]=System.nanoTime();var candidates=db.tasks(params);stages[3]=System.nanoTime();if(candidates.isEmpty())continue;
                 var locked=new LinkedHashMap<>(params);locked.put("ids",candidates.stream().map(t->t.get("id").toString()).toList());
                 var tasks=db.lockedTasks(locked).stream().filter(t->CallLifecycle.number(t,"attempts")<CallLifecycle.number(t,"max_attempts")&&!java.time.LocalDateTime.parse(t.get("available_at").toString()).isAfter((java.time.LocalDateTime)params.get("now"))&&(Values.set("pending","failed").contains(t.get("state"))||"processing".equals(t.get("state"))&&t.get("locked_at")!=null&&!java.time.LocalDateTime.parse(t.get("locked_at").toString()).isAfter((java.time.LocalDateTime)params.get("cutoff")))).toList();if(tasks.isEmpty())continue;
-                var ids=tasks.stream().map(t->t.get("id").toString()).toList();String lease=UUID.randomUUID().toString().replace("-","");params.put("ids",ids);params.put("lease",lease);
-                if(db.write("claimTasks",params)!=tasks.size())throw new IllegalStateException("dial cohort claim changed");cursor=id;
+                stages[4]=System.nanoTime();var ids=tasks.stream().map(t->t.get("id").toString()).toList();String lease=UUID.randomUUID().toString().replace("-","");params.put("ids",ids);params.put("lease",lease);
+                if(db.write("claimTasks",params)!=tasks.size())throw new IllegalStateException("dial cohort claim changed");stages[5]=System.nanoTime();count[0]=tasks.size();cursor=id;
                 for(var task:tasks){task.put("state","processing");task.put("attempts",CallLifecycle.number(task,"attempts")+1);task.put("lease_token",lease);}return tasks;
             }return List.of();
-        });
+        });}finally{long end=System.nanoTime();if(config.flag("JAVA_DIAL_PROFILE",false)&&(count[0]>0||end-begin>100_000_000L))
+            org.slf4j.LoggerFactory.getLogger(DialBatchWorker.class).info("dial_claim size={} enter_ms={} tenants_ms={} expire_ms={} candidate_ms={} lock_rows_ms={} update_ms={} commit_ms={}",count[0],ms(stages[0],begin),ms(stages[1],stages[0]),ms(stages[2],stages[1]),ms(stages[3],stages[2]),ms(stages[4],stages[3]),ms(stages[5],stages[4]),ms(end,stages[5]));}
     }
+    private static double ms(long end,long begin){return end==0||begin==0?0:(end-begin)/1_000_000.0;}
     boolean process(Long tenant,ScheduledExecutorService heartbeat){
         if(!config.flag("JAVA_DISPATCH_ENABLED",false))return false;
-        if(config.flag("CALLBACK_INBOX_ENABLED",false)&&!rate.healthyForAdmission())return false;
+        if(config.flag("CALLBACK_INBOX_ENABLED",false)&&!rate.healthyForAdmission()&&!drain.sendingClosed())return false;
         long started=System.nanoTime();var tasks=claim(tenant);if(tasks.isEmpty())return false;long claimed=System.nanoTime();long owner=CallLifecycle.tenant(tasks.get(0));
         var ids=tasks.stream().map(t->t.get("id").toString()).toList();String lease=tasks.get(0).get("lease_token").toString();var lost=new AtomicBoolean();Object proof=new Object();
         java.util.function.Supplier<Map<String,Object>> params=()->JsonSupport.map("tenantId",owner,"ids",ids,"lease",lease,"cutoff",cutoff(),"now",Store.now());
@@ -78,7 +81,7 @@ public class DialBatchWorker {
                     store.writeLocked("taskoutbox",owner,task.get("id"),changes);
                 }return null;
             });
-        });if(config.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(DialBatchWorker.class).info("dial_batch size={} admitted={} claim_ms={} prepare_ms={} send_ack_ms={} finish_ms={} error={}",tasks.size(),entries.stream().filter(e->e.get("call")!=null).count(),(claimed-started)/1_000_000.0,(stages[0]-claimed)/1_000_000.0,(stages[1]-stages[0])/1_000_000.0,(System.nanoTime()-stages[1])/1_000_000.0,thrown==null?"none":thrown.getClass().getSimpleName());
+        });if(config.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(DialBatchWorker.class).info("dial_batch size={} admitted={} claim_ms={} prepare_ms={} send_ack_ms={} finish_ms={} error={}",tasks.size(),entries.stream().filter(e->e.get("call")!=null).count(),ms(claimed,started),ms(stages[0],claimed),ms(stages[1],stages[0]),ms(stages[1]==0?0:System.nanoTime(),stages[1]),thrown==null?"none":thrown.getClass().getSimpleName());
         // Yield on admission pressure so due mock statuses/other lanes can free
         // capacity. Cycling through deferred cohorts must not starve completion.
         return thrown!=null||entries.stream().anyMatch(e->!Boolean.TRUE.equals(e.get("deferred")));

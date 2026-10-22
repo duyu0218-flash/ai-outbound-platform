@@ -31,7 +31,7 @@ class DialV5ProtocolIT {
         p.add("JAVA_CAPACITY_EVIDENCE_ENABLED",()->"true");p.add("JAVA_CAPACITY_RUN_ID",()->"v5-isolated-protocol");
     }
     @Autowired Store store;@Autowired Settings settings;@Autowired JsonSupport json;
-    @Autowired DialService dial;@Autowired DialDrainControl drain;@Autowired DialBatchStore batch;
+    @Autowired DialService dial;@org.springframework.boot.test.mock.mockito.SpyBean DialDrainControl drain;@Autowired DialBatchStore batch;
     @Autowired CallLifecycle lifecycle;@Autowired Transactions tx;
     @Autowired CallbackInbox inbox;
     @Autowired CapacityCommitEvidence timing;@Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
@@ -48,12 +48,30 @@ class DialV5ProtocolIT {
         if(row==null)store.insert("adminsetting",JsonSupport.map("tenant_id",1,"section","compliance","data_json",json.json(policy)));
         else store.update("adminsetting",1,row.get("id"),JsonSupport.map("data_json",json.json(policy)));
     }
-    @AfterEach void cleanup() { reset(telephony);drain.cancelDrain(); }
+    @AfterEach void cleanup() { reset(telephony,drain);drain.cancelDrain(); }
     Map<String,Object> queued() {
         return store.insert("callsession",JsonSupport.map("tenant_id",1,"phone","+86139"+String.format("%08d",Math.abs(UUID.randomUUID().getLeastSignificantBits()%100000000L)),"mode","ai_only","status","queued","max_attempts",5));
     }
     Map<String,Object> claim(Map<String,Object> call) { return ReflectionTestUtils.invokeMethod(dial,"claim",call.get("id")); }
     Map<String,Object> metadata(Map<String,Object> call) { return ReflectionTestUtils.invokeMethod(dial,"metadataFor",call); }
+
+    @Test void drainCaptureDoesNotWaitForSourceRowLocksHeldByLifecycleWriter()throws Exception {
+        var claimed=claim(queued());assertThat(claimed).isNotNull();
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try(var connection=java.sql.DriverManager.getConnection(MYSQL.getJdbcUrl(),MYSQL.getUsername(),MYSQL.getPassword())){
+            connection.setAutoCommit(false);
+            try(var lock=connection.prepareStatement("SELECT id FROM callsession WHERE id=? FOR UPDATE")){
+                lock.setObject(1,claimed.get("id"));try(var rows=lock.executeQuery()){assertThat(rows.next()).isTrue();}
+            }
+            // This writer can next need the drain row through a fact trigger.
+            // Capture must read its previously committed identity without
+            // waiting for this source lock while owning the drain barrier.
+            var capture=pool.submit(drain::begin);
+            assertThat(capture.get(3,java.util.concurrent.TimeUnit.SECONDS)).containsEntry("phase","ADMISSION_CLOSED");
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dial_drain_member m JOIN dial_admission_control d ON d.epoch=m.epoch WHERE m.tenant_id=1 AND m.call_id=REPLACE(?,'-','') AND m.attempt=?",Long.class,claimed.get("id"),claimed.get("attempts"))).isEqualTo(1);
+            connection.rollback();
+        }finally{pool.shutdownNow();lifecycle.status(JsonSupport.map("call_id",claimed.get("id"),"payload",JsonSupport.map("status","completed","attempt",claimed.get("attempts"),"event_id","capture-lock-cleanup-"+claimed.get("id"))));}
+    }
 
     @Test void reservedUnsentTaskMustCompleteBeforeClosingSends() {
         var claimed=claim(queued());assertThat(claimed).isNotNull();
@@ -87,7 +105,16 @@ class DialV5ProtocolIT {
         assertThat(store.scalar("callevent","dialAcceptedAttempt",JsonSupport.map("tenantId",1,"id",store.encode("callsession","id",original.get("id")),"attempt",1))).isEqualTo(1);
     }
     @Test void rolledBackDrainDoesNotLeaveACapturedCohortOrClosedGate() {
-        assertThatThrownBy(()->tx.serialized(()->{drain.begin();throw new IllegalStateException("injected rollback");})).isInstanceOf(IllegalStateException.class);
+        long before=jdbc.queryForObject("SELECT COUNT(*) FROM dial_drain_member",Long.class);
+        doThrow(new IllegalStateException("injected rollback after capture")).when(drain).snapshot();
+        assertThatThrownBy(drain::begin).isInstanceOf(IllegalStateException.class).hasMessageContaining("injected rollback after capture");
+        reset(drain);
+        assertThat(drain.snapshot()).containsEntry("phase","RUNNING");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dial_drain_member",Long.class)).isEqualTo(before);
+    }
+    @Test void drainCannotReuseAReadSnapshotFromBeforeItsAdmissionBarrier(){
+        assertThatThrownBy(()->tx.run(()->{jdbc.queryForObject("SELECT COUNT(*) FROM callsession",Long.class);return drain.begin();}))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("fresh transaction");
         assertThat(drain.snapshot()).containsEntry("phase","RUNNING");
     }
     @Test void originalAttemptCanBeConfirmedReadOnlyAfterTheCallHasAdvanced() {
