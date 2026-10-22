@@ -1,0 +1,42 @@
+package com.duozhi.outbound.common.web;
+
+import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.support.Values;
+import com.duozhi.outbound.dial.service.AsyncDialService;
+import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+@RestControllerAdvice
+public class Errors {
+    @ExceptionHandler(AsyncDialService.Rejected.class)
+    ResponseEntity<?> batchRejected(AsyncDialService.Rejected e) {
+        return ResponseEntity.status(e.status)
+                .body(Map.of("detail", e.getMessage(), "errors", e.errors));
+    }
+
+    @ExceptionHandler(ApiError.class)
+    ResponseEntity<?> api(ApiError e) {
+        return ResponseEntity.status(e.status).body(Values.map("detail", e.getMessage()));
+    }
+
+    @ExceptionHandler({
+        MethodArgumentNotValidException.class,
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class
+    })
+    ResponseEntity<?> invalid(Exception e) {
+        return ResponseEntity.badRequest().body(Values.map("detail", "invalid request"));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<?> conflict(Exception e) {
+        return ResponseEntity.status(409)
+                .body(Values.map("detail", "data conflicts with existing records"));
+    }
+}

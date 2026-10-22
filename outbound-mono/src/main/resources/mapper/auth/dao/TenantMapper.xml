@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.auth.dao.TenantMapper">
+    <resultMap id="row" type="com.duozhi.outbound.auth.domain.Tenant">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="name" javaType="java.lang.String" property="name"/>
+        <result column="code" javaType="java.lang.String" property="code"/>
+        <result column="enabled" javaType="java.lang.Boolean" property="enabled"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `tenant`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `name`,
+            `code`,
+            `enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.code,jdbcType=VARCHAR},
+            #{row.enabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `tenant`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `name`,
+            `code`,
+            `enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.code,jdbcType=VARCHAR},
+            #{row.enabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `name`, `code`, `enabled`, `created_at`, `updated_at` FROM `tenant` WHERE `id`
+        = #{id,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `tenant` SET
+        `name` = #{row.name,jdbcType=LONGVARCHAR},
+        `code` = #{row.code,jdbcType=VARCHAR},
+        `enabled` = #{row.enabled,jdbcType=BOOLEAN},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `tenant` WHERE `id` = #{id,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `name`, `code`, `enabled`, `created_at`, `updated_at` FROM `tenant`
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `tenant`
+        <set>
+            <if test="changes.containsKey('name')">
+                `name` = #{changes.name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('code')">
+                `code` = #{changes.code,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('enabled')">
+                `enabled` = #{changes.enabled,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id}
+    </update>
+    <!--Admission/resource mutations already hold the single-JVM platform lock.
+       Keep the tenant enabled state stable without blocking unrelated child-row
+       inserts that require an InnoDB foreign-key shared lock on this parent.-->
+    <select id="lockForTransaction" resultMap="row">
+        SELECT * FROM tenant WHERE id = #{id} FOR SHARE
+    </select>
+    <select id="allForMaintenance" resultMap="row">
+        SELECT * FROM tenant ORDER BY id
+    </select>
+</mapper>

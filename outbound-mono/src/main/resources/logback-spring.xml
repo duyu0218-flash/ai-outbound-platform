@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration scan="false" debug="false">
+    <contextName>logback</contextName>
+    <!-- Based on the supplied logback-spring.xml; values come from application.yaml. -->
+    <springProperty
+        scope="context"
+        name="LOG_PATH"
+        source="logging.file.path"
+        defaultValue="applog"
+    />
+    <springProperty
+        scope="context"
+        name="ROOT_LEVEL"
+        source="logging.level.root"
+        defaultValue="WARN"
+    />
+    <springProperty
+        scope="context"
+        name="APP_LEVEL"
+        source="logging.level.com.duozhi.outbound"
+        defaultValue="INFO"
+    />
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <!-- Preserve daily and size rotation: 500 MB per file, 7 days, 2 GB total. -->
+    <appender name="logFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/%d{yyyy-MM-dd}/%d{yyyy-MM-dd,aux}.%i.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <maxFileSize>500MB</maxFileSize>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="com.duozhi.outbound" level="${APP_LEVEL}" additivity="false">
+        <appender-ref ref="console" />
+        <appender-ref ref="logFile" />
+    </logger>
+    <root level="${ROOT_LEVEL}">
+        <appender-ref ref="console" />
+        <appender-ref ref="logFile" />
+    </root>
+</configuration>

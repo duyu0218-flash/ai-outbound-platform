@@ -7,26 +7,33 @@ services:
       MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci", "--innodb-flush-log-at-trx-commit=1", "--sync-binlog=1", "--transaction-isolation=REPEATABLE-READ"]
-    ports: ["127.0.0.1:${MYSQL_PORT:-13306}:3306"]
-    volumes: ["./data/mysql:/var/lib/mysql"]
+    command:
+      [
+        '--character-set-server=utf8mb4',
+        '--collation-server=utf8mb4_0900_ai_ci',
+        '--innodb-flush-log-at-trx-commit=1',
+        '--sync-binlog=1',
+        '--transaction-isolation=REPEATABLE-READ',
+      ]
+    ports: ['127.0.0.1:${MYSQL_PORT:-13306}:3306']
+    volumes: ['./data/mysql:/var/lib/mysql']
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1']
       interval: 5s
       timeout: 3s
       retries: 30
   redis:
     image: redis:7
-    command: ["redis-server", "--appendonly", "yes"]
-    ports: ["127.0.0.1:${REDIS_PORT:-16379}:6379"]
-    volumes: ["./data/redis:/data"]
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['127.0.0.1:${REDIS_PORT:-16379}:6379']
+    volumes: ['./data/redis:/data']
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20
   s3:
     image: chrislusf/seaweedfs:4.44
-    command: ["server", "-dir=/data", "-s3", "-s3.port=8333"]
-    ports: ["127.0.0.1:${S3_PORT:-18333}:8333"]
-    volumes: ["./data/s3:/data"]
+    command: ['server', '-dir=/data', '-s3', '-s3.port=8333']
+    ports: ['127.0.0.1:${S3_PORT:-18333}:8333']
+    volumes: ['./data/s3:/data']

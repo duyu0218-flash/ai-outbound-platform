@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.auth.dao.SysUserMapper">
+    <resultMap id="row" type="com.duozhi.outbound.auth.domain.SysUser">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="username" javaType="java.lang.String" property="username"/>
+        <result column="password_hash" javaType="java.lang.String" property="passwordHash"/>
+        <result column="full_name" javaType="java.lang.String" property="fullName"/>
+        <result column="phone" javaType="java.lang.String" property="phone"/>
+        <result column="role" javaType="java.lang.String" property="role"/>
+        <result column="is_supervisor" javaType="java.lang.Boolean" property="isSupervisor"/>
+        <result column="agent_status" javaType="java.lang.String" property="agentStatus"/>
+        <result column="last_seen_at" javaType="java.time.LocalDateTime" property="lastSeenAt"/>
+        <result column="failed_login_attempts" javaType="java.lang.Integer" property="failedLoginAttempts"/>
+        <result column="locked_until" javaType="java.time.LocalDateTime" property="lockedUntil"/>
+        <result column="token_version" javaType="java.lang.Integer" property="tokenVersion"/>
+        <result column="last_login_at" javaType="java.time.LocalDateTime" property="lastLoginAt"/>
+        <result column="enabled" javaType="java.lang.Boolean" property="enabled"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `sys_user`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `username`,
+            `password_hash`,
+            `full_name`,
+            `phone`,
+            `role`,
+            `is_supervisor`,
+            `agent_status`,
+            `last_seen_at`,
+            `failed_login_attempts`,
+            `locked_until`,
+            `token_version`,
+            `last_login_at`,
+            `enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.username,jdbcType=VARCHAR},
+            #{row.passwordHash,jdbcType=LONGVARCHAR},
+            #{row.fullName,jdbcType=LONGVARCHAR},
+            #{row.phone,jdbcType=LONGVARCHAR},
+            #{row.role,jdbcType=LONGVARCHAR},
+            #{row.isSupervisor,jdbcType=BOOLEAN},
+            #{row.agentStatus,jdbcType=VARCHAR},
+            #{row.lastSeenAt,jdbcType=TIMESTAMP},
+            #{row.failedLoginAttempts,jdbcType=INTEGER},
+            #{row.lockedUntil,jdbcType=TIMESTAMP},
+            #{row.tokenVersion,jdbcType=INTEGER},
+            #{row.lastLoginAt,jdbcType=TIMESTAMP},
+            #{row.enabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `sys_user`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `username`,
+            `password_hash`,
+            `full_name`,
+            `phone`,
+            `role`,
+            `is_supervisor`,
+            `agent_status`,
+            `last_seen_at`,
+            `failed_login_attempts`,
+            `locked_until`,
+            `token_version`,
+            `last_login_at`,
+            `enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.username,jdbcType=VARCHAR},
+            #{row.passwordHash,jdbcType=LONGVARCHAR},
+            #{row.fullName,jdbcType=LONGVARCHAR},
+            #{row.phone,jdbcType=LONGVARCHAR},
+            #{row.role,jdbcType=LONGVARCHAR},
+            #{row.isSupervisor,jdbcType=BOOLEAN},
+            #{row.agentStatus,jdbcType=VARCHAR},
+            #{row.lastSeenAt,jdbcType=TIMESTAMP},
+            #{row.failedLoginAttempts,jdbcType=INTEGER},
+            #{row.lockedUntil,jdbcType=TIMESTAMP},
+            #{row.tokenVersion,jdbcType=INTEGER},
+            #{row.lastLoginAt,jdbcType=TIMESTAMP},
+            #{row.enabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `username`, `password_hash`, `full_name`, `phone`, `role`,
+        `is_supervisor`, `agent_status`, `last_seen_at`, `failed_login_attempts`, `locked_until`,
+        `token_version`, `last_login_at`, `enabled`, `created_at`, `updated_at` FROM `sys_user`
+        WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `sys_user` SET
+        `username` = #{row.username,jdbcType=VARCHAR},
+        `password_hash` = #{row.passwordHash,jdbcType=LONGVARCHAR},
+        `full_name` = #{row.fullName,jdbcType=LONGVARCHAR},
+        `phone` = #{row.phone,jdbcType=LONGVARCHAR},
+        `role` = #{row.role,jdbcType=LONGVARCHAR},
+        `is_supervisor` = #{row.isSupervisor,jdbcType=BOOLEAN},
+        `agent_status` = #{row.agentStatus,jdbcType=VARCHAR},
+        `last_seen_at` = #{row.lastSeenAt,jdbcType=TIMESTAMP},
+        `failed_login_attempts` = #{row.failedLoginAttempts,jdbcType=INTEGER},
+        `locked_until` = #{row.lockedUntil,jdbcType=TIMESTAMP},
+        `token_version` = #{row.tokenVersion,jdbcType=INTEGER},
+        `last_login_at` = #{row.lastLoginAt,jdbcType=TIMESTAMP},
+        `enabled` = #{row.enabled,jdbcType=BOOLEAN},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `sys_user` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `username`, `password_hash`, `full_name`, `phone`, `role`,
+        `is_supervisor`, `agent_status`, `last_seen_at`, `failed_login_attempts`, `locked_until`,
+        `token_version`, `last_login_at`, `enabled`, `created_at`, `updated_at` FROM `sys_user`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `sys_user`
+        <set>
+            <if test="changes.containsKey('username')">
+                `username` = #{changes.username,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('password_hash')">
+                `password_hash` = #{changes.password_hash,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('full_name')">
+                `full_name` = #{changes.full_name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('phone')">
+                `phone` = #{changes.phone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('role')">
+                `role` = #{changes.role,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('is_supervisor')">
+                `is_supervisor` = #{changes.is_supervisor,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('agent_status')">
+                `agent_status` = #{changes.agent_status,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('last_seen_at')">
+                `last_seen_at` = #{changes.last_seen_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('failed_login_attempts')">
+                `failed_login_attempts` = #{changes.failed_login_attempts,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('locked_until')">
+                `locked_until` = #{changes.locked_until,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('token_version')">
+                `token_version` = #{changes.token_version,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('last_login_at')">
+                `last_login_at` = #{changes.last_login_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('enabled')">
+                `enabled` = #{changes.enabled,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceCallLifecycle109_8" resultMap="row">
+        SELECT * FROM `sys_user` WHERE tenant_id=#{tenantId} AND id=#{p1} FOR UPDATE
+    </select>
+    <select id="sourceConversationPolicy85_9" resultMap="row">
+        SELECT * FROM `sys_user` WHERE id=#{p0} AND tenant_id=#{tenantId} FOR UPDATE
+    </select>
+    <select id="sourceHandoffs39_3" resultMap="row">
+        SELECT * FROM `sys_user` WHERE tenant_id=#{tenantId} AND id=#{p1} FOR UPDATE
+    </select>
+    <select id="sourceProductOperations30_1" resultMap="row">
+        SELECT * FROM `sys_user` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceSystemOverview52_5" resultType="long">
+        SELECT COUNT(*) FROM `sys_user` WHERE tenant_id=#{tenantId}
+    </select>
+    <select id="sourceSystemOverview52_6" resultType="long">
+        SELECT COUNT(*) FROM `sys_user` WHERE tenant_id=#{tenantId} AND enabled=#{p1}
+    </select>
+    <select id="scopedOperationalMetrics33" resultType="long">
+        SELECT COUNT(*) FROM `sys_user` WHERE tenant_id = #{tenantId} AND (locked_until&gt;#{p0})
+    </select>
+    <select id="readyHandoffAgent" resultMap="row">
+        SELECT * FROM sys_user WHERE tenant_id = #{tenantId} AND role='agent' AND enabled=TRUE AND
+        agent_status='ready' AND last_seen_at &gt;= #{since}
+        <if test="!allowed.isEmpty()">
+            AND id IN
+            <foreach close=")" collection="allowed" item="id" open="(" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        ORDER BY (last_seen_at IS NULL) ASC,last_seen_at,id LIMIT 1 FOR UPDATE
+    </select>
+    <select id="reportLabels" resultMap="row">
+        SELECT * FROM sys_user WHERE tenant_id = #{tenantId}
+    </select>
+    <select id="activeAgentCalls" resultType="long">
+        SELECT COUNT(*) FROM callsession WHERE tenant_id=#{tenantId} AND human_agent_id=#{agentId}
+        AND status IN
+        ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')
+    </select>
+</mapper>

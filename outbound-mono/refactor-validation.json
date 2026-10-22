@@ -1,0 +1,92 @@
+{
+  "unit": {
+    "tests": 222,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 31
+  },
+  "integration": {
+    "tests": 319,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 20
+  },
+  "browser": {
+    "passed": true,
+    "checks": 27,
+    "page_errors": [],
+    "environment": "Chromium local Testcontainers; no real SIP device"
+  },
+  "jar_sha256": "d2ff5215c1219f2cd429fc759ed50ee7d2eed9ba92427e5a69fc65c4b5fd1380",
+  "jar_smoke": {
+    "fat_jar_started": true,
+    "healthz": 200,
+    "vue_login": 200,
+    "vue_asset": 200,
+    "metrics_authenticated": 200,
+    "metrics_anonymous": 401,
+    "application_processes": 1,
+    "gc": "G1 MaxGCPauseMillis=20; media load not performed"
+  },
+  "verified_at": "2026-10-22 14:44 Asia/Shanghai",
+  "source_baseline": "add4a6991fcf750bdaf0dd0288a714dfc2dc3fbd",
+  "working_tree": "tested local working tree against source_baseline; published revision is the Git commit containing this report",
+  "versions": {
+    "java": "21.0.12.1",
+    "spring_boot": "4.1.1",
+    "spring_ai": "2.0.1",
+    "mybatis_starter": "4.1.0",
+    "pagehelper_starter": "4.1.1",
+    "druid_boot4_starter": "1.2.28",
+    "springdoc": "3.1.1",
+    "aws_sdk": "2.57.2",
+    "shiro": "2.2.1"
+  },
+  "status": {
+    "source_modified": true,
+    "static_checks_passed": true,
+    "development_functional_tests_passed": true,
+    "test_environment_deployed": false,
+    "real_device_verified": false,
+    "production_deployed": false,
+    "real_voice_chain_verified": false,
+    "capacity_test_performed": false
+  },
+  "environment": {
+    "os": "macOS",
+    "architecture": "ARM64",
+    "database": "Testcontainers MySQL 8.4",
+    "redis": "Testcontainers Redis 7",
+    "voice": "local mock; no real SIP/RTP or cloud ASR/LLM/TTS",
+    "browser": "Playwright Chromium"
+  },
+  "static_checks": {
+    "maven_enforcer": true,
+    "java_spotless_files": 291,
+    "frontend_resource_format": true,
+    "mapper_xml_format": true,
+    "mapper_xml_count": 38,
+    "mapper_sql_semantic_diff": 0,
+    "original_class_bodies_normalized_equal": 222,
+    "intentional_original_class_body_changes": 5
+  },
+  "known_items": [
+    "Business serialization retains the Jackson 2 compatibility module.",
+    "Shiro/Spring BeanPostProcessor lifecycle WARN messages remain; authentication and business regression passed.",
+    "The error for the isolated database-failure regression fixture is deliberately injected by a passing recovery test."
+  ],
+  "unverified": [
+    "test and production deployment",
+    "real devices and PBX/SIP/RTP",
+    "cloud ASR/LLM/TTS and production recordings/storage",
+    "Linux target host, production capacity and soak tests",
+    "7-day retention and 500 MB rotation thresholds under elapsed real time/volume"
+  ],
+  "release_prerequisites": [
+    "target environment deployment and real voice/device acceptance",
+    "backup/restore and single-instance stop-before-start rollback rehearsal",
+    "capacity and soak acceptance before enabling JAVA_RELEASE_ACCEPTED"
+  ]
+}

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.script.dao.ScriptTemplateMapper">
+    <resultMap id="row" type="com.duozhi.outbound.script.domain.ScriptTemplate">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="name" javaType="java.lang.String" property="name"/>
+        <result column="content" javaType="java.lang.String" property="content"/>
+        <result column="category" javaType="java.lang.String" property="category"/>
+        <result column="description" javaType="java.lang.String" property="description"/>
+        <result column="tags" javaType="java.lang.String" property="tags"/>
+        <result column="is_active" javaType="java.lang.Boolean" property="isActive"/>
+        <result column="version" javaType="java.lang.Integer" property="version"/>
+        <result column="created_by" javaType="java.lang.Integer" property="createdBy"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `scripttemplate`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `name`,
+            `content`,
+            `category`,
+            `description`,
+            `tags`,
+            `is_active`,
+            `version`,
+            `created_by`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.content,jdbcType=LONGVARCHAR},
+            #{row.category,jdbcType=LONGVARCHAR},
+            #{row.description,jdbcType=LONGVARCHAR},
+            #{row.tags,jdbcType=LONGVARCHAR},
+            #{row.isActive,jdbcType=BOOLEAN},
+            #{row.version,jdbcType=INTEGER},
+            #{row.createdBy,jdbcType=INTEGER},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `scripttemplate`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `name`,
+            `content`,
+            `category`,
+            `description`,
+            `tags`,
+            `is_active`,
+            `version`,
+            `created_by`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.content,jdbcType=LONGVARCHAR},
+            #{row.category,jdbcType=LONGVARCHAR},
+            #{row.description,jdbcType=LONGVARCHAR},
+            #{row.tags,jdbcType=LONGVARCHAR},
+            #{row.isActive,jdbcType=BOOLEAN},
+            #{row.version,jdbcType=INTEGER},
+            #{row.createdBy,jdbcType=INTEGER},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `name`, `content`, `category`, `description`, `tags`, `is_active`,
+        `version`, `created_by`, `created_at`, `updated_at` FROM `scripttemplate` WHERE `id` =
+        #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `scripttemplate` SET
+        `name` = #{row.name,jdbcType=LONGVARCHAR},
+        `content` = #{row.content,jdbcType=LONGVARCHAR},
+        `category` = #{row.category,jdbcType=LONGVARCHAR},
+        `description` = #{row.description,jdbcType=LONGVARCHAR},
+        `tags` = #{row.tags,jdbcType=LONGVARCHAR},
+        `is_active` = #{row.isActive,jdbcType=BOOLEAN},
+        `version` = #{row.version,jdbcType=INTEGER},
+        `created_by` = #{row.createdBy,jdbcType=INTEGER},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `scripttemplate` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `name`, `content`, `category`, `description`, `tags`, `is_active`,
+        `version`, `created_by`, `created_at`, `updated_at` FROM `scripttemplate`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `scripttemplate`
+        <set>
+            <if test="changes.containsKey('name')">
+                `name` = #{changes.name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('content')">
+                `content` = #{changes.content,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('category')">
+                `category` = #{changes.category,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('description')">
+                `description` = #{changes.description,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('tags')">
+                `tags` = #{changes.tags,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('is_active')">
+                `is_active` = #{changes.is_active,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('version')">
+                `version` = #{changes.version,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('created_by')">
+                `created_by` = #{changes.created_by,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="searchTemplates" resultMap="row">
+        SELECT * FROM scripttemplate WHERE tenant_id = #{tenantId}
+        <if test="activeOnly">
+            AND is_active=TRUE
+        </if>
+        <if test="category != null and category != ''">
+            AND category=#{category}
+        </if>
+        ORDER BY updated_at DESC,id DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="lockById" resultMap="row">
+        SELECT * FROM scripttemplate WHERE tenant_id = #{tenantId} AND id=#{id} FOR UPDATE
+    </select>
+    <select id="sourceCampaigns59_3" resultMap="row">
+        SELECT * FROM `scripttemplate` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceCampaigns80_5" resultMap="row">
+        SELECT * FROM `scripttemplate` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceConversationPolicy38_2" resultMap="row">
+        SELECT * FROM `scripttemplate` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceDashboard29_2" resultType="long">
+        SELECT COUNT(*) FROM `scripttemplate` WHERE tenant_id=#{tenantId} AND is_active=#{p1}
+    </select>
+</mapper>

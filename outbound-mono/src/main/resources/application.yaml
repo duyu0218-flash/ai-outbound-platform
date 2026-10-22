@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: outbound-mono
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: ${MYSQL_JDBC_URL}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    druid:
+      initial-size: 0
+      min-idle: 0
+      max-active: 4
+      stat-view-servlet:
+        enabled: true
+        reset-enable: false
+      # Preserve explicit callback partition zero under MySQL AUTO_INCREMENT.
+      connection-init-sqls:
+        - SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ",NO_AUTO_VALUE_ON_ZERO")
+  flyway:
+    enabled: true
+    # Dedicated migration connection, separate from the business pool.
+    url: ${FLYWAY_JDBC_URL:${MYSQL_JDBC_URL}}
+    user: ${FLYWAY_USER:${MYSQL_USER}}
+    password: ${FLYWAY_PASSWORD:${MYSQL_PASSWORD}}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD:}
+  ai:
+    model:
+      chat: ${AI_CHAT_MODEL:none}
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    openai:
+      base-url: ${OPENAI_BASE_URL:}
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:}
+  # Retain existing wire contracts while business serialization uses Jackson 2.
+  http:
+    converters:
+      preferred-json-mapper: jackson2
+  servlet:
+    multipart:
+      max-file-size: ${CONTACT_IMPORT_MAX_BYTES:20971520}B
+      max-request-size: 21MB
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-handlers-package: com.duozhi.outbound.common.dao.typehandler
+  configuration:
+    call-setters-on-nulls: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  config: classpath:logback-spring.xml
+  file:
+    path: ${LOG_PATH:applog}
+  level:
+    root: ${LOG_LEVEL_ROOT:WARN}
+    com.duozhi.outbound: ${LOG_LEVEL_APP:INFO}

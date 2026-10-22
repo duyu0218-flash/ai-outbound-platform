@@ -1,23 +1,290 @@
 <script setup>
-import {ref,reactive,computed,watch,onMounted} from 'vue'
-import {useRoute,useRouter} from 'vue-router'
-import {download} from '../session'
-import {ops,perform,parse,query,prefix} from '../operations'
-import CallDetails from '../components/CallDetails.vue'
-const options=ref({campaigns:[],lines:[],teams:[]});
-const route=useRoute(),router=useRouter(),filters=reactive({}),rows=ref([]),total=ref(0),error=ref(''),busy=ref(false),selected=ref(null),profile=ref({}),views=ref([]),viewName=ref(''),viewId=ref('')
-const allColumns=[{key:'phone',label:'号码'},{key:'campaign_name',label:'任务'},{key:'status',label:'通话状态',translate:true},{key:'intent',label:'意向'},{key:'duration_seconds',label:'通话秒数'},{key:'qa_score',label:'质检分数'},{key:'review_state',label:'复核状态'},{key:'owner_id',label:'负责人编号'},{key:'stage',label:'跟进状态'},{key:'created_at',label:'创建时间',date:true}]
-const visible=ref(allColumns.map(c=>c.key)),columns=computed(()=>allColumns.filter(c=>visible.value.includes(c.key))),page=computed(()=>Number(route.query.page||1))
-function localTime(value){if(!value||Number.isNaN(new Date(value).getTime()))return '';return new Date(new Date(value).getTime()-new Date(value).getTimezoneOffset()*60000).toISOString().slice(0,16)}
-function fromRoute(){Object.keys(filters).forEach(k=>delete filters[k]);Object.assign(filters,route.query);for(const k of ['from','until'])filters[k]=localTime(route.query[k])}
-async function load(){busy.value=true;error.value='';try{const data=await ops('/calls?'+query({...route.query,size:20}));rows.value=data.rows;total.value=data.total}catch(e){error.value=e.message;rows.value=[];total.value=0}finally{busy.value=false}}
-function apply(){const next={...filters,page:1};for(const k of ['from','until'])if(next[k])next[k]=new Date(next[k]).toISOString();router.replace({query:Object.fromEntries(Object.entries(next).filter(([,v])=>v!==''&&v!=null))})}
-function reset(){router.replace({query:{}})}
-async function saveView(){if(!viewName.value)return;await perform(()=>ops('/views','POST',{kind:'calls',name:viewName.value,config:{filters:{...route.query,page:1},columns:visible.value}}),async()=>views.value=await ops('/views'))}
-function chooseView(){const v=views.value.find(v=>v.id===viewId.value);if(!v)return;const c=parse(v.config_json);visible.value=Array.isArray(c.columns)?c.columns.filter(k=>allColumns.some(x=>x.key===k)):allColumns.map(c=>c.key);router.replace({query:c.filters||{}})}
-async function exportRows(){try{await download('/api/v1/ops/calls/export?'+query(route.query))}catch(e){error.value=e.message}}
-watch(()=>route.query,()=>{fromRoute();load()},{deep:true});onMounted(async()=>{fromRoute();load();try{profile.value=await ops('/me');options.value=await ops('/lookups');views.value=await ops('/views')}catch(e){error.value=e.message}})
+import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { download } from '../session';
+import { ops, perform, parse, query, prefix } from '../operations';
+import CallDetails from '../components/CallDetails.vue';
+const options = ref({ campaigns: [], lines: [], teams: [] });
+const route = useRoute(),
+  router = useRouter(),
+  filters = reactive({}),
+  rows = ref([]),
+  total = ref(0),
+  error = ref(''),
+  busy = ref(false),
+  selected = ref(null),
+  profile = ref({}),
+  views = ref([]),
+  viewName = ref(''),
+  viewId = ref('');
+const allColumns = [
+  { key: 'phone', label: '号码' },
+  { key: 'campaign_name', label: '任务' },
+  { key: 'status', label: '通话状态', translate: true },
+  { key: 'intent', label: '意向' },
+  { key: 'duration_seconds', label: '通话秒数' },
+  { key: 'qa_score', label: '质检分数' },
+  { key: 'review_state', label: '复核状态' },
+  { key: 'owner_id', label: '负责人编号' },
+  { key: 'stage', label: '跟进状态' },
+  { key: 'created_at', label: '创建时间', date: true },
+];
+const visible = ref(allColumns.map((c) => c.key)),
+  columns = computed(() => allColumns.filter((c) => visible.value.includes(c.key))),
+  page = computed(() => Number(route.query.page || 1));
+function localTime(value) {
+  if (!value || Number.isNaN(new Date(value).getTime())) return '';
+  return new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+}
+function fromRoute() {
+  Object.keys(filters).forEach((k) => delete filters[k]);
+  Object.assign(filters, route.query);
+  for (const k of ['from', 'until']) filters[k] = localTime(route.query[k]);
+}
+async function load() {
+  busy.value = true;
+  error.value = '';
+  try {
+    const data = await ops('/calls?' + query({ ...route.query, size: 20 }));
+    rows.value = data.rows;
+    total.value = data.total;
+  } catch (e) {
+    error.value = e.message;
+    rows.value = [];
+    total.value = 0;
+  } finally {
+    busy.value = false;
+  }
+}
+function apply() {
+  const next = { ...filters, page: 1 };
+  for (const k of ['from', 'until']) if (next[k]) next[k] = new Date(next[k]).toISOString();
+  router.replace({
+    query: Object.fromEntries(Object.entries(next).filter(([, v]) => v !== '' && v != null)),
+  });
+}
+function reset() {
+  router.replace({ query: {} });
+}
+async function saveView() {
+  if (!viewName.value) return;
+  await perform(
+    () =>
+      ops('/views', 'POST', {
+        kind: 'calls',
+        name: viewName.value,
+        config: { filters: { ...route.query, page: 1 }, columns: visible.value },
+      }),
+    async () => (views.value = await ops('/views')),
+  );
+}
+function chooseView() {
+  const v = views.value.find((v) => v.id === viewId.value);
+  if (!v) return;
+  const c = parse(v.config_json);
+  visible.value = Array.isArray(c.columns)
+    ? c.columns.filter((k) => allColumns.some((x) => x.key === k))
+    : allColumns.map((c) => c.key);
+  router.replace({ query: c.filters || {} });
+}
+async function exportRows() {
+  try {
+    await download('/api/v1/ops/calls/export?' + query(route.query));
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+watch(
+  () => route.query,
+  () => {
+    fromRoute();
+    load();
+  },
+  { deep: true },
+);
+onMounted(async () => {
+  fromRoute();
+  load();
+  try {
+    profile.value = await ops('/me');
+    options.value = await ops('/lookups');
+    views.value = await ops('/views');
+  } catch (e) {
+    error.value = e.message;
+  }
+});
 </script>
-<template><PageHeader title="话单查询" description="组合筛选、查询总数和导出使用同一范围"><el-button @click="router.push(prefix()+'/calls')">返回通话管理</el-button><el-button v-if="profile.can_export" :disabled="busy" @click="exportRows">导出当前结果</el-button></PageHeader>
-<el-card><el-form label-position="top" class="form-grid ops-filters" @submit.prevent="apply"><el-form-item label="号码"><el-input v-model="filters.phone" aria-label="查询号码" clearable/></el-form-item><el-form-item label="任务"><el-select v-model="filters.campaign_id" clearable filterable aria-label="查询任务"><el-option v-for="v in options.campaigns" :key="v.id" :value="v.id" :label="v.name"/></el-select></el-form-item><el-form-item label="状态"><el-select v-model="filters.status" clearable aria-label="查询通话状态"><el-option v-for="s in ['created','queued','dialing','in_ai','waiting_human','in_human','completed','failed','no_answer','busy','voicemail']" :key="s" :value="s" :label="s"/></el-select></el-form-item><el-form-item label="意向"><el-input v-model="filters.intent" aria-label="查询意向"/></el-form-item><el-form-item label="开始时间"><el-input v-model="filters.from" type="datetime-local" aria-label="查询开始时间"/></el-form-item><el-form-item label="结束时间"><el-input v-model="filters.until" type="datetime-local" aria-label="查询结束时间"/></el-form-item><el-form-item label="人工坐席"><el-select v-model="filters.agent_id" clearable aria-label="查询坐席"><el-option v-for="u in profile.users||[]" :key="u.id" :value="u.id" :label="u.full_name"/></el-select></el-form-item><el-form-item label="线路"><el-select v-model="filters.line_id" clearable filterable aria-label="查询线路"><el-option v-for="v in options.lines" :key="v.id" :value="v.id" :label="v.name"/></el-select></el-form-item><el-form-item label="最短秒数"><el-input v-model="filters.min_seconds" type="number" min="0" aria-label="最短秒数"/></el-form-item><el-form-item label="最长秒数"><el-input v-model="filters.max_seconds" type="number" min="0" aria-label="最长秒数"/></el-form-item><el-form-item label="人工接管"><el-select v-model="filters.handoff" clearable aria-label="查询接管"><el-option label="是" value="true"/><el-option label="否" value="false"/></el-select></el-form-item><el-form-item label="复核状态"><el-select v-model="filters.review_state" clearable aria-label="查询复核状态"><el-option label="自动" value="auto"/><el-option label="已复核" value="reviewed"/></el-select></el-form-item><el-form-item label="坐席组"><el-select v-model="filters.team_id" clearable filterable aria-label="查询坐席组"><el-option v-for="v in options.teams" :key="v.id" :value="v.id" :label="v.name"/></el-select></el-form-item><el-form-item label="标签"><el-input v-model="filters.tag" aria-label="查询标签"/></el-form-item><el-form-item label="负责人"><el-select v-model="filters.owner_id" clearable aria-label="查询负责人"><el-option v-for="u in profile.users||[]" :key="u.id" :value="u.id" :label="u.full_name"/></el-select></el-form-item></el-form><div class="actions"><el-button type="primary" @click="apply">查询</el-button><el-button @click="reset">重置</el-button><span>共 {{total}} 条</span></div></el-card>
-<el-card><div class="toolbar"><el-select v-model="viewId" placeholder="选择常用视图" aria-label="话单常用视图" @change="chooseView"><el-option v-for="v in views.filter(v=>v.kind==='calls')" :key="v.id" :value="v.id" :label="v.name"/></el-select><el-input v-model="viewName" placeholder="视图名称" aria-label="话单视图名称"/><el-button :disabled="!viewName" @click="saveView">保存视图</el-button><el-button v-if="viewId" @click="perform(()=>ops('/views/'+viewId,'DELETE'),async()=>{views=await ops('/views');viewId=''})">删除视图</el-button></div><el-checkbox-group v-model="visible"><el-checkbox v-for="c in allColumns" :key="c.key" :value="c.key">{{c.label}}</el-checkbox></el-checkbox-group><el-alert v-if="error" :title="error" type="error" :closable="false"/><DataGrid :rows="rows" :columns="columns" :loading="busy"><template #actions="{row}"><el-button link @click="selected=row">查看通话证据</el-button><el-button v-if="row.contact_id" link @click="router.push({path:prefix()+'/operations/leads',query:{contact_id:row.contact_id}})">查看线索</el-button></template></DataGrid><el-pagination :current-page="page" :total="total" :page-size="20" layout="prev,pager,next,total" @current-change="router.replace({query:{...route.query,page:$event}})"/></el-card><CallDetails v-if="selected" :call="selected" :role="profile.administrator?'admin':'agent'" @close="selected=null"/></template>
+<template>
+  <PageHeader title="话单查询" description="组合筛选、查询总数和导出使用同一范围"
+    ><el-button @click="router.push(prefix() + '/calls')">返回通话管理</el-button
+    ><el-button v-if="profile.can_export" :disabled="busy" @click="exportRows"
+      >导出当前结果</el-button
+    ></PageHeader
+  >
+  <el-card
+    ><el-form label-position="top" class="form-grid ops-filters" @submit.prevent="apply"
+      ><el-form-item label="号码"
+        ><el-input v-model="filters.phone" aria-label="查询号码" clearable /></el-form-item
+      ><el-form-item label="任务"
+        ><el-select v-model="filters.campaign_id" clearable filterable aria-label="查询任务"
+          ><el-option
+            v-for="v in options.campaigns"
+            :key="v.id"
+            :value="v.id"
+            :label="v.name" /></el-select></el-form-item
+      ><el-form-item label="状态"
+        ><el-select v-model="filters.status" clearable aria-label="查询通话状态"
+          ><el-option
+            v-for="s in [
+              'created',
+              'queued',
+              'dialing',
+              'in_ai',
+              'waiting_human',
+              'in_human',
+              'completed',
+              'failed',
+              'no_answer',
+              'busy',
+              'voicemail',
+            ]"
+            :key="s"
+            :value="s"
+            :label="s" /></el-select></el-form-item
+      ><el-form-item label="意向"
+        ><el-input v-model="filters.intent" aria-label="查询意向" /></el-form-item
+      ><el-form-item label="开始时间"
+        ><el-input
+          v-model="filters.from"
+          type="datetime-local"
+          aria-label="查询开始时间" /></el-form-item
+      ><el-form-item label="结束时间"
+        ><el-input
+          v-model="filters.until"
+          type="datetime-local"
+          aria-label="查询结束时间" /></el-form-item
+      ><el-form-item label="人工坐席"
+        ><el-select v-model="filters.agent_id" clearable aria-label="查询坐席"
+          ><el-option
+            v-for="u in profile.users || []"
+            :key="u.id"
+            :value="u.id"
+            :label="u.full_name" /></el-select></el-form-item
+      ><el-form-item label="线路"
+        ><el-select v-model="filters.line_id" clearable filterable aria-label="查询线路"
+          ><el-option
+            v-for="v in options.lines"
+            :key="v.id"
+            :value="v.id"
+            :label="v.name" /></el-select></el-form-item
+      ><el-form-item label="最短秒数"
+        ><el-input
+          v-model="filters.min_seconds"
+          type="number"
+          min="0"
+          aria-label="最短秒数" /></el-form-item
+      ><el-form-item label="最长秒数"
+        ><el-input
+          v-model="filters.max_seconds"
+          type="number"
+          min="0"
+          aria-label="最长秒数" /></el-form-item
+      ><el-form-item label="人工接管"
+        ><el-select v-model="filters.handoff" clearable aria-label="查询接管"
+          ><el-option label="是" value="true" /><el-option
+            label="否"
+            value="false" /></el-select></el-form-item
+      ><el-form-item label="复核状态"
+        ><el-select v-model="filters.review_state" clearable aria-label="查询复核状态"
+          ><el-option label="自动" value="auto" /><el-option
+            label="已复核"
+            value="reviewed" /></el-select></el-form-item
+      ><el-form-item label="坐席组"
+        ><el-select v-model="filters.team_id" clearable filterable aria-label="查询坐席组"
+          ><el-option
+            v-for="v in options.teams"
+            :key="v.id"
+            :value="v.id"
+            :label="v.name" /></el-select></el-form-item
+      ><el-form-item label="标签"
+        ><el-input v-model="filters.tag" aria-label="查询标签" /></el-form-item
+      ><el-form-item label="负责人"
+        ><el-select v-model="filters.owner_id" clearable aria-label="查询负责人"
+          ><el-option
+            v-for="u in profile.users || []"
+            :key="u.id"
+            :value="u.id"
+            :label="u.full_name" /></el-select></el-form-item
+    ></el-form>
+    <div class="actions">
+      <el-button type="primary" @click="apply">查询</el-button
+      ><el-button @click="reset">重置</el-button><span>共 {{ total }} 条</span>
+    </div></el-card
+  >
+  <el-card
+    ><div class="toolbar">
+      <el-select
+        v-model="viewId"
+        placeholder="选择常用视图"
+        aria-label="话单常用视图"
+        @change="chooseView"
+        ><el-option
+          v-for="v in views.filter((v) => v.kind === 'calls')"
+          :key="v.id"
+          :value="v.id"
+          :label="v.name" /></el-select
+      ><el-input v-model="viewName" placeholder="视图名称" aria-label="话单视图名称" /><el-button
+        :disabled="!viewName"
+        @click="saveView"
+        >保存视图</el-button
+      ><el-button
+        v-if="viewId"
+        @click="
+          perform(
+            () => ops('/views/' + viewId, 'DELETE'),
+            async () => {
+              views = await ops('/views');
+              viewId = '';
+            },
+          )
+        "
+        >删除视图</el-button
+      >
+    </div>
+    <el-checkbox-group v-model="visible"
+      ><el-checkbox v-for="c in allColumns" :key="c.key" :value="c.key">{{
+        c.label
+      }}</el-checkbox></el-checkbox-group
+    ><el-alert v-if="error" :title="error" type="error" :closable="false" /><DataGrid
+      :rows="rows"
+      :columns="columns"
+      :loading="busy"
+      ><template #actions="{ row }"
+        ><el-button link @click="selected = row">查看通话证据</el-button
+        ><el-button
+          v-if="row.contact_id"
+          link
+          @click="
+            router.push({
+              path: prefix() + '/operations/leads',
+              query: { contact_id: row.contact_id },
+            })
+          "
+          >查看线索</el-button
+        ></template
+      ></DataGrid
+    ><el-pagination
+      :current-page="page"
+      :total="total"
+      :page-size="20"
+      layout="prev,pager,next,total"
+      @current-change="router.replace({ query: { ...route.query, page: $event } })" /></el-card
+  ><CallDetails
+    v-if="selected"
+    :call="selected"
+    :role="profile.administrator ? 'admin' : 'agent'"
+    @close="selected = null"
+  />
+</template>

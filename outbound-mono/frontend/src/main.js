@@ -1,12 +1,26 @@
-import {createApp} from 'vue'
-import ElementPlus,{ElMessage} from 'element-plus'
-import 'element-plus/dist/index.css'
-import App from './App.vue'
-import {router} from './router'
-import './style.css'
-import DataGrid from './components/DataGrid.vue'
-import PageHeader from './components/PageHeader.vue'
-import FieldForm from './components/FieldForm.vue'
-import Pager from './components/Pager.vue'
-import JsonView from './components/JsonView.vue'
-const app=createApp(App);app.config.errorHandler=error=>{if(error==='cancel'||error==='close')return;ElMessage.error(error.message||String(error))};app.use(ElementPlus).use(router);for(const [name,component]of Object.entries({DataGrid,PageHeader,FieldForm,Pager,JsonView}))app.component(name,component);app.mount('#app')
+import { createApp } from 'vue';
+import ElementPlus, { ElMessage } from 'element-plus';
+import 'element-plus/dist/index.css';
+import App from './App.vue';
+import { router } from './router';
+import './style.css';
+import DataGrid from './components/DataGrid.vue';
+import PageHeader from './components/PageHeader.vue';
+import FieldForm from './components/FieldForm.vue';
+import Pager from './components/Pager.vue';
+import JsonView from './components/JsonView.vue';
+const app = createApp(App);
+app.config.errorHandler = (error) => {
+  if (error === 'cancel' || error === 'close') return;
+  ElMessage.error(error.message || String(error));
+};
+app.use(ElementPlus).use(router);
+for (const [name, component] of Object.entries({
+  DataGrid,
+  PageHeader,
+  FieldForm,
+  Pager,
+  JsonView,
+}))
+  app.component(name, component);
+app.mount('#app');

@@ -7,17 +7,23 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "format": "prettier --config .prettierrc.json --write \"src/**/*.{js,vue,css}\" \"tests/*.mjs\" \"*.{html,mjs}\" \"../src/main/resources/*.{yaml,xml}\" \"../deploy/**/*.xml\" \"../*.{xml,yml}\" \"../.mvn/*.xml\"",
+    "format:check": "prettier --config .prettierrc.json --check \"src/**/*.{js,vue,css}\" \"tests/*.mjs\" \"*.{html,mjs}\" \"../src/main/resources/*.{yaml,xml}\" \"../deploy/**/*.xml\" \"../*.{xml,yml}\" \"../.mvn/*.xml\"",
+    "format:mappers": "java ../tools/FormatMapperXml.java --write ../src/main/resources/mapper",
+    "format:mappers:check": "java ../tools/FormatMapperXml.java --check ../src/main/resources/mapper"
   },
   "dependencies": {
-    "vue": "3.5.42",
-    "vue-router": "4.6.3",
     "element-plus": "2.11.4",
-    "sip.js": "0.21.2"
+    "sip.js": "0.21.2",
+    "vue": "3.5.42",
+    "vue-router": "4.6.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@prettier/plugin-xml": "3.4.2",
     "@vitejs/plugin-vue": "5.2.4",
-    "vite": "6.4.4",
-    "@playwright/test": "1.62.1"
+    "prettier": "3.6.2",
+    "vite": "6.4.4"
   }
 }
