@@ -6,7 +6,12 @@ import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.Values;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -42,21 +47,21 @@ public class Dashboard {
     @AdminPermission("admin:dashboard")
     @GetMapping("/api/v1/admin/dashboard")
     public Map<String, Object> admin(
-            HttpServletRequest request, @RequestParam(defaultValue = "30") int days) {
+            HttpServletRequest request, @RequestParam(defaultValue = "30")
+            int days) {
         if (days < 1 || days > 365) throw new ApiError(400, "invalid days");
         long tenant = Identity.from(request).tenant();
-        java.time.LocalDateTime since = Store.now().minusDays(days);
+        LocalDateTime since = Store.now().minusDays(days);
         Object sqlSince = store.encode("callsession", "created_at", since);
         String join =
                 " FROM callsession c LEFT JOIN callanalysis a ON a.call_session_id=c.id AND"
                         + " a.tenant_id=c.tenant_id WHERE c.tenant_id=? AND c.created_at>=?";
-        java.util.Map<java.lang.String, java.lang.Object> counts =
+        Map<String, Object> counts =
                 store.projectOne(
                         "callsession",
                         "dashboardSummary",
                         Values.map("tenantId", tenant, "since", sqlSince));
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> period =
-                new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> period = new LinkedHashMap<String, Object>();
         period.put("days", days);
         period.put("since", since.toString());
         for (String key :
@@ -77,22 +82,20 @@ public class Dashboard {
         period.put("reach_rate", rate(number(counts, "reached"), number(counts, "calls")));
         period.put("interest_rate", rate(number(counts, "interested"), number(counts, "reached")));
         period.put("completion_rate", rate(number(counts, "completed"), number(counts, "calls")));
-        java.util.ArrayList<java.util.Map<java.lang.String, java.lang.Object>> performance =
-                new ArrayList<Map<String, Object>>();
-        java.util.List<java.util.Map<java.lang.String, java.lang.Object>> rows =
+        ArrayList<Map<String, Object>> performance = new ArrayList<Map<String, Object>>();
+        List<Map<String, Object>> rows =
                 store.projection(
                         "callsession",
                         "dashboardPerformance",
                         Values.map("tenantId", tenant, "since", sqlSince));
-        for (java.util.Map<java.lang.String, java.lang.Object> row : rows) {
-            java.util.Map<java.lang.String, java.lang.Object> campaign =
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> campaign =
                     store.one(
                             "campaign",
                             "sourceDashboard28_0",
                             Store.queryParameters(0, tenant, row.get("campaign_id")));
             if (campaign == null) continue;
-            java.util.LinkedHashMap<java.lang.String, java.lang.Object> out =
-                    new LinkedHashMap<>(row);
+            LinkedHashMap<String, Object> out = new LinkedHashMap<>(row);
             out.put("name", campaign.get("name"));
             out.put("reach_rate", rate(number(row, "reached"), number(row, "calls")));
             out.put("interest_rate", rate(number(row, "interested"), number(row, "reached")));

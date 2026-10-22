@@ -1,5 +1,10 @@
 package com.duozhi.outbound.campaign.domain;
 
+import com.duozhi.outbound.call.domain.enums.CallMode;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class Campaign {
     private Integer id;
@@ -8,8 +13,7 @@ public class Campaign {
     private String script = "";
     private Integer scriptTemplateId;
     private Integer scriptFlowVersionId;
-    private com.duozhi.outbound.call.domain.enums.CallMode mode =
-            com.duozhi.outbound.call.domain.enums.CallMode.AI_HANDOFF;
+    private CallMode mode = CallMode.AI_HANDOFF;
     private Integer concurrency = 5;
     private Integer retryLimit = 1;
     private Integer retryIntervalSec = 30;
@@ -20,12 +24,10 @@ public class Campaign {
     private Integer createdBy;
     private String status = "draft";
     private Boolean dispatchEnabled = false;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -75,11 +77,11 @@ public class Campaign {
         this.scriptFlowVersionId = value;
     }
 
-    public com.duozhi.outbound.call.domain.enums.CallMode getMode() {
+    public CallMode getMode() {
         return mode;
     }
 
-    public void setMode(com.duozhi.outbound.call.domain.enums.CallMode value) {
+    public void setMode(CallMode value) {
         this.mode = value;
     }
 
@@ -163,19 +165,19 @@ public class Campaign {
         this.dispatchEnabled = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

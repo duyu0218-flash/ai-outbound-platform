@@ -21,20 +21,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.*;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PolicyCapacityIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry p) {
@@ -53,13 +56,20 @@ class PolicyCapacityIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired TestRestTemplate http;
-    @Autowired Crypto crypto;
-    @Autowired Transactions tx;
-    @Autowired TenantMapper tenants;
-    @Autowired SysUserMapper users;
-    @Autowired Store store;
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean PlatformLock locks;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    Store store;
+    @MockitoSpyBean
+    PlatformLock locks;
     private static final AtomicInteger IDS = new AtomicInteger(9000);
     int tenant;
     String token;

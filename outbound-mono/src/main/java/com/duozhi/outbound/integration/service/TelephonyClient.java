@@ -14,20 +14,25 @@ import com.duozhi.outbound.dial.service.DialAuthorizationService;
 import com.duozhi.outbound.dial.service.DialDrainControl;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
+import com.duozhi.outbound.voice.controller.VoiceController;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TelephonyClient {
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private DialAuthorizationService authorizations;
 
-    @org.springframework.beans.factory.annotation.Autowired private DialCommandJournal journal;
-    @org.springframework.beans.factory.annotation.Autowired private DialDrainControl drain;
+    @Autowired
+    private DialCommandJournal journal;
+    @Autowired
+    private DialDrainControl drain;
 
     public static class Failure extends RuntimeException {
         public final int status;
@@ -222,10 +227,7 @@ public class TelephonyClient {
             var reply =
                     embedded.command("dial-authorize", install.body(), install.headers(), timeout);
             authorizations.acknowledge(
-                    requests,
-                    List.of(
-                            new com.duozhi.outbound.voice.controller.VoiceController.CommandResult(
-                                    reply, 200, false)));
+                    requests, List.of(new VoiceController.CommandResult(reply, 200, false)));
         }
         TaskWorker.permitted();
         var command = signedPayload(action, payload, route);
@@ -255,7 +257,7 @@ public class TelephonyClient {
         return payload;
     }
 
-    private com.duozhi.outbound.voice.controller.VoiceController.Command signedPayload(
+    private VoiceController.Command signedPayload(
             String action, Map<String, Object> payload, Map<String, Object> route) {
         String secret = config.get("VOICE_COMMAND_SECRET", "");
         if (secret.isEmpty()) throw new ApiError(503, "real telephony requires a signing secret");
@@ -280,12 +282,10 @@ public class TelephonyClient {
         headers.put("x-voice-signature", signature);
         if (!route.get("bearer").toString().isEmpty())
             headers.put("Authorization", "Bearer " + route.get("bearer"));
-        return new com.duozhi.outbound.voice.controller.VoiceController.Command(
-                action, body, headers);
+        return new VoiceController.Command(action, body, headers);
     }
 
-    public List<com.duozhi.outbound.voice.controller.VoiceController.CommandResult> dialBatch(
-            List<Map<String, Object>> entries) {
+    public List<VoiceController.CommandResult> dialBatch(List<Map<String, Object>> entries) {
         TaskWorker.permitted();
         if (drain.sendingClosed()) throw new TaskWorker.Deferred();
         var payloads = new ArrayList<Map<String, Object>>();
@@ -335,8 +335,7 @@ public class TelephonyClient {
             long phase = System.nanoTime();
             authorizations.prepare(installRequests);
             profile("grant_prepare", installRequests.size(), phase);
-            var installs =
-                    new ArrayList<com.duozhi.outbound.voice.controller.VoiceController.Command>();
+            var installs = new ArrayList<VoiceController.Command>();
             for (int i = 0; i < installRequests.size(); i++)
                 installs.add(
                         signedPayload(
@@ -351,8 +350,7 @@ public class TelephonyClient {
             profile("installation_ack", installRequests.size(), phase);
         }
         TaskWorker.permitted();
-        var commands =
-                new ArrayList<com.duozhi.outbound.voice.controller.VoiceController.Command>();
+        var commands = new ArrayList<VoiceController.Command>();
         for (int i = 0; i < payloads.size(); i++)
             commands.add(signedPayload("dial", payloads.get(i), resolvedRoutes.get(i)));
         if (drain.sendingClosed()) throw new TaskWorker.Deferred();
@@ -369,7 +367,7 @@ public class TelephonyClient {
                             signedPayload("dial-cancel", payloads.get(i), resolvedRoutes.get(i));
                     replies.set(
                             i,
-                            new com.duozhi.outbound.voice.controller.VoiceController.CommandResult(
+                            new VoiceController.CommandResult(
                                     embedded.command(
                                             "dial-cancel",
                                             cancel.body(),
@@ -386,7 +384,7 @@ public class TelephonyClient {
 
     private void profile(String phase, int count, long begin) {
         if (config.flag("JAVA_DIAL_PROFILE", false))
-            org.slf4j.LoggerFactory.getLogger(getClass())
+            LoggerFactory.getLogger(getClass())
                     .info(
                             "dial_protocol phase={} size={} elapsed_ms={}",
                             phase,

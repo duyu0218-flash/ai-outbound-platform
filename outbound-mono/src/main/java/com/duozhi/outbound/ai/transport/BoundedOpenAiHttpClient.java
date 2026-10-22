@@ -1,5 +1,7 @@
 package com.duozhi.outbound.ai.transport;
 
+import static java.net.http.HttpRequest.newBuilder;
+
 import com.duozhi.outbound.ai.service.AccountQuota;
 import com.duozhi.outbound.integration.support.Support;
 import com.openai.core.RequestOptions;
@@ -8,13 +10,16 @@ import com.openai.core.http.HttpRequest;
 import com.openai.core.http.HttpResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /** Uses the shared JDK transport and the validated endpoint for Spring AI 2's OpenAI SDK. */
-public final class BoundedOpenAiHttpClient implements com.openai.core.http.HttpClient {
+public final class BoundedOpenAiHttpClient implements OpenAiHttpClient {
     private final HttpClient client;
     private final URI endpoint;
     private final String apiKey;
@@ -36,16 +41,13 @@ public final class BoundedOpenAiHttpClient implements com.openai.core.http.HttpC
             var output = new ByteArrayOutputStream();
             request.body().writeTo(output);
             var wire =
-                    java.net.http.HttpRequest.newBuilder(endpoint)
+                    newBuilder(endpoint)
                             .timeout(Duration.ofMillis(timeout))
                             .header("Authorization", "Bearer " + apiKey)
                             .header("Content-Type", "application/json")
-                            .POST(
-                                    java.net.http.HttpRequest.BodyPublishers.ofByteArray(
-                                            output.toByteArray()))
+                            .POST(BodyPublishers.ofByteArray(output.toByteArray()))
                             .build();
-            var response =
-                    client.send(wire, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+            var response = client.send(wire, BodyHandlers.ofInputStream());
             byte[] bytes;
             try (var body = Support.timed(response.body(), timeout)) {
                 if (response.statusCode() == 429 || response.statusCode() == 503) {
@@ -78,7 +80,7 @@ public final class BoundedOpenAiHttpClient implements com.openai.core.http.HttpC
                     return headers;
                 }
 
-                public java.io.InputStream body() {
+                public InputStream body() {
                     return body;
                 }
 

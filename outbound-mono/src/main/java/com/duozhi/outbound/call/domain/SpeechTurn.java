@@ -1,10 +1,15 @@
 package com.duozhi.outbound.call.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class SpeechTurn {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private String providerEventKey;
     private Integer turnIndex = 0;
     private Integer attempt = 0;
@@ -17,9 +22,8 @@ public class SpeechTurn {
     private Integer startMs;
     private Integer endMs;
     private String asrProvider = "";
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -37,11 +41,11 @@ public class SpeechTurn {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -141,11 +145,11 @@ public class SpeechTurn {
         this.asrProvider = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 }

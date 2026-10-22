@@ -1,7 +1,5 @@
 package com.duozhi.outbound;
 
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -9,6 +7,8 @@ import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.regex.*;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 /** Explicit maintenance command. Never starts HTTP, workers or demo accounts. */
 public final class DatabaseMigration {

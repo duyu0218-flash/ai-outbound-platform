@@ -1,28 +1,31 @@
 package com.duozhi.outbound.call.domain;
 
+import com.duozhi.outbound.call.domain.enums.RealtimeState;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class RealtimeSession {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private String providerSessionId;
     private Integer attempt = 0;
-    private com.duozhi.outbound.call.domain.enums.RealtimeState state =
-            com.duozhi.outbound.call.domain.enums.RealtimeState.CREATED;
+    private RealtimeState state = RealtimeState.CREATED;
     private String codec = "pcm_s16le";
     private Integer sampleRate = 16000;
     private Integer channelCount = 1;
     private Integer lastEventSequence;
     private Integer turnSequence = 0;
     private String playbackId;
-    private java.time.LocalDateTime startedAt;
-    private java.time.LocalDateTime endedAt;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime startedAt;
+    private LocalDateTime endedAt;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -40,11 +43,11 @@ public class RealtimeSession {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -64,11 +67,11 @@ public class RealtimeSession {
         this.attempt = value;
     }
 
-    public com.duozhi.outbound.call.domain.enums.RealtimeState getState() {
+    public RealtimeState getState() {
         return state;
     }
 
-    public void setState(com.duozhi.outbound.call.domain.enums.RealtimeState value) {
+    public void setState(RealtimeState value) {
         this.state = value;
     }
 
@@ -120,35 +123,35 @@ public class RealtimeSession {
         this.playbackId = value;
     }
 
-    public java.time.LocalDateTime getStartedAt() {
+    public LocalDateTime getStartedAt() {
         return startedAt;
     }
 
-    public void setStartedAt(java.time.LocalDateTime value) {
+    public void setStartedAt(LocalDateTime value) {
         this.startedAt = value;
     }
 
-    public java.time.LocalDateTime getEndedAt() {
+    public LocalDateTime getEndedAt() {
         return endedAt;
     }
 
-    public void setEndedAt(java.time.LocalDateTime value) {
+    public void setEndedAt(LocalDateTime value) {
         this.endedAt = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

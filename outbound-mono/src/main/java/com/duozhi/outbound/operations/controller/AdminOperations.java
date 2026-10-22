@@ -48,7 +48,8 @@ public class AdminOperations {
     }
 
     @PostMapping("/tasks/{id}/retry")
-    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> retry(@PathVariable
+    UUID id, HttpServletRequest request) {
         Identity i = actor(request);
         return tx.serialized(
                 () -> {
@@ -108,9 +109,12 @@ public class AdminOperations {
 
     @GetMapping("/sms-logs")
     public List<Map<String, Object>> sms(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "100") int size,
-            @RequestParam(required = false) String state,
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "100")
+            int size,
+            @RequestParam(required = false)
+            String state,
             HttpServletRequest request) {
         Identity i = actor(request);
         if (state != null && state.length() > 64) throw new ApiError(422, "invalid state");
@@ -141,7 +145,8 @@ public class AdminOperations {
     }
 
     @PostMapping("/sms-logs/{id}/retry")
-    public Map<String, Object> smsRetry(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> smsRetry(@PathVariable
+    long id, HttpServletRequest request) {
         Identity i = actor(request);
         Map<String, Object> snapshot =
                 tx.serialized(
@@ -204,8 +209,10 @@ public class AdminOperations {
 
     @GetMapping("/audit-logs")
     public List<Map<String, Object>> audits(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "100")
+            int size,
             HttpServletRequest request) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row :

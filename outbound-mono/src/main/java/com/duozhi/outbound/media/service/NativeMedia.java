@@ -6,11 +6,18 @@ import com.duozhi.outbound.recording.storage.S3Store;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
+import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.DoubleAccumulator;
+import java.util.concurrent.atomic.DoubleAdder;
+import java.util.concurrent.atomic.LongAdder;
 import org.springframework.web.socket.*;
 
 /** Java PCM media runtime, preserving the former Pipecat HTTP/WS boundary. */
@@ -39,14 +46,10 @@ public final class NativeMedia implements MediaManager {
     private final int rate, limit;
     private final DirectAudioDispatcher ingress;
     private final boolean voismart;
-    private final java.util.concurrent.atomic.LongAdder
-            inputFrames = new java.util.concurrent.atomic.LongAdder(),
-            firstAudioCount = new java.util.concurrent.atomic.LongAdder();
-    private final java.util.concurrent.atomic.DoubleAdder firstAudioSeconds =
-            new java.util.concurrent.atomic.DoubleAdder();
-    private final java.util.concurrent.atomic.DoubleAccumulator
-            arrivalGap = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0),
-            firstAudioMax = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0);
+    private final LongAdder inputFrames = new LongAdder(), firstAudioCount = new LongAdder();
+    private final DoubleAdder firstAudioSeconds = new DoubleAdder();
+    private final DoubleAccumulator arrivalGap = new DoubleAccumulator(Math::max, 0),
+            firstAudioMax = new DoubleAccumulator(Math::max, 0);
 
     public NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings;
@@ -146,7 +149,7 @@ public final class NativeMedia implements MediaManager {
             return previous;
         }
         byte[] token = new byte[32];
-        new java.security.SecureRandom().nextBytes(token);
+        new SecureRandom().nextBytes(token);
         return register(
                 new Session(
                         Map.of(
@@ -616,7 +619,7 @@ public final class NativeMedia implements MediaManager {
                 // sample rate.
                 PcmResampler resampler = new PcmResampler(24000, rate);
                 ByteBuffer buffer = ByteBuffer.allocateDirect(4800);
-                var channel = java.nio.channels.Channels.newChannel(input);
+                var channel = Channels.newChannel(input);
                 long sent = 0, started = System.nanoTime();
                 for (int n; (n = channel.read(buffer)) != -1; ) {
                     buffer.flip();
@@ -670,10 +673,10 @@ public final class NativeMedia implements MediaManager {
         }
     }
 
-    final class Stream implements AutoCloseable, java.net.http.WebSocket.Listener {
+    final class Stream implements AutoCloseable, WebSocket.Listener {
         final Session session;
         final WebSocketSession socket;
-        volatile java.net.http.WebSocket asr;
+        volatile WebSocket asr;
         volatile Future<?> tts;
         volatile long generation;
         volatile long lastPcmAt;
@@ -686,8 +689,7 @@ public final class NativeMedia implements MediaManager {
                 settings.get("PIPECAT_STT_PROVIDER", "openai-realtime").equals("aliyun-nls");
         final PcmResampler resampler = new PcmResampler(rate, 24000);
         boolean permitAcquired;
-        final java.util.concurrent.atomic.AtomicBoolean closed =
-                new java.util.concurrent.atomic.AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
         long speechSamples, silenceSamples, bufferSamples;
         boolean localSpeech;
 
@@ -872,13 +874,12 @@ public final class NativeMedia implements MediaManager {
         }
 
         @Override
-        public void onOpen(java.net.http.WebSocket socket) {
+        public void onOpen(WebSocket socket) {
             socket.request(1);
         }
 
         @Override
-        public CompletionStage<?> onText(
-                java.net.http.WebSocket socket, CharSequence data, boolean last) {
+        public CompletionStage<?> onText(WebSocket socket, CharSequence data, boolean last) {
             if (message.length() + data.length() > 1048576) {
                 deferFailure("ASR_FRAME_LIMIT");
                 return null;
@@ -927,14 +928,13 @@ public final class NativeMedia implements MediaManager {
         }
 
         @Override
-        public CompletionStage<?> onClose(
-                java.net.http.WebSocket socket, int status, String reason) {
+        public CompletionStage<?> onClose(WebSocket socket, int status, String reason) {
             if (!session.closing) deferFailure("ASR_DISCONNECTED");
             return null;
         }
 
         @Override
-        public void onError(java.net.http.WebSocket socket, Throwable error) {
+        public void onError(WebSocket socket, Throwable error) {
             if (!session.closing) deferFailure("ASR_CONNECTION_ERROR");
         }
 

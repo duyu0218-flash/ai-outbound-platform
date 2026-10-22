@@ -7,12 +7,14 @@ import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.service.LedgerTestDatabase;
 import com.duozhi.outbound.integration.support.Support;
 import java.nio.file.Path;
+import java.sql.DriverManager;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class VoiceMockExecutionTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
 
     Settings settings() {
         return settings(Map.of());
@@ -189,7 +191,7 @@ class VoiceMockExecutionTest {
                         return null;
                     });
             try (var admin =
-                            java.sql.DriverManager.getConnection(
+                            DriverManager.getConnection(
                                     cfg.get("MYSQL_JDBC_URL", ""),
                                     "root",
                                     cfg.secret("MYSQL_PASSWORD"));

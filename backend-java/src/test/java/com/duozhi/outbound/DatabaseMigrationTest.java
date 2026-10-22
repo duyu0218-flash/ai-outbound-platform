@@ -1,10 +1,11 @@
 package com.duozhi.outbound;
 
-import org.junit.jupiter.api.Test;
-import java.sql.*;
-import java.nio.file.*;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.nio.file.*;
+import java.sql.*;
+import java.util.*;
+import org.junit.jupiter.api.Test;
 
 class DatabaseMigrationTest {
     interface Work {void run(Connection connection) throws Exception;}
@@ -24,7 +25,8 @@ class DatabaseMigrationTest {
         for(String sql:DatabaseMigration.resource("contracts/schema-"+dialect+".sql").split(";"))if(!sql.trim().isEmpty())sql(c,sql);
         sql(c,"INSERT INTO tenant(id,name,code,enabled,created_at,updated_at) VALUES(900001,'Historical tenant','historical',TRUE,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
     }
-    @Test void legacyColumnsAndNewTablesAreRepairedWithoutChangingHistoricalRows() throws Exception {
+    @Test
+    void legacyColumnsAndNewTablesAreRepairedWithoutChangingHistoricalRows() throws Exception {
         databases(c->{baseline(c);sql(c,"ALTER TABLE callsession DROP COLUMN voice_ai_pipeline");sql(c,"ALTER TABLE taskoutbox DROP COLUMN lease_token");sql(c,"DROP TABLE callbackinboxworker");
             DatabaseMigration migration=new DatabaseMigration(c);assertFalse(migration.gaps().isEmpty());
             Map<String,Object> plan=migration.plan();assertEquals(false,plan.get("writes"));assertTrue(migration.gaps().contains("column:callsession.voice_ai_pipeline"));
@@ -34,7 +36,8 @@ class DatabaseMigrationTest {
             assertTrue(migration.apply().isEmpty());assertEquals(1,count(c,"SELECT COUNT(*) FROM tenant"));
         });
     }
-    @Test void migrationPreservesCredentialsConsentCallIdentityAndTranscript() throws Exception {
+    @Test
+    void migrationPreservesCredentialsConsentCallIdentityAndTranscript() throws Exception {
         databases(c->{baseline(c);
             boolean pg=c.getMetaData().getDatabaseProductName().equals("PostgreSQL");String id=pg?"11111111-2222-4333-8444-555555555555":"11111111222243338444555555555555";
             sql(c,"INSERT INTO \"user\"(id,tenant_id,username,password_hash,full_name,role,is_supervisor,agent_status,failed_login_attempts,token_version,enabled,created_at,updated_at) VALUES(900001,900001,'legacy-user','pbkdf2_sha256$600000$preserved$bytes','Historical user','admin',FALSE,'offline',2,4,TRUE,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
@@ -48,7 +51,8 @@ class DatabaseMigrationTest {
             assertTrue(new DatabaseMigration(c).apply().isEmpty());
         });
     }
-    @Test void pythonPostgresHistoryIsReusedWithoutRenamingOrReexecuting() throws Exception {
+    @Test
+    void pythonPostgresHistoryIsReusedWithoutRenamingOrReexecuting() throws Exception {
         databases(c->{if(!c.getMetaData().getDatabaseProductName().equals("PostgreSQL"))return;baseline(c);new DatabaseMigration(c).apply();
             long pythonVersions=count(c,"SELECT COUNT(*) FROM schema_migration_history WHERE version NOT LIKE 'java_%'");assertEquals(21,pythonVersions);
             sql(c,"DELETE FROM schema_migration_history WHERE version='java_20261016_additive_compatibility'");
@@ -56,7 +60,8 @@ class DatabaseMigrationTest {
             assertEquals(pythonVersions,count(c,"SELECT COUNT(*) FROM schema_migration_history WHERE version NOT LIKE 'java_%'"));
         });
     }
-    @Test void changedHistoryIsRejectedBeforeAnyWrite() throws Exception {
+    @Test
+    void changedHistoryIsRejectedBeforeAnyWrite() throws Exception {
         databases(c->{baseline(c);DatabaseMigration migration=new DatabaseMigration(c);migration.apply();
             sql(c,"UPDATE schema_migration_history SET checksum_sha256='changed' WHERE version='java_20261016_additive_compatibility'");
             sql(c,"ALTER TABLE taskoutbox DROP COLUMN lease_token");
@@ -65,7 +70,8 @@ class DatabaseMigrationTest {
             assertEquals(1,count(c,"SELECT COUNT(*) FROM tenant"));
         });
     }
-    @Test void duplicateLegacyContactsBlockMigrationBeforeDdl() throws Exception {
+    @Test
+    void duplicateLegacyContactsBlockMigrationBeforeDdl() throws Exception {
         databases(c->{
             sql(c,"CREATE TABLE contact(id INTEGER PRIMARY KEY,tenant_id INTEGER,phone VARCHAR(32))");
             sql(c,"INSERT INTO contact VALUES(1,1,'13900000001'),(2,1,'13900000001')");
@@ -76,7 +82,8 @@ class DatabaseMigrationTest {
             assertThrows(SQLException.class,()->count(c,"SELECT COUNT(*) FROM schema_migration_history"));
         });
     }
-    @Test void failedVersionRollsBackItsDdlAndHistory() throws Exception {
+    @Test
+    void failedVersionRollsBackItsDdlAndHistory() throws Exception {
         databases(c->{baseline(c);sql(c,"ALTER TABLE taskoutbox DROP COLUMN lease_token");
             // The final parity pass must fail on an incompatible base column.
             sql(c,"ALTER TABLE campaign RENAME COLUMN status TO legacy_status");
@@ -87,7 +94,8 @@ class DatabaseMigrationTest {
             assertEquals(1,count(c,"SELECT COUNT(*) FROM tenant"));
         });
     }
-    @Test void alreadyMigratedSqliteSnapshotCanBeBackedUpAndRestored() throws Exception {
+    @Test
+    void alreadyMigratedSqliteSnapshotCanBeBackedUpAndRestored() throws Exception {
         Path path=Files.createTempFile("java-migration-",".db"),backup=Files.createTempFile("java-backup-",".db");
         try {
             try(Connection c=DriverManager.getConnection("jdbc:sqlite:"+path)){baseline(c);sql(c,"ALTER TABLE callsession DROP COLUMN voice_ai_pipeline");}

@@ -353,6 +353,12 @@
                             <version>1.28.0</version>
                             <style>AOSP</style>
                         </googleJavaFormat>
+                        <nativeCmd>
+                            <name>separate-java-annotations</name>
+                            <pathToExe>
+                                ${project.basedir}/tools/format-java-annotations.sh
+                            </pathToExe>
+                        </nativeCmd>
                     </java>
                 </configuration>
                 <executions>

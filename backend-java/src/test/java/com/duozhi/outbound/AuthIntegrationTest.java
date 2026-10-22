@@ -1,56 +1,69 @@
 package com.duozhi.outbound;
 
-import tools.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
-import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
+
 @SpringBootTest(properties={"spring.datasource.url=${JAVA_TEST_DATABASE_URL:jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared}","spring.datasource.hikari.maximum-pool-size=1","JAVA_INITIALIZE_SCHEMA=true","JWT_SECRET=java-integration-test-secret-at-least-32-characters","DEMO_USERS_ENABLED=true"})
 @AutoConfigureMockMvc
 class AuthIntegrationTest {
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper mapper;
-    @Autowired Store store;
-    @Autowired Crypto crypto;
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    ObjectMapper mapper;
+    @Autowired
+    Store store;
+    @Autowired
+    Crypto crypto;
 
     private String login(String name,String password) throws Exception {
-        org.springframework.test.web.servlet.MvcResult result=mvc.perform(post("/api/v1/auth/login").contentType("application/json").content(mapper.writeValueAsString(Values.map("username",name,"password",password))))
+        MvcResult result=mvc.perform(post("/api/v1/auth/login").contentType("application/json").content(mapper.writeValueAsString(Values.map("username",name,"password",password))))
             .andExpect(status().isOk()).andReturn();
         return mapper.readTree(result.getResponse().getContentAsString()).get("access_token").asText();
     }
-    @Test void loginTenantScopeLogoutAndRevocation() throws Exception {
+    @Test
+    void loginTenantScopeLogoutAndRevocation() throws Exception {
         String token=login("admin","12345678");
-        long remaining=((Number)crypto.claims(token).get("exp")).longValue()-java.time.Instant.now().getEpochSecond();
+        long remaining=((Number)crypto.claims(token).get("exp")).longValue()-Instant.now().getEpochSecond();
         assertTrue(remaining>=43195&&remaining<=43200,"baseline JWT lifetime is twelve hours");
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin")).andExpect(jsonPath("$.password_hash").doesNotExist());
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token).header("x-tenant-id","2")).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/auth/logout").header("Authorization","Bearer "+token)).andExpect(status().isOk());
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
     }
-    @Test void deniedLoginCommitsLockoutCounters() throws Exception {
+    @Test
+    void deniedLoginCommitsLockoutCounters() throws Exception {
         store.insert("user",Values.map("tenant_id",1,"username","lockout","password_hash",crypto.password("test-pass"),"full_name","Lockout","role","agent"));
         for(int i=0;i<5;i++) mvc.perform(post("/api/v1/auth/login").contentType("application/json").content("{\"username\":\"lockout\",\"password\":\"wrong\"}")).andExpect(status().isUnauthorized());
-        java.util.Map<java.lang.String,java.lang.Object> user=store.one("user","WHERE username=?","lockout");
+        Map<String,Object> user=store.one("user","WHERE username=?","lockout");
         assertEquals(5,((Number)user.get("failed_login_attempts")).intValue());
         assertNotNull(user.get("locked_until"));
-        long lockSeconds=java.time.Duration.between(Store.now(),java.time.LocalDateTime.parse(user.get("locked_until").toString())).getSeconds();
+        long lockSeconds=Duration.between(Store.now(),LocalDateTime.parse(user.get("locked_until").toString())).getSeconds();
         assertTrue(lockSeconds>=895&&lockSeconds<=900,"baseline lockout is fifteen minutes");
         mvc.perform(post("/api/v1/auth/login").contentType("application/json").content("{\"username\":\"lockout\",\"password\":\"test-pass\"}")).andExpect(status().isUnauthorized());
     }
-    @Test void roleAndPresenceAndInvalidToken() throws Exception {
+    @Test
+    void roleAndPresenceAndInvalidToken() throws Exception {
         String token=login("1001@test","12345678");
         mvc.perform(get("/api/v1/admin/users").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/auth/presence").header("Authorization","Bearer "+token).contentType("application/json").content("{\"status\":\"busy\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.agent_status").value("busy"));
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token+"broken")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/auth/me")).andExpect(status().isUnauthorized());
     }
-    @Test void persistedPythonPbkdf2VectorIsAccepted() {
+    @Test
+    void persistedPythonPbkdf2VectorIsAccepted() {
         // Reference generated by Python hashlib.pbkdf2_hmac, not this implementation.
         assertTrue(crypto.verifyPassword("pbkdf2_sha256$600000$MDEyMzQ1Njc4OWFiY2RlZg==$-VJmecOKAy--E2D2TDgPbMXHjbGJPMwb8BOBPhWDDY4=", "跨语言密码-123"));
     }

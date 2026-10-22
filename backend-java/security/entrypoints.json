@@ -1,423 +1,423 @@
 {
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:31:32:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:35:36:3": {
     "source": "com/duozhi/outbound/AdminLines.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:disable:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:40:40:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:disable:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:49:49:3": {
     "source": "com/duozhi/outbound/AdminLines.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:list:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:15:15:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:list:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:17:17:3": {
     "source": "com/duozhi/outbound/AdminLines.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:36:37:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:43:44:3": {
     "source": "com/duozhi/outbound/AdminLines.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:audits:(IILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:19:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:audits:(IILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:30:30:3": {
     "source": "com/duozhi/outbound/AdminOperations.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:retry:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:13:13:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:retry:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:15:15:3": {
     "source": "com/duozhi/outbound/AdminOperations.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:sms:(IILjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:14:14:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:sms:(IILjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:20:20:3": {
     "source": "com/duozhi/outbound/AdminOperations.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:smsRetry:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:15:17:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminOperations.java:com.duozhi.outbound.AdminOperations:smsRetry:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:23:25:3": {
     "source": "com/duozhi/outbound/AdminOperations.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:get:(Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:16:17:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:get:(Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:20:21:3": {
     "source": "com/duozhi/outbound/AdminSettings.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:update:(Ljava/lang/String;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:34:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:update:(Ljava/lang/String;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:28:41:3": {
     "source": "com/duozhi/outbound/AdminSettings.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:24:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:30:33:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:disable:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:56:56:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:disable:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:75:75:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:list:(Ljakarta/servlet/http/HttpServletRequest;IILjava/lang/String;)Ljava/util/List;:15:17:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:list:(Ljakarta/servlet/http/HttpServletRequest;IILjava/lang/String;)Ljava/util/List;:22:24:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:reset:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:45:47:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:reset:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:60:62:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:unlock:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:52:52:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:unlock:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:69:69:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:39:41:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AdminUsers.java:com.duozhi.outbound.AdminUsers:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:51:53:3": {
     "source": "com/duozhi/outbound/AdminUsers.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:directory:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;:46:46:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:directory:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;:62:62:3": {
     "source": "com/duozhi/outbound/AgentMedia.java",
     "count": 1,
     "access": "independent configured FreeSWITCH directory token; XML output escaped",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:session:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:24:31:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:session:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:32:39:3": {
     "source": "com/duozhi/outbound/AgentMedia.java",
     "count": 1,
     "access": "JWT agent required; tenant and assigned-call ownership checked",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:status:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:33:33:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:status:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:42:42:3": {
     "source": "com/duozhi/outbound/AgentMedia.java",
     "count": 1,
     "access": "JWT agent required; tenant and assigned-call ownership checked",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:stream:(Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:38:43:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:stream:(Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:50:55:3": {
     "source": "com/duozhi/outbound/AgentMedia.java",
     "count": 1,
     "access": "JWT agent required; tenant and assigned-call ownership checked",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:update:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:34:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AgentMedia.java:com.duozhi.outbound.AgentMedia:update:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:45:47:3": {
     "source": "com/duozhi/outbound/AgentMedia.java",
     "count": 1,
     "access": "JWT agent required; tenant and assigned-call ownership checked",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AiRuntime.java:com.duozhi.outbound.AiRuntime:interruptApi:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:248:248:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AiRuntime.java:com.duozhi.outbound.AiRuntime:interruptApi:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:258:258:3": {
     "source": "com/duozhi/outbound/AiRuntime.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:login:(Lcom/duozhi/outbound/AuthController$Login;)Ljava/util/Map;:26:28:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:login:(Lcom/duozhi/outbound/AuthController$Login;)Ljava/util/Map;:34:36:3": {
     "source": "com/duozhi/outbound/AuthController.java",
     "count": 1,
     "access": "password login with failure lockout and request admission",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:logout:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:33:33:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:logout:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:41:41:3": {
     "source": "com/duozhi/outbound/AuthController.java",
     "count": 1,
     "access": "JWT user required; presence requires agent role",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:me:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:31:31:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:me:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:39:39:3": {
     "source": "com/duozhi/outbound/AuthController.java",
     "count": 1,
     "access": "JWT user required; presence requires agent role",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:presence:(Lcom/duozhi/outbound/AuthController$Presence;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:36:39:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/AuthController.java:com.duozhi.outbound.AuthController:presence:(Lcom/duozhi/outbound/AuthController$Presence;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:46:49:3": {
     "source": "com/duozhi/outbound/AuthController.java",
     "count": 1,
     "access": "JWT user required; presence requires agent role",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallAnalysis.java:com.duozhi.outbound.CallAnalysis:get:(Ljava/util/UUID;ZLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:95:95:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallAnalysis.java:com.duozhi.outbound.CallAnalysis:get:(Ljava/util/UUID;ZLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:97:97:3": {
     "source": "com/duozhi/outbound/CallAnalysis.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallAnalysis.java:com.duozhi.outbound.CallAnalysis:review:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:103:106:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallAnalysis.java:com.duozhi.outbound.CallAnalysis:review:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:107:110:3": {
     "source": "com/duozhi/outbound/CallAnalysis.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:metrics:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:36:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:metrics:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:40:40:3": {
     "source": "com/duozhi/outbound/CallEvidence.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:realtime:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/lang/Object;:46:48:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:realtime:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/lang/Object;:52:54:3": {
     "source": "com/duozhi/outbound/CallEvidence.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:recordings:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:41:41:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:recordings:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:46:46:3": {
     "source": "com/duozhi/outbound/CallEvidence.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:speech:(Ljava/util/UUID;ZLjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:31:31:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/CallEvidence.java:com.duozhi.outbound.CallEvidence:speech:(Ljava/util/UUID;ZLjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:34:34:3": {
     "source": "com/duozhi/outbound/CallEvidence.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:19:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:20:20:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:events:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:70:71:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:events:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:82:83:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:get:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:64:64:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:get:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:73:73:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:hangup:(Ljava/util/UUID;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:29:29:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:hangup:(Ljava/util/UUID;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:33:33:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:list:(Ljakarta/servlet/http/HttpServletRequest;Ljava/lang/String;Ljava/lang/Long;II)Ljava/util/List;:48:58:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:list:(Ljakarta/servlet/http/HttpServletRequest;Ljava/lang/String;Ljava/lang/Long;II)Ljava/util/List;:56:66:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:retry:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:24:24:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:retry:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:26:26:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:webhookEvents:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:78:79:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:webhookEvents:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:93:94:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:webhookStats:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:85:90:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Calls.java:com.duozhi.outbound.Calls:webhookStats:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:101:106:3": {
     "source": "com/duozhi/outbound/Calls.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:109:115:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:111:117:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:156:159:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:164:167:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:126:128:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:131:133:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:list:(Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:120:120:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:list:(Ljakarta/servlet/http/HttpServletRequest;II)Ljava/util/List;:124:124:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:pause:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:267:270:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:pause:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:282:285:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:resume:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:276:286:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:resume:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:292:302:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:start:(JLjakarta/servlet/http/HttpServletRequest;ZZLjava/lang/Integer;)Ljava/util/Map;:166:198:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:start:(JLjakarta/servlet/http/HttpServletRequest;ZZLjava/lang/Integer;)Ljava/util/Map;:178:212:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:stop:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:292:301:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:stop:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:309:318:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:134:150:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Campaigns.java:com.duozhi.outbound.Campaigns:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:141:157:3": {
     "source": "com/duozhi/outbound/Campaigns.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ContactFiles.java:com.duozhi.outbound.ContactFiles:export:(Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:52:57:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ContactFiles.java:com.duozhi.outbound.ContactFiles:export:(Ljava/lang/Boolean;Ljava/lang/String;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:60:65:3": {
     "source": "com/duozhi/outbound/ContactFiles.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ContactFiles.java:com.duozhi.outbound.ContactFiles:importCsv:(Lorg/springframework/web/multipart/MultipartFile;ZLjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:26:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ContactFiles.java:com.duozhi.outbound.ContactFiles:importCsv:(Lorg/springframework/web/multipart/MultipartFile;ZLjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:25:30:3": {
     "source": "com/duozhi/outbound/ContactFiles.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:batch:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:74:85:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:batch:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:91:102:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:34:40:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:40:46:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:66:69:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:82:85:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:55:55:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:68:68:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:list:(Ljakarta/servlet/http/HttpServletRequest;IILjava/lang/String;Ljava/util/List;Ljava/lang/Boolean;Ljava/lang/String;)Ljava/util/List;:45:52:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:list:(Ljakarta/servlet/http/HttpServletRequest;IILjava/lang/String;Ljava/util/List;Ljava/lang/Boolean;Ljava/lang/String;)Ljava/util/List;:57:64:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:59:61:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Contacts.java:com.duozhi.outbound.Contacts:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:74:76:3": {
     "source": "com/duozhi/outbound/Contacts.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:19:29:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:25:35:3": {
     "source": "com/duozhi/outbound/Dashboard.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:agent:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:16:16:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:agent:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:21:3": {
     "source": "com/duozhi/outbound/Dashboard.java",
     "count": 1,
     "access": "authenticated JWT user",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:accept:(Ljava/util/UUID;JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:66:66:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:accept:(Ljava/util/UUID;JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:70:70:3": {
     "source": "com/duozhi/outbound/Handoffs.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:callHandoffs:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:68:68:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:callHandoffs:(Ljava/util/UUID;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:77:77:3": {
     "source": "com/duozhi/outbound/Handoffs.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:handover:(Ljava/util/UUID;Ljava/lang/String;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:84:86:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:handover:(Ljava/util/UUID;Ljava/lang/String;Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:99:101:3": {
     "source": "com/duozhi/outbound/Handoffs.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:queue:(Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:70:81:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:queue:(Ljava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:81:92:3": {
     "source": "com/duozhi/outbound/Handoffs.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:reject:(Ljava/util/UUID;JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:67:67:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Handoffs.java:com.duozhi.outbound.Handoffs:reject:(Ljava/util/UUID;JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:74:74:3": {
     "source": "com/duozhi/outbound/Handoffs.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:16:17:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:22:3": {
     "source": "com/duozhi/outbound/Knowledge.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:26:26:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:36:36:3": {
     "source": "com/duozhi/outbound/Knowledge.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:list:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:13:13:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:list:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:16:16:3": {
     "source": "com/duozhi/outbound/Knowledge.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:21:23:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Knowledge.java:com.duozhi.outbound.Knowledge:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:29:31:3": {
     "source": "com/duozhi/outbound/Knowledge.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:21:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:26:41:3": {
     "source": "com/duozhi/outbound/OperationalMetrics.java",
     "count": 1,
     "access": "independent metrics bearer token with constant-time check",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:runtime:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:18:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:runtime:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:21:22:3": {
     "source": "com/duozhi/outbound/OperationalMetrics.java",
     "count": 1,
     "access": "independent metrics bearer token with constant-time check",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
   "SPRING_ENDPOINT:com/duozhi/outbound/Pages.java:com.duozhi.outbound.Pages:index:()Lorg/springframework/http/ResponseEntity;:16:18:3": {
     "source": "com/duozhi/outbound/Pages.java",
@@ -425,167 +425,167 @@
     "access": "public static SPA shell; data APIs authenticate separately",
     "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:appointment:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:46:46:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:appointment:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:60:60:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:appointments:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:44:44:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:appointments:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:55:55:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:funnel:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:61:61:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:funnel:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:90:90:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:importKnowledge:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:59:59:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:importKnowledge:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:84:84:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:incoming:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:53:53:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:incoming:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:74:74:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:knowledge:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:60:60:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:knowledge:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:87:87:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:outcomes:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:58:58:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:outcomes:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:81:81:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:policy:(Ljava/lang/Long;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:25:25:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:policy:(Ljava/lang/Long;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:29:29:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:savePolicy:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:27:27:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:savePolicy:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:34:34:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:simulate:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:36:42:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:simulate:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:45:51:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:work:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:51:51:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:work:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:67:67:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:work:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:52:52:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:work:(Ljava/util/UUID;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:71:71:3": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped resources",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:billing:(Ljava/lang/String;IDDDLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:122:143:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:billing:(Ljava/lang/String;IDDDLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:131:152:3": {
     "source": "com/duozhi/outbound/Reports.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:export:(ILjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:166:194:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:export:(ILjava/lang/String;Ljakarta/servlet/http/HttpServletRequest;)Lorg/springframework/http/ResponseEntity;:181:209:3": {
     "source": "com/duozhi/outbound/Reports.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:groups:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:83:93:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:groups:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:87:97:3": {
     "source": "com/duozhi/outbound/Reports.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:report:(Ljava/lang/String;Ljava/lang/String;ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:64:77:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:report:(Ljava/lang/String;Ljava/lang/String;ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:67:80:3": {
     "source": "com/duozhi/outbound/Reports.java",
     "count": 1,
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:reviews:(Ljava/lang/String;Ljava/lang/Integer;IILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:148:161:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Reports.java:com.duozhi.outbound.Reports:reviews:(Ljava/lang/String;Ljava/lang/Integer;IILjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:161:174:3": {
     "source": "com/duozhi/outbound/Reports.java",
     "count": 1,
     "access": "JWT admin required by handler; tenant-scoped quality data",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:alive:()Ljava/util/Map;:14:14:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:alive:()Ljava/util/Map;:17:17:3": {
     "source": "com/duozhi/outbound/RuntimeController.java",
     "count": 1,
     "access": "public non-sensitive runtime/liveness/readiness probes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:health:()Lorg/springframework/http/ResponseEntity;:16:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:health:()Lorg/springframework/http/ResponseEntity;:20:23:3": {
     "source": "com/duozhi/outbound/RuntimeController.java",
     "count": 1,
     "access": "public non-sensitive runtime/liveness/readiness probes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:ready:()Lorg/springframework/http/ResponseEntity;:22:29:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:ready:()Lorg/springframework/http/ResponseEntity;:27:34:3": {
     "source": "com/duozhi/outbound/RuntimeController.java",
     "count": 1,
     "access": "public non-sensitive runtime/liveness/readiness probes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:runtime:()Ljava/util/Map;:32:32:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/RuntimeController.java:com.duozhi.outbound.RuntimeController:runtime:()Ljava/util/Map;:38:38:3": {
     "source": "com/duozhi/outbound/RuntimeController.java",
     "count": 1,
     "access": "public non-sensitive runtime/liveness/readiness probes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:create:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:83:83:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:create:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:93:93:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:get:(JJLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:82:82:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:get:(JJLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:89:89:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:probe:(JJLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:94:94:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:probe:(JJLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:117:117:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:publish:(JJLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:93:93:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:publish:(JJLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:111:111:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:update:(JJLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:89:89:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:update:(JJLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:104:104:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:versions:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:81:81:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/ScriptFlows.java:com.duozhi.outbound.ScriptFlows:versions:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/List;:85:85:3": {
     "source": "com/duozhi/outbound/ScriptFlows.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
   "SPRING_ENDPOINT:com/duozhi/outbound/SystemOverview.java:com.duozhi.outbound.SystemOverview:overview:(Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:27:51:3": {
     "source": "com/duozhi/outbound/SystemOverview.java",
@@ -593,82 +593,82 @@
     "access": "JWT admin required by /api/v1/admin filter; tenant checks in handler",
     "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:26:27:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:create:(Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:35:36:3": {
     "source": "com/duozhi/outbound/Templates.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:40:40:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:delete:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:52:52:3": {
     "source": "com/duozhi/outbound/Templates.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:22:22:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:get:(JLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:30:30:3": {
     "source": "com/duozhi/outbound/Templates.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:list:(Ljakarta/servlet/http/HttpServletRequest;IIZLjava/lang/String;)Ljava/util/List;:16:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:list:(Ljakarta/servlet/http/HttpServletRequest;IIZLjava/lang/String;)Ljava/util/List;:23:26:3": {
     "source": "com/duozhi/outbound/Templates.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:32:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Templates.java:com.duozhi.outbound.Templates:update:(JLjava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:43:47:3": {
     "source": "com/duozhi/outbound/Templates.java",
     "count": 1,
     "access": "authenticated tenant identity; handler role/ownership checks and production machine-key scopes",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:batch:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:70:77:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:batch:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:78:85:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:dtmf:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:66:66:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:dtmf:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:73:73:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:media:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:60:60:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:media:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:64:64:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:recording:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:62:62:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:recording:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:67:67:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:sms:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:64:64:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:sms:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:70:70:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:speech:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:56:56:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:speech:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:58:58:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:status:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:41:46:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:status:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:42:47:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:transcript:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:58:58:3": {
+  "SPRING_ENDPOINT:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:transcript:([BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:61:61:3": {
     "source": "com/duozhi/outbound/Webhooks.java",
     "count": 1,
     "access": "production callback token plus body HMAC and timestamp; development mode configurable",
-    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route."
+    "evidence": "Authentication/HttpBoundary and handler source reviewed; 108 baseline route-boundary cases, targeted security integration and scoped browser tests. Not an exhaustive action/state test for every route. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   }
 }

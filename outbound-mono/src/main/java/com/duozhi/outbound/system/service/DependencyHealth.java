@@ -1,5 +1,6 @@
 package com.duozhi.outbound.system.service;
 
+import com.duozhi.outbound.ai.service.EmbeddedAgent;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.service.ExpiringValues;
@@ -19,7 +20,7 @@ public class DependencyHealth {
     private final ExpiringValues redis;
     private final TelephonyClient client;
     private final GatewayCluster gateways;
-    private final com.duozhi.outbound.ai.service.EmbeddedAgent agent;
+    private final EmbeddedAgent agent;
     private final EmbeddedServiceTransport embedded;
 
     public DependencyHealth(
@@ -28,7 +29,7 @@ public class DependencyHealth {
             ExpiringValues redis,
             TelephonyClient client,
             GatewayCluster gateways,
-            com.duozhi.outbound.ai.service.EmbeddedAgent agent,
+            EmbeddedAgent agent,
             EmbeddedServiceTransport embedded) {
         this.store = store;
         this.config = config;

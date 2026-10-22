@@ -4,9 +4,13 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.Ascii;
 import com.duozhi.outbound.common.support.Values;
+import com.duozhi.outbound.integration.web.ServiceBoundary;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 import org.springframework.core.Ordered;
@@ -18,8 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class HttpBoundary extends OncePerRequestFilter {
-    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final ObjectMapper JSON = new ObjectMapper();
     private final Config config;
     private final Semaphore requests;
     private final Map<String, String> origins = new LinkedHashMap<>();
@@ -73,7 +76,7 @@ public class HttpBoundary extends OncePerRequestFilter {
 
     private boolean validOrigin(String origin) {
         try {
-            java.net.URI uri = new java.net.URI(origin);
+            URI uri = new URI(origin);
             return Values.set("http", "https").contains(uri.getScheme())
                     && uri.getHost() != null
                     && uri.getRawUserInfo() == null
@@ -81,14 +84,14 @@ public class HttpBoundary extends OncePerRequestFilter {
                     && uri.getRawFragment() == null
                     && (uri.getRawPath() == null || uri.getRawPath().isEmpty())
                     && (uri.getPort() == -1 || uri.getPort() >= 1 && uri.getPort() <= 65535);
-        } catch (java.net.URISyntaxException e) {
+        } catch (URISyntaxException e) {
             return false;
         }
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return com.duozhi.outbound.integration.web.ServiceBoundary.applies(request);
+        return ServiceBoundary.applies(request);
     }
 
     @Override

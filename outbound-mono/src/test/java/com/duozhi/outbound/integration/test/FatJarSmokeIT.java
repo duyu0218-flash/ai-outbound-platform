@@ -2,13 +2,16 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.net.*;
+import java.net.ServerSocket;
 import java.net.http.*;
 import java.nio.file.*;
 import java.sql.DriverManager;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.*;
@@ -16,7 +19,8 @@ import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
 class FatJarSmokeIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Test
     void packagedSingleProcessServesHealthAndBuiltVueWithoutOtherApplicationProcesses()
@@ -38,7 +42,7 @@ class FatJarSmokeIT {
                                                             .replace('\\', '/')));
         }
         Set<String> packagedAssets = new TreeSet<>();
-        try (var jar = new java.util.jar.JarFile("target/outbound-mono.jar")) {
+        try (var jar = new JarFile("target/outbound-mono.jar")) {
             jar.stream()
                     .filter(
                             entry ->
@@ -56,7 +60,7 @@ class FatJarSmokeIT {
                                 + " assets")
                 .isEqualTo(builtAssets);
         int port;
-        try (var socket = new java.net.ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"))) {
+        try (var socket = new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"))) {
             port = socket.getLocalPort();
         }
         ProcessBuilder command =
@@ -106,7 +110,7 @@ class FatJarSmokeIT {
                         ready = true;
                         break;
                     }
-                } catch (java.io.IOException starting) {
+                } catch (IOException starting) {
                     /* Wait for the listening socket. */
                 }
                 Thread.sleep(100);

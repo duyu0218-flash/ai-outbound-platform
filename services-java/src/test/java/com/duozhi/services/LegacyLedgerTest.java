@@ -1,15 +1,17 @@
 package com.duozhi.services;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Path;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.sql.*;
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 class LegacyLedgerTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
     private String path() { return directory.resolve("old-python.sqlite").toString(); }
     private void seed(boolean valid) throws Exception {
         // Historical Python schemas before stream_key and command call/attempt were introduced.
@@ -21,7 +23,8 @@ class LegacyLedgerTest {
             LocalLedger.execute(db, "INSERT INTO outbox VALUES (?,?,?,?,?,?)", "event-2", "http://retained/status", "{\"call_id\":\"中文-call\",\"sequence\":2}".getBytes(StandardCharsets.UTF_8), 11, 20, 0);
         }
     }
-    @Test void upgradesHistoricalPythonQueueAndCommandsWithoutDroppingUnknownOutcomes() throws Exception {
+    @Test
+    void upgradesHistoricalPythonQueueAndCommandsWithoutDroppingUnknownOutcomes() throws Exception {
         seed(true);
         for (int restart = 0; restart < 2; restart++) try (var ledger = new LocalLedger(path())) {
             var rows = ledger.read(db -> LocalLedger.query(db, "SELECT * FROM outbox ORDER BY created"));
@@ -33,7 +36,8 @@ class LegacyLedgerTest {
             assertEquals("", command.get("call_id")); assertEquals(0, ((Number)command.get("attempt")).intValue());
         }
     }
-    @Test void malformedLegacyQueueAbortsUpgradeAtomicallyAndRetainsOriginalBytes() throws Exception {
+    @Test
+    void malformedLegacyQueueAbortsUpgradeAtomicallyAndRetainsOriginalBytes() throws Exception {
         seed(false); assertThrows(Exception.class, () -> new LocalLedger(path()));
         try (var db = DriverManager.getConnection("jdbc:sqlite:" + path())) {
             assertTrue(LocalLedger.query(db, "PRAGMA table_info(outbox)").stream().noneMatch(c -> "stream_key".equals(c.get("name"))));
@@ -41,7 +45,8 @@ class LegacyLedgerTest {
             assertEquals(2L, LocalLedger.scalar(db, "SELECT COUNT(*) FROM outbox"));
         }
     }
-    @Test void actualPythonCreatedLedgerKeepsChineseDigestsUnknownPermitsAndQueuedBytes() throws Exception {
+    @Test
+    void actualPythonCreatedLedgerKeepsChineseDigestsUnknownPermitsAndQueuedBytes() throws Exception {
         var expected = Support.object(getClass().getResourceAsStream("/legacy-python-ledger.json").readAllBytes());
         String fixture = new String(getClass().getResourceAsStream("/legacy-python-ledger.sql").readAllBytes(), StandardCharsets.UTF_8);
         // This checked-in synthetic sqlite iterdump contains no semicolons inside string values.

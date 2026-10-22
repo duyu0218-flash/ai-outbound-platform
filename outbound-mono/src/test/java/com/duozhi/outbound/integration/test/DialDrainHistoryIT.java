@@ -9,6 +9,7 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.dial.service.DialDailyCounters;
 import com.duozhi.outbound.dial.service.DialDrainControl;
 import com.duozhi.outbound.job.worker.TaskWorker;
+import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,8 @@ import org.testcontainers.mysql.MySQLContainer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DialDrainHistoryIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -46,11 +48,16 @@ class DialDrainHistoryIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired Store store;
-    @Autowired DialDrainControl drain;
-    @Autowired CallbackInbox inbox;
-    @Autowired TaskWorker worker;
-    @Autowired DialDailyCounters counters;
+    @Autowired
+    Store store;
+    @Autowired
+    DialDrainControl drain;
+    @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    DialDailyCounters counters;
 
     @Test
     void processedCallbackHistoryAllowsFreezeAndBackfillWhilePendingCallbacksBlockIt() {
@@ -107,6 +114,6 @@ class DialDrainHistoryIT {
                 .containsEntry("phase", "FROZEN")
                 .containsEntry("pending_inbox", 0L)
                 .containsEntry("external_pbx_verified", false);
-        assertThat(counters.build(java.time.Instant.now())).containsEntry("state", "VERIFIED");
+        assertThat(counters.build(Instant.now())).containsEntry("state", "VERIFIED");
     }
 }

@@ -1,19 +1,22 @@
 package com.duozhi.services;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Real TCP ESL handshake/commands with a synthetic PBX; no telephone line or cloud account. */
 class GatewayLifecycleTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
     private Settings settings(Pbx pbx, Map<String,String> extra) {
         var values = new HashMap<String,String>();
         values.put("VOICE_GATEWAY_DRIVER", "freeswitch_esl");
@@ -36,7 +39,8 @@ class GatewayLifecycleTest {
     private static Map<String,Object> dial(String call) {
         return Map.of("call_id", call, "phone", "+8613900139000", "webhook_url", "http://127.0.0.1:18000/api/v1/webhooks/telephony/status", "metadata", Map.of("tenant_id", 1, "attempt", 1, "recording_notice", true));
     }
-    @Test void pendingNoticesDoNotOccupyStartupWorkersAndHangupFencesLateCompletion() throws Exception {
+    @Test
+    void pendingNoticesDoNotOccupyStartupWorkersAndHangupFencesLateCompletion() throws Exception {
         try (var pbx = new Pbx(); var gateway = new VoiceGateway(settings(pbx, Map.of("JAVA_VOICE_LIFECYCLE_THREADS", "4")))) {
             List<String> ids = new ArrayList<>();
             for (int i = 0; i < 12; i++) {
@@ -52,7 +56,8 @@ class GatewayLifecycleTest {
             assertEquals(12, pbx.count("bgapi originate "));
         }
     }
-    @Test void hangupWhileNoticeSynthesisIsPendingCannotStartMediaLater() throws Exception {
+    @Test
+    void hangupWhileNoticeSynthesisIsPendingCannotStartMediaLater() throws Exception {
         var entered = new CountDownLatch(1); var release = new CountDownLatch(1);
         var http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         http.createContext("/tts", request -> {
@@ -71,7 +76,8 @@ class GatewayLifecycleTest {
             assertEquals(0, pbx.count("api uuid_broadcast ")); assertEquals(0, pbx.count("api uuid_record "));
         } finally { release.countDown(); http.stop(0); }
     }
-    @Test void explicitNativeFallbackRequiresPbxCleanupBeforeLegacyStarts() throws Exception {
+    @Test
+    void explicitNativeFallbackRequiresPbxCleanupBeforeLegacyStarts() throws Exception {
         try (var pbx = new Pbx()) {
             pbx.rejectMediaStart = true;
             var config = settings(pbx, Map.of("VOICE_AI_PIPELINE", "pipecat", "PIPECAT_MEDIA_PROTOCOL", "voismart", "PIPECAT_OPENAI_API_KEY", "unused-synthetic-key",
@@ -88,7 +94,8 @@ class GatewayLifecycleTest {
             }
         }
     }
-    @Test void slowPbxHangupDoesNotSerializeTheGlobalTimeoutScheduler() throws Exception {
+    @Test
+    void slowPbxHangupDoesNotSerializeTheGlobalTimeoutScheduler() throws Exception {
         try (var pbx = new Pbx()) {
             pbx.delayKillMillis = 800;
             try (var gateway = new VoiceGateway(settings(pbx, Map.of("FREESWITCH_PLAYBACK_TIMEOUT_SEC", "1")))) {
@@ -101,7 +108,7 @@ class GatewayLifecycleTest {
             }
         }
     }
-    private static void await(java.util.function.BooleanSupplier condition) throws Exception {
+    private static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) { if (System.nanoTime() > deadline) fail("no expected ESL command evidence"); Thread.sleep(10); }
     }
@@ -125,6 +132,7 @@ class GatewayLifecycleTest {
                 output.flush();
             } catch (IOException ignored) { }
         }
-        @Override public void close() throws IOException { running = false; server.close(); io.shutdownNow(); }
+        @Override
+        public void close() throws IOException { running = false; server.close(); io.shutdownNow(); }
     }
 }

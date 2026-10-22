@@ -16,6 +16,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.annotation.DirtiesContext;
@@ -24,11 +26,12 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class FrontendBrowserIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry p) {
@@ -50,14 +53,22 @@ class FrontendBrowserIT {
         p.add("RATE_LIMIT_RPS", () -> 1000);
     }
 
-    @LocalServerPort int port;
-    @Autowired Store store;
-    @Autowired SysUserMapper users;
-    @Autowired TenantMapper tenants;
-    @Autowired Crypto crypto;
-    @Autowired CallLifecycle lifecycle;
-    @Autowired TaskWorker worker;
-    @Autowired org.springframework.boot.resttestclient.TestRestTemplate http;
+    @LocalServerPort
+    int port;
+    @Autowired
+    Store store;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    CallLifecycle lifecycle;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    TestRestTemplate http;
 
     @Test
     void allVueEntrancesFormsSessionBoundariesAndMockEvidenceViewsWorkInChromium()

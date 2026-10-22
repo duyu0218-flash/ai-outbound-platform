@@ -1,10 +1,15 @@
 package com.duozhi.outbound.operations.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallAnalysis {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private String resultCode = "unknown";
     private String sentiment = "neutral";
     private String intent = "unknown";
@@ -16,13 +21,11 @@ public class CallAnalysis {
     private Boolean needsReview = false;
     private String reviewState = "auto";
     private Integer reviewedBy;
-    private java.time.LocalDateTime reviewedAt;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime reviewedAt;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -40,11 +43,11 @@ public class CallAnalysis {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -136,27 +139,27 @@ public class CallAnalysis {
         this.reviewedBy = value;
     }
 
-    public java.time.LocalDateTime getReviewedAt() {
+    public LocalDateTime getReviewedAt() {
         return reviewedAt;
     }
 
-    public void setReviewedAt(java.time.LocalDateTime value) {
+    public void setReviewedAt(LocalDateTime value) {
         this.reviewedAt = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

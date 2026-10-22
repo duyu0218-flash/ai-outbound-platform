@@ -1,15 +1,16 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
+import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
+import java.time.*;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import jakarta.annotation.PreDestroy;
-import org.springframework.stereotype.Service;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.context.event.EventListener;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 /** Bounded cleanup of expired text and confirmed recording deletion requests. */
 @Service
@@ -18,8 +19,10 @@ public class DataRetention {
     private final ExecutorService executor=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"retention");t.setDaemon(true);return t;});
     private final AtomicBoolean running=new AtomicBoolean();private volatile boolean ready;
     public DataRetention(Store store,Transactions tx,Config config,Settings settings,Outbox outbox){this.store=store;this.tx=tx;this.config=config;this.settings=settings;this.outbox=outbox;}
-    @EventListener(ApplicationReadyEvent.class) public void ready(){ready=true;}
-    @PreDestroy public void close(){ready=false;executor.shutdownNow();}
+    @EventListener(ApplicationReadyEvent.class)
+    public void ready(){ready=true;}
+    @PreDestroy
+    public void close(){ready=false;executor.shutdownNow();}
     private int days(Map<String,Object> policy,String name,int fallback){return Math.max(1,Math.min(3650,JsonSupport.integer(policy.get(name),fallback)));}
     private String redacted(long tenant,Object id,Object phone){String secret=config.get("SECRET_KEY",config.get("JWT_SECRET",""));if(secret.isEmpty())throw new ApiError(503,"retention redaction secret is missing");return "redacted:"+JsonSupport.hmac(secret,(tenant+":"+id+":"+phone).getBytes(StandardCharsets.UTF_8)).substring(0,24);}
     private void increment(Map<String,Integer> counts,String key){counts.put(key,counts.getOrDefault(key,0)+1);}
@@ -74,5 +77,6 @@ public class DataRetention {
         for(String table:Arrays.asList("callevent","callmetric"))store.jdbc().update("DELETE FROM "+table+" WHERE id IN (SELECT e.id FROM "+table+" e JOIN callsession c ON c.id=e.call_session_id WHERE c.finished_at<=? AND e.created_at<=? AND c.phone LIKE 'redacted:%' AND c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL') ORDER BY e.created_at LIMIT ?)",cutoff,cutoff,limit);
         return archived;
     }
-    @Scheduled(fixedDelayString="${JAVA_RETENTION_POLL_MS:60000}") public void tick(){if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!running.compareAndSet(false,true))return;executor.submit(()->{try{int limit=Math.max(1,Math.min(1000,config.number("RETENTION_BATCH_SIZE", 1000)));purge(limit);archive(limit);}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(DataRetention.class).warn("retention error_type={}",e.getClass().getSimpleName());}finally{running.set(false);}});}
+    @Scheduled(fixedDelayString="${JAVA_RETENTION_POLL_MS:60000}")
+    public void tick(){if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!running.compareAndSet(false,true))return;executor.submit(()->{try{int limit=Math.max(1,Math.min(1000,config.number("RETENTION_BATCH_SIZE", 1000)));purge(limit);archive(limit);}catch(RuntimeException e){LoggerFactory.getLogger(DataRetention.class).warn("retention error_type={}",e.getClass().getSimpleName());}finally{running.set(false);}});}
 }

@@ -24,7 +24,8 @@ import org.testcontainers.mysql.MySQLContainer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DialReservationIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -46,11 +47,16 @@ class DialReservationIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired Store store;
-    @Autowired JdbcTemplate jdbc;
-    @Autowired DialDrainControl drain;
-    @Autowired DialDailyCounters daily;
-    @Autowired Transactions tx;
+    @Autowired
+    Store store;
+    @Autowired
+    JdbcTemplate jdbc;
+    @Autowired
+    DialDrainControl drain;
+    @Autowired
+    DialDailyCounters daily;
+    @Autowired
+    Transactions tx;
 
     @BeforeEach
     void seed() {

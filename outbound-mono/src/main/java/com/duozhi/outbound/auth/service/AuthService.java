@@ -8,7 +8,10 @@ import com.duozhi.outbound.auth.support.UserRecords;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.service.ExpiringValues;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +38,7 @@ public class AuthService {
     }
 
     public static LocalDateTime now() {
-        return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
     }
 
     @Transactional
@@ -93,16 +96,14 @@ public class AuthService {
                     media.get(
                             "ai-outbound:agent-media:" + identity.tenant() + ":" + actor.get("id"));
             try {
-                var state =
-                        new com.fasterxml.jackson.databind.ObjectMapper()
-                                .readTree(raw == null ? "{}" : raw);
+                var state = new ObjectMapper().readTree(raw == null ? "{}" : raw);
                 if (!"registered".equals(state.path("registration_state").asText())
                         || !"granted".equals(state.path("microphone_permission").asText()))
                     throw new ApiError(
                             409,
                             "SIP registration and microphone readiness are required before"
                                     + " accepting calls");
-            } catch (java.io.IOException invalid) {
+            } catch (IOException invalid) {
                 throw new ApiError(409, "SIP media registration is invalid");
             }
         }

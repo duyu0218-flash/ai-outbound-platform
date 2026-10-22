@@ -1,5 +1,12 @@
 package com.duozhi.outbound;
 
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.regex.*;
 
@@ -41,12 +48,12 @@ public final class DialogueRules {
         return content.isEmpty() ? "unclear" : "continue";
     }
 
-    public static java.time.LocalDateTime callbackTime(String text, java.time.Instant now, String timezone) {
-        java.time.ZoneId zone=java.time.ZoneId.of(timezone);
-        java.time.ZonedDateTime local=now.atZone(zone), result;
+    public static LocalDateTime callbackTime(String text, Instant now, String timezone) {
+        ZoneId zone=ZoneId.of(timezone);
+        ZonedDateTime local=now.atZone(zone), result;
         Matcher exact=Pattern.compile("(\\d{4}-\\d{2}-\\d{2})[ T](\\d{1,2}):(\\d{2})").matcher(text);
         try {
-            if(exact.find()) result=java.time.LocalDate.parse(exact.group(1)).atTime(Integer.parseInt(exact.group(2)),Integer.parseInt(exact.group(3))).atZone(zone);
+            if(exact.find()) result=LocalDate.parse(exact.group(1)).atTime(Integer.parseInt(exact.group(2)),Integer.parseInt(exact.group(3))).atZone(zone);
             else {
                 Matcher relative=Pattern.compile("(今天|明天|后天)(上午|下午|晚上|早上|中午)?([\\d一二两三四五六七八九十]+)点(?:(半)|(\\d{1,2})分)?").matcher(text);
                 if(!relative.find()) return null;
@@ -59,7 +66,7 @@ public final class DialogueRules {
                 result=local.toLocalDate().plusDays(days).atTime(hour,minute).atZone(zone);
             }
             if(!result.isAfter(local)||result.isAfter(local.plusDays(90)))return null;
-            return java.time.LocalDateTime.ofInstant(result.toInstant(),java.time.ZoneOffset.UTC);
-        }catch(java.time.DateTimeException|NumberFormatException e){return null;}
+            return LocalDateTime.ofInstant(result.toInstant(),ZoneOffset.UTC);
+        }catch(DateTimeException|NumberFormatException e){return null;}
     }
 }

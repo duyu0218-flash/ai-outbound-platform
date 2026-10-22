@@ -27,18 +27,28 @@ class AgentController {
         tracing = new AgentTracing(settings);
         quota = new AccountQuota(settings);
     }
-    @PreDestroy void close() throws Exception { try { tracing.close(); } finally { quota.close(); } }
-    @GetMapping("/health") Map<String,Object> health() { return Map.of("status", "ok", "service", settings.get("APP_NAME", "AI-Outbound-Agent")); }
-    @GetMapping("/readyz") Map<String,Object> ready(@RequestHeader(value="Authorization", required=false) String auth) {
+    @PreDestroy
+    void close() throws Exception { try { tracing.close(); } finally { quota.close(); } }
+    @GetMapping("/health")
+    Map<String,Object> health() { return Map.of("status", "ok", "service", settings.get("APP_NAME", "AI-Outbound-Agent")); }
+    @GetMapping("/readyz")
+    Map<String,Object> ready(@RequestHeader(value="Authorization", required=false)
+    String auth) {
         Support.auth(settings, "SERVICE_TOKEN", auth, true);
         if (!quota.ready()) throw new Support.Failure(503, "model account budget unavailable");
         return Map.of("status", "ready", "inflight", quota.inflight(), "model_connectivity_verified", false, "observability", tracing.status());
     }
-    @PostMapping("/agent/start") Map<String,Object> start(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) {
+    @PostMapping("/agent/start")
+    Map<String,Object> start(@RequestBody
+    Map<String,Object> payload, @RequestHeader(value="Authorization", required=false)
+    String auth) {
         Support.auth(settings, "SERVICE_TOKEN", auth, true);
         try (var span = tracing.span("agent.start", Support.str(payload, "call_id", ""))) { return policy.turn(payload, true); }
     }
-    @PostMapping("/agent/turn") Map<String,Object> turn(@RequestBody Map<String,Object> payload, @RequestHeader(value="Authorization", required=false) String auth) throws Exception {
+    @PostMapping("/agent/turn")
+    Map<String,Object> turn(@RequestBody
+    Map<String,Object> payload, @RequestHeader(value="Authorization", required=false)
+    String auth) throws Exception {
         Support.auth(settings, "SERVICE_TOKEN", auth, true);
         try (var span = tracing.span("agent.turn", Support.str(payload, "call_id", ""))) {
             try { var result = turnInternal(payload); span.result(result); return result; }

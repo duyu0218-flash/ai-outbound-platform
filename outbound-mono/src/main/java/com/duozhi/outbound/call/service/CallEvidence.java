@@ -5,6 +5,7 @@ import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.common.web.Contract;
 import com.duozhi.outbound.operations.service.OperationsAccess;
+import com.fasterxml.jackson.databind.node.NullNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -44,8 +45,10 @@ public class CallEvidence {
 
     @GetMapping("/{id}/speech-turns")
     public List<Map<String, Object>> speech(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "false") boolean final_only,
+            @PathVariable
+            UUID id,
+            @RequestParam(defaultValue = "false")
+            boolean final_only,
             HttpServletRequest request) {
         return rows(
                 "speechturn",
@@ -57,12 +60,14 @@ public class CallEvidence {
     }
 
     @GetMapping("/{id}/metrics")
-    public List<Map<String, Object>> metrics(@PathVariable UUID id, HttpServletRequest request) {
+    public List<Map<String, Object>> metrics(@PathVariable
+    UUID id, HttpServletRequest request) {
         return rows("callmetric", "CallMetricOut", visible(request, id), id, "", "created_at ASC");
     }
 
     @GetMapping("/{id}/recordings")
-    public List<Map<String, Object>> recordings(@PathVariable UUID id, HttpServletRequest request) {
+    public List<Map<String, Object>> recordings(@PathVariable
+    UUID id, HttpServletRequest request) {
         return rows(
                 "recordingasset",
                 "RecordingAssetOut",
@@ -73,7 +78,8 @@ public class CallEvidence {
     }
 
     @GetMapping("/{id}/realtime")
-    public Object realtime(@PathVariable UUID id, HttpServletRequest request) {
+    public Object realtime(@PathVariable
+    UUID id, HttpServletRequest request) {
         long tenant = visible(request, id);
         Map<String, Object> row =
                 store.one(
@@ -81,8 +87,6 @@ public class CallEvidence {
                         "sourceCallEvidence47_1",
                         Store.queryParameters(
                                 0, tenant, store.encode("realtimesession", "call_session_id", id)));
-        return row == null
-                ? com.fasterxml.jackson.databind.node.NullNode.getInstance()
-                : contract.output("RealtimeSessionOut", row);
+        return row == null ? NullNode.getInstance() : contract.output("RealtimeSessionOut", row);
     }
 }

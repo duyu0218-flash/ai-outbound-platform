@@ -4,13 +4,17 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.service.Transactions;
 import java.util.*;
+import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** One persistent control domain. Lifecycle consumers remain enabled while draining. */
 @Service
 public class DialDrainControl {
-    @org.springframework.beans.factory.annotation.Autowired private Config config;
+    @Autowired
+    private Config config;
     private final JdbcTemplate jdbc;
     private final Transactions tx;
 
@@ -20,8 +24,7 @@ public class DialDrainControl {
     }
 
     public boolean acceptingInTransaction() {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (!TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("admission gate requires a transaction");
         return "RUNNING"
                 .equals(
@@ -51,8 +54,7 @@ public class DialDrainControl {
      * barrier, so the captured cohort includes in-progress claims.
      */
     public Map<String, Object> begin() {
-        if (org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("drain capture requires a fresh transaction");
         return tx.serialized(
                 () -> {
@@ -170,7 +172,7 @@ public class DialDrainControl {
     }
 
     public boolean sendingClosed() {
-        return java.util.Set.of("SEND_CLOSED", "FROZEN")
+        return Set.of("SEND_CLOSED", "FROZEN")
                 .contains(
                         jdbc.queryForObject(
                                 "SELECT phase FROM dial_admission_control WHERE id=1",

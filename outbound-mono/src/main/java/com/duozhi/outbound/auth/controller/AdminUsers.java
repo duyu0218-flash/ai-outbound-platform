@@ -47,9 +47,12 @@ public class AdminUsers {
     @GetMapping
     public List<Map<String, Object>> list(
             HttpServletRequest request,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "100") int size,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "100")
+            int size,
+            @RequestParam(required = false)
+            String keyword) {
         Identity actor = Identity.from(request);
         int offset = Contract.page(page, size);
         if (keyword != null && keyword.length() > 200) throw new ApiError(422, "keyword too long");
@@ -61,7 +64,8 @@ public class AdminUsers {
     @PostMapping
     @Transactional
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
         Identity actor = Identity.from(request);
         var values = contract.input("AdminUserCreate", body, true);
         String password = values.remove("password").toString();
@@ -104,8 +108,10 @@ public class AdminUsers {
     @PutMapping("/{user_id}")
     @Transactional
     public Map<String, Object> update(
-            @PathVariable("user_id") long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable("user_id")
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         Identity actor = Identity.from(request);
         var data = contract.input("AdminUserUpdate", body, false);
@@ -131,8 +137,10 @@ public class AdminUsers {
     @PostMapping("/{user_id}/reset-password")
     @Transactional
     public Map<String, String> reset(
-            @PathVariable("user_id") long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable("user_id")
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         Identity actor = Identity.from(request);
         var input = contract.input("AdminPasswordReset", body, true);
@@ -147,7 +155,8 @@ public class AdminUsers {
     @PostMapping("/{user_id}/unlock")
     @Transactional
     public Map<String, String> unlock(
-            @PathVariable("user_id") long id, HttpServletRequest request) {
+            @PathVariable("user_id")
+            long id, HttpServletRequest request) {
         Identity actor = Identity.from(request);
         SysUser user = locked(actor, id);
         auth.patch(id, (int) actor.tenant(), clearLock(user));
@@ -158,7 +167,8 @@ public class AdminUsers {
     @DeleteMapping("/{user_id}")
     @Transactional
     public Map<String, String> disable(
-            @PathVariable("user_id") long id, HttpServletRequest request) {
+            @PathVariable("user_id")
+            long id, HttpServletRequest request) {
         Identity actor = Identity.from(request);
         SysUser user = locked(actor, id);
         protect(actor, user, Map.of("enabled", false));

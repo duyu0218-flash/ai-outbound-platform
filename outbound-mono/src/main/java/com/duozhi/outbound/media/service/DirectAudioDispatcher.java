@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.function.Consumer;
 
 /**
  * Bounded off-heap PCM ingress. Per-socket order is preserved; overload drops the oldest queued
@@ -27,9 +28,9 @@ public final class DirectAudioDispatcher implements AutoCloseable {
         final ArrayDeque<ByteBuffer> frames = new ArrayDeque<>();
         boolean running, closed;
         final Sink sink;
-        final java.util.function.Consumer<Exception> failure;
+        final Consumer<Exception> failure;
 
-        Channel(Sink sink, java.util.function.Consumer<Exception> failure) {
+        Channel(Sink sink, Consumer<Exception> failure) {
             this.sink = sink;
             this.failure = failure;
         }
@@ -61,7 +62,7 @@ public final class DirectAudioDispatcher implements AutoCloseable {
         executor.allowCoreThreadTimeOut(true);
     }
 
-    void register(String id, Sink sink, java.util.function.Consumer<Exception> failure) {
+    void register(String id, Sink sink, Consumer<Exception> failure) {
         if (closed) throw new IllegalStateException("media ingress closed");
         Channel old = channels.putIfAbsent(id, new Channel(sink, failure));
         if (old != null) throw new IllegalStateException("media socket already registered");

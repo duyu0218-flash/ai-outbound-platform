@@ -16,11 +16,14 @@ import com.duozhi.outbound.job.service.RealtimeTaskCleanup;
 import com.duozhi.outbound.operations.controller.OperationsWorkforce;
 import java.time.*;
 import java.util.*;
+import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CallLifecycle {
-    @org.springframework.beans.factory.annotation.Autowired private RealtimeTaskCleanup taskCleanup;
+    @Autowired
+    private RealtimeTaskCleanup taskCleanup;
     public static final Set<String> TERMINAL =
             Values.set("completed", "failed", "no_answer", "busy", "voicemail");
     public static final String ACTIVE_SQL =
@@ -351,7 +354,7 @@ public class CallLifecycle {
     @SuppressWarnings("unchecked")
     public Map<String, Object> status(Map<String, Object> body) {
         var batch = CallStatusBatchScope.current();
-        java.util.function.Supplier<Map<String, Object>> transition =
+        Supplier<Map<String, Object>> transition =
                 () -> {
                     if (batch == null) tx.platform();
                     Map<String, Object> call =

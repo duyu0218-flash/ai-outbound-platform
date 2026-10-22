@@ -262,7 +262,8 @@ public class ScriptFlows {
 
     @GetMapping
     public List<Map<String, Object>> versions(
-            @PathVariable long template_id, HttpServletRequest request) {
+            @PathVariable
+            long template_id, HttpServletRequest request) {
         long tenant = tenant(request);
         store.require("scripttemplate", tenant, template_id);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -277,16 +278,20 @@ public class ScriptFlows {
 
     @GetMapping("/{version_id}")
     public Map<String, Object> get(
-            @PathVariable long template_id,
-            @PathVariable long version_id,
+            @PathVariable
+            long template_id,
+            @PathVariable
+            long version_id,
             HttpServletRequest request) {
         return output(version(tenant(request), template_id, version_id));
     }
 
     @PostMapping
     public Map<String, Object> create(
-            @PathVariable long template_id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long template_id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> input = contract.input("ScriptFlowCreate", body, true);
@@ -337,9 +342,12 @@ public class ScriptFlows {
     @PutMapping("/{version_id}")
     @SuppressWarnings("unchecked")
     public Map<String, Object> update(
-            @PathVariable long template_id,
-            @PathVariable long version_id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long template_id,
+            @PathVariable
+            long version_id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> input = contract.input("ScriptFlowUpdate", body, true);
@@ -361,8 +369,10 @@ public class ScriptFlows {
 
     @PostMapping("/{version_id}/publish")
     public Map<String, Object> publish(
-            @PathVariable long template_id,
-            @PathVariable long version_id,
+            @PathVariable
+            long template_id,
+            @PathVariable
+            long version_id,
             HttpServletRequest request) {
         long tenant = tenant(request);
         return tx.run(
@@ -388,9 +398,12 @@ public class ScriptFlows {
     @PostMapping("/{version_id}/simulate")
     @SuppressWarnings("unchecked")
     public Map<String, Object> probe(
-            @PathVariable long template_id,
-            @PathVariable long version_id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long template_id,
+            @PathVariable
+            long version_id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         Map<String, Object> row = version(tenant(request), template_id, version_id),
                 input = contract.input("ScriptFlowSimulateRequest", body, true);

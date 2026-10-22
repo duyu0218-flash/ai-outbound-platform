@@ -15,15 +15,19 @@ public class EmbeddedAgentController {
 
     @PostMapping("/agent/start")
     Map<String, Object> start(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         return agent.start(payload, auth);
     }
 
     @PostMapping("/agent/turn")
     Map<String, Object> turn(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth)
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth)
             throws Exception {
         return agent.turn(payload, auth);
     }

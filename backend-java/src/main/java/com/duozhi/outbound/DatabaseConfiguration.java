@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 public class DatabaseConfiguration {
     @Bean
     HikariDataSource dataSource(DataSourceProperties properties,Config config){
-        com.zaxxer.hikari.HikariDataSource source=properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
+        HikariDataSource source=properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
         source.setMaximumPoolSize(config.number("spring.datasource.hikari.maximum-pool-size",5));source.setConnectionTimeout(5000);
         if(properties.getUrl().startsWith("jdbc:sqlite:")){
             // Local SQLite cannot provide PostgreSQL row locking. A single pooled

@@ -12,12 +12,16 @@ import com.fasterxml.jackson.databind.*;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.LockSupport;
+import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.*;
 import org.testcontainers.containers.*;
@@ -84,7 +88,7 @@ class MockDialRate500Probe {
                 "jar_sha256",
                 HexFormat.of()
                         .formatHex(
-                                java.security.MessageDigest.getInstance("SHA-256")
+                                MessageDigest.getInstance("SHA-256")
                                         .digest(Files.readAllBytes(jar))));
         result.put(
                 "dial_source",
@@ -499,8 +503,7 @@ class MockDialRate500Probe {
                         final int index = i;
                         long due = begin + i * 2_000_000L;
                         while (System.nanoTime() < due)
-                            java.util.concurrent.locks.LockSupport.parkNanos(
-                                    due - System.nanoTime());
+                            LockSupport.parkNanos(due - System.nanoTime());
                         if (System.nanoTime() - due > 1_000_000_000L) missed.incrementAndGet();
                         futures.add(
                                 http.sendAsync(
@@ -873,7 +876,7 @@ class MockDialRate500Probe {
                             !calibration
                                     && within >= 500L * seconds
                                     && missed.get() == 0
-                                    && java.util.stream.LongStream.range(warmup, warmup + seconds)
+                                    && LongStream.range(warmup, warmup + seconds)
                                             .allMatch(
                                                     bucket ->
                                                             buckets.getOrDefault(bucket, 0L)
@@ -1510,9 +1513,7 @@ class MockDialRate500Probe {
                     .header(
                             "X-Webhook-Signature",
                             JsonSupport.hmac(
-                                    HOOK,
-                                    (stamp + "." + body)
-                                            .getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                                    HOOK, (stamp + "." + body).getBytes(StandardCharsets.UTF_8)));
         }
         request.method(
                 method,

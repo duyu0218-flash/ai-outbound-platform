@@ -1,27 +1,30 @@
 package com.duozhi.outbound.operations.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallbackAppointment {
-    private java.util.UUID id = java.util.UUID.randomUUID();
+    private UUID id = UUID.randomUUID();
     private Integer tenantId;
-    private java.util.UUID sourceCallId;
+    private UUID sourceCallId;
     private String requestKey;
-    private java.time.LocalDateTime scheduledAt;
+    private LocalDateTime scheduledAt;
     private String state = "confirmed";
     private Integer revision = 1;
-    private java.util.UUID dialCallId;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private UUID dialCallId;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
-    public java.util.UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(java.util.UUID value) {
+    public void setId(UUID value) {
         this.id = value;
     }
 
@@ -33,11 +36,11 @@ public class CallbackAppointment {
         this.tenantId = value;
     }
 
-    public java.util.UUID getSourceCallId() {
+    public UUID getSourceCallId() {
         return sourceCallId;
     }
 
-    public void setSourceCallId(java.util.UUID value) {
+    public void setSourceCallId(UUID value) {
         this.sourceCallId = value;
     }
 
@@ -49,11 +52,11 @@ public class CallbackAppointment {
         this.requestKey = value;
     }
 
-    public java.time.LocalDateTime getScheduledAt() {
+    public LocalDateTime getScheduledAt() {
         return scheduledAt;
     }
 
-    public void setScheduledAt(java.time.LocalDateTime value) {
+    public void setScheduledAt(LocalDateTime value) {
         this.scheduledAt = value;
     }
 
@@ -73,27 +76,27 @@ public class CallbackAppointment {
         this.revision = value;
     }
 
-    public java.util.UUID getDialCallId() {
+    public UUID getDialCallId() {
         return dialCallId;
     }
 
-    public void setDialCallId(java.util.UUID value) {
+    public void setDialCallId(UUID value) {
         this.dialCallId = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

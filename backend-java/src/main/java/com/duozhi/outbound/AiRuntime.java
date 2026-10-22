@@ -1,9 +1,11 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
-import java.nio.charset.StandardCharsets;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.time.*;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.web.bind.annotation.*;
 
 /** Coordinates the retained Python agent; all business state stays in Java. */
@@ -67,7 +69,8 @@ public class AiRuntime {
             return JsonSupport.map("payload",fenced,"result",ConversationPolicy.reply(product.policy(state).get("failure_prompt").toString(),"hangup"));
         });
         if(snapshot==null)return;
-        @SuppressWarnings("unchecked") Map<String,Object> fenced=(Map<String,Object>)snapshot.get("payload"),result=(Map<String,Object>)snapshot.get("result");
+        @SuppressWarnings("unchecked")
+        Map<String,Object> fenced=(Map<String,Object>)snapshot.get("payload"),result=(Map<String,Object>)snapshot.get("result");
         try { apply(fenced,result); }
         catch (RuntimeException speechFailure) {
             TaskWorker.permitted();
@@ -123,9 +126,10 @@ public class AiRuntime {
         Map<String,Object> context=JsonSupport.map("campaign_id",call.get("campaign_id"),"tenant_id",call.get("tenant_id"),"language",policy.get("language"),"recording_enabled",campaign.getOrDefault("recording_enabled",true),"hangup_sms_enabled",campaign.getOrDefault("hangup_sms_enabled",true),"llm_provider",ai.get("llm_provider"),"llm_model",ai.get("llm_model"),"external_llm_enabled",ai.get("external_llm_enabled"),"conversation",history,"knowledge",knowledge(call,policy,transcript));
         return JsonSupport.map("call_id",call.get("id"),"phone",call.get("phone"),"mode",call.get("mode"),"script",policy.getOrDefault("_script",""),"transcript",transcript,"context",context);
     }
-    @SuppressWarnings("unchecked") public List<Map<String,Object>> knowledge(Map<String,Object> call,Map<String,Object> policy,String query){
+    @SuppressWarnings("unchecked")
+    public List<Map<String,Object>> knowledge(Map<String,Object> call,Map<String,Object> policy,String query){
         List<Map<String,Object>> items=policy.get("_knowledge") instanceof List?(List<Map<String,Object>>)policy.get("_knowledge"):store.list("knowledgeitem","WHERE tenant_id=? AND is_active=? AND (campaign_id=? OR campaign_id IS NULL)",CallLifecycle.tenant(call),true,call.get("campaign_id"));
-        Set<String> tokens=new HashSet<>(),grams=new HashSet<>();java.util.regex.Matcher words=java.util.regex.Pattern.compile("(?U)[\\w\\u4e00-\\u9fff]+").matcher(query.toLowerCase(Locale.ROOT));while(words.find())if(words.group().length()>=2)tokens.add(words.group());String chinese=query.replaceAll("[^\\u4e00-\\u9fff]","");for(int i=0;i+1<chinese.length();i++)grams.add(chinese.substring(i,i+2));
+        Set<String> tokens=new HashSet<>(),grams=new HashSet<>();Matcher words=Pattern.compile("(?U)[\\w\\u4e00-\\u9fff]+").matcher(query.toLowerCase(Locale.ROOT));while(words.find())if(words.group().length()>=2)tokens.add(words.group());String chinese=query.replaceAll("[^\\u4e00-\\u9fff]","");for(int i=0;i+1<chinese.length();i++)grams.add(chinese.substring(i,i+2));
         List<Map<String,Object>> ranked=new ArrayList<>();for(Map<String,Object> item:items){
             if(item.get("valid_from")!=null&&LocalDateTime.parse(item.get("valid_from").toString()).isAfter(Store.now())||item.get("valid_until")!=null&&!LocalDateTime.parse(item.get("valid_until").toString()).isAfter(Store.now()))continue;
             String searchable=(item.get("title")+" "+item.get("keywords")+" "+item.get("content")).toLowerCase(Locale.ROOT);int score=0,gram=0;
@@ -196,7 +200,8 @@ public class AiRuntime {
             }return null;
         });
     }
-    @SuppressWarnings("unchecked") public void afterPlayback(Map<String,Object> payload){
+    @SuppressWarnings("unchecked")
+    public void afterPlayback(Map<String,Object> payload){
         if("appointment".equals(payload.get("product_kind"))){appointment(payload);return;}
         if("timer".equals(payload.get("product_kind"))){timer(payload);return;}
         if(current(payload,false)==null)return;
@@ -212,7 +217,8 @@ public class AiRuntime {
             if("silence".equals(kind)&&!Values.set("listening","interrupted").contains(rt.get("state")))return null;
             Map<String,Object> result;
             Object cached=data.get("timer_action");
-            if(cached instanceof Map&&Objects.equals(((Map<?,?>)cached).get("generation"),state.get("generation"))){ @SuppressWarnings("unchecked") Map<String,Object> old=(Map<String,Object>)((Map<?,?>)cached).get("result"); result=old; }
+            if(cached instanceof Map&&Objects.equals(((Map<?,?>)cached).get("generation"),state.get("generation"))){ @SuppressWarnings("unchecked")
+            Map<String,Object> old=(Map<String,Object>)((Map<?,?>)cached).get("result"); result=old; }
             else if("handoff".equals(kind)) {if(!"waiting_human".equals(call.get("status")))return null;product.releaseWaiting(call);store.update("callsession",CallLifecycle.tenant(call),call.get("id"),JsonSupport.map("status","in_ai","human_agent_id",null));result=ConversationPolicy.reply(policy.get("handoff_timeout_prompt").toString(),"end".equals(policy.get("handoff_fallback"))?"hangup":"speak");data.put("outcome","handoff_timeout");}
             else if("failure".equals(kind)){result=ConversationPolicy.reply(policy.get("failure_prompt").toString(),"hangup");data.put("outcome","service_failure");product.work(call,"service_failure","media-failure:"+call.get("id")+":"+call.get("attempts"),JsonSupport.map("error","speech_service_unavailable"));}
             else {int count=JsonSupport.integer(data.get("silence_count"),0)+1;data.put("silence_count",count);boolean exhausted=count>JsonSupport.integer(policy.get("max_clarifications"),2);result=ConversationPolicy.reply(exhausted?"暂时没有收到您的回复，本次先结束，再见。":policy.get("silence_prompt").toString(),exhausted?"hangup":"speak");if(exhausted)data.put("outcome","no_response");}
@@ -220,10 +226,12 @@ public class AiRuntime {
             Map<String,Object> action=new LinkedHashMap<>(payload);action.put("turn_sequence",rt.get("turn_sequence"));action.put("speech_event_id",data.get("speech_event_id"));return JsonSupport.map("payload",action,"result",result);
         });
         if(snapshot==null)return;
-        @SuppressWarnings("unchecked") Map<String,Object> p=(Map<String,Object>)snapshot.get("payload"),r=(Map<String,Object>)snapshot.get("result");apply(p,r);
+        @SuppressWarnings("unchecked")
+        Map<String,Object> p=(Map<String,Object>)snapshot.get("payload"),r=(Map<String,Object>)snapshot.get("result");apply(p,r);
         tx.run(()->{tx.platform();Map<String,Object> call=tx.call(payload.get("call_id"));if(call!=null&&CallLifecycle.number(call,"attempts")==JsonSupport.integer(payload.get("attempt"),-1)){Map<String,Object> state=product.state(call);if(CallLifecycle.number(state,"generation")==JsonSupport.integer(payload.get("generation"),-1)){state.putAll(JsonSupport.map("generation",CallLifecycle.number(state,"generation")+1,"deadline",null,"timer_kind",""));product.save(state,json.object(state.get("data_json").toString()));}}return null;});
     }
-    @SuppressWarnings("unchecked") private void appointment(Map<String,Object> payload){
+    @SuppressWarnings("unchecked")
+    private void appointment(Map<String,Object> payload){
         Map<String,Object> ready=tx.run(()->{
             tx.platform();TaskWorker.permitted();Map<String,Object> a=store.one("callbackappointment","WHERE id=?"+store.lock(),store.encode("callbackappointment","id",payload.get("appointment_id")));
             if(a==null||CallLifecycle.number(a,"revision")!=JsonSupport.integer(payload.get("revision"),-1)||!Values.set("confirmed","dispatching").contains(a.get("state"))||LocalDateTime.parse(a.get("scheduled_at").toString()).isAfter(Store.now()))return null;
@@ -245,5 +253,7 @@ public class AiRuntime {
         try{client.command(call,"stop-speaking",JsonSupport.map("expected_speech_event_id",payload.get("speech_event_id")));}catch(TelephonyClient.Failure e){if(e.status==409)return;throw e;}
         tx.run(()->{tx.platform();TaskWorker.permitted();Map<String,Object> latest=tx.call(call.get("id")),media=voice.realtime(latest);if(CallLifecycle.number(latest,"attempts")==CallLifecycle.number(call,"attempts")&&!CallLifecycle.TERMINAL.contains(latest.get("status"))&&!"closed".equals(media.get("state"))&&Objects.equals(media.get("playback_id"),rt.get("playback_id")))store.update("realtimesession",CallLifecycle.tenant(call),media.get("id"),JsonSupport.map("state","interrupted","playback_id",null));return null;});
     }
-    @PostMapping("/api/v1/calls/{id}/interrupt") public Map<String,Object> interruptApi(@PathVariable UUID id,HttpServletRequest request){Identity identity=Identity.from(request);Map<String,Object> call=store.require("callsession",identity.tenant(),id);handoffs.visible(call,identity);interrupt(JsonSupport.map("call_id",id,"attempt",call.get("attempts")));return JsonSupport.map("result","ok");}
+    @PostMapping("/api/v1/calls/{id}/interrupt")
+    public Map<String,Object> interruptApi(@PathVariable
+    UUID id,HttpServletRequest request){Identity identity=Identity.from(request);Map<String,Object> call=store.require("callsession",identity.tenant(),id);handoffs.visible(call,identity);interrupt(JsonSupport.map("call_id",id,"attempt",call.get("attempts")));return JsonSupport.map("result","ok");}
 }

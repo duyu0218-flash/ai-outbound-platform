@@ -1,31 +1,46 @@
 package com.duozhi.outbound;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import java.time.*;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.zaxxer.hikari.HikariDataSource;
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
 @SpringBootTest(properties={"spring.datasource.url=${JAVA_TEST_DATABASE_URL:jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared}","spring.datasource.hikari.maximum-pool-size=1","JAVA_INITIALIZE_SCHEMA=true","JWT_SECRET=java-integration-test-secret-at-least-32-characters","DEMO_USERS_ENABLED=true"})
 @AutoConfigureMockMvc
 class CampaignIntegrationTest {
-    private static final java.util.concurrent.atomic.AtomicLong TENANTS = new java.util.concurrent.atomic.AtomicLong(50000);
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper mapper;
-    @Autowired Store store;
-    @Autowired CallPolicy policy;
-    @Autowired Settings settings;
-    @Autowired Crypto crypto;
-    @Autowired javax.sql.DataSource source;
+    private static final AtomicLong TENANTS = new AtomicLong(50000);
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    ObjectMapper mapper;
+    @Autowired
+    Store store;
+    @Autowired
+    CallPolicy policy;
+    @Autowired
+    Settings settings;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    DataSource source;
 
     String token(String username, String password) throws Exception {
         return "Bearer " + mapper.readTree(mvc.perform(post("/api/v1/auth/login").contentType("application/json")
@@ -60,7 +75,8 @@ class CampaignIntegrationTest {
         return mapper.readTree(mvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
     }
 
-    @Test void prepareIsIdempotentStopCancelsAndEditPreservesAttemptedHistory() throws Exception {
+    @Test
+    void prepareIsIdempotentStopCancelsAndEditPreservesAttemptedHistory() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         Map<String, Object> one = contact(f.tenant(), "13100000101", "consented");
         Map<String, Object> two = contact(f.tenant(), "13100000102", "consented");
@@ -85,7 +101,8 @@ class CampaignIntegrationTest {
         mvc.perform(get("/api/v1/campaigns/" + id).header("Authorization", auth)).andExpect(status().isNotFound());
     }
 
-    @Test void invalidReferencesRollbackAndDispatchDoesNotPretendSuccess() throws Exception {
+    @Test
+    void invalidReferencesRollbackAndDispatchDoesNotPretendSuccess() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         Map<String, Object> contact = contact(f.tenant(), "13100000201", "consented");
         long before = store.count("campaign", "WHERE tenant_id=?", f.tenant());
@@ -107,7 +124,8 @@ class CampaignIntegrationTest {
         mvc.perform(delete("/api/v1/campaigns/" + id).header("Authorization", auth)).andExpect(status().isConflict());
     }
 
-    @Test void preflightReportsDncConsentAndDailyLimitsWithoutCreatingBlockedCalls() throws Exception {
+    @Test
+    void preflightReportsDncConsentAndDailyLimitsWithoutCreatingBlockedCalls() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         Map<String, Object> good = contact(f.tenant(), "13100000301", "consented");
         Map<String, Object> revoked = contact(f.tenant(), "13100000302", "revoked");
@@ -124,7 +142,8 @@ class CampaignIntegrationTest {
         assertEquals("daily_attempt_limit", policy.check(f.tenant(), good.get("phone").toString(), true, null));
     }
 
-    @Test void callQueriesEnforceTenantAndAssignmentAndAggregateEvents() throws Exception {
+    @Test
+    void callQueriesEnforceTenantAndAssignmentAndAggregateEvents() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         Map<String, Object> agent = store.insert("user", Values.map("tenant_id", f.tenant(), "username", "agent-" + UUID.randomUUID(), "password_hash", crypto.password("test-password"), "role", "agent", "full_name", "Test agent"));
         String agentAuth = token(agent.get("username").toString(), "test-password");
@@ -145,7 +164,8 @@ class CampaignIntegrationTest {
         mvc.perform(get("/api/v1/campaigns").header("Authorization", agentAuth)).andExpect(status().isForbidden());
     }
 
-    @Test void complianceClockAndRecordedAttemptsUseContactLocalDay() throws Exception {
+    @Test
+    void complianceClockAndRecordedAttemptsUseContactLocalDay() throws Exception {
         Identity f = fixture(); Map<String, Object> contact = contact(f.tenant(), "13100000501", "consented");
         Map<String, Object> compliance = settings.get(f.tenant(), "compliance");
         compliance.put("allowed_start_hour", 9); compliance.put("allowed_end_hour", 20);
@@ -158,29 +178,31 @@ class CampaignIntegrationTest {
         assertEquals("daily_attempt_limit", policy.checkAt(f.tenant(), "13100000501", true, null, Instant.parse("2026-10-15T02:00:00Z")));
     }
 
-    @Test void concurrentPrepareCreatesOneCallPerContact() throws Exception {
+    @Test
+    void concurrentPrepareCreatesOneCallPerContact() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         Map<String, Object> contact = contact(f.tenant(), "13100000601", "consented");
         long id = send(post("/api/v1/campaigns"), auth, body(contact.get("id"))).path("id").asLong();
-        com.zaxxer.hikari.HikariDataSource pool = (com.zaxxer.hikari.HikariDataSource)source;
+        HikariDataSource pool = (HikariDataSource)source;
         int original = pool.getMaximumPoolSize();
         if (!store.lock().isEmpty()) pool.setMaximumPoolSize(4);
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(2);
-        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
         try {
-            List<java.util.concurrent.Future<JsonNode>> futures = new ArrayList<>();
+            List<Future<JsonNode>> futures = new ArrayList<>();
             for (int i = 0; i < 2; i++) futures.add(executor.submit(() -> {
                 start.await();
                 return send(post("/api/v1/campaigns/" + id + "/start?auto_dial=false"), auth, null);
             }));
             start.countDown();
             int created = 0;
-            for (java.util.concurrent.Future<JsonNode> future : futures) created += future.get(15, java.util.concurrent.TimeUnit.SECONDS).path("created").asInt();
+            for (Future<JsonNode> future : futures) created += future.get(15, TimeUnit.SECONDS).path("created").asInt();
             assertEquals(1, created); assertEquals(1, store.count("callsession", "WHERE campaign_id=?", id));
         } finally { executor.shutdownNow(); pool.setMaximumPoolSize(original); }
     }
 
-    @Test void overviewCapacityAndEvidenceReadFromPersistedTenantData() throws Exception {
+    @Test
+    void overviewCapacityAndEvidenceReadFromPersistedTenantData() throws Exception {
         Identity f = fixture(); String auth = token(f.actor(), "test-password");
         store.insert("telephonyline", Values.map("tenant_id", f.tenant(), "name", "Test line", "provider", "mock", "max_concurrency", 2));
         Map<String, Object> call = store.insert("callsession", Values.map("tenant_id", f.tenant(), "phone", "13100000701", "mode", "ai_only", "status", "dialing"));

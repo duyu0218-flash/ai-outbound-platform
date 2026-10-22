@@ -14,11 +14,21 @@ import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.env.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -27,11 +37,12 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DialAuthorizationIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -64,20 +75,34 @@ class DialAuthorizationIT {
         p.add("spring.ai.model.chat", () -> "none");
     }
 
-    @Autowired Store store;
-    @Autowired Settings settings;
-    @Autowired JsonSupport json;
-    @Autowired DialService dial;
-    @Autowired TelephonyClient client;
-    @Autowired DialAuthorizationService authorizations;
-    @Autowired DialCommandRecovery recovery;
-    @Autowired TaskWorker worker;
-    @Autowired Outbox outbox;
-    @Autowired PlatformLock platformLocks;
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
-    @Autowired ConfigurableEnvironment environment;
-    @LocalServerPort int port;
-    @Autowired org.springframework.boot.resttestclient.TestRestTemplate http;
+    @Autowired
+    Store store;
+    @Autowired
+    Settings settings;
+    @Autowired
+    JsonSupport json;
+    @Autowired
+    DialService dial;
+    @Autowired
+    TelephonyClient client;
+    @Autowired
+    DialAuthorizationService authorizations;
+    @Autowired
+    DialCommandRecovery recovery;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    Outbox outbox;
+    @Autowired
+    PlatformLock platformLocks;
+    @Autowired
+    JdbcTemplate jdbc;
+    @Autowired
+    ConfigurableEnvironment environment;
+    @LocalServerPort
+    int port;
+    @Autowired
+    TestRestTemplate http;
 
     @BeforeEach
     void seed() {
@@ -293,25 +318,21 @@ class DialAuthorizationIT {
         String path = "/v1/admin/dial-control/status";
         assertThat(http.postForEntity(path, Map.of(), String.class).getStatusCode().value())
                 .isEqualTo(401);
-        var wrong = new org.springframework.http.HttpHeaders();
+        var wrong = new HttpHeaders();
         wrong.setBearerAuth("tenant-admin-token-is-not-a-global-credential");
         assertThat(
                         http.exchange(
                                         path,
-                                        org.springframework.http.HttpMethod.POST,
-                                        new org.springframework.http.HttpEntity<>(Map.of(), wrong),
+                                        HttpMethod.POST,
+                                        new HttpEntity<>(Map.of(), wrong),
                                         String.class)
                                 .getStatusCode()
                                 .value())
                 .isEqualTo(401);
-        var auth = new org.springframework.http.HttpHeaders();
+        var auth = new HttpHeaders();
         auth.setBearerAuth("v5-independent-global-maintenance-token-32-plus");
         var result =
-                http.exchange(
-                        path,
-                        org.springframework.http.HttpMethod.POST,
-                        new org.springframework.http.HttpEntity<>(Map.of(), auth),
-                        Map.class);
+                http.exchange(path, HttpMethod.POST, new HttpEntity<>(Map.of(), auth), Map.class);
         assertThat(result.getStatusCode().value()).isEqualTo(200);
         assertThat(result.getBody())
                 .containsEntry("phase", "RUNNING")
@@ -319,8 +340,8 @@ class DialAuthorizationIT {
         assertThat(
                         http.exchange(
                                         "/v1/admin/dial-counters/verify?generation=0",
-                                        org.springframework.http.HttpMethod.POST,
-                                        new org.springframework.http.HttpEntity<>(Map.of(), wrong),
+                                        HttpMethod.POST,
+                                        new HttpEntity<>(Map.of(), wrong),
                                         String.class)
                                 .getStatusCode()
                                 .value())
@@ -365,11 +386,10 @@ class DialAuthorizationIT {
     void authorizationInstallationDoesNotHoldOrBorrowTheGlobalAdmissionMutex() throws Exception {
         var call = claim(queued());
         var fields = fields(call);
-        var thread = java.util.concurrent.Executors.newSingleThreadExecutor();
+        var thread = Executors.newSingleThreadExecutor();
         try (var held = platformLocks.lock(718492061L)) {
             var sent = thread.submit(() -> client.command(call, "dial", fields));
-            assertThat(sent.get(3, java.util.concurrent.TimeUnit.SECONDS))
-                    .containsEntry("result", "pbx_accepted");
+            assertThat(sent.get(3, TimeUnit.SECONDS)).containsEntry("result", "pbx_accepted");
         } finally {
             thread.shutdownNow();
         }
@@ -380,10 +400,10 @@ class DialAuthorizationIT {
     @Test
     void competingBusinessOwnersAllocateOneLiveFenceWithoutTheGlobalMutex() throws Exception {
         var call = claim(queued());
-        var start = new java.util.concurrent.CountDownLatch(1);
-        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        var start = new CountDownLatch(1);
+        var threads = Executors.newFixedThreadPool(2);
         var owners = new ArrayList<Map<String, Object>>();
-        var futures = new ArrayList<java.util.concurrent.Future<Boolean>>();
+        var futures = new ArrayList<Future<Boolean>>();
         try {
             for (int index = 0; index < 2; index++) {
                 var owned = new LinkedHashMap<>(call);
@@ -411,7 +431,7 @@ class DialAuthorizationIT {
             start.countDown();
             int winner = -1, total = 0;
             for (int index = 0; index < 2; index++)
-                if (futures.get(index).get(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                if (futures.get(index).get(5, TimeUnit.SECONDS)) {
                     winner = index;
                     total++;
                 }

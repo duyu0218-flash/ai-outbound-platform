@@ -1,17 +1,17 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
+import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.nio.file.*;
-import java.nio.charset.StandardCharsets;
+import java.time.*;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import jakarta.annotation.PreDestroy;
-import org.springframework.stereotype.Service;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.context.event.EventListener;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
 public class GatewayCluster {
@@ -19,9 +19,12 @@ public class GatewayCluster {
     private final ExecutorService executor=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"gateway-probes");t.setDaemon(true);return t;});
     private final AtomicBoolean probing=new AtomicBoolean(); private volatile boolean ready;
     public GatewayCluster(Store store,Transactions tx,Config config,JsonSupport json,TelephonyClient client,StabilityAdmission stability){this.store=store;this.tx=tx;this.config=config;this.json=json;this.client=client;this.stability=stability;}
-    @EventListener(ApplicationReadyEvent.class) public void ready(){ready=true;}
-    @PreDestroy public void close(){ready=false;executor.shutdownNow();}
-    @SuppressWarnings("unchecked") public List<Map<String,Object>> specs(){
+    @EventListener(ApplicationReadyEvent.class)
+    public void ready(){ready=true;}
+    @PreDestroy
+    public void close(){ready=false;executor.shutdownNow();}
+    @SuppressWarnings("unchecked")
+    public List<Map<String,Object>> specs(){
         try {
             String file=config.get("VOICE_GATEWAY_NODES_FILE",""),raw=config.get("VOICE_GATEWAY_NODES_JSON","[]");
             if(!file.isEmpty()){raw=ConfigFiles.readUtf8(file,1048576);}
@@ -77,5 +80,6 @@ public class GatewayCluster {
             record(spec,started,healthy,capacity);stability.publishGateway(spec.get("id").toString(),healthy,age);
         }
     }
-    @Scheduled(fixedDelayString="${JAVA_GATEWAY_POLL_MS:5000}") public void tick(){if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!probing.compareAndSet(false,true))return;executor.submit(()->{try{probe();}catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(GatewayCluster.class).warn("gateway probe error_type={}",e.getClass().getSimpleName());}finally{probing.set(false);}});}
+    @Scheduled(fixedDelayString="${JAVA_GATEWAY_POLL_MS:5000}")
+    public void tick(){if(!ready||!config.flag("JAVA_WORKERS_ENABLED",false)||!probing.compareAndSet(false,true))return;executor.submit(()->{try{probe();}catch(RuntimeException e){LoggerFactory.getLogger(GatewayCluster.class).warn("gateway probe error_type={}",e.getClass().getSimpleName());}finally{probing.set(false);}});}
 }

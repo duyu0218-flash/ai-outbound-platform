@@ -37,7 +37,8 @@ public class Webhooks {
         if (!Crypto.equal(JsonSupport.hmac(secret, signed), signature)) throw new ApiError(401, "invalid telephony webhook signature");
     }
     @PostMapping("/telephony/status")
-    public Map<String, Object> status(@RequestBody byte[] raw, HttpServletRequest request) {
+    public Map<String, Object> status(@RequestBody
+    byte[] raw, HttpServletRequest request) {
         verify(raw, request, false);
         Map<String, Object> body = contract.input("WebhookEvent", json.object(new String(raw, StandardCharsets.UTF_8)), true);
         body.put("call_id", UUID.fromString(body.get("call_id").toString()).toString());
@@ -53,20 +54,27 @@ public class Webhooks {
         return callbacks.handle(kind,body);
     }
     @PostMapping("/telephony/speech")
-    public Map<String,Object> speech(@RequestBody byte[] raw,HttpServletRequest request){return receive("telephony_speech","SpeechWebhookEvent",raw,request);}
+    public Map<String,Object> speech(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("telephony_speech","SpeechWebhookEvent",raw,request);}
     @PostMapping("/telephony/transcript")
-    public Map<String,Object> transcript(@RequestBody byte[] raw,HttpServletRequest request){return receive("telephony_transcript","WebhookEvent",raw,request);}
+    public Map<String,Object> transcript(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("telephony_transcript","WebhookEvent",raw,request);}
     @PostMapping("/telephony/media")
-    public Map<String,Object> media(@RequestBody byte[] raw,HttpServletRequest request){return receive("telephony_media","MediaWebhookEvent",raw,request);}
+    public Map<String,Object> media(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("telephony_media","MediaWebhookEvent",raw,request);}
     @PostMapping("/telephony/recording")
-    public Map<String,Object> recording(@RequestBody byte[] raw,HttpServletRequest request){return receive("telephony_recording","WebhookEvent",raw,request);}
+    public Map<String,Object> recording(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("telephony_recording","WebhookEvent",raw,request);}
     @PostMapping("/sms/status")
-    public Map<String,Object> sms(@RequestBody byte[] raw,HttpServletRequest request){return receive("sms_status","SmsStatusWebhook",raw,request);}
+    public Map<String,Object> sms(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("sms_status","SmsStatusWebhook",raw,request);}
     @PostMapping("/telephony/dtmf")
-    public Map<String,Object> dtmf(@RequestBody byte[] raw,HttpServletRequest request){return receive("telephony_dtmf","WebhookEvent",raw,request);}
+    public Map<String,Object> dtmf(@RequestBody
+    byte[] raw,HttpServletRequest request){return receive("telephony_dtmf","WebhookEvent",raw,request);}
     @PostMapping("/telephony/batch")
     @SuppressWarnings("unchecked")
-    public Map<String,Object> batch(@RequestBody byte[] raw,HttpServletRequest request){
+    public Map<String,Object> batch(@RequestBody
+    byte[] raw,HttpServletRequest request){
         verify(raw,request,false);
         if(raw.length>65536)throw new ApiError(413,"callback batch exceeds 64 KiB");
         Map<String,Object> input=contract.input("TelephonyBatch",json.object(new String(raw,StandardCharsets.UTF_8)),true);

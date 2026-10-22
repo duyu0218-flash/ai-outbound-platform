@@ -8,12 +8,14 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.system.service.Settings;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Enqueue joins the caller's transaction; no external work occurs before commit. */
 @Service
 public class Outbox {
-    @org.springframework.beans.factory.annotation.Autowired private CapacityCommitEvidence timing;
+    @Autowired
+    private CapacityCommitEvidence timing;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * All call writers project resource changes in the same MySQL transaction. lock_compat keeps the
@@ -116,8 +117,7 @@ public class DialQuotaCounters implements InitializingBean {
      * policy changes.
      */
     public void assertLimit(long tenant, Object line, Object campaign, long limit) {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (!TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("policy limit change requires a transaction");
         tx.tenant(tenant);
         String type = line != null ? "line" : campaign != null ? "campaign" : "tenant";

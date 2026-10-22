@@ -4,6 +4,7 @@ import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.session.*;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +33,7 @@ public final class SqlTimingProfile implements Interceptor {
         } finally {
             long elapsed = System.nanoTime() - start;
             if (elapsed >= 50_000_000L)
-                org.slf4j.LoggerFactory.getLogger(SqlTimingProfile.class)
+                LoggerFactory.getLogger(SqlTimingProfile.class)
                         .info(
                                 "sql_profile statement={} elapsed_ms={}",
                                 ((MappedStatement) invocation.getArgs()[0]).getId(),

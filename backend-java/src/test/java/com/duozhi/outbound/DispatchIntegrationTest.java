@@ -1,26 +1,53 @@
 package com.duozhi.outbound;
 
-import tools.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.mock.env.MockEnvironment;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.web.servlet.MockMvc;
-import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.sun.net.httpserver.HttpServer;
+import java.io.ByteArrayOutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
+
 @SpringBootTest(properties={"spring.datasource.url=${JAVA_TEST_DATABASE_URL:jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared}","spring.datasource.hikari.maximum-pool-size=1","JAVA_INITIALIZE_SCHEMA=true","JWT_SECRET=java-integration-test-secret-at-least-32-characters","DEMO_USERS_ENABLED=true"})
 @AutoConfigureMockMvc
 class DispatchIntegrationTest {
-    private static final java.util.concurrent.atomic.AtomicLong TENANTS=new java.util.concurrent.atomic.AtomicLong(80000);
-    @Autowired ConversationPolicy conversation; @Autowired AgentMedia media; @Autowired Store store; @Autowired Transactions tx; @Autowired JsonSupport json; @Autowired Config config;
-    @Autowired Settings settings; @Autowired CallPolicy policy; @Autowired CallLifecycle lifecycle; @Autowired Outbox outbox;
-    @Autowired Contract contract; @Autowired ObjectMapper mapper; @Autowired CallAnalysis analysis; @Autowired CallbackInbox inbox;
-    @Autowired IntegrationTasks integrations; @Autowired AiRuntime ai; @Autowired VoiceCallbacks callbacks; @Autowired MockMvc mvc;
+    private static final AtomicLong TENANTS=new AtomicLong(80000);
+    @Autowired
+    ConversationPolicy conversation; @Autowired
+    AgentMedia media; @Autowired
+    Store store; @Autowired
+    Transactions tx; @Autowired
+    JsonSupport json; @Autowired
+    Config config;
+    @Autowired
+    Settings settings; @Autowired
+    CallPolicy policy; @Autowired
+    CallLifecycle lifecycle; @Autowired
+    Outbox outbox;
+    @Autowired
+    Contract contract; @Autowired
+    ObjectMapper mapper; @Autowired
+    CallAnalysis analysis; @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    IntegrationTasks integrations; @Autowired
+    AiRuntime ai; @Autowired
+    VoiceCallbacks callbacks; @Autowired
+    MockMvc mvc;
     Identity fixture() {
         long tenant=TENANTS.incrementAndGet();store.insert("tenant",Values.map("id",tenant,"name","Dispatch test","code",UUID.randomUUID().toString()));
         Map<String,Object> compliance=settings.defaults("compliance");compliance.put("allowed_start_hour",0);compliance.put("allowed_end_hour",0);compliance.put("min_attempt_interval_sec",0);
@@ -34,7 +61,8 @@ class DispatchIntegrationTest {
     Map<String,Object> speech(Map<String,Object> call,String id,String text,boolean last) {
         return contract.input("SpeechWebhookEvent",JsonSupport.map("call_id",call.get("id"),"event_id",id,"transcript",text,"is_final",last,"attempt",call.get("attempts")),true);
     }
-    @Test void durableCampaignDispatchCompletesAndLeavesUnselectedContactsPrepared() {
+    @Test
+    void durableCampaignDispatchCompletesAndLeavesUnselectedContactsPrepared() {
         Identity id=fixture();Config cfg=enabled();DialService dial=dial(cfg);
         Campaigns campaigns=new Campaigns(store,contract,policy,mapper,tx,dial,lifecycle);
         List<Object> contacts=new ArrayList<>();for(String phone:Arrays.asList("13100001101","13100001102"))contacts.add(store.insert("contact",JsonSupport.map("tenant_id",id.tenant(),"phone",phone,"consent_state","consented")).get("id"));
@@ -56,7 +84,8 @@ class DispatchIntegrationTest {
             tx.run(()->campaigns.stop(cid,request(id)));assertEquals(0,store.count("callsession","WHERE campaign_id=? AND status='QUEUED'",cid));
         }finally{worker.close();}
     }
-    @Test void dispatchRequiresLiveCallbackConsumerAndFreezesPolicyAtAdmission() {
+    @Test
+    void dispatchRequiresLiveCallbackConsumerAndFreezesPolicyAtAdmission() {
         Identity id=fixture(); Map<String,Object> call=call(id,"queued",0);
         store.insert("contact",JsonSupport.map("tenant_id",id.tenant(),"phone",call.get("phone"),"consent_state","consented"));
         Config cfg=new Config(new MockEnvironment().withProperty("JAVA_DISPATCH_ENABLED","true").withProperty("OUTBOUND_PLATFORM_MAX_CONCURRENT","200").withProperty("CALLBACK_INBOX_ENABLED","true").withProperty("CALLBACK_INBOX_WORKER_TTL_SEC","0").withProperty("CALLBACK_INBOX_MAX_AGE_SEC","0.5"));
@@ -69,7 +98,8 @@ class DispatchIntegrationTest {
         assertEquals(originalTimezone,conversation.policy(tx.run(()->conversation.state(store.require("callsession",id.tenant(),call.get("id"))))).get("timezone"));
         assertEquals(state.get("id"),tx.run(()->conversation.state(store.require("callsession",id.tenant(),call.get("id")))).get("id"));
     }
-    @Test void speechIsDeduplicatedAndInvalidatesGenerationWithoutReopeningClosedMedia() throws Exception {
+    @Test
+    void speechIsDeduplicatedAndInvalidatesGenerationWithoutReopeningClosedMedia() throws Exception {
         Identity id=fixture();Map<String,Object> call=call(id,"answered",1);
         Map<String,Object> state=store.insert("conversationstate",JsonSupport.map("tenant_id",id.tenant(),"call_id",call.get("id"),"attempt",1,"generation",3,"deadline",Store.now().plusSeconds(30)));
         Map<String,Object> body=speech(call,"speech-1","  请   不要再打电话  ",true);
@@ -83,7 +113,8 @@ class DispatchIntegrationTest {
         assertEquals("stale_attempt",callbacks.handle("telephony_speech",speech(call,"speech-old","old",true)).get("reason"));
         assertEquals(1,store.count("speechturn","WHERE tenant_id=?",id.tenant()));
     }
-    @Test void mediaSequenceFencesAndLateRecordingCannotReplaceCurrentAttempt() {
+    @Test
+    void mediaSequenceFencesAndLateRecordingCannotReplaceCurrentAttempt() {
         Identity id=fixture();Map<String,Object> call=call(id,"answered",2);
         Map<String,Object> m=contract.input("MediaWebhookEvent",JsonSupport.map("call_id",call.get("id"),"event_id","m-2","state","speaking","attempt",2,"event_sequence",2,"playback_id","p2"),true);
         callbacks.handle("telephony_media",m);
@@ -98,21 +129,22 @@ class DispatchIntegrationTest {
         assertEquals(2,store.count("recordingasset","WHERE tenant_id=?",id.tenant()));
         rec.put("payload",JsonSupport.map("url","https://recordings.example/ambiguous.wav"));assertEquals("ambiguous_attempt",callbacks.handle("telephony_recording",rec).get("reason"));
     }
-    @Test void failedHttpAdmissionDoesNotConsumeAttemptAndUnknownOutcomeKeepsReservation() throws Exception {
+    @Test
+    void failedHttpAdmissionDoesNotConsumeAttemptAndUnknownOutcomeKeepsReservation() throws Exception {
         Identity id=fixture();Map<String,Object> call=call(id,"queued",0);
         store.insert("contact",JsonSupport.map("tenant_id",id.tenant(),"phone",call.get("phone"),"consent_state","consented"));
-        java.util.concurrent.atomic.AtomicInteger code=new java.util.concurrent.atomic.AtomicInteger(429);
-        java.util.concurrent.atomic.AtomicBoolean signed=new java.util.concurrent.atomic.AtomicBoolean();
-        java.util.concurrent.atomic.AtomicReference<Map<String,Object>> sent=new java.util.concurrent.atomic.AtomicReference<>();
-        com.sun.net.httpserver.HttpServer server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        AtomicInteger code=new AtomicInteger(429);
+        AtomicBoolean signed=new AtomicBoolean();
+        AtomicReference<Map<String,Object>> sent=new AtomicReference<>();
+        HttpServer server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/v1/call/dial",exchange->{
-            java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();byte[] buf=new byte[1024];int read;while((read=exchange.getRequestBody().read(buf))!=-1)bytes.write(buf,0,read);
-            sent.set(json.object(new String(bytes.toByteArray(),java.nio.charset.StandardCharsets.UTF_8)));
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();byte[] buf=new byte[1024];int read;while((read=exchange.getRequestBody().read(buf))!=-1)bytes.write(buf,0,read);
+            sent.set(json.object(new String(bytes.toByteArray(),StandardCharsets.UTF_8)));
             String stamp=exchange.getRequestHeaders().getFirst("x-voice-timestamp"),nonce=exchange.getRequestHeaders().getFirst("x-voice-nonce");
-            String expected=JsonSupport.hmac("test-command-secret",(stamp+"."+nonce+"./v1/call/dial."+new String(bytes.toByteArray(),java.nio.charset.StandardCharsets.UTF_8)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String expected=JsonSupport.hmac("test-command-secret",(stamp+"."+nonce+"./v1/call/dial."+new String(bytes.toByteArray(),StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8));
             signed.set(expected.equals(exchange.getRequestHeaders().getFirst("x-voice-signature")));
             if(code.get()==429)exchange.getResponseHeaders().add("X-Voice-Dial-Admitted","false");
-            byte[] result="{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);exchange.sendResponseHeaders(code.get(),result.length);exchange.getResponseBody().write(result);exchange.close();
+            byte[] result="{}".getBytes(StandardCharsets.UTF_8);exchange.sendResponseHeaders(code.get(),result.length);exchange.getResponseBody().write(result);exchange.close();
         });server.start();
         try {
             Config cfg=new Config(new MockEnvironment().withProperty("JAVA_DISPATCH_ENABLED","true").withProperty("OUTBOUND_PLATFORM_MAX_CONCURRENT","200").withProperty("TELEPHONY_PROVIDER","http").withProperty("TELEPHONY_PROVIDER_ENDPOINT","http://127.0.0.1:"+server.getAddress().getPort()).withProperty("VOICE_COMMAND_SECRET","test-command-secret"));

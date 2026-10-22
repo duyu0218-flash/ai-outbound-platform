@@ -3,6 +3,7 @@ package com.duozhi.outbound.integration.test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
@@ -17,7 +18,7 @@ class ValidationSchemaCompatibilityTest {
     @Test
     void currentSpringAiSchemaGeneratorRetainsRequiredAndLengthConstraints() throws Exception {
         var schema =
-                new com.fasterxml.jackson.databind.ObjectMapper()
+                new ObjectMapper()
                         .readTree(JsonSchemaGenerator.generateForType(ConstrainedArguments.class));
         assertThat(schema.path("required").toString()).contains("customerName");
         assertThat(schema.path("properties").path("customerName").path("maxLength").asInt())

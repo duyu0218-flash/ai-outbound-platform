@@ -7,11 +7,15 @@ import com.duozhi.outbound.common.support.Ascii;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
+import java.util.Map;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +30,14 @@ public class Settings {
         this.store = store;
         this.config = config;
         this.mapper = mapper;
-        try (java.io.InputStream in =
-                new ClassPathResource("setting-defaults.yaml").getInputStream()) {
+        try (InputStream in = new ClassPathResource("setting-defaults.yaml").getInputStream()) {
             defaults =
-                    new com.fasterxml.jackson.databind.ObjectMapper(
-                                    new com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
+                    new ObjectMapper(new YAMLFactory())
                             .readValue(
                                     in, new TypeReference<Map<String, Map<String, Object>>>() {});
         }
         override("capacity", "max_concurrent_calls", "MAX_CONCURRENT_CALLS");
-        for (java.util.Map.Entry<java.lang.String, java.lang.String> entry :
+        for (Map.Entry<String, String> entry :
                 Values.<String, String>map(
                                 "agent_url",
                                 "AI_AGENT_URL",
@@ -44,7 +46,7 @@ public class Settings {
                                 "llm_model",
                                 "OPENAI_MODEL")
                         .entrySet()) override("ai", entry.getKey(), entry.getValue());
-        for (java.util.Map.Entry<java.lang.String, java.lang.String> entry :
+        for (Map.Entry<String, String> entry :
                 Values.<String, String>map(
                                 "provider",
                                 "SMS_PROVIDER",
@@ -84,8 +86,8 @@ public class Settings {
         String cacheKey = tenant + ":" + section;
         if (batch != null && batch.settings.containsKey(cacheKey))
             return new LinkedHashMap<>(batch.settings.get(cacheKey));
-        java.util.Map<java.lang.String, java.lang.Object> result = defaults(section);
-        java.util.Map<java.lang.String, java.lang.Object> record =
+        Map<String, Object> result = defaults(section);
+        Map<String, Object> record =
                 store.one(
                         "adminsetting",
                         "findBySection",
@@ -143,8 +145,8 @@ public class Settings {
     }
 
     public Map<String, Object> validate(String section, Map<String, Object> input) {
-        java.util.Map<java.lang.String, java.lang.Object> data = defaults(section);
-        for (java.util.Map.Entry<java.lang.String, java.lang.Object> entry : input.entrySet()) {
+        Map<String, Object> data = defaults(section);
+        for (Map.Entry<String, Object> entry : input.entrySet()) {
             if (!data.containsKey(entry.getKey()))
                 throw new ApiError(400, "unsupported setting fields: " + entry.getKey());
             Object expected = data.get(entry.getKey()), value = entry.getValue();
@@ -161,7 +163,7 @@ public class Settings {
         try {
             if (mapper.writeValueAsString(data).length() > 20000)
                 throw new ApiError(400, "setting payload too large");
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             throw new ApiError(400, "invalid settings");
         }
         if (section.equals("capacity")) range(data, "max_concurrent_calls", 1, 100000);

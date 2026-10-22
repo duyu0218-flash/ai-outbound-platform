@@ -1,8 +1,8 @@
 package com.duozhi.outbound;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.regex.*;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -11,8 +11,10 @@ public class ScriptFlows {
     private final Store store;private final Contract contract;private final JsonSupport json;private final Transactions tx;
     public ScriptFlows(Store store,Contract contract,JsonSupport json,Transactions tx){this.store=store;this.contract=contract;this.json=json;this.tx=tx;}
     private long tenant(HttpServletRequest r){Identity i=Identity.from(r);i.admin();return i.tenant();}
-    @SuppressWarnings("unchecked") private List<Map<String,Object>> list(Map<String,Object> graph,String name){return (List<Map<String,Object>>)graph.getOrDefault(name,Collections.emptyList());}
-    @SuppressWarnings("unchecked") public Map<String,Object> graph(Map<String,Object> raw) {
+    @SuppressWarnings("unchecked")
+    private List<Map<String,Object>> list(Map<String,Object> graph,String name){return (List<Map<String,Object>>)graph.getOrDefault(name,Collections.emptyList());}
+    @SuppressWarnings("unchecked")
+    public Map<String,Object> graph(Map<String,Object> raw) {
         Map<String,Object> g=contract.input("ScriptFlowGraph",raw,true);
         for(String name:Arrays.asList("nodes","edges")) {
             List<Map<String,Object>> clean=new ArrayList<>();for(Map<String,Object> item:list(g,name)){Map<String,Object> node=contract.input("nodes".equals(name)?"FlowNode":"FlowEdge",item,true);if("edges".equals(name))node.putIfAbsent("keywords",new ArrayList<>());clean.add(node);}g.put(name,clean);
@@ -78,20 +80,41 @@ public class ScriptFlows {
     }
     private Map<String,Object> version(long tenant,long template,Object id){Map<String,Object> row=store.require("scriptflowversion",tenant,id);if(!row.get("script_template_id").toString().equals(""+template))throw new ApiError(404,"flow version not found");return row;}
     private Map<String,Object> output(Map<String,Object> row){Map<String,Object> data=new LinkedHashMap<>(row);data.put("graph",graph(json.object(row.get("graph_json").toString())));return contract.output("ScriptFlowOut",data);}
-    @GetMapping public List<Map<String,Object>> versions(@PathVariable long template_id,HttpServletRequest request){long tenant=tenant(request);store.require("scripttemplate",tenant,template_id);List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> row:store.list("scriptflowversion","WHERE tenant_id=? AND script_template_id=? ORDER BY version DESC",tenant,template_id))result.add(output(row));return result;}
-    @GetMapping("/{version_id}") public Map<String,Object> get(@PathVariable long template_id,@PathVariable long version_id,HttpServletRequest request){return output(version(tenant(request),template_id,version_id));}
-    @PostMapping public Map<String,Object> create(@PathVariable long template_id,@RequestBody Map<String,Object> body,HttpServletRequest request){long tenant=tenant(request);Map<String,Object> input=contract.input("ScriptFlowCreate",body,true);return tx.run(()->{
+    @GetMapping
+    public List<Map<String,Object>> versions(@PathVariable
+    long template_id,HttpServletRequest request){long tenant=tenant(request);store.require("scripttemplate",tenant,template_id);List<Map<String,Object>> result=new ArrayList<>();for(Map<String,Object> row:store.list("scriptflowversion","WHERE tenant_id=? AND script_template_id=? ORDER BY version DESC",tenant,template_id))result.add(output(row));return result;}
+    @GetMapping("/{version_id}")
+    public Map<String,Object> get(@PathVariable
+    long template_id,@PathVariable
+    long version_id,HttpServletRequest request){return output(version(tenant(request),template_id,version_id));}
+    @PostMapping
+    public Map<String,Object> create(@PathVariable
+    long template_id,@RequestBody
+    Map<String,Object> body,HttpServletRequest request){long tenant=tenant(request);Map<String,Object> input=contract.input("ScriptFlowCreate",body,true);return tx.run(()->{
         tx.platform();Map<String,Object> template=store.require("scripttemplate",tenant,template_id);
         Integer latest=store.jdbc().queryForObject("SELECT COALESCE(MAX(version),0) FROM scriptflowversion WHERE script_template_id=?",Integer.class,template_id);int number=latest+1;
         Map<String,Object> g=defaults(Objects.toString(template.get("content"),""));if(input.get("clone_version_id")!=null)g=json.object(version(tenant,template_id,input.get("clone_version_id")).get("graph_json").toString());
         return output(store.insert("scriptflowversion",JsonSupport.map("tenant_id",tenant,"script_template_id",template_id,"version",number,"name",Objects.toString(input.get("name"),"").isEmpty()?template.get("name")+" v"+number:input.get("name"),"description",input.getOrDefault("description",""),"graph_json",json.json(graph(g)))));
     });}
-    @PutMapping("/{version_id}") @SuppressWarnings("unchecked") public Map<String,Object> update(@PathVariable long template_id,@PathVariable long version_id,@RequestBody Map<String,Object> body,HttpServletRequest request){long tenant=tenant(request);Map<String,Object> input=contract.input("ScriptFlowUpdate",body,true);return tx.run(()->{
+    @PutMapping("/{version_id}")
+    @SuppressWarnings("unchecked")
+    public Map<String,Object> update(@PathVariable
+    long template_id,@PathVariable
+    long version_id,@RequestBody
+    Map<String,Object> body,HttpServletRequest request){long tenant=tenant(request);Map<String,Object> input=contract.input("ScriptFlowUpdate",body,true);return tx.run(()->{
         tx.platform();Map<String,Object> row=version(tenant,template_id,version_id);if(!"draft".equals(row.get("status")))throw new ApiError(409,"published flow is immutable; clone a new draft");
         Map<String,Object> changes=JsonSupport.map("graph_json",json.json(graph((Map<String,Object>)input.get("graph"))));for(String key:Arrays.asList("name","description"))if(input.get(key)!=null)changes.put(key,input.get(key));return output(store.update("scriptflowversion",tenant,version_id,changes));
     });}
-    @PostMapping("/{version_id}/publish") public Map<String,Object> publish(@PathVariable long template_id,@PathVariable long version_id,HttpServletRequest request){long tenant=tenant(request);return tx.run(()->{tx.platform();Map<String,Object> row=version(tenant,template_id,version_id);graph(json.object(row.get("graph_json").toString()));if("draft".equals(row.get("status")))row=store.update("scriptflowversion",tenant,version_id,JsonSupport.map("status","published","published_at",Store.now()));return output(row);});}
-    @PostMapping("/{version_id}/simulate") @SuppressWarnings("unchecked") public Map<String,Object> probe(@PathVariable long template_id,@PathVariable long version_id,@RequestBody Map<String,Object> body,HttpServletRequest request){Map<String,Object> row=version(tenant(request),template_id,version_id),input=contract.input("ScriptFlowSimulateRequest",body,true);return simulate(json.object(row.get("graph_json").toString()),input.get("current_node_id"),Objects.toString(input.get("transcript"),""),Boolean.TRUE.equals(input.get("silence")),(Map<String,Object>)input.get("variables"));}
+    @PostMapping("/{version_id}/publish")
+    public Map<String,Object> publish(@PathVariable
+    long template_id,@PathVariable
+    long version_id,HttpServletRequest request){long tenant=tenant(request);return tx.run(()->{tx.platform();Map<String,Object> row=version(tenant,template_id,version_id);graph(json.object(row.get("graph_json").toString()));if("draft".equals(row.get("status")))row=store.update("scriptflowversion",tenant,version_id,JsonSupport.map("status","published","published_at",Store.now()));return output(row);});}
+    @PostMapping("/{version_id}/simulate")
+    @SuppressWarnings("unchecked")
+    public Map<String,Object> probe(@PathVariable
+    long template_id,@PathVariable
+    long version_id,@RequestBody
+    Map<String,Object> body,HttpServletRequest request){Map<String,Object> row=version(tenant(request),template_id,version_id),input=contract.input("ScriptFlowSimulateRequest",body,true);return simulate(json.object(row.get("graph_json").toString()),input.get("current_node_id"),Objects.toString(input.get("transcript"),""),Boolean.TRUE.equals(input.get("silence")),(Map<String,Object>)input.get("variables"));}
     private Map<String,Object> defaults(String opening) {
         List<Map<String,Object>> nodes=new ArrayList<>(),edges=new ArrayList<>();String[] ids={"start","opening","listen","hangup"},types={"start","message","listen","hangup"},labels={"开始","开场白","等待客户回答","结束通话"};
         for(int i=0;i<ids.length;i++){nodes.add(JsonSupport.map("id",ids[i],"type",types[i],"label",labels[i],"prompt",i==1?opening:"","position",JsonSupport.map("x",new int[]{80,320,580,840}[i],"y",180)));if(i>0)edges.add(JsonSupport.map("id","e-"+ids[i-1]+"-"+ids[i],"source",ids[i-1],"target",ids[i],"condition","always"));}

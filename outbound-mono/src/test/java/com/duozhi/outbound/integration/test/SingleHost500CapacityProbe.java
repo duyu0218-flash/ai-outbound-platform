@@ -11,13 +11,17 @@ import com.fasterxml.jackson.databind.*;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.sql.*;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.concurrent.locks.LockSupport;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.*;
 import org.testcontainers.containers.*;
@@ -73,8 +77,8 @@ class SingleHost500CapacityProbe {
                                 "verification/capacity500-"
                                         + LocalDateTime.now()
                                                 .format(
-                                                        java.time.format.DateTimeFormatter
-                                                                .ofPattern("yyyyMMdd-HHmmss"))));
+                                                        DateTimeFormatter.ofPattern(
+                                                                "yyyyMMdd-HHmmss"))));
         assertFalse(
                 Files.exists(folder), "Preserve prior evidence; select a fresh output directory");
         Files.createDirectories(folder);
@@ -85,7 +89,7 @@ class SingleHost500CapacityProbe {
                 "jar_sha256",
                 HexFormat.of()
                         .formatHex(
-                                java.security.MessageDigest.getInstance("SHA-256")
+                                MessageDigest.getInstance("SHA-256")
                                         .digest(Files.readAllBytes(jar))));
         result.put(
                 "scope",
@@ -694,9 +698,7 @@ class SingleHost500CapacityProbe {
                     .header(
                             "X-Webhook-Signature",
                             JsonSupport.hmac(
-                                    HOOK,
-                                    (stamp + "." + body)
-                                            .getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                                    HOOK, (stamp + "." + body).getBytes(StandardCharsets.UTF_8)));
         }
         request.method(
                 method,
@@ -760,9 +762,7 @@ class SingleHost500CapacityProbe {
                             "ai_outbound_jvm_heap_used_bytes",
                             "ai_outbound_jvm_threads",
                             "ai_outbound_java_gc_seconds_total")) {
-                var m =
-                        java.util.regex.Pattern.compile("(?m)^" + name + " ([0-9.Ee+\\-]+)")
-                                .matcher(text);
+                var m = Pattern.compile("(?m)^" + name + " ([0-9.Ee+\\-]+)").matcher(text);
                 if (m.find()) s.put(name, Double.parseDouble(m.group(1)));
             }
         } catch (Exception unavailable) {

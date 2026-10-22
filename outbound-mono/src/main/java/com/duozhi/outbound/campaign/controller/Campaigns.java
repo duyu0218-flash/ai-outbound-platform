@@ -14,18 +14,21 @@ import com.duozhi.outbound.common.web.Contract;
 import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.service.DialQuotaCounters;
 import com.duozhi.outbound.dial.service.DialService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AdminPermission("campaigns:write")
 @RequestMapping("/api/v1/campaigns")
 public class Campaigns {
-    @org.springframework.beans.factory.annotation.Autowired private DialQuotaCounters quotas;
+    @Autowired
+    private DialQuotaCounters quotas;
     private final Store store;
     private final Contract contract;
     private final CallPolicy policy;
@@ -153,7 +156,7 @@ public class Campaigns {
         try {
             for (JsonNode node : mapper.readTree(flow.get("graph_json").toString()).path("nodes"))
                 if ("start".equals(node.path("type").asText())) return node.path("id").asText();
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             throw new ApiError(409, "invalid published flow graph");
         }
         throw new ApiError(409, "published flow has no start node");
@@ -178,7 +181,8 @@ public class Campaigns {
     @PostMapping
     @PolicyWrite
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
         List<Long> contacts = validate(tenant, data);
@@ -192,8 +196,10 @@ public class Campaigns {
     @GetMapping
     public List<Map<String, Object>> list(
             HttpServletRequest request,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "50")
+            int size) {
         return store
                 .query(
                         "campaign",
@@ -205,7 +211,8 @@ public class Campaigns {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> row = store.require("campaign", tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
@@ -216,8 +223,10 @@ public class Campaigns {
     @PutMapping("/{id}")
     @PolicyWrite
     public Map<String, Object> update(
-            @PathVariable long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
@@ -254,7 +263,8 @@ public class Campaigns {
 
     @DeleteMapping("/{id}")
     @PolicyWrite
-    public Map<String, String> delete(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, String> delete(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> row = locked(tenant, id);
         if (Values.set("running", "paused").contains(row.get("status")))
@@ -266,11 +276,15 @@ public class Campaigns {
 
     @PostMapping("/{id}/start")
     public Map<String, Object> start(
-            @PathVariable long id,
+            @PathVariable
+            long id,
             HttpServletRequest request,
-            @RequestParam(defaultValue = "true") boolean auto_dial,
-            @RequestParam(defaultValue = "true") boolean async_dial,
-            @RequestParam(required = false) Integer max_dials) {
+            @RequestParam(defaultValue = "true")
+            boolean auto_dial,
+            @RequestParam(defaultValue = "true")
+            boolean async_dial,
+            @RequestParam(required = false)
+            Integer max_dials) {
         long tenant = tenant(request);
         Map<String, Object> result =
                 transactions.serialized(
@@ -545,7 +559,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/pause")
     @PolicyWrite
-    public Map<String, Object> pause(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> pause(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
@@ -561,7 +576,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/resume")
     @PolicyWrite
-    public Map<String, Object> resume(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> resume(@PathVariable
+    long id, HttpServletRequest request) {
         Map<String, Object> row = locked(tenant(request), id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         if (!Values.set("paused", "prepared").contains(row.get("status")))
@@ -587,7 +603,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/stop")
     @PolicyWrite
-    public Map<String, Object> stop(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> stop(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");

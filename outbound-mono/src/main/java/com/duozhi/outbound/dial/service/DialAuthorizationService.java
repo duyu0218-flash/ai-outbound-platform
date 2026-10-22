@@ -7,8 +7,13 @@ import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.job.worker.TaskWorker;
+import com.duozhi.outbound.voice.controller.VoiceController;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +29,8 @@ public class DialAuthorizationService {
     private final Transactions tx;
     private final Config config;
     private final JsonSupport json;
-    @org.springframework.beans.factory.annotation.Autowired private Store store;
+    @Autowired
+    private Store store;
 
     public DialAuthorizationService(
             JdbcTemplate jdbc, Transactions tx, Config config, JsonSupport json) {
@@ -235,7 +241,7 @@ public class DialAuthorizationService {
         Object expiry = row.get("owner_expires_at");
         if (expiry == null) return true;
         LocalDateTime until =
-                expiry instanceof java.sql.Timestamp stamp
+                expiry instanceof Timestamp stamp
                         ? stamp.toLocalDateTime()
                         : expiry instanceof LocalDateTime time ? time : null;
         if (until == null) throw new ApiError(503, "dial owner expiry is invalid");
@@ -243,9 +249,7 @@ public class DialAuthorizationService {
     }
 
     @SuppressWarnings("unchecked")
-    public void acknowledge(
-            List<Request> requests,
-            List<com.duozhi.outbound.voice.controller.VoiceController.CommandResult> replies) {
+    public void acknowledge(List<Request> requests, List<VoiceController.CommandResult> replies) {
         if (requests.size() != replies.size()) throw new DialService.PendingConfirmation();
         tx.run(
                 () -> {
@@ -322,13 +326,11 @@ public class DialAuthorizationService {
         String secret = config.get("VOICE_COMMAND_SECRET", "");
         String expected =
                 JsonSupport.hmac(
-                        secret,
-                        json.canonical(signed, false)
-                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        secret, json.canonical(signed, false).getBytes(StandardCharsets.UTF_8));
         if (secret.length() < 32
-                || !java.security.MessageDigest.isEqual(
-                        supplied.getBytes(java.nio.charset.StandardCharsets.US_ASCII),
-                        expected.getBytes(java.nio.charset.StandardCharsets.US_ASCII)))
+                || !MessageDigest.isEqual(
+                        supplied.getBytes(StandardCharsets.US_ASCII),
+                        expected.getBytes(StandardCharsets.US_ASCII)))
             throw new ApiError(409, "unverified rejection proof");
         for (var identity :
                 Map.of(

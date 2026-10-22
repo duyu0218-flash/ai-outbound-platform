@@ -8,6 +8,8 @@ import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.common.web.Contract;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,18 +33,18 @@ public class Knowledge {
                         Values.map("tenantId", Identity.from(request).tenant()))
                 .stream()
                 .map(row -> contract.output("KnowledgeItemOut", row))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     @AdminPermission("knowledge:write")
     @PostMapping
     @Transactional
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
+        Identity actor = Identity.from(request);
         actor.admin("knowledge:write");
-        java.util.Map<java.lang.String, java.lang.Object> values =
-                contract.input("KnowledgeItemCreate", body, true);
+        Map<String, Object> values = contract.input("KnowledgeItemCreate", body, true);
         values.put("tenant_id", actor.tenant());
         values.put("created_by", actor.userId());
         return contract.output("KnowledgeItemOut", store.insert("knowledgeitem", values));
@@ -52,14 +54,15 @@ public class Knowledge {
     @PutMapping("/{id}")
     @Transactional
     public Map<String, Object> update(
-            @PathVariable long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+        Identity actor = Identity.from(request);
         actor.admin("knowledge:write");
-        java.util.Map<java.lang.String, java.lang.Object> values =
-                contract.input("KnowledgeItemUpdate", body, false);
-        java.util.Map<java.lang.String, java.lang.Object> row =
+        Map<String, Object> values = contract.input("KnowledgeItemUpdate", body, false);
+        Map<String, Object> row =
                 store.one(
                         "knowledgeitem",
                         "lockById",
@@ -73,7 +76,8 @@ public class Knowledge {
     @AdminPermission("knowledge:write")
     @DeleteMapping("/{id}")
     @Transactional
-    public Map<String, Object> delete(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> delete(@PathVariable
+    long id, HttpServletRequest request) {
         return update(id, Values.map("is_active", false), request);
     }
 }

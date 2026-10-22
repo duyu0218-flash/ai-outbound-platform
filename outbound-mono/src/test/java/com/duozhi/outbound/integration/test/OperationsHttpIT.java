@@ -17,11 +17,15 @@ import com.duozhi.outbound.operations.controller.Operations;
 import com.duozhi.outbound.operations.controller.OperationsWorkforce;
 import com.duozhi.outbound.operations.dao.OperationsStore;
 import com.fasterxml.jackson.databind.*;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.*;
 import org.springframework.http.MediaType;
@@ -31,11 +35,12 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class OperationsHttpIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry p) {
@@ -55,17 +60,28 @@ class OperationsHttpIT {
         p.add("JAVA_WORKERS_ENABLED", () -> "false");
     }
 
-    @Autowired TestRestTemplate http;
-    @Autowired Crypto crypto;
-    @Autowired Store store;
-    @Autowired OperationsStore operations;
-    @Autowired OperationsWorkforce workforce;
-    @Autowired Handoffs handoffs;
-    @Autowired ConversationPolicy conversation;
-    @Autowired Transactions tx;
-    @Autowired SysUserMapper users;
-    @Autowired TenantMapper tenants;
-    @Autowired ObjectMapper json;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    Store store;
+    @Autowired
+    OperationsStore operations;
+    @Autowired
+    OperationsWorkforce workforce;
+    @Autowired
+    Handoffs handoffs;
+    @Autowired
+    ConversationPolicy conversation;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    ObjectMapper json;
     static final AtomicInteger SEQUENCE = new AtomicInteger(500);
     int tenant;
     String adminToken, token;
@@ -373,8 +389,7 @@ class OperationsHttpIT {
         var follow = change("follow", 1);
         follow.put("stage", "in_progress");
         follow.put("note", "已联系，下次回访");
-        follow.put(
-                "next_at", Store.now().plusDays(1).atOffset(java.time.ZoneOffset.UTC).toString());
+        follow.put("next_at", Store.now().plusDays(1).atOffset(ZoneOffset.UTC).toString());
         patch(a, follow);
         var detail = get("/leads/" + a);
         assertThat(detail.path("stage").asText()).isEqualTo("in_progress");
@@ -629,9 +644,7 @@ class OperationsHttpIT {
         tx.run(() -> handoffs.queue(call, "operations test"));
         var state = conversation.state(store.require("callsession", tenant, call.get("id")));
         long wait =
-                java.time.Duration.between(
-                                Store.now(),
-                                java.time.LocalDateTime.parse(state.get("deadline").toString()))
+                Duration.between(Store.now(), LocalDateTime.parse(state.get("deadline").toString()))
                         .getSeconds();
         assertThat(wait).isBetween(30L, 33L);
         var effective = workforce.effective(tenant, agent.getId());

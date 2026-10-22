@@ -4,11 +4,13 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.service.TelephonyClient;
 import com.duozhi.outbound.integration.support.Support;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
+import org.springframework.stereotype.Service;
 
 /** Retains the former agent HTTP deadline while executing the same agent inside this JVM. */
-@org.springframework.stereotype.Service
+@Service
 public class EmbeddedAiTransport {
     private final EmbeddedAgent agent;
     private final ThreadPoolExecutor executor;
@@ -60,7 +62,7 @@ public class EmbeddedAiTransport {
         }
     }
 
-    @jakarta.annotation.PreDestroy
+    @PreDestroy
     public void close() {
         executor.shutdownNow();
     }

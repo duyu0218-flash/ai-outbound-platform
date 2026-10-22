@@ -2,6 +2,7 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import com.duozhi.outbound.agent.controller.Handoffs;
 import com.duozhi.outbound.agent.service.HumanRouting;
 import com.duozhi.outbound.ai.service.ConversationPolicy;
@@ -21,12 +22,18 @@ import com.duozhi.outbound.dial.domain.DialBatchScope;
 import com.duozhi.outbound.dial.service.DialService;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.operations.dao.OperationsStore;
+import com.mysql.cj.conf.PropertyKey;
+import com.mysql.cj.jdbc.JdbcConnection;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import org.testcontainers.containers.GenericContainer;
@@ -37,7 +44,8 @@ import org.testcontainers.mysql.MySQLContainer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class OutboundReliabilityIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -63,40 +71,52 @@ class OutboundReliabilityIT {
         p.add("JAVA_CALLBACK_BATCH_SIZE", () -> "100");
     }
 
-    @Autowired Store store;
-    @Autowired OperationsStore db;
-    @Autowired Transactions tx;
-    @Autowired DialService dial;
-    @Autowired Handoffs handoffs;
-    @Autowired HumanRouting routing;
-    @Autowired ConversationPolicy conversation;
-    @Autowired CallLifecycle lifecycle;
-    @Autowired JsonSupport json;
-    @Autowired PlatformLock platformLocks;
-    @Autowired javax.sql.DataSource dataSource;
-    @Autowired DialBatchStore dialDb;
-    @Autowired TaskWorker worker;
-    @Autowired DialCommandJournal journal;
-    @Autowired CallbackInbox inbox;
-    @Autowired CallbackBatchStore callbackDb;
-    @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
+    @Autowired
+    Store store;
+    @Autowired
+    OperationsStore db;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    DialService dial;
+    @Autowired
+    Handoffs handoffs;
+    @Autowired
+    HumanRouting routing;
+    @Autowired
+    ConversationPolicy conversation;
+    @Autowired
+    CallLifecycle lifecycle;
+    @Autowired
+    JsonSupport json;
+    @Autowired
+    PlatformLock platformLocks;
+    @Autowired
+    DataSource dataSource;
+    @Autowired
+    DialBatchStore dialDb;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    DialCommandJournal journal;
+    @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    CallbackBatchStore callbackDb;
+    @Autowired
+    ConfigurableEnvironment environment;
 
     @Test
     void jdbcBatchRewriteIsEnabledOnTheActualBusinessConnection() throws Exception {
         try (var connection = dataSource.getConnection()) {
-            var properties =
-                    connection.unwrap(com.mysql.cj.jdbc.JdbcConnection.class).getPropertySet();
+            var properties = connection.unwrap(JdbcConnection.class).getPropertySet();
             for (var key :
                     List.of(
-                            com.mysql.cj.conf.PropertyKey.rewriteBatchedStatements,
-                            com.mysql.cj.conf.PropertyKey.useServerPrepStmts,
-                            com.mysql.cj.conf.PropertyKey.cachePrepStmts))
+                            PropertyKey.rewriteBatchedStatements,
+                            PropertyKey.useServerPrepStmts,
+                            PropertyKey.cachePrepStmts))
                 assertThat(properties.getBooleanProperty(key).getValue()).isTrue();
-            assertThat(
-                            properties
-                                    .getIntegerProperty(
-                                            com.mysql.cj.conf.PropertyKey.prepStmtCacheSize)
-                                    .getValue())
+            assertThat(properties.getIntegerProperty(PropertyKey.prepStmtCacheSize).getValue())
                     .isEqualTo(128);
         }
     }
@@ -261,7 +281,7 @@ class OutboundReliabilityIT {
         environment
                 .getPropertySources()
                 .addFirst(
-                        new org.springframework.core.env.MapPropertySource(
+                        new MapPropertySource(
                                 property, Map.of("NO_ANSWER_CODES", "[\"dialing\"]")));
         try {
             assertThatThrownBy(
@@ -828,7 +848,7 @@ class OutboundReliabilityIT {
         consent(call);
         worker.enqueueDue();
         var pool = Executors.newSingleThreadExecutor();
-        long key = java.nio.ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
+        long key = ByteBuffer.wrap(JsonSupport.digest("java-outbox-claim")).getLong();
         try {
             try (var held = platformLocks.lock(key)) {
                 assertThat(
@@ -1295,9 +1315,7 @@ class OutboundReliabilityIT {
         int
                 partition =
                         (int)
-                                ((java.nio.ByteBuffer.wrap(
-                                                                JsonSupport.digest(
-                                                                        c.get("id").toString()))
+                                ((ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString()))
                                                         .getInt()
                                                 & 0xffffffffL)
                                         % 64),
@@ -1384,8 +1402,7 @@ class OutboundReliabilityIT {
         assertThat(inbox.consumeBatch(100)).isZero();
         int partition =
                 (int)
-                        ((java.nio.ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString()))
-                                                .getInt()
+                        ((ByteBuffer.wrap(JsonSupport.digest(c.get("id").toString())).getInt()
                                         & 0xffffffffL)
                                 % 64);
         assertThat(inbox.consume(partition)).isTrue();
@@ -1445,7 +1462,7 @@ class OutboundReliabilityIT {
                 assertThat(threads)
                         .hasSize(4)
                         .allSatisfy(t -> assertThat(t.getState()).isEqualTo(Thread.State.WAITING));
-                assertThat(((com.alibaba.druid.pool.DruidDataSource) dataSource).getActiveCount())
+                assertThat(((DruidDataSource) dataSource).getActiveCount())
                         .as(
                                 "Dial requests must not exhaust connections while waiting for"
                                         + " admission")

@@ -1,29 +1,38 @@
 package com.duozhi.outbound;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties={"spring.datasource.url=${JAVA_TEST_DATABASE_URL:jdbc:sqlite:file:java-auth-test?mode=memory&cache=shared}","spring.datasource.hikari.maximum-pool-size=1","JAVA_INITIALIZE_SCHEMA=true","JWT_SECRET=java-integration-test-secret-at-least-32-characters","DEMO_USERS_ENABLED=true"})
 @AutoConfigureMockMvc
 class LifecycleIntegrationTest {
     private static final AtomicLong TENANTS = new AtomicLong(70000);
-    @Autowired Store store;
-    @Autowired Transactions tx;
-    @Autowired CallLifecycle lifecycle;
-    @Autowired CallbackInbox inbox;
-    @Autowired VoiceCallbacks callbacks;
-    @Autowired Outbox outbox;
-    @Autowired Contract contract;
-    @Autowired JsonSupport json;
+    @Autowired
+    Store store;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    CallLifecycle lifecycle;
+    @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    VoiceCallbacks callbacks;
+    @Autowired
+    Outbox outbox;
+    @Autowired
+    Contract contract;
+    @Autowired
+    JsonSupport json;
 
     Map<String, Object> call() {
         long tenant = TENANTS.incrementAndGet();
@@ -36,7 +45,8 @@ class LifecycleIntegrationTest {
     }
     Map<String, Object> reload(Map<String, Object> call) { return store.require("callsession", CallLifecycle.tenant(call), call.get("id")); }
 
-    @Test void duplicateAndStaleCallbacksCannotReopenTerminalCall() {
+    @Test
+    void duplicateAndStaleCallbacksCannotReopenTerminalCall() {
         Map<String, Object> call = call();
         lifecycle.status(body(call, "answered", "answer", 1));
         lifecycle.status(body(call, "answered", "answer", 1));
@@ -54,7 +64,8 @@ class LifecycleIntegrationTest {
         assertNotNull(store.one("callusage", "WHERE call_session_id=?", bound).get("telephony_seconds"));
     }
 
-    @Test void retryKeepsCampaignOpenButSuppressionCancelsIt() {
+    @Test
+    void retryKeepsCampaignOpenButSuppressionCancelsIt() {
         Map<String, Object> call = call();
         lifecycle.status(body(call, "busy", "busy", 1));
         assertNotNull(reload(call).get("next_attempt_at"));
@@ -65,7 +76,8 @@ class LifecycleIntegrationTest {
         assertEquals("completed", store.require("campaign", CallLifecycle.tenant(call), call.get("campaign_id")).get("status"));
     }
 
-    @Test void businessStateEventsAndOutboxRollbackTogether() {
+    @Test
+    void businessStateEventsAndOutboxRollbackTogether() {
         Map<String, Object> call = call();
         assertThrows(IllegalStateException.class, () -> tx.run(() -> {
             lifecycle.status(body(call, "answered", "rollback", 1));
@@ -76,7 +88,8 @@ class LifecycleIntegrationTest {
         assertEquals(0, store.count("taskoutbox", "WHERE aggregate_id=?", call.get("id")));
     }
 
-    @Test void durableReceiptRejectsChangedReplayAndConsumesAtomically() {
+    @Test
+    void durableReceiptRejectsChangedReplayAndConsumesAtomically() {
         Set<Object> existing=new HashSet<>();for(Map<String,Object> worker:store.list("callbackinboxworker",""))existing.add(worker.get("id"));
         Config cfg=new Config(new MockEnvironment());CallbackInbox consumer=new CallbackInbox(store,tx,json,cfg,lifecycle,callbacks);
         consumer.maintenance();consumer.maintenance();
@@ -101,7 +114,8 @@ class LifecycleIntegrationTest {
         assertEquals(0, CallLifecycle.number(partition, "pending_bytes"));
     }
 
-    @Test void inboxBackpressureDoesNotAcknowledgeLostEvent() {
+    @Test
+    void inboxBackpressureDoesNotAcknowledgeLostEvent() {
         Map<String, Object> call = call();
         CallbackInbox bounded = new CallbackInbox(store, tx, json, new Config(new MockEnvironment().withProperty("CALLBACK_INBOX_PARTITION_LIMIT", "1")), lifecycle, callbacks);
         Map<String, Object> ack = bounded.receive("telephony_status", body(call, "answered", "capacity-1", 1));
@@ -112,7 +126,8 @@ class LifecycleIntegrationTest {
         assertTrue(bounded.consume(CallLifecycle.number(receipt, "partition_id")));
     }
 
-    @Test void webhookSignatureAndTokenAreRequiredWhenConfigured() {
+    @Test
+    void webhookSignatureAndTokenAreRequiredWhenConfigured() {
         Map<String, Object> call = call();
         String secret = "synthetic-webhook-signing-secret", token = "synthetic-webhook-token";
         Config configured = new Config(new MockEnvironment().withProperty("TELEPHONY_WEBHOOK_SECRET", secret).withProperty("TELEPHONY_WEBHOOK_TOKEN", token));

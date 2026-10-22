@@ -1,12 +1,13 @@
 package com.duozhi.outbound;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/v1/campaigns")
@@ -87,7 +88,7 @@ public class Campaigns {
         try {
             for (JsonNode node : mapper.readTree(flow.get("graph_json").toString()).path("nodes"))
                 if ("start".equals(node.path("type").asText())) return node.path("id").asText();
-        } catch (tools.jackson.core.JacksonException e) { throw new ApiError(409, "invalid published flow graph"); }
+        } catch (JacksonException e) { throw new ApiError(409, "invalid published flow graph"); }
         throw new ApiError(409, "published flow has no start node");
     }
 
@@ -105,7 +106,8 @@ public class Campaigns {
 
     @PostMapping
     @Transactional
-    public Map<String, Object> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Map<String, Object> create(@RequestBody
+    Map<String, Object> body, HttpServletRequest request) {
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
         List<Long> contacts = validate(tenant, data);
@@ -116,13 +118,16 @@ public class Campaigns {
     }
 
     @GetMapping
-    public List<Map<String, Object>> list(HttpServletRequest request, @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size) {
+    public List<Map<String, Object>> list(HttpServletRequest request, @RequestParam(defaultValue="1")
+    int page, @RequestParam(defaultValue="50")
+    int size) {
         return store.list("campaign", "WHERE tenant_id=? ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?", tenant(request), size, Contract.page(page, size))
                 .stream().map(this::output).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = store.require("campaign", tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         row.put("script", script(tenant, row)); return output(row);
@@ -130,7 +135,9 @@ public class Campaigns {
 
     @PutMapping("/{id}")
     @Transactional
-    public Map<String, Object> update(@PathVariable long id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Map<String, Object> update(@PathVariable
+    long id, @RequestBody
+    Map<String, Object> body, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> data = contract.input("CampaignCreate", body, true);
         Map<String, Object> existing = locked(tenant, id);
         if (Values.set("deleted", "running", "paused").contains(existing.get("status"))) throw new ApiError(409, "stop campaign before editing");
@@ -152,7 +159,8 @@ public class Campaigns {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public Map<String, String> delete(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, String> delete(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if (Values.set("running", "paused").contains(row.get("status"))) throw new ApiError(409, "stop campaign before deleting");
         if (!"deleted".equals(row.get("status"))) store.update("campaign", tenant, id, Values.map("status", "deleted"));
@@ -160,12 +168,17 @@ public class Campaigns {
     }
 
     @PostMapping("/{id}/start")
-    public Map<String, Object> start(@PathVariable long id, HttpServletRequest request,
-            @RequestParam(defaultValue="true") boolean auto_dial, @RequestParam(defaultValue="true") boolean async_dial,
-            @RequestParam(required=false) Integer max_dials) {
+    public Map<String, Object> start(@PathVariable
+    long id, HttpServletRequest request,
+            @RequestParam(defaultValue="true")
+            boolean auto_dial, @RequestParam(defaultValue="true")
+            boolean async_dial,
+            @RequestParam(required=false)
+            Integer max_dials) {
         long tenant = tenant(request);
         Map<String, Object> result = transactions.run(() -> prepare(tenant, id, auto_dial, async_dial, max_dials));
-        @SuppressWarnings("unchecked") List<Object> selected = (List<Object>)result.remove("_call_ids");
+        @SuppressWarnings("unchecked")
+        List<Object> selected = (List<Object>)result.remove("_call_ids");
         if (auto_dial && !async_dial) {
             int succeeded = 0;
             List<Map<String, Object>> errors = new ArrayList<>();
@@ -184,7 +197,8 @@ public class Campaigns {
             result.put("auto_dial_count", succeeded);
             result.put("dispatch_result", JsonSupport.map("total", selected.size(), "target", selected.size(), "succeeded", succeeded,
                     "failed", errors.size(), "skipped", 0, "status", "completed", "errors", errors, "error_codes", codes));
-            @SuppressWarnings("unchecked") Collection<String> prechecks = (Collection<String>)result.get("error_codes");
+            @SuppressWarnings("unchecked")
+            Collection<String> prechecks = (Collection<String>)result.get("error_codes");
             Set<String> allCodes = new TreeSet<>(prechecks); allCodes.addAll(codes); result.put("error_codes", allCodes);
             if (!errors.isEmpty()) { result.put("result_code", succeeded > 0 ? "PARTIAL_SUCCESS" : "FAILED"); result.put("result_message", "campaign started with errors"); }
             if (succeeded == 0 && !selected.isEmpty()) transactions.run(() -> {
@@ -263,7 +277,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/pause")
     @Transactional
-    public Map<String, Object> pause(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> pause(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         if (!"running".equals(row.get("status"))) throw new ApiError(409, "only a running campaign can be paused");
@@ -272,7 +287,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/resume")
     @Transactional
-    public Map<String, Object> resume(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> resume(@PathVariable
+    long id, HttpServletRequest request) {
         Map<String, Object> row = locked(tenant(request), id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         if (!Values.set("paused", "prepared").contains(row.get("status"))) throw new ApiError(409, "only a paused or prepared campaign can be resumed");
@@ -288,7 +304,8 @@ public class Campaigns {
 
     @PostMapping("/{id}/stop")
     @Transactional
-    public Map<String, Object> stop(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> stop(@PathVariable
+    long id, HttpServletRequest request) {
         long tenant = tenant(request); Map<String, Object> row = locked(tenant, id);
         if ("deleted".equals(row.get("status"))) throw new ApiError(404, "campaign not found");
         if (!Values.set("running", "paused", "prepared").contains(row.get("status"))) throw new ApiError(409, "only a running, paused or prepared campaign can be stopped");

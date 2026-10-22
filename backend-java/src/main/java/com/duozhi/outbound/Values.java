@@ -15,6 +15,8 @@ final class Values {
         }
         return Collections.unmodifiableMap(result);
     }
-    @SafeVarargs static <T> List<T> list(T... items){return Collections.unmodifiableList(Arrays.asList(items));}
-    @SafeVarargs static <T> Set<T> set(T... items){return Collections.unmodifiableSet(new LinkedHashSet<T>(Arrays.asList(items)));}
+    @SafeVarargs
+    static <T> List<T> list(T... items){return Collections.unmodifiableList(Arrays.asList(items));}
+    @SafeVarargs
+    static <T> Set<T> set(T... items){return Collections.unmodifiableSet(new LinkedHashSet<T>(Arrays.asList(items)));}
 }

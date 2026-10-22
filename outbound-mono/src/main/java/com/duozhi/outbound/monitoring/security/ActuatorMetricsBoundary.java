@@ -2,20 +2,24 @@ package com.duozhi.outbound.monitoring.security;
 
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.operations.service.OperationalMetrics;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.Map;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Actuator's unified exporter keeps the same explicit metrics bearer credential. */
-@org.springframework.stereotype.Component
-@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 11)
-public class ActuatorMetricsBoundary extends org.springframework.web.filter.OncePerRequestFilter {
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 11)
+public class ActuatorMetricsBoundary extends OncePerRequestFilter {
     private final OperationalMetrics metrics;
-    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final ObjectMapper json;
 
-    public ActuatorMetricsBoundary(
-            OperationalMetrics metrics, com.fasterxml.jackson.databind.ObjectMapper json) {
+    public ActuatorMetricsBoundary(OperationalMetrics metrics, ObjectMapper json) {
         this.metrics = metrics;
         this.json = json;
     }

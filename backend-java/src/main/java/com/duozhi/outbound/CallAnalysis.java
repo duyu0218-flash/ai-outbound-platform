@@ -91,7 +91,9 @@ public class CallAnalysis {
         outbox.callback(call, "call.result", data, "result:" + call.get("id") + ":" + version);
     }
     @GetMapping("/api/v1/calls/{id}/analysis")
-    public Map<String, Object> get(@PathVariable UUID id, @RequestParam(defaultValue="false") boolean refresh, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    UUID id, @RequestParam(defaultValue="false")
+    boolean refresh, HttpServletRequest request) {
         return tx.run(() -> {
             tx.platform(); Map<String, Object> call = tx.call(id); visible(call, Identity.from(request));
             Map<String, Object> record = existing(id);
@@ -99,7 +101,9 @@ public class CallAnalysis {
         });
     }
     @PutMapping("/api/v1/calls/{id}/analysis")
-    public Map<String, Object> review(@PathVariable UUID id, @RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public Map<String, Object> review(@PathVariable
+    UUID id, @RequestBody
+    Map<String, Object> body, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         if (identity.user() != null && !"admin".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor"))) throw new ApiError(403, "supervisor permission required");
         Map<String, Object> input = contract.input("CallAnalysisReview", body, false);

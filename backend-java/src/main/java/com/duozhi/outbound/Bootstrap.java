@@ -1,18 +1,19 @@
 package com.duozhi.outbound;
 
+import java.sql.Connection;
+import javax.sql.DataSource;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
-import javax.sql.DataSource;
-import java.util.Map;
 
 @Component
 public class Bootstrap implements ApplicationRunner {
     private final Config config; private final Store store; private final Crypto crypto; private final DataSource source; private final CallbackInbox inbox;
     public Bootstrap(Config config,Store store,Crypto crypto,DataSource source,CallbackInbox inbox) { this.config=config;this.store=store;this.crypto=crypto;this.source=source;this.inbox=inbox; }
-    @Override public void run(ApplicationArguments args) {
+    @Override
+    public void run(ApplicationArguments args) {
         ProductionConfiguration.validate(config);
         if(config.get("JWT_SECRET", "").length()<32) throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");
         if(!"HS256".equals(config.get("JWT_ALGORITHM","HS256"))) throw new IllegalStateException("Only HS256 compatibility is implemented");
@@ -21,7 +22,7 @@ public class Bootstrap implements ApplicationRunner {
             new ResourceDatabasePopulator(new ClassPathResource("contracts/schema-"+dialect+".sql")).execute(source);
         }
         // Existing schemas are read as-is. Runtime startup never alters existing tables.
-        try(java.sql.Connection connection=source.getConnection()) {new DatabaseMigration(connection).verify();}
+        try(Connection connection=source.getConnection()) {new DatabaseMigration(connection).verify();}
         catch(Exception incompatible){throw new IllegalStateException("Database compatibility check failed; run the explicit database migration plan before starting",incompatible);}
         inbox.initialize();
         if(config.flag("DEMO_USERS_ENABLED",false)) {

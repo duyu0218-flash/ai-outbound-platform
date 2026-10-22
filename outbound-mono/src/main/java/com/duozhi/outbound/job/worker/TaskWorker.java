@@ -16,18 +16,27 @@ import com.duozhi.outbound.job.service.IntegrationTasks;
 import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.operations.controller.CallAnalysis;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class TaskWorker {
-    @org.springframework.beans.factory.annotation.Autowired private DialDrainControl dialControl;
+    @Autowired
+    private DialDrainControl dialControl;
     private static final ThreadLocal<Runnable> GUARD = new ThreadLocal<>();
     private static final ThreadLocal<Long> TENANT_HINT = new ThreadLocal<>();
     private static final ThreadLocal<String> OWNER_TOKEN = new ThreadLocal<>();
@@ -79,8 +88,7 @@ public class TaskWorker {
     private volatile boolean ready;
     private volatile long aiProgress;
     private final ArrayDeque<long[]> aiDelays = new ArrayDeque<>();
-    private final java.util.concurrent.atomic.AtomicLong cursor =
-            new java.util.concurrent.atomic.AtomicLong();
+    private final AtomicLong cursor = new AtomicLong();
     private final int[] callbackCursors;
 
     public TaskWorker(
@@ -139,7 +147,7 @@ public class TaskWorker {
                         "java-call-analysis");
         int callbackWorkers = Math.max(1, Math.min(4, config.number("JAVA_CALLBACK_WORKERS", 1)));
         receiving =
-                java.util.stream.IntStream.range(0, callbackWorkers)
+                IntStream.range(0, callbackWorkers)
                         .mapToObj(i -> new AtomicBoolean())
                         .toArray(AtomicBoolean[]::new);
         callbackCursors = new int[callbackWorkers];
@@ -165,12 +173,12 @@ public class TaskWorker {
             types.add("('after_playback','interrupt_playback')");
         laneTypes = types.toArray(String[]::new);
         lanes =
-                java.util.stream.IntStream.range(0, laneTypes.length)
+                IntStream.range(0, laneTypes.length)
                         .mapToObj(i -> new AtomicBoolean())
                         .toArray(AtomicBoolean[]::new);
         int dialWorkers = Math.max(1, Math.min(4, config.number("JAVA_DIAL_WORKERS", 1)));
         dialLanes =
-                java.util.stream.IntStream.range(0, dialWorkers)
+                IntStream.range(0, dialWorkers)
                         .mapToObj(i -> new AtomicBoolean())
                         .toArray(AtomicBoolean[]::new);
         dialExecutor =
@@ -215,12 +223,11 @@ public class TaskWorker {
         if (guard != null) guard.run();
     }
 
-    public static <T> T guarded(long tenant, Runnable guard, java.util.function.Supplier<T> work) {
+    public static <T> T guarded(long tenant, Runnable guard, Supplier<T> work) {
         return guarded(tenant, OWNER_TOKEN.get(), guard, work);
     }
 
-    public static <T> T guarded(
-            long tenant, String owner, Runnable guard, java.util.function.Supplier<T> work) {
+    public static <T> T guarded(long tenant, String owner, Runnable guard, Supplier<T> work) {
         var previous = GUARD.get();
         var oldTenant = TENANT_HINT.get();
         var oldOwner = OWNER_TOKEN.get();
@@ -298,7 +305,7 @@ public class TaskWorker {
                         ? 0
                         : Math.max(
                                 0,
-                                java.time.Duration.between(
+                                Duration.between(
                                                 LocalDateTime.parse(
                                                         oldest.get("available_at").toString()),
                                                 Store.now())
@@ -384,7 +391,7 @@ public class TaskWorker {
 
     private Map<String, Object> claim(Long tenant, String types, int partition, int partitions) {
         boolean parallel = config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", false);
-        java.util.function.Supplier<Map<String, Object>> work =
+        Supplier<Map<String, Object>> work =
                 () -> {
                     Object now = store.encode("taskoutbox", "available_at", Store.now());
                     Object cutoff =
@@ -761,8 +768,7 @@ public class TaskWorker {
                                     Runnable owned =
                                             () -> {
                                                 if (Thread.currentThread().isInterrupted()
-                                                        || !org.springframework.transaction.support
-                                                                .TransactionSynchronizationManager
+                                                        || !TransactionSynchronizationManager
                                                                 .isActualTransactionActive())
                                                     throw new IllegalStateException(
                                                             "atomic analysis owner lost");
@@ -814,7 +820,7 @@ public class TaskWorker {
                     return true;
                 }
             } catch (RuntimeException failed) {
-                org.slf4j.LoggerFactory.getLogger(TaskWorker.class)
+                LoggerFactory.getLogger(TaskWorker.class)
                         .warn(
                                 "analysis cohort rolled back; retrying one task error_type={}",
                                 failed.getClass().getSimpleName());
@@ -868,10 +874,8 @@ public class TaskWorker {
                 () -> {
                     if (lost.get() || Thread.currentThread().isInterrupted())
                         throw new IllegalStateException("task lease lost");
-                    if (org.springframework.transaction.support.TransactionSynchronizationManager
-                            .isActualTransactionActive()) {
-                        if (org.springframework.transaction.support
-                                .TransactionSynchronizationManager.hasResource(proofKey)) return;
+                    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                        if (TransactionSynchronizationManager.hasResource(proofKey)) return;
                         // Hold the lease row until commit. A concurrent reclaim cannot
                         // invalidate this proof within the transaction. Never cache it
                         // across transactions or external commands.
@@ -884,18 +888,14 @@ public class TaskWorker {
                                                 task.get("lease_token"),
                                                 leaseCutoff()))
                                 == null) throw new IllegalStateException("task lease lost");
-                        org.springframework.transaction.support.TransactionSynchronizationManager
-                                .bindResource(proofKey, Boolean.TRUE);
-                        org.springframework.transaction.support.TransactionSynchronizationManager
-                                .registerSynchronization(
-                                        new org.springframework.transaction.support
-                                                .TransactionSynchronization() {
-                                            public void afterCompletion(int status) {
-                                                org.springframework.transaction.support
-                                                        .TransactionSynchronizationManager
-                                                        .unbindResourceIfPossible(proofKey);
-                                            }
-                                        });
+                        TransactionSynchronizationManager.bindResource(proofKey, Boolean.TRUE);
+                        TransactionSynchronizationManager.registerSynchronization(
+                                new TransactionSynchronization() {
+                                    public void afterCompletion(int status) {
+                                        TransactionSynchronizationManager.unbindResourceIfPossible(
+                                                proofKey);
+                                    }
+                                });
                     } else if (!owns(task)) throw new IllegalStateException("task lease lost");
                 });
         String state = "completed", error = "";
@@ -1086,7 +1086,7 @@ public class TaskWorker {
                         }
                         full = processed == 8;
                     } catch (RuntimeException error) {
-                        org.slf4j.LoggerFactory.getLogger(TaskWorker.class)
+                        LoggerFactory.getLogger(TaskWorker.class)
                                 .warn(
                                         "batch dial lane={} error_type={}",
                                         lane,
@@ -1115,7 +1115,7 @@ public class TaskWorker {
                                 }
                                 full = processed == 16;
                             } catch (RuntimeException e) {
-                                org.slf4j.LoggerFactory.getLogger(TaskWorker.class)
+                                LoggerFactory.getLogger(TaskWorker.class)
                                         .warn(
                                                 "worker lane={} error_type={}",
                                                 index,
@@ -1182,7 +1182,7 @@ public class TaskWorker {
                         } while (System.nanoTime() < deadline
                                 && !Thread.currentThread().isInterrupted());
                     } catch (RuntimeException e) {
-                        org.slf4j.LoggerFactory.getLogger(TaskWorker.class)
+                        LoggerFactory.getLogger(TaskWorker.class)
                                 .warn(
                                         "callback consumer error_type={}",
                                         e.getClass().getSimpleName());

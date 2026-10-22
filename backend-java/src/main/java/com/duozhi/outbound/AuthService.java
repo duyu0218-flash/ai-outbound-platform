@@ -1,9 +1,11 @@
 package com.duozhi.outbound;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -11,12 +13,12 @@ public class AuthService {
     public AuthService(Store store, Crypto crypto, Config config, AgentMedia media) { this.store=store; this.crypto=crypto; this.config=config; this.media=media; }
     @Transactional
     public Map<String,Object> login(String username, String password) {
-        java.util.Map<java.lang.String,java.lang.Object> user = store.one("user", "WHERE username=?" + store.lock(), username);
+        Map<String,Object> user = store.one("user", "WHERE username=?" + store.lock(), username);
         if (user == null || !Boolean.TRUE.equals(user.get("enabled"))) return null;
-        java.time.LocalDateTime now = Store.now();
+        LocalDateTime now = Store.now();
         if (user.get("locked_until") != null && LocalDateTime.parse(user.get("locked_until").toString()).isAfter(now)) return null;
         long tenant = ((Number)user.get("tenant_id")).longValue();
-        java.util.LinkedHashMap<java.lang.String,java.lang.Object> changes = new LinkedHashMap<String,Object>();
+        LinkedHashMap<String,Object> changes = new LinkedHashMap<String,Object>();
         int failed = user.get("locked_until") == null ? ((Number)user.get("failed_login_attempts")).intValue() : 0;
         if (!crypto.verifyPassword(user.get("password_hash").toString(), password)) {
             changes.put("failed_login_attempts", failed+1);
@@ -34,13 +36,13 @@ public class AuthService {
     }
     @Transactional
     public void logout(Identity identity) {
-        java.util.Map<java.lang.String,java.lang.Object> user = identity.requireUser();
+        Map<String,Object> user = identity.requireUser();
         media.clear(identity.tenant(), user.get("id"));
         // Atomic increment prevents concurrent logouts from losing revocations.
         store.jdbc().update("UPDATE \"user\" SET token_version=token_version+1,agent_status='offline',updated_at=? WHERE id=? AND tenant_id=?", Store.now(), user.get("id"), identity.tenant());
     }
     public static Map<String,Object> publicUser(Map<String,Object> user) {
-        java.util.LinkedHashMap<java.lang.String,java.lang.Object> out = new LinkedHashMap<String,Object>();
+        LinkedHashMap<String,Object> out = new LinkedHashMap<String,Object>();
         for (String key : Values.list("id","tenant_id","username","full_name","role","is_supervisor","agent_status","last_seen_at","enabled")) out.put(key,user.get(key));
         return out;
     }

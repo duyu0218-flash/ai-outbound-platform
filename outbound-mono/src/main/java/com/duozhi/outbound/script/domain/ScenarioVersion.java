@@ -1,5 +1,9 @@
 package com.duozhi.outbound.script.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class ScenarioVersion {
     private Integer id;
@@ -7,9 +11,8 @@ public class ScenarioVersion {
     private Integer campaignId;
     private String policyJson = "{}";
     private Integer publishedBy;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -51,11 +54,11 @@ public class ScenarioVersion {
         this.publishedBy = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 }

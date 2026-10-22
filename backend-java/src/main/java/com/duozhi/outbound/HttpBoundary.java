@@ -1,19 +1,23 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.util.concurrent.Semaphore;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import org.springframework.stereotype.Component;
-import org.springframework.core.annotation.Order;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.concurrent.Semaphore;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 /** Bounded process-local admission. Shared dial admission is separate. */
-@Component @Order(Ordered.HIGHEST_PRECEDENCE+10)
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE+10)
 public class HttpBoundary extends OncePerRequestFilter {
-    private static final tools.jackson.databind.ObjectMapper JSON=new tools.jackson.databind.ObjectMapper();
+    private static final ObjectMapper JSON=new ObjectMapper();
     private final Config config;private final Semaphore requests;private final Map<String,String> origins=new LinkedHashMap<>();
     private final Map<String,double[]> buckets=new LinkedHashMap<>();
     public HttpBoundary(Config config){this.config=config;requests=new Semaphore(Math.max(1,config.number("API_MAX_CONCURRENT_REQUESTS",100)));
@@ -27,13 +31,14 @@ public class HttpBoundary extends OncePerRequestFilter {
     private void reject(HttpServletResponse response,int status,String message) throws IOException{response.setStatus(status);response.setContentType("application/json;charset=UTF-8");JSON.writeValue(response.getOutputStream(),Map.of("detail",message));}
     private boolean validOrigin(String origin){
         try{
-            java.net.URI uri=new java.net.URI(origin);
+            URI uri=new URI(origin);
             return Values.set("http","https").contains(uri.getScheme()) && uri.getHost()!=null
                 && uri.getRawUserInfo()==null && uri.getRawQuery()==null && uri.getRawFragment()==null
                 && (uri.getRawPath()==null || uri.getRawPath().isEmpty()) && (uri.getPort()==-1||uri.getPort()>=1&&uri.getPort()<=65535);
-        }catch(java.net.URISyntaxException e){return false;}
+        }catch(URISyntaxException e){return false;}
     }
-    @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)throws ServletException,IOException{
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)throws ServletException,IOException{
         response.setHeader("X-Content-Type-Options","nosniff");response.setHeader("X-Frame-Options","DENY");response.setHeader("Referrer-Policy","same-origin");
         if(request.getRequestURI().startsWith("/api/"))response.setHeader("Cache-Control","no-store");
         try{SecurityHeaders.validate(request);}catch(ApiError error){reject(response,error.status,error.getMessage());return;}

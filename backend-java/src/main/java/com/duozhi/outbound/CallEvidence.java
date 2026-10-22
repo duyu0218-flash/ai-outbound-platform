@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.node.NullNode;
 
 @RestController
 @RequestMapping("/api/v1/calls")
@@ -27,24 +28,29 @@ public class CallEvidence {
     }
 
     @GetMapping("/{id}/speech-turns")
-    public List<Map<String, Object>> speech(@PathVariable UUID id, @RequestParam(defaultValue="false") boolean final_only, HttpServletRequest request) {
+    public List<Map<String, Object>> speech(@PathVariable
+    UUID id, @RequestParam(defaultValue="false")
+    boolean final_only, HttpServletRequest request) {
         return rows("speechturn", "SpeechTurnOut", visible(request, id), id, final_only ? " AND is_final=TRUE" : "", "created_at ASC,id ASC");
     }
 
     @GetMapping("/{id}/metrics")
-    public List<Map<String, Object>> metrics(@PathVariable UUID id, HttpServletRequest request) {
+    public List<Map<String, Object>> metrics(@PathVariable
+    UUID id, HttpServletRequest request) {
         return rows("callmetric", "CallMetricOut", visible(request, id), id, "", "created_at ASC");
     }
 
     @GetMapping("/{id}/recordings")
-    public List<Map<String, Object>> recordings(@PathVariable UUID id, HttpServletRequest request) {
+    public List<Map<String, Object>> recordings(@PathVariable
+    UUID id, HttpServletRequest request) {
         return rows("recordingasset", "RecordingAssetOut", visible(request, id), id, "", "created_at DESC");
     }
 
     @GetMapping("/{id}/realtime")
-    public Object realtime(@PathVariable UUID id, HttpServletRequest request) {
+    public Object realtime(@PathVariable
+    UUID id, HttpServletRequest request) {
         long tenant = visible(request, id);
         Map<String, Object> row = store.one("realtimesession", "WHERE tenant_id=? AND call_session_id=?", tenant, store.encode("realtimesession", "call_session_id", id));
-        return row == null ? tools.jackson.databind.node.NullNode.getInstance() : contract.output("RealtimeSessionOut", row);
+        return row == null ? NullNode.getInstance() : contract.output("RealtimeSessionOut", row);
     }
 }

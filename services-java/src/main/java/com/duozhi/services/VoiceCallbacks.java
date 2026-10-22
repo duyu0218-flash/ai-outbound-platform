@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import javax.net.ssl.SSLSession;
 
 final class VoiceCallbacks implements AutoCloseable {
     private final Settings settings;
@@ -95,12 +96,13 @@ final class VoiceCallbacks implements AutoCloseable {
             LocalLedger.execute(db, "UPDATE audit SET detail='' WHERE id IN(SELECT id FROM audit WHERE at<? AND detail!='' LIMIT 1000)", now - settings.number("VOICE_AUDIT_RETENTION_DAYS", 180, 1, 36500) * 86400); return null;
         }); } catch (Exception unavailable) { }
     }
-    @Override public void close() {
+    @Override
+    public void close() {
         poll.shutdownNow(); delivery.shutdown(); try { if (!delivery.awaitTermination(15, TimeUnit.SECONDS)) delivery.shutdownNow(); } catch (InterruptedException error) { Thread.currentThread().interrupt(); delivery.shutdownNow(); }
     }
     private record BufferedResponse(HttpResponse<?> original, byte[] body) implements HttpResponse<byte[]> {
         public int statusCode() { return original.statusCode(); } public HttpRequest request() { return original.request(); }
         public Optional<HttpResponse<byte[]>> previousResponse() { return Optional.empty(); } public HttpHeaders headers() { return original.headers(); }
-        public Optional<javax.net.ssl.SSLSession> sslSession() { return original.sslSession(); } public URI uri() { return original.uri(); } public HttpClient.Version version() { return original.version(); }
+        public Optional<SSLSession> sslSession() { return original.sslSession(); } public URI uri() { return original.uri(); } public HttpClient.Version version() { return original.version(); }
     }
 }
