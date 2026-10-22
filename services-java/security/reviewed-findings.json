@@ -4,10 +4,10 @@
     "count": 1,
     "disposition": "natural_language_matching",
     "reason": "AgentPolicy lowercases natural-language transcripts to match human/priority keywords; this value is never a credential, tenant identity, route host or signature. Protocol/host folding uses Support.asciiLower.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/AgentPolicy.java": "f7c0297be71d972b22de01b92f41030473f6ae658be4db59dc71955c0ef8a794",
-      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe"
+      "src/main/java/com/duozhi/services/Support.java": "ff3c59889c245b44b91a32c0b340d8af6e56bd01054570beec7f3350376ae87f"
     }
   },
   "PREDICTABLE_RANDOM:com/duozhi/services/AgentTracing.java:com.duozhi.services.AgentTracing:span:(Ljava/lang/String;Ljava/lang/String;)Lcom/duozhi/services/AgentTracing$Span;:37:37:2": {
@@ -15,12 +15,12 @@
     "count": 1,
     "disposition": "nonsecret_sampling_or_backoff",
     "reason": "ThreadLocalRandom is used only for telemetry sampling or callback retry jitter. Session capabilities are SecureRandom; nonce/HMAC/signature validation does not use these values.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e",
-      "src/main/java/com/duozhi/services/AgentTracing.java": "d3629f03c4f5934b4b71e1d3886ebafb001aff101ba0da7a4a4841118ef3019c"
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "6b452c3dc159d26e9a1766fd8cfe1294963499de18e7e64ed445cf2c7058eb18",
+      "src/main/java/com/duozhi/services/AgentTracing.java": "bedf8ac4697a1663b1f5707c61607b9aa14924432be6b8eafed017e040a90c19"
     }
   },
   "UNENCRYPTED_SOCKET:com/duozhi/services/EslClient.java:com.duozhi.services.EslClient:connect:()Ljava/net/Socket;:31:31:2": {
@@ -34,179 +34,179 @@
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
     }
   },
-  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:query:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:87:87:2": {
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:query:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:89:89:2": {
     "source": "com/duozhi/services/LocalLedger.java",
     "count": 1,
     "disposition": "bound_internal_sql",
     "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/VoiceGateway.java": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790",
-      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
-      "src/main/java/com/duozhi/services/LocalLedger.java": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71",
-      "src/main/java/com/duozhi/services/MediaCluster.java": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879",
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e"
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "5b0b14075a858318c8858e413841b04e94491921a8c0e6b11e046501ae8e3222",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "2c856861bcdbdb7890e66f6c104ff3e3bc1b54f622c6090753d64326c1699101",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "3963f1c37ab0b117d488a682cc1b77048647875c01a6c6dad976143fb7b23351",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "e7c783f5b5aea04acdc636da0100e85afa5d5cf3220f462e13394d1bf3dd22c6",
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "6b452c3dc159d26e9a1766fd8cfe1294963499de18e7e64ed445cf2c7058eb18"
     }
   },
-  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:execute:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)V:97:97:3": {
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:execute:(Ljava/sql/Connection;Ljava/lang/String;[Ljava/lang/Object;)V:99:99:3": {
     "source": "com/duozhi/services/LocalLedger.java",
     "count": 1,
     "disposition": "bound_internal_sql",
     "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/VoiceGateway.java": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790",
-      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
-      "src/main/java/com/duozhi/services/LocalLedger.java": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71",
-      "src/main/java/com/duozhi/services/MediaCluster.java": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879",
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e"
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "5b0b14075a858318c8858e413841b04e94491921a8c0e6b11e046501ae8e3222",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "2c856861bcdbdb7890e66f6c104ff3e3bc1b54f622c6090753d64326c1699101",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "3963f1c37ab0b117d488a682cc1b77048647875c01a6c6dad976143fb7b23351",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "e7c783f5b5aea04acdc636da0100e85afa5d5cf3220f462e13394d1bf3dd22c6",
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "6b452c3dc159d26e9a1766fd8cfe1294963499de18e7e64ed445cf2c7058eb18"
     }
   },
-  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:plain:(Ljava/sql/Connection;Ljava/lang/String;)V:99:99:3": {
+  "SQL_INJECTION_JDBC:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:plain:(Ljava/sql/Connection;Ljava/lang/String;)V:101:101:3": {
     "source": "com/duozhi/services/LocalLedger.java",
     "count": 1,
     "disposition": "bound_internal_sql",
     "reason": "LocalLedger is package-private. Call sites supply fixed SQL templates; all request values are bind parameters. VoiceSecurity interpolates only three fixed scope predicates selected by its own code. No user-supplied SQL or table name reaches this wrapper.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/VoiceGateway.java": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790",
-      "src/main/java/com/duozhi/services/VoiceQuota.java": "cc7533a105c747ea6508c8d2e5193a25604842872bfd4790eccba213346ea16b",
-      "src/main/java/com/duozhi/services/LocalLedger.java": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71",
-      "src/main/java/com/duozhi/services/MediaCluster.java": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879",
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e"
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "5b0b14075a858318c8858e413841b04e94491921a8c0e6b11e046501ae8e3222",
+      "src/main/java/com/duozhi/services/VoiceQuota.java": "2c856861bcdbdb7890e66f6c104ff3e3bc1b54f622c6090753d64326c1699101",
+      "src/main/java/com/duozhi/services/LocalLedger.java": "3963f1c37ab0b117d488a682cc1b77048647875c01a6c6dad976143fb7b23351",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "e7c783f5b5aea04acdc636da0100e85afa5d5cf3220f462e13394d1bf3dd22c6",
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "6b452c3dc159d26e9a1766fd8cfe1294963499de18e7e64ed445cf2c7058eb18"
     }
   },
-  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:<init>:(Ljava/lang/String;)V:38:38:3": {
+  "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/services/LocalLedger.java:com.duozhi.services.LocalLedger:<init>:(Ljava/lang/String;)V:40:40:3": {
     "source": "com/duozhi/services/LocalLedger.java",
     "count": 1,
     "disposition": "literal_schema_array",
     "reason": "The constructor iterates its compile-time schema string array. Legacy migrations use fixed ALTER/CREATE statements and bound data updates within one transaction; schema SQL is never read from requests or state.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/LocalLedger.java": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71"
+      "src/main/java/com/duozhi/services/LocalLedger.java": "3963f1c37ab0b117d488a682cc1b77048647875c01a6c6dad976143fb7b23351"
     }
   },
-  "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:closeSession:(Ljava/lang/String;Z)V:125:132:2": {
+  "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:closeSession:(Ljava/lang/String;Z)V:139:146:2": {
     "source": "com/duozhi/services/MediaCluster.java",
     "count": 1,
     "disposition": "internal_generation_monitor",
     "reason": "MediaCluster synchronizes the internally created Session to serialize closure and ownership deletion. References are used only by trusted in-process Java code; no caller-supplied monitor or plugin object enters the model. RPC ownership is independently fenced.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/MediaManager.java": "9dc333bd8773856725939d6b0897dd1c30f4d418ba478fd61db10061902f2962",
-      "src/main/java/com/duozhi/services/MediaCluster.java": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879"
+      "src/main/java/com/duozhi/services/MediaCluster.java": "e7c783f5b5aea04acdc636da0100e85afa5d5cf3220f462e13394d1bf3dd22c6"
     }
   },
-  "USO_UNSAFE_INHERITABLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:create:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lcom/duozhi/services/MediaManager$Session;:98:107:3": {
+  "USO_UNSAFE_INHERITABLE_OBJECT_SYNCHRONIZATION:com/duozhi/services/MediaCluster.java:com.duozhi.services.MediaCluster:create:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lcom/duozhi/services/MediaManager$Session;:105:114:3": {
     "source": "com/duozhi/services/MediaCluster.java",
     "count": 1,
     "disposition": "internal_owner_map_monitor",
     "reason": "Owner map is a final internally constructed ConcurrentHashMap, not supplied by a request or subclass. create serializes admission/journal intent; only package-private trusted controller code reads ownership. No untrusted Java extension boundary is exposed.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/MediaCluster.java": "696920657f9e7aef43de2ce774dc5317dec34c33048b5c0f3e76c05fd2205879"
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/MediaCluster.java": "e7c783f5b5aea04acdc636da0100e85afa5d5cf3220f462e13394d1bf3dd22c6"
     }
   },
-  "UNSAFE_HASH_EQUALS:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia:speak:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;:98:98:2": {
+  "UNSAFE_HASH_EQUALS:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia:speak:(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;:112:112:2": {
     "source": "com/duozhi/services/NativeMedia.java",
     "count": 1,
     "disposition": "public_payload_identity",
     "reason": "Equality compares public request/text SHA-256 values for idempotency conflict detection, not authentication secrets. Bearer/HMAC checks use MessageDigest.isEqual via Support.equals. A timing observation cannot recover a secret from these payload fingerprints.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
-      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
-      "src/main/java/com/duozhi/services/VoiceGateway.java": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790"
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
+      "src/main/java/com/duozhi/services/Support.java": "ff3c59889c245b44b91a32c0b340d8af6e56bd01054570beec7f3350376ae87f",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "5b0b14075a858318c8858e413841b04e94491921a8c0e6b11e046501ae8e3222"
     }
   },
-  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:binary:([B)V:261:261:2": {
+  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:binary:([B)V:279:279:2": {
     "source": "com/duozhi/services/NativeMedia.java",
     "count": 1,
     "disposition": "framework_socket_write_monitor",
     "reason": "NativeMedia serializes writes to a trusted Spring WebSocketSession created by the server framework. The peer controls bytes, not the Java monitor reference. Startup acknowledgement is outside the session monitor and close is idempotent; ASR startup/closure race is covered by MediaTest.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
-      "src/main/java/com/duozhi/services/MediaWebSocket.java": "ab0b095c4d4f0d5e9a15f6c7575941b4f13d1822c609d904f156d4ef3a73c403"
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
+      "src/main/java/com/duozhi/services/MediaWebSocket.java": "419bbbe9f01a9b8bae0228adbd97b7eb51ca42f6ea30bb6750cbee9aabdda726"
     }
   },
-  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:text:(Ljava/lang/Object;)V:262:262:2": {
+  "USO_UNSAFE_OBJECT_SYNCHRONIZATION:com/duozhi/services/NativeMedia.java:com.duozhi.services.NativeMedia$Stream:text:(Ljava/lang/Object;)V:280:280:2": {
     "source": "com/duozhi/services/NativeMedia.java",
     "count": 1,
     "disposition": "framework_socket_write_monitor",
     "reason": "NativeMedia serializes writes to a trusted Spring WebSocketSession created by the server framework. The peer controls bytes, not the Java monitor reference. Startup acknowledgement is outside the session monitor and close is idempotent; ASR startup/closure race is covered by MediaTest.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
-      "src/main/java/com/duozhi/services/MediaWebSocket.java": "ab0b095c4d4f0d5e9a15f6c7575941b4f13d1822c609d904f156d4ef3a73c403"
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
+      "src/main/java/com/duozhi/services/MediaWebSocket.java": "419bbbe9f01a9b8bae0228adbd97b7eb51ca42f6ea30bb6750cbee9aabdda726"
     }
   },
-  "URLCONNECTION_SSRF_FD:com/duozhi/services/ServicesApplication.java:com.duozhi.services.ServicesApplication:main:([Ljava/lang/String;)V:12:12:2": {
+  "URLCONNECTION_SSRF_FD:com/duozhi/services/ServicesApplication.java:com.duozhi.services.ServicesApplication:main:([Ljava/lang/String;)V:16:16:2": {
     "source": "com/duozhi/services/ServicesApplication.java",
     "count": 1,
     "disposition": "fixed_numeric_health_destination",
     "reason": "Healthcheck constructs only http://127.0.0.1:<validated 1..65535 PORT>/readyz, disables proxies and redirects, and runs as a local command. No remote host/path/userinfo comes from HTTP input.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/ServicesApplication.java": "c4fba69716dcd2fa945a9993dedc72cd67586d52de3c8259ab3bc8d32d728533"
+      "src/main/java/com/duozhi/services/ServicesApplication.java": "cdfffc2426557f7f9dfa799619f1017a25651a52ec319cddbf1b19550d8dd756"
     }
   },
-  "PREDICTABLE_RANDOM:com/duozhi/services/VoiceCallbacks.java:com.duozhi.services.VoiceCallbacks:complete:(Ljava/util/Map;ZLjava/lang/String;)V:87:87:2": {
+  "PREDICTABLE_RANDOM:com/duozhi/services/VoiceCallbacks.java:com.duozhi.services.VoiceCallbacks:complete:(Ljava/util/Map;ZLjava/lang/String;)V:88:88:2": {
     "source": "com/duozhi/services/VoiceCallbacks.java",
     "count": 1,
     "disposition": "nonsecret_sampling_or_backoff",
     "reason": "ThreadLocalRandom is used only for telemetry sampling or callback retry jitter. Session capabilities are SecureRandom; nonce/HMAC/signature validation does not use these values.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "387abe232bedeabcaf545b46d489f277c8917812e6b2eaa52a7ddaab5119505e",
-      "src/main/java/com/duozhi/services/AgentTracing.java": "d3629f03c4f5934b4b71e1d3886ebafb001aff101ba0da7a4a4841118ef3019c"
+      "src/main/java/com/duozhi/services/VoiceCallbacks.java": "6b452c3dc159d26e9a1766fd8cfe1294963499de18e7e64ed445cf2c7058eb18",
+      "src/main/java/com/duozhi/services/AgentTracing.java": "bedf8ac4697a1663b1f5707c61607b9aa14924432be6b8eafed017e040a90c19"
     }
   },
-  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:28:28:3": {
+  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:38:38:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "disposition": "validated_signed_command_headers",
     "reason": "Boundary rejects duplicate, non-ASCII, oversized security headers before dispatch. VoiceController authenticates SERVICE_TOKEN and real mode verifies HMAC over exact timestamp, nonce, request path and body; durable nonce replay check precedes dialing.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/Boundary.java": "1b7f9b0dccf8175c394a41f65ad466423b9d9ee60a123c72240db6d594934935",
-      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/Boundary.java": "d254b2d86b626f6d6a3ab4e52a2b6a2a0da0bf06cb665ec8e0c10c66c85fc4e4",
+      "src/main/java/com/duozhi/services/Support.java": "ff3c59889c245b44b91a32c0b340d8af6e56bd01054570beec7f3350376ae87f",
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
     }
   },
-  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:29:29:3": {
+  "SERVLET_HEADER:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:39:39:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "disposition": "validated_signed_command_headers",
     "reason": "Boundary rejects duplicate, non-ASCII, oversized security headers before dispatch. VoiceController authenticates SERVICE_TOKEN and real mode verifies HMAC over exact timestamp, nonce, request path and body; durable nonce replay check precedes dialing.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/VoiceController.java": "76be6131024a3354fb20a790b56db49bfa00d848807e82d63d5816c9106f8412",
-      "src/main/java/com/duozhi/services/Boundary.java": "1b7f9b0dccf8175c394a41f65ad466423b9d9ee60a123c72240db6d594934935",
-      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
+      "src/main/java/com/duozhi/services/VoiceController.java": "5ad5804c081389d9d2354169307d0da6a3f07f021757b7269785fad4fdacfba3",
+      "src/main/java/com/duozhi/services/Boundary.java": "d254b2d86b626f6d6a3ab4e52a2b6a2a0da0bf06cb665ec8e0c10c66c85fc4e4",
+      "src/main/java/com/duozhi/services/Support.java": "ff3c59889c245b44b91a32c0b340d8af6e56bd01054570beec7f3350376ae87f",
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f"
     }
   },
-  "UNSAFE_HASH_EQUALS:com/duozhi/services/VoiceGateway.java:com.duozhi.services.VoiceGateway:lambda$realPost$9:(Ljava/lang/String;Ljava/lang/String;Lcom/duozhi/services/VoiceGateway$Binding;Ljava/util/Map;Ljava/sql/Connection;)Ljava/util/Map;:158:158:2": {
+  "UNSAFE_HASH_EQUALS:com/duozhi/services/VoiceGateway.java:com.duozhi.services.VoiceGateway:lambda$realPost$9:(Ljava/lang/String;Ljava/lang/String;Lcom/duozhi/services/VoiceGateway$Binding;Ljava/util/Map;Ljava/sql/Connection;)Ljava/util/Map;:160:160:2": {
     "source": "com/duozhi/services/VoiceGateway.java",
     "count": 1,
     "disposition": "public_payload_identity",
     "reason": "Equality compares public request/text SHA-256 values for idempotency conflict detection, not authentication secrets. Bearer/HMAC checks use MessageDigest.isEqual via Support.equals. A timing observation cannot recover a secret from these payload fingerprints.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/services/NativeMedia.java": "94955dba1fd09516f8ed17d9d8ddcf999ef6e05bd80e230bdef0e4b7195017e9",
-      "src/main/java/com/duozhi/services/Support.java": "99b3a12a5e8eadbf99fdc3f4186a1f9298477a73367d2036e5b3dea2e2368efe",
-      "src/main/java/com/duozhi/services/VoiceGateway.java": "33f99434753844a258fdbba51583f46e401871d31f184f0d025b0820eaf22790"
+      "src/main/java/com/duozhi/services/NativeMedia.java": "534a9fc09a81f236351987f13c182c64ee8b036c860767465c8924d9916a447b",
+      "src/main/java/com/duozhi/services/Support.java": "ff3c59889c245b44b91a32c0b340d8af6e56bd01054570beec7f3350376ae87f",
+      "src/main/java/com/duozhi/services/VoiceGateway.java": "5b0b14075a858318c8858e413841b04e94491921a8c0e6b11e046501ae8e3222"
     }
   },
   "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING:com/duozhi/services/VoiceSecurity.java:com.duozhi.services.VoiceSecurity:checkScope:(Ljava/sql/Connection;Ljava/lang/String;Ljava/util/List;DJJJJJJ)V:98:98:3": {
@@ -214,10 +214,10 @@
     "count": 1,
     "disposition": "fixed_scope_predicates",
     "reason": "checkScope is private and called with only 1=1, tenant=?, or tenant=? AND line=? literals. Values, time windows and tenant/line IDs are bound separately. No payload selects SQL syntax.",
-    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness.",
+    "evidence": "Exact reported method/source reviewed; regression evidence in ServicesTest, VoiceTest, GatewayLifecycleTest, MediaTest, LegacyLedgerTest and HttpBoundaryTest where applicable. Deployment transport conditions remain separately unverified. 2026-10-17 closeout: exact moved method and changed callers rechecked; ledger commit counter only advances after COMMIT, media binary sends now reject a closed socket, monitoring changes do not alter SQL templates, locks, credential comparison or retry randomness. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
       "src/main/java/com/duozhi/services/VoiceSecurity.java": "a2a88010045cc4befc9706c78133fc6af0855e90294788ea694faa718772f39f",
-      "src/main/java/com/duozhi/services/LocalLedger.java": "5bb80be48dbe216468d91856a59e5b1f7809e2487f6c2bf660bbebf7df730c71"
+      "src/main/java/com/duozhi/services/LocalLedger.java": "3963f1c37ab0b117d488a682cc1b77048647875c01a6c6dad976143fb7b23351"
     }
   }
 }

@@ -81,9 +81,9 @@ class VoiceTest {
         }); server.start(); String url = "http://127.0.0.1:" + server.getAddress().getPort(); var settings = settings(Map.of("VOICE_CALLBACK_BASE_URL", url, "WEBHOOK_SECRET", "callback-signing-test"));
         try (var ledger = new LocalLedger(settings.get("VOICE_SECURITY_DB_PATH", "")); var callbacks = new VoiceCallbacks(settings, ledger, new VoiceSecurity(settings, ledger))) {
             callbacks.post(url + "/api/v1/webhooks/telephony/status", Map.of("call_id", "a", "sequence", 1)); callbacks.post(url + "/api/v1/webhooks/telephony/status", Map.of("call_id", "a", "sequence", 2));
-            callbacks.tickOnce(); await(() -> !received.isEmpty()); Thread.sleep(50); assertEquals(List.of(1), received); assertEquals(2, ((Number)ledger.summary().get("pending_callbacks")).intValue()); assertTrue(validSignature.get());
+            callbacks.tickOnce(); await(() -> !received.isEmpty()); await(() -> callbacks.inflight() == 0); assertEquals(List.of(1), received); assertEquals(2, ((Number)ledger.summary().get("pending_callbacks")).intValue()); assertTrue(validSignature.get());
             status.set(200); ledger.transaction(db -> { LocalLedger.execute(db, "UPDATE outbox SET due=0"); return null; });
-            callbacks.tickOnce(); await(() -> received.size() >= 2); Thread.sleep(50); callbacks.tickOnce(); await(() -> received.size() >= 3); assertEquals(List.of(1, 1, 2), received);
+            callbacks.tickOnce(); await(() -> received.size() >= 2); await(() -> callbacks.inflight() == 0); callbacks.tickOnce(); await(() -> received.size() >= 3); assertEquals(List.of(1, 1, 2), received);
         } finally { server.stop(0); }
     }
     @Test

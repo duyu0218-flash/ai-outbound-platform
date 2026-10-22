@@ -1,176 +1,176 @@
 {
-  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:health:()Ljava/util/Map;:31:31:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:health:()Ljava/util/Map;:33:33:3": {
     "source": "com/duozhi/services/AgentController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; optional only when unconfigured in nonproduction development. Health is public.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:ready:(Ljava/lang/String;)Ljava/util/Map;:33:35:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:ready:(Ljava/lang/String;)Ljava/util/Map;:37:39:3": {
     "source": "com/duozhi/services/AgentController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; optional only when unconfigured in nonproduction development. Health is public.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:start:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:38:39:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:start:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:45:46:3": {
     "source": "com/duozhi/services/AgentController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; optional only when unconfigured in nonproduction development. Health is public.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:turn:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:42:43:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/AgentController.java:com.duozhi.services.AgentController:turn:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:52:53:3": {
     "source": "com/duozhi/services/AgentController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; optional only when unconfigured in nonproduction development. Health is public.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:docs:()Lorg/springframework/http/ResponseEntity;:25:27:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:docs:()Lorg/springframework/http/ResponseEntity;:28:30:3": {
     "source": "com/duozhi/services/ApiDocumentation.java",
     "count": 1,
     "access": "Public immutable API reference only; never executes commands or accepts credentials. Business API authentication remains enforced.",
-    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs."
+    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:openapi:()[B:23:23:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/ApiDocumentation.java:com.duozhi.services.ApiDocumentation:openapi:()[B:25:25:3": {
     "source": "com/duozhi/services/ApiDocumentation.java",
     "count": 1,
     "access": "Public immutable API reference only; never executes commands or accepts credentials. Business API authentication remains enforced.",
-    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs."
+    "evidence": "ApiDocumentation fixed role allowlist and packaged resources reviewed. JSON clone, textContent rendering, same-origin fetch, CSP hashes; actual HttpBoundaryTest and Chromium load/filter/details/JSON/back regression passed. No external CDN or remote schema refs. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:command:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:39:59:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:command:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:47:67:3": {
     "source": "com/duozhi/services/MediaWorkerController.java",
     "count": 1,
     "access": "Independent MEDIA_RPC_TOKEN; command additionally binds epoch, session, call, attempt and speech generation.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:health:()Ljava/util/Map;:32:32:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:health:()Ljava/util/Map;:33:33:3": {
     "source": "com/duozhi/services/MediaWorkerController.java",
     "count": 1,
     "access": "Public operational health/readiness; no mutation or credential values.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:ready:(Ljava/lang/String;)Ljava/util/Map;:33:33:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:ready:(Ljava/lang/String;)Ljava/util/Map;:36:36:3": {
     "source": "com/duozhi/services/MediaWorkerController.java",
     "count": 1,
     "access": "Independent MEDIA_RPC_TOKEN; command additionally binds epoch, session, call, attempt and speech generation.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:state:(Ljava/lang/String;)Ljava/util/Map;:35:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/MediaWorkerController.java:com.duozhi.services.MediaWorkerController:state:(Ljava/lang/String;)Ljava/util/Map;:40:41:3": {
     "source": "com/duozhi/services/MediaWorkerController.java",
     "count": 1,
     "access": "Independent MEDIA_RPC_TOKEN; command additionally binds epoch, session, call, attempt and speech generation.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:delete:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:27:29:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:delete:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:35:37:3": {
     "source": "com/duozhi/services/RecordingController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; persistent asset/tenant key constraints and source allowlist in RecordingStorage.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:health:()Ljava/util/Map;:16:16:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:health:()Ljava/util/Map;:17:17:3": {
     "source": "com/duozhi/services/RecordingController.java",
     "count": 1,
     "access": "Public operational health/readiness; no mutation or credential values.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:ingest:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:22:24:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:ingest:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:27:29:3": {
     "source": "com/duozhi/services/RecordingController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; persistent asset/tenant key constraints and source allowlist in RecordingStorage.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:metrics:(Ljava/lang/String;)Ljava/lang/String;:33:36:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:metrics:(Ljava/lang/String;)Ljava/lang/String;:43:46:3": {
     "source": "com/duozhi/services/RecordingController.java",
     "count": 1,
     "access": "METRICS_TOKEN",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:ready:()Ljava/util/Map;:18:19:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/RecordingController.java:com.duozhi.services.RecordingController:ready:()Ljava/util/Map;:20:21:3": {
     "source": "com/duozhi/services/RecordingController.java",
     "count": 1,
     "access": "Public operational health/readiness; no mutation or credential values.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:28:30:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:call:(Ljava/lang/String;[BLjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:38:40:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "SERVICE_TOKEN; real dialing additionally requires durable nonce/timestamp/path/body HMAC plus tenant/attempt/node/route admission.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:capacity:(Ljava/lang/String;)Ljava/util/Map;:39:39:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:capacity:(Ljava/lang/String;)Ljava/util/Map;:59:59:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:cleanup:(Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:64:65:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:cleanup:(Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:94:95:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character VOICE_RECORDING_CLEANUP_TOKEN; completion/hash/retention checks before unlink.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:drain:(ZLjava/lang/String;)Ljava/util/Map;:33:33:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:drain:(ZLjava/lang/String;)Ljava/util/Map;:46:46:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:health:()Ljava/util/Map;:21:21:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:health:()Ljava/util/Map;:27:27:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Public operational health/readiness; no mutation or credential values.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:mediaEvent:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:69:70:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:mediaEvent:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:104:105:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character MEDIA_RPC_TOKEN; controller owner/session/attempt/epoch checks.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:metrics:(Ljava/lang/String;)Ljava/lang/String;:42:52:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:metrics:(Ljava/lang/String;)Ljava/lang/String;:64:74:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "METRICS_TOKEN.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. Updated numeric-only ledger/event/media/JVM metrics reviewed; token authentication unchanged. No sensitive labels or fabricated unknown values."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. Updated numeric-only ledger/event/media/JVM metrics reviewed; token authentication unchanged. No sensitive labels or fabricated unknown values. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:permits:(Ljava/lang/String;)Ljava/util/Map;:67:67:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:permits:(Ljava/lang/String;)Ljava/util/Map;:99:99:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:ready:()Ljava/util/Map;:24:25:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:ready:()Ljava/util/Map;:31:32:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Public operational health/readiness; no mutation or credential values.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:reconcile:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:87:88:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:reconcile:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:128:129:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:recording:(Ljava/lang/String;JLjava/lang/String;)Lorg/springframework/http/ResponseEntity;:55:61:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:recording:(Ljava/lang/String;JLjava/lang/String;)Lorg/springframework/http/ResponseEntity;:81:87:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Expiring HMAC signed owner-node WAV capability; filename and source containment checks.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:security:(Ljava/lang/String;)Ljava/util/Map;:37:37:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:security:(Ljava/lang/String;)Ljava/util/Map;:55:55:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:stop:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:35:35:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:stop:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:51:51:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "VOICE_SECURITY_ADMIN_TOKEN in real mode; SERVICE_TOKEN only in development mock mode.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   },
-  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:voicePermit:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:74:84:3": {
+  "SPRING_ENDPOINT:com/duozhi/services/VoiceController.java:com.duozhi.services.VoiceController:voicePermit:(Ljava/util/Map;Ljava/lang/String;)Ljava/util/Map;:112:122:3": {
     "source": "com/duozhi/services/VoiceController.java",
     "count": 1,
     "access": "Independent >=32 character MEDIA_RPC_TOKEN; controller owner/session/attempt/epoch checks.",
-    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised."
+    "evidence": "Controller, Boundary and relevant ownership/storage handlers inspected. HTTP Agent credentials/header/body tests, signed command and ownership unit/integration tests. Source inspection does not claim each route/state was exercised. 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change."
   }
 }
