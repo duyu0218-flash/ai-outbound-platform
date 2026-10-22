@@ -23,8 +23,9 @@ public class MediaWebSocket implements WebSocketConfigurer {
     private NativeMedia manager(String token) {
         var controller = voice.getIfAvailable();
         if (controller == null) return null;
-        if (controller.gateway.media instanceof NativeMedia media) return media;
-        if (controller.gateway.media instanceof MediaCluster cluster) return cluster.manager(token);
+        if (controller.gateway().media instanceof NativeMedia media) return media;
+        if (controller.gateway().media instanceof MediaCluster cluster)
+            return cluster.manager(token);
         return null;
     }
 

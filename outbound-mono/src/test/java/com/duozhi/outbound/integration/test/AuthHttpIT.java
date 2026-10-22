@@ -424,6 +424,18 @@ class AuthHttpIT {
         media.set(mediaKey, "registered", 60);
         redis.opsForValue().set(sipKey, "credential", Duration.ofSeconds(60));
         status(request(HttpMethod.POST, "/api/v1/auth/logout", bearer(t), null), 200);
+        assertThat(audits.list(1, 0, 200))
+                .anySatisfy(
+                        audit -> {
+                            assertThat(audit.getAction()).isEqualTo("logout");
+                            assertThat(audit.getActorUserId()).isEqualTo(u.getId());
+                            assertThat(audit.getActorUsername()).isEqualTo(u.getUsername());
+                            assertThat(audit.getResourceType()).isEqualTo("method");
+                            assertThat(audit.getDetail())
+                                    .contains(
+                                            "outcome=success", "elapsed_ms=", "/api/v1/auth/logout")
+                                    .doesNotContain(t, PASSWORD);
+                        });
         assertThat(redis.hasKey(mediaKey)).isFalse();
         assertThat(redis.hasKey(sipKey)).isTrue();
         var row = users.findById(u.getId(), 1);

@@ -3,6 +3,7 @@ package com.duozhi.outbound.auth.controller;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.auth.service.AuthService;
 import com.duozhi.outbound.auth.service.Crypto;
+import com.duozhi.outbound.common.annotation.Log;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.Values;
@@ -82,12 +83,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @Log("logout")
     public Map<String, String> logout(HttpServletRequest request) {
         service.logout(Identity.from(request));
         return Values.map("result", "ok");
     }
 
     @PutMapping("/presence")
+    @Log("presence")
     public Map<String, Object> presence(
             @Valid
             @RequestBody

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 /** Same-origin, read-only API reference. No CDN, credentials, or arbitrary requests. */
 @RestController
-public final class ApiDocumentation {
+public class ApiDocumentation {
     private final byte[] specification;
     private static final String CSS =
             "body{font:16px"
