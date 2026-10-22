@@ -8,6 +8,8 @@ API、AI、FreeSWITCH ESL、录音和 Java 实时媒体运行于一个 JDK 21 �
 
 本轮 JDK 21、Spring Boot 4 和分包、YAML、Logback 改动见 [重构验收](REFACTOR-ACCEPTANCE.md)。
 
+请求与操作日志切面见 [切面接入验收](LOG-ASPECTS-ACCEPTANCE.md)。`WebLogAspect` 自动记录本项目控制器映射方法的请求摘要、结果和耗时，写入现有 Logback；`@Log("操作名")` 通过 `LogAspect` 写入原有租户审计表，已接入退出登录和坐席状态变更。参数与返回值只记录类型和集合大小，不输出密码、令牌、号码或录音内容。原有业务显式审计保留。
+
 ## 构建与复验
 
 锁定 JDK 21.0.12.1、Maven 3.9.11，验收使用 Node 24.19.0、pnpm 11.25.0；Docker Desktop 用于真实 MySQL/Redis Testcontainers，浏览器使用 Playwright Chromium。核心组件版本以 pom.xml 为准，使用 Spring Boot 4.1.1、Spring AI 2.0.1。

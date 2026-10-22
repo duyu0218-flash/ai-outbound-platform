@@ -54,6 +54,10 @@ public class VoiceController {
         gateway.start();
     }
 
+    public VoiceGateway gateway() {
+        return gateway;
+    }
+
     @PreDestroy
     public void close() throws Exception {
         gateway.close();

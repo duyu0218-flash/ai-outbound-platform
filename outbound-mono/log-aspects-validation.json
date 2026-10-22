@@ -1,0 +1,42 @@
+{
+  "completed_at": "2026-10-22T17:25:36+08:00",
+  "command": "mvn -B -Dmaven.repo.local=../.tools/m2 spotless:apply clean verify",
+  "build": "passed",
+  "source_modified": true,
+  "static_checks": "passed",
+  "development_functional_tests": "passed",
+  "test_environment_deployed": false,
+  "real_device_tests": "unverified",
+  "production_deployed": false,
+  "environment": "macOS ARM64; JDK 21; Maven 3.9.11; Testcontainers MySQL 8.4 / Redis 7; Chromium; mock voice and AI",
+  "request_log_fixture_leakage_detected": false,
+  "unverified": [
+    "real SIP/RTP/PBX and audio",
+    "cloud ASR/LLM/TTS",
+    "real recordings and devices",
+    "target Linux",
+    "production object storage",
+    "capacity and endurance",
+    "real-time/size-triggered logging rotation"
+  ],
+  "evidence_directory": "verification/log-aspects-20261022",
+  "unit": {
+    "tests": 229,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "integration": {
+    "tests": 319,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "passed": true,
+    "groups": 27,
+    "errors": []
+  },
+  "structured_request_log_count": 642,
+  "jar_sha256": "79c07ddb2ae11701ad4f4ed88806678a6e6207ca5442983b907a31a4b4426884"
+}

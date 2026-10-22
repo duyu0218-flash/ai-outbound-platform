@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.LogbackServiceProvider;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy;
 import com.alibaba.druid.pool.DruidDataSource;
+import com.duozhi.outbound.voice.controller.VoiceController;
 import com.github.pagehelper.PageInterceptor;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.spi.SLF4JServiceProvider;
 import org.springdoc.webmvc.api.OpenApiWebMvcResource;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
@@ -92,6 +94,12 @@ class StackCompatibilityIT {
 
     @Test
     void realHttpLivenessAndProtectedInfrastructure() {
+        var voice = context.getBean(VoiceController.class);
+        assertThat(AopUtils.isAopProxy(voice)).isTrue();
+        assertThat(voice.gateway()).isNotNull();
+        assertThat(http.getForEntity("/docs", String.class).getStatusCode().value()).isEqualTo(200);
+        assertThat(http.getForEntity("/openapi.json", String.class).getStatusCode().value())
+                .isEqualTo(200);
         var health = http.getForEntity("/healthz", String.class);
         assertThat(health.getStatusCode().value()).isEqualTo(200);
         assertThat(health.getBody()).isEqualTo("{\"status\":\"ok\"}");
