@@ -1,14 +1,16 @@
 # AI 外呼单体工程
 
-API、AI、FreeSWITCH ESL、录音和 Java 实时媒体运行于一个 JDK 17 进程；MySQL、Redis 是数据库/队列基础设施，FreeSWITCH 与对象存储是外部语音/录音设施。
+API、AI、FreeSWITCH ESL、录音和 Java 实时媒体运行于一个 JDK 21 进程；MySQL、Redis 是数据库/队列基础设施，FreeSWITCH 与对象存储是外部语音/录音设施。
 
 > **本系统事务串行化依赖 JVM 内锁，仅支持单实例部署。需要使用多实例时，必须先把 PlatformLock 替换为分布式实现并重做并发验证。**
 >
 > 升级必须先停止旧进程并确认退出，再启动新进程；禁止新旧进程重叠或滚动升级。
 
+本轮 JDK 21、Spring Boot 4 和分包、YAML、Logback 改动见 [重构验收](REFACTOR-ACCEPTANCE.md)。
+
 ## 构建与复验
 
-锁定 JDK 17.0.20.1、Maven 3.9.11，验收使用 Node 24.19.0、pnpm 11.25.0；Docker Desktop 用于真实 MySQL/Redis Testcontainers，浏览器使用 Playwright Chromium。核心组件版本保持已批准矩阵。
+锁定 JDK 21.0.12.1、Maven 3.9.11，验收使用 Node 24.19.0、pnpm 11.25.0；Docker Desktop 用于真实 MySQL/Redis Testcontainers，浏览器使用 Playwright Chromium。核心组件版本以 pom.xml 为准，使用 Spring Boot 4.1.1、Spring AI 2.0.1。
 
 ```sh
 cd outbound-mono
@@ -18,7 +20,7 @@ mvn -B verify
 mvn -B enforcer:enforce
 ```
 
-Maven generate-resources 构建 Vue3 + Element Plus 到 `src/main/resources/static/`，再打入 `target/outbound-mono.jar`。可用 NODE_BINARY / PNPM_BINARY 指向现有运行时；JAVA_HOME 指向 JDK 17。验收实际使用 `../.tools` 的 JDK/Maven，附加 `-Dmaven.repo.local=./target/maven-repository`。运行 jar 无需 Node。
+Maven generate-resources 构建 Vue3 + Element Plus 到 `src/main/resources/static/`，再打入 `target/outbound-mono.jar`。可用 NODE_BINARY / PNPM_BINARY 指向现有运行时；JAVA_HOME 指向 JDK 21。验收实际使用 `../.tools` 的 JDK/Maven，附加 `-Dmaven.repo.local=./target/maven-repository`。运行 jar 无需 Node。
 
 ## 本机 mock 启动
 
@@ -55,7 +57,7 @@ API Key 继续从 TENANT_API_SCOPES_JSON 取得租户权限集合；管理员接
 
 ## 验证与交付边界
 
-最近一轮完整本地功能回归为 **146单元+229集成=375项**，失败/错误/跳过0，后续并发修复另经49项集成回归，最终源码全量 CI 待完成；Chromium **27组**，涵盖登录退出、页面返回、权限异常、表单保存回显、完整 mock 外呼/AI/转人工及运营入口。系统没有门店、购物车或支付入口，商城验收链路不适用。
+本轮 JDK 21、Spring Boot 4 升级的构建、测试与页面回归结果见 [重构验收](REFACTOR-ACCEPTANCE.md)。此前可靠性、容量和运营验收记录保留在各专题文档中。系统没有门店、购物车或支付入口，商城验收链路不适用。
 
 500 在途容量已实测仍未通过吞吐及延迟标准；500 CPS 也未验收通过。最新逐秒拨号确认数、对话指标与 Jar 哈希以 `reliability-validation.json` 为准。历史 R5 的42.9轮/秒属于旧 Jar，保留在 `VALIDATION.md`，不得当作当前版本容量证明。
 

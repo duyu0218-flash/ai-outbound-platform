@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.operations.dao.CallbackAppointmentMapper">
+    <resultMap id="row" type="com.duozhi.outbound.operations.domain.CallbackAppointment">
+        <id column="id" javaType="java.util.UUID" property="id" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="source_call_id" javaType="java.util.UUID" property="sourceCallId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="request_key" javaType="java.lang.String" property="requestKey"/>
+        <result column="scheduled_at" javaType="java.time.LocalDateTime" property="scheduledAt"/>
+        <result column="state" javaType="java.lang.String" property="state"/>
+        <result column="revision" javaType="java.lang.Integer" property="revision"/>
+        <result column="dial_call_id" javaType="java.util.UUID" property="dialCallId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert">
+        INSERT INTO `callbackappointment`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            `id`,
+            `tenant_id`,
+            `source_call_id`,
+            `request_key`,
+            `scheduled_at`,
+            `state`,
+            `revision`,
+            `dial_call_id`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.sourceCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.requestKey,jdbcType=VARCHAR},
+            #{row.scheduledAt,jdbcType=TIMESTAMP},
+            #{row.state,jdbcType=LONGVARCHAR},
+            #{row.revision,jdbcType=INTEGER},
+            #{row.dialCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `source_call_id`, `request_key`, `scheduled_at`, `state`,
+        `revision`, `dial_call_id`, `created_at`, `updated_at` FROM `callbackappointment` WHERE `id`
+        = #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `callbackappointment` SET
+        `source_call_id` =
+        #{row.sourceCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `request_key` = #{row.requestKey,jdbcType=VARCHAR},
+        `scheduled_at` = #{row.scheduledAt,jdbcType=TIMESTAMP},
+        `state` = #{row.state,jdbcType=LONGVARCHAR},
+        `revision` = #{row.revision,jdbcType=INTEGER},
+        `dial_call_id` =
+        #{row.dialCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` =
+        #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `callbackappointment` WHERE `id` =
+        #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `source_call_id`, `request_key`, `scheduled_at`, `state`,
+        `revision`, `dial_call_id`, `created_at`, `updated_at` FROM `callbackappointment`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `callbackappointment`
+        <set>
+            <if test="changes.containsKey('source_call_id')">
+                `source_call_id` = #{changes.source_call_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('request_key')">
+                `request_key` = #{changes.request_key,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('scheduled_at')">
+                `scheduled_at` = #{changes.scheduled_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('revision')">
+                `revision` = #{changes.revision,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('dial_call_id')">
+                `dial_call_id` = #{changes.dial_call_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceConversationPolicy77_7" resultMap="row">
+        SELECT * FROM `callbackappointment` WHERE tenant_id=#{tenantId} AND source_call_id=#{p1} AND
+        state='confirmed'
+    </select>
+    <select id="sourceProductOperations44_3" resultMap="row">
+        SELECT * FROM `callbackappointment` WHERE tenant_id=#{tenantId} ORDER BY scheduled_at DESC
+        LIMIT 50 OFFSET #{p1}
+    </select>
+    <select id="scopedAiRuntime228" resultMap="row">
+        SELECT * FROM `callbackappointment` WHERE tenant_id = #{tenantId} AND (id=#{p0}) FOR UPDATE
+    </select>
+    <select id="scopedConversationPolicy182" resultMap="row">
+        SELECT * FROM `callbackappointment` WHERE tenant_id = #{tenantId} AND (request_key=#{p0})
+    </select>
+</mapper>

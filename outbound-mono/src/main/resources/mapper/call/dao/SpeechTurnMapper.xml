@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.call.dao.SpeechTurnMapper">
+    <resultMap id="row" type="com.duozhi.outbound.call.domain.SpeechTurn">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="call_session_id" javaType="java.util.UUID" property="callSessionId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="provider_event_key" javaType="java.lang.String" property="providerEventKey"/>
+        <result column="turn_index" javaType="java.lang.Integer" property="turnIndex"/>
+        <result column="attempt" javaType="java.lang.Integer" property="attempt"/>
+        <result column="speaker_role" javaType="java.lang.String" property="speakerRole"/>
+        <result column="channel_id" javaType="java.lang.String" property="channelId"/>
+        <result column="transcript" javaType="java.lang.String" property="transcript"/>
+        <result column="normalized_transcript" javaType="java.lang.String" property="normalizedTranscript"/>
+        <result column="is_final" javaType="java.lang.Boolean" property="isFinal"/>
+        <result column="confidence" javaType="java.lang.Double" property="confidence"/>
+        <result column="start_ms" javaType="java.lang.Integer" property="startMs"/>
+        <result column="end_ms" javaType="java.lang.Integer" property="endMs"/>
+        <result column="asr_provider" javaType="java.lang.String" property="asrProvider"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `speechturn`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `provider_event_key`,
+            `turn_index`,
+            `attempt`,
+            `speaker_role`,
+            `channel_id`,
+            `transcript`,
+            `normalized_transcript`,
+            `is_final`,
+            `confidence`,
+            `start_ms`,
+            `end_ms`,
+            `asr_provider`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.providerEventKey,jdbcType=VARCHAR},
+            #{row.turnIndex,jdbcType=INTEGER},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.speakerRole,jdbcType=VARCHAR},
+            #{row.channelId,jdbcType=VARCHAR},
+            #{row.transcript,jdbcType=LONGVARCHAR},
+            #{row.normalizedTranscript,jdbcType=LONGVARCHAR},
+            #{row.isFinal,jdbcType=BOOLEAN},
+            #{row.confidence,jdbcType=DOUBLE},
+            #{row.startMs,jdbcType=INTEGER},
+            #{row.endMs,jdbcType=INTEGER},
+            #{row.asrProvider,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `speechturn`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `provider_event_key`,
+            `turn_index`,
+            `attempt`,
+            `speaker_role`,
+            `channel_id`,
+            `transcript`,
+            `normalized_transcript`,
+            `is_final`,
+            `confidence`,
+            `start_ms`,
+            `end_ms`,
+            `asr_provider`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.providerEventKey,jdbcType=VARCHAR},
+            #{row.turnIndex,jdbcType=INTEGER},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.speakerRole,jdbcType=VARCHAR},
+            #{row.channelId,jdbcType=VARCHAR},
+            #{row.transcript,jdbcType=LONGVARCHAR},
+            #{row.normalizedTranscript,jdbcType=LONGVARCHAR},
+            #{row.isFinal,jdbcType=BOOLEAN},
+            #{row.confidence,jdbcType=DOUBLE},
+            #{row.startMs,jdbcType=INTEGER},
+            #{row.endMs,jdbcType=INTEGER},
+            #{row.asrProvider,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `provider_event_key`, `turn_index`, `attempt`,
+        `speaker_role`, `channel_id`, `transcript`, `normalized_transcript`, `is_final`,
+        `confidence`, `start_ms`, `end_ms`, `asr_provider`, `created_at` FROM `speechturn` WHERE
+        `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `speechturn` SET
+        `call_session_id` =
+        #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `provider_event_key` = #{row.providerEventKey,jdbcType=VARCHAR},
+        `turn_index` = #{row.turnIndex,jdbcType=INTEGER},
+        `attempt` = #{row.attempt,jdbcType=INTEGER},
+        `speaker_role` = #{row.speakerRole,jdbcType=VARCHAR},
+        `channel_id` = #{row.channelId,jdbcType=VARCHAR},
+        `transcript` = #{row.transcript,jdbcType=LONGVARCHAR},
+        `normalized_transcript` = #{row.normalizedTranscript,jdbcType=LONGVARCHAR},
+        `is_final` = #{row.isFinal,jdbcType=BOOLEAN},
+        `confidence` = #{row.confidence,jdbcType=DOUBLE},
+        `start_ms` = #{row.startMs,jdbcType=INTEGER},
+        `end_ms` = #{row.endMs,jdbcType=INTEGER},
+        `asr_provider` = #{row.asrProvider,jdbcType=VARCHAR}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `speechturn` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `provider_event_key`, `turn_index`, `attempt`,
+        `speaker_role`, `channel_id`, `transcript`, `normalized_transcript`, `is_final`,
+        `confidence`, `start_ms`, `end_ms`, `asr_provider`, `created_at` FROM `speechturn`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `speechturn`
+        <set>
+            <if test="changes.containsKey('call_session_id')">
+                `call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('provider_event_key')">
+                `provider_event_key` = #{changes.provider_event_key,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('turn_index')">
+                `turn_index` = #{changes.turn_index,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('attempt')">
+                `attempt` = #{changes.attempt,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('speaker_role')">
+                `speaker_role` = #{changes.speaker_role,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('channel_id')">
+                `channel_id` = #{changes.channel_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('transcript')">
+                `transcript` = #{changes.transcript,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('normalized_transcript')">
+                `normalized_transcript` = #{changes.normalized_transcript,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('is_final')">
+                `is_final` = #{changes.is_final,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('confidence')">
+                `confidence` = #{changes.confidence,jdbcType=DOUBLE},
+            </if>
+            <if test="changes.containsKey('start_ms')">
+                `start_ms` = #{changes.start_ms,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('end_ms')">
+                `end_ms` = #{changes.end_ms,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('asr_provider')">
+                `asr_provider` = #{changes.asr_provider,jdbcType=VARCHAR},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="expiredTranscripts" resultMap="row">
+        SELECT * FROM speechturn WHERE tenant_id = #{tenantId} AND is_final = #{final} AND
+        created_at &lt;= #{cutoff} ORDER BY created_at,id LIMIT #{limit}
+    </select>
+    <select id="sourceReports183_8" resultType="long">
+        SELECT COUNT(*) FROM `speechturn` WHERE tenant_id=#{tenantId} AND call_session_id=#{p1}
+    </select>
+    <select id="sourceReports183_9" resultType="long">
+        SELECT COUNT(*) FROM `speechturn` WHERE tenant_id=#{tenantId} AND call_session_id=#{p1} AND
+        is_final=#{p2}
+    </select>
+    <select id="scopedAiRuntime120" resultMap="row">
+        SELECT * FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND
+        attempt=#{p1} AND is_final=#{p2}) ORDER BY created_at DESC,id DESC LIMIT #{p3}
+    </select>
+    <select id="scopedAiRuntime160" resultType="long">
+        SELECT COUNT(*) FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0}
+        AND provider_event_key=#{p1})
+    </select>
+    <select id="scopedCallAnalysis32" resultMap="row">
+        SELECT * FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND
+        is_final=#{p1} AND attempt=#{p2}) ORDER BY turn_index,created_at
+    </select>
+    <select id="scopedConversationPolicy154" resultMap="row">
+        SELECT * FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND
+        attempt=#{p1} AND is_final=#{p2} AND speaker_role='customer') ORDER BY created_at DESC,id
+        DESC LIMIT 1
+    </select>
+    <select id="scopedHandoffs76" resultMap="row">
+        SELECT * FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND
+        speaker_role='customer' AND is_final=#{p1}) ORDER BY turn_index DESC,id DESC LIMIT 1
+    </select>
+    <select id="scopedVoiceCallbacks62" resultMap="row">
+        SELECT * FROM `speechturn` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0} AND
+        provider_event_key=#{p1})
+    </select>
+    <select id="callEvidence" resultMap="row">
+        SELECT * FROM speechturn WHERE tenant_id = #{tenantId} AND
+        call_session_id=#{callId,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        <if test="finalOnly">
+            AND is_final=TRUE
+        </if>
+        ORDER BY created_at ASC,id ASC
+    </select>
+</mapper>

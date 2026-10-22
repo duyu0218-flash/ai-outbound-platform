@@ -1,0 +1,9 @@
+{
+  "plugins": ["@prettier/plugin-xml"],
+  "tabWidth": 2,
+  "useTabs": false,
+  "printWidth": 100,
+  "singleQuote": true,
+  "xmlWhitespaceSensitivity": "ignore",
+  "overrides": [{"files": "*.xml", "options": {"tabWidth": 4}}]
+}

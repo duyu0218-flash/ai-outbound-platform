@@ -1,10 +1,106 @@
 <script setup>
-import {ref} from 'vue'
-import {t} from '../i18n'
-const props=defineProps({model:{type:Object,required:true},fields:{type:Array,required:true},busy:Boolean,submitLabel:{default:'save'},hideSubmit:Boolean,disabled:Boolean})
-const emit=defineEmits(['submit','change']);const form=ref()
-async function submit(){try{await form.value.validate();emit('submit',props.model)}catch{}}
-function rules(field){const value=[];if(field.required)value.push({required:true,message:t(field.label||field.key)+' '+t('required'),trigger:'change'});if(field.pattern)value.push({validator:(_rule,value,callback)=>{if(value==null||value==='')return callback();return field.pattern.test(value)?callback():callback(new Error(field.message||t('invalidRequest')))},trigger:'blur'});return value}
-defineExpose({submit,validate:()=>form.value.validate()})
+import { ref } from 'vue';
+import { t } from '../i18n';
+const props = defineProps({
+  model: { type: Object, required: true },
+  fields: { type: Array, required: true },
+  busy: Boolean,
+  submitLabel: { default: 'save' },
+  hideSubmit: Boolean,
+  disabled: Boolean,
+});
+const emit = defineEmits(['submit', 'change']);
+const form = ref();
+async function submit() {
+  try {
+    await form.value.validate();
+    emit('submit', props.model);
+  } catch {}
+}
+function rules(field) {
+  const value = [];
+  if (field.required)
+    value.push({
+      required: true,
+      message: t(field.label || field.key) + ' ' + t('required'),
+      trigger: 'change',
+    });
+  if (field.pattern)
+    value.push({
+      validator: (_rule, value, callback) => {
+        if (value == null || value === '') return callback();
+        return field.pattern.test(value)
+          ? callback()
+          : callback(new Error(field.message || t('invalidRequest')));
+      },
+      trigger: 'blur',
+    });
+  return value;
+}
+defineExpose({ submit, validate: () => form.value.validate() });
 </script>
-<template><el-form ref="form" :model="model" label-position="top" :disabled="disabled" @submit.prevent="submit"><div class="form-grid"><el-form-item v-for="field in fields.filter(f=>!f.hidden)" :key="field.key" :prop="field.key" :label="t(field.label||field.key)" :rules="rules(field)" :class="{wide:field.wide||field.type==='textarea'}"><slot :name="field.key" :field="field"><el-switch v-if="field.type==='boolean'" v-model="model[field.key]" :aria-label="t(field.label||field.key)" @change="emit('change',field.key)"/><el-input-number v-else-if="field.type==='number'" v-model="model[field.key]" :min="field.min" :max="field.max" :precision="field.precision" :disabled="field.disabled" :aria-label="t(field.label||field.key)" @change="emit('change',field.key)"/><el-select v-else-if="field.options" v-model="model[field.key]" :multiple="field.multiple" :filterable="field.filterable||field.multiple" :allow-create="field.tags" :default-first-option="field.tags" :clearable="!field.required" :disabled="field.disabled" :aria-label="t(field.label||field.key)" @change="emit('change',field.key)"><el-option v-for="option in field.options" :key="option.value??option" :value="option.value??option" :label="t(option.label??String(option))"/></el-select><el-input v-else v-model="model[field.key]" :type="field.type==='textarea'?'textarea':field.type||'text'" :rows="field.rows||4" :disabled="field.disabled" :readonly="field.readonly" :maxlength="field.maxlength" :autocomplete="field.autocomplete" :aria-label="t(field.label||field.key)" :placeholder="field.placeholder" :show-password="field.type==='password'" @input="emit('change',field.key)"/></slot><small v-if="field.hint" class="hint">{{t(field.hint)}}</small></el-form-item></div><slot/><el-button v-if="!hideSubmit" type="primary" native-type="submit" :loading="busy">{{t(submitLabel)}}</el-button></el-form></template>
+<template>
+  <el-form
+    ref="form"
+    :model="model"
+    label-position="top"
+    :disabled="disabled"
+    @submit.prevent="submit"
+    ><div class="form-grid">
+      <el-form-item
+        v-for="field in fields.filter((f) => !f.hidden)"
+        :key="field.key"
+        :prop="field.key"
+        :label="t(field.label || field.key)"
+        :rules="rules(field)"
+        :class="{ wide: field.wide || field.type === 'textarea' }"
+        ><slot :name="field.key" :field="field"
+          ><el-switch
+            v-if="field.type === 'boolean'"
+            v-model="model[field.key]"
+            :aria-label="t(field.label || field.key)"
+            @change="emit('change', field.key)" /><el-input-number
+            v-else-if="field.type === 'number'"
+            v-model="model[field.key]"
+            :min="field.min"
+            :max="field.max"
+            :precision="field.precision"
+            :disabled="field.disabled"
+            :aria-label="t(field.label || field.key)"
+            @change="emit('change', field.key)" /><el-select
+            v-else-if="field.options"
+            v-model="model[field.key]"
+            :multiple="field.multiple"
+            :filterable="field.filterable || field.multiple"
+            :allow-create="field.tags"
+            :default-first-option="field.tags"
+            :clearable="!field.required"
+            :disabled="field.disabled"
+            :aria-label="t(field.label || field.key)"
+            @change="emit('change', field.key)"
+            ><el-option
+              v-for="option in field.options"
+              :key="option.value ?? option"
+              :value="option.value ?? option"
+              :label="t(option.label ?? String(option))" /></el-select
+          ><el-input
+            v-else
+            v-model="model[field.key]"
+            :type="field.type === 'textarea' ? 'textarea' : field.type || 'text'"
+            :rows="field.rows || 4"
+            :disabled="field.disabled"
+            :readonly="field.readonly"
+            :maxlength="field.maxlength"
+            :autocomplete="field.autocomplete"
+            :aria-label="t(field.label || field.key)"
+            :placeholder="field.placeholder"
+            :show-password="field.type === 'password'"
+            @input="emit('change', field.key)" /></slot
+        ><small v-if="field.hint" class="hint">{{ t(field.hint) }}</small></el-form-item
+      >
+    </div>
+    <slot /><el-button v-if="!hideSubmit" type="primary" native-type="submit" :loading="busy">{{
+      t(submitLabel)
+    }}</el-button></el-form
+  >
+</template>

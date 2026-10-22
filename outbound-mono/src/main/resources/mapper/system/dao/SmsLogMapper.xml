@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.system.dao.SmsLogMapper">
+    <resultMap id="row" type="com.duozhi.outbound.system.domain.SmsLog">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="call_session_id" javaType="java.util.UUID" property="callSessionId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="to_phone" javaType="java.lang.String" property="toPhone"/>
+        <result column="template_code" javaType="java.lang.String" property="templateCode"/>
+        <result column="content" javaType="java.lang.String" property="content"/>
+        <result column="state" javaType="java.lang.String" property="state"/>
+        <result column="provider_message_id" javaType="java.lang.String" property="providerMessageId"/>
+        <result column="provider_error" javaType="java.lang.String" property="providerError"/>
+        <result column="sent_at" javaType="java.time.LocalDateTime" property="sentAt"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `smslog`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `to_phone`,
+            `template_code`,
+            `content`,
+            `state`,
+            `provider_message_id`,
+            `provider_error`,
+            `sent_at`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.toPhone,jdbcType=LONGVARCHAR},
+            #{row.templateCode,jdbcType=LONGVARCHAR},
+            #{row.content,jdbcType=LONGVARCHAR},
+            #{row.state,jdbcType=LONGVARCHAR},
+            #{row.providerMessageId,jdbcType=VARCHAR},
+            #{row.providerError,jdbcType=VARCHAR},
+            #{row.sentAt,jdbcType=TIMESTAMP},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `smslog`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `to_phone`,
+            `template_code`,
+            `content`,
+            `state`,
+            `provider_message_id`,
+            `provider_error`,
+            `sent_at`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.toPhone,jdbcType=LONGVARCHAR},
+            #{row.templateCode,jdbcType=LONGVARCHAR},
+            #{row.content,jdbcType=LONGVARCHAR},
+            #{row.state,jdbcType=LONGVARCHAR},
+            #{row.providerMessageId,jdbcType=VARCHAR},
+            #{row.providerError,jdbcType=VARCHAR},
+            #{row.sentAt,jdbcType=TIMESTAMP},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `to_phone`, `template_code`, `content`,
+        `state`, `provider_message_id`, `provider_error`, `sent_at`, `created_at`, `updated_at` FROM
+        `smslog` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `smslog` SET
+        `call_session_id` =
+        #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `to_phone` = #{row.toPhone,jdbcType=LONGVARCHAR},
+        `template_code` = #{row.templateCode,jdbcType=LONGVARCHAR},
+        `content` = #{row.content,jdbcType=LONGVARCHAR},
+        `state` = #{row.state,jdbcType=LONGVARCHAR},
+        `provider_message_id` = #{row.providerMessageId,jdbcType=VARCHAR},
+        `provider_error` = #{row.providerError,jdbcType=VARCHAR},
+        `sent_at` = #{row.sentAt,jdbcType=TIMESTAMP},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `smslog` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `to_phone`, `template_code`, `content`,
+        `state`, `provider_message_id`, `provider_error`, `sent_at`, `created_at`, `updated_at` FROM
+        `smslog`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `smslog`
+        <set>
+            <if test="changes.containsKey('call_session_id')">
+                `call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('to_phone')">
+                `to_phone` = #{changes.to_phone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('template_code')">
+                `template_code` = #{changes.template_code,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('content')">
+                `content` = #{changes.content,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('provider_message_id')">
+                `provider_message_id` = #{changes.provider_message_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('provider_error')">
+                `provider_error` = #{changes.provider_error,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('sent_at')">
+                `sent_at` = #{changes.sent_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="expiredPayloads" resultMap="row">
+        SELECT * FROM smslog WHERE tenant_id = #{tenantId} AND (content&lt;&gt;'' OR to_phone&lt;&gt;'redacted')
+        AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id = #{tenantId} AND
+        finished_at &lt;= #{cutoff}) ORDER BY created_at LIMIT #{limit}
+    </select>
+    <select id="scopedVoiceCallbacks148" resultMap="row">
+        SELECT * FROM `smslog` WHERE tenant_id = #{tenantId} AND (id=#{p0}) FOR UPDATE
+    </select>
+    <select id="scopedVoiceCallbacks149" resultMap="row">
+        SELECT * FROM `smslog` WHERE tenant_id = #{tenantId} AND (provider_message_id=#{p0}) ORDER
+        BY created_at DESC LIMIT 1 FOR UPDATE
+    </select>
+    <select id="rawReports127_0" resultType="java.util.LinkedHashMap">
+        SELECT call_session_id,COUNT(*) AS n FROM smslog WHERE tenant_id=#{tenantId} AND
+        created_at&gt;=#{p1} AND call_session_id IS NOT NULL GROUP BY call_session_id
+    </select>
+    <select id="searchSms" resultMap="row">
+        SELECT * FROM smslog WHERE tenant_id = #{tenantId}
+        <if test="state != null and state != ''">
+            AND state=#{state}
+        </if>
+        ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>
