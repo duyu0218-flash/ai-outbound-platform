@@ -12,8 +12,10 @@ import com.duozhi.outbound.dial.service.StabilityAdmission;
 import com.duozhi.outbound.monitoring.service.MetricsRegistry;
 import com.duozhi.outbound.recording.controller.RecordingController;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import java.io.IOException;
 import java.time.*;
 import java.util.*;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +28,7 @@ public class OperationalMetrics {
     private final StabilityAdmission stability;
     private final MetricsRegistry metrics;
     private final VoiceController voice;
-    private final org.springframework.beans.factory.config.ConfigurableListableBeanFactory beans;
+    private final ConfigurableListableBeanFactory beans;
 
     public OperationalMetrics(
             Store store,
@@ -35,7 +37,7 @@ public class OperationalMetrics {
             StabilityAdmission stability,
             MetricsRegistry metrics,
             VoiceController voice,
-            org.springframework.beans.factory.config.ConfigurableListableBeanFactory beans) {
+            ConfigurableListableBeanFactory beans) {
         this.store = store;
         this.config = config;
         this.inbox = inbox;
@@ -51,7 +53,7 @@ public class OperationalMetrics {
         if (!file.isEmpty())
             try {
                 token = ConfigFiles.readUtf8(file, 4096).trim();
-            } catch (java.io.IOException e) {
+            } catch (IOException e) {
                 throw new ApiError(401, "invalid metrics token");
             }
         if (token.isEmpty() || !Crypto.equal("Bearer " + token, header))
@@ -60,7 +62,8 @@ public class OperationalMetrics {
 
     @GetMapping("/metrics/runtime")
     public ResponseEntity<String> runtime(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @RequestHeader(value = "Authorization", required = false)
+            String token) {
         authorize(token);
         return response(metrics.scrape(true));
     }
@@ -73,7 +76,8 @@ public class OperationalMetrics {
 
     @GetMapping("/metrics")
     public ResponseEntity<String> metrics(
-            @RequestHeader(value = "Authorization", required = false) String token) {
+            @RequestHeader(value = "Authorization", required = false)
+            String token) {
         authorize(token);
         refresh();
         return response(metrics.scrape(false));

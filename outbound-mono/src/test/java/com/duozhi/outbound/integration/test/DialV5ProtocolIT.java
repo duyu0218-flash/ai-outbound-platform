@@ -15,12 +15,19 @@ import com.duozhi.outbound.dial.service.DialDrainControl;
 import com.duozhi.outbound.dial.service.DialService;
 import com.duozhi.outbound.integration.service.TelephonyClient;
 import com.duozhi.outbound.system.service.Settings;
+import java.sql.DriverManager;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.*;
@@ -30,7 +37,8 @@ import org.testcontainers.mysql.MySQLContainer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class DialV5ProtocolIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -57,20 +65,32 @@ class DialV5ProtocolIT {
         p.add("JAVA_CAPACITY_RUN_ID", () -> "v5-isolated-protocol");
     }
 
-    @Autowired Store store;
-    @Autowired Settings settings;
-    @Autowired JsonSupport json;
-    @Autowired DialService dial;
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean DialDrainControl drain;
-    @Autowired DialBatchStore batch;
-    @Autowired CallLifecycle lifecycle;
-    @Autowired Transactions tx;
-    @Autowired CallbackInbox inbox;
-    @Autowired CapacityCommitEvidence timing;
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
-    @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
+    @Autowired
+    Store store;
+    @Autowired
+    Settings settings;
+    @Autowired
+    JsonSupport json;
+    @Autowired
+    DialService dial;
+    @MockitoSpyBean
+    DialDrainControl drain;
+    @Autowired
+    DialBatchStore batch;
+    @Autowired
+    CallLifecycle lifecycle;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    CallbackInbox inbox;
+    @Autowired
+    CapacityCommitEvidence timing;
+    @Autowired
+    JdbcTemplate jdbc;
+    @Autowired
+    ConfigurableEnvironment environment;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    @MockitoSpyBean
     TelephonyClient telephony;
 
     @BeforeEach
@@ -148,9 +168,9 @@ class DialV5ProtocolIT {
     void drainCaptureDoesNotWaitForSourceRowLocksHeldByLifecycleWriter() throws Exception {
         var claimed = claim(queued());
         assertThat(claimed).isNotNull();
-        var pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+        var pool = Executors.newSingleThreadExecutor();
         try (var connection =
-                java.sql.DriverManager.getConnection(
+                DriverManager.getConnection(
                         MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())) {
             connection.setAutoCommit(false);
             try (var lock =
@@ -165,8 +185,7 @@ class DialV5ProtocolIT {
             // Capture must read its previously committed identity without
             // waiting for this source lock while owning the drain barrier.
             var capture = pool.submit(drain::begin);
-            assertThat(capture.get(3, java.util.concurrent.TimeUnit.SECONDS))
-                    .containsEntry("phase", "ADMISSION_CLOSED");
+            assertThat(capture.get(3, TimeUnit.SECONDS)).containsEntry("phase", "ADMISSION_CLOSED");
             assertThat(
                             jdbc.queryForObject(
                                     "SELECT COUNT(*) FROM dial_drain_member m JOIN"
@@ -367,9 +386,7 @@ class DialV5ProtocolIT {
                 secret = "independent-route-snapshot-fixture-secret-32-plus";
         environment
                 .getPropertySources()
-                .addFirst(
-                        new org.springframework.core.env.MapPropertySource(
-                                property, Map.of("VOICE_COMMAND_SECRET", secret)));
+                .addFirst(new MapPropertySource(property, Map.of("VOICE_COMMAND_SECRET", secret)));
         var line =
                 store.insert(
                         "telephonyline",

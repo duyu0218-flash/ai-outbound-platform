@@ -1,6 +1,7 @@
 package com.duozhi.outbound.system.controller;
 
 import com.duozhi.outbound.common.config.Config;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,8 +17,7 @@ public class Pages {
 
     @GetMapping({"/admin", "/admin/**", "/agent", "/agent/**"})
     public ResponseEntity<?> index() {
-        org.springframework.core.io.ClassPathResource file =
-                new org.springframework.core.io.ClassPathResource("static/index.html");
+        ClassPathResource file = new ClassPathResource("static/index.html");
         if (!file.exists())
             return ResponseEntity.status(503)
                     .contentType(MediaType.TEXT_HTML)

@@ -1,20 +1,24 @@
 package com.duozhi.outbound.call.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class ConversationState {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callId;
+    private UUID callId;
     private Integer attempt = 0;
     private String policyJson = "{}";
     private Integer policyVersionId;
     private String dataJson = "{}";
     private Integer generation = 0;
-    private java.time.LocalDateTime deadline;
+    private LocalDateTime deadline;
     private String timerKind = "";
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -32,11 +36,11 @@ public class ConversationState {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallId() {
+    public UUID getCallId() {
         return callId;
     }
 
-    public void setCallId(java.util.UUID value) {
+    public void setCallId(UUID value) {
         this.callId = value;
     }
 
@@ -80,11 +84,11 @@ public class ConversationState {
         this.generation = value;
     }
 
-    public java.time.LocalDateTime getDeadline() {
+    public LocalDateTime getDeadline() {
         return deadline;
     }
 
-    public void setDeadline(java.time.LocalDateTime value) {
+    public void setDeadline(LocalDateTime value) {
         this.deadline = value;
     }
 
@@ -96,11 +100,11 @@ public class ConversationState {
         this.timerKind = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

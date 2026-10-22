@@ -1,23 +1,26 @@
 package com.duozhi.outbound.agent.domain;
 
+import com.duozhi.outbound.agent.domain.enums.HandoffState;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class HandoffRequest {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private Integer assignedAgentId;
-    private com.duozhi.outbound.agent.domain.enums.HandoffState state =
-            com.duozhi.outbound.agent.domain.enums.HandoffState.WAITING;
+    private HandoffState state = HandoffState.WAITING;
     private String reason = "";
     private String targetGroup = "";
-    private java.time.LocalDateTime requestedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime respondedAt;
-    private java.time.LocalDateTime completedAt;
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime requestedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime respondedAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -35,11 +38,11 @@ public class HandoffRequest {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -51,11 +54,11 @@ public class HandoffRequest {
         this.assignedAgentId = value;
     }
 
-    public com.duozhi.outbound.agent.domain.enums.HandoffState getState() {
+    public HandoffState getState() {
         return state;
     }
 
-    public void setState(com.duozhi.outbound.agent.domain.enums.HandoffState value) {
+    public void setState(HandoffState value) {
         this.state = value;
     }
 
@@ -75,35 +78,35 @@ public class HandoffRequest {
         this.targetGroup = value;
     }
 
-    public java.time.LocalDateTime getRequestedAt() {
+    public LocalDateTime getRequestedAt() {
         return requestedAt;
     }
 
-    public void setRequestedAt(java.time.LocalDateTime value) {
+    public void setRequestedAt(LocalDateTime value) {
         this.requestedAt = value;
     }
 
-    public java.time.LocalDateTime getRespondedAt() {
+    public LocalDateTime getRespondedAt() {
         return respondedAt;
     }
 
-    public void setRespondedAt(java.time.LocalDateTime value) {
+    public void setRespondedAt(LocalDateTime value) {
         this.respondedAt = value;
     }
 
-    public java.time.LocalDateTime getCompletedAt() {
+    public LocalDateTime getCompletedAt() {
         return completedAt;
     }
 
-    public void setCompletedAt(java.time.LocalDateTime value) {
+    public void setCompletedAt(LocalDateTime value) {
         this.completedAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

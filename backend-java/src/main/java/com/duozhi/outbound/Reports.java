@@ -1,13 +1,13 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.io.*;
 import java.nio.charset.StandardCharsets;
-import jakarta.servlet.http.HttpServletRequest;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import org.apache.commons.csv.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -60,7 +60,10 @@ public class Reports {
         return rows;
     }
     @GetMapping("/admin/call-reports")
-    public Map<String,Object> report(@RequestParam(defaultValue="campaign") String dimension, @RequestParam(defaultValue="day") String granularity, @RequestParam(defaultValue="30") int days, HttpServletRequest request) {
+    public Map<String,Object> report(@RequestParam(defaultValue="campaign")
+    String dimension, @RequestParam(defaultValue="day")
+    String granularity, @RequestParam(defaultValue="30")
+    int days, HttpServletRequest request) {
         long tenant = admin(request).tenant(); dimension(dimension);
         if (!Values.set("day", "hour").contains(granularity)) throw new ApiError(400, "unsupported granularity");
         LocalDateTime since = since(days); Map<String,String> labels = labels(tenant, dimension);
@@ -79,7 +82,8 @@ public class Reports {
     private String group(Object tags) { for (String part : Objects.toString(tags, "").split("[;,，]")) if (!part.trim().isEmpty()) return part.trim(); return "未分组"; }
     private Map<String,Object> emptyGroup(String key) { Map<String,Object> row = empty(key, key); row.put("contacts", 0L); row.put("dnc_contacts", 0L); return row; }
     @GetMapping("/admin/contact-groups")
-    public Map<String,Object> groups(@RequestParam(defaultValue="30") int days, HttpServletRequest request) {
+    public Map<String,Object> groups(@RequestParam(defaultValue="30")
+    int days, HttpServletRequest request) {
         long tenant = admin(request).tenant(); LocalDateTime since = since(days);
         Map<String,String> contactGroups = new HashMap<>(); Map<String,Map<String,Object>> groups = new LinkedHashMap<>();
         Map<String,Object> summary = emptyGroup("summary"); summary.put("label", "全部");
@@ -117,8 +121,13 @@ public class Reports {
         return row;
     }
     @GetMapping("/admin/billing")
-    public Map<String,Object> billing(@RequestParam(defaultValue="campaign") String dimension, @RequestParam(defaultValue="30") int days,
-            @RequestParam(defaultValue="0") double ai_unit_price_per_minute, @RequestParam(defaultValue="0") double telephony_unit_price_per_minute, @RequestParam(defaultValue="0") double sms_unit_price, HttpServletRequest request) {
+    public Map<String,Object> billing(@RequestParam(defaultValue="campaign")
+    String dimension, @RequestParam(defaultValue="30")
+    int days,
+            @RequestParam(defaultValue="0")
+            double ai_unit_price_per_minute, @RequestParam(defaultValue="0")
+            double telephony_unit_price_per_minute, @RequestParam(defaultValue="0")
+            double sms_unit_price, HttpServletRequest request) {
         long tenant = admin(request).tenant(); dimension(dimension); LocalDateTime since = since(days);
         for (double price : new double[]{ai_unit_price_per_minute, telephony_unit_price_per_minute, sms_unit_price}) if (!Double.isFinite(price) || price < 0) throw new ApiError(400, "invalid unit price");
         Map<String,List<Map<String,Object>>> usage = new HashMap<>();
@@ -143,8 +152,12 @@ public class Reports {
         return JsonSupport.map("dimension", dimension, "window", window(days, since), "rates", rates, "summary", contract.output("AdminBillingSummary", summary), "rows", sorted(groups.values()));
     }
     @GetMapping("/quality/reviews")
-    public List<Map<String,Object>> reviews(@RequestParam(required=false) String review_state, @RequestParam(required=false) Integer max_score,
-            @RequestParam(defaultValue="1") int page, @RequestParam(defaultValue="50") int size, HttpServletRequest request) {
+    public List<Map<String,Object>> reviews(@RequestParam(required=false)
+    String review_state, @RequestParam(required=false)
+    Integer max_score,
+            @RequestParam(defaultValue="1")
+            int page, @RequestParam(defaultValue="50")
+            int size, HttpServletRequest request) {
         Identity identity = Identity.from(request); if (identity.user() != null && !"admin".equals(identity.user().get("role")) && !Boolean.TRUE.equals(identity.user().get("is_supervisor"))) throw new ApiError(403, "supervisor permission required");
         int offset = Contract.page(page, size); if (review_state != null && !Values.set("auto", "reviewed").contains(review_state) || max_score != null && (max_score < 0 || max_score > 100)) throw new ApiError(422, "invalid review filter");
         String where = "WHERE tenant_id=? AND call_session_id IN (SELECT id FROM callsession WHERE tenant_id=?)"; List<Object> args = new ArrayList<>(Arrays.asList(identity.tenant(), identity.tenant()));
@@ -162,7 +175,9 @@ public class Reports {
     }
     private String joined(List<Map<String,Object>> rows, String key) { List<String> values = new ArrayList<>(); for (Map<String,Object> row : rows) if (row.get(key) != null) values.add(row.get(key).toString()); return String.join(" | ", values); }
     @GetMapping("/admin/calls/export")
-    public ResponseEntity<StreamingResponseBody> export(@RequestParam(defaultValue="30") int days, @RequestParam(value="status",required=false) String status, HttpServletRequest request) {
+    public ResponseEntity<StreamingResponseBody> export(@RequestParam(defaultValue="30")
+    int days, @RequestParam(value="status",required=false)
+    String status, HttpServletRequest request) {
         Identity identity = admin(request); LocalDateTime since = since(days); Object encodedStatus = null;
         if (status != null) { try { encodedStatus = store.encode("callsession", "status", status); } catch (ApiError e) { throw new ApiError(400, "invalid call status"); } }
         final Object filter = encodedStatus; long tenant = identity.tenant(); audit.record(identity, "export", "call_evidence", null, "days=" + days + ", status=" + Objects.toString(status, "all"));

@@ -5,9 +5,11 @@ import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** Path-style S3 client using SigV4 and bounded, streamed object bodies. */
 final class S3Store {
@@ -34,8 +36,8 @@ final class S3Store {
         if (file == null) hash = Support.hex(Support.sha(bytes));
         else {
             try (var input = Files.newInputStream(file)) {
-                java.security.MessageDigest digest;
-                try { digest = java.security.MessageDigest.getInstance("SHA-256"); } catch (Exception error) { throw new IllegalStateException(error); }
+                MessageDigest digest;
+                try { digest = MessageDigest.getInstance("SHA-256"); } catch (Exception error) { throw new IllegalStateException(error); }
                 byte[] buffer = new byte[65536]; for (int n; (n = input.read(buffer)) != -1;) digest.update(buffer, 0, n);
                 hash = Support.hex(digest.digest());
             }
@@ -71,7 +73,7 @@ final class S3Store {
         var response = request("PUT", key, file, new byte[0], headers);
         try (var input = Support.timed(response.body(), 5000)) {
             if (response.statusCode() / 100 != 2) {
-                String xml = new String(Support.read(input, 65536), StandardCharsets.UTF_8); var code = java.util.regex.Pattern.compile("<Code>([A-Za-z0-9]{1,100})</Code>").matcher(xml);
+                String xml = new String(Support.read(input, 65536), StandardCharsets.UTF_8); var code = Pattern.compile("<Code>([A-Za-z0-9]{1,100})</Code>").matcher(xml);
                 throw new Support.Failure(503, "recording upload failed (HTTP " + response.statusCode() + (code.find() ? ", " + code.group(1) : "") + ")");
             }
         }

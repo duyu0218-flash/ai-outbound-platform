@@ -24,6 +24,7 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.*;
 import org.springframework.http.*;
@@ -35,11 +36,12 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ScriptHttpIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -61,22 +63,35 @@ class ScriptHttpIT {
         p.add("TENANT_API_KEYS_JSON", () -> "{\"1\":\"customer-test-key\"}");
     }
 
-    @Autowired TestRestTemplate http;
-    @Autowired ObjectMapper json;
-    @Autowired Crypto crypto;
-    @Autowired Store store;
-    @Autowired SysUserMapper users;
-    @Autowired TenantMapper tenants;
-    @Autowired AuditLogMapper audits;
-    @Autowired ConfigurableEnvironment environment;
-    @Autowired CallPolicy policy;
-    @Autowired Transactions tx;
-    @Autowired DataRetention retention;
-    @Autowired Outbox outbox;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    ObjectMapper json;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    Store store;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    AuditLogMapper audits;
+    @Autowired
+    ConfigurableEnvironment environment;
+    @Autowired
+    CallPolicy policy;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    DataRetention retention;
+    @Autowired
+    Outbox outbox;
     private final Map<String, Object> overrides = new HashMap<>();
     private String token;
     private SysUser user;
-    @Autowired ScriptFlows flows;
+    @Autowired
+    ScriptFlows flows;
 
     @BeforeEach
     void seed() {

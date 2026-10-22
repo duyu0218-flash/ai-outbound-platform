@@ -14,13 +14,21 @@ import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.job.service.RealtimeTaskCleanup;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.apache.ibatis.executor.BatchExecutorException;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CallbackInbox {
-    @org.springframework.beans.factory.annotation.Autowired private RealtimeTaskCleanup taskCleanup;
+    @Autowired
+    private RealtimeTaskCleanup taskCleanup;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -75,7 +83,7 @@ public class CallbackInbox {
                         ? 0
                         : Math.max(
                                 0,
-                                java.time.Duration.between(
+                                Duration.between(
                                                         LocalDateTime.parse(
                                                                 oldest.get("received_at")
                                                                         .toString()),
@@ -469,7 +477,7 @@ public class CallbackInbox {
                         double latency =
                                 Math.max(
                                         0,
-                                        java.time.Duration.between(
+                                        Duration.between(
                                                         LocalDateTime.parse(
                                                                 receipt.get("received_at")
                                                                         .toString()),
@@ -537,8 +545,7 @@ public class CallbackInbox {
                     !Values.set("dialing", "answered").contains(oldest.get(0).get("status"));
         }
         final boolean sharedResources = terminalBatch;
-        java.util.function.Function<java.util.function.Supplier<Integer>, Integer> transaction =
-                terminalBatch ? tx::serialized : tx::run;
+        Function<Supplier<Integer>, Integer> transaction = terminalBatch ? tx::serialized : tx::run;
         try {
             int consumed =
                     transaction.apply(
@@ -652,7 +659,7 @@ public class CallbackInbox {
                                         latency =
                                                 Math.max(
                                                         latency,
-                                                        java.time.Duration.between(
+                                                        Duration.between(
                                                                         LocalDateTime.parse(
                                                                                 receipt.get(
                                                                                                 "received_at")
@@ -678,7 +685,7 @@ public class CallbackInbox {
                                 }
                             });
             if (consumed > 0 && config.flag("JAVA_DIAL_PROFILE", false))
-                org.slf4j.LoggerFactory.getLogger(CallbackInbox.class)
+                LoggerFactory.getLogger(CallbackInbox.class)
                         .info(
                                 "callback_batch size={} wait_ms={} claim_ms={} facts_ms={}"
                                         + " apply_flush_ms={} finish_ms={}",
@@ -692,7 +699,7 @@ public class CallbackInbox {
         } catch (RuntimeException failure) {
             // The entire cohort rolled back, including event dedupe and tasks.
             // Existing per-receipt handling isolates/retries a malformed event.
-            org.slf4j.LoggerFactory.getLogger(CallbackInbox.class)
+            LoggerFactory.getLogger(CallbackInbox.class)
                     .warn(
                             "callback batch rolled back error_type={} cause_codes={}",
                             failure.getClass().getSimpleName(),
@@ -710,13 +717,9 @@ public class CallbackInbox {
                 cause = cause.getCause()) {
             codes.add(
                     cause.getClass().getSimpleName()
-                            + (cause instanceof java.sql.SQLException sql
+                            + (cause instanceof SQLException sql
                                     ? ":" + sql.getSQLState() + ":" + sql.getErrorCode()
-                                    : cause
-                                                    instanceof
-                                                    org.apache.ibatis.executor
-                                                                    .BatchExecutorException
-                                                            batch
+                                    : cause instanceof BatchExecutorException batch
                                             ? ":" + batch.getFailingStatementId()
                                             : ""));
         }

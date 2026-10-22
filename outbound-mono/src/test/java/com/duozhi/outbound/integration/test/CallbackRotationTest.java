@@ -19,16 +19,20 @@ import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.operations.controller.CallAnalysis;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class CallbackRotationTest {
     @Test
     void analysisOwnersCannotPublishAiWorkerProgress() throws Exception {
-        var environment = new org.springframework.core.env.StandardEnvironment();
+        var environment = new StandardEnvironment();
         environment
                 .getPropertySources()
                 .addFirst(
-                        new org.springframework.core.env.MapPropertySource(
+                        new MapPropertySource(
                                 "analysis-health-fixture",
                                 Map.of(
                                         "JAVA_TASK_WORKERS",
@@ -52,14 +56,8 @@ class CallbackRotationTest {
                         mock(IntegrationTasks.class),
                         mock(DialBatchWorker.class));
         try {
-            var types =
-                    (String[])
-                            org.springframework.test.util.ReflectionTestUtils.getField(
-                                    worker, "laneTypes");
-            var lanes =
-                    (java.util.concurrent.atomic.AtomicBoolean[])
-                            org.springframework.test.util.ReflectionTestUtils.getField(
-                                    worker, "lanes");
+            var types = (String[]) ReflectionTestUtils.getField(worker, "laneTypes");
+            var lanes = (AtomicBoolean[]) ReflectionTestUtils.getField(worker, "lanes");
             var submit =
                     TaskWorker.class.getDeclaredMethod(
                             "submitLane", int.class, long.class, boolean.class);
@@ -70,11 +68,7 @@ class CallbackRotationTest {
             long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
             while (lanes[analysis].get() && System.nanoTime() < until) Thread.sleep(5);
             assertThat(lanes[analysis].get()).isFalse();
-            assertThat(
-                            (Long)
-                                    org.springframework.test.util.ReflectionTestUtils.getField(
-                                            worker, "aiProgress"))
-                    .isZero();
+            assertThat((Long) ReflectionTestUtils.getField(worker, "aiProgress")).isZero();
             int ai = 4;
             assertThat(types[ai]).isEqualTo("('ai_turn')");
             lanes[ai].set(true);
@@ -82,11 +76,7 @@ class CallbackRotationTest {
             until = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
             while (lanes[ai].get() && System.nanoTime() < until) Thread.sleep(5);
             assertThat(lanes[ai].get()).isFalse();
-            assertThat(
-                            (Long)
-                                    org.springframework.test.util.ReflectionTestUtils.getField(
-                                            worker, "aiProgress"))
-                    .isPositive();
+            assertThat((Long) ReflectionTestUtils.getField(worker, "aiProgress")).isPositive();
         } finally {
             worker.close();
         }
@@ -125,8 +115,7 @@ class CallbackRotationTest {
                         mock(AiRuntime.class),
                         mock(IntegrationTasks.class),
                         mock(DialBatchWorker.class));
-        org.springframework.test.util.ReflectionTestUtils.setField(
-                worker, "dialControl", mock(DialDrainControl.class));
+        ReflectionTestUtils.setField(worker, "dialControl", mock(DialDrainControl.class));
         try {
             worker.ready();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);

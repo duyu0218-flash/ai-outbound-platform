@@ -1,10 +1,15 @@
 package com.duozhi.outbound.recording.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class RecordingAsset {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private Integer attempt = 0;
     private String providerRecordingId;
     private String providerUrl = "";
@@ -14,14 +19,12 @@ public class RecordingAsset {
     private String mediaFormat = "";
     private Integer channelCount = 1;
     private String checksumSha256;
-    private java.time.LocalDateTime retentionUntil;
-    private java.time.LocalDateTime deletedAt;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime retentionUntil;
+    private LocalDateTime deletedAt;
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -39,11 +42,11 @@ public class RecordingAsset {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -119,35 +122,35 @@ public class RecordingAsset {
         this.checksumSha256 = value;
     }
 
-    public java.time.LocalDateTime getRetentionUntil() {
+    public LocalDateTime getRetentionUntil() {
         return retentionUntil;
     }
 
-    public void setRetentionUntil(java.time.LocalDateTime value) {
+    public void setRetentionUntil(LocalDateTime value) {
         this.retentionUntil = value;
     }
 
-    public java.time.LocalDateTime getDeletedAt() {
+    public LocalDateTime getDeletedAt() {
         return deletedAt;
     }
 
-    public void setDeletedAt(java.time.LocalDateTime value) {
+    public void setDeletedAt(LocalDateTime value) {
         this.deletedAt = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

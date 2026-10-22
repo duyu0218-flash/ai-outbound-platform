@@ -2,18 +2,21 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.github.dockerjava.api.model.ExposedPort;
 import java.sql.*;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.mysql.MySQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** Isolated recovery qualification for the optional compressed binlog profile. */
 class CapacityLogDurabilityIT {
     @Test
     void compressedBinlogSurvivesCrashAndReplaysCommittedRowsOnly() throws Exception {
         var image =
-                new org.testcontainers.images.builder.ImageFromDockerfile(
-                                "v5-mysql-binlog-tools:8.4", false)
+                new ImageFromDockerfile("v5-mysql-binlog-tools:8.4", false)
                         .withDockerfileFromBuilder(
                                 builder ->
                                         builder.from("mysql:8.4")
@@ -49,8 +52,7 @@ class CapacityLogDurabilityIT {
                                                                 + " /tmp/mysql-client-extract")
                                                 .build());
         var name =
-                org.testcontainers.utility.DockerImageName.parse(
-                                image.get(180, java.util.concurrent.TimeUnit.SECONDS))
+                DockerImageName.parse(image.get(180, TimeUnit.SECONDS))
                         .asCompatibleSubstituteFor("mysql");
         try (var mysql =
                 new MySQLContainer(name)
@@ -132,7 +134,7 @@ class CapacityLogDurabilityIT {
                             .getNetworkSettings()
                             .getPorts()
                             .getBindings()
-                            .get(new com.github.dockerjava.api.model.ExposedPort(3306));
+                            .get(new ExposedPort(3306));
             assertThat(binding).isNotEmpty();
             url =
                     "jdbc:mysql://"

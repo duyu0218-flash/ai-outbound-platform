@@ -1,5 +1,9 @@
 package com.duozhi.services;
 
+import java.net.HttpURLConnection;
+import java.net.Proxy;
+import java.net.URI;
+import java.util.Set;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -9,7 +13,7 @@ public class ServicesApplication {
         if (args.length == 1 && args[0].equals("--healthcheck")) {
             int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8003"));
             if (port < 1 || port > 65535) throw new IllegalArgumentException("invalid port");
-            var connection = (java.net.HttpURLConnection) new java.net.URI("http", null, "127.0.0.1", port, "/readyz", null, null).toURL().openConnection(java.net.Proxy.NO_PROXY);
+            var connection = (HttpURLConnection) new URI("http", null, "127.0.0.1", port, "/readyz", null, null).toURL().openConnection(Proxy.NO_PROXY);
             connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(3000); connection.setReadTimeout(5000);
             String token = new Settings().secret("media".equals(System.getenv("JAVA_SERVICE_ROLE")) ? "MEDIA_RPC_TOKEN" : "SERVICE_TOKEN");
@@ -19,7 +23,7 @@ public class ServicesApplication {
             return;
         }
         String role = System.getenv().getOrDefault("JAVA_SERVICE_ROLE", "recording");
-        if (!java.util.Set.of("recording", "agent", "voice", "media").contains(role)) throw new IllegalArgumentException("invalid Java service role");
+        if (!Set.of("recording", "agent", "voice", "media").contains(role)) throw new IllegalArgumentException("invalid Java service role");
         if (role.equals("agent")) {
             Settings settings = new Settings();
             long connections = settings.number("LLM_MAX_CONNECTIONS", 256, 1, 1024);

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.exception.ApiError;
+import jakarta.servlet.http.HttpServletRequest;
 import java.net.*;
 import java.nio.file.Path;
 import java.util.*;
@@ -12,7 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class IdentityCompatibilityTest {
-    @TempDir Path output;
+    @TempDir
+    Path output;
 
     @Test
     void actualOriginalNullUserBranchPassesWhileNewExplicitPermissionRejects() throws Exception {
@@ -20,7 +22,7 @@ class IdentityCompatibilityTest {
                 Path.of("..", "backend-java", "src", "main", "java", "com", "duozhi", "outbound");
         String servlet =
                 Path.of(
-                                jakarta.servlet.http.HttpServletRequest.class
+                                HttpServletRequest.class
                                         .getProtectionDomain()
                                         .getCodeSource()
                                         .getLocation()

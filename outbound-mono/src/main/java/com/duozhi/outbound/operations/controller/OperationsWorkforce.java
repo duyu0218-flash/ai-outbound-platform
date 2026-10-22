@@ -6,6 +6,7 @@ import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.operations.dao.OperationsStore;
+import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,7 @@ public class OperationsWorkforce {
         var wrap = db.one("wrapupTime", p);
         Object until = wrap == null ? null : wrap.get("available_after");
         LocalDateTime at =
-                until instanceof java.sql.Timestamp stamp
+                until instanceof Timestamp stamp
                         ? stamp.toLocalDateTime()
                         : until instanceof LocalDateTime local ? local : null;
         result.put(

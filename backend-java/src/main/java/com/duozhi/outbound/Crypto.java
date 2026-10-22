@@ -1,17 +1,19 @@
 package com.duozhi.outbound;
 
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Component;
-import javax.crypto.Mac;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.*;
+import java.util.Base64;
+import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class Crypto {
@@ -23,14 +25,14 @@ public class Crypto {
         return a != null && b != null && MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
     }
     private byte[] derive(String password, byte[] salt, int iterations) throws Exception {
-        javax.crypto.spec.PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, 256);
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, 256);
         try { return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).getEncoded(); }
         finally { spec.clearPassword(); }
     }
     public String password(String raw) {
         try {
             byte[] salt = new byte[16]; new SecureRandom().nextBytes(salt);
-            java.util.Base64.Encoder encoder = Base64.getUrlEncoder();
+            Base64.Encoder encoder = Base64.getUrlEncoder();
             return "pbkdf2_sha256$600000$" + encoder.encodeToString(salt) + "$" + encoder.encodeToString(derive(raw, salt, 600000));
         } catch (Exception e) { throw new IllegalStateException("password hashing failed", e); }
     }
@@ -40,7 +42,7 @@ public class Crypto {
                 byte[] hash = MessageDigest.getInstance("SHA-256").digest((secret() + ":" + raw).getBytes(StandardCharsets.UTF_8));
                 return equal(stored, hex(hash));
             }
-            java.lang.String[] parts = stored.split("\\$", -1);
+            String[] parts = stored.split("\\$", -1);
             if (parts.length != 4) return false;
             int iterations = Integer.parseInt(parts[1]);
             if (iterations < 100000 || iterations > 2000000) return false;
@@ -59,13 +61,13 @@ public class Crypto {
         return secret;
     }
     private byte[] sign(String data) throws Exception {
-        javax.crypto.Mac mac = Mac.getInstance("HmacSHA256");
+        Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return mac.doFinal(data.getBytes(StandardCharsets.US_ASCII));
     }
     public String token(Map<String, Object> user) {
         try {
-            java.util.Map<java.lang.String,java.lang.Object> claims = Values.map("sub", user.get("username"), "uid", user.get("id"), "tenant_id", user.get("tenant_id"),
+            Map<String,Object> claims = Values.map("sub", user.get("username"), "uid", user.get("id"), "tenant_id", user.get("tenant_id"),
                     "role", user.get("role"), "tv", user.get("token_version"), "exp", Instant.now().getEpochSecond() + config.number("JWT_TTL_SECONDS", 43200));
             String body = URL.encodeToString(mapper.writeValueAsBytes(Values.map("alg", "HS256", "typ", "JWT"))) + "." + URL.encodeToString(mapper.writeValueAsBytes(claims));
             return body + "." + URL.encodeToString(sign(body));

@@ -19,6 +19,9 @@ import com.duozhi.outbound.system.service.Settings;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.*;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.web.bind.annotation.*;
 
 /** Coordinates rules, flow canvas and embedded Spring AI while fencing all business effects. */
@@ -263,7 +266,7 @@ public class AiRuntime {
     @SuppressWarnings("unchecked")
     private void runTurn(Map<String, Object> payload) {
         long started = System.nanoTime();
-        java.util.function.Supplier<Map<String, Object>> prepare =
+        Supplier<Map<String, Object>> prepare =
                 () -> {
                     Map<String, Object> call = current(payload, true);
                     if (call == null) return null;
@@ -524,8 +527,8 @@ public class AiRuntime {
                                         true,
                                         call.get("campaign_id")));
         Set<String> tokens = new HashSet<>(), grams = new HashSet<>();
-        java.util.regex.Matcher words =
-                java.util.regex.Pattern.compile("(?U)[\\w\\u4e00-\\u9fff]+")
+        Matcher words =
+                Pattern.compile("(?U)[\\w\\u4e00-\\u9fff]+")
                         .matcher(query.toLowerCase(Locale.ROOT));
         while (words.find()) if (words.group().length() >= 2) tokens.add(words.group());
         String chinese = query.replaceAll("[^\\u4e00-\\u9fff]", "");
@@ -822,7 +825,7 @@ public class AiRuntime {
                         return null;
                     });
         }
-        java.util.function.Supplier<Object> finishWork =
+        Supplier<Object> finishWork =
                 () -> {
                     TaskWorker.permitted();
                     Map<String, Object> latest =
@@ -968,7 +971,7 @@ public class AiRuntime {
         if (identity == null) identity = store.locate("callsession", payload.get("call_id"), false);
         if (identity == null) return;
         long timerTenant = CallLifecycle.tenant(identity);
-        java.util.function.Supplier<Map<String, Object>> lockedCall =
+        Supplier<Map<String, Object>> lockedCall =
                 () ->
                         store.one(
                                 "callsession",
@@ -978,7 +981,7 @@ public class AiRuntime {
                                         timerTenant,
                                         "id",
                                         store.encode("callsession", "id", payload.get("call_id"))));
-        java.util.function.Supplier<Map<String, Object>> prepare =
+        Supplier<Map<String, Object>> prepare =
                 () -> {
                     TaskWorker.permitted();
                     Map<String, Object> call = lockedCall.get();
@@ -1313,7 +1316,8 @@ public class AiRuntime {
     }
 
     @PostMapping("/api/v1/calls/{id}/interrupt")
-    public Map<String, Object> interruptApi(@PathVariable UUID id, HttpServletRequest request) {
+    public Map<String, Object> interruptApi(@PathVariable
+    UUID id, HttpServletRequest request) {
         Identity identity = Identity.from(request);
         Map<String, Object> call = store.require("callsession", identity.tenant(), id);
         handoffs.visible(call, identity);

@@ -14,8 +14,7 @@ public class Audit {
     }
 
     public void record(Identity actor, String action, String resource, Object id, String detail) {
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> row =
-                new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> row = new LinkedHashMap<String, Object>();
         row.put("tenant_id", actor.tenant());
         row.put("actor_user_id", actor.userId());
         row.put("actor_username", actor.actor());

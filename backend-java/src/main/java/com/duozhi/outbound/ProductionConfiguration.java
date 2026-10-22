@@ -1,7 +1,7 @@
 package com.duozhi.outbound;
 
-import java.util.*;
 import java.net.URI;
+import java.util.*;
 import tools.jackson.databind.ObjectMapper;
 
 /** Port of baseline production configuration checks; does not approve a release. */

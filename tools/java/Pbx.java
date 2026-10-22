@@ -1,5 +1,17 @@
-import java.io.*;import java.net.*;import java.nio.charset.StandardCharsets;import java.nio.file.*;import java.nio.file.attribute.PosixFilePermissions;import java.util.*;
-import javax.xml.parsers.*;import javax.xml.transform.*;import javax.xml.transform.dom.*;import javax.xml.transform.stream.*;import javax.xml.XMLConstants;import org.w3c.dom.*;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.*;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.*;
+import javax.xml.transform.stream.*;
+import org.w3c.dom.*;
+
 /** Native PBX bootstrap/ESL probe. No interpreter, shell expansion or credential logging. */
 public class Pbx {
  static String secret(Path p)throws Exception {String s=Files.readString(p).strip();if(!s.matches("[A-Za-z0-9]{24,256}"))throw new IllegalArgumentException("ESL secret must be 24..256 ASCII alphanumeric characters");return s;}
@@ -18,7 +30,7 @@ public class Pbx {
   switch(args[0]){
    case "health":health(Path.of(args.length>1?args[1]:"/run/secrets/voismart_esl_password"),args.length>2?args[2]:"127.0.0.1",args.length>3?Integer.parseInt(args[3]):8021);break;
    case "render":render(Path.of(args[1]),Path.of(args[2]),Path.of(args[3]),args[4]);break;
-   case "start":for(String p:List.of("conf","log","db","run"))Files.createDirectories(Path.of("/tmp/fs-"+p));render(Path.of("/opt/media-config/freeswitch.xml"),Path.of("/tmp/fs-conf/freeswitch.xml"),Path.of("/run/secrets/voismart_esl_password"),System.getenv("MEDIA_ESL_ALLOWED_CIDR"));Process child=new ProcessBuilder("freeswitch","-nf","-nonat","-conf","/tmp/fs-conf","-log","/tmp/fs-log","-db","/tmp/fs-db","-run","/tmp/fs-run").inheritIO().start();Runtime.getRuntime().addShutdownHook(new Thread(()->{child.destroy();try{if(!child.waitFor(10,java.util.concurrent.TimeUnit.SECONDS))child.destroyForcibly();}catch(InterruptedException e){Thread.currentThread().interrupt();}}));System.exit(child.waitFor());break;
+   case "start":for(String p:List.of("conf","log","db","run"))Files.createDirectories(Path.of("/tmp/fs-"+p));render(Path.of("/opt/media-config/freeswitch.xml"),Path.of("/tmp/fs-conf/freeswitch.xml"),Path.of("/run/secrets/voismart_esl_password"),System.getenv("MEDIA_ESL_ALLOWED_CIDR"));Process child=new ProcessBuilder("freeswitch","-nf","-nonat","-conf","/tmp/fs-conf","-log","/tmp/fs-log","-db","/tmp/fs-db","-run","/tmp/fs-run").inheritIO().start();Runtime.getRuntime().addShutdownHook(new Thread(()->{child.destroy();try{if(!child.waitFor(10,TimeUnit.SECONDS))child.destroyForcibly();}catch(InterruptedException e){Thread.currentThread().interrupt();}}));System.exit(child.waitFor());break;
    default:throw new IllegalArgumentException("Use start|render|health");
   }
  }

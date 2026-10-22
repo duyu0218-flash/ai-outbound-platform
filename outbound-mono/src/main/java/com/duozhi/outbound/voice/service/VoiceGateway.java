@@ -13,11 +13,14 @@ import com.duozhi.outbound.voice.transport.EslClient;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 
 /** PBX call ownership, durable admission, lifecycle events and native speech. */
 public final class VoiceGateway implements AutoCloseable {
@@ -38,10 +41,8 @@ public final class VoiceGateway implements AutoCloseable {
     private final ScheduledExecutorService maintenance;
     private final Semaphore eventSlots = new Semaphore(2048);
     private final Queue<Long> pendingEvents = new ConcurrentLinkedQueue<>();
-    private final java.util.concurrent.atomic.AtomicInteger processingEvents =
-            new java.util.concurrent.atomic.AtomicInteger();
-    private final java.util.concurrent.atomic.LongAdder eventErrors =
-            new java.util.concurrent.atomic.LongAdder();
+    private final AtomicInteger processingEvents = new AtomicInteger();
+    private final LongAdder eventErrors = new LongAdder();
     private volatile boolean eventOverloaded;
     private volatile Socket eventSocket;
     public volatile boolean draining, running = true, subscribed;
@@ -521,7 +522,7 @@ public final class VoiceGateway implements AutoCloseable {
                                         Support.str(payload, "call_id", ""),
                                         "attempt",
                                         Support.integer(metadata, "attempt", 0))));
-        return Integer.toUnsignedLong(java.nio.ByteBuffer.wrap(hash).getInt()) % 100 < percent;
+        return Integer.toUnsignedLong(ByteBuffer.wrap(hash).getInt()) % 100 < percent;
     }
 
     private void mockStatus(Map<String, Object> row, Map<String, Object> payload, String state) {

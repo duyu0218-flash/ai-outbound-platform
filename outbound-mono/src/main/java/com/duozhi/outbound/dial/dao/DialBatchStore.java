@@ -10,12 +10,15 @@ import com.duozhi.outbound.system.service.Settings;
 import java.time.*;
 import java.util.*;
 import org.apache.ibatis.session.SqlSession;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class DialBatchStore {
-    @org.springframework.beans.factory.annotation.Autowired private DialCommandJournal journal;
-    @org.springframework.beans.factory.annotation.Autowired private DialDailyCounters daily;
+    @Autowired
+    private DialCommandJournal journal;
+    @Autowired
+    private DialDailyCounters daily;
     private final SqlSession sql;
     private final Store store;
     private final Settings settings;

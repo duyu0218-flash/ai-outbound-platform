@@ -7,6 +7,7 @@ import com.duozhi.outbound.integration.service.LedgerTestDatabase;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 class LedgerMySqlTest {
@@ -47,7 +48,7 @@ class LedgerMySqlTest {
                                                         + " 'voice_%'")
                                         .stream()
                                         .map(r -> r.get("fact_table").toString())
-                                        .collect(java.util.stream.Collectors.toSet());
+                                        .collect(Collectors.toSet());
                         assertEquals(
                                 Set.of(
                                         "voice_attempts",

@@ -12,6 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeSet;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -45,7 +49,7 @@ public class Contacts {
     }
 
     private Identity actor(HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity identity = Identity.from(request);
+        Identity identity = Identity.from(request);
         identity.admin("contacts:write");
         return identity;
     }
@@ -66,10 +70,10 @@ public class Contacts {
     @PostMapping
     @PolicyWrite
     public Map<String, Object> create(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = actor(request);
-        java.util.Map<java.lang.String, java.lang.Object> values =
-                contract.input("ContactCreate", body, true);
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
+        Identity actor = actor(request);
+        Map<String, Object> values = contract.input("ContactCreate", body, true);
         lockPolicy(actor);
         values.put("phone", phone(values.get("phone")));
         timezone(values.get("timezone"));
@@ -81,7 +85,7 @@ public class Contacts {
                         "countPhone",
                         Values.map("tenantId", actor.tenant(), "phone", values.get("phone")))
                 > 0) throw new ApiError(409, "contact phone already exists");
-        java.util.Map<java.lang.String, java.lang.Object> row = store.insert("contact", values);
+        Map<String, Object> row = store.insert("contact", values);
         audit.record(actor, "create", "contact", row.get("id"), "contact created");
         return contract.output("ContactOut", row);
     }
@@ -89,13 +93,19 @@ public class Contacts {
     @GetMapping
     public List<Map<String, Object>> list(
             HttpServletRequest request,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "100") int size,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) List<Long> ids,
-            @RequestParam(required = false) Boolean dnc,
-            @RequestParam(required = false) String consent) {
-        com.duozhi.outbound.auth.domain.Identity actor = actor(request);
+            @RequestParam(defaultValue = "1")
+            int page,
+            @RequestParam(defaultValue = "100")
+            int size,
+            @RequestParam(required = false)
+            String keyword,
+            @RequestParam(required = false)
+            List<Long> ids,
+            @RequestParam(required = false)
+            Boolean dnc,
+            @RequestParam(required = false)
+            String consent) {
+        Identity actor = actor(request);
         int offset = Contract.page(page, size);
         if (ids != null) {
             if (ids.size() > 200) throw new ApiError(422, "too many ids");
@@ -119,32 +129,34 @@ public class Contacts {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> get(@PathVariable long id, HttpServletRequest request) {
+    public Map<String, Object> get(@PathVariable
+    long id, HttpServletRequest request) {
         return contract.output("ContactOut", store.require("contact", actor(request).tenant(), id));
     }
 
     @PatchMapping("/{id}")
     @PolicyWrite
     public Map<String, Object> update(
-            @PathVariable long id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            long id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = actor(request);
-        java.util.Map<java.lang.String, java.lang.Object> data =
-                contract.input("ContactPatch", body, false);
+        Identity actor = actor(request);
+        Map<String, Object> data = contract.input("ContactPatch", body, false);
         timezone(data.get("timezone"));
         consent(data, actor);
         lockPolicy(actor);
-        java.util.Map<java.lang.String, java.lang.Object> row =
-                store.update("contact", actor.tenant(), id, data);
+        Map<String, Object> row = store.update("contact", actor.tenant(), id, data);
         audit.record(actor, "update", "contact", id, "fields=" + data.keySet());
         return contract.output("ContactOut", row);
     }
 
     @DeleteMapping("/{id}")
     @PolicyWrite
-    public Map<String, String> delete(@PathVariable long id, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = actor(request);
+    public Map<String, String> delete(@PathVariable
+    long id, HttpServletRequest request) {
+        Identity actor = actor(request);
         lockPolicy(actor);
         store.require("contact", actor.tenant(), id);
         long campaignReferences =
@@ -168,17 +180,17 @@ public class Contacts {
     @PatchMapping("/batch-dnc")
     @PolicyWrite
     public Map<String, Object> batch(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = actor(request);
-        java.util.Map<java.lang.String, java.lang.Object> input =
-                contract.input("ContactBatchDncPatch", body, true);
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
+        Identity actor = actor(request);
+        Map<String, Object> input = contract.input("ContactBatchDncPatch", body, true);
         lockPolicy(actor);
-        java.util.TreeSet<java.lang.Long> ids = new TreeSet<Long>();
+        TreeSet<Long> ids = new TreeSet<Long>();
         for (Object id : (List<?>) input.get("contact_ids")) ids.add(((Number) id).longValue());
-        java.util.ArrayList<java.lang.Long> missing = new ArrayList<Long>();
+        ArrayList<Long> missing = new ArrayList<Long>();
         int updated = 0;
         for (long id : ids) {
-            java.util.Map<java.lang.String, java.lang.Object> row =
+            Map<String, Object> row =
                     store.one(
                             "contact",
                             "findById",
@@ -187,8 +199,7 @@ public class Contacts {
                 missing.add(id);
                 continue;
             }
-            java.util.LinkedHashMap<java.lang.String, java.lang.Object> change =
-                    new LinkedHashMap<String, Object>();
+            LinkedHashMap<String, Object> change = new LinkedHashMap<String, Object>();
             change.put("dnc", input.get("dnc"));
             change.put("dnc_reason", input.get("dnc_reason"));
             if (Boolean.TRUE.equals(input.get("dnc"))) change.put("consented_at", null);

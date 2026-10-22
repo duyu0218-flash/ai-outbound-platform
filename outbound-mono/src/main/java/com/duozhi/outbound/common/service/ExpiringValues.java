@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Redis-compatible media keys; development-only in-process fallback. */
@@ -28,7 +29,7 @@ public class ExpiringValues {
         }
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public ExpiringValues(Config config) {
         this(config, (SSLSocketFactory) SSLSocketFactory.getDefault());
     }

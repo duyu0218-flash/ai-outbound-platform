@@ -29,24 +29,33 @@ import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.*;
 import org.springframework.http.*;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class BusinessHttpIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -71,36 +80,53 @@ class BusinessHttpIT {
         p.add("TENANT_API_KEYS_JSON", () -> "{\"1\":\"customer-test-key\"}");
     }
 
-    @Autowired TestRestTemplate http;
-    @Autowired ObjectMapper json;
-    @Autowired Crypto crypto;
-    @Autowired Store store;
-    @Autowired SysUserMapper users;
-    @Autowired TenantMapper tenants;
-    @Autowired AuditLogMapper audits;
-    @Autowired ConfigurableEnvironment environment;
-    @Autowired CallPolicy policy;
-    @Autowired Transactions tx;
-    @Autowired DataRetention retention;
-    @Autowired Outbox outbox;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    ObjectMapper json;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    Store store;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    AuditLogMapper audits;
+    @Autowired
+    ConfigurableEnvironment environment;
+    @Autowired
+    CallPolicy policy;
+    @Autowired
+    Transactions tx;
+    @Autowired
+    DataRetention retention;
+    @Autowired
+    Outbox outbox;
     private final Map<String, Object> overrides = new HashMap<>();
     private String token;
     private SysUser user;
     private Object temporaryAsyncPolicy;
     private final List<String> temporaryAsyncCalls = new ArrayList<>();
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired
+    JdbcTemplate jdbc;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    @MockitoSpyBean
     TelephonyClient telephony;
 
-    @Autowired ConversationPolicy conversation;
-    @Autowired AiRuntime aiRuntime;
-    @Autowired TaskWorker worker;
-    @Autowired CallbackInbox inbox;
+    @Autowired
+    ConversationPolicy conversation;
+    @Autowired
+    AiRuntime aiRuntime;
+    @Autowired
+    TaskWorker worker;
+    @Autowired
+    CallbackInbox inbox;
 
     @Autowired
-    @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping")
-    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping routes;
+    @Qualifier("requestMappingHandlerMapping")
+    RequestMappingHandlerMapping routes;
 
     @BeforeEach
     void seed() {
@@ -943,13 +969,13 @@ class BusinessHttpIT {
                                                         .equals(e.get("event_type")))
                         .count();
         var seen = new ArrayList<String>();
-        org.mockito.Mockito.doAnswer(
+        Mockito.doAnswer(
                         invocation -> {
                             seen.add(store.require("callsession", 2, id).get("status").toString());
                             return invocation.callRealMethod();
                         })
                 .when(telephony)
-                .validate(org.mockito.ArgumentMatchers.anyMap());
+                .validate(ArgumentMatchers.anyMap());
         var retried = ok(request(HttpMethod.POST, "/api/v1/calls/" + id + "/retry", null));
         assertThat(retried.get("status").asText()).isEqualTo("dialing");
         assertThat(seen).contains("queued");
@@ -1094,9 +1120,7 @@ class BusinessHttpIT {
         doThrow(new TelephonyClient.Failure(429, true))
                 .when(telephony)
                 .command(anyMap(), eq("dial"), anyMap());
-        var dial =
-                (DialService)
-                        org.springframework.test.util.ReflectionTestUtils.getField(worker, "dial");
+        var dial = (DialService) ReflectionTestUtils.getField(worker, "dial");
         assertThatThrownBy(() -> dial.dispatch(call.get("id")))
                 .isInstanceOf(DialService.PendingConfirmation.class);
         var after = store.require("callsession", 2, call.get("id"));
@@ -1137,12 +1161,12 @@ class BusinessHttpIT {
                                 "waiting",
                                 "assigned_agent_id",
                                 agent.getId()));
-        org.mockito.Mockito.doThrow(new TelephonyClient.Failure(503, false))
+        Mockito.doThrow(new TelephonyClient.Failure(503, false))
                 .when(telephony)
                 .command(
-                        org.mockito.ArgumentMatchers.anyMap(),
-                        org.mockito.ArgumentMatchers.eq("transfer"),
-                        org.mockito.ArgumentMatchers.anyMap());
+                        ArgumentMatchers.anyMap(),
+                        ArgumentMatchers.eq("transfer"),
+                        ArgumentMatchers.anyMap());
         var h = new HttpHeaders();
         h.setBearerAuth(crypto.token(UserRecords.map(agent)));
         var response =

@@ -3,6 +3,7 @@ package com.duozhi.services;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -76,11 +77,16 @@ final class MediaCluster implements MediaManager {
             for (var future : probes.invokeAll(tasks)) future.get();
         } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); } catch (Exception ignored) { }
     }
-    @Override public boolean ready() { return settings.flag("MEDIA_ALLOW_DEGRADED_ADMISSION", false) ? capacity() > 0 : specs.stream().allMatch(this::healthy); }
-    @Override public int capacity() { return Math.min((int)settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000), specs.stream().filter(this::healthy).mapToInt(Spec::capacity).sum()); }
-    @Override public Session session(String call) { Owner owner = owners.get(call); return owner == null ? null : owner.session; }
-    @Override public Collection<Session> sessions() { return owners.values().stream().map(Owner::session).toList(); }
-    @Override public Map<String,Number> metrics() {
+    @Override
+    public boolean ready() { return settings.flag("MEDIA_ALLOW_DEGRADED_ADMISSION", false) ? capacity() > 0 : specs.stream().allMatch(this::healthy); }
+    @Override
+    public int capacity() { return Math.min((int)settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000), specs.stream().filter(this::healthy).mapToInt(Spec::capacity).sum()); }
+    @Override
+    public Session session(String call) { Owner owner = owners.get(call); return owner == null ? null : owner.session; }
+    @Override
+    public Collection<Session> sessions() { return owners.values().stream().map(Owner::session).toList(); }
+    @Override
+    public Map<String,Number> metrics() {
         Map<String,Number> totals = new LinkedHashMap<>();
         for (var spec : specs) if (healthy(spec)) Support.map(health.get(spec.id).get("metrics")).forEach((key, raw) -> {
             if (raw instanceof Number n && Double.isFinite(n.doubleValue())) {
@@ -93,13 +99,14 @@ final class MediaCluster implements MediaManager {
     private long used(Spec spec) {
         Set<String> known = new HashSet<>(Support.map(health.getOrDefault(spec.id, Map.of()).get("sessions")).keySet()); for (var owner : owners.values()) if (owner.spec.id.equals(spec.id)) known.add(owner.session.call); return known.size();
     }
-    @Override public Session create(String call, String speechUrl, String mediaUrl, Map<String,Object> metadata) throws Exception {
+    @Override
+    public Session create(String call, String speechUrl, String mediaUrl, Map<String,Object> metadata) throws Exception {
         Owner owner;
         synchronized (owners) {
             var existing = owners.get(call); if (existing != null) { if (!existing.session.metadata.equals(metadata) || existing.session.closing || existing.session.terminated.isDone()) throw new Support.Failure(409, "previous media generation must be closed before reuse"); return existing.session; }
             if (owners.size() >= settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000)) throw new Support.Failure(503, "host media capacity reached");
             Spec spec = specs.stream().filter(s -> healthy(s) && used(s) < s.capacity).min(Comparator.comparingDouble((Spec s) -> used(s) / (double)s.capacity).thenComparing(Spec::id)).orElseThrow(() -> new Support.Failure(503, "no media process has capacity"));
-            byte[] secret = new byte[32]; new java.security.SecureRandom().nextBytes(secret);
+            byte[] secret = new byte[32]; new SecureRandom().nextBytes(secret);
             Session session = new Session(Map.of("call_id", call, "session_id", UUID.randomUUID().toString(), "token", Base64.getUrlEncoder().withoutPadding().encodeToString(secret), "speech_webhook_url", speechUrl, "media_webhook_url", mediaUrl, "metadata", metadata));
             owner = new Owner(spec, health.get(spec.id).get("epoch").toString(), session);
             ledger.transaction(db -> { LocalLedger.execute(db, "INSERT INTO media_owners VALUES (?,?,?,?,?) ON CONFLICT(call_id) DO UPDATE SET worker_id=excluded.worker_id,epoch=excluded.epoch,session_json=excluded.session_json,state=excluded.state", call, spec.id, owner.epoch, new String(Support.json(session.data()), StandardCharsets.UTF_8), "pending"); return null; }); owners.put(call, owner);
@@ -111,17 +118,24 @@ final class MediaCluster implements MediaManager {
         Map<String,Object> payload = new LinkedHashMap<>(); payload.put("action", action); payload.put("epoch", owner.epoch); payload.put("call_id", owner.session.call); payload.put("session_id", owner.session.id); payload.put("attempt", owner.session.metadata.get("attempt")); payload.put("operation_id", UUID.randomUUID().toString().replace("-", "")); payload.put("expires_at", LocalLedger.now() + settings.decimal("MEDIA_RPC_TIMEOUT_SEC", 5, .1, 60)); payload.putAll(options);
         return request(owner.spec, "/internal/command", payload, settings.decimal("MEDIA_RPC_TIMEOUT_SEC", 5, .1, 60));
     }
-    @Override public String url(Session session) { return required(session.call).spec.wsBase + "/" + session.token; }
-    @Override public String speak(String call, String text, String expected, String operation) throws Exception {
+    @Override
+    public String url(Session session) { return required(session.call).spec.wsBase + "/" + session.token; }
+    @Override
+    public String speak(String call, String text, String expected, String operation) throws Exception {
         Owner owner = required(call); Map<String,Object> payload = new LinkedHashMap<>(); payload.put("text", text); payload.put("expected_speech_event_id", expected);
         payload.put("operation_id", operation.isEmpty() && expected != null ? Support.hex(Support.sha((owner.session.id + ":speak:" + expected).getBytes(StandardCharsets.UTF_8))) : operation.isEmpty() ? UUID.randomUUID().toString() : operation);
         return rpc(owner, "speak", payload).get("playback_id").toString();
     }
-    @Override public void fence(String call, String expected, boolean closing) throws Exception { Map<String,Object> payload = new HashMap<>(); payload.put("expected_speech_event_id", expected); payload.put("closing", closing); rpc(required(call), "fence", payload); }
-    @Override public void interrupt(String call, String expected) throws Exception { Map<String,Object> payload = new HashMap<>(); payload.put("expected_speech_event_id", expected); rpc(required(call), "interrupt", payload); }
-    @Override public void module(String call, String kind, long timestamp) throws Exception { Owner owner = owners.get(call); if (owner != null) rpc(owner, "module", Map.of("kind", kind, "timestamp_us", timestamp)); }
-    @Override public Map<String,Object> lookup(String call, String operation, String text) { try { return rpc(required(call), "lookup-playback", Map.of("operation_id", operation, "text", text)); } catch (Exception error) { return Map.of("confirmed", false); } }
-    @Override public void closeSession(String call, boolean notify) throws Exception {
+    @Override
+    public void fence(String call, String expected, boolean closing) throws Exception { Map<String,Object> payload = new HashMap<>(); payload.put("expected_speech_event_id", expected); payload.put("closing", closing); rpc(required(call), "fence", payload); }
+    @Override
+    public void interrupt(String call, String expected) throws Exception { Map<String,Object> payload = new HashMap<>(); payload.put("expected_speech_event_id", expected); rpc(required(call), "interrupt", payload); }
+    @Override
+    public void module(String call, String kind, long timestamp) throws Exception { Owner owner = owners.get(call); if (owner != null) rpc(owner, "module", Map.of("kind", kind, "timestamp_us", timestamp)); }
+    @Override
+    public Map<String,Object> lookup(String call, String operation, String text) { try { return rpc(required(call), "lookup-playback", Map.of("operation_id", operation, "text", text)); } catch (Exception error) { return Map.of("confirmed", false); } }
+    @Override
+    public void closeSession(String call, boolean notify) throws Exception {
         Owner owner = owners.get(call); if (owner == null) return;
         synchronized (owner.session) {
             if (owners.get(call) != owner) return;
@@ -134,5 +148,6 @@ final class MediaCluster implements MediaManager {
         Owner owner = owners.get(Support.str(event, "call_id", "")); var payload = Support.map(event.get("payload"));
         if (owner == null || !owner.spec.id.equals(event.get("worker_id")) || !owner.epoch.equals(event.get("epoch")) || !owner.session.id.equals(event.get("session_id")) || !owner.session.call.equals(payload.get("call_id")) || !owner.session.id.equals(payload.get("provider_session_id")) || Support.integer(payload, "attempt", 0) != Support.integer(owner.session.metadata, "attempt", 0) || !List.of(owner.session.speechUrl, owner.session.mediaUrl).contains(Support.str(event, "url", ""))) throw new Support.Failure(409, "stale or unregistered media callback");
     }
-    @Override public void close() { monitor.shutdownNow(); probes.shutdownNow(); }
+    @Override
+    public void close() { monitor.shutdownNow(); probes.shutdownNow(); }
 }

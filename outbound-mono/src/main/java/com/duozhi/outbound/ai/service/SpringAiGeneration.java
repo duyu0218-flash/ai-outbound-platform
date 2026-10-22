@@ -3,6 +3,8 @@ package com.duozhi.outbound.ai.service;
 import com.duozhi.outbound.ai.transport.BoundedOpenAiHttpClient;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.support.Support;
+import com.openai.client.OpenAIClientImpl;
+import com.openai.core.ClientOptions;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -30,8 +32,8 @@ public final class SpringAiGeneration {
                 new BoundedOpenAiHttpClient(
                         client, endpoint, settings.secret("OPENAI_API_KEY"), timeout, quota);
         var sdk =
-                new com.openai.client.OpenAIClientImpl(
-                        com.openai.core.ClientOptions.builder()
+                new OpenAIClientImpl(
+                        ClientOptions.builder()
                                 .httpClient(transport)
                                 .baseUrl(endpoint.resolve("/").toString())
                                 .apiKey(settings.secret("OPENAI_API_KEY"))

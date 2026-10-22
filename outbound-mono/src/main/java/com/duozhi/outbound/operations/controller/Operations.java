@@ -18,6 +18,7 @@ import java.time.*;
 import java.util.*;
 import org.apache.commons.csv.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /** Operations workflows share one tenant/scope predicate across search, totals and export. */
@@ -214,7 +215,8 @@ public class Operations {
     }
 
     @GetMapping("/permissions/{user}")
-    public Map<String, Object> permissionGet(@PathVariable long user, HttpServletRequest r) {
+    public Map<String, Object> permissionGet(@PathVariable
+    long user, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         store.require("user", i.tenant(), user);
@@ -234,7 +236,8 @@ public class Operations {
 
     @PostMapping("/workspace")
     public Map<String, Object> workspaceSave(
-            @RequestBody Map<String, Object> b, HttpServletRequest r) {
+            @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         return tx.serialized(
                 () -> {
@@ -257,7 +260,8 @@ public class Operations {
     }
 
     @GetMapping("/calls")
-    public Map<String, Object> calls(@RequestParam Map<String, String> q, HttpServletRequest r) {
+    public Map<String, Object> calls(@RequestParam
+    Map<String, String> q, HttpServletRequest r) {
         Identity i = actor(r);
         var p = filters(i, q);
         return JsonSupport.map(
@@ -267,9 +271,10 @@ public class Operations {
                 db.rows("calls", p).stream().map(this::callOutput).toList());
     }
 
-    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     @GetMapping("/calls/export")
-    public ResponseEntity<byte[]> export(@RequestParam Map<String, String> q, HttpServletRequest r)
+    public ResponseEntity<byte[]> export(@RequestParam
+    Map<String, String> q, HttpServletRequest r)
             throws IOException {
         Identity i = actor(r);
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
@@ -325,7 +330,8 @@ public class Operations {
     }
 
     @GetMapping("/reports")
-    public Map<String, Object> reports(@RequestParam Map<String, String> q, HttpServletRequest r) {
+    public Map<String, Object> reports(@RequestParam
+    Map<String, String> q, HttpServletRequest r) {
         Identity i = actor(r);
         var p = filters(i, q);
         p.put(
@@ -348,7 +354,8 @@ public class Operations {
 
     @GetMapping("/reports/export")
     public ResponseEntity<byte[]> reportExport(
-            @RequestParam Map<String, String> q, HttpServletRequest r) throws IOException {
+            @RequestParam
+            Map<String, String> q, HttpServletRequest r) throws IOException {
         Identity i = actor(r);
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
         var data = reports(q, r);
@@ -387,7 +394,8 @@ public class Operations {
 
     @GetMapping("/campaigns")
     public List<Map<String, Object>> campaigns(
-            @RequestParam(required = false) Long campaign_id, HttpServletRequest r) {
+            @RequestParam(required = false)
+            Long campaign_id, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         var p = base(i);
@@ -409,7 +417,8 @@ public class Operations {
     }
 
     @PostMapping("/teams")
-    public Map<String, Object> team(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    public Map<String, Object> team(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         return tx.serialized(
@@ -463,7 +472,9 @@ public class Operations {
 
     @PutMapping("/permissions/{user}")
     public Map<String, Object> permissions(
-            @PathVariable long user, @RequestBody Map<String, Object> b, HttpServletRequest r) {
+            @PathVariable
+            long user, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         store.require("user", i.tenant(), user);
@@ -479,7 +490,8 @@ public class Operations {
     }
 
     @GetMapping("/leads")
-    public Map<String, Object> leads(@RequestParam Map<String, String> q, HttpServletRequest r) {
+    public Map<String, Object> leads(@RequestParam
+    Map<String, String> q, HttpServletRequest r) {
         Identity i = actor(r);
         var p = paged(i, q);
         p.put("pool", "pool".equals(q.get("view")));
@@ -505,7 +517,8 @@ public class Operations {
     }
 
     @GetMapping("/leads/{id}")
-    public Map<String, Object> leadDetail(@PathVariable long id, HttpServletRequest r) {
+    public Map<String, Object> leadDetail(@PathVariable
+    long id, HttpServletRequest r) {
         Identity i = actor(r);
         var row = lead(i, id);
         row.put(
@@ -515,7 +528,8 @@ public class Operations {
     }
 
     @PostMapping("/leads/batch")
-    public Map<String, Object> batch(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    public Map<String, Object> batch(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         if (!access.manager(i)) throw new ApiError(403, "需要分配权限");
         List<?> items = list(b.get("items"));
@@ -538,7 +552,9 @@ public class Operations {
 
     @PatchMapping("/leads/{id}")
     public Map<String, Object> change(
-            @PathVariable long id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         return tx.serialized(() -> changeLead(i, id, b));
     }
@@ -680,7 +696,8 @@ public class Operations {
     }
 
     @PostMapping("/notices/{id}/read")
-    public Map<String, Object> read(@PathVariable long id, HttpServletRequest r) {
+    public Map<String, Object> read(@PathVariable
+    long id, HttpServletRequest r) {
         var p = base(actor(r));
         p.put("id", id);
         if (db.write("noticeRead", p) != 1) throw new ApiError(404, "通知不存在");
@@ -693,7 +710,8 @@ public class Operations {
     }
 
     @PostMapping("/views")
-    public Map<String, Object> view(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    public Map<String, Object> view(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
         var p = base(actor(r));
         p.put("kind", choice(b.get("kind"), Set.of("calls", "reports")));
         String name = text(b.get("name"), 100);
@@ -707,7 +725,8 @@ public class Operations {
     }
 
     @DeleteMapping("/views/{id}")
-    public Map<String, Object> deleteView(@PathVariable long id, HttpServletRequest r) {
+    public Map<String, Object> deleteView(@PathVariable
+    long id, HttpServletRequest r) {
         var p = base(actor(r));
         p.put("id", id);
         if (db.write("viewDelete", p) != 1) throw new ApiError(404, "视图不存在");
@@ -715,7 +734,8 @@ public class Operations {
     }
 
     @GetMapping("/configs")
-    public List<Map<String, Object>> configs(@RequestParam String kind, HttpServletRequest r) {
+    public List<Map<String, Object>> configs(@RequestParam
+    String kind, HttpServletRequest r) {
         Identity i = actor(r);
         var p = base(i);
         p.put("kind", choice(kind, Set.of("form", "tag", "workspace")));
@@ -723,7 +743,8 @@ public class Operations {
     }
 
     @GetMapping("/tag-objects")
-    public List<Map<String, Object>> tagObjects(@RequestParam String target, HttpServletRequest r) {
+    public List<Map<String, Object>> tagObjects(@RequestParam
+    String target, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         String kind = choice(target, Set.of("call", "campaign", "script"));
@@ -754,7 +775,9 @@ public class Operations {
 
     @GetMapping("/tags")
     public List<Map<String, Object>> tagList(
-            @RequestParam String target, @RequestParam String object_id, HttpServletRequest r) {
+            @RequestParam
+            String target, @RequestParam
+            String object_id, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         validateTagTarget(i, target, object_id);
@@ -780,7 +803,8 @@ public class Operations {
     }
 
     @PostMapping("/tags")
-    public Map<String, Object> applyTags(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    public Map<String, Object> applyTags(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         return tx.serialized(
@@ -812,7 +836,8 @@ public class Operations {
     }
 
     @PostMapping("/configs")
-    public Map<String, Object> config(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    public Map<String, Object> config(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         return tx.serialized(
@@ -919,7 +944,9 @@ public class Operations {
 
     @PatchMapping("/work-items/{id}")
     public Map<String, Object> workUpdate(
-            @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
+            @PathVariable
+            UUID id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
         Identity i = actor(r);
         return tx.serialized(
                 () -> {
@@ -959,7 +986,8 @@ public class Operations {
     }
 
     @PostMapping("/deliveries/{id}/retry")
-    public Map<String, Object> retry(@PathVariable UUID id, HttpServletRequest r) {
+    public Map<String, Object> retry(@PathVariable
+    UUID id, HttpServletRequest r) {
         Identity i = actor(r);
         access.admin(i);
         return tx.serialized(

@@ -1,7 +1,7 @@
 package com.duozhi.services;
 
-import java.sql.*;
 import java.nio.charset.StandardCharsets;
+import java.sql.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -98,5 +98,6 @@ final class AccountQuota implements AutoCloseable {
     void release() { inflight.decrementAndGet(); connections.release(); }
     int inflight() { return inflight.get(); }
     boolean ready() { try { return reserve(1, System.currentTimeMillis() / 1000.0, false) == 0; } catch (Exception error) { return false; } }
-    @Override public synchronized void close() throws SQLException { if (anchor != null) { anchor.close(); anchor = null; } }
+    @Override
+    public synchronized void close() throws SQLException { if (anchor != null) { anchor.close(); anchor = null; } }
 }

@@ -1,9 +1,7 @@
 package com.duozhi.outbound;
 
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.mock.env.MockEnvironment;
-import javax.net.ssl.*;
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -11,12 +9,17 @@ import java.nio.file.*;
 import java.security.KeyStore;
 import java.util.*;
 import java.util.concurrent.*;
-import static org.junit.jupiter.api.Assertions.*;
+import javax.net.ssl.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.env.MockEnvironment;
 
 class RedisTlsSecurityTest {
-    @TempDir static Path folder;
+    @TempDir
+    static Path folder;
     static SSLContext serverContext,trustFixture;
-    @BeforeAll static void certificates() throws Exception {
+    @BeforeAll
+    static void certificates() throws Exception {
         Path storeFile=folder.resolve("synthetic-test.p12");String password="synthetic-test-only";
         Process command=new ProcessBuilder(Path.of(System.getProperty("java.home"),"bin","keytool").toString(),"-genkeypair","-alias","fixture",
             "-keyalg","RSA","-keysize","2048","-storetype","PKCS12","-keystore",storeFile.toString(),"-storepass",password,"-keypass",password,
@@ -51,7 +54,8 @@ class RedisTlsSecurityTest {
         }catch(IOException expected){if(!failureExpected)throw expected; /* Peer may close with an SSL alert or a broken pipe after rejecting our certificate. */}
         return commands;
     }
-    @Test void trustedTlsVerifiesHostnameBeforeSendingCredentialsAndCommands() throws Exception {
+    @Test
+    void trustedTlsVerifiesHostnameBeforeSendingCredentialsAndCommands() throws Exception {
         ExecutorService executor=Executors.newSingleThreadExecutor();
         try(SSLServerSocket server=server()) {
             Future<List<String>> commands=executor.submit(()->serve(server,false));
@@ -59,7 +63,8 @@ class RedisTlsSecurityTest {
             assertEquals(List.of("AUTH","SELECT","PING"),commands.get(5,TimeUnit.SECONDS));
         }finally{executor.shutdownNow();}
     }
-    @Test void certificateHostnameMismatchAndUntrustedIssuerNeverReceiveCredentials() throws Exception {
+    @Test
+    void certificateHostnameMismatchAndUntrustedIssuerNeverReceiveCredentials() throws Exception {
         ExecutorService executor=Executors.newSingleThreadExecutor();
         try {
             for(boolean mismatch:new boolean[]{true,false})try(SSLServerSocket server=server()) {
@@ -70,14 +75,16 @@ class RedisTlsSecurityTest {
             }
         }finally{executor.shutdownNow();}
     }
-    @Test void plaintextRedisInProductionIsRejectedBeforeAnyConnection() throws Exception {
+    @Test
+    void plaintextRedisInProductionIsRejectedBeforeAnyConnection() throws Exception {
         try(ServerSocket server=new ServerSocket(0,10,InetAddress.getByName("127.0.0.1"))) {
             server.setSoTimeout(200);
             ApiError error=assertThrows(ApiError.class,()->new ExpiringValues(config("redis","127.0.0.1",server.getLocalPort())).shared("PING"));
             assertTrue(error.getMessage().contains("TLS"));assertThrows(SocketTimeoutException.class,server::accept);
         }
     }
-    @Test void httpsCallbackRejectsUntrustedCertificateBeforeSendingPayload() throws Exception {
+    @Test
+    void httpsCallbackRejectsUntrustedCertificateBeforeSendingPayload() throws Exception {
         ExecutorService executor=Executors.newSingleThreadExecutor();
         try(SSLServerSocket server=server()) {
             Future<List<String>> commands=executor.submit(()->serve(server,true));
@@ -88,7 +95,8 @@ class RedisTlsSecurityTest {
             assertEquals(502,error.status);assertEquals(List.of(),commands.get(5,TimeUnit.SECONDS));
         }finally{executor.shutdownNow();}
     }
-    @Test void malformedRedisResponsesHaveDepthAndAggregateSizeLimits() throws Exception {
+    @Test
+    void malformedRedisResponsesHaveDepthAndAggregateSizeLimits() throws Exception {
         ExecutorService executor=Executors.newSingleThreadExecutor();
         try {
             for(String reply:List.of("*1\r\n".repeat(40)+"+END\r\n","*2\r\n$1048570\r\n","$-2\r\n"))

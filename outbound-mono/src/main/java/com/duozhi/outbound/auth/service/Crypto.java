@@ -1,5 +1,6 @@
 package com.duozhi.outbound.auth.service;
 
+import com.auth0.jwt.algorithms.Algorithm;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.Values;
@@ -10,6 +11,8 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.*;
+import java.util.Base64;
+import java.util.Map;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import org.springframework.stereotype.Component;
@@ -33,8 +36,7 @@ public class Crypto {
     }
 
     private byte[] derive(String password, byte[] salt, int iterations) throws Exception {
-        javax.crypto.spec.PBEKeySpec spec =
-                new PBEKeySpec(password.toCharArray(), salt, iterations, 256);
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, iterations, 256);
         try {
             return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
                     .generateSecret(spec)
@@ -48,7 +50,7 @@ public class Crypto {
         try {
             byte[] salt = new byte[16];
             new SecureRandom().nextBytes(salt);
-            java.util.Base64.Encoder encoder = Base64.getUrlEncoder();
+            Base64.Encoder encoder = Base64.getUrlEncoder();
             return "pbkdf2_sha256$600000$"
                     + encoder.encodeToString(salt)
                     + "$"
@@ -66,7 +68,7 @@ public class Crypto {
                                 .digest((secret() + ":" + raw).getBytes(StandardCharsets.UTF_8));
                 return equal(stored, hex(hash));
             }
-            java.lang.String[] parts = stored.split("\\$", -1);
+            String[] parts = stored.split("\\$", -1);
             if (parts.length != 4) return false;
             int iterations = Integer.parseInt(parts[1]);
             if (iterations < 100000 || iterations > 2000000) return false;
@@ -94,13 +96,12 @@ public class Crypto {
     }
 
     private byte[] sign(String data) throws Exception {
-        return com.auth0.jwt.algorithms.Algorithm.HMAC256(secret())
-                .sign(data.getBytes(StandardCharsets.US_ASCII));
+        return Algorithm.HMAC256(secret()).sign(data.getBytes(StandardCharsets.US_ASCII));
     }
 
     public String token(Map<String, Object> user) {
         try {
-            java.util.Map<java.lang.String, java.lang.Object> claims =
+            Map<String, Object> claims =
                     Values.map(
                             "sub",
                             user.get("username"),

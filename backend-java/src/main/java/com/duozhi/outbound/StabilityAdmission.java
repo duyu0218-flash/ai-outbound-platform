@@ -1,6 +1,7 @@
 package com.duozhi.outbound;
 
 import java.util.*;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /** Shared controller for Java worker progress and retained baseline signal contracts. */
@@ -24,9 +25,10 @@ public class StabilityAdmission {
     public void publishGateway(String id,boolean ready,Object age){
         if(!config.flag("STABILITY_ADMISSION_ENABLED",false))return;
         try{redis.shared("HSET",prefix()+":signals","gateway:"+id,json.json(JsonSupport.map("at",System.currentTimeMillis()/1000.0,"ready",ready&&age!=null,"age_sec",age==null?1:age)));redis.shared("EXPIRE",prefix()+":signals","60");}
-        catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(StabilityAdmission.class).warn("stability telemetry unavailable");}
+        catch(RuntimeException e){LoggerFactory.getLogger(StabilityAdmission.class).warn("stability telemetry unavailable");}
     }
-    @SuppressWarnings("unchecked") public double fraction(List<Map<String,Object>> nodes){
+    @SuppressWarnings("unchecked")
+    public double fraction(List<Map<String,Object>> nodes){
         if(!config.flag("STABILITY_ADMISSION_ENABLED",false))return 1;
         try{
             double now=System.currentTimeMillis()/1000.0;int ttl=config.number("STABILITY_SIGNAL_TTL_SEC",15);Object raw=redis.shared("HGETALL",prefix()+":signals");if(!(raw instanceof List)||((List<?>)raw).size()%2!=0)return 0;

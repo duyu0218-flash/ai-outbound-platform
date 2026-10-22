@@ -14,6 +14,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
+import java.sql.DriverManager;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -21,7 +22,8 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 class ServicesTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
     private HttpServer server;
     private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
     private final AtomicBoolean cleanup = new AtomicBoolean();
@@ -319,7 +321,7 @@ class ServicesTest {
             assertEquals(0, quota.inflight());
         }
         try (var db =
-                        java.sql.DriverManager.getConnection(
+                        DriverManager.getConnection(
                                 values.get("MYSQL_JDBC_URL"),
                                 values.get("MYSQL_USER"),
                                 values.get("MYSQL_PASSWORD"));

@@ -1,9 +1,11 @@
 package com.duozhi.services;
 
-import java.sql.*;
-import java.nio.file.*;
 import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.sql.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Single gateway writer with persistent SQLite WAL and an exclusive JVM/process lock. */
 final class LocalLedger implements AutoCloseable {
@@ -12,7 +14,7 @@ final class LocalLedger implements AutoCloseable {
     private final FileChannel owner;
     private final FileLock lock;
     private final Connection anchor;
-    private final java.util.concurrent.atomic.AtomicLong commits = new java.util.concurrent.atomic.AtomicLong();
+    private final AtomicLong commits = new AtomicLong();
     private static final class Transaction { final Connection db; boolean rollbackOnly; Transaction(Connection db) { this.db = db; } }
     private final ThreadLocal<Transaction> active = new ThreadLocal<>();
     LocalLedger(String path) throws Exception {
@@ -40,7 +42,7 @@ final class LocalLedger implements AutoCloseable {
             if (query(opened, "PRAGMA table_info(outbox)").stream().noneMatch(c -> "stream_key".equals(c.get("name")))) {
                 plain(opened, "ALTER TABLE outbox ADD COLUMN stream_key TEXT NOT NULL DEFAULT ''");
                 for (var row : query(opened, "SELECT id,body FROM outbox")) {
-                    byte[] body = row.get("body") instanceof byte[] bytes ? bytes : row.get("body").toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    byte[] body = row.get("body") instanceof byte[] bytes ? bytes : row.get("body").toString().getBytes(StandardCharsets.UTF_8);
                     Object call = Support.object(body).get("call_id");
                     execute(opened, "UPDATE outbox SET stream_key=? WHERE id=?", Support.truthy(call) ? call.toString() : row.get("id"), row.get("id"));
                 }
@@ -105,5 +107,6 @@ final class LocalLedger implements AutoCloseable {
         Object oldest = pending.get("oldest");
         return Map.of("stopped", !flag.isEmpty() && flag.get(0).get("value").equals("1"), "pending_callbacks", pending.get("count"), "oldest_callback_age_sec", oldest instanceof Number n ? Math.max(0, now() - n.doubleValue()) : 0, "active_attempts", scalar(db, "SELECT COUNT(*) FROM attempts WHERE state!='ended'"), "rejected_commands", scalar(db, "SELECT COUNT(*) FROM audit WHERE action='reject'"));
     }); }
-    @Override public synchronized void close() throws Exception { try { anchor.close(); } finally { try { lock.release(); } finally { owner.close(); } } }
+    @Override
+    public synchronized void close() throws Exception { try { anchor.close(); } finally { try { lock.release(); } finally { owner.close(); } } }
 }

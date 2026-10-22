@@ -4,7 +4,11 @@ import com.alibaba.druid.pool.DruidDataSource;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.support.Support;
 import java.sql.*;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.stereotype.Component;
@@ -16,13 +20,13 @@ public final class LedgerDatabase implements AutoCloseable {
     private final DataSource source;
     private final boolean owned;
 
-    private record Active(
-            String key, Connection db, java.util.concurrent.atomic.AtomicBoolean rollbackOnly) {}
+    private record Active(String key, Connection db, AtomicBoolean rollbackOnly) {}
 
     private final ThreadLocal<Active> active = new ThreadLocal<>();
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public LedgerDatabase(@Qualifier("voiceLedgerDataSource") DataSource source)
+    @Autowired
+    public LedgerDatabase(@Qualifier("voiceLedgerDataSource")
+    DataSource source)
             throws SQLException {
         this(source, false);
     }
@@ -36,7 +40,7 @@ public final class LedgerDatabase implements AutoCloseable {
     public static LedgerDatabase from(Settings settings) throws SQLException {
         var pool = new DruidDataSource();
         // Each independent pool must own a distinct JMX identity.
-        pool.setName("independentLedger-" + java.util.UUID.randomUUID());
+        pool.setName("independentLedger-" + UUID.randomUUID());
         pool.setUrl(settings.get("MYSQL_JDBC_URL", ""));
         pool.setUsername(settings.get("MYSQL_USER", ""));
         pool.setPassword(settings.secret("MYSQL_PASSWORD"));
@@ -100,7 +104,7 @@ public final class LedgerDatabase implements AutoCloseable {
 
     private <T> T transaction(String key, LocalLedger.Work<T> work, boolean joinExisting) {
         Active previous = active.get();
-        if (previous != null && (joinExisting || java.util.Objects.equals(previous.key, key))) {
+        if (previous != null && (joinExisting || Objects.equals(previous.key, key))) {
             try {
                 return work.run(previous.db);
             } catch (Exception error) {
@@ -111,7 +115,7 @@ public final class LedgerDatabase implements AutoCloseable {
         try (var db = source.getConnection()) {
             db.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             db.setAutoCommit(false);
-            var state = new Active(key, db, new java.util.concurrent.atomic.AtomicBoolean());
+            var state = new Active(key, db, new AtomicBoolean());
             active.set(state);
             try {
                 if (key != null)

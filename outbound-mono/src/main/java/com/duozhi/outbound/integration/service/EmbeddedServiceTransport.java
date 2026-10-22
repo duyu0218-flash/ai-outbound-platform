@@ -3,12 +3,14 @@ package com.duozhi.outbound.integration.service;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.recording.controller.RecordingController;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
 import java.util.concurrent.*;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Service;
 
 /** Internal calls keep the source credentials, validation and acknowledgement deadlines. */
-@org.springframework.stereotype.Service
+@Service
 public class EmbeddedServiceTransport {
     private final VoiceController voice;
     private final ObjectProvider<RecordingController> recordings;
@@ -83,7 +85,7 @@ public class EmbeddedServiceTransport {
         return voice.ready();
     }
 
-    @jakarta.annotation.PreDestroy
+    @PreDestroy
     public void close() {
         commands.shutdownNow();
     }

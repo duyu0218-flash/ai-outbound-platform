@@ -2,6 +2,7 @@ package com.duozhi.outbound.voice.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.service.LedgerTestDatabase;
@@ -13,16 +14,25 @@ import com.duozhi.outbound.voice.transport.EslClient;
 import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.util.Collections;
 import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.*;
+import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 class VoiceTest {
-    @TempDir Path directory;
+    @TempDir
+    Path directory;
 
     private Settings settings(Map<String, String> overrides) {
         var values =
@@ -408,13 +418,13 @@ class VoiceTest {
         String path = "/v1/call/play";
         byte[] body = Support.json(Map.of("call_id", "nonce-concurrency"));
         var permit = commandPermit(config, path, body, "nonce-concurrent-000000000000000");
-        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        var pool = Executors.newFixedThreadPool(2);
         try (var ledger = new LocalLedger(config)) {
             var security = new VoiceSecurity(config, ledger);
             ledger.transaction(
                     db -> {
-                        var start = new java.util.concurrent.CountDownLatch(1);
-                        var replies = new ArrayList<java.util.concurrent.Future<Integer>>();
+                        var start = new CountDownLatch(1);
+                        var replies = new ArrayList<Future<Integer>>();
                         for (int i = 0; i < 2; i++)
                             replies.add(
                                     pool.submit(
@@ -434,9 +444,8 @@ class VoiceTest {
                                             }));
                         start.countDown();
                         var codes = new ArrayList<Integer>();
-                        for (var reply : replies)
-                            codes.add(reply.get(5, java.util.concurrent.TimeUnit.SECONDS));
-                        java.util.Collections.sort(codes);
+                        for (var reply : replies) codes.add(reply.get(5, TimeUnit.SECONDS));
+                        Collections.sort(codes);
                         assertEquals(List.of(200, 409), codes);
                         return null;
                     });
@@ -496,7 +505,7 @@ class VoiceTest {
         String path = "/v1/call/dial";
         byte[] body = Support.json(dial("nonce-race", 1, 1));
         var permit = commandPermit(config, path, body, "nonce-preloaded-race-0000000000");
-        var pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+        var pool = Executors.newSingleThreadExecutor();
         try (var ledger = new LocalLedger(config)) {
             var security = new VoiceSecurity(config, ledger);
             assertThrows(
@@ -531,7 +540,7 @@ class VoiceTest {
                                                                                     "x-voice-nonce"),
                                                                             permit.get(
                                                                                     "x-voice-signature")))
-                                                    .get(5, java.util.concurrent.TimeUnit.SECONDS);
+                                                    .get(5, TimeUnit.SECONDS);
                                             scope.flush(ledger);
                                             return null;
                                         }
@@ -961,10 +970,7 @@ class VoiceTest {
                                         .toString();
                         long hash =
                                 Integer.toUnsignedLong(
-                                        java.nio.ByteBuffer.wrap(
-                                                        com.duozhi.outbound.common.support
-                                                                .JsonSupport.digest(call))
-                                                .getInt());
+                                        ByteBuffer.wrap(JsonSupport.digest(call)).getInt());
                         group.add((int) (hash % 64) % 2);
                     }
                     owners.add(group);
@@ -1028,16 +1034,13 @@ class VoiceTest {
             assertTrue(owners.size() >= 2);
             assertTrue(owners.stream().allMatch(owner -> owner.size() == 1));
             assertEquals(
-                    Set.of(0, 1),
-                    owners.stream()
-                            .flatMap(Set::stream)
-                            .collect(java.util.stream.Collectors.toSet()));
+                    Set.of(0, 1), owners.stream().flatMap(Set::stream).collect(Collectors.toSet()));
         } finally {
             server.stop(0);
         }
     }
 
-    private static void await(java.util.function.BooleanSupplier condition) throws Exception {
+    private static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() > deadline) fail("timed out waiting for asynchronous evidence");

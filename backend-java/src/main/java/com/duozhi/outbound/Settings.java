@@ -1,12 +1,15 @@
 package com.duozhi.outbound;
 
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.*;
+import java.util.Map;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class Settings {
@@ -14,17 +17,17 @@ public class Settings {
     private final Map<String,Map<String,Object>> defaults;
     public Settings(Store store,Config config,ObjectMapper mapper)throws IOException{
         this.store=store;this.config=config;this.mapper=mapper;
-        try(java.io.InputStream in=new ClassPathResource("contracts/setting-defaults.json").getInputStream()){defaults=mapper.readValue(in,new TypeReference<Map<String,Map<String,Object>>>(){});}
+        try(InputStream in=new ClassPathResource("contracts/setting-defaults.json").getInputStream()){defaults=mapper.readValue(in,new TypeReference<Map<String,Map<String,Object>>>(){});}
         override("capacity","max_concurrent_calls","MAX_CONCURRENT_CALLS");
-        for(java.util.Map.Entry<java.lang.String,java.lang.String> entry:Values.<String,String>map("agent_url","AI_AGENT_URL","llm_provider","LLM_PROVIDER","llm_model","OPENAI_MODEL").entrySet())override("ai",entry.getKey(),entry.getValue());
-        for(java.util.Map.Entry<java.lang.String,java.lang.String> entry:Values.<String,String>map("provider","SMS_PROVIDER","endpoint","SMS_PROVIDER_ENDPOINT","sender_id","SMS_SENDER_ID").entrySet())override("sms",entry.getKey(),entry.getValue());
+        for(Map.Entry<String,String> entry:Values.<String,String>map("agent_url","AI_AGENT_URL","llm_provider","LLM_PROVIDER","llm_model","OPENAI_MODEL").entrySet())override("ai",entry.getKey(),entry.getValue());
+        for(Map.Entry<String,String> entry:Values.<String,String>map("provider","SMS_PROVIDER","endpoint","SMS_PROVIDER_ENDPOINT","sender_id","SMS_SENDER_ID").entrySet())override("sms",entry.getKey(),entry.getValue());
         for(String key:Values.list("recording_retention_days","partial_transcript_retention_hours","final_transcript_retention_days","call_sensitive_data_retention_days"))override("compliance",key,key.transform(Ascii::upper));
         override("compliance","allowed_phone_prefixes","OUTBOUND_ALLOWED_PHONE_PREFIXES");override("compliance","max_calls_per_day","OUTBOUND_DAILY_CALL_LIMIT");
     }
     private void override(String section,String key,String env){Object old=defaults.get(section).get(key);defaults.get(section).put(key,old instanceof Number?config.number(env,((Number)old).intValue()):config.get(env,old.toString()));}
     public Map<String,Object> defaults(String section){if(!defaults.containsKey(section))throw new ApiError(404,"setting section not found");return new LinkedHashMap<>(defaults.get(section));}
     public Map<String,Object> get(long tenant,String section){
-        java.util.Map<java.lang.String,java.lang.Object> result=defaults(section);java.util.Map<java.lang.String,java.lang.Object> record=store.one("adminsetting","WHERE tenant_id=? AND section=?",tenant,section);
+        Map<String,Object> result=defaults(section);Map<String,Object> record=store.one("adminsetting","WHERE tenant_id=? AND section=?",tenant,section);
         if(record!=null)try{Map<String,Object> saved=mapper.readValue(record.get("data_json").toString(),new TypeReference<Map<String,Object>>(){});saved.forEach((key,value)->{if(result.containsKey(key))result.put(key,value);});}catch(Exception ignored){}
         if(section.equals("ai"))result.put("agent_url",defaults.get(section).get("agent_url"));if(section.equals("sms"))result.put("endpoint",defaults.get(section).get("endpoint"));return result;
     }
@@ -38,15 +41,15 @@ public class Settings {
         }catch(IllegalArgumentException e){throw new ApiError(422,"invalid service endpoint");}
     }
     public Map<String,Object> validate(String section,Map<String,Object> input){
-        java.util.Map<java.lang.String,java.lang.Object> data=defaults(section);
-        for(java.util.Map.Entry<java.lang.String,java.lang.Object> entry:input.entrySet()){
+        Map<String,Object> data=defaults(section);
+        for(Map.Entry<String,Object> entry:input.entrySet()){
             if(!data.containsKey(entry.getKey()))throw new ApiError(400,"unsupported setting fields: "+entry.getKey());
             Object expected=data.get(entry.getKey()),value=entry.getValue();
             boolean same=value!=null&&(expected instanceof Integer?(value instanceof Integer||value instanceof Long):expected.getClass().isInstance(value));
             if(!same)throw new ApiError(400,"invalid setting type: "+entry.getKey());
             if(value instanceof String&&((String)value).length()>4000)throw new ApiError(400,"setting value too large: "+entry.getKey());data.put(entry.getKey(),value);
         }
-        try{if(mapper.writeValueAsString(data).length()>20000)throw new ApiError(400,"setting payload too large");}catch(tools.jackson.core.JacksonException e){throw new ApiError(400,"invalid settings");}
+        try{if(mapper.writeValueAsString(data).length()>20000)throw new ApiError(400,"setting payload too large");}catch(JacksonException e){throw new ApiError(400,"invalid settings");}
         if(section.equals("capacity"))range(data,"max_concurrent_calls",1,10000);
         if(section.equals("compliance")){
             range(data,"allowed_start_hour",0,23);range(data,"allowed_end_hour",0,23);range(data,"max_attempts_per_day",1,20);range(data,"min_attempt_interval_sec",0,604800);range(data,"max_calls_per_day",1,10000000);

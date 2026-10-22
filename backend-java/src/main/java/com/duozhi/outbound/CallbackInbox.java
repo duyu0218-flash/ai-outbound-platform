@@ -2,6 +2,7 @@ package com.duozhi.outbound;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class CallbackInbox {
     private final String workerId="java-"+UUID.randomUUID();
     public Map<String,Object> snapshot() {
         Map<String,Object> oldest=store.one("callbackinbox","WHERE state IN ('pending','dead') ORDER BY received_at LIMIT 1");
-        double age=oldest==null?0:Math.max(0,java.time.Duration.between(LocalDateTime.parse(oldest.get("received_at").toString()),Store.now()).toMillis()/1000.0);
+        double age=oldest==null?0:Math.max(0,Duration.between(LocalDateTime.parse(oldest.get("received_at").toString()),Store.now()).toMillis()/1000.0);
         long dead=store.count("callbackinbox","WHERE state='dead'"),live=store.count("callbackinboxworker","WHERE heartbeat_at>=?",store.encode("callbackinboxworker","heartbeat_at",Store.now().minusSeconds(config.number("CALLBACK_INBOX_WORKER_TTL_SEC",10))));
         return JsonSupport.map("oldest_age_sec",age,"dead",dead,"live_workers",live,"ready",live>=config.number("CALLBACK_INBOX_MIN_WORKERS",1)&&dead==0&&age<=Double.parseDouble(config.get("CALLBACK_INBOX_MAX_AGE_SEC","1")));
     }
@@ -81,7 +82,8 @@ public class CallbackInbox {
             }
             List<Object> accepted=new ArrayList<>();
             for(Map<String,Object> event:events) {
-                @SuppressWarnings("unchecked") Map<String,Object> body=(Map<String,Object>)event.get("payload");
+                @SuppressWarnings("unchecked")
+                Map<String,Object> body=(Map<String,Object>)event.get("payload");
                 receive("telephony_"+event.get("kind"),body);accepted.add(event.get("id"));
             }
             return JsonSupport.map("result","received","version",1,"accepted",accepted);
@@ -104,7 +106,7 @@ public class CallbackInbox {
                 callbacks.handle(receipt.get("kind").toString(), body);
                 store.updateInternal("callbackinbox", receipt.get("id"), JsonSupport.map("state", "done", "completed_at", Store.now(), "error_type", ""));
                 store.jdbc().update("UPDATE callbackinboxpartition SET pending_count=pending_count-1,pending_bytes=pending_bytes-? WHERE id=?", receipt.get("body_bytes"), partitionId);
-                double latency=Math.max(0,java.time.Duration.between(LocalDateTime.parse(receipt.get("received_at").toString()),Store.now()).toMillis());
+                double latency=Math.max(0,Duration.between(LocalDateTime.parse(receipt.get("received_at").toString()),Store.now()).toMillis());
                 store.jdbc().update("UPDATE callbackinboxworker SET processed=processed+1,max_latency_ms=CASE WHEN max_latency_ms<? THEN ? ELSE max_latency_ms END WHERE id=?",latency,latency,workerId);
                 return true;
             });

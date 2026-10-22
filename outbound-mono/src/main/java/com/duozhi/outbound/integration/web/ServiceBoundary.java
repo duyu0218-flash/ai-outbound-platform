@@ -4,12 +4,17 @@ import com.duozhi.outbound.integration.support.Support;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Original auxiliary-service header and body contract, scoped to its retained paths. */
-@org.springframework.stereotype.Component
-@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 9)
-public class ServiceBoundary extends org.springframework.web.filter.OncePerRequestFilter {
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 9)
+public class ServiceBoundary extends OncePerRequestFilter {
     private static final Set<String> SINGLE =
             Set.of(
                     "authorization",
@@ -114,8 +119,7 @@ public class ServiceBoundary extends org.springframework.web.filter.OncePerReque
                     @Override
                     public BufferedReader getReader() {
                         return new BufferedReader(
-                                new InputStreamReader(
-                                        getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+                                new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
                     }
                 },
                 response);

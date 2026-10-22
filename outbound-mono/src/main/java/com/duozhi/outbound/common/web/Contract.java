@@ -3,8 +3,12 @@ package com.duozhi.outbound.common.web;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.regex.Pattern;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +23,7 @@ public class Contract {
 
     public Contract(ObjectMapper mapper) throws IOException {
         this.mapper = mapper;
-        try (java.io.InputStream in =
+        try (InputStream in =
                 new ClassPathResource("contracts/openapi-baseline.json").getInputStream()) {
             schemas = mapper.readTree(in).path("components").path("schemas");
         }
@@ -28,8 +32,7 @@ public class Contract {
             for (var entry : additions.properties()) {
                 if (schemas.has(entry.getKey()))
                     throw new IOException("capacity contract cannot override baseline schema");
-                ((com.fasterxml.jackson.databind.node.ObjectNode) schemas)
-                        .set(entry.getKey(), entry.getValue());
+                ((ObjectNode) schemas).set(entry.getKey(), entry.getValue());
             }
         }
     }
@@ -44,8 +47,7 @@ public class Contract {
         JsonNode schema = schemas.path(type);
         if (schema.isMissingNode()) throw new IllegalArgumentException("Unknown contract " + type);
         validate(schema, mapper.valueToTree(raw), type);
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> output =
-                new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> output = new LinkedHashMap<String, Object>();
         schema.path("properties")
                 .properties()
                 .forEach(
@@ -60,16 +62,15 @@ public class Contract {
                                         mapper.convertValue(
                                                 entry.getValue().get("default"), Object.class));
                         });
-        for (com.fasterxml.jackson.databind.JsonNode required : schema.path("required"))
+        for (JsonNode required : schema.path("required"))
             if (!raw.containsKey(required.asText()))
                 throw new ApiError(400, required.asText() + " is required");
         return output;
     }
 
     public Map<String, Object> output(String type, Map<String, Object> row) {
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> result =
-                new LinkedHashMap<String, Object>();
-        com.fasterxml.jackson.databind.JsonNode schema = schemas.path(type);
+        LinkedHashMap<String, Object> result = new LinkedHashMap<String, Object>();
+        JsonNode schema = schemas.path(type);
         if (schema.isMissingNode()) throw new IllegalArgumentException("Unknown contract " + type);
         schema.path("properties")
                 .fieldNames()
@@ -89,7 +90,7 @@ public class Contract {
     private void validate(JsonNode unresolved, JsonNode value, String key) {
         JsonNode schema = resolve(unresolved);
         if (schema.has("anyOf")) {
-            for (com.fasterxml.jackson.databind.JsonNode candidate : schema.get("anyOf"))
+            for (JsonNode candidate : schema.get("anyOf"))
                 try {
                     validate(candidate, value, key);
                     return;
@@ -129,8 +130,7 @@ public class Contract {
             throw new ApiError(400, "invalid " + key);
         if (schema.has("enum")) {
             boolean found = false;
-            for (com.fasterxml.jackson.databind.JsonNode option : schema.get("enum"))
-                if (option.equals(value)) found = true;
+            for (JsonNode option : schema.get("enum")) if (option.equals(value)) found = true;
             if (!found) throw new ApiError(400, "invalid " + key);
         }
         if (value.isTextual()) {
@@ -140,9 +140,8 @@ public class Contract {
                     || length > schema.path("maxLength").asInt(Integer.MAX_VALUE))
                 throw new ApiError(400, "invalid length: " + key);
             if (schema.has("pattern")
-                    && !java.util.regex.Pattern.compile(schema.get("pattern").asText())
-                            .matcher(text)
-                            .find()) throw new ApiError(400, "invalid " + key);
+                    && !Pattern.compile(schema.get("pattern").asText()).matcher(text).find())
+                throw new ApiError(400, "invalid " + key);
             if ("uuid".equals(schema.path("format").asText()))
                 try {
                     UUID.fromString(text);
@@ -183,8 +182,7 @@ public class Contract {
             if (value.size() < schema.path("minItems").asInt(0)
                     || value.size() > schema.path("maxItems").asInt(Integer.MAX_VALUE))
                 throw new ApiError(400, "invalid count: " + key);
-            for (com.fasterxml.jackson.databind.JsonNode item : value)
-                validate(schema.path("items"), item, key);
+            for (JsonNode item : value) validate(schema.path("items"), item, key);
         }
     }
 

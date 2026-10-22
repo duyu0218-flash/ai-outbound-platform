@@ -1,5 +1,6 @@
 package com.duozhi.outbound;
 
+import java.nio.ByteBuffer;
 import java.time.*;
 import java.util.*;
 import org.springframework.stereotype.Service;
@@ -120,7 +121,7 @@ public class DialService {
                 String override = campaign == null ? "inherit" : Objects.toString(campaign.get("voice_ai_pipeline"), "inherit");
                 if (Values.set("legacy", "pipecat").contains(override)) pipeline = override;
                 else {
-                    long bucket = (java.nio.ByteBuffer.wrap(JsonSupport.digest(call.get("id").toString())).getInt() & 0xffffffffL) % 100;
+                    long bucket = (ByteBuffer.wrap(JsonSupport.digest(call.get("id").toString())).getInt() & 0xffffffffL) % 100;
                     pipeline = "pipecat".equals(ai.get("voice_ai_pipeline")) || bucket < Math.max(0, Math.min(100, JsonSupport.integer(ai.get("pipecat_canary_percent"), 0))) ? "pipecat" : "legacy";
                 }
             }

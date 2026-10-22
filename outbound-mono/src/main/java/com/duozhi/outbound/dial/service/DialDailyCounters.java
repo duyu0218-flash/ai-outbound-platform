@@ -5,10 +5,15 @@ import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 
@@ -198,20 +203,18 @@ public class DialDailyCounters {
         return result;
     }
 
-    private static java.security.MessageDigest sha256() {
+    private static MessageDigest sha256() {
         try {
-            return java.security.MessageDigest.getInstance("SHA-256");
-        } catch (java.security.NoSuchAlgorithmException impossible) {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException impossible) {
             throw new IllegalStateException(impossible);
         }
     }
 
-    private static void inventory(java.security.MessageDigest digest, Object[] row) {
+    private static void inventory(MessageDigest digest, Object[] row) {
         for (int index = 1; index < row.length; index++) {
-            byte[] value =
-                    Objects.toString(row[index], "")
-                            .getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            digest.update(java.nio.ByteBuffer.allocate(4).putInt(value.length).array());
+            byte[] value = Objects.toString(row[index], "").getBytes(StandardCharsets.UTF_8);
+            digest.update(ByteBuffer.allocate(4).putInt(value.length).array());
             digest.update(value);
         }
     }
@@ -255,7 +258,7 @@ public class DialDailyCounters {
                 "SELECT scope_type,tenant_id,phone,window_start,timezone_revision FROM"
                         + " dial_daily_counter WHERE generation_id=? ORDER BY tenant_id,CASE WHEN"
                         + " scope_type='tenant' THEN 0 ELSE 1 END,phone_digest,window_start",
-                (org.springframework.jdbc.core.RowCallbackHandler)
+                (RowCallbackHandler)
                         result -> {
                             inventory(
                                     actual,

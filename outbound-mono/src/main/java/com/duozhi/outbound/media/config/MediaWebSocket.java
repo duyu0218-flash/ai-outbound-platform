@@ -3,6 +3,8 @@ package com.duozhi.outbound.media.config;
 import com.duozhi.outbound.media.service.MediaCluster;
 import com.duozhi.outbound.media.service.NativeMedia;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.*;
@@ -26,8 +28,7 @@ public class MediaWebSocket implements WebSocketConfigurer {
         return null;
     }
 
-    private final java.util.Map<String, NativeMedia> connected =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, NativeMedia> connected = new ConcurrentHashMap<>();
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {

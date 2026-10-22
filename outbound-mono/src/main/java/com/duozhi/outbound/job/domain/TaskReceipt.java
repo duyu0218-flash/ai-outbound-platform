@@ -1,21 +1,25 @@
 package com.duozhi.outbound.job.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class TaskReceipt {
-    private java.util.UUID id;
+    private UUID id;
     private Integer tenantId;
     private String taskType;
     private String aggregateId;
     private String idempotencyKey;
-    private java.time.LocalDateTime completedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime completedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
-    public java.util.UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(java.util.UUID value) {
+    public void setId(UUID value) {
         this.id = value;
     }
 
@@ -51,11 +55,11 @@ public class TaskReceipt {
         this.idempotencyKey = value;
     }
 
-    public java.time.LocalDateTime getCompletedAt() {
+    public LocalDateTime getCompletedAt() {
         return completedAt;
     }
 
-    public void setCompletedAt(java.time.LocalDateTime value) {
+    public void setCompletedAt(LocalDateTime value) {
         this.completedAt = value;
     }
 }

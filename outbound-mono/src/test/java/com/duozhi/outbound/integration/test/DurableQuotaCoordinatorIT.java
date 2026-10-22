@@ -13,6 +13,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.*;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.*;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,7 +26,8 @@ import org.testcontainers.mysql.MySQLContainer;
  */
 @Testcontainers
 class DurableQuotaCoordinatorIT {
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
     static JdbcTemplate jdbc;
     static DriverManagerDataSource source;
     static DataSourceTransactionManager manager;
@@ -455,9 +457,7 @@ class DurableQuotaCoordinatorIT {
                                                                                 + " VALUES(?,1)",
                                                                         "a" + i));
                                         successes.incrementAndGet();
-                                    } catch (
-                                            org.springframework.dao.DuplicateKeyException
-                                                    expected) {
+                                    } catch (DuplicateKeyException expected) {
                                         /* database K guard rejects loser */
                                     }
                                 }));

@@ -3,6 +3,9 @@ package com.duozhi.outbound.common.config;
 import com.alibaba.druid.pool.DruidDataSource;
 import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import java.sql.Connection;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.*;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.*;
@@ -15,10 +18,10 @@ public class StorageConfiguration {
     @ConfigurationProperties("spring.datasource.druid")
     DruidDataSource dataSource(
             DataSourceProperties properties,
-            @org.springframework.beans.factory.annotation.Qualifier("realtimeDataSource")
-                    DruidDataSource realtime,
-            @org.springframework.beans.factory.annotation.Qualifier("analysisDataSource")
-                    DruidDataSource analysis) {
+            @Qualifier("realtimeDataSource")
+            DruidDataSource realtime,
+            @Qualifier("analysisDataSource")
+            DruidDataSource analysis) {
         var pool = new WorkloadDataSource(realtime, analysis);
         pool.setUrl(properties.determineUrl());
         pool.setUsername(properties.determineUsername());
@@ -57,7 +60,7 @@ public class StorageConfiguration {
         pool.setMaxWait(5000);
         pool.setDefaultTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         pool.setConnectionInitSqls(
-                java.util.List.of(
+                List.of(
                         "SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode,"
                                 + " ',NO_AUTO_VALUE_ON_ZERO')"));
         configureDriver(pool);
@@ -78,9 +81,7 @@ public class StorageConfiguration {
     }
 
     @Bean(name = "capacityEvidenceDataSource", destroyMethod = "close")
-    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-            name = "JAVA_CAPACITY_EVIDENCE_ENABLED",
-            havingValue = "true")
+    @ConditionalOnProperty(name = "JAVA_CAPACITY_EVIDENCE_ENABLED", havingValue = "true")
     DruidDataSource capacityEvidenceDataSource(DataSourceProperties properties) {
         var pool = properties.initializeDataSourceBuilder().type(DruidDataSource.class).build();
         pool.setName("capacityEvidenceDataSource");

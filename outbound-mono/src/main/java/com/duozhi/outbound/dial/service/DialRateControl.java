@@ -5,8 +5,15 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.job.service.RealtimeTaskPressure;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +30,7 @@ public class DialRateControl {
     private long tokenAt;
     private volatile double fraction;
     private double tokens;
-    private java.util.concurrent.ScheduledExecutorService sampler;
+    private ScheduledExecutorService sampler;
 
     public DialRateControl(
             Config config,
@@ -67,22 +74,20 @@ public class DialRateControl {
         return sampledAt != 0 && System.nanoTime() - sampledAt <= 600_000_000L ? fraction : 0;
     }
 
-    @org.springframework.context.event.EventListener(
-            org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     synchronized void startSampler() {
         if (sampler != null || !adaptive() || !config.flag("JAVA_WORKERS_ENABLED", false)) return;
         sampler =
-                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(
+                Executors.newSingleThreadScheduledExecutor(
                         work -> {
                             var thread = new Thread(work, "dial-rate-sampler");
                             thread.setDaemon(true);
                             return thread;
                         });
-        sampler.scheduleWithFixedDelay(
-                this::sample, 0, 200, java.util.concurrent.TimeUnit.MILLISECONDS);
+        sampler.scheduleWithFixedDelay(this::sample, 0, 200, TimeUnit.MILLISECONDS);
     }
 
-    @jakarta.annotation.PreDestroy
+    @PreDestroy
     synchronized void stopSampler() {
         if (sampler != null) sampler.shutdownNow();
     }
@@ -123,7 +128,7 @@ public class DialRateControl {
                     Math.min(target(age, healthy), RealtimeTaskPressure.fraction(realtime));
             fraction = advance(fraction, desired, elapsed);
             if (config.flag("JAVA_DIAL_PROFILE", false))
-                org.slf4j.LoggerFactory.getLogger(DialRateControl.class)
+                LoggerFactory.getLogger(DialRateControl.class)
                         .info(
                                 "dial_sample target={} fraction={} sample_ms={} callback_age_sec={}"
                                         + " control_age_sec={} ai_age_sec={}",
@@ -136,7 +141,7 @@ public class DialRateControl {
             if (config.flag("JAVA_DIAL_PROFILE", false)
                     && now - pressureLoggedAt >= 1_000_000_000L) {
                 pressureLoggedAt = now;
-                org.slf4j.LoggerFactory.getLogger(DialRateControl.class)
+                LoggerFactory.getLogger(DialRateControl.class)
                         .info(
                                 "dial_pressure callback_age_sec={} control_age_sec={} ai_age_sec={}"
                                         + " fraction={}",

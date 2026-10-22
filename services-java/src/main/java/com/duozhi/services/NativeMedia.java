@@ -3,11 +3,17 @@ package com.duozhi.services;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
+import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.DoubleAccumulator;
+import java.util.concurrent.atomic.DoubleAdder;
+import java.util.concurrent.atomic.LongAdder;
 import org.springframework.web.socket.*;
 
 /** Java PCM media runtime, preserving the former Pipecat HTTP/WS boundary. */
@@ -26,9 +32,9 @@ final class NativeMedia implements MediaManager {
     private final HttpClient http = Support.client();
     private final int rate, limit;
     private final boolean voismart;
-    private final java.util.concurrent.atomic.LongAdder inputFrames = new java.util.concurrent.atomic.LongAdder(), firstAudioCount = new java.util.concurrent.atomic.LongAdder();
-    private final java.util.concurrent.atomic.DoubleAdder firstAudioSeconds = new java.util.concurrent.atomic.DoubleAdder();
-    private final java.util.concurrent.atomic.DoubleAccumulator arrivalGap = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0), firstAudioMax = new java.util.concurrent.atomic.DoubleAccumulator(Math::max, 0);
+    private final LongAdder inputFrames = new LongAdder(), firstAudioCount = new LongAdder();
+    private final DoubleAdder firstAudioSeconds = new DoubleAdder();
+    private final DoubleAccumulator arrivalGap = new DoubleAccumulator(Math::max, 0), firstAudioMax = new DoubleAccumulator(Math::max, 0);
     NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings; this.events = events; this.permits = permits; this.limit = limit;
         rate = (int)settings.number("PIPECAT_SAMPLE_RATE", 8000, 8000, 48000);
@@ -48,10 +54,11 @@ final class NativeMedia implements MediaManager {
         deadlines = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "media-deadlines"); t.setDaemon(true); return t; });
         deadlines.scheduleWithFixedDelay(this::expire, 1, 1, TimeUnit.SECONDS);
     }
-    @Override public synchronized Session create(String call, String speechUrl, String mediaUrl, Map<String,Object> metadata) {
+    @Override
+    public synchronized Session create(String call, String speechUrl, String mediaUrl, Map<String,Object> metadata) {
         var previous = calls.get(call);
         if (previous != null) { if (!previous.metadata.equals(metadata) || previous.closing || previous.terminated.isDone()) throw new Support.Failure(409, "previous media generation must be closed before reuse"); return previous; }
-        byte[] token = new byte[32]; new java.security.SecureRandom().nextBytes(token);
+        byte[] token = new byte[32]; new SecureRandom().nextBytes(token);
         return register(new Session(Map.of("call_id", call, "session_id", UUID.randomUUID().toString(), "token", Base64.getUrlEncoder().withoutPadding().encodeToString(token), "speech_webhook_url", speechUrl, "media_webhook_url", mediaUrl, "metadata", metadata)));
     }
     synchronized Session register(Session session) {
@@ -60,12 +67,18 @@ final class NativeMedia implements MediaManager {
         if (calls.size() >= limit) throw new Support.Failure(503, "media process at capacity");
         if (tokens.containsKey(session.token)) throw new Support.Failure(409, "media token conflict"); calls.put(session.call, session); tokens.put(session.token, session); return session;
     }
-    @Override public Session session(String call) { return calls.get(call); }
-    @Override public Collection<Session> sessions() { return List.copyOf(calls.values()); }
-    @Override public String url(Session session) { return settings.get("PIPECAT_MEDIA_WS_BASE", "").replaceAll("/+$", "") + "/" + session.token; }
-    @Override public boolean ready() { return !work.isShutdown(); }
-    @Override public int capacity() { return limit; }
-    @Override public Map<String,Number> metrics() { return Map.of("pcm_input_frames_total", inputFrames.sum(), "pcm_arrival_gap_max_seconds", arrivalGap.get(), "tts_first_audio_count", firstAudioCount.sum(), "tts_first_audio_seconds_sum", firstAudioSeconds.sum(), "tts_first_audio_max_seconds", firstAudioMax.get()); }
+    @Override
+    public Session session(String call) { return calls.get(call); }
+    @Override
+    public Collection<Session> sessions() { return List.copyOf(calls.values()); }
+    @Override
+    public String url(Session session) { return settings.get("PIPECAT_MEDIA_WS_BASE", "").replaceAll("/+$", "") + "/" + session.token; }
+    @Override
+    public boolean ready() { return !work.isShutdown(); }
+    @Override
+    public int capacity() { return limit; }
+    @Override
+    public Map<String,Number> metrics() { return Map.of("pcm_input_frames_total", inputFrames.sum(), "pcm_arrival_gap_max_seconds", arrivalGap.get(), "tts_first_audio_count", firstAudioCount.sum(), "tts_first_audio_seconds_sum", firstAudioSeconds.sum(), "tts_first_audio_max_seconds", firstAudioMax.get()); }
     void connect(WebSocketSession socket, String token) throws Exception {
         Session session = tokens.get(token);
         if (session == null) { socket.close(new CloseStatus(4404, "unknown media session")); return; }
@@ -91,7 +104,8 @@ final class NativeMedia implements MediaManager {
         stream.audio(pcm);
     }
     void disconnected(WebSocketSession socket) { for (var stream : streams.values()) if (stream.socket.getId().equals(socket.getId()) && !stream.session.closing) fail(stream.session, "MEDIA_DISCONNECTED"); }
-    @Override public String speak(String call, String text, String expected, String operation) throws Exception {
+    @Override
+    public String speak(String call, String text, String expected, String operation) throws Exception {
         Session session = required(call); synchronized (session) {
             fence(call, expected, false);
             String digest = Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8)));
@@ -105,11 +119,13 @@ final class NativeMedia implements MediaManager {
             return playback;
         }
     }
-    @Override public Map<String,Object> lookup(String call, String operation, String text) {
+    @Override
+    public Map<String,Object> lookup(String call, String operation, String text) {
         Session session = session(call); if (session == null) return Map.of("confirmed", false);
         synchronized (session) { var previous = session.operations.get(operation); if (previous == null || !Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8))).equals(previous.get("digest"))) return Map.of("confirmed", false); return Map.of("confirmed", true, "playback_id", previous.get("playback_id")); }
     }
-    @Override public void interrupt(String call, String expected) throws Exception {
+    @Override
+    public void interrupt(String call, String expected) throws Exception {
         Session session = required(call); Stream stream = streams.get(call);
         synchronized (session) {
             fence(call, expected, false); session.interrupting = true;
@@ -121,7 +137,8 @@ final class NativeMedia implements MediaManager {
             media(session, "interrupted", "", "");
         } finally { session.interrupting = false; }
     }
-    @Override public void module(String call, String kind, long timestamp) throws Exception {
+    @Override
+    public void module(String call, String kind, long timestamp) throws Exception {
         Session session = session(call); if (session == null || !voismart) return;
         synchronized (session) {
             if (timestamp != 0 && timestamp <= session.lastModuleEvent) return; if (timestamp != 0) session.lastModuleEvent = timestamp;
@@ -135,7 +152,8 @@ final class NativeMedia implements MediaManager {
         session.error = code; session.terminated.complete(null); session.started.complete(null);
         try { closeSession(session.call, true); } catch (Exception ignored) { }
     }
-    @Override public void closeSession(String call, boolean notify) throws Exception {
+    @Override
+    public void closeSession(String call, boolean notify) throws Exception {
         Session session = calls.get(call); if (session == null) return;
         synchronized (session) { session.closing = true; session.terminated.complete(null); session.started.complete(null); tokens.remove(session.token, session); }
         Stream stream = streams.remove(call);
@@ -200,10 +218,10 @@ final class NativeMedia implements MediaManager {
             }
         } finally { if (acquired) permits.change(stream.session, permit, "tts", false, confirmed); }
     }
-    final class Stream implements AutoCloseable, java.net.http.WebSocket.Listener {
+    final class Stream implements AutoCloseable, WebSocket.Listener {
         final Session session;
         final WebSocketSession socket;
-        volatile java.net.http.WebSocket asr;
+        volatile WebSocket asr;
         volatile Future<?> tts;
         volatile long generation;
         volatile long lastPcmAt;
@@ -213,7 +231,7 @@ final class NativeMedia implements MediaManager {
         final boolean aliyun = settings.get("PIPECAT_STT_PROVIDER", "openai-realtime").equals("aliyun-nls");
         final PcmResampler resampler = new PcmResampler(rate, 24000);
         boolean permitAcquired;
-        final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
         long speechSamples, silenceSamples, bufferSamples;
         boolean localSpeech;
         Stream(Session session, WebSocketSession socket) { this.session = session; this.socket = socket; }
@@ -260,8 +278,10 @@ final class NativeMedia implements MediaManager {
         void sendAsr(Object value) throws Exception { asr.sendText(new String(Support.json(value), StandardCharsets.UTF_8), true).get(5, TimeUnit.SECONDS); }
         void binary(byte[] value) throws Exception { synchronized (socket) { if (!socket.isOpen()) throw new IOException("media socket closed"); socket.sendMessage(new BinaryMessage(value)); } }
         void text(Object value) throws Exception { synchronized (socket) { if (socket.isOpen()) socket.sendMessage(new TextMessage(Support.json(value))); } }
-        @Override public void onOpen(java.net.http.WebSocket socket) { socket.request(1); }
-        @Override public CompletionStage<?> onText(java.net.http.WebSocket socket, CharSequence data, boolean last) {
+        @Override
+        public void onOpen(WebSocket socket) { socket.request(1); }
+        @Override
+        public CompletionStage<?> onText(WebSocket socket, CharSequence data, boolean last) {
             if (message.length() + data.length() > 1048576) { deferFailure("ASR_FRAME_LIMIT"); return null; }
             message.append(data);
             if (!last) { socket.request(1); return null; }
@@ -283,9 +303,12 @@ final class NativeMedia implements MediaManager {
             try { asrEvents.execute(() -> { if (!session.closing) fail(session, code); }); }
             catch (RejectedExecutionException full) { session.error = code; session.terminated.complete(null); }
         }
-        @Override public CompletionStage<?> onClose(java.net.http.WebSocket socket, int status, String reason) { if (!session.closing) deferFailure("ASR_DISCONNECTED"); return null; }
-        @Override public void onError(java.net.http.WebSocket socket, Throwable error) { if (!session.closing) deferFailure("ASR_CONNECTION_ERROR"); }
-        @Override public void close() throws Exception {
+        @Override
+        public CompletionStage<?> onClose(WebSocket socket, int status, String reason) { if (!session.closing) deferFailure("ASR_DISCONNECTED"); return null; }
+        @Override
+        public void onError(WebSocket socket, Throwable error) { if (!session.closing) deferFailure("ASR_CONNECTION_ERROR"); }
+        @Override
+        public void close() throws Exception {
             if (!closed.compareAndSet(false, true)) return;
             asrStarted.completeExceptionally(new IOException("media closed during ASR startup"));
             generation++; if (tts != null) tts.cancel(true); boolean confirmed = false;
@@ -324,7 +347,8 @@ final class NativeMedia implements MediaManager {
         if (playing && (Boolean.FALSE.equals(policy.get("allow_interruptions")) || Support.integer(policy, "min_interrupt_chars", 1) > 1)) return;
         session.latest = "vad:" + UUID.randomUUID().toString().replace("-", ""); if (playing) interrupt(session.call, null);
     }
-    @Override public void close() throws Exception { deadlines.shutdownNow(); for (var session : sessions()) try { closeSession(session.call, false); } catch (Exception ignored) { } work.shutdownNow(); asrEvents.shutdownNow(); }
+    @Override
+    public void close() throws Exception { deadlines.shutdownNow(); for (var session : sessions()) try { closeSession(session.call, false); } catch (Exception ignored) { } work.shutdownNow(); asrEvents.shutdownNow(); }
     /** Stateful rate conversion keeps odd-byte carry and sample phase across network chunks. */
     static final class PcmResampler {
         private static final int RADIUS = 16;

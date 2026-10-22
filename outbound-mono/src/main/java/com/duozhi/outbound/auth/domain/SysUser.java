@@ -1,5 +1,9 @@
 package com.duozhi.outbound.auth.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class SysUser {
     private Integer id;
@@ -11,18 +15,16 @@ public class SysUser {
     private String role = "agent";
     private Boolean isSupervisor = false;
     private String agentStatus = "offline";
-    private java.time.LocalDateTime lastSeenAt;
+    private LocalDateTime lastSeenAt;
     private Integer failedLoginAttempts = 0;
-    private java.time.LocalDateTime lockedUntil;
+    private LocalDateTime lockedUntil;
     private Integer tokenVersion = 0;
-    private java.time.LocalDateTime lastLoginAt;
+    private LocalDateTime lastLoginAt;
     private Boolean enabled = true;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -96,11 +98,11 @@ public class SysUser {
         this.agentStatus = value;
     }
 
-    public java.time.LocalDateTime getLastSeenAt() {
+    public LocalDateTime getLastSeenAt() {
         return lastSeenAt;
     }
 
-    public void setLastSeenAt(java.time.LocalDateTime value) {
+    public void setLastSeenAt(LocalDateTime value) {
         this.lastSeenAt = value;
     }
 
@@ -112,11 +114,11 @@ public class SysUser {
         this.failedLoginAttempts = value;
     }
 
-    public java.time.LocalDateTime getLockedUntil() {
+    public LocalDateTime getLockedUntil() {
         return lockedUntil;
     }
 
-    public void setLockedUntil(java.time.LocalDateTime value) {
+    public void setLockedUntil(LocalDateTime value) {
         this.lockedUntil = value;
     }
 
@@ -128,11 +130,11 @@ public class SysUser {
         this.tokenVersion = value;
     }
 
-    public java.time.LocalDateTime getLastLoginAt() {
+    public LocalDateTime getLastLoginAt() {
         return lastLoginAt;
     }
 
-    public void setLastLoginAt(java.time.LocalDateTime value) {
+    public void setLastLoginAt(LocalDateTime value) {
         this.lastLoginAt = value;
     }
 
@@ -144,19 +146,19 @@ public class SysUser {
         this.enabled = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

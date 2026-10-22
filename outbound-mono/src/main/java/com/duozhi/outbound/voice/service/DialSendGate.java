@@ -2,13 +2,15 @@ package com.duozhi.outbound.voice.service;
 
 import com.duozhi.outbound.integration.dao.LocalLedger;
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
 
 /** Shares the barrier row with the business control, within the gateway's own transaction. */
 public final class DialSendGate {
     private DialSendGate() {}
 
     public static boolean permitted(Connection db, String call, long tenant, long attempt)
-            throws java.sql.SQLException {
+            throws SQLException {
         var projection = VoiceAdmissionBatchScope.current();
         var rows =
                 projection == null
@@ -16,7 +18,7 @@ public final class DialSendGate {
                                 db,
                                 "SELECT phase,epoch FROM dial_admission_control WHERE id=1 FOR"
                                         + " SHARE")
-                        : java.util.List.of(projection.control(db));
+                        : List.of(projection.control(db));
         if (rows.size() != 1) return false;
         var row = rows.get(0);
         String phase = row.get("phase").toString();

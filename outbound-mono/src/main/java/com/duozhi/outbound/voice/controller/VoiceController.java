@@ -1,5 +1,8 @@
 package com.duozhi.outbound.voice.controller;
 
+import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.dial.service.DialDailyCounters;
+import com.duozhi.outbound.dial.service.DialDrainControl;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.dao.LedgerDatabase;
@@ -12,31 +15,34 @@ import com.duozhi.outbound.voice.service.VoiceGateway;
 import com.duozhi.outbound.voice.service.VoiceQuota;
 import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.*;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 public class VoiceController {
-    @org.springframework.beans.factory.annotation.Autowired
-    private org.springframework.beans.factory.ObjectProvider<
-                    com.duozhi.outbound.dial.service.DialDrainControl>
-            dialControl;
+    @Autowired
+    private ObjectProvider<DialDrainControl> dialControl;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private org.springframework.beans.factory.ObjectProvider<
-                    com.duozhi.outbound.dial.service.DialDailyCounters>
-            dailyCounters;
+    @Autowired
+    private ObjectProvider<DialDailyCounters> dailyCounters;
 
     private final Settings settings;
     public final VoiceGateway gateway;
     private final Semaphore downloads = new Semaphore(2);
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public VoiceController(com.duozhi.outbound.common.config.Config config, LedgerDatabase database)
-            throws Exception {
+    @Autowired
+    public VoiceController(Config config, LedgerDatabase database) throws Exception {
         this.settings = new UnifiedServiceSettings(config, "voice");
         gateway = new VoiceGateway(settings, database);
         gateway.start();
@@ -102,7 +108,9 @@ public class VoiceController {
 
     @PostMapping("/v1/call/{action}")
     public Map<String, Object> call(
-            @PathVariable String action, @RequestBody byte[] body, HttpServletRequest request)
+            @PathVariable
+            String action, @RequestBody
+            byte[] body, HttpServletRequest request)
             throws Exception {
         return commandInternal(
                 action,
@@ -165,7 +173,7 @@ public class VoiceController {
                                             false));
                         } catch (Support.Failure failure) {
                             if (settings.flag("JAVA_DIAL_PROFILE", false))
-                                org.slf4j.LoggerFactory.getLogger(getClass())
+                                LoggerFactory.getLogger(getClass())
                                         .info(
                                                 "voice_command_rejected action={} status={}"
                                                         + " reason={}",
@@ -217,8 +225,10 @@ public class VoiceController {
 
     @PostMapping("/v1/admin/dial-control/{action}")
     public Map<String, Object> dialControl(
-            @PathVariable String action,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @PathVariable
+            String action,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         // A global maintenance operation always requires the independent global
         // credential, including in development; a tenant admin is insufficient.
         Support.auth(settings, "VOICE_SECURITY_ADMIN_TOKEN", auth, false);
@@ -237,15 +247,19 @@ public class VoiceController {
 
     @PostMapping("/v1/admin/dial-counters/{action}")
     public Map<String, Object> dialCounters(
-            @PathVariable String action,
-            @RequestParam(defaultValue = "0") long generation,
-            @RequestParam(defaultValue = "false") boolean read,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @PathVariable
+            String action,
+            @RequestParam(defaultValue = "0")
+            long generation,
+            @RequestParam(defaultValue = "false")
+            boolean read,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         Support.auth(settings, "VOICE_SECURITY_ADMIN_TOKEN", auth, false);
         if (dailyCounters == null) throw new Support.Failure(503, "monolith counters unavailable");
         var counters = dailyCounters.getObject();
         return switch (action) {
-            case "build" -> counters.build(java.time.Instant.now());
+            case "build" -> counters.build(Instant.now());
             case "verify" -> counters.verify(generation);
             case "publish" -> counters.publish(generation, read);
             default -> throw new Support.Failure(404, "unknown daily counter action");
@@ -254,8 +268,10 @@ public class VoiceController {
 
     @PostMapping("/v1/admin/drain")
     Map<String, Object> drain(
-            @RequestParam(defaultValue = "true") boolean enabled,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestParam(defaultValue = "true")
+            boolean enabled,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         gateway.draining = enabled;
         return Map.of("draining", enabled);
@@ -263,8 +279,10 @@ public class VoiceController {
 
     @PostMapping("/v1/admin/security/stop")
     Map<String, Object> stop(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         if (!(payload.get("stopped") instanceof Boolean stopped))
             throw new Support.Failure(422, "stopped must be a boolean");
@@ -274,14 +292,16 @@ public class VoiceController {
 
     @GetMapping("/v1/admin/security")
     Map<String, Object> security(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         return gateway.ledger.summary();
     }
 
     @GetMapping("/v1/admin/capacity")
     Map<String, Object> capacity(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         return Map.of(
                 "node_id",
@@ -335,18 +355,19 @@ public class VoiceController {
 
     @GetMapping("/v1/recordings/{filename}")
     ResponseEntity<StreamingResponseBody> recording(
-            @PathVariable String filename,
-            @RequestParam long expires,
-            @RequestParam String signature)
+            @PathVariable
+            String filename,
+            @RequestParam
+            long expires,
+            @RequestParam
+            String signature)
             throws Exception {
         var path = gateway.recordings.authorized(filename, expires, signature);
         if (!downloads.tryAcquire()) throw new Support.Failure(503, "recording download capacity");
         // Open before dispatch to bind the descriptor and release on opening failure.
-        java.io.InputStream input;
+        InputStream input;
         try {
-            input =
-                    java.nio.file.Files.newInputStream(
-                            path, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+            input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS);
         } catch (Exception error) {
             downloads.release();
             throw error;
@@ -364,9 +385,12 @@ public class VoiceController {
 
     @PostMapping("/v1/recording-cleanup/{filename}")
     Map<String, Object> cleanup(
-            @PathVariable String filename,
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth)
+            @PathVariable
+            String filename,
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth)
             throws Exception {
         if (settings.secret("VOICE_RECORDING_CLEANUP_TOKEN").length() < 32)
             throw new Support.Failure(503, "cleanup credential unavailable");
@@ -379,7 +403,8 @@ public class VoiceController {
 
     @GetMapping("/v1/admin/voice-permits")
     Map<String, Object> permits(
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         if (!settings.flag("VOICE_QUOTA_ENABLED", false))
             throw new Support.Failure(503, "shared voice permits unavailable");
@@ -388,8 +413,10 @@ public class VoiceController {
 
     @PostMapping("/v1/internal/media-events")
     Map<String, Object> mediaEvent(
-            @RequestBody Map<String, Object> event,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestBody
+            Map<String, Object> event,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         rpc(auth);
         if (!(gateway.media instanceof MediaCluster cluster))
             throw new Support.Failure(503, "remote media ownership unavailable");
@@ -407,8 +434,10 @@ public class VoiceController {
 
     @PostMapping("/v1/internal/voice-permits")
     Map<String, Object> voicePermit(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         rpc(auth);
         if (!settings.flag("VOICE_QUOTA_ENABLED", false))
             throw new Support.Failure(503, "shared voice budgets unavailable");
@@ -440,9 +469,7 @@ public class VoiceController {
                 throw new Support.Failure(409, "unexpected remote media owner");
         }
         String owner =
-                new String(
-                        Support.json(List.of(worker, epoch, sessionId)),
-                        java.nio.charset.StandardCharsets.UTF_8);
+                new String(Support.json(List.of(worker, epoch, sessionId)), StandardCharsets.UTF_8);
         var quota = new VoiceQuota(settings, gateway.ledger);
         gateway.ledger.transaction(
                 db -> {
@@ -456,8 +483,10 @@ public class VoiceController {
 
     @PostMapping("/v1/admin/voice-permits/reconcile")
     Map<String, Object> reconcile(
-            @RequestBody Map<String, Object> payload,
-            @RequestHeader(value = "Authorization", required = false) String auth) {
+            @RequestBody
+            Map<String, Object> payload,
+            @RequestHeader(value = "Authorization", required = false)
+            String auth) {
         admin(auth);
         String id = Support.required(payload, "permit_id", 128),
                 evidence = Support.required(payload, "provider_close_evidence", 1000);

@@ -15,6 +15,7 @@ import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.operations.service.OperationsAccess;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -93,8 +94,7 @@ public class CallAnalysis {
 
     /** The caller holds this parent row and the durable task rows in the same transaction. */
     public Map<String, Object> analyzeLocked(Map<String, Object> call, Integer expectedAttempt) {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager
-                .isActualTransactionActive())
+        if (!TransactionSynchronizationManager.isActualTransactionActive())
             throw new IllegalStateException("analysis requires its parent transaction");
         TaskWorker.permitted();
         if (call == null
@@ -337,8 +337,10 @@ public class CallAnalysis {
 
     @GetMapping("/api/v1/calls/{id}/analysis")
     public Map<String, Object> get(
-            @PathVariable UUID id,
-            @RequestParam(defaultValue = "false") boolean refresh,
+            @PathVariable
+            UUID id,
+            @RequestParam(defaultValue = "false")
+            boolean refresh,
             HttpServletRequest request) {
         Identity identity = Identity.from(request);
         return tx.run(
@@ -355,8 +357,10 @@ public class CallAnalysis {
     @AdminPermission(value = "quality:review", supervisor = true)
     @PutMapping("/api/v1/calls/{id}/analysis")
     public Map<String, Object> review(
-            @PathVariable UUID id,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            UUID id,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request) {
         Identity identity = Identity.from(request);
         if (identity.user() != null

@@ -2,6 +2,7 @@ package com.duozhi.outbound.integration.test;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.auth0.jwt.algorithms.Algorithm;
 import com.duozhi.outbound.auth.dao.AuthIdentityMapper;
 import com.duozhi.outbound.auth.dao.SysUserMapper;
 import com.duozhi.outbound.auth.dao.TenantMapper;
@@ -20,9 +21,11 @@ import java.security.MessageDigest;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -35,13 +38,14 @@ import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.mysql.MySQLContainer;
 
 @Testcontainers
-@org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate
+@AutoConfigureTestRestTemplate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AuthHttpIT {
     static final String SECRET = "auth-http-original-jwt-secret-at-least-thirty-two-characters";
     static final String PASSWORD = "pass-for-original-auth";
-    @Container static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    @Container
+    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
     @Container
     static final GenericContainer<?> REDIS =
@@ -63,19 +67,32 @@ class AuthHttpIT {
         p.add("TENANT_API_KEYS_JSON", () -> "{\"1\":\"tenant-one-key\",\"2\":\"tenant-two-key\"}");
     }
 
-    @Autowired org.apache.ibatis.session.SqlSessionFactory sessions;
-    @Autowired TestRestTemplate http;
-    @Autowired ObjectMapper json;
-    @Autowired Config config;
-    @Autowired ConfigurableEnvironment environment;
-    @Autowired SysUserMapper users;
-    @Autowired TenantMapper tenants;
-    @Autowired AuthIdentityMapper identities;
-    @Autowired AuditLogMapper audits;
-    @Autowired AuthService auth;
-    @Autowired Crypto crypto;
-    @Autowired ExpiringValues media;
-    @Autowired StringRedisTemplate redis;
+    @Autowired
+    SqlSessionFactory sessions;
+    @Autowired
+    TestRestTemplate http;
+    @Autowired
+    ObjectMapper json;
+    @Autowired
+    Config config;
+    @Autowired
+    ConfigurableEnvironment environment;
+    @Autowired
+    SysUserMapper users;
+    @Autowired
+    TenantMapper tenants;
+    @Autowired
+    AuthIdentityMapper identities;
+    @Autowired
+    AuditLogMapper audits;
+    @Autowired
+    AuthService auth;
+    @Autowired
+    Crypto crypto;
+    @Autowired
+    ExpiringValues media;
+    @Autowired
+    StringRedisTemplate redis;
     static final Map<String, Object> overrides = new HashMap<>();
     static SysUser admin, agent, other;
     static String adminToken, agentToken;
@@ -282,8 +299,7 @@ class AuthHttpIT {
         return body
                 + "."
                 + b64.encodeToString(
-                        com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET)
-                                .sign(body.getBytes(StandardCharsets.US_ASCII)));
+                        Algorithm.HMAC256(SECRET).sign(body.getBytes(StandardCharsets.US_ASCII)));
     }
 
     @Test

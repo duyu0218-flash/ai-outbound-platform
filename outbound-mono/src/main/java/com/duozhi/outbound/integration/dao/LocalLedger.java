@@ -2,7 +2,11 @@ package com.duozhi.outbound.integration.dao;
 
 import com.duozhi.outbound.integration.config.Settings;
 import java.sql.*;
+import java.sql.Statement;
 import java.util.*;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 /** Independent durable voice ledger; writer serialization is a locked sentinel row. */
 public final class LocalLedger implements AutoCloseable {
@@ -12,8 +16,7 @@ public final class LocalLedger implements AutoCloseable {
 
     private final LedgerDatabase database;
     private final boolean owned;
-    private final java.util.concurrent.atomic.AtomicLong commits =
-            new java.util.concurrent.atomic.AtomicLong();
+    private final AtomicLong commits = new AtomicLong();
     private final Object callbackReceipts = new Object();
 
     public LocalLedger(Settings settings) throws Exception {
@@ -73,16 +76,13 @@ public final class LocalLedger implements AutoCloseable {
                         "media_owners",
                         "voice_media_owners");
         var match =
-                java.util.regex.Pattern.compile(
+                Pattern.compile(
                                 "(?i)\\b(FROM|JOIN|UPDATE|INTO)\\s+(attempts|flags|nonces|outbox|audit|media_owners)\\b")
                         .matcher(result);
         var out = new StringBuffer();
         while (match.find())
             match.appendReplacement(
-                    out,
-                    match.group(1)
-                            + " "
-                            + names.get(match.group(2).toLowerCase(java.util.Locale.ROOT)));
+                    out, match.group(1) + " " + names.get(match.group(2).toLowerCase(Locale.ROOT)));
         match.appendTail(out);
         return out.toString().replaceAll("(?<!`)\\bkey\\b(?!`)", "`key`");
     }
@@ -134,7 +134,7 @@ public final class LocalLedger implements AutoCloseable {
                 statement.addBatch();
             }
             for (int changed : statement.executeBatch())
-                if (changed == java.sql.Statement.EXECUTE_FAILED)
+                if (changed == Statement.EXECUTE_FAILED)
                     throw new SQLException("ledger batch write failed");
         }
     }

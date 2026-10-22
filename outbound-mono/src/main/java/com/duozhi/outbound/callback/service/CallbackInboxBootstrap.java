@@ -1,11 +1,13 @@
 package com.duozhi.outbound.callback.service;
 
-@org.springframework.stereotype.Component
-@org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(
-        type =
-                org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type
-                        .SERVLET)
-public class CallbackInboxBootstrap implements org.springframework.boot.ApplicationRunner {
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.stereotype.Component;
+
+@Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+public class CallbackInboxBootstrap implements ApplicationRunner {
     private final CallbackInbox inbox;
 
     public CallbackInboxBootstrap(CallbackInbox inbox) {
@@ -13,7 +15,7 @@ public class CallbackInboxBootstrap implements org.springframework.boot.Applicat
     }
 
     @Override
-    public void run(org.springframework.boot.ApplicationArguments args) {
+    public void run(ApplicationArguments args) {
         inbox.initialize();
     }
 }

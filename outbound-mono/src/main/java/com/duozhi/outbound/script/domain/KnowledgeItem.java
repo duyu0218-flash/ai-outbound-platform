@@ -1,5 +1,9 @@
 package com.duozhi.outbound.script.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class KnowledgeItem {
     private Integer id;
@@ -9,18 +13,16 @@ public class KnowledgeItem {
     private String category = "default";
     private String keywords = "";
     private String source = "";
-    private java.time.LocalDateTime validFrom;
-    private java.time.LocalDateTime validUntil;
+    private LocalDateTime validFrom;
+    private LocalDateTime validUntil;
     private Integer campaignId;
     private Boolean isActive = true;
     private Integer version = 1;
     private Integer createdBy;
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-    private java.time.LocalDateTime updatedAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+    private LocalDateTime updatedAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -78,19 +80,19 @@ public class KnowledgeItem {
         this.source = value;
     }
 
-    public java.time.LocalDateTime getValidFrom() {
+    public LocalDateTime getValidFrom() {
         return validFrom;
     }
 
-    public void setValidFrom(java.time.LocalDateTime value) {
+    public void setValidFrom(LocalDateTime value) {
         this.validFrom = value;
     }
 
-    public java.time.LocalDateTime getValidUntil() {
+    public LocalDateTime getValidUntil() {
         return validUntil;
     }
 
-    public void setValidUntil(java.time.LocalDateTime value) {
+    public void setValidUntil(LocalDateTime value) {
         this.validUntil = value;
     }
 
@@ -126,19 +128,19 @@ public class KnowledgeItem {
         this.createdBy = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 
-    public java.time.LocalDateTime getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(java.time.LocalDateTime value) {
+    public void setUpdatedAt(LocalDateTime value) {
         this.updatedAt = value;
     }
 }

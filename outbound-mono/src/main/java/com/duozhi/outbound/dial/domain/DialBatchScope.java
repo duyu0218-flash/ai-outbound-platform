@@ -2,6 +2,7 @@ package com.duozhi.outbound.dial.domain;
 
 import com.duozhi.outbound.call.domain.DailyAttemptCount;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /** Transaction-local admission facts. Never shared across commits or JVMs. */
@@ -27,7 +28,7 @@ public final class DialBatchScope implements AutoCloseable {
     public final Map<String, Long> counts = new HashMap<>();
     public final Map<String, Boolean> hours = new HashMap<>();
     public final Map<String, DailyAttemptCount> dailyCounts = new HashMap<>();
-    public final Map<String, java.time.LocalDateTime> phoneDayStarts = new HashMap<>();
+    public final Map<String, LocalDateTime> phoneDayStarts = new HashMap<>();
     public final Set<String> stateKeys = new HashSet<>();
     private final DialBatchScope previous;
 

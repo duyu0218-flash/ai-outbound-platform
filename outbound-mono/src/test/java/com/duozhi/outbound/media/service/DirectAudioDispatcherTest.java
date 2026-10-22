@@ -2,10 +2,16 @@ package com.duozhi.outbound.media.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.ByteArrayOutputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
 
 class DirectAudioDispatcherTest {
@@ -92,18 +98,17 @@ class DirectAudioDispatcherTest {
     @Test
     void directPcmConversionMatchesSourceJavaAcrossEverySupportedRateAndChunkBoundary()
             throws Exception {
-        java.nio.file.Path source =
-                java.nio.file.Path.of(
-                        "../services-java/src/main/java/com/duozhi/services/NativeMedia.java");
-        String text = java.nio.file.Files.readString(source);
+        Path source =
+                Path.of("../services-java/src/main/java/com/duozhi/services/NativeMedia.java");
+        String text = Files.readString(source);
         int start = text.indexOf("    static final class PcmResampler");
         assertTrue(start >= 0);
         String nested = text.substring(start, text.lastIndexOf('}'));
-        var temp = java.nio.file.Files.createTempDirectory("source-resampler-");
-        java.nio.file.Files.writeString(
+        var temp = Files.createTempDirectory("source-resampler-");
+        Files.writeString(
                 temp.resolve("SourcePcm.java"),
                 "import java.io.*;import java.util.*;public class SourcePcm{ " + nested + "}");
-        var compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+        var compiler = ToolProvider.getSystemJavaCompiler();
         assertEquals(
                 0,
                 compiler.run(
@@ -113,8 +118,7 @@ class DirectAudioDispatcherTest {
                         "-d",
                         temp.toString(),
                         temp.resolve("SourcePcm.java").toString()));
-        try (var loader =
-                new java.net.URLClassLoader(new java.net.URL[] {temp.toUri().toURL()}, null)) {
+        try (var loader = new URLClassLoader(new URL[] {temp.toUri().toURL()}, null)) {
             Class<?> reference = loader.loadClass("SourcePcm$PcmResampler");
             var ctor = reference.getDeclaredConstructor(int.class, int.class);
             ctor.setAccessible(true);
@@ -128,8 +132,8 @@ class DirectAudioDispatcherTest {
                 for (int to : new int[] {8000, 16000, 24000, 48000}) {
                     Object original = ctor.newInstance(from, to);
                     var migrated = new NativeMedia.PcmResampler(from, to);
-                    var expected = new java.io.ByteArrayOutputStream();
-                    var actual = new java.io.ByteArrayOutputStream();
+                    var expected = new ByteArrayOutputStream();
+                    var actual = new ByteArrayOutputStream();
                     for (int offset = 0; offset < input.length; offset += 37) {
                         byte[] chunk =
                                 Arrays.copyOfRange(

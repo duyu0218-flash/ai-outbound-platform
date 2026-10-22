@@ -11,16 +11,21 @@ import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.dial.service.DialQuotaCounters;
 import com.duozhi.outbound.system.service.Audit;
 import com.duozhi.outbound.system.service.Settings;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/settings")
 @AdminPermission("settings:write")
 public class AdminSettings {
-    @org.springframework.beans.factory.annotation.Autowired private DialQuotaCounters quotas;
+    @Autowired
+    private DialQuotaCounters quotas;
     private final Store store;
     private final Settings settings;
     private final Config config;
@@ -37,17 +42,16 @@ public class AdminSettings {
     }
 
     @GetMapping("/{section}")
-    public Map<String, Object> get(@PathVariable String section, HttpServletRequest request) {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
-        java.util.Map<java.lang.String, java.lang.Object> data =
-                settings.get(actor.tenant(), section);
-        java.util.Map<java.lang.String, java.lang.Object> record =
+    public Map<String, Object> get(@PathVariable
+    String section, HttpServletRequest request) {
+        Identity actor = Identity.from(request);
+        Map<String, Object> data = settings.get(actor.tenant(), section);
+        Map<String, Object> record =
                 store.one(
                         "adminsetting",
                         "findBySection",
                         Values.map("tenantId", actor.tenant(), "section", section));
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> result =
-                new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> result = new LinkedHashMap<String, Object>();
         result.put("section", section);
         result.put("data", data);
         result.put("updated_at", record == null ? null : record.get("updated_at"));
@@ -57,18 +61,19 @@ public class AdminSettings {
     @PutMapping("/{section}")
     @PolicyWrite
     public Map<String, Object> update(
-            @PathVariable String section,
-            @RequestBody Map<String, Object> body,
+            @PathVariable
+            String section,
+            @RequestBody
+            Map<String, Object> body,
             HttpServletRequest request)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
-        com.duozhi.outbound.auth.domain.Identity actor = Identity.from(request);
+            throws JsonProcessingException {
+        Identity actor = Identity.from(request);
         if (!(body.get("data") instanceof Map)) throw new ApiError(400, "data is required");
         Map<?, ?> input = (Map<?, ?>) body.get("data");
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> values =
-                new LinkedHashMap<String, Object>();
-        for (java.util.Map.Entry<?, ?> entry : input.entrySet())
+        LinkedHashMap<String, Object> values = new LinkedHashMap<String, Object>();
+        for (Map.Entry<?, ?> entry : input.entrySet())
             values.put(entry.getKey().toString(), entry.getValue());
-        java.util.Map<java.lang.String, java.lang.Object> data = settings.validate(section, values);
+        Map<String, Object> data = settings.validate(section, values);
         // PolicyWrite already holds admission's compatibility boundary before
         // JDBC checkout; keep tenant enabled stable before any ordinary reads.
         if (store.one("tenant", "lockForTransaction", Values.map("id", actor.tenant())) == null)
@@ -103,13 +108,12 @@ public class AdminSettings {
                     null,
                     null,
                     ((Number) data.get("max_concurrent_calls")).longValue());
-        java.util.Map<java.lang.String, java.lang.Object> row =
+        Map<String, Object> row =
                 store.one(
                         "adminsetting",
                         "findBySection",
                         Values.map("tenantId", actor.tenant(), "section", section));
-        java.util.LinkedHashMap<java.lang.String, java.lang.Object> saved =
-                new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> saved = new LinkedHashMap<String, Object>();
         saved.put("data_json", mapper.writeValueAsString(data));
         saved.put("updated_by", actor.userId());
         if (row == null) {

@@ -12,9 +12,15 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.web.Contract;
 import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
@@ -115,7 +121,7 @@ public class AgentMedia {
         }
         if (password.isEmpty()) {
             byte[] bytes = new byte[24];
-            new java.security.SecureRandom().nextBytes(bytes);
+            new SecureRandom().nextBytes(bytes);
             password = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         }
         int ttl = Math.max(60, config.number("WEBRTC_SIP_CREDENTIAL_TTL_SEC", 900));
@@ -157,11 +163,9 @@ public class AgentMedia {
                                                     config.number("TURN_CREDENTIAL_TTL_SEC", 3600)))
                                     + ":agent-"
                                     + i.userId();
-                    javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA1");
+                    Mac mac = Mac.getInstance("HmacSHA1");
                     mac.init(
-                            new javax.crypto.spec.SecretKeySpec(
-                                    secret.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                                    "HmacSHA1"));
+                            new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA1"));
                     ice.add(
                             JsonSupport.map(
                                     "urls",
@@ -173,10 +177,8 @@ public class AgentMedia {
                                             .encodeToString(
                                                     mac.doFinal(
                                                             username.getBytes(
-                                                                    java.nio.charset
-                                                                            .StandardCharsets
-                                                                            .UTF_8)))));
-                } catch (java.security.GeneralSecurityException e) {
+                                                                    StandardCharsets.UTF_8)))));
+                } catch (GeneralSecurityException e) {
                     throw new IllegalStateException(e);
                 }
         }
@@ -232,7 +234,8 @@ public class AgentMedia {
 
     @PutMapping("/api/v1/agent/media/status")
     public Map<String, Object> update(
-            @RequestBody Map<String, Object> body, HttpServletRequest request) {
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest request) {
         Map<String, Object> data = contract.input("AgentMediaStatusUpdate", body, true);
         Identity i = agent(request);
         if (data.get("active_call_id") != null) {
@@ -274,8 +277,7 @@ public class AgentMedia {
         Identity i = agent(request);
         if (!slots.tryAcquire()) throw new ApiError(503, "agent stream capacity reached");
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(0L);
-        java.util.concurrent.atomic.AtomicBoolean closed =
-                new java.util.concurrent.atomic.AtomicBoolean();
+        AtomicBoolean closed = new AtomicBoolean();
         final ScheduledFuture<?>[] future = new ScheduledFuture<?>[1];
         Runnable finish =
                 () -> {
@@ -395,9 +397,12 @@ public class AgentMedia {
 
     @PostMapping(value = "/internal/freeswitch/directory", produces = "application/xml")
     public String directory(
-            @RequestParam(defaultValue = "") String user,
-            @RequestParam(defaultValue = "") String domain,
-            @RequestParam(defaultValue = "") String token) {
+            @RequestParam(defaultValue = "")
+            String user,
+            @RequestParam(defaultValue = "")
+            String domain,
+            @RequestParam(defaultValue = "")
+            String token) {
         String expected = config.get("FREESWITCH_DIRECTORY_TOKEN", "").trim();
         if (expected.isEmpty() || !Crypto.equal(expected, token))
             throw new ApiError(401, "invalid directory token");

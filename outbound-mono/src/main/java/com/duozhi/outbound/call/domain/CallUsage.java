@@ -1,20 +1,24 @@
 package com.duozhi.outbound.call.domain;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
 /** Source fields and application defaults; no persistence framework state. */
 public class CallUsage {
     private Integer id;
     private Integer tenantId;
-    private java.util.UUID callSessionId;
+    private UUID callSessionId;
     private Integer attempt;
-    private java.time.LocalDateTime answeredAt;
-    private java.time.LocalDateTime endedAt;
-    private java.time.LocalDateTime aiEndedAt;
+    private LocalDateTime answeredAt;
+    private LocalDateTime endedAt;
+    private LocalDateTime aiEndedAt;
     private Double telephonySeconds;
     private Double aiSeconds;
     private String durationSource = "missing";
-    private java.time.LocalDateTime createdAt =
-            java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)
-                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    private LocalDateTime createdAt =
+            LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
     public Integer getId() {
         return id;
@@ -32,11 +36,11 @@ public class CallUsage {
         this.tenantId = value;
     }
 
-    public java.util.UUID getCallSessionId() {
+    public UUID getCallSessionId() {
         return callSessionId;
     }
 
-    public void setCallSessionId(java.util.UUID value) {
+    public void setCallSessionId(UUID value) {
         this.callSessionId = value;
     }
 
@@ -48,27 +52,27 @@ public class CallUsage {
         this.attempt = value;
     }
 
-    public java.time.LocalDateTime getAnsweredAt() {
+    public LocalDateTime getAnsweredAt() {
         return answeredAt;
     }
 
-    public void setAnsweredAt(java.time.LocalDateTime value) {
+    public void setAnsweredAt(LocalDateTime value) {
         this.answeredAt = value;
     }
 
-    public java.time.LocalDateTime getEndedAt() {
+    public LocalDateTime getEndedAt() {
         return endedAt;
     }
 
-    public void setEndedAt(java.time.LocalDateTime value) {
+    public void setEndedAt(LocalDateTime value) {
         this.endedAt = value;
     }
 
-    public java.time.LocalDateTime getAiEndedAt() {
+    public LocalDateTime getAiEndedAt() {
         return aiEndedAt;
     }
 
-    public void setAiEndedAt(java.time.LocalDateTime value) {
+    public void setAiEndedAt(LocalDateTime value) {
         this.aiEndedAt = value;
     }
 
@@ -96,11 +100,11 @@ public class CallUsage {
         this.durationSource = value;
     }
 
-    public java.time.LocalDateTime getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(java.time.LocalDateTime value) {
+    public void setCreatedAt(LocalDateTime value) {
         this.createdAt = value;
     }
 }

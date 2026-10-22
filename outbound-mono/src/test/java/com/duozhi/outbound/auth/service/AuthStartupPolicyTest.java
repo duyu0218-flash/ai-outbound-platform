@@ -6,11 +6,12 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.web.HttpBoundary;
 import java.util.*;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.*;
 
 class AuthStartupPolicyTest {
-    @org.springframework.boot.test.context.TestConfiguration(proxyBeanMethods = false)
+    @TestConfiguration(proxyBeanMethods = false)
     @Import({Config.class, AuthStartupPolicy.class, HttpBoundary.class})
     static class BoundaryContext {}
 

@@ -1,7 +1,8 @@
 import java.nio.file.*;
-import javax.xml.parsers.*;
 import javax.xml.XMLConstants;
+import javax.xml.parsers.*;
 import org.w3c.dom.*;
+
 /** JDK XML reader, no network, DTD, XInclude or external entity resolution. */
 class Xml {
   static String quote(String s) {

@@ -8,6 +8,8 @@ import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 
 /** PBX call ownership, durable admission, lifecycle events and native speech. */
 final class VoiceGateway implements AutoCloseable {
@@ -28,8 +30,8 @@ final class VoiceGateway implements AutoCloseable {
     private final ScheduledExecutorService maintenance;
     private final Semaphore eventSlots = new Semaphore(2048);
     private final Queue<Long> pendingEvents = new ConcurrentLinkedQueue<>();
-    private final java.util.concurrent.atomic.AtomicInteger processingEvents = new java.util.concurrent.atomic.AtomicInteger();
-    private final java.util.concurrent.atomic.LongAdder eventErrors = new java.util.concurrent.atomic.LongAdder();
+    private final AtomicInteger processingEvents = new AtomicInteger();
+    private final LongAdder eventErrors = new LongAdder();
     private volatile boolean eventOverloaded;
     private volatile Socket eventSocket;
     volatile boolean draining, running = true, subscribed;
@@ -296,7 +298,8 @@ final class VoiceGateway implements AutoCloseable {
             runLifecycle(binding, completion, () -> startMedia(binding, completion));
         }
     }
-    @FunctionalInterface private interface Startup { void run() throws Exception; }
+    @FunctionalInterface
+    private interface Startup { void run() throws Exception; }
     private void runLifecycle(Binding binding, CompletableFuture<Void> completion, Startup action) {
         try { lifecycle.execute(() -> { if (!binding.stopped && !completion.isDone()) try { action.run(); } catch (Exception error) { completion.completeExceptionally(error); } }); }
         catch (RejectedExecutionException full) { completion.completeExceptionally(full); }
@@ -387,7 +390,8 @@ final class VoiceGateway implements AutoCloseable {
             if (binding != null && session.terminated.isDone() && !binding.stopped) try { binding.failure = session.error; post("hangup", Map.of("call_id", binding.call, "tenant_id", session.metadata.get("tenant_id"), "expected_attempt", session.metadata.get("attempt"), "provider_call_id", binding.uuid)); } catch (Exception ignored) { }
         }
     }
-    @Override public void close() throws Exception {
+    @Override
+    public void close() throws Exception {
         running = false; draining = true; if (eventSocket != null) eventSocket.close(); listener.shutdownNow(); maintenance.shutdownNow();
         for (var binding : bindings.values()) try { stopMedia(binding); } catch (Exception ignored) { }
         lifecycle.shutdownNow(); termination.shutdownNow(); for (var worker : eventWorkers) worker.shutdownNow(); if (media != null) media.close(); callbacks.close(); ledger.close();

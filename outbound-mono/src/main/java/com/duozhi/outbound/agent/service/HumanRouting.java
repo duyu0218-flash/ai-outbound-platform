@@ -12,9 +12,14 @@ import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
 import com.duozhi.outbound.operations.controller.OperationsWorkforce;
 import com.duozhi.outbound.operations.dao.OperationsStore;
+import jakarta.annotation.PreDestroy;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,15 +35,15 @@ public class HumanRouting {
     private final Config config;
     private final JsonSupport json;
     private final AtomicBoolean running = new AtomicBoolean();
-    private final java.util.concurrent.ExecutorService executor =
-            java.util.concurrent.Executors.newSingleThreadExecutor(
+    private final ExecutorService executor =
+            Executors.newSingleThreadExecutor(
                     r -> {
                         Thread thread = new Thread(r, "java-human-routing");
                         thread.setDaemon(true);
                         return thread;
                     });
 
-    @jakarta.annotation.PreDestroy
+    @PreDestroy
     public void close() {
         executor.shutdownNow();
     }
@@ -333,13 +338,13 @@ public class HumanRouting {
                         try {
                             redistribute();
                         } catch (RuntimeException e) {
-                            org.slf4j.LoggerFactory.getLogger(getClass())
+                            LoggerFactory.getLogger(getClass())
                                     .warn("human routing failed: {}", e.getClass().getSimpleName());
                         } finally {
                             running.set(false);
                         }
                     });
-        } catch (java.util.concurrent.RejectedExecutionException stopping) {
+        } catch (RejectedExecutionException stopping) {
             running.set(false);
         }
     }

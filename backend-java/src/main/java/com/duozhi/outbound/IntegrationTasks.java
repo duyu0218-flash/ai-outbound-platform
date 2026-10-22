@@ -1,10 +1,13 @@
 package com.duozhi.outbound;
 
-import java.util.*;
-import java.net.*;
 import java.io.*;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.*;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +20,8 @@ public class IntegrationTasks {
         else if("send_sms".equals(type))sms(task,payload);
         else recording(type,task,payload);
     }
-    @SuppressWarnings("unchecked") private void callback(Map<String,Object> task,Map<String,Object> payload){
+    @SuppressWarnings("unchecked")
+    private void callback(Map<String,Object> task,Map<String,Object> payload){
         long tenant=CallLifecycle.tenant(task);Map<String,Object> integration=settings.get(tenant,"integration");String endpoint=Objects.toString(integration.get("webhook_base_url"),"").trim();
         if(!Boolean.TRUE.equals(integration.get("callback_enabled"))||endpoint.isEmpty())return;
         settings.validate("integration",integration);Map<String,Object> call=store.one("callsession","WHERE tenant_id=? AND id=?",tenant,store.encode("callsession","id",payload.get("call_id")));if(call==null)return;
@@ -59,10 +63,10 @@ public class IntegrationTasks {
         URI uri=URI.create(endpoint);if(config.production()&&!"https".equals(uri.getScheme()))throw new ApiError(422,"production callbacks require HTTPS");
         String origin=Settings.endpoint(endpoint,true);boolean privateAllowed=Arrays.stream(config.get("BUSINESS_CALLBACK_PRIVATE_ORIGINS","").split(",")).filter(v->!v.trim().isEmpty()).map(v->Settings.endpoint(v.trim(),false)).anyMatch(origin::equals);
         String host=uri.getHost();int port=uri.getPort()<0?("https".equals(uri.getScheme())?443:80):uri.getPort();
-        java.util.concurrent.ExecutorService resolver=java.util.concurrent.Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"callback-dns");t.setDaemon(true);return t;});
+        ExecutorService resolver=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"callback-dns");t.setDaemon(true);return t;});
         Socket socket=null;
         try{
-            InetAddress[] addresses=resolver.submit(()->InetAddress.getAllByName(host)).get(3,java.util.concurrent.TimeUnit.SECONDS);
+            InetAddress[] addresses=resolver.submit(()->InetAddress.getAllByName(host)).get(3,TimeUnit.SECONDS);
             if(addresses.length==0||!privateAllowed&&Arrays.stream(addresses).anyMatch(a->!publicAddress(a)))throw new ApiError(422,"callback DNS resolved to an unauthorized network");
             TaskWorker.permitted();socket=new Socket();socket.connect(new InetSocketAddress(addresses[0],port),timeout);socket.setSoTimeout(timeout);
             if("https".equals(uri.getScheme())){SSLSocket tls=(SSLSocket)((SSLSocketFactory)SSLSocketFactory.getDefault()).createSocket(socket,host,port,true);SSLParameters parameters=tls.getSSLParameters();parameters.setEndpointIdentificationAlgorithm("HTTPS");if(!host.contains(":"))parameters.setServerNames(Collections.singletonList(new SNIHostName(host)));tls.setSSLParameters(parameters);tls.setSoTimeout(timeout);tls.startHandshake();socket=tls;}

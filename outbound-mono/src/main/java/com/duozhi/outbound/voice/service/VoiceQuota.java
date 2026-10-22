@@ -3,6 +3,7 @@ package com.duozhi.outbound.voice.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.dao.LocalLedger;
 import com.duozhi.outbound.integration.support.Support;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.util.*;
 
@@ -22,7 +23,7 @@ public final class VoiceQuota {
                 Support.map(
                         Support.object(
                                         settings.get("VOICE_QUOTA_BUDGETS_JSON", "{}")
-                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                                                .getBytes(StandardCharsets.UTF_8))
                                 .get(kind));
         List<String> parts = new ArrayList<>();
         for (String field : List.of("provider", "account", "region", "product")) {
