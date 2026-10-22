@@ -5,6 +5,7 @@ import java.util.*;
  * The existing lifecycle remains the only implementation of status transitions. */
 final class CallStatusBatchScope implements AutoCloseable {
     boolean sharedResourcesLocked;
+    final Map<Long,Set<String>> terminalControls=new TreeMap<>();
     final Map<String,List<Map<String,Object>>> handoffs=new HashMap<>();
     private static final ThreadLocal<CallStatusBatchScope> CURRENT=new ThreadLocal<>();
     final Map<String,Map<String,Object>> calls=new HashMap<>(),usage=new HashMap<>(),events=new HashMap<>(),tasks=new HashMap<>(),receipts=new HashMap<>();

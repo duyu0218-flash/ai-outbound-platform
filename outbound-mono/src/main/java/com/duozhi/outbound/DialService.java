@@ -306,8 +306,9 @@ public class DialService {
     @SuppressWarnings("unchecked")
     void sendTasks(List<Map<String,Object>> entries,DialBatchStore db){
         var pending=new ArrayList<Map<String,Object>>();var routes=new HashMap<String,Boolean>();
+        boolean sendingClosed=drain.sendingClosed();
         for(var entry:entries){var call=(Map<String,Object>)entry.get("call");if(call==null)continue;
-            if(Boolean.TRUE.equals(entry.get("query_only"))){try{confirmClaimed(call,(Map<String,Object>)entry.get("metadata"));}catch(PendingConfirmation pendingResult){entry.put("pending_confirmation",true);}catch(RuntimeException failure){entry.put("error",failure);}continue;}
+            if(sendingClosed||Boolean.TRUE.equals(entry.get("query_only"))){try{confirmClaimed(call,(Map<String,Object>)entry.get("metadata"));}catch(PendingConfirmation pendingResult){entry.put("pending_confirmation",true);}catch(RuntimeException failure){entry.put("error",failure);}continue;}
             boolean mock=routes.computeIfAbsent(call.get("tenant_id")+":"+call.get("telephony_line_id")+":"+call.get("gateway_node_id"),k->client.mock(call));
             if(mock){try{if(!sendClaimed(call,(Map<String,Object>)entry.get("metadata"))){entry.put("deferred",true);((Map<String,Object>)entry.get("payload")).remove("_dial_claimed");}}catch(PendingConfirmation pendingResult){entry.put("pending_confirmation",true);}catch(RuntimeException failure){entry.put("error",failure);}continue;}pending.add(entry);
         }

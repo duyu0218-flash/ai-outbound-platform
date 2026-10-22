@@ -6,6 +6,30 @@ import static org.assertj.core.api.Assertions.*;
 import static com.duozhi.outbound.CapacityEvidenceValidator.*;
 
 class CapacityEvidenceValidatorTest {
+    @Test void real500QualificationIsExplicitAndCannotLowerDefault650Gate() {
+        var events=new ArrayList<Event>();
+        for(int i=0;i<1000;i++)events.add(new Event("k"+i,i*SECOND/500,i*SECOND/500));
+        assertThat(rates(events,0,2).errors()).contains("whole-window average below 650");
+        var explicit=rates(events,0,2,Profile.R500);
+        assertThat(explicit.profile()).isEqualTo(Profile.R500);assertThat(explicit.passed()).isTrue();
+        assertThat(explicit.rates().average()).isEqualTo(500);
+        assertThat(rates(events,0,2,Profile.P650).passed()).isFalse();
+    }
+    @Test void real500ProfileStillRejectsSlidingHolesAndDuplicateIdentities() {
+        var events=new ArrayList<Event>();
+        for(int i=0;i<500;i++){events.add(new Event("a"+i,0,0));events.add(new Event("b"+i,1_999_999,1_999_999));}
+        var result=rates(events,0,2,Profile.R500);
+        assertThat(result.rates().fixedSeconds()).containsExactly(500,500);
+        assertThat(result.passed()).isFalse();assertThat(result.rates().slidingMinimum()).isZero();
+        events.add(events.get(0));assertThat(rates(events,0,2,Profile.R500).rates().errors()).anyMatch(e->e.contains("duplicate"));
+    }
+    @Test void explicitProfileIsRequiredAndDoesNotRelaxEvidenceTimeBounds() {
+        assertThatThrownBy(()->rates(List.of(),0,3600,null)).isInstanceOf(NullPointerException.class);
+        var evidence=new ArrayList<Event>();
+        for(int i=0;i<500;i++)evidence.add(new Event("k"+i,999_999,1_000_001));
+        assertThat(rates(evidence,0,2,Profile.R500).rates().fixedSeconds()).containsExactly(0,0);
+        assertThat(rates(evidence,0,2,Profile.R500).passed()).isFalse();
+    }
     @Test void firstSeenPollCannotMoveARealFailureAcrossTheSecondBoundary() {
         var evidence=new ArrayList<Event>();
         for(int i=0;i<800;i++)evidence.add(new Event("a"+i,490_000,550_000));
