@@ -30,12 +30,21 @@ public class DialDrainControl {
     /** Uses the same existing platform mutex as legacy admissions before taking
      * the persistent barrier, so the captured cohort includes in-progress claims. */
     public Map<String,Object> begin() {
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new IllegalStateException("drain capture requires a fresh transaction");
         return tx.serialized(()->{
             var row=jdbc.queryForMap("SELECT phase,epoch FROM dial_admission_control WHERE id=1 FOR UPDATE");
             if(!row.get("phase").equals("RUNNING"))throw new ApiError(409,"drain already in progress");
             long epoch=Math.addExact(((Number)row.get("epoch")).longValue(),1);
-            jdbc.update("INSERT INTO dial_drain_member(epoch,tenant_id,call_id,attempt) SELECT ?,tenant_id,REPLACE(id,'-',''),attempts FROM callsession WHERE status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')",epoch);
-            jdbc.update("INSERT IGNORE INTO dial_drain_member(epoch,tenant_id,call_id,attempt) SELECT ?,tenant,REPLACE(call_id,'-',''),attempt FROM voice_attempts WHERE state!='ended' AND REPLACE(call_id,'-','') REGEXP '^[0-9a-fA-F]{32}$'",epoch);
+            // INSERT...SELECT under RR takes source-row locks. Voice fact
+            // writers already hold their row before the freeze trigger reads
+            // this barrier, so locking those rows here reverses that order.
+            // Plain consistent reads share one RR snapshot under the exclusive
+            // barrier and platform admission lock; insert only captured values.
+            var members=new ArrayList<Object[]>();
+            for(var call:jdbc.queryForList("SELECT tenant_id,REPLACE(id,'-','') AS call_id,attempts AS attempt FROM callsession WHERE status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')"))members.add(new Object[]{epoch,call.get("tenant_id"),call.get("call_id"),call.get("attempt")});
+            for(var call:jdbc.queryForList("SELECT tenant AS tenant_id,REPLACE(call_id,'-','') AS call_id,attempt FROM voice_attempts WHERE state!='ended' AND REPLACE(call_id,'-','') REGEXP '^[0-9a-fA-F]{32}$'"))members.add(new Object[]{epoch,call.get("tenant_id"),call.get("call_id"),call.get("attempt")});
+            jdbc.batchUpdate("INSERT IGNORE INTO dial_drain_member(epoch,tenant_id,call_id,attempt) VALUES(?,?,?,?)",members,100,(statement,member)->{for(int i=0;i<member.length;i++)statement.setObject(i+1,member[i]);});
             jdbc.update("UPDATE dial_admission_control SET phase='ADMISSION_CLOSED',epoch=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE id=1",epoch);
             return snapshot();
         });

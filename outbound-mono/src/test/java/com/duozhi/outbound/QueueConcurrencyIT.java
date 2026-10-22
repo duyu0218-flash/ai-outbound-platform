@@ -34,6 +34,7 @@ class QueueConcurrencyIT {
     @Autowired Store store;@Autowired Transactions tx;@Autowired Outbox outbox;@Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;@Autowired RealtimeTaskCleanup taskCleanup;@Autowired RealtimeTaskPressure taskPressure;
     @Autowired PlatformLock platformLocks;@Autowired javax.sql.DataSource dataSource;
     @Autowired TaskWorker worker;@Autowired CallbackInbox inbox;@Autowired TestRestTemplate http;
+    @Autowired org.apache.ibatis.session.SqlSession sqlSession;
     @org.springframework.boot.test.mock.mockito.SpyBean CallAnalysis analysis;
     @Autowired CallLifecycle lifecycle;@Autowired ConversationPolicy conversation;@Autowired VoiceCallbacks businessVoice;
     @Autowired org.springframework.core.env.ConfigurableEnvironment environment;
@@ -44,6 +45,27 @@ class QueueConcurrencyIT {
         inbox.initialize();inbox.maintenance();
     }
     String key(){return UUID.randomUUID().toString();}
+    @Test void predecessorChecksUseTenantAndStreamIndexForBothClaimPaths()throws Exception {
+        // Use the actual mapped statements and type handlers, rather than a
+        // copied SQL query that could drift away from the production path.
+        var fixtures=new ArrayList<Map<String,Object>>();
+        for(String type:List.of("ai_turn","dial_call"))fixtures.add(enqueue(key(),type,1));
+        try{for(String mapper:List.of("TaskOutboxMapper.claimCandidate","DialBatchMapper.taskCandidates")){
+            var params=Values.map("tenantId",1,"types",List.of("ai_turn"),"now",Store.now(),"cutoff",Store.now().minusSeconds(30),"parallelClaim",true,"limit",100,"recoverOnly",false);
+            var statement=sqlSession.getConfiguration().getMappedStatement("com.duozhi.outbound.mapper."+mapper);
+            var bound=statement.getBoundSql(params);
+            try(var connection=dataSource.getConnection();var explain=connection.prepareStatement("EXPLAIN FORMAT=JSON "+bound.getSql())){
+                new org.apache.ibatis.scripting.defaults.DefaultParameterHandler(statement,params,bound).setParameters(explain);
+                try(var rows=explain.executeQuery()){
+                    assertThat(rows.next()).isTrue();
+                    var plan=new com.fasterxml.jackson.databind.ObjectMapper().readTree(rows.getString(1));
+                    var tables=plan.findParents("table_name").stream().filter(node->"older".equals(node.path("table_name").asText())).toList();
+                    assertThat(tables).as(mapper+" must retain its predecessor anti-join").isNotEmpty();
+                    assertThat(tables).allSatisfy(table->assertThat(table.path("key").asText()).isEqualTo("ix_taskoutbox_stream_scope"));
+                }
+            }
+        }}finally{for(var task:fixtures)store.update("taskoutbox",1,task.get("id"),Values.map("state","completed"));}
+    }
     Map<String,Object> enqueue(String aggregate,String type,int sequence){
         return outbox.enqueue(1,type,aggregate,key(),Values.map("call_id",aggregate,"attempt",1,"turn_sequence",sequence));
     }

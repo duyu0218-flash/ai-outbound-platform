@@ -51,7 +51,9 @@ public class DialRateControl {
    healthy&=!Boolean.TRUE.equals(state.get("stopped"));
    double age=Math.max(((Number)receipt.get("oldest_age_sec")).doubleValue(),((Number)state.get("oldest_callback_age_sec")).doubleValue());
    var realtime=this.pressure.snapshot();
-   fraction=advance(fraction,Math.min(target(age,healthy),RealtimeTaskPressure.fraction(realtime)),elapsed);
+   double desired=Math.min(target(age,healthy),RealtimeTaskPressure.fraction(realtime));
+   fraction=advance(fraction,desired,elapsed);
+   if(config.flag("JAVA_DIAL_PROFILE",false))org.slf4j.LoggerFactory.getLogger(DialRateControl.class).info("dial_sample target={} fraction={} sample_ms={} callback_age_sec={} control_age_sec={} ai_age_sec={}",desired,fraction,(System.nanoTime()-now)/1_000_000.0,age,realtime.get("control_age_sec"),realtime.get("ai_age_sec"));
    if(config.flag("JAVA_DIAL_PROFILE",false)&&now-pressureLoggedAt>=1_000_000_000L){pressureLoggedAt=now;org.slf4j.LoggerFactory.getLogger(DialRateControl.class).info("dial_pressure callback_age_sec={} control_age_sec={} ai_age_sec={} fraction={}",age,realtime.get("control_age_sec"),realtime.get("ai_age_sec"),fraction);}
   }catch(RuntimeException unavailable){fraction=0;}
   // Query time is part of the signal age. A blocked read must neither freshen
