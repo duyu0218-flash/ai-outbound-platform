@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.call.dao.RealtimeSessionMapper">
+    <resultMap id="row" type="com.duozhi.outbound.call.domain.RealtimeSession">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="call_session_id" javaType="java.util.UUID" property="callSessionId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="provider_session_id" javaType="java.lang.String" property="providerSessionId"/>
+        <result column="attempt" javaType="java.lang.Integer" property="attempt"/>
+        <result column="state" javaType="com.duozhi.outbound.call.domain.enums.RealtimeState" property="state"/>
+        <result column="codec" javaType="java.lang.String" property="codec"/>
+        <result column="sample_rate" javaType="java.lang.Integer" property="sampleRate"/>
+        <result column="channel_count" javaType="java.lang.Integer" property="channelCount"/>
+        <result column="last_event_sequence" javaType="java.lang.Integer" property="lastEventSequence"/>
+        <result column="turn_sequence" javaType="java.lang.Integer" property="turnSequence"/>
+        <result column="playback_id" javaType="java.lang.String" property="playbackId"/>
+        <result column="started_at" javaType="java.time.LocalDateTime" property="startedAt"/>
+        <result column="ended_at" javaType="java.time.LocalDateTime" property="endedAt"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `realtimesession`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `provider_session_id`,
+            `attempt`,
+            `state`,
+            `codec`,
+            `sample_rate`,
+            `channel_count`,
+            `last_event_sequence`,
+            `turn_sequence`,
+            `playback_id`,
+            `started_at`,
+            `ended_at`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.providerSessionId,jdbcType=VARCHAR},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.codec,jdbcType=VARCHAR},
+            #{row.sampleRate,jdbcType=INTEGER},
+            #{row.channelCount,jdbcType=INTEGER},
+            #{row.lastEventSequence,jdbcType=INTEGER},
+            #{row.turnSequence,jdbcType=INTEGER},
+            #{row.playbackId,jdbcType=VARCHAR},
+            #{row.startedAt,jdbcType=TIMESTAMP},
+            #{row.endedAt,jdbcType=TIMESTAMP},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `realtimesession`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_session_id`,
+            `provider_session_id`,
+            `attempt`,
+            `state`,
+            `codec`,
+            `sample_rate`,
+            `channel_count`,
+            `last_event_sequence`,
+            `turn_sequence`,
+            `playback_id`,
+            `started_at`,
+            `ended_at`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.providerSessionId,jdbcType=VARCHAR},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.codec,jdbcType=VARCHAR},
+            #{row.sampleRate,jdbcType=INTEGER},
+            #{row.channelCount,jdbcType=INTEGER},
+            #{row.lastEventSequence,jdbcType=INTEGER},
+            #{row.turnSequence,jdbcType=INTEGER},
+            #{row.playbackId,jdbcType=VARCHAR},
+            #{row.startedAt,jdbcType=TIMESTAMP},
+            #{row.endedAt,jdbcType=TIMESTAMP},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `provider_session_id`, `attempt`, `state`,
+        `codec`, `sample_rate`, `channel_count`, `last_event_sequence`, `turn_sequence`,
+        `playback_id`, `started_at`, `ended_at`, `created_at`, `updated_at` FROM `realtimesession`
+        WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `realtimesession` SET
+        `call_session_id` =
+        #{row.callSessionId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `provider_session_id` = #{row.providerSessionId,jdbcType=VARCHAR},
+        `attempt` = #{row.attempt,jdbcType=INTEGER},
+        `state` = #{row.state,jdbcType=VARCHAR},
+        `codec` = #{row.codec,jdbcType=VARCHAR},
+        `sample_rate` = #{row.sampleRate,jdbcType=INTEGER},
+        `channel_count` = #{row.channelCount,jdbcType=INTEGER},
+        `last_event_sequence` = #{row.lastEventSequence,jdbcType=INTEGER},
+        `turn_sequence` = #{row.turnSequence,jdbcType=INTEGER},
+        `playback_id` = #{row.playbackId,jdbcType=VARCHAR},
+        `started_at` = #{row.startedAt,jdbcType=TIMESTAMP},
+        `ended_at` = #{row.endedAt,jdbcType=TIMESTAMP},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `realtimesession` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_session_id`, `provider_session_id`, `attempt`, `state`,
+        `codec`, `sample_rate`, `channel_count`, `last_event_sequence`, `turn_sequence`,
+        `playback_id`, `started_at`, `ended_at`, `created_at`, `updated_at` FROM `realtimesession`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `realtimesession`
+        <set>
+            <if test="changes.containsKey('call_session_id')">
+                `call_session_id` = #{changes.call_session_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('provider_session_id')">
+                `provider_session_id` = #{changes.provider_session_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('attempt')">
+                `attempt` = #{changes.attempt,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('codec')">
+                `codec` = #{changes.codec,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('sample_rate')">
+                `sample_rate` = #{changes.sample_rate,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('channel_count')">
+                `channel_count` = #{changes.channel_count,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('last_event_sequence')">
+                `last_event_sequence` = #{changes.last_event_sequence,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('turn_sequence')">
+                `turn_sequence` = #{changes.turn_sequence,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('playback_id')">
+                `playback_id` = #{changes.playback_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('started_at')">
+                `started_at` = #{changes.started_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('ended_at')">
+                `ended_at` = #{changes.ended_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceCallEvidence47_1" resultMap="row">
+        SELECT * FROM `realtimesession` WHERE tenant_id=#{tenantId} AND call_session_id=#{p1}
+    </select>
+    <select id="scopedAiRuntime21" resultMap="row">
+        SELECT * FROM `realtimesession` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0})
+    </select>
+    <select id="scopedAiRuntime243" resultMap="row">
+        SELECT * FROM `realtimesession` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0})
+    </select>
+    <select id="scopedConversationPolicy144" resultMap="row">
+        SELECT * FROM `realtimesession` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0})
+    </select>
+    <select id="scopedVoiceCallbacks39" resultMap="row">
+        SELECT * FROM `realtimesession` WHERE tenant_id = #{tenantId} AND (call_session_id=#{p0})
+    </select>
+</mapper>

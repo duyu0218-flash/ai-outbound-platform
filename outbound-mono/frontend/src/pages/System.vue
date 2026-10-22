@@ -1,8 +1,133 @@
 <script setup>
-import {useData,action} from '../data'
-import {request} from '../session'
-import {t} from '../i18n'
-import MetricCards from '../components/MetricCards.vue'
-const overview=useData('/api/v1/admin/system-overview'),audits=useData('/api/v1/admin/audit-logs?page=1&size=100'),sms=useData('/api/v1/admin/sms-logs?page=1&size=100')
-function refresh(){overview.load();audits.load()}
-</script><template><PageHeader title="system" description="systemHint"><el-button @click="refresh">{{t('refresh')}}</el-button></PageHeader><el-alert v-if="overview.error.value" :title="overview.error.value" type="error"/><div class="split"><el-card :header="t('serviceHealth')"><el-descriptions :column="1" border><el-descriptions-item v-for="(value,key) in overview.data.value?.services||{}" :key="key" :label="t({database:'database',redis:'Redis',ai_agent:'aiService',telephony:'telephony'}[key]||key)"><el-tag :type="value==='ok'?'success':['unconfigured','mock'].includes(value)?'warning':'danger'">{{value}}</el-tag></el-descriptions-item></el-descriptions></el-card><el-card><MetricCards :data="overview.data.value?.resources" :items="[{key:'enabled_users',label:'enabledUsers'},{key:'enabled_lines',label:'enabledLines'}]"/><h3>{{t('callStatusDistribution')}}</h3><div class="actions"><el-tag v-for="(value,key) in overview.data.value?.call_statuses||{}" :key="key">{{t(key)}}: {{value}}</el-tag></div></el-card></div><el-card :header="t('capacityOverview')"><MetricCards :data="overview.data.value?.capacity" :items="[{key:'configured_max_concurrent_calls',label:'configuredCapacity'},{key:'effective_max_concurrent_calls',label:'effectiveCapacity'},{key:'active_calls',label:'activeCalls'},{key:'available_slots',label:'availableSlots'}]"/></el-card><el-card :header="t('runtimeMetrics')"><MetricCards :data="overview.data.value?.operations" :items="[{key:'average_ai_turn_ms',label:'averageAiLatency',suffix:'ms'},{key:'stale_processing_tasks',label:'staleTasks'},{key:'oldest_open_task_age_sec',label:'oldestTask',suffix:'s'},{key:'recording_deletion_failures',label:'recordingDeleteFailures'}]"/><div class="actions"><el-tag v-for="(value,key) in overview.data.value?.operations?.durable_tasks||{}" :key="key" :type="key==='dead'?'danger':key==='failed'?'warning':'primary'">{{key}}: {{value}}</el-tag></div></el-card><el-card :header="t('auditLogs')"><el-alert v-if="audits.error.value" :title="audits.error.value" type="error"/><DataGrid :pagination="12" :rows="audits.data.value" :loading="audits.loading.value" :columns="[{key:'created_at',label:'createdAt',date:true},{key:'actor_username',label:'operator'},{key:'action',label:'action',tag:true},{key:'resource_type',label:'resource'},{key:'resource_id',label:'resourceId'},{key:'detail',label:'details'}]"/></el-card><el-card :header="t('smsLogs')"><el-alert v-if="sms.error.value" :title="sms.error.value" type="error"/><DataGrid :pagination="12" :rows="sms.data.value" :loading="sms.loading.value" :columns="[{key:'created_at',label:'createdAt',date:true},{key:'to_phone',label:'phone'},{key:'state',label:'status',tag:true},{key:'provider_message_id',label:'providerMessageId'},{key:'provider_error',label:'providerError'},{key:'content',label:'content'},{key:'sent_at',label:'sentAt',date:true}]"><template #actions="{row}"><el-button size="small" :disabled="!['failed','disabled'].includes(row.state)" @click="action(()=>request('/api/v1/admin/sms-logs/'+row.id+'/retry','POST'),{refresh:async()=>{await sms.load();await audits.load()}})">{{t('retry')}}</el-button></template></DataGrid></el-card></template>
+import { useData, action } from '../data';
+import { request } from '../session';
+import { t } from '../i18n';
+import MetricCards from '../components/MetricCards.vue';
+const overview = useData('/api/v1/admin/system-overview'),
+  audits = useData('/api/v1/admin/audit-logs?page=1&size=100'),
+  sms = useData('/api/v1/admin/sms-logs?page=1&size=100');
+function refresh() {
+  overview.load();
+  audits.load();
+}
+</script>
+<template>
+  <PageHeader title="system" description="systemHint"
+    ><el-button @click="refresh">{{ t('refresh') }}</el-button></PageHeader
+  ><el-alert v-if="overview.error.value" :title="overview.error.value" type="error" />
+  <div class="split">
+    <el-card :header="t('serviceHealth')"
+      ><el-descriptions :column="1" border
+        ><el-descriptions-item
+          v-for="(value, key) in overview.data.value?.services || {}"
+          :key="key"
+          :label="
+            t(
+              {
+                database: 'database',
+                redis: 'Redis',
+                ai_agent: 'aiService',
+                telephony: 'telephony',
+              }[key] || key,
+            )
+          "
+          ><el-tag
+            :type="
+              value === 'ok'
+                ? 'success'
+                : ['unconfigured', 'mock'].includes(value)
+                  ? 'warning'
+                  : 'danger'
+            "
+            >{{ value }}</el-tag
+          ></el-descriptions-item
+        ></el-descriptions
+      ></el-card
+    ><el-card
+      ><MetricCards
+        :data="overview.data.value?.resources"
+        :items="[
+          { key: 'enabled_users', label: 'enabledUsers' },
+          { key: 'enabled_lines', label: 'enabledLines' },
+        ]"
+      />
+      <h3>{{ t('callStatusDistribution') }}</h3>
+      <div class="actions">
+        <el-tag v-for="(value, key) in overview.data.value?.call_statuses || {}" :key="key"
+          >{{ t(key) }}: {{ value }}</el-tag
+        >
+      </div></el-card
+    >
+  </div>
+  <el-card :header="t('capacityOverview')"
+    ><MetricCards
+      :data="overview.data.value?.capacity"
+      :items="[
+        { key: 'configured_max_concurrent_calls', label: 'configuredCapacity' },
+        { key: 'effective_max_concurrent_calls', label: 'effectiveCapacity' },
+        { key: 'active_calls', label: 'activeCalls' },
+        { key: 'available_slots', label: 'availableSlots' },
+      ]" /></el-card
+  ><el-card :header="t('runtimeMetrics')"
+    ><MetricCards
+      :data="overview.data.value?.operations"
+      :items="[
+        { key: 'average_ai_turn_ms', label: 'averageAiLatency', suffix: 'ms' },
+        { key: 'stale_processing_tasks', label: 'staleTasks' },
+        { key: 'oldest_open_task_age_sec', label: 'oldestTask', suffix: 's' },
+        { key: 'recording_deletion_failures', label: 'recordingDeleteFailures' },
+      ]"
+    />
+    <div class="actions">
+      <el-tag
+        v-for="(value, key) in overview.data.value?.operations?.durable_tasks || {}"
+        :key="key"
+        :type="key === 'dead' ? 'danger' : key === 'failed' ? 'warning' : 'primary'"
+        >{{ key }}: {{ value }}</el-tag
+      >
+    </div></el-card
+  ><el-card :header="t('auditLogs')"
+    ><el-alert v-if="audits.error.value" :title="audits.error.value" type="error" /><DataGrid
+      :pagination="12"
+      :rows="audits.data.value"
+      :loading="audits.loading.value"
+      :columns="[
+        { key: 'created_at', label: 'createdAt', date: true },
+        { key: 'actor_username', label: 'operator' },
+        { key: 'action', label: 'action', tag: true },
+        { key: 'resource_type', label: 'resource' },
+        { key: 'resource_id', label: 'resourceId' },
+        { key: 'detail', label: 'details' },
+      ]" /></el-card
+  ><el-card :header="t('smsLogs')"
+    ><el-alert v-if="sms.error.value" :title="sms.error.value" type="error" /><DataGrid
+      :pagination="12"
+      :rows="sms.data.value"
+      :loading="sms.loading.value"
+      :columns="[
+        { key: 'created_at', label: 'createdAt', date: true },
+        { key: 'to_phone', label: 'phone' },
+        { key: 'state', label: 'status', tag: true },
+        { key: 'provider_message_id', label: 'providerMessageId' },
+        { key: 'provider_error', label: 'providerError' },
+        { key: 'content', label: 'content' },
+        { key: 'sent_at', label: 'sentAt', date: true },
+      ]"
+      ><template #actions="{ row }"
+        ><el-button
+          size="small"
+          :disabled="!['failed', 'disabled'].includes(row.state)"
+          @click="
+            action(() => request('/api/v1/admin/sms-logs/' + row.id + '/retry', 'POST'), {
+              refresh: async () => {
+                await sms.load();
+                await audits.load();
+              },
+            })
+          "
+          >{{ t('retry') }}</el-button
+        ></template
+      ></DataGrid
+    ></el-card
+  >
+</template>

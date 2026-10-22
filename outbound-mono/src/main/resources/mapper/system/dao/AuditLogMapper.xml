@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.system.dao.AuditLogMapper">
+    <resultMap id="row" type="com.duozhi.outbound.system.domain.AuditLog">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="actor_user_id" javaType="java.lang.Integer" property="actorUserId"/>
+        <result column="actor_username" javaType="java.lang.String" property="actorUsername"/>
+        <result column="action" javaType="java.lang.String" property="action"/>
+        <result column="resource_type" javaType="java.lang.String" property="resourceType"/>
+        <result column="resource_id" javaType="java.lang.String" property="resourceId"/>
+        <result column="detail" javaType="java.lang.String" property="detail"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `auditlog`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `actor_user_id`,
+            `actor_username`,
+            `action`,
+            `resource_type`,
+            `resource_id`,
+            `detail`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.actorUserId,jdbcType=INTEGER},
+            #{row.actorUsername,jdbcType=VARCHAR},
+            #{row.action,jdbcType=VARCHAR},
+            #{row.resourceType,jdbcType=VARCHAR},
+            #{row.resourceId,jdbcType=VARCHAR},
+            #{row.detail,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `auditlog`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `actor_user_id`,
+            `actor_username`,
+            `action`,
+            `resource_type`,
+            `resource_id`,
+            `detail`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.actorUserId,jdbcType=INTEGER},
+            #{row.actorUsername,jdbcType=VARCHAR},
+            #{row.action,jdbcType=VARCHAR},
+            #{row.resourceType,jdbcType=VARCHAR},
+            #{row.resourceId,jdbcType=VARCHAR},
+            #{row.detail,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `actor_user_id`, `actor_username`, `action`, `resource_type`,
+        `resource_id`, `detail`, `created_at` FROM `auditlog` WHERE `id` = #{id,jdbcType=INTEGER}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `auditlog` SET
+        `actor_user_id` = #{row.actorUserId,jdbcType=INTEGER},
+        `actor_username` = #{row.actorUsername,jdbcType=VARCHAR},
+        `action` = #{row.action,jdbcType=VARCHAR},
+        `resource_type` = #{row.resourceType,jdbcType=VARCHAR},
+        `resource_id` = #{row.resourceId,jdbcType=VARCHAR},
+        `detail` = #{row.detail,jdbcType=VARCHAR}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `auditlog` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `actor_user_id`, `actor_username`, `action`, `resource_type`,
+        `resource_id`, `detail`, `created_at` FROM `auditlog`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `auditlog`
+        <set>
+            <if test="changes.containsKey('actor_user_id')">
+                `actor_user_id` = #{changes.actor_user_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('actor_username')">
+                `actor_username` = #{changes.actor_username,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('action')">
+                `action` = #{changes.action,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('resource_type')">
+                `resource_type` = #{changes.resource_type,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('resource_id')">
+                `resource_id` = #{changes.resource_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('detail')">
+                `detail` = #{changes.detail,jdbcType=VARCHAR},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceAdminOperations19_3" resultMap="row">
+        SELECT * FROM `auditlog` WHERE tenant_id=#{tenantId} ORDER BY created_at DESC LIMIT #{p1}
+        OFFSET #{p2}
+    </select>
+</mapper>

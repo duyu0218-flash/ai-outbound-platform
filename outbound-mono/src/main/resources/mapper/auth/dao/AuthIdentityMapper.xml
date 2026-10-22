@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.auth.dao.AuthIdentityMapper">
+    <select id="findByUsernameForLogin" resultMap="com.duozhi.outbound.auth.dao.SysUserMapper.row">
+        SELECT * FROM `sys_user` WHERE `username` = #{username} FOR UPDATE
+    </select>
+    <select id="findByIdForJwt" resultMap="com.duozhi.outbound.auth.dao.SysUserMapper.row">
+        SELECT * FROM `sys_user` WHERE `id` = #{id}
+    </select>
+    <select id="findTenantById" resultMap="com.duozhi.outbound.auth.dao.TenantMapper.row">
+        SELECT * FROM `tenant` WHERE `id` = #{id}
+    </select>
+    <select id="lockTenantForUserAdmin" resultType="java.lang.Integer">
+        SELECT `id` FROM `tenant` WHERE `id` = #{tenantId} FOR UPDATE
+    </select>
+    <select id="findOwnedUser" resultMap="com.duozhi.outbound.auth.dao.SysUserMapper.row">
+        SELECT * FROM `sys_user` WHERE `id` = #{id} AND `tenant_id` = #{tenantId} FOR UPDATE
+    </select>
+    <select id="listUsers" resultMap="com.duozhi.outbound.auth.dao.SysUserMapper.row">
+        SELECT * FROM `sys_user` WHERE `tenant_id` = #{tenantId}
+        <if test="keyword != null">
+            AND (`username` LIKE CONCAT('%',#{keyword},'%') OR `full_name` LIKE
+            CONCAT('%',#{keyword},'%'))
+        </if>
+        ORDER BY `created_at` DESC,`id` ASC LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="enabledAdmins" resultType="long">
+        SELECT COUNT(*) FROM `sys_user` WHERE `tenant_id` = #{tenantId} AND `role` = 'admin' AND
+        `enabled` = TRUE
+    </select>
+    <update id="revoke">
+        UPDATE `sys_user` SET
+        `token_version`=`token_version`+1,`agent_status`='offline',`updated_at`=#{now}
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <update id="updateUser">
+        UPDATE `sys_user`
+        <set>
+            <if test="changes.containsKey('username')">
+                `username` = #{changes.username,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('password_hash')">
+                `password_hash` = #{changes.password_hash,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('full_name')">
+                `full_name` = #{changes.full_name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('phone')">
+                `phone` = #{changes.phone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('role')">
+                `role` = #{changes.role,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('is_supervisor')">
+                `is_supervisor` = #{changes.is_supervisor,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('agent_status')">
+                `agent_status` = #{changes.agent_status,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('last_seen_at')">
+                `last_seen_at` = #{changes.last_seen_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('failed_login_attempts')">
+                `failed_login_attempts` = #{changes.failed_login_attempts,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('locked_until')">
+                `locked_until` = #{changes.locked_until,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('token_version')">
+                `token_version` = #{changes.token_version,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('last_login_at')">
+                `last_login_at` = #{changes.last_login_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('enabled')">
+                `enabled` = #{changes.enabled,jdbcType=BOOLEAN},
+            </if>
+            `updated_at` = #{now}
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+</mapper>

@@ -26,7 +26,7 @@ transaction-isolation=REPEATABLE-READ
 
 填充 `.env.example`，由部署环境导出变量/注入密钥。不要将示例当生产配置。生产环境演示账号关闭、密钥与 CORS 满足原启动检查；主服务仅监听 SERVER_PORT，录音回调与媒体 WebSocket 指向该进程。真实语音还需 FreeSWITCH ESL、拨号路由、录音目录权限及上游凭证。
 
-JDK 17 使用 `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`，选择理由是保留锁定 JDK 的默认收集器并明确暂停目标；它不是实测音频保证。专属媒体线程池、全局有界队列、每连接帧上限、过载丢最旧帧、堆外 DirectByteBuffer 保留。媒体压测/真机验证是原阶段 6 验收项，尚未完成。目标 Linux、真实 PBX/音频/云模型的 500 总在途容量须另测。
+JDK 21 使用 `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`，选择理由是保留锁定 JDK 的默认收集器并明确暂停目标；它不是实测音频保证。专属媒体线程池、全局有界队列、每连接帧上限、过载丢最旧帧、堆外 DirectByteBuffer 保留。媒体压测/真机验证是原阶段 6 验收项，尚未完成。目标 Linux、真实 PBX/音频/云模型的 500 总在途容量须另测。
 
 批量调度默认关闭（`JAVA_DIAL_BATCH_SIZE=1`）。启用时准入批次上限 500，提交后仍按最多 100 条的原网关协议拆包下发和确认，`JAVA_DIAL_WORKERS` 为 1—4 个独立拨号线程，通用任务线程默认 4 个，`JAVA_TASK_WORKERS` 与 AI 逻辑领取数 `JAVA_AI_TASK_OWNERS` 均可显式配置为 1—16，默认均为 4；批次之间仍共用平台准入锁，每个号码保留独立任务、租约和幂等键。`JAVA_CALLBACK_BATCH_SIZE=1` 保留逐回执消费，设为 2—500 时可批量提交初始拨号/接通事件，其余事件沿用原处理；网关批量投递另需 `VOICE_CALLBACK_BATCH_ENABLED=true`。同一通话依旧按回执顺序消费，回执积压保护继续生效。启用参数本身不代表容量验收通过，最新实测见 `reliability-validation.json`；回退到逐条模式前应排空在途任务，恢复中的冻结拨号尝试也保留兼容处理。
 

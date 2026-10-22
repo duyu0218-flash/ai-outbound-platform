@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.customer.dao.ContactImportJobMapper">
+    <resultMap id="row" type="com.duozhi.outbound.customer.domain.ContactImportJob">
+        <id column="id" javaType="java.util.UUID" property="id" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="request_key" javaType="java.lang.String" property="requestKey"/>
+        <result column="state" javaType="java.lang.String" property="state"/>
+        <result column="result_json" javaType="java.lang.String" property="resultJson"/>
+        <result column="last_error" javaType="java.lang.String" property="lastError"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert">
+        INSERT INTO `contactimportjob`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            `id`,
+            `tenant_id`,
+            `request_key`,
+            `state`,
+            `result_json`,
+            `last_error`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.requestKey,jdbcType=VARCHAR},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.resultJson,jdbcType=LONGVARCHAR},
+            #{row.lastError,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `request_key`, `state`, `result_json`, `last_error`, `created_at`,
+        `updated_at` FROM `contactimportjob` WHERE `id` =
+        #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `contactimportjob` SET
+        `request_key` = #{row.requestKey,jdbcType=VARCHAR},
+        `state` = #{row.state,jdbcType=VARCHAR},
+        `result_json` = #{row.resultJson,jdbcType=LONGVARCHAR},
+        `last_error` = #{row.lastError,jdbcType=VARCHAR},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` =
+        #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `contactimportjob` WHERE `id` =
+        #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `request_key`, `state`, `result_json`, `last_error`, `created_at`,
+        `updated_at` FROM `contactimportjob`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `contactimportjob`
+        <set>
+            <if test="changes.containsKey('request_key')">
+                `request_key` = #{changes.request_key,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('result_json')">
+                `result_json` = #{changes.result_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('last_error')">
+                `last_error` = #{changes.last_error,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="findByRequestKey" resultMap="row">
+        SELECT * FROM contactimportjob WHERE tenant_id = #{tenantId} AND request_key = #{requestKey}
+    </select>
+</mapper>

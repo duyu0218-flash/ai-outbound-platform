@@ -1,7 +1,62 @@
 <script setup>
-import {ref} from 'vue'
-import {useData} from '../data'
-import {t} from '../i18n'
-import MetricCards from '../components/MetricCards.vue'
-const dimension=ref('campaign'),granularity=ref('day'),days=ref(30),query=useData(()=>`/api/v1/admin/call-reports?dimension=${dimension.value}&granularity=${granularity.value}&days=${days.value}`),columns=[{key:'label',label:'dimension'},...['calls','reached','handoff','completed','failed','no_answer','loss'].map(key=>({key,label:{calls:'periodCalls',reached:'reachedCalls',no_answer:'noAnswer'}[key]||key}))]
-</script><template><PageHeader title="callReports" description="callReportsHint"><el-select v-model="dimension" style="width:140px"><el-option v-for="value in ['campaign','agent','line']" :key="value" :value="value" :label="t(value)"/></el-select><el-select v-model="granularity" style="width:100px"><el-option v-for="value in ['day','hour']" :key="value" :value="value" :label="t(value)"/></el-select><el-select v-model="days" style="width:130px"><el-option v-for="value in [7,30,90]" :key="value" :value="value" :label="t('last'+value+'Days')"/></el-select><el-button @click="query.load">{{t('refresh')}}</el-button></PageHeader><el-alert v-if="query.error.value" :title="query.error.value" type="error"/><MetricCards :data="query.data.value?.summary" :items="[{key:'calls',label:'total'},{key:'reached',label:'reachedCalls'},{key:'handoff',label:'handoff'}]"/><el-card :header="t('callReportRows')"><DataGrid :pagination="10" :rows="query.data.value?.rows" :columns="columns" row-key="key" :loading="query.loading.value"/></el-card><el-card :header="t('trend')"><DataGrid :rows="query.data.value?.trend" :columns="[{key:'bucket',label:'bucket'},...columns.slice(1,-1)]" row-key="bucket"/></el-card></template>
+import { ref } from 'vue';
+import { useData } from '../data';
+import { t } from '../i18n';
+import MetricCards from '../components/MetricCards.vue';
+const dimension = ref('campaign'),
+  granularity = ref('day'),
+  days = ref(30),
+  query = useData(
+    () =>
+      `/api/v1/admin/call-reports?dimension=${dimension.value}&granularity=${granularity.value}&days=${days.value}`,
+  ),
+  columns = [
+    { key: 'label', label: 'dimension' },
+    ...['calls', 'reached', 'handoff', 'completed', 'failed', 'no_answer', 'loss'].map((key) => ({
+      key,
+      label: { calls: 'periodCalls', reached: 'reachedCalls', no_answer: 'noAnswer' }[key] || key,
+    })),
+  ];
+</script>
+<template>
+  <PageHeader title="callReports" description="callReportsHint"
+    ><el-select v-model="dimension" style="width: 140px"
+      ><el-option
+        v-for="value in ['campaign', 'agent', 'line']"
+        :key="value"
+        :value="value"
+        :label="t(value)" /></el-select
+    ><el-select v-model="granularity" style="width: 100px"
+      ><el-option
+        v-for="value in ['day', 'hour']"
+        :key="value"
+        :value="value"
+        :label="t(value)" /></el-select
+    ><el-select v-model="days" style="width: 130px"
+      ><el-option
+        v-for="value in [7, 30, 90]"
+        :key="value"
+        :value="value"
+        :label="t('last' + value + 'Days')" /></el-select
+    ><el-button @click="query.load">{{ t('refresh') }}</el-button></PageHeader
+  ><el-alert v-if="query.error.value" :title="query.error.value" type="error" /><MetricCards
+    :data="query.data.value?.summary"
+    :items="[
+      { key: 'calls', label: 'total' },
+      { key: 'reached', label: 'reachedCalls' },
+      { key: 'handoff', label: 'handoff' },
+    ]"
+  /><el-card :header="t('callReportRows')"
+    ><DataGrid
+      :pagination="10"
+      :rows="query.data.value?.rows"
+      :columns="columns"
+      row-key="key"
+      :loading="query.loading.value" /></el-card
+  ><el-card :header="t('trend')"
+    ><DataGrid
+      :rows="query.data.value?.trend"
+      :columns="[{ key: 'bucket', label: 'bucket' }, ...columns.slice(1, -1)]"
+      row-key="bucket"
+  /></el-card>
+</template>

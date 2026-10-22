@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
           cache-dependency-path: outbound-mono/pom.xml
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -47,7 +47,7 @@ jobs:
       - name: Use the repository's Maven version
         run: |
           mkdir -p "$RUNNER_TEMP/mono-maven"
-          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-17
+          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-21
           docker cp mono-maven-toolchain:/usr/share/maven/. "$RUNNER_TEMP/mono-maven/"
           docker rm mono-maven-toolchain
           echo "$RUNNER_TEMP/mono-maven/bin" >> "$GITHUB_PATH"
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
           cache-dependency-path: outbound-mono/pom.xml
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -101,7 +101,7 @@ jobs:
       - name: Use the locked Maven and frontend versions
         run: |
           mkdir -p "$RUNNER_TEMP/mono-maven"
-          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-17
+          docker create --name mono-maven-toolchain maven:3.9.11-eclipse-temurin-21
           docker cp mono-maven-toolchain:/usr/share/maven/. "$RUNNER_TEMP/mono-maven/"
           docker rm mono-maven-toolchain
           echo "$RUNNER_TEMP/mono-maven/bin" >> "$GITHUB_PATH"

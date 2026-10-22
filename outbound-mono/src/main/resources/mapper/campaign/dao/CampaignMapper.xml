@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.campaign.dao.CampaignMapper">
+    <resultMap id="row" type="com.duozhi.outbound.campaign.domain.Campaign">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="name" javaType="java.lang.String" property="name"/>
+        <result column="script" javaType="java.lang.String" property="script"/>
+        <result column="script_template_id" javaType="java.lang.Integer" property="scriptTemplateId"/>
+        <result column="script_flow_version_id" javaType="java.lang.Integer" property="scriptFlowVersionId"/>
+        <result column="mode" javaType="com.duozhi.outbound.call.domain.enums.CallMode" property="mode"/>
+        <result column="concurrency" javaType="java.lang.Integer" property="concurrency"/>
+        <result column="retry_limit" javaType="java.lang.Integer" property="retryLimit"/>
+        <result column="retry_interval_sec" javaType="java.lang.Integer" property="retryIntervalSec"/>
+        <result column="attempt_interval_sec" javaType="java.lang.Integer" property="attemptIntervalSec"/>
+        <result column="recording_enabled" javaType="java.lang.Boolean" property="recordingEnabled"/>
+        <result column="hangup_sms_enabled" javaType="java.lang.Boolean" property="hangupSmsEnabled"/>
+        <result column="voice_ai_pipeline" javaType="java.lang.String" property="voiceAiPipeline"/>
+        <result column="created_by" javaType="java.lang.Integer" property="createdBy"/>
+        <result column="status" javaType="java.lang.String" property="status"/>
+        <result column="dispatch_enabled" javaType="java.lang.Boolean" property="dispatchEnabled"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `campaign`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `name`,
+            `script`,
+            `script_template_id`,
+            `script_flow_version_id`,
+            `mode`,
+            `concurrency`,
+            `retry_limit`,
+            `retry_interval_sec`,
+            `attempt_interval_sec`,
+            `recording_enabled`,
+            `hangup_sms_enabled`,
+            `voice_ai_pipeline`,
+            `created_by`,
+            `status`,
+            `dispatch_enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.script,jdbcType=LONGVARCHAR},
+            #{row.scriptTemplateId,jdbcType=INTEGER},
+            #{row.scriptFlowVersionId,jdbcType=INTEGER},
+            #{row.mode,jdbcType=VARCHAR},
+            #{row.concurrency,jdbcType=INTEGER},
+            #{row.retryLimit,jdbcType=INTEGER},
+            #{row.retryIntervalSec,jdbcType=INTEGER},
+            #{row.attemptIntervalSec,jdbcType=INTEGER},
+            #{row.recordingEnabled,jdbcType=BOOLEAN},
+            #{row.hangupSmsEnabled,jdbcType=BOOLEAN},
+            #{row.voiceAiPipeline,jdbcType=VARCHAR},
+            #{row.createdBy,jdbcType=INTEGER},
+            #{row.status,jdbcType=LONGVARCHAR},
+            #{row.dispatchEnabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `campaign`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `name`,
+            `script`,
+            `script_template_id`,
+            `script_flow_version_id`,
+            `mode`,
+            `concurrency`,
+            `retry_limit`,
+            `retry_interval_sec`,
+            `attempt_interval_sec`,
+            `recording_enabled`,
+            `hangup_sms_enabled`,
+            `voice_ai_pipeline`,
+            `created_by`,
+            `status`,
+            `dispatch_enabled`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.script,jdbcType=LONGVARCHAR},
+            #{row.scriptTemplateId,jdbcType=INTEGER},
+            #{row.scriptFlowVersionId,jdbcType=INTEGER},
+            #{row.mode,jdbcType=VARCHAR},
+            #{row.concurrency,jdbcType=INTEGER},
+            #{row.retryLimit,jdbcType=INTEGER},
+            #{row.retryIntervalSec,jdbcType=INTEGER},
+            #{row.attemptIntervalSec,jdbcType=INTEGER},
+            #{row.recordingEnabled,jdbcType=BOOLEAN},
+            #{row.hangupSmsEnabled,jdbcType=BOOLEAN},
+            #{row.voiceAiPipeline,jdbcType=VARCHAR},
+            #{row.createdBy,jdbcType=INTEGER},
+            #{row.status,jdbcType=LONGVARCHAR},
+            #{row.dispatchEnabled,jdbcType=BOOLEAN},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `name`, `script`, `script_template_id`, `script_flow_version_id`,
+        `mode`, `concurrency`, `retry_limit`, `retry_interval_sec`, `attempt_interval_sec`,
+        `recording_enabled`, `hangup_sms_enabled`, `voice_ai_pipeline`, `created_by`, `status`,
+        `dispatch_enabled`, `created_at`, `updated_at` FROM `campaign` WHERE `id` =
+        #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `campaign` SET
+        `name` = #{row.name,jdbcType=LONGVARCHAR},
+        `script` = #{row.script,jdbcType=LONGVARCHAR},
+        `script_template_id` = #{row.scriptTemplateId,jdbcType=INTEGER},
+        `script_flow_version_id` = #{row.scriptFlowVersionId,jdbcType=INTEGER},
+        `mode` = #{row.mode,jdbcType=VARCHAR},
+        `concurrency` = #{row.concurrency,jdbcType=INTEGER},
+        `retry_limit` = #{row.retryLimit,jdbcType=INTEGER},
+        `retry_interval_sec` = #{row.retryIntervalSec,jdbcType=INTEGER},
+        `attempt_interval_sec` = #{row.attemptIntervalSec,jdbcType=INTEGER},
+        `recording_enabled` = #{row.recordingEnabled,jdbcType=BOOLEAN},
+        `hangup_sms_enabled` = #{row.hangupSmsEnabled,jdbcType=BOOLEAN},
+        `voice_ai_pipeline` = #{row.voiceAiPipeline,jdbcType=VARCHAR},
+        `created_by` = #{row.createdBy,jdbcType=INTEGER},
+        `status` = #{row.status,jdbcType=LONGVARCHAR},
+        `dispatch_enabled` = #{row.dispatchEnabled,jdbcType=BOOLEAN},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `campaign` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `name`, `script`, `script_template_id`, `script_flow_version_id`,
+        `mode`, `concurrency`, `retry_limit`, `retry_interval_sec`, `attempt_interval_sec`,
+        `recording_enabled`, `hangup_sms_enabled`, `voice_ai_pipeline`, `created_by`, `status`,
+        `dispatch_enabled`, `created_at`, `updated_at` FROM `campaign`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `campaign`
+        <set>
+            <if test="changes.containsKey('name')">
+                `name` = #{changes.name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('script')">
+                `script` = #{changes.script,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('script_template_id')">
+                `script_template_id` = #{changes.script_template_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('script_flow_version_id')">
+                `script_flow_version_id` = #{changes.script_flow_version_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('mode')">
+                `mode` = #{changes.mode,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('concurrency')">
+                `concurrency` = #{changes.concurrency,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('retry_limit')">
+                `retry_limit` = #{changes.retry_limit,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('retry_interval_sec')">
+                `retry_interval_sec` = #{changes.retry_interval_sec,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('attempt_interval_sec')">
+                `attempt_interval_sec` = #{changes.attempt_interval_sec,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('recording_enabled')">
+                `recording_enabled` = #{changes.recording_enabled,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('hangup_sms_enabled')">
+                `hangup_sms_enabled` = #{changes.hangup_sms_enabled,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('voice_ai_pipeline')">
+                `voice_ai_pipeline` = #{changes.voice_ai_pipeline,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('created_by')">
+                `created_by` = #{changes.created_by,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('status')">
+                `status` = #{changes.status,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('dispatch_enabled')">
+                `dispatch_enabled` = #{changes.dispatch_enabled,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceCallLifecycle55_1" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceCallLifecycle66_5" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceCampaigns34_0" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1} FOR UPDATE
+    </select>
+    <select id="sourceCampaigns120_6" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} ORDER BY created_at DESC,id DESC LIMIT
+        #{p1} OFFSET #{p2}
+    </select>
+    <select id="sourceDashboard28_0" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceDashboard29_3" resultType="long">
+        SELECT COUNT(*) FROM `campaign` WHERE tenant_id=#{tenantId} AND status&lt;&gt;'deleted'
+    </select>
+    <select id="sourceHandoffs74_8" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceReports156_5" resultMap="row">
+        SELECT * FROM `campaign` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="reportLabels" resultMap="row">
+        SELECT * FROM campaign WHERE tenant_id = #{tenantId}
+    </select>
+</mapper>
