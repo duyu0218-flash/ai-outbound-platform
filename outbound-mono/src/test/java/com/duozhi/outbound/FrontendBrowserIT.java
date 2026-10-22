@@ -27,7 +27,7 @@ class FrontendBrowserIT {
         store.insert("adminsetting",Values.map("tenant_id",1,"section","compliance","data_json","{\"allowed_start_hour\":0,\"allowed_end_hour\":0}"));
         var call=store.insert("callsession",Values.map("tenant_id",1,"phone","13100000001","mode","ai_only","status","in_ai","attempts",1,"max_attempts",1));
         lifecycle.status(Values.map("call_id",call.get("id"),"kind","status","payload",Values.map("event_id","browser-complete","status","completed","attempt",1,"billable_duration_sec",120)));
-        assertThat(worker.processLane(1L,2)).isTrue();
+        assertThat(worker.processLane(1L,worker.analysisLane())).isTrue();
         store.insert("contact",Values.map("tenant_id",1,"phone","13100000004","name","Browser retry contact","consent_state","consented","consented_by","browser-test"));
         var retryCall=store.insert("callsession",Values.map("tenant_id",1,"phone","13100000004","mode","ai_only","status","completed","attempts",1,"max_attempts",2));
         var loginPage=http.getForEntity("/admin/login",String.class);assertThat(loginPage.getStatusCode().value()).as(String.valueOf(loginPage)).isEqualTo(200);assertThat(loginPage.getBody()).contains("id=\"app\"");

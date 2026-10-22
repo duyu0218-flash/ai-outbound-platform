@@ -15,7 +15,8 @@ class DialRateControlTest {
   org.mockito.Mockito.when(jdbc.queryForMap(org.mockito.ArgumentMatchers.anyString())).thenReturn(java.util.Map.of("n",0,"b",0));
   org.mockito.Mockito.when(provider.getObject()).thenReturn(voice);
   org.mockito.Mockito.when(voice.metricValues()).thenReturn(java.util.Map.of("ai_outbound_voice_gateway_",java.util.Map.of("ready",1),"ai_outbound_voice_security_",java.util.Map.of("stopped",false,"oldest_callback_age_sec",0)));
-  var control=new DialRateControl(config,inbox,jdbc,provider);
+  var pressure=org.mockito.Mockito.mock(RealtimeTaskPressure.class);org.mockito.Mockito.when(pressure.snapshot()).thenReturn(java.util.Map.of("control_age_sec",0d,"ai_age_sec",0d,"dead",0d));
+  var control=new DialRateControl(config,inbox,jdbc,provider,pressure);
   try{control.startSampler();control.startSampler();assertThat(observed.await(3,java.util.concurrent.TimeUnit.SECONDS)).isTrue();assertThat(threadNames).containsExactly("dial-rate-sampler");}
   finally{control.stopSampler();}
  }

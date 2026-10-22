@@ -14,6 +14,7 @@ class DialCommandChunkingTest {
     private void verify(boolean failMiddle){
         var client=mock(TelephonyClient.class);var db=mock(DialBatchStore.class);
         var service=spy(new DialService(null,null,null,null,null,null,client,null,null,null,null,null,null,null));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"drain",mock(DialDrainControl.class));
         var sent=new ArrayList<Integer>();var acknowledged=new ArrayList<String>();var sequence=new AtomicInteger();
         doAnswer(invocation->{List<Map<String,Object>> calls=invocation.getArgument(0);for(var entry:calls)acknowledged.add(((Map<?,?>)entry.get("call")).get("id").toString());return null;}).when(service).acknowledgeTasks(anyList(),same(db));
         when(client.dialBatch(anyList())).thenAnswer(invocation->{
@@ -41,9 +42,21 @@ class DialCommandChunkingTest {
     }
     @Test void incompleteBatchResponseRetainsEveryOriginalIdentity(){
         var client=mock(TelephonyClient.class);var service=new DialService(null,null,null,null,null,null,client,null,null,null,null,null,null,null);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"drain",mock(DialDrainControl.class));
         when(client.dialBatch(anyList())).thenReturn(List.of());
         var entry=JsonSupport.map("call",JsonSupport.map("id","synthetic","tenant_id",1,"attempts",1),"metadata",Map.of(),"payload",new LinkedHashMap<>());
         service.sendTasks(List.of(entry),mock(DialBatchStore.class));
         assertThat(entry).containsEntry("pending_confirmation",true).doesNotContainKey("response");
     }
+    @Test void sendingClosedRetriesOnlyQueryTheOriginalCommandAndCannotRedial(){
+        var client=mock(TelephonyClient.class);var db=mock(DialBatchStore.class);var drain=mock(DialDrainControl.class);
+        when(drain.sendingClosed()).thenReturn(true);
+        var service=spy(new DialService(null,null,null,null,null,null,client,null,null,null,null,null,null,null));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"drain",drain);
+        doReturn(true).when(service).confirmClaimed(anyMap(),anyMap());
+        var call=JsonSupport.map("id","synthetic","tenant_id",1,"attempts",1);var metadata=Map.<String,Object>of();
+        service.sendTasks(List.of(JsonSupport.map("call",call,"metadata",metadata,"payload",new LinkedHashMap<>())),db);
+        org.mockito.Mockito.verify(service).confirmClaimed(same(call),same(metadata));verifyNoInteractions(client,db);
+    }
+
 }
