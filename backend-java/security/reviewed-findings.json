@@ -1,82 +1,72 @@
 {
-  "SERVLET_HEADER:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:approval:(Ljakarta/servlet/http/HttpServletRequest;Z)V:27:27:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/AdminLines.java:com.duozhi.outbound.AdminLines:approval:(Ljakarta/servlet/http/HttpServletRequest;Z)V:29:29:3": {
     "source": "com/duozhi/outbound/AdminLines.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "The approval header is not trusted as identity. A bounded singleton ASCII value must match an independent configured secret with constant-time comparison; admin route also requires an authenticated admin user.",
-    "evidence": "SecurityAttackIntegrationTest administratorCannotEnableRealGatewayWithoutIndependentApproval; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "evidence": "SecurityAttackIntegrationTest administratorCannotEnableRealGatewayWithoutIndependentApproval; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/AdminLines.java": "75ffe7b4791d479f9109faeedf96270406a789e3116751c9af944262dd97c33c"
+      "src/main/java/com/duozhi/outbound/AdminLines.java": "d41510a77e9fface08bcce1f4c8edcb2adc50e48c687d81ab115e44242e58d95"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:update:(Ljava/lang/String;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:26:26:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/AdminSettings.java:com.duozhi.outbound.AdminSettings:update:(Ljava/lang/String;Ljava/util/Map;Ljakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:33:33:3": {
     "source": "com/duozhi/outbound/AdminSettings.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Capacity/compliance changes on real or production configurations require an independent secret with constant-time comparison. Singleton header validation runs before authentication.",
-    "evidence": "SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; HttpBoundary security filter and existing settings integration",
+    "evidence": "SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; HttpBoundary security filter and existing settings integration 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/AdminSettings.java": "90315f1019c34e7d3eaac7fe2b7b894d353c4b289d6eb5712e0903adb02583a9"
+      "src/main/java/com/duozhi/outbound/AdminSettings.java": "eebcdcfd5dbbe52049808afccc36c9703e1fea0710db8dd5ff56c0b0c62ffd42"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:42:42:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:43:43:3": {
     "source": "com/duozhi/outbound/Authentication.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Bearer claims are signature/expiry/revocation checked against current user; API keys use constant-time comparison and production scope checks. Duplicate or oversized/non-ASCII credential headers fail before this method.",
-    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+      "src/main/java/com/duozhi/outbound/Authentication.java": "156f9ddc589aceeb8fb5fc15054b02e9e4518d346145d074d372484c450e419d"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:53:53:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:authenticate:(Ljakarta/servlet/http/HttpServletRequest;)Lcom/duozhi/outbound/Identity;:54:54:3": {
     "source": "com/duozhi/outbound/Authentication.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Bearer claims are signature/expiry/revocation checked against current user; API keys use constant-time comparison and production scope checks. Duplicate or oversized/non-ASCII credential headers fail before this method.",
-    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication",
+    "evidence": "AuthIntegrationTest; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity; StaticSecurityBoundaryTest duplicateSecurityHeadersAreRejectedBeforeAuthentication 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+      "src/main/java/com/duozhi/outbound/Authentication.java": "156f9ddc589aceeb8fb5fc15054b02e9e4518d346145d074d372484c450e419d"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:29:29:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/Authentication.java:com.duozhi.outbound.Authentication:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:30:30:3": {
     "source": "com/duozhi/outbound/Authentication.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Requested tenant header is only compared to the already authenticated identity; it cannot select a tenant. Singleton validation rejects ambiguity before this filter.",
-    "evidence": "AuthIntegrationTest loginTenantScopeLogoutAndRevocation; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity",
+    "evidence": "AuthIntegrationTest loginTenantScopeLogoutAndRevocation; SecurityAttackIntegrationTest duplicateCredentialsCannotSelectTheFirstValidIdentity 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Authentication.java": "58c4158f6f981bdab8483f664ad9b86d23873b60ba2af23f76aa4d29ce906c41"
+      "src/main/java/com/duozhi/outbound/Authentication.java": "156f9ddc589aceeb8fb5fc15054b02e9e4518d346145d074d372484c450e419d"
     }
   },
-  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/ControlApplication.java:com.duozhi.outbound.ControlApplication:main:([Ljava/lang/String;)V:12:12:2": {
+  "URLCONNECTION_SSRF_FD:com/duozhi/outbound/ControlApplication.java:com.duozhi.outbound.ControlApplication:main:([Ljava/lang/String;)V:16:16:2": {
     "source": "com/duozhi/outbound/ControlApplication.java",
     "count": 1,
     "disposition": "fixed_loopback_destination",
     "reason": "Health CLI constructs a URI with the literal host 127.0.0.1, a numeric port bounded 1..65535, fixed /readyz path, no proxy and no redirects. Neither args nor PORT can change the destination host/path.",
-    "evidence": "HealthcheckProcessTest actual child JVM numeric-port and redirect rejection",
+    "evidence": "HealthcheckProcessTest actual child JVM numeric-port and redirect rejection 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ControlApplication.java": "0d0aeb28a182e15fd412af30c680392fb309c57e1dc5ab68409cc40a84d882ab"
+      "src/main/java/com/duozhi/outbound/ControlApplication.java": "eab7e631977f085c1fd284d5dde59b08c7771717a3e1595059bd6bec87733526"
     }
   },
-  "WEAK_MESSAGE_DIGEST_SHA1:com/duozhi/outbound/ConversationPolicy.java:com.duozhi.outbound.ConversationPolicy:uuid5:(Ljava/lang/String;)Ljava/util/UUID;:237:237:2": {
+  "WEAK_MESSAGE_DIGEST_SHA1:com/duozhi/outbound/ConversationPolicy.java:com.duozhi.outbound.ConversationPolicy:uuid5:(Ljava/lang/String;)Ljava/util/UUID;:248:248:2": {
     "source": "com/duozhi/outbound/ConversationPolicy.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "SHA-1 implements deterministic UUID v5 for legacy appointment identities. It is not used for signatures, passwords, authorization or cryptographic integrity. Changing it would break legacy identity compatibility.",
-    "evidence": "ConversationIntegrationTest and Python/Java appointment behavior comparison; StaticSecurityBoundaryTest uuid5RemainsCompatibleWithIndependentPythonReference",
+    "evidence": "ConversationIntegrationTest and Python/Java appointment behavior comparison; StaticSecurityBoundaryTest uuid5RemainsCompatibleWithIndependentPythonReference 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ConversationPolicy.java": "6be16ef928187db6462838452ce6a1d7b2b2c4cd6b1e32988ba3a7edb40423e4"
-    }
-  },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:21:21:2": {
-    "source": "com/duozhi/outbound/Dashboard.java",
-    "count": 1,
-    "disposition": "reviewed_not_exploitable_in_current_call_path",
-    "reason": "SQL fragments are private source constants (REACHED, INTERESTED, join); tenant and date values are JDBC parameters.",
-    "evidence": "OperationsIntegrationTest dashboard tenant scope",
-    "sha256": {
-      "src/main/java/com/duozhi/outbound/Dashboard.java": "3b3dce92908c8ce3d5588a7d161bc31e8282dc37d113ea5746ced39e9443291b"
+      "src/main/java/com/duozhi/outbound/ConversationPolicy.java": "e1edeae89f0bb2d66a9d2f223e146d4af40da339b449ae78f0000b907dee0176"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:27:27:2": {
@@ -84,19 +74,29 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "SQL fragments are private source constants (REACHED, INTERESTED, join); tenant and date values are JDBC parameters.",
-    "evidence": "OperationsIntegrationTest dashboard tenant scope",
+    "evidence": "OperationsIntegrationTest dashboard tenant scope 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Dashboard.java": "3b3dce92908c8ce3d5588a7d161bc31e8282dc37d113ea5746ced39e9443291b"
+      "src/main/java/com/duozhi/outbound/Dashboard.java": "92036a874828252d021ed7ec3f3422ade82acba6c1bed10b559cb33fe8f67a14"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/DataRetention.java:com.duozhi.outbound.DataRetention:archive:(I)I:74:74:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Dashboard.java:com.duozhi.outbound.Dashboard:admin:(Ljakarta/servlet/http/HttpServletRequest;I)Ljava/util/Map;:33:33:2": {
+    "source": "com/duozhi/outbound/Dashboard.java",
+    "count": 1,
+    "disposition": "reviewed_not_exploitable_in_current_call_path",
+    "reason": "SQL fragments are private source constants (REACHED, INTERESTED, join); tenant and date values are JDBC parameters.",
+    "evidence": "OperationsIntegrationTest dashboard tenant scope 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
+    "sha256": {
+      "src/main/java/com/duozhi/outbound/Dashboard.java": "92036a874828252d021ed7ec3f3422ade82acba6c1bed10b559cb33fe8f67a14"
+    }
+  },
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/DataRetention.java:com.duozhi.outbound.DataRetention:archive:(I)I:77:77:2": {
     "source": "com/duozhi/outbound/DataRetention.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table identifiers come only from the literal callevent/callmetric list; cutoff and limit are bound.",
-    "evidence": "RetentionIntegrationTest idempotent archive and tenant separation",
+    "evidence": "RetentionIntegrationTest idempotent archive and tenant separation 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DataRetention.java": "554f44913e4cf74e34dc7f878a6308c6dd6cedaf8cf2530c5369c6fe33b2c5df"
+      "src/main/java/com/duozhi/outbound/DataRetention.java": "a70b38bf6074ec9e1447a5304e511dc70e4ca6230f21f9a7aa9ed30bb7f8197e"
     }
   },
   "SQL_INJECTION_JDBC:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:conflicts:()Ljava/util/List;:89:89:2": {
@@ -104,9 +104,9 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table/column identifiers come from packaged schema SQL, never database row values or HTTP input. The maintenance CLI verifies migration checksums.",
-    "evidence": "DatabaseMigrationTest conflicts/rollback plus PostgreSQL backup/restore rehearsal",
+    "evidence": "DatabaseMigrationTest conflicts/rollback plus PostgreSQL backup/restore rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_INJECTION_JDBC:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:execute:(Ljava/lang/String;)V:53:53:2": {
@@ -114,9 +114,9 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Only bundled schema/runtime/versioned migrations reach this private executor. No HTTP or SQL-text command input exists; checksums reject changed migration history.",
-    "evidence": "DatabaseMigrationTest and PostgreSQL backup/restore rehearsal",
+    "evidence": "DatabaseMigrationTest and PostgreSQL backup/restore rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:additive:()V:130:130:2": {
@@ -124,9 +124,9 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Dynamic ALTER/INDEX identifiers originate in bundled schema definitions, not request data. Atomic version transactions and conflict detection protect existing data.",
-    "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal",
+    "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:additive:()V:121:121:3": {
@@ -134,9 +134,9 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Dynamic ALTER/INDEX identifiers originate in bundled schema definitions, not request data. Atomic version transactions and conflict detection protect existing data.",
-    "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal",
+    "evidence": "DatabaseMigrationTest plus 22-version PostgreSQL rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:apply:()Ljava/util/List;:148:148:3": {
@@ -144,9 +144,9 @@
     "count": 1,
     "disposition": "packaged_sql",
     "reason": "SQL comes only from bundled schema/runtime/versioned migrations; the maintenance CLI never accepts SQL text or HTTP input. Packaged migration history checksums are verified and versions apply transactionally. The complete runtime source/resource scope is digest-bound.",
-    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal",
+    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:bootstrap:()V:116:116:3": {
@@ -154,9 +154,9 @@
     "count": 1,
     "disposition": "packaged_sql",
     "reason": "SQL comes only from bundled schema/runtime/versioned migrations; the maintenance CLI never accepts SQL text or HTTP input. Packaged migration history checksums are verified and versions apply transactionally. The complete runtime source/resource scope is digest-bound.",
-    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal",
+    "evidence": "DatabaseMigrationTest plan/apply/verify, checksum conflict and rollback; PostgreSQL migration rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
   "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING:com/duozhi/outbound/DatabaseMigration.java:com.duozhi.outbound.DatabaseMigration:names:(Ljava/lang/String;)Ljava/util/Set;:58:58:3": {
@@ -164,89 +164,89 @@
     "count": 1,
     "disposition": "packaged_sql",
     "reason": "This method selects only one of four literal SQL statements based on dialect and whether table is null. Table lookup data is bound with setString; it cannot become SQL text.",
-    "evidence": "DatabaseMigrationTest on SQLite and PostgreSQL plus backup/migrate/restore rehearsal",
+    "evidence": "DatabaseMigrationTest on SQLite and PostgreSQL plus backup/migrate/restore rehearsal 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f9e6af1e8d5765174d52d5af32e10843cd8acde09bb4f9e697834fa17131eaf2"
+      "src/main/java/com/duozhi/outbound/DatabaseMigration.java": "f7fda3a356b26d8d02c09deabca1d76cc19b3f09b2abd94b754295883850d212"
     }
   },
-  "UNENCRYPTED_SOCKET:com/duozhi/outbound/ExpiringValues.java:com.duozhi.outbound.ExpiringValues:command:(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Object;:35:35:2": {
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/ExpiringValues.java:com.duozhi.outbound.ExpiringValues:command:(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Object;:36:36:2": {
     "source": "com/duozhi/outbound/ExpiringValues.java",
     "count": 1,
     "disposition": "development_only_plaintext",
     "reason": "Production rejects redis:// before opening a socket, both at startup and transport entry. rediss:// completes certificate/hostname-verified TLS before AUTH/SELECT/commands. Plaintext exists only for explicitly non-production fixtures. RESP nesting and aggregate bytes are bounded.",
-    "evidence": "RedisTlsSecurityTest trusted TLS, hostname mismatch, untrusted issuer, plaintext pre-connect rejection and malformed response limits; HttpBoundaryTest production configuration",
+    "evidence": "RedisTlsSecurityTest trusted TLS, hostname mismatch, untrusted issuer, plaintext pre-connect rejection and malformed response limits; HttpBoundaryTest production configuration 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ExpiringValues.java": "711f692c9a5cbe41508a875f24b7879d377f5cf246b71e5483a5f70bb2032cff"
+      "src/main/java/com/duozhi/outbound/ExpiringValues.java": "c6031543446a1e9eeed209a3f23cb2a91323aab7669bfbe1c3e5af6b8361241f"
     }
   },
-  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:40:40:2": {
+  "HRS_REQUEST_PARAMETER_TO_HTTP_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:45:45:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
-    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "4861dd2d00ea74d755c1c23a34668845075bbd135d925afaef1d3d96b224125e"
     }
   },
-  "PERMISSIVE_CORS:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:43:43:2": {
+  "PERMISSIVE_CORS:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:48:48:2": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
-    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "4861dd2d00ea74d755c1c23a34668845075bbd135d925afaef1d3d96b224125e"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:40:40:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:45:45:3": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
-    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "4861dd2d00ea74d755c1c23a34668845075bbd135d925afaef1d3d96b224125e"
     }
   },
-  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:42:42:3": {
+  "SERVLET_HEADER:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:47:47:3": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
-    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "4861dd2d00ea74d755c1c23a34668845075bbd135d925afaef1d3d96b224125e"
     }
   },
-  "SERVLET_SERVER_NAME:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:41:41:3": {
+  "SERVLET_SERVER_NAME:com/duozhi/outbound/HttpBoundary.java:com.duozhi.outbound.HttpBoundary:doFilterInternal:(Ljakarta/servlet/http/HttpServletRequest;Ljakarta/servlet/http/HttpServletResponse;Ljakarta/servlet/FilterChain;)V:46:46:3": {
     "source": "com/duozhi/outbound/HttpBoundary.java",
     "count": 1,
     "disposition": "validated_header",
     "reason": "Request ID is bounded ASCII or replaced with a fresh UUID. Hosts reject non-ASCII before ASCII-only folding and trusted-host checks. CORS uses only configured exact valid HTTP(S) origins, with no wildcard or browser-cookie credentials. Raw headers never grant an identity.",
-    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest",
+    "evidence": "StaticSecurityBoundaryTest unicodeCaseMappingCannotBypassTrustedHosts, duplicateSecurityHeadersAreRejectedBeforeAuthentication and corsAllowsOnlyExplicitOriginsWithoutAmbientCookieCredentials; HttpBoundaryTest 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "e5334cb86041dee2e48c0243fee85006f9f7dd701563bd5817d68e95fe3aa172"
+      "src/main/java/com/duozhi/outbound/HttpBoundary.java": "4861dd2d00ea74d755c1c23a34668845075bbd135d925afaef1d3d96b224125e"
     }
   },
-  "UNENCRYPTED_SOCKET:com/duozhi/outbound/IntegrationTasks.java:com.duozhi.outbound.IntegrationTasks:pinnedPost:(Ljava/lang/String;[BLjava/util/Map;I)I:67:67:2": {
+  "UNENCRYPTED_SOCKET:com/duozhi/outbound/IntegrationTasks.java:com.duozhi.outbound.IntegrationTasks:pinnedPost:(Ljava/lang/String;[BLjava/util/Map;I)I:71:71:2": {
     "source": "com/duozhi/outbound/IntegrationTasks.java",
     "count": 1,
     "disposition": "verified_tls_transport",
     "reason": "Production transport itself rejects HTTP, even if its caller bypasses settings validation. DNS addresses are pinned and filtered unless the exact private origin was registered; TLS validates the original host before headers/body. HTTP is development-only. Header names/values/framing overrides are validated before DNS/connect.",
-    "evidence": "CallbackTransportTest; StaticSecurityBoundaryTest productionCallbackTransportRejectsHttpEvenIfValidationWasBypassed and outboundHeaderInjectionAndFramingOverridesAreRejectedBeforeConnecting; RedisTlsSecurityTest httpsCallbackRejectsUntrustedCertificateBeforeSendingPayload",
+    "evidence": "CallbackTransportTest; StaticSecurityBoundaryTest productionCallbackTransportRejectsHttpEvenIfValidationWasBypassed and outboundHeaderInjectionAndFramingOverridesAreRejectedBeforeConnecting; RedisTlsSecurityTest httpsCallbackRejectsUntrustedCertificateBeforeSendingPayload 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/IntegrationTasks.java": "c39a4bf09af888eb3c7d7ae217441958390dbf8c74e71c754593f9904837d783"
+      "src/main/java/com/duozhi/outbound/IntegrationTasks.java": "865543ce8c05d19ecc587fefbe41d8aacd562faaea892036c848887029cc5175"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:23:23:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/OperationalMetrics.java:com.duozhi.outbound.OperationalMetrics:metrics:(Ljava/lang/String;)Lorg/springframework/http/ResponseEntity;:28:28:2": {
     "source": "com/duozhi/outbound/OperationalMetrics.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Identifier pairs come from a literal table/column array. No request-controlled SQL fragments reach JDBC.",
-    "evidence": "OperationsIntegrationTest metrics contents and authorization",
+    "evidence": "OperationsIntegrationTest metrics contents and authorization 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "777d90f3e6d9f103fb7e38ea7879c1341562c9beb6948145c16c6b68ab5be8b6"
+      "src/main/java/com/duozhi/outbound/OperationalMetrics.java": "8ee90c68f3a5218d24e1309718b656e27089eaaf9fdcdb70a29efa179a14069e"
     }
   },
   "PATH_TRAVERSAL_IN:com/duozhi/outbound/Pages.java:com.duozhi.outbound.Pages:index:()Lorg/springframework/http/ResponseEntity;:16:16:2": {
@@ -254,79 +254,79 @@
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Path is a deployment-controlled static directory plus the literal index.html; the matched URL suffix is never appended.",
-    "evidence": "portal.spec.ts all menus, deep links and role redirect",
+    "evidence": "portal.spec.ts all menus, deep links and role redirect 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Pages.java": "2030f58c4ac1e6560acf98c0d94045f2f99f581a4472fe63c819c2f628fdac1f"
+      "src/main/java/com/duozhi/outbound/Pages.java": "cad76ff90088a357f4e6ae9d79c93af76249e9483cd8b5f93911aeeef0a21ad4"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:funnel:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:61:61:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/ProductOperations.java:com.duozhi.outbound.ProductOperations:funnel:(ILjakarta/servlet/http/HttpServletRequest;)Ljava/util/Map;:90:90:2": {
     "source": "com/duozhi/outbound/ProductOperations.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Only two literal JSON expressions are selected by database dialect. Tenant and bounded date are JDBC parameters.",
-    "evidence": "ConversationIntegrationTest funnel plus behavior comparison",
+    "evidence": "ConversationIntegrationTest funnel plus behavior comparison 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/ProductOperations.java": "c792e292aa7b9206a80fbe8e4772a5c484f7a1a0da50dbd4ed8e195988d4b65f"
+      "src/main/java/com/duozhi/outbound/ProductOperations.java": "c581ed529b2abe13d61f946740acb1b2a366fb2bb12b0e6a31ace607a876988c"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:count:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)J:56:56:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:count:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)J:63:63:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:delete:(Ljava/lang/String;JLjava/lang/Object;)V:81:81:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:delete:(Ljava/lang/String;JLjava/lang/Object;)V:88:88:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:insert:(Ljava/lang/String;Ljava/util/Map;)Ljava/util/Map;:64:64:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:insert:(Ljava/lang/String;Ljava/util/Map;)Ljava/util/Map;:71:71:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:list:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:43:43:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:list:(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/List;:50:50:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:update:(Ljava/lang/String;JLjava/lang/Object;Ljava/util/Map;)Ljava/util/Map;:77:77:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:update:(Ljava/lang/String;JLjava/lang/Object;Ljava/util/Map;)Ljava/util/Map;:84:84:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
-  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:updateInternal:(Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)V:90:90:2": {
+  "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/Store.java:com.duozhi.outbound.Store:updateInternal:(Ljava/lang/String;Ljava/lang/Object;Ljava/util/Map;)V:97:97:2": {
     "source": "com/duozhi/outbound/Store.java",
     "count": 1,
     "disposition": "reviewed_not_exploitable_in_current_call_path",
     "reason": "Table and column identifiers are allowlisted against packaged tables.json; values are JDBC parameters. where fragments are authored by internal Java callers, never supplied by HTTP parameters. Tenant-scoped paths require ownership.",
-    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests",
+    "evidence": "SecurityRegressionTest dynamicSqlIdentifiersAreAllowlistedAndValuesStayBound plus cross-tenant integration and browser tests 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Store.java": "57956fb723f9960b7dd74b97dccfca717936d57fb11c72680e352968d2385f95"
+      "src/main/java/com/duozhi/outbound/Store.java": "c7b5ea487f45c4dcc26185feb7e5158bc964d320d0a1af1f456beb3e992d88d8"
     }
   },
   "SQL_INJECTION_SPRING_JDBC:com/duozhi/outbound/SystemOverview.java:com.duozhi.outbound.SystemOverview:counts:(Ljava/lang/String;Ljava/lang/String;J)Ljava/util/Map;:20:20:2": {
@@ -354,9 +354,9 @@
     "count": 1,
     "disposition": "validated_header",
     "reason": "Header values alone cannot authenticate callbacks. Production requires configured token and HMAC secret; timestamp age and HMAC over the exact body are checked with constant-time comparison. Singleton header validation blocks duplicate credentials. Unsigned mode is development-only.",
-    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents",
+    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Webhooks.java": "b92c306c069393d15e5cfdb6a0d12180d4c681374282665401d52277d44a7593"
+      "src/main/java/com/duozhi/outbound/Webhooks.java": "342d39b1e270a60ecaa3293a718c8f66acc3b6250ccd1ec2fb25a3da8195f503"
     }
   },
   "SERVLET_HEADER:com/duozhi/outbound/Webhooks.java:com.duozhi.outbound.Webhooks:verify:([BLjakarta/servlet/http/HttpServletRequest;Z)V:28:28:3": {
@@ -364,9 +364,9 @@
     "count": 1,
     "disposition": "validated_header",
     "reason": "Header values alone cannot authenticate callbacks. Production requires configured token and HMAC secret; timestamp age and HMAC over the exact body are checked with constant-time comparison. Singleton header validation blocks duplicate credentials. Unsigned mode is development-only.",
-    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents",
+    "evidence": "LifecycleIntegrationTest signed callback idempotency; SecurityAttackIntegrationTest ambiguousWebhookHeadersCannotWriteEvents 2026-10-22: import and annotation formatting rechecked against normalized Java syntax trees and literals; method/signature, finding type, priority and occurrence counts unchanged. Source hashes and scanner line locations rebound to this reviewed formatting change.",
     "sha256": {
-      "src/main/java/com/duozhi/outbound/Webhooks.java": "b92c306c069393d15e5cfdb6a0d12180d4c681374282665401d52277d44a7593"
+      "src/main/java/com/duozhi/outbound/Webhooks.java": "342d39b1e270a60ecaa3293a718c8f66acc3b6250ccd1ec2fb25a3da8195f503"
     }
   }
 }
