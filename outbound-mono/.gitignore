@@ -8,3 +8,5 @@
 /verification/
 /src/main/resources/static/
 /tools/verify_data_layer.py
+
+/applog/

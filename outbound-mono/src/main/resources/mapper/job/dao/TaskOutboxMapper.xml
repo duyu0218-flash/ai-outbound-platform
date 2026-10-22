@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.job.dao.TaskOutboxMapper">
+    <resultMap id="row" type="com.duozhi.outbound.job.domain.TaskOutbox">
+        <id column="id" javaType="java.util.UUID" property="id" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="task_type" javaType="java.lang.String" property="taskType"/>
+        <result column="aggregate_id" javaType="java.lang.String" property="aggregateId"/>
+        <result column="idempotency_key" javaType="java.lang.String" property="idempotencyKey"/>
+        <result column="payload_json" javaType="java.lang.String" property="payloadJson"/>
+        <result column="state" javaType="com.duozhi.outbound.job.domain.enums.TaskState" property="state"/>
+        <result column="attempts" javaType="java.lang.Integer" property="attempts"/>
+        <result column="max_attempts" javaType="java.lang.Integer" property="maxAttempts"/>
+        <result column="available_at" javaType="java.time.LocalDateTime" property="availableAt"/>
+        <result column="locked_at" javaType="java.time.LocalDateTime" property="lockedAt"/>
+        <result column="lease_token" javaType="java.lang.String" property="leaseToken"/>
+        <result column="last_error" javaType="java.lang.String" property="lastError"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert">
+        INSERT INTO `taskoutbox`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            `id`,
+            `tenant_id`,
+            `task_type`,
+            `aggregate_id`,
+            `idempotency_key`,
+            `payload_json`,
+            `state`,
+            `attempts`,
+            `max_attempts`,
+            `available_at`,
+            `locked_at`,
+            `lease_token`,
+            `last_error`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.taskType,jdbcType=VARCHAR},
+            #{row.aggregateId,jdbcType=VARCHAR},
+            #{row.idempotencyKey,jdbcType=VARCHAR},
+            #{row.payloadJson,jdbcType=LONGVARCHAR},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.attempts,jdbcType=INTEGER},
+            #{row.maxAttempts,jdbcType=INTEGER},
+            #{row.availableAt,jdbcType=TIMESTAMP},
+            #{row.lockedAt,jdbcType=TIMESTAMP},
+            #{row.leaseToken,jdbcType=VARCHAR},
+            #{row.lastError,jdbcType=VARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `payload_json`,
+        `state`, `attempts`, `max_attempts`, `available_at`, `locked_at`, `lease_token`,
+        `last_error`, `created_at`, `updated_at` FROM `taskoutbox` WHERE `id` =
+        #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `taskoutbox` SET
+        `task_type` = #{row.taskType,jdbcType=VARCHAR},
+        `aggregate_id` = #{row.aggregateId,jdbcType=VARCHAR},
+        `idempotency_key` = #{row.idempotencyKey,jdbcType=VARCHAR},
+        `payload_json` = #{row.payloadJson,jdbcType=LONGVARCHAR},
+        `state` = #{row.state,jdbcType=VARCHAR},
+        `attempts` = #{row.attempts,jdbcType=INTEGER},
+        `max_attempts` = #{row.maxAttempts,jdbcType=INTEGER},
+        `available_at` = #{row.availableAt,jdbcType=TIMESTAMP},
+        `locked_at` = #{row.lockedAt,jdbcType=TIMESTAMP},
+        `lease_token` = #{row.leaseToken,jdbcType=VARCHAR},
+        `last_error` = #{row.lastError,jdbcType=VARCHAR},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` =
+        #{row.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `taskoutbox` WHERE `id` =
+        #{id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `task_type`, `aggregate_id`, `idempotency_key`, `payload_json`,
+        `state`, `attempts`, `max_attempts`, `available_at`, `locked_at`, `lease_token`,
+        `last_error`, `created_at`, `updated_at` FROM `taskoutbox`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `taskoutbox`
+        <set>
+            <if test="changes.containsKey('task_type')">
+                `task_type` = #{changes.task_type,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('aggregate_id')">
+                `aggregate_id` = #{changes.aggregate_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('idempotency_key')">
+                `idempotency_key` = #{changes.idempotency_key,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('payload_json')">
+                `payload_json` = #{changes.payload_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('attempts')">
+                `attempts` = #{changes.attempts,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('max_attempts')">
+                `max_attempts` = #{changes.max_attempts,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('available_at')">
+                `available_at` = #{changes.available_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('locked_at')">
+                `locked_at` = #{changes.locked_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('lease_token')">
+                `lease_token` = #{changes.lease_token,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('last_error')">
+                `last_error` = #{changes.last_error,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="findByIdempotencyKey" resultMap="row">
+        SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND idempotency_key = #{key}
+    </select>
+    <select id="pendingAiForAggregate" resultMap="row">
+        SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND aggregate_id = #{aggregate} AND
+        task_type='ai_turn' AND state IN ('PENDING','FAILED') ORDER BY id
+    </select>
+    <select id="lockById" resultMap="row">
+        SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND id =
+        #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} FOR UPDATE
+    </select>
+    <select id="lockByIdSkipLocked" resultMap="row">
+        SELECT * FROM taskoutbox FORCE INDEX(PRIMARY) WHERE tenant_id = #{tenantId} AND id =
+        #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} FOR UPDATE SKIP
+        LOCKED
+    </select>
+    <select id="analysisPredecessors" resultMap="row">
+        SELECT * FROM taskoutbox FORCE INDEX(ix_taskoutbox_stream_scope) WHERE tenant_id=#{tenantId}
+        AND aggregate_id=#{aggregate} AND task_type='call_analysis' AND (created_at&lt;#{created} OR
+        (created_at=#{created} AND
+        id&lt;#{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler})) ORDER BY
+        created_at,id
+    </select>
+    <select id="expiredPayloads" resultMap="row">
+        SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id =
+        #{tenantId} AND task_type IN ('dial_call','ai_turn','business_callback') AND
+        payload_json&lt;&gt;'{}' AND state&lt;&gt;'PROCESSING' AND REPLACE(aggregate_id,'-','') IN (SELECT
+        REPLACE(CAST(id AS CHAR),'-','') FROM callsession WHERE tenant_id = #{tenantId} AND
+        finished_at &lt;= #{cutoff} AND status IN
+        ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')) ORDER BY created_at LIMIT #{limit}
+    </select>
+    <select id="archivableTasks" resultMap="row">
+        SELECT * FROM taskoutbox WHERE tenant_id = #{tenantId} AND state='COMPLETED' AND updated_at
+        &lt;= #{cutoff} AND EXISTS (SELECT 1 FROM callsession c WHERE c.tenant_id=taskoutbox.tenant_id
+        AND REPLACE(CAST(c.id AS CHAR),'-','')=REPLACE(taskoutbox.aggregate_id,'-','') AND
+        c.finished_at &lt;= #{cutoff} AND c.phone LIKE 'redacted:%' AND c.status IN
+        ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')) ORDER BY updated_at LIMIT #{limit}
+    </select>
+    <select id="sourceAdminOperations13_0" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND id=#{p1} FOR UPDATE
+    </select>
+    <select id="sourceSystemOverview46_2" resultType="long">
+        SELECT COUNT(*) FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND state='PROCESSING' AND
+        locked_at&lt;=#{p1}
+    </select>
+    <select id="sourceSystemOverview47_3" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND state IN
+        ('PENDING','FAILED','PROCESSING') ORDER BY created_at ASC LIMIT 1
+    </select>
+    <select id="sourceVoiceCallbacks114_3" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id=#{tenantId} AND aggregate_id=#{p1} AND
+        task_type='after_playback' AND state='PENDING'
+    </select>
+    <select id="scopedOperationalMetrics25" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (task_type=#{p0} AND state IN
+        ('PENDING','FAILED') AND available_at&lt;=#{p1}) ORDER BY available_at LIMIT 1
+    </select>
+    <select id="scopedTaskWorker60" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (task_type='ai_turn' AND state
+        IN ('PENDING','FAILED') AND available_at&lt;=#{p0}) ORDER BY available_at LIMIT 1
+    </select>
+    <select id="scopedTaskWorker107" resultType="long">
+        SELECT COUNT(*) FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (id=#{p0} AND
+        state='PROCESSING' AND lease_token=#{p1} AND locked_at&gt;#{p2})
+    </select>
+    <select id="scopedTaskWorker151" resultMap="row">
+        SELECT * FROM `taskoutbox` WHERE tenant_id = #{tenantId} AND (id=#{p0} AND
+        state='PROCESSING' AND lease_token=#{p1} AND locked_at&gt;#{p2}) FOR UPDATE
+    </select>
+    <select id="abandonedLeases" resultMap="row">
+        SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id =
+        #{tenantId} AND task_type IN
+        <foreach close=")" collection="types" item="type" open="(" separator=",">
+            #{type}
+        </foreach>
+        AND state='PROCESSING' AND locked_at &lt;= #{cutoff} AND attempts &gt;= max_attempts LIMIT 10
+    </select>
+    <select id="claimCandidate" resultMap="row">
+        SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id =
+        #{tenantId} AND task_type IN
+        <foreach close=")" collection="types" item="type" open="(" separator=",">
+            #{type}
+        </foreach>
+        <if test="recoverOnly">
+            AND (task_type&lt;&gt;'dial_call' OR EXISTS(SELECT 1 FROM dial_command_journal j WHERE
+            j.tenant_id=taskoutbox.tenant_id AND j.call_id=taskoutbox.aggregate_id AND
+            j.attempt=JSON_EXTRACT(taskoutbox.payload_json,'$.attempt')+1))
+        </if>
+        <if test="controlPartitions != null and controlPartitions &gt; 1">
+            AND
+            MOD(CRC32(CONCAT(tenant_id,':',LOWER(REPLACE(aggregate_id,'-','')))),#{controlPartitions})=#{controlPartition}
+        </if>
+        AND available_at &lt;= #{now} AND attempts &lt; max_attempts AND (state IN ('PENDING','FAILED') OR
+        (state='PROCESSING' AND locked_at &lt;= #{cutoff})) AND NOT EXISTS (SELECT 1 FROM taskoutbox
+        older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE taskoutbox.task_type&lt;&gt;'after_playback'
+        AND older.tenant_id=taskoutbox.tenant_id AND older.aggregate_id=taskoutbox.aggregate_id AND
+        (older.task_type=taskoutbox.task_type OR (older.task_type IN
+        ('recording_ingest','recording_delete') AND taskoutbox.task_type IN
+        ('recording_ingest','recording_delete'))) AND older.state IN
+        ('PENDING','FAILED','PROCESSING') AND (older.created_at&lt;taskoutbox.created_at OR
+        (older.created_at=taskoutbox.created_at AND older.id&lt;taskoutbox.id))) ORDER BY
+        available_at,id LIMIT
+        <choose>
+            <when test="parallelClaim">
+                16
+            </when>
+            <otherwise>
+                1
+            </otherwise>
+        </choose>
+    </select>
+    <!--Terminal facts supersede only this attempt's unowned real-time controls.
+       Appointments and PROCESSING/DEAD tasks remain durable and untouched.-->
+    <select id="obsoleteControls" resultMap="row">
+        SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_stream_scope)
+        WHERE tenant_id=#{tenantId} AND aggregate_id IN
+        <foreach close=")" collection="ids" item="id" open="(" separator=",">
+            #{id}
+        </foreach>
+        AND task_type IN ('ai_turn','after_playback','interrupt_playback') AND state IN
+        ('PENDING','FAILED')
+        AND
+        COALESCE(JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(payload_json),payload_json,'{}'),'$.product_kind')),'')&lt;&gt;'appointment'
+        AND EXISTS(SELECT 1 FROM callsession c WHERE c.tenant_id=t.tenant_id AND c.id=t.aggregate_id
+        AND c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')
+        AND c.attempts=JSON_EXTRACT(IF(JSON_VALID(t.payload_json),t.payload_json,'{}'),'$.attempt'))
+        ORDER BY t.id LIMIT 1000 FOR UPDATE SKIP LOCKED
+    </select>
+    <update id="renewLease">
+        UPDATE taskoutbox SET locked_at=#{now},updated_at=#{now} WHERE tenant_id = #{tenantId} AND
+        id=#{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} AND
+        state='PROCESSING' AND lease_token=#{lease} AND locked_at &gt; #{cutoff}
+    </update>
+    <select id="systemCounts" resultType="java.util.LinkedHashMap">
+        SELECT state,COUNT(*) AS n FROM taskoutbox WHERE tenant_id = #{tenantId} GROUP BY state
+    </select>
+    <select id="metricsGroupstate" resultType="java.util.LinkedHashMap">
+        SELECT state AS value,COUNT(*) AS total FROM taskoutbox WHERE tenant_id = #{tenantId} GROUP
+        BY state
+    </select>
+    <!--Same typed fields as patchFields; one tenant and distinct locked IDs.-->
+    <update id="patchBatch">
+        UPDATE `taskoutbox` FORCE INDEX(PRIMARY)
+        <set>
+            <if test="rows[0].changes.containsKey('task_type')">
+                `task_type` =
+                <choose>
+                    <when test="constants != null and constants.contains('task_type')">
+                        #{rows[0].changes.task_type,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.task_type,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `task_type` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('aggregate_id')">
+                `aggregate_id` =
+                <choose>
+                    <when test="constants != null and constants.contains('aggregate_id')">
+                        #{rows[0].changes.aggregate_id,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.aggregate_id,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `aggregate_id` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('idempotency_key')">
+                `idempotency_key` =
+                <choose>
+                    <when test="constants != null and constants.contains('idempotency_key')">
+                        #{rows[0].changes.idempotency_key,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.idempotency_key,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `idempotency_key` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('payload_json')">
+                `payload_json` =
+                <choose>
+                    <when test="constants != null and constants.contains('payload_json')">
+                        #{rows[0].changes.payload_json,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.payload_json,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `payload_json` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('state')">
+                `state` =
+                <choose>
+                    <when test="constants != null and constants.contains('state')">
+                        #{rows[0].changes.state,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.state,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `state` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('attempts')">
+                `attempts` =
+                <choose>
+                    <when test="constants != null and constants.contains('attempts')">
+                        #{rows[0].changes.attempts,jdbcType=INTEGER}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.attempts,jdbcType=INTEGER}
+                        </foreach>
+                        ELSE `attempts` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('max_attempts')">
+                `max_attempts` =
+                <choose>
+                    <when test="constants != null and constants.contains('max_attempts')">
+                        #{rows[0].changes.max_attempts,jdbcType=INTEGER}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.max_attempts,jdbcType=INTEGER}
+                        </foreach>
+                        ELSE `max_attempts` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('available_at')">
+                `available_at` =
+                <choose>
+                    <when test="constants != null and constants.contains('available_at')">
+                        #{rows[0].changes.available_at,jdbcType=TIMESTAMP}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.available_at,jdbcType=TIMESTAMP}
+                        </foreach>
+                        ELSE `available_at` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('locked_at')">
+                `locked_at` =
+                <choose>
+                    <when test="constants != null and constants.contains('locked_at')">
+                        #{rows[0].changes.locked_at,jdbcType=TIMESTAMP}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.locked_at,jdbcType=TIMESTAMP}
+                        </foreach>
+                        ELSE `locked_at` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('lease_token')">
+                `lease_token` =
+                <choose>
+                    <when test="constants != null and constants.contains('lease_token')">
+                        #{rows[0].changes.lease_token,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.lease_token,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `lease_token` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('last_error')">
+                `last_error` =
+                <choose>
+                    <when test="constants != null and constants.contains('last_error')">
+                        #{rows[0].changes.last_error,jdbcType=VARCHAR}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.last_error,jdbcType=VARCHAR}
+                        </foreach>
+                        ELSE `last_error` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+            <if test="rows[0].changes.containsKey('updated_at')">
+                `updated_at` =
+                <choose>
+                    <when test="constants != null and constants.contains('updated_at')">
+                        #{rows[0].changes.updated_at,jdbcType=TIMESTAMP}
+                    </when>
+                    <otherwise>
+                        CASE id
+                        <foreach collection="rows" item="r" separator=" ">
+                            WHEN
+                            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} THEN #{r.changes.updated_at,jdbcType=TIMESTAMP}
+                        </foreach>
+                        ELSE `updated_at` END
+                    </otherwise>
+                </choose>
+                ,
+            </if>
+        </set>
+        WHERE tenant_id=#{tenantId,jdbcType=INTEGER} AND id IN
+        <foreach close=")" collection="rows" item="r" open="(" separator=",">
+            #{r.id,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        </foreach>
+    </update>
+</mapper>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.customer.dao.PhoneSuppressionMapper">
+    <resultMap id="row" type="com.duozhi.outbound.customer.domain.PhoneSuppression">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="phone" javaType="java.lang.String" property="phone"/>
+        <result column="reason" javaType="java.lang.String" property="reason"/>
+        <result column="source_call_id" javaType="java.util.UUID" property="sourceCallId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `phonesuppression`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `phone`,
+            `reason`,
+            `source_call_id`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.phone,jdbcType=VARCHAR},
+            #{row.reason,jdbcType=LONGVARCHAR},
+            #{row.sourceCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `phonesuppression`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `phone`,
+            `reason`,
+            `source_call_id`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.phone,jdbcType=VARCHAR},
+            #{row.reason,jdbcType=LONGVARCHAR},
+            #{row.sourceCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `phone`, `reason`, `source_call_id`, `created_at` FROM
+        `phonesuppression` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `phonesuppression` SET
+        `phone` = #{row.phone,jdbcType=VARCHAR},
+        `reason` = #{row.reason,jdbcType=LONGVARCHAR},
+        `source_call_id` =
+        #{row.sourceCallId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `phonesuppression` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `phone`, `reason`, `source_call_id`, `created_at` FROM
+        `phonesuppression`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `phonesuppression`
+        <set>
+            <if test="changes.containsKey('phone')">
+                `phone` = #{changes.phone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('reason')">
+                `reason` = #{changes.reason,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('source_call_id')">
+                `source_call_id` = #{changes.source_call_id,jdbcType=VARCHAR},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="countPhone" resultType="long">
+        SELECT COUNT(*) FROM phonesuppression WHERE tenant_id = #{tenantId} AND phone = #{phone}
+    </select>
+    <select id="sourceAiRuntime231_8" resultType="long">
+        SELECT COUNT(*) FROM `phonesuppression` WHERE tenant_id=#{tenantId} AND phone=#{p1}
+    </select>
+    <select id="sourceCallLifecycle65_4" resultType="long">
+        SELECT COUNT(*) FROM `phonesuppression` WHERE tenant_id=#{tenantId} AND phone=#{p1}
+    </select>
+    <select id="sourceConversationPolicy66_4" resultType="long">
+        SELECT COUNT(*) FROM `phonesuppression` WHERE tenant_id=#{tenantId} AND phone=#{p1}
+    </select>
+</mapper>

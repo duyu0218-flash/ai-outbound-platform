@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.customer.dao.ContactMapper">
+    <resultMap id="row" type="com.duozhi.outbound.customer.domain.Contact">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="phone" javaType="java.lang.String" property="phone"/>
+        <result column="name" javaType="java.lang.String" property="name"/>
+        <result column="tags" javaType="java.lang.String" property="tags"/>
+        <result column="consent_state" javaType="com.duozhi.outbound.customer.domain.enums.ConsentState" property="consentState"/>
+        <result column="consented_at" javaType="java.time.LocalDateTime" property="consentedAt"/>
+        <result column="consented_by" javaType="java.lang.String" property="consentedBy"/>
+        <result column="dnc" javaType="java.lang.Boolean" property="dnc"/>
+        <result column="dnc_reason" javaType="java.lang.String" property="dncReason"/>
+        <result column="timezone" javaType="java.lang.String" property="timezone"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `contact`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `phone`,
+            `name`,
+            `tags`,
+            `consent_state`,
+            `consented_at`,
+            `consented_by`,
+            `dnc`,
+            `dnc_reason`,
+            `timezone`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.phone,jdbcType=VARCHAR},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.tags,jdbcType=LONGVARCHAR},
+            #{row.consentState,jdbcType=VARCHAR},
+            #{row.consentedAt,jdbcType=TIMESTAMP},
+            #{row.consentedBy,jdbcType=LONGVARCHAR},
+            #{row.dnc,jdbcType=BOOLEAN},
+            #{row.dncReason,jdbcType=LONGVARCHAR},
+            #{row.timezone,jdbcType=LONGVARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `contact`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `phone`,
+            `name`,
+            `tags`,
+            `consent_state`,
+            `consented_at`,
+            `consented_by`,
+            `dnc`,
+            `dnc_reason`,
+            `timezone`,
+            `created_at`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.phone,jdbcType=VARCHAR},
+            #{row.name,jdbcType=LONGVARCHAR},
+            #{row.tags,jdbcType=LONGVARCHAR},
+            #{row.consentState,jdbcType=VARCHAR},
+            #{row.consentedAt,jdbcType=TIMESTAMP},
+            #{row.consentedBy,jdbcType=LONGVARCHAR},
+            #{row.dnc,jdbcType=BOOLEAN},
+            #{row.dncReason,jdbcType=LONGVARCHAR},
+            #{row.timezone,jdbcType=LONGVARCHAR},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `phone`, `name`, `tags`, `consent_state`, `consented_at`,
+        `consented_by`, `dnc`, `dnc_reason`, `timezone`, `created_at`, `updated_at` FROM `contact`
+        WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `contact` SET
+        `phone` = #{row.phone,jdbcType=VARCHAR},
+        `name` = #{row.name,jdbcType=LONGVARCHAR},
+        `tags` = #{row.tags,jdbcType=LONGVARCHAR},
+        `consent_state` = #{row.consentState,jdbcType=VARCHAR},
+        `consented_at` = #{row.consentedAt,jdbcType=TIMESTAMP},
+        `consented_by` = #{row.consentedBy,jdbcType=LONGVARCHAR},
+        `dnc` = #{row.dnc,jdbcType=BOOLEAN},
+        `dnc_reason` = #{row.dncReason,jdbcType=LONGVARCHAR},
+        `timezone` = #{row.timezone,jdbcType=LONGVARCHAR},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `contact` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `phone`, `name`, `tags`, `consent_state`, `consented_at`,
+        `consented_by`, `dnc`, `dnc_reason`, `timezone`, `created_at`, `updated_at` FROM `contact`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `contact`
+        <set>
+            <if test="changes.containsKey('phone')">
+                `phone` = #{changes.phone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('name')">
+                `name` = #{changes.name,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('tags')">
+                `tags` = #{changes.tags,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('consent_state')">
+                `consent_state` = #{changes.consent_state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('consented_at')">
+                `consented_at` = #{changes.consented_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('consented_by')">
+                `consented_by` = #{changes.consented_by,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('dnc')">
+                `dnc` = #{changes.dnc,jdbcType=BOOLEAN},
+            </if>
+            <if test="changes.containsKey('dnc_reason')">
+                `dnc_reason` = #{changes.dnc_reason,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('timezone')">
+                `timezone` = #{changes.timezone,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <sql id="contactFilters">
+        WHERE tenant_id = #{tenantId}
+        <if test="keyword != null and keyword != ''">
+            AND (phone LIKE CONCAT('%',#{keyword},'%') OR name LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="dnc != null">
+            AND dnc = #{dnc}
+        </if>
+        <if test="consent != null">
+            AND consent_state = #{consent}
+        </if>
+    </sql>
+    <select id="searchContacts" resultMap="row">
+        SELECT * FROM contact
+        WHERE tenant_id = #{tenantId}
+        <if test="keyword != null and keyword != ''">
+            AND (phone LIKE CONCAT('%',#{keyword},'%') OR name LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="ids != null">
+            AND id IN
+            <foreach close=")" collection="ids" item="id" open="(" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        <if test="dnc != null">
+            AND dnc = #{dnc}
+        </if>
+        <if test="consent != null">
+            AND consent_state = #{consent}
+        </if>
+        ORDER BY created_at DESC,id DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="exportContacts" resultMap="row">
+        SELECT * FROM contact WHERE tenant_id = #{tenantId}
+        <if test="keyword != null and keyword != ''">
+            AND (phone LIKE CONCAT('%',#{keyword},'%') OR name LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        <if test="dnc != null">
+            AND dnc = #{dnc}
+        </if>
+        <if test="consent != null">
+            AND consent_state = #{consent}
+        </if>
+        <if test="last != null">
+            AND id &lt; #{last}
+        </if>
+        ORDER BY id DESC LIMIT 500
+    </select>
+    <select id="findByPhone" resultMap="row">
+        SELECT * FROM contact WHERE tenant_id = #{tenantId} AND phone = #{phone}
+    </select>
+    <select id="countPhone" resultType="long">
+        SELECT COUNT(*) FROM contact WHERE tenant_id = #{tenantId} AND phone = #{phone}
+    </select>
+    <select id="campaignReferences" resultType="long">
+        SELECT COUNT(*) FROM campaigncontact cc JOIN campaign c ON c.id=cc.campaign_id WHERE
+        c.tenant_id = #{tenantId} AND cc.contact_id = #{id} AND c.status&lt;&gt;'deleted'
+    </select>
+    <select id="sourceCampaigns54_2" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceCampaigns218_10" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceConversationPolicy67_5" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId} AND phone=#{p1}
+    </select>
+    <select id="sourceDashboard29_1" resultType="long">
+        SELECT COUNT(*) FROM `contact` WHERE tenant_id=#{tenantId}
+    </select>
+    <select id="sourceHandoffs74_7" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+    <select id="sourceReports86_2" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId}
+    </select>
+    <select id="sourceReports180_7" resultMap="row">
+        SELECT * FROM `contact` WHERE tenant_id=#{tenantId} AND id=#{p1}
+    </select>
+</mapper>

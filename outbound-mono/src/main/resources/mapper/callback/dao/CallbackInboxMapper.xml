@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.callback.dao.CallbackInboxMapper">
+    <resultMap id="row" type="com.duozhi.outbound.callback.domain.CallbackInbox">
+        <id column="id" javaType="java.lang.Long" property="id"/>
+        <result column="receipt_key" javaType="java.lang.String" property="receiptKey"/>
+        <result column="partition_id" javaType="java.lang.Integer" property="partitionId"/>
+        <result column="call_id" javaType="java.util.UUID" property="callId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="kind" javaType="java.lang.String" property="kind"/>
+        <result column="body_json" javaType="java.lang.String" property="bodyJson"/>
+        <result column="body_digest" javaType="java.lang.String" property="bodyDigest"/>
+        <result column="body_bytes" javaType="java.lang.Integer" property="bodyBytes"/>
+        <result column="state" javaType="java.lang.String" property="state"/>
+        <result column="received_at" javaType="java.time.LocalDateTime" property="receivedAt"/>
+        <result column="available_at" javaType="java.time.LocalDateTime" property="availableAt"/>
+        <result column="completed_at" javaType="java.time.LocalDateTime" property="completedAt"/>
+        <result column="attempts" javaType="java.lang.Integer" property="attempts"/>
+        <result column="error_type" javaType="java.lang.String" property="errorType"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `callbackinbox`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `receipt_key`,
+            `partition_id`,
+            `call_id`,
+            `kind`,
+            `body_json`,
+            `body_digest`,
+            `body_bytes`,
+            `state`,
+            `received_at`,
+            `available_at`,
+            `completed_at`,
+            `attempts`,
+            `error_type`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=BIGINT},
+            </if>
+            #{row.receiptKey,jdbcType=VARCHAR},
+            #{row.partitionId,jdbcType=INTEGER},
+            #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.kind,jdbcType=VARCHAR},
+            #{row.bodyJson,jdbcType=LONGVARCHAR},
+            #{row.bodyDigest,jdbcType=VARCHAR},
+            #{row.bodyBytes,jdbcType=INTEGER},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.receivedAt,jdbcType=TIMESTAMP},
+            #{row.availableAt,jdbcType=TIMESTAMP},
+            #{row.completedAt,jdbcType=TIMESTAMP},
+            #{row.attempts,jdbcType=INTEGER},
+            #{row.errorType,jdbcType=VARCHAR},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `callbackinbox`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `receipt_key`,
+            `partition_id`,
+            `call_id`,
+            `kind`,
+            `body_json`,
+            `body_digest`,
+            `body_bytes`,
+            `state`,
+            `received_at`,
+            `available_at`,
+            `completed_at`,
+            `attempts`,
+            `error_type`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=BIGINT},
+            </if>
+            #{row.receiptKey,jdbcType=VARCHAR},
+            #{row.partitionId,jdbcType=INTEGER},
+            #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.kind,jdbcType=VARCHAR},
+            #{row.bodyJson,jdbcType=LONGVARCHAR},
+            #{row.bodyDigest,jdbcType=VARCHAR},
+            #{row.bodyBytes,jdbcType=INTEGER},
+            #{row.state,jdbcType=VARCHAR},
+            #{row.receivedAt,jdbcType=TIMESTAMP},
+            #{row.availableAt,jdbcType=TIMESTAMP},
+            #{row.completedAt,jdbcType=TIMESTAMP},
+            #{row.attempts,jdbcType=INTEGER},
+            #{row.errorType,jdbcType=VARCHAR},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `receipt_key`, `partition_id`, `call_id`, `kind`, `body_json`, `body_digest`,
+        `body_bytes`, `state`, `received_at`, `available_at`, `completed_at`, `attempts`,
+        `error_type` FROM `callbackinbox` WHERE `id` = #{id,jdbcType=BIGINT}
+    </select>
+    <update id="updateById">
+        UPDATE `callbackinbox` SET
+        `receipt_key` = #{row.receiptKey,jdbcType=VARCHAR},
+        `partition_id` = #{row.partitionId,jdbcType=INTEGER},
+        `call_id` =
+        #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `kind` = #{row.kind,jdbcType=VARCHAR},
+        `body_json` = #{row.bodyJson,jdbcType=LONGVARCHAR},
+        `body_digest` = #{row.bodyDigest,jdbcType=VARCHAR},
+        `body_bytes` = #{row.bodyBytes,jdbcType=INTEGER},
+        `state` = #{row.state,jdbcType=VARCHAR},
+        `received_at` = #{row.receivedAt,jdbcType=TIMESTAMP},
+        `available_at` = #{row.availableAt,jdbcType=TIMESTAMP},
+        `completed_at` = #{row.completedAt,jdbcType=TIMESTAMP},
+        `attempts` = #{row.attempts,jdbcType=INTEGER},
+        `error_type` = #{row.errorType,jdbcType=VARCHAR}
+        WHERE `id` = #{row.id,jdbcType=BIGINT}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `callbackinbox` WHERE `id` = #{id,jdbcType=BIGINT}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `receipt_key`, `partition_id`, `call_id`, `kind`, `body_json`, `body_digest`,
+        `body_bytes`, `state`, `received_at`, `available_at`, `completed_at`, `attempts`,
+        `error_type` FROM `callbackinbox`
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `callbackinbox`
+        <set>
+            <if test="changes.containsKey('receipt_key')">
+                `receipt_key` = #{changes.receipt_key,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('partition_id')">
+                `partition_id` = #{changes.partition_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('call_id')">
+                `call_id` = #{changes.call_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('kind')">
+                `kind` = #{changes.kind,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('body_json')">
+                `body_json` = #{changes.body_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('body_digest')">
+                `body_digest` = #{changes.body_digest,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('body_bytes')">
+                `body_bytes` = #{changes.body_bytes,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('state')">
+                `state` = #{changes.state,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('received_at')">
+                `received_at` = #{changes.received_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('available_at')">
+                `available_at` = #{changes.available_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('completed_at')">
+                `completed_at` = #{changes.completed_at,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('attempts')">
+                `attempts` = #{changes.attempts,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('error_type')">
+                `error_type` = #{changes.error_type,jdbcType=VARCHAR},
+            </if>
+        </set>
+        WHERE `id` = #{id}
+    </update>
+    <select id="sourceCallbackInbox28_0" resultMap="row">
+        SELECT * FROM `callbackinbox` WHERE state IN ('pending','dead') ORDER BY received_at LIMIT 1
+    </select>
+    <select id="sourceCallbackInbox30_1" resultType="long">
+        SELECT COUNT(*) FROM `callbackinbox` WHERE state='dead'
+    </select>
+    <select id="sourceCallbackInbox58_5" resultMap="row">
+        SELECT * FROM `callbackinbox` WHERE receipt_key=#{p0}
+    </select>
+    <select id="sourceCallbackInbox100_7" resultMap="row">
+        SELECT * FROM `callbackinbox` WHERE partition_id=#{p0} AND state='pending' AND
+        available_at&lt;=#{p1} AND NOT EXISTS (SELECT 1 FROM callbackinbox older WHERE
+        older.call_id=callbackinbox.call_id AND older.id&lt;callbackinbox.id AND older.state&lt;&gt;'done')
+        ORDER BY id ASC LIMIT 1
+    </select>
+    <select id="sourceCallbackInbox115_8" resultMap="row">
+        SELECT * FROM `callbackinbox` WHERE id=#{p0} FOR UPDATE
+    </select>
+    <select id="expiredReceipts" resultMap="row">
+        SELECT * FROM callbackinbox WHERE state='done' AND completed_at&lt;#{p0} ORDER BY id LIMIT 100
+    </select>
+    <delete id="deleteExpiredReceipt">
+        DELETE FROM callbackinbox WHERE id=#{id} AND state='done' AND completed_at&lt;#{cutoff}
+    </delete>
+    <select id="rawTaskWorker192_1" resultType="java.util.LinkedHashMap">
+        SELECT DISTINCT partition_id FROM callbackinbox WHERE state='pending' LIMIT 64
+    </select>
+</mapper>

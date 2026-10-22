@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.call.dao.ConversationStateMapper">
+    <resultMap id="row" type="com.duozhi.outbound.call.domain.ConversationState">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="call_id" javaType="java.util.UUID" property="callId" typeHandler="com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler"/>
+        <result column="attempt" javaType="java.lang.Integer" property="attempt"/>
+        <result column="policy_json" javaType="java.lang.String" property="policyJson"/>
+        <result column="policy_version_id" javaType="java.lang.Integer" property="policyVersionId"/>
+        <result column="data_json" javaType="java.lang.String" property="dataJson"/>
+        <result column="generation" javaType="java.lang.Integer" property="generation"/>
+        <result column="deadline" javaType="java.time.LocalDateTime" property="deadline"/>
+        <result column="timer_kind" javaType="java.lang.String" property="timerKind"/>
+        <result column="updated_at" javaType="java.time.LocalDateTime" property="updatedAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `conversationstate`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_id`,
+            `attempt`,
+            `policy_json`,
+            `policy_version_id`,
+            `data_json`,
+            `generation`,
+            `deadline`,
+            `timer_kind`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.policyJson,jdbcType=LONGVARCHAR},
+            #{row.policyVersionId,jdbcType=INTEGER},
+            #{row.dataJson,jdbcType=LONGVARCHAR},
+            #{row.generation,jdbcType=INTEGER},
+            #{row.deadline,jdbcType=TIMESTAMP},
+            #{row.timerKind,jdbcType=LONGVARCHAR},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `conversationstate`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `call_id`,
+            `attempt`,
+            `policy_json`,
+            `policy_version_id`,
+            `data_json`,
+            `generation`,
+            `deadline`,
+            `timer_kind`,
+            `updated_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+            #{row.attempt,jdbcType=INTEGER},
+            #{row.policyJson,jdbcType=LONGVARCHAR},
+            #{row.policyVersionId,jdbcType=INTEGER},
+            #{row.dataJson,jdbcType=LONGVARCHAR},
+            #{row.generation,jdbcType=INTEGER},
+            #{row.deadline,jdbcType=TIMESTAMP},
+            #{row.timerKind,jdbcType=LONGVARCHAR},
+            #{row.updatedAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_id`, `attempt`, `policy_json`, `policy_version_id`,
+        `data_json`, `generation`, `deadline`, `timer_kind`, `updated_at` FROM `conversationstate`
+        WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `conversationstate` SET
+        `call_id` =
+        #{row.callId,jdbcType=CHAR,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler},
+        `attempt` = #{row.attempt,jdbcType=INTEGER},
+        `policy_json` = #{row.policyJson,jdbcType=LONGVARCHAR},
+        `policy_version_id` = #{row.policyVersionId,jdbcType=INTEGER},
+        `data_json` = #{row.dataJson,jdbcType=LONGVARCHAR},
+        `generation` = #{row.generation,jdbcType=INTEGER},
+        `deadline` = #{row.deadline,jdbcType=TIMESTAMP},
+        `timer_kind` = #{row.timerKind,jdbcType=LONGVARCHAR},
+        `updated_at` = #{row.updatedAt,jdbcType=TIMESTAMP}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `conversationstate` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `call_id`, `attempt`, `policy_json`, `policy_version_id`,
+        `data_json`, `generation`, `deadline`, `timer_kind`, `updated_at` FROM `conversationstate`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `conversationstate`
+        <set>
+            <if test="changes.containsKey('call_id')">
+                `call_id` = #{changes.call_id,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('attempt')">
+                `attempt` = #{changes.attempt,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('policy_json')">
+                `policy_json` = #{changes.policy_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('policy_version_id')">
+                `policy_version_id` = #{changes.policy_version_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('data_json')">
+                `data_json` = #{changes.data_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('generation')">
+                `generation` = #{changes.generation,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('deadline')">
+                `deadline` = #{changes.deadline,jdbcType=TIMESTAMP},
+            </if>
+            <if test="changes.containsKey('timer_kind')">
+                `timer_kind` = #{changes.timer_kind,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('updated_at')">
+                `updated_at` = #{changes.updated_at,jdbcType=TIMESTAMP},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <update id="redactCallEvidence">
+        UPDATE conversationstate SET
+        data_json='{}',policy_json='{}',deadline=NULL,generation=generation+1 WHERE tenant_id =
+        #{tenantId} AND call_id =
+        #{callId,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+    </update>
+    <select id="sourceProductOperations58_7" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id=#{tenantId} ORDER BY updated_at DESC LIMIT
+        50 OFFSET #{p1}
+    </select>
+    <select id="scopedAiRuntime22" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id = #{tenantId} AND (call_id=#{p0} AND
+        attempt=#{p1})
+    </select>
+    <select id="scopedCallAnalysis33" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id = #{tenantId} AND (call_id=#{p0} AND
+        attempt=#{p1})
+    </select>
+    <select id="scopedConversationPolicy30" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id = #{tenantId} AND (call_id=#{p0} AND
+        attempt=#{p1}) FOR UPDATE
+    </select>
+    <select id="scopedHandoffs78" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id = #{tenantId} AND (call_id=#{p0} AND
+        attempt=#{p1})
+    </select>
+    <select id="scopedVoiceCallbacks72" resultMap="row">
+        SELECT * FROM `conversationstate` WHERE tenant_id = #{tenantId} AND (call_id=#{p0} AND
+        attempt=#{p1})
+    </select>
+    <select id="deliveryFunnel" resultType="java.util.LinkedHashMap">
+        SELECT COALESCE(bucket_outcome,'pending') AS outcome,COALESCE(bucket_answer,'unknown') AS
+        answer_kind,COUNT(*) AS attempts,COUNT(DISTINCT phone) AS unique_phones FROM (SELECT (CASE
+        WHEN JSON_TYPE(JSON_EXTRACT(s.data_json,'$.outcome'))='NULL' THEN NULL ELSE
+        JSON_UNQUOTE(JSON_EXTRACT(s.data_json,'$.outcome')) END) COLLATE utf8mb4_0900_bin AS
+        bucket_outcome,(CASE WHEN JSON_TYPE(JSON_EXTRACT(s.data_json,'$.answer_kind'))='NULL' THEN
+        NULL ELSE JSON_UNQUOTE(JSON_EXTRACT(s.data_json,'$.answer_kind')) END) COLLATE
+        utf8mb4_0900_bin AS bucket_answer,c.phone FROM conversationstate s JOIN callsession c ON
+        c.id=s.call_id WHERE s.tenant_id = #{tenantId} AND s.updated_at &gt;= #{since}) buckets GROUP
+        BY bucket_outcome,bucket_answer
+    </select>
+</mapper>

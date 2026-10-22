@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.script.dao.ScenarioVersionMapper">
+    <resultMap id="row" type="com.duozhi.outbound.script.domain.ScenarioVersion">
+        <id column="id" javaType="java.lang.Integer" property="id"/>
+        <result column="tenant_id" javaType="java.lang.Integer" property="tenantId"/>
+        <result column="campaign_id" javaType="java.lang.Integer" property="campaignId"/>
+        <result column="policy_json" javaType="java.lang.String" property="policyJson"/>
+        <result column="published_by" javaType="java.lang.Integer" property="publishedBy"/>
+        <result column="created_at" javaType="java.time.LocalDateTime" property="createdAt"/>
+    </resultMap>
+    <insert id="insert" keyColumn="id" keyProperty="row.id" useGeneratedKeys="true">
+        INSERT INTO `scenarioversion`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `campaign_id`,
+            `policy_json`,
+            `published_by`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.campaignId,jdbcType=INTEGER},
+            #{row.policyJson,jdbcType=LONGVARCHAR},
+            #{row.publishedBy,jdbcType=INTEGER},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <insert id="insertExplicitId">
+        INSERT INTO `scenarioversion`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                `id`,
+            </if>
+            `tenant_id`,
+            `campaign_id`,
+            `policy_json`,
+            `published_by`,
+            `created_at`,
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="row.id != null">
+                #{row.id,jdbcType=INTEGER},
+            </if>
+            #{row.tenantId,jdbcType=INTEGER},
+            #{row.campaignId,jdbcType=INTEGER},
+            #{row.policyJson,jdbcType=LONGVARCHAR},
+            #{row.publishedBy,jdbcType=INTEGER},
+            #{row.createdAt,jdbcType=TIMESTAMP},
+        </trim>
+    </insert>
+    <select id="findById" resultMap="row">
+        SELECT `id`, `tenant_id`, `campaign_id`, `policy_json`, `published_by`, `created_at` FROM
+        `scenarioversion` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </select>
+    <update id="updateById">
+        UPDATE `scenarioversion` SET
+        `campaign_id` = #{row.campaignId,jdbcType=INTEGER},
+        `policy_json` = #{row.policyJson,jdbcType=LONGVARCHAR},
+        `published_by` = #{row.publishedBy,jdbcType=INTEGER}
+        WHERE `id` = #{row.id,jdbcType=INTEGER} AND `tenant_id` = #{tenantId,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteById">
+        DELETE FROM `scenarioversion` WHERE `id` = #{id,jdbcType=INTEGER} AND `tenant_id` =
+        #{tenantId,jdbcType=INTEGER}
+    </delete>
+    <select id="list" resultMap="row">
+        SELECT `id`, `tenant_id`, `campaign_id`, `policy_json`, `published_by`, `created_at` FROM
+        `scenarioversion`
+        WHERE `tenant_id` = #{tenantId,jdbcType=INTEGER}
+        ORDER BY `id` LIMIT #{limit,jdbcType=INTEGER} OFFSET #{offset,jdbcType=INTEGER}
+    </select>
+    <update id="patchFields">
+        UPDATE `scenarioversion`
+        <set>
+            <if test="changes.containsKey('campaign_id')">
+                `campaign_id` = #{changes.campaign_id,jdbcType=INTEGER},
+            </if>
+            <if test="changes.containsKey('policy_json')">
+                `policy_json` = #{changes.policy_json,jdbcType=VARCHAR},
+            </if>
+            <if test="changes.containsKey('published_by')">
+                `published_by` = #{changes.published_by,jdbcType=INTEGER},
+            </if>
+        </set>
+        WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
+    </update>
+    <select id="sourceCallLifecycle68_6" resultMap="row">
+        SELECT * FROM `scenarioversion` WHERE tenant_id=#{tenantId} AND (campaign_id=#{p1} OR
+        campaign_id IS NULL) ORDER BY (campaign_id IS NOT NULL) DESC,id DESC LIMIT 1
+    </select>
+    <select id="sourceConversationPolicy23_0" resultMap="row">
+        SELECT * FROM `scenarioversion` WHERE tenant_id=#{tenantId} AND (campaign_id=#{p1} OR
+        campaign_id IS NULL) ORDER BY (campaign_id IS NOT NULL) DESC,id DESC LIMIT 1
+    </select>
+    <select id="sourceDialService62_1" resultMap="row">
+        SELECT * FROM `scenarioversion` WHERE tenant_id=#{tenantId} AND (campaign_id=#{p1} OR
+        campaign_id IS NULL) ORDER BY (campaign_id IS NOT NULL) DESC,id DESC LIMIT 1
+    </select>
+    <select id="policyHistory" resultMap="row">
+        SELECT * FROM scenarioversion WHERE tenant_id = #{tenantId}
+        <choose>
+            <when test="campaignId == null">
+                AND campaign_id IS NULL
+            </when>
+            <otherwise>
+                AND campaign_id=#{campaignId}
+            </otherwise>
+        </choose>
+        ORDER BY id DESC LIMIT 30
+    </select>
+</mapper>
