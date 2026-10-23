@@ -1,5 +1,7 @@
 # AI 外呼单体工程
 
+面向使用人员的图文说明见 **[平台操作手册](../docs/user-guide/README.md)**，按管理员和坐席的实际操作顺序编排。
+
 API、AI、FreeSWITCH ESL、录音和 Java 实时媒体运行于一个 JDK 21 进程；MySQL、Redis 是数据库/队列基础设施，FreeSWITCH 与对象存储是外部语音/录音设施。
 
 > **本系统事务串行化依赖 JVM 内锁，仅支持单实例部署。需要使用多实例时，必须先把 PlatformLock 替换为分布式实现并重做并发验证。**

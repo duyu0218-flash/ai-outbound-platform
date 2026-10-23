@@ -1,0 +1,263 @@
+{
+  "source": "outbound-mono; FrontendBrowserIT disposable MySQL; mock telephony; synthetic data",
+  "capturedOn": "2026-10-23",
+  "viewport": {
+    "width": 1600,
+    "height": 1100
+  },
+  "screenshots": [
+    {
+      "image": "admin-login.png",
+      "path": "/admin/login"
+    },
+    {
+      "image": "admin-dashboard.png",
+      "path": "/admin"
+    },
+    {
+      "image": "contacts.png",
+      "path": "/admin/contacts"
+    },
+    {
+      "image": "contact-form.png",
+      "path": "/admin/contacts"
+    },
+    {
+      "image": "contact-import.png",
+      "path": "/admin/contacts-operations"
+    },
+    {
+      "image": "scripts.png",
+      "path": "/admin/scripts"
+    },
+    {
+      "image": "script-flow.png",
+      "path": "/admin/scripts"
+    },
+    {
+      "image": "knowledge.png",
+      "path": "/admin/knowledge"
+    },
+    {
+      "image": "campaigns.png",
+      "path": "/admin/campaigns"
+    },
+    {
+      "image": "campaign-form.png",
+      "path": "/admin/campaigns"
+    },
+    {
+      "image": "calls.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "call-transcript.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "call-result.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "call-recording.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "call-metrics.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "call-events.png",
+      "path": "/admin/calls"
+    },
+    {
+      "image": "operations-calls.png",
+      "path": "/admin/operations/calls"
+    },
+    {
+      "image": "leads.png",
+      "path": "/admin/operations/leads"
+    },
+    {
+      "image": "lead-follow.png",
+      "path": "/admin/operations/leads"
+    },
+    {
+      "image": "lead-form.png",
+      "path": "/admin/operations/leads"
+    },
+    {
+      "image": "lead-tags.png",
+      "path": "/admin/operations/leads"
+    },
+    {
+      "image": "lead-history.png",
+      "path": "/admin/operations/leads"
+    },
+    {
+      "image": "quality.png",
+      "path": "/admin/quality"
+    },
+    {
+      "image": "operations-reports.png",
+      "path": "/admin/operations/reports"
+    },
+    {
+      "image": "task-operations.png",
+      "path": "/admin/operations/reports"
+    },
+    {
+      "image": "task-detail.png",
+      "path": "/admin/operations/reports"
+    },
+    {
+      "image": "reports.png",
+      "path": "/admin/reports"
+    },
+    {
+      "image": "groups.png",
+      "path": "/admin/group-monitor"
+    },
+    {
+      "image": "billing.png",
+      "path": "/admin/billing"
+    },
+    {
+      "image": "users.png",
+      "path": "/admin/users"
+    },
+    {
+      "image": "user-form.png",
+      "path": "/admin/users"
+    },
+    {
+      "image": "teams.png",
+      "path": "/admin/operations/teams"
+    },
+    {
+      "image": "team-form.png",
+      "path": "/admin/operations/teams"
+    },
+    {
+      "image": "lines.png",
+      "path": "/admin/lines"
+    },
+    {
+      "image": "line-form.png",
+      "path": "/admin/lines"
+    },
+    {
+      "image": "settings-capacity.png",
+      "path": "/admin/settings"
+    },
+    {
+      "image": "settings-ai.png",
+      "path": "/admin/settings"
+    },
+    {
+      "image": "settings-sms.png",
+      "path": "/admin/settings"
+    },
+    {
+      "image": "settings-compliance.png",
+      "path": "/admin/settings"
+    },
+    {
+      "image": "settings-integration.png",
+      "path": "/admin/settings"
+    },
+    {
+      "image": "product.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-slots.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-handoff.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-test.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-callback.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-work.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-statistics.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-results.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "product-knowledge.png",
+      "path": "/admin/product"
+    },
+    {
+      "image": "config-forms.png",
+      "path": "/admin/operations/configs"
+    },
+    {
+      "image": "config-tags.png",
+      "path": "/admin/operations/configs"
+    },
+    {
+      "image": "config-connections.png",
+      "path": "/admin/operations/configs"
+    },
+    {
+      "image": "notices.png",
+      "path": "/admin/operations/notices"
+    },
+    {
+      "image": "admin-workspace.png",
+      "path": "/admin/operations/workspace"
+    },
+    {
+      "image": "system.png",
+      "path": "/admin/system"
+    },
+    {
+      "image": "agent-login.png",
+      "path": "/agent/login"
+    },
+    {
+      "image": "agent-workbench.png",
+      "path": "/agent"
+    },
+    {
+      "image": "agent-calls.png",
+      "path": "/agent/calls"
+    },
+    {
+      "image": "agent-operations-calls.png",
+      "path": "/agent/operations/calls"
+    },
+    {
+      "image": "agent-leads.png",
+      "path": "/agent/operations/leads"
+    },
+    {
+      "image": "agent-reports.png",
+      "path": "/agent/operations/reports"
+    },
+    {
+      "image": "agent-notices.png",
+      "path": "/agent/operations/notices"
+    },
+    {
+      "image": "agent-settings.png",
+      "path": "/agent/operations/workspace"
+    }
+  ],
+  "pageErrors": []
+}
