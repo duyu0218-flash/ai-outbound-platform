@@ -288,6 +288,10 @@ try {
       await page.evaluate(() => sessionStorage.getItem('ai-platform-access-token')),
     ).toBeNull();
   });
+  if (process.env.MONO_CAPTURE_MANUAL === 'true') {
+    const { captureManual } = await import('./manual-capture.mjs');
+    await captureManual({ browser, origin });
+  }
   await check('agent login workspace presence and admin boundary', async () => {
     await login('agent');
     await expect(page.getByText('浏览器软电话', { exact: true })).toBeVisible();
