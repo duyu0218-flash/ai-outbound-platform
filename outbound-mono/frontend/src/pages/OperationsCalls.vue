@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { download } from '../session';
 import { ops, perform, parse, query, prefix } from '../operations';
 import CallDetails from '../components/CallDetails.vue';
+import { usePageQuery } from '../page-query';
+const { isCurrent, replaceQuery } = usePageQuery();
 const options = ref({ campaigns: [], lines: [], teams: [] });
 const route = useRoute(),
   router = useRouter(),
@@ -44,10 +46,12 @@ function fromRoute() {
   for (const k of ['from', 'until']) filters[k] = localTime(route.query[k]);
 }
 async function load() {
+  if (!isCurrent()) return;
   busy.value = true;
   error.value = '';
   try {
     const data = await ops('/calls?' + query({ ...route.query, size: 20 }));
+    if (!isCurrent()) return;
     rows.value = data.rows;
     total.value = data.total;
   } catch (e) {
@@ -61,12 +65,10 @@ async function load() {
 function apply() {
   const next = { ...filters, page: 1 };
   for (const k of ['from', 'until']) if (next[k]) next[k] = new Date(next[k]).toISOString();
-  router.replace({
-    query: Object.fromEntries(Object.entries(next).filter(([, v]) => v !== '' && v != null)),
-  });
+  replaceQuery(Object.fromEntries(Object.entries(next).filter(([, v]) => v !== '' && v != null)));
 }
 function reset() {
-  router.replace({ query: {} });
+  replaceQuery({});
 }
 async function saveView() {
   if (!viewName.value) return;
@@ -87,7 +89,7 @@ function chooseView() {
   visible.value = Array.isArray(c.columns)
     ? c.columns.filter((k) => allColumns.some((x) => x.key === k))
     : allColumns.map((c) => c.key);
-  router.replace({ query: c.filters || {} });
+  replaceQuery(c.filters || {});
 }
 async function exportRows() {
   try {
@@ -99,6 +101,7 @@ async function exportRows() {
 watch(
   () => route.query,
   () => {
+    if (!isCurrent()) return;
     fromRoute();
     load();
   },
@@ -109,7 +112,9 @@ onMounted(async () => {
   load();
   try {
     profile.value = await ops('/me');
+    if (!isCurrent()) return;
     options.value = await ops('/lookups');
+    if (!isCurrent()) return;
     views.value = await ops('/views');
   } catch (e) {
     error.value = e.message;
@@ -280,7 +285,7 @@ onMounted(async () => {
       :total="total"
       :page-size="20"
       layout="prev,pager,next,total"
-      @current-change="router.replace({ query: { ...route.query, page: $event } })" /></el-card
+      @current-change="replaceQuery({ ...route.query, page: $event })" /></el-card
   ><CallDetails
     v-if="selected"
     :call="selected"
