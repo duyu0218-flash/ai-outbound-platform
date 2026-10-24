@@ -2,6 +2,8 @@
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ops, perform, parse, query, stageOptions, prefix } from '../operations';
+import { usePageQuery } from '../page-query';
+const { isCurrent, replaceQuery } = usePageQuery();
 const route = useRoute(),
   router = useRouter(),
   rows = ref([]),
@@ -27,6 +29,7 @@ const route = useRoute(),
 const follow = reactive({ stage: 'in_progress', note: '', next_at: '' }),
   eventKey = ref('');
 async function load() {
+  if (!isCurrent()) return;
   busy.value = true;
   error.value = '';
   try {
@@ -41,6 +44,7 @@ async function load() {
           contact_id: route.query.contact_id,
         }),
     );
+    if (!isCurrent()) return;
     rows.value = data.rows;
     total.value = data.total;
     work.value = await ops('/work-items');
@@ -133,12 +137,13 @@ function reset() {
   stage.value = '';
   overdue.value = false;
   page.value = 1;
-  router.replace({ query: {} });
+  replaceQuery({});
   load();
 }
 watch(
   () => route.query,
   () => {
+    if (!isCurrent()) return;
     page.value = 1;
     load();
   },
@@ -147,7 +152,9 @@ watch(
 onMounted(async () => {
   try {
     profile.value = await ops('/me');
+    if (!isCurrent()) return;
     forms.value = await ops('/configs?kind=form');
+    if (!isCurrent()) return;
     tags.value = await ops('/configs?kind=tag');
   } catch (e) {
     error.value = e.message;

@@ -1,4 +1,5 @@
 import { operationsChecks } from './operations-browser.mjs';
+import { navigationRaceChecks } from './navigation-race.mjs';
 import { chromium, expect } from '@playwright/test';
 import { writeFile, mkdir } from 'node:fs/promises';
 const origin = process.env.MONO_BROWSER_URL;
@@ -42,6 +43,17 @@ async function go(path, title) {
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);
 }
 try {
+  await navigationRaceChecks({
+    browser,
+    origin,
+    accounts: Object.fromEntries(
+      ['admin', 'agent'].map((role) => [
+        role,
+        { username: 'browser-' + role, password: 'SyntheticBrowserPass123!' },
+      ]),
+    ),
+    check,
+  });
   await check('admin login and dashboard', () => login('admin'));
   await check('contacts required validation create edit search persistence', async () => {
     await go('/admin/contacts', '客户管理');

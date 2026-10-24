@@ -4,6 +4,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { ops, perform, parse, query, prefix } from '../operations';
 import Billing from './Billing.vue';
 import { download } from '../session';
+import { usePageQuery } from '../page-query';
+const { isCurrent, replaceQuery } = usePageQuery();
 const router = useRouter(),
   route = useRoute(),
   error = ref(''),
@@ -51,19 +53,22 @@ function params() {
   return f;
 }
 async function load() {
+  if (!isCurrent()) return;
   busy.value = true;
   error.value = '';
   try {
     const f = params();
-    await router.replace({
-      query: Object.fromEntries(Object.entries(f).filter(([, v]) => v !== '' && v != null)),
-    });
+    await replaceQuery(
+      Object.fromEntries(Object.entries(f).filter(([, v]) => v !== '' && v != null)),
+    );
+    if (!isCurrent()) return;
     const data = await ops('/reports?' + query(f));
+    if (!isCurrent()) return;
     rows.value = data.rows;
     definition.value = data.definition;
     if (profile.value.administrator) tasks.value = await ops('/campaigns');
   } catch (e) {
-    error.value = e.message;
+    if (isCurrent()) error.value = e.message;
   } finally {
     busy.value = false;
   }
@@ -110,9 +115,10 @@ function drill(row) {
 onMounted(async () => {
   try {
     profile.value = await ops('/me');
+    if (!isCurrent()) return;
     views.value = await ops('/views');
   } catch (e) {
-    error.value = e.message;
+    if (isCurrent()) error.value = e.message;
   }
   load();
 });
