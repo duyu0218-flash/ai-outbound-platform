@@ -51,7 +51,7 @@ P0—P2新增话单查询、线索跟进、运营分析、团队权限、表单�
 
 六套供应商组合、后台技术路线切换和统一话术音频对比，见 [接入配置](VOICE-AI-PROVIDERS.md) 与 [本次验收](VOICE-AI-ACCEPTANCE.md)。入口为 `/admin/voice-ai`。新增 V20 保存固定样本和测试历史；默认沿用原有链路，真实供应商和电话线路仍待联调。
 
-流式三段式与受控 S2S 的最新实现、入口清单、电话测量工具、完整本地测试及上线前置条件见 [流式 v2 验收](VOICE-STREAMING-V2-ACCEPTANCE.md)。
+流式三段式与受控 S2S 的实现、入口清单和电话测量工具见 [流式 v2 验收](VOICE-STREAMING-V2-ACCEPTANCE.md)。S2S 当前强制对实际音频独立识别、完整短句语义审核后才播放，最新测试及上线条件见 [S2S 内容安全验收](S2S-CONTENT-SAFETY-ACCEPTANCE.md)。
 
 ## 数据与凭证
 

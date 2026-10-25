@@ -204,6 +204,7 @@ class VoiceAiHttpIT {
         ai.put("external_llm_enabled", true);
         for (var profile : VoiceAiProfiles.PROFILES) {
             ai.put("voice_backend", profile.id());
+            if ("realtime".equals(profile.route())) ai.put("realtime_playback_mode", "streaming");
             var saved =
                     http.exchange(
                             "/api/v1/admin/settings/ai",
@@ -212,6 +213,27 @@ class VoiceAiHttpIT {
                             JsonNode.class);
             assertThat(saved.getStatusCode().value()).as(saved.toString()).isEqualTo(200);
             assertThat(settings.freezeAi(1).get("_voice_profile")).isNotNull();
+            if ("realtime".equals(profile.route())) {
+                assertThat(settings.get(1, "ai").get("realtime_playback_mode"))
+                        .isEqualTo("sentence_review");
+                assertThat(settings.freezeAi(1).get("_voice_profile").toString())
+                        .contains("content_safety", "sentence-v1")
+                        .doesNotContain("synthetic-secret");
+            }
+        }
+        for (boolean direct : List.of(false, true)) {
+            var invalid = new LinkedHashMap<>(ai);
+            invalid.put("voice_backend", "unknown-profile");
+            invalid.put("direct_s2s_enabled", direct);
+            assertThat(
+                            http.exchange(
+                                            "/api/v1/admin/settings/ai",
+                                            HttpMethod.PUT,
+                                            new HttpEntity<>(Map.of("data", invalid), headers),
+                                            JsonNode.class)
+                                    .getStatusCode()
+                                    .value())
+                    .isEqualTo(400);
         }
         var frozen = settings.freezeAi(1);
         ai.put("voice_backend", "aliyun-cascade");

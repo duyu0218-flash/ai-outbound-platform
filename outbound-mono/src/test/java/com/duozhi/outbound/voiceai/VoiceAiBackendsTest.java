@@ -214,7 +214,8 @@ class VoiceAiBackendsTest {
         String vendor = VoiceAiProfiles.profile(id).vendor();
         boolean realtime = id.endsWith("realtime");
         try (var recognition = new Fixture(vendor, realtime ? "realtime" : "asr");
-                var synthesis = new Fixture(vendor, "tts")) {
+                var synthesis = new Fixture(vendor, "tts");
+                var outputAsr = new Fixture("aliyun", "asr")) {
             var llm = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             var calls = new AtomicInteger();
             llm.createContext(
@@ -230,6 +231,27 @@ class VoiceAiBackendsTest {
                                 ("data: {\"choices\":[{\"delta\":{\"content\":\"好的，请问您方便了解吗？\"}}]}\n\ndata: [DONE]\n\n")
                                         .getBytes(StandardCharsets.UTF_8);
                         exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+                        exchange.sendResponseHeaders(200, response.length);
+                        exchange.getResponseBody().write(response);
+                        exchange.close();
+                    });
+            llm.createContext(
+                    "/",
+                    exchange -> {
+                        exchange.getRequestBody().readAllBytes();
+                        byte[] response =
+                                Support.json(
+                                        Map.of(
+                                                "Code",
+                                                200,
+                                                "RequestId",
+                                                "wire-safety-approved",
+                                                "Data",
+                                                Map.of(
+                                                        "RiskLevel",
+                                                        "none",
+                                                        "Result",
+                                                        List.of(Map.of("Label", "nonLabel")))));
                         exchange.sendResponseHeaders(200, response.length);
                         exchange.getResponseBody().write(response);
                         exchange.close();
@@ -255,6 +277,13 @@ class VoiceAiBackendsTest {
                             "VOICE_AI_" + prefix + "_LLM_URL",
                             "http://127.0.0.1:" + llm.getAddress().getPort() + "/chat/completions");
                 }
+                outputAsr.transcript = "好的，请问您方便了解吗？";
+                if (realtime) env.put("VOICE_AI_ALI_ASR_URL", outputAsr.url());
+                env.put(
+                        "VOICE_AI_SAFETY_ENDPOINT",
+                        "http://127.0.0.1:" + llm.getAddress().getPort() + "/");
+                env.put("VOICE_AI_SAFETY_ACCESS_KEY_ID", "synthetic-id");
+                env.put("VOICE_AI_SAFETY_ACCESS_KEY_SECRET", "synthetic-secret");
                 var settings = new Settings(env);
                 var profiles = new VoiceAiProfiles(settings);
                 var spec = profiles.snapshot(id);
@@ -373,11 +402,8 @@ class VoiceAiBackendsTest {
                             realtime);
                     played.get(5, TimeUnit.SECONDS);
                     assertThat(outgoing.get()).isPositive();
-                    if (realtime && playbackMode.equals("streaming"))
-                        assertThat(firstFrame.get()).isLessThan(recognition.completedAt.get());
-                    if (realtime && playbackMode.equals("reviewed"))
-                        assertThat(firstFrame.get())
-                                .isGreaterThanOrEqualTo(recognition.completedAt.get());
+                    // All legacy mode values now use the same mandatory sentence gate.
+                    if (realtime) assertThat(outputAsr.connections.get()).isPositive();
                 }
                 assertThat(recognition.problem.get()).isNull();
                 assertThat(synthesis.problem.get()).isNull();
@@ -642,7 +668,9 @@ class VoiceAiBackendsTest {
                                                         "sentence_end",
                                                         true,
                                                         "begin_time",
-                                                        0)))));
+                                                        0,
+                                                        "end_time",
+                                                        20)))));
             else
                 text(
                         ctx,

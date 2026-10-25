@@ -18,7 +18,7 @@ ai:
   pipecat_canary_percent: 0
   external_llm_enabled: false
   voice_backend: legacy
-  realtime_playback_mode: reviewed
+  realtime_playback_mode: sentence_review
   vad_start_ms: 150
   vad_end_ms: 400
   vad_long_end_ms: 800

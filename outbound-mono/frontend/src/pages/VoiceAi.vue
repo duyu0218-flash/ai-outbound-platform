@@ -97,7 +97,7 @@ const sets = useData('/api/v1/admin/voice-ai/test-sets');
 const selected = ref('legacy'),
   route = ref('cascade'),
   approved = ref(false);
-const playbackMode = ref('reviewed');
+const playbackMode = ref('sentence_review');
 const tuning = ref({});
 const openingBusy = ref(false);
 const tuningFields = [
@@ -312,7 +312,7 @@ async function initialize() {
   if (!valid()) return;
   selected.value = ai.data.value?.data?.voice_backend || 'legacy';
   approved.value = ai.data.value?.data?.external_llm_enabled || false;
-  playbackMode.value = ai.data.value?.data?.realtime_playback_mode || 'reviewed';
+  playbackMode.value = 'sentence_review';
   route.value = profiles.data.value?.find((p) => p.id === selected.value)?.route || 'cascade';
   selectedProfiles.value = (profiles.data.value || []).map((p) => p.id);
 }
@@ -432,10 +432,11 @@ initialize();
       ></el-form-item>
       <el-form-item label="端到端播放方式">
         <el-select v-model="playbackMode" aria-label="端到端播放方式">
-          <el-option label="审核整段后播放" value="reviewed" />
-          <el-option label="实时流式播放" value="streaming" />
+          <el-option label="完整短句审核后播放" value="sentence_review" />
         </el-select>
-        <p>实时流式模式边生成边播放；整段审核不通过时会中止，但此前可能已播出部分回复。</p>
+        <p>
+          实际音频经独立识别与内容审核后逐句播放；审核异常时停止，不放行未审核音频。需由平台配置内容审核服务。
+        </p>
       </el-form-item>
       <el-form-item v-for="field in tuningFields" :key="field.key" :label="field.label">
         <el-input-number
@@ -470,7 +471,7 @@ initialize();
           :model-value="tuning.direct_s2s_enabled ?? ai.data.value?.data?.direct_s2s_enabled"
           aria-label="按语音端点直接回复"
           @update:model-value="tuning.direct_s2s_enabled = $event"
-          >端到端低风险流式场景使用，流程画布通话不支持</el-checkbox
+          >按语音端点启动生成，输出仍须逐句审核；流程画布通话不支持</el-checkbox
         >
       </el-form-item>
       <el-form-item label="外部模型调用"

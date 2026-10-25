@@ -146,6 +146,10 @@ public class Settings {
                     throw new ApiError(400, "确定性播报与分类需要三段式组合");
                 speech.put("turn_policy", Map.copyOf(turn));
                 profile.put("speech_profile", Map.copyOf(speech));
+                profile.put(
+                        "content_safety",
+                        com.duozhi.outbound.voiceai.service.ContentSafety.policy(
+                                new UnifiedServiceSettings(config, "voice")));
             }
             profile.put("revision", Support.hex(Support.sha(Support.canonical(profile))));
             ai.put("_voice_profile", Collections.unmodifiableMap(profile));
@@ -244,23 +248,30 @@ public class Settings {
             if (data.get("ai_disclosure_text").toString().isBlank()
                     || data.get("ai_disclosure_text").toString().length() > 500)
                 throw new ApiError(400, "AI身份告知不能为空且不超过500字");
-            if (Boolean.TRUE.equals(data.get("direct_s2s_enabled"))
-                    && (!"streaming".equals(data.get("realtime_playback_mode"))
-                            || !VoiceAiProfiles.selected(data)
-                            || !VoiceAiProfiles.realtime(data)))
-                throw new ApiError(400, "按语音端点直接回复只适用于端到端实时流式播放");
-            if (config.production()
-                    && "streaming".equals(data.get("realtime_playback_mode"))
-                    && !config.flag("VOICE_AI_REALTIME_DIRECT_VERIFIED", false))
-                throw new ApiError(400, "实时流式播放须先完成取消、上下文重建及风险验收");
-            if (!Values.set("reviewed", "streaming").contains(data.get("realtime_playback_mode")))
-                throw new ApiError(400, "未知端到端播放模式");
+            boolean realtimeProfile = false;
             if (VoiceAiProfiles.selected(data)) {
                 try {
-                    VoiceAiProfiles.profile(data.get("voice_backend").toString());
+                    realtimeProfile =
+                            "realtime"
+                                    .equals(
+                                            VoiceAiProfiles.profile(
+                                                            data.get("voice_backend").toString())
+                                                    .route());
                 } catch (Support.Failure invalid) {
                     throw new ApiError(400, "未知语音供应商组合");
                 }
+            }
+            if (Boolean.TRUE.equals(data.get("direct_s2s_enabled"))
+                    && (!Set.of("streaming", "sentence_review")
+                                    .contains(data.get("realtime_playback_mode"))
+                            || !VoiceAiProfiles.selected(data)
+                            || !realtimeProfile)) throw new ApiError(400, "按语音端点直接回复只适用于端到端逐句审核播放");
+            if (!Values.set("reviewed", "streaming", "sentence_review")
+                    .contains(data.get("realtime_playback_mode")))
+                throw new ApiError(400, "未知端到端播放模式");
+            // Legacy mode values remain readable, but all S2S output uses the mandatory audio gate.
+            if (realtimeProfile) data.put("realtime_playback_mode", "sentence_review");
+            if (VoiceAiProfiles.selected(data)) {
                 if (!Boolean.TRUE.equals(data.get("external_llm_enabled")))
                     throw new ApiError(400, "启用供应商方案需要允许外部模型调用");
             }

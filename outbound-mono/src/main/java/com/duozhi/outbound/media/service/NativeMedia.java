@@ -34,6 +34,7 @@ public final class NativeMedia implements MediaManager {
 
     private final Settings settings;
     private final VoiceResources resources;
+    private final ContentSafety contentSafety;
     private final Events events;
     private final Permits permits;
     private final Map<String, Session> calls = new ConcurrentHashMap<>();
@@ -56,6 +57,7 @@ public final class NativeMedia implements MediaManager {
     public NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings;
         resources = new VoiceResources(settings);
+        contentSafety = new ContentSafety(settings);
         this.events = events;
         this.permits = permits;
         this.limit = limit;
@@ -413,6 +415,7 @@ public final class NativeMedia implements MediaManager {
             var response = new ResponseScope();
             long generation = stream.coordinator.begin(response);
             session.playback = playback;
+            stream.safetyEvents.clear();
             stream.response = response;
             stream.context = Map.copyOf(context);
             stream.generation = generation;
@@ -427,7 +430,11 @@ public final class NativeMedia implements MediaManager {
                                     } catch (Exception error) {
                                         if (stream.generation == generation && !session.closing) {
                                             stream.coordinator.interrupt();
-                                            fail(session, "TTS_REQUEST_FAILED");
+                                            fail(
+                                                    session,
+                                                    error instanceof ContentSafety.Failure f
+                                                            ? f.code
+                                                            : "TTS_REQUEST_FAILED");
                                         }
                                     }
                                 });
@@ -601,7 +608,7 @@ public final class NativeMedia implements MediaManager {
             ingress.disconnect(stream.socket.getId());
             stream.close();
         }
-        if (notify) media(session, "closed", "", session.error);
+        if (notify) media(session, "closed", "", session.error, stream);
         calls.remove(session.call, session);
     }
 
@@ -630,6 +637,11 @@ public final class NativeMedia implements MediaManager {
     }
 
     void media(Session session, String state, String playback, String error) throws Exception {
+        media(session, state, playback, error, streams.get(session.call));
+    }
+
+    private void media(Session session, String state, String playback, String error, Stream stream)
+            throws Exception {
         if (session.mediaUrl.isEmpty()) return;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("call_id", session.call);
@@ -643,9 +655,9 @@ public final class NativeMedia implements MediaManager {
         payload.put("sample_rate", rate);
         payload.put("channel_count", 1);
         payload.put("provider", "java-native");
-        Stream stream = streams.get(session.call);
         if (stream != null) {
             payload.put("voice_evidence", stream.coordinator.evidence());
+            payload.put("content_safety", List.copyOf(stream.safetyEvents));
             payload.put("answer_class", stream.classifier.answer().name().toLowerCase(Locale.ROOT));
             payload.put("ai_disclosure_sent", stream.disclosureSent);
             payload.put("ai_disclosure_played", stream.disclosurePlayed);
@@ -856,36 +868,51 @@ public final class NativeMedia implements MediaManager {
                 stream.disclosureSent = true;
             }
             if ("realtime".equals(stream.profile.get("route")) && modelReply) {
-                // Reviewed is the safe existing behavior. Streaming is an explicit tenant choice:
-                // audio may already have played when the complete output guard rejects a response.
                 var guard = Support.map(stream.session.metadata.get("voice_ai_guard"));
-                boolean streaming = "streaming".equals(guard.get("realtime_playback_mode"));
-                var pending = new ByteArrayOutputStream();
-                String reply =
-                        stream.vendor.reply(
-                                text,
-                                modelReply,
-                                (pcm, sampleRate) -> {
-                                    if (pending.size() + pcm.length > 1440000)
-                                        throw new IOException("realtime reply audio limit");
-                                    pending.writeBytes(pcm);
-                                    if (streaming) player.accept(pcm, sampleRate);
-                                });
-                if (!modelReply && reply.isBlank()) reply = text;
-                if (reply.isBlank()
-                        || reply.codePointCount(0, reply.length())
-                                > Support.integer(guard, "max_reply_chars", 240))
-                    throw new IOException("realtime output review failed");
-                var reviewer = new TextCommitter(guard, sentence -> {});
-                reviewer.append(reply);
-                reviewer.finish();
-                byte[] bytes = pending.toByteArray();
-                if (!streaming)
-                    for (int offset = 0; offset < bytes.length; offset += 4800)
-                        player.accept(
-                                Arrays.copyOfRange(
-                                        bytes, offset, Math.min(bytes.length, offset + 4800)),
-                                24000);
+                var policy = Support.map(stream.profile.get("content_safety"));
+                if (policy.isEmpty()) policy = ContentSafety.policy(settings);
+                contentSafety.requireReady(policy);
+                var frozenPolicy = policy;
+                var speech = new VoiceAiBackends(settings).outputSpeechProfile(stream.profile);
+                if (speech.isEmpty()) throw new ContentSafety.Failure("S2S_SAFETY_ASR_MISSING");
+                List<String> safetyHistory;
+                synchronized (stream.confirmedHistory) {
+                    safetyHistory = List.copyOf(stream.confirmedHistory);
+                }
+                String reply;
+                try (var lease =
+                                resources.acquire(
+                                        speech,
+                                        Support.integer(stream.session.metadata, "tenant_id", 0),
+                                        "asr");
+                        var gate =
+                                new SentenceSafetyGate(
+                                        stream.response,
+                                        policy,
+                                        guard,
+                                        (listener, scope) ->
+                                                new VoiceAiBackends(settings)
+                                                        .outputRecognizer(speech, listener, scope),
+                                        (cumulative, scope) ->
+                                                contentSafety.review(
+                                                        frozenPolicy,
+                                                        ContentSafety.withContext(
+                                                                safetyHistory, cumulative),
+                                                        scope),
+                                        player::accept,
+                                        evidence -> {
+                                            if (stream.safetyEvents.size() < 32)
+                                                stream.safetyEvents.add(evidence);
+                                        },
+                                        () -> stream.vendor.close())) {
+                    try {
+                        stream.vendor.reply(text, modelReply, gate::accept);
+                        reply = gate.finish();
+                    } catch (Exception error) {
+                        gate.check();
+                        throw error;
+                    }
+                }
                 stream.coordinator.text(generation, reply);
             } else {
                 var spec =
@@ -1040,6 +1067,7 @@ public final class NativeMedia implements MediaManager {
         final WebSocketSession socket;
         final Map<String, Object> profile;
         final SessionCoordinator coordinator = new SessionCoordinator();
+        final List<Map<String, Object>> safetyEvents = new CopyOnWriteArrayList<>();
         final AnswerClassifier classifier = new AnswerClassifier();
         final AtomicBoolean activating = new AtomicBoolean();
         final CompletableFuture<Void> engineReady = new CompletableFuture<>();
@@ -1337,7 +1365,12 @@ public final class NativeMedia implements MediaManager {
             }
         }
 
-        AutoCloseable acquireEngine(long tenant) {
+        AutoCloseable acquireEngine(long tenant) throws ContentSafety.Failure {
+            if ("realtime".equals(profile.get("route"))) {
+                var policy = Support.map(profile.get("content_safety"));
+                contentSafety.requireReady(
+                        policy.isEmpty() ? ContentSafety.policy(settings) : policy);
+            }
             return resources.acquire(
                     profile,
                     tenant,
@@ -1380,7 +1413,12 @@ public final class NativeMedia implements MediaManager {
                                     } catch (Exception callback) {
                                         requestFailure(session, "VOICE_FAILURE_CALLBACK_FAILED");
                                     }
-                                } else requestFailure(session, "VOICE_ENGINE_START_FAILED");
+                                } else
+                                    requestFailure(
+                                            session,
+                                            failure instanceof ContentSafety.Failure f
+                                                    ? f.code
+                                                    : "VOICE_ENGINE_START_FAILED");
                             }
                         });
             } catch (RejectedExecutionException full) {

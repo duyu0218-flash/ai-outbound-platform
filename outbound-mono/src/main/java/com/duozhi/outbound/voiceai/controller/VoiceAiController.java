@@ -36,6 +36,7 @@ public class VoiceAiController {
     private final Audit audit;
     private final ObjectMapper json;
     private final Semaphore capacity = new Semaphore(2);
+    private final ContentSafety contentSafety;
 
     public VoiceAiController(
             Config config,
@@ -48,6 +49,7 @@ public class VoiceAiController {
         this.credentials = credentials;
         this.runtime = credentials.root(new UnifiedServiceSettings(config, "voice"));
         this.backends = new VoiceAiBackends(runtime);
+        this.contentSafety = new ContentSafety(runtime);
         this.db = db;
         this.settings = settings;
         this.store = store;
@@ -362,6 +364,9 @@ public class VoiceAiController {
         var transcript = new CompletableFuture<String>();
         boolean audio = !Support.str(sample, "audio_wav_base64", "").isBlank(),
                 realtime = "realtime".equals(spec.get("route"));
+        var safetyEvidence = new ArrayList<Map<String, Object>>();
+        var safety = realtime ? ContentSafety.policy(runtime) : Map.<String, Object>of();
+        if (realtime) contentSafety.requireReady(safety);
         var pcm = new ByteArrayOutputStream();
         long[] first = {0}, inputEnd = {started};
         PcmResampler[] conversion = {null};
@@ -420,8 +425,42 @@ public class VoiceAiController {
                 else if (!transcript.isDone()) connection.finishInput();
                 text = transcript.get(10, TimeUnit.SECONDS);
                 if (realtime) {
-                    reply = connection.reply("", true, sink);
-                    if (connection.firstAudioNanos() != 0) first[0] = connection.firstAudioNanos();
+                    try (var scope = new ResponseScope();
+                            var gate =
+                                    new SentenceSafetyGate(
+                                            scope,
+                                            safety,
+                                            Map.of(
+                                                    "max_reply_chars",
+                                                    240,
+                                                    "require_fact_templates",
+                                                    true),
+                                            (listener, child) ->
+                                                    backends.outputRecognizer(
+                                                            backends.outputSpeechProfile(spec),
+                                                            listener,
+                                                            child),
+                                            (cumulative, child) ->
+                                                    contentSafety.review(
+                                                            safety,
+                                                            ContentSafety.withContext(
+                                                                    List.of(
+                                                                            "客户："
+                                                                                    + transcript
+                                                                                            .join()),
+                                                                    cumulative),
+                                                            child),
+                                            sink,
+                                            safetyEvidence::add,
+                                            connection::close)) {
+                        try {
+                            connection.reply("", true, gate::accept);
+                            reply = gate.finish();
+                        } catch (Exception failed) {
+                            gate.check();
+                            throw failed;
+                        }
+                    }
                 } else {
                     reply = backends.generate(spec, script, text, List.of());
                     backends.synthesize(spec, reply, sink);
@@ -437,6 +476,10 @@ public class VoiceAiController {
         result.put("status", "succeeded");
         result.put("transcript", text);
         result.put("reply", reply);
+        if (realtime) {
+            result.put("content_safety", safetyEvidence);
+            result.put("content_safety_policy", safety);
+        }
         result.put("first_audio_ms", (first[0] - started) / 1_000_000);
         result.put("post_input_first_audio_ms", Math.max(0, (first[0] - inputEnd[0]) / 1_000_000));
         result.put("total_ms", (System.nanoTime() - started) / 1_000_000);

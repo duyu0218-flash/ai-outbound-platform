@@ -72,12 +72,12 @@ try {
     await select('供应商组合').click();
     await page.getByRole('option', { name: '百度端到端实时语音', exact: true }).click();
     await select('端到端播放方式').click();
-    await page.getByRole('option', { name: '实时流式播放', exact: true }).click();
+    await page.getByRole('option', { name: '完整短句审核后播放', exact: true }).click();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('百度端到端实时语音');
     await page.reload();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('百度端到端实时语音');
-    await expect(select('端到端播放方式')).toContainText('实时流式播放');
+    await expect(select('端到端播放方式')).toContainText('完整短句审核后播放');
     await select('技术路线').click();
     await page.getByRole('option', { name: '三段式 ASR → 模型 → TTS', exact: true }).click();
     await select('供应商组合').click();
@@ -104,7 +104,7 @@ try {
     await expect(direct).toBeChecked();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
     await expect(
-      page.getByText('按语音端点直接回复只适用于端到端实时流式播放', { exact: true }),
+      page.getByText('按语音端点直接回复只适用于端到端逐句审核播放', { exact: true }),
     ).toBeVisible();
     await direct.locator('xpath=ancestor::label[1]').click();
     await expect(direct).not.toBeChecked();

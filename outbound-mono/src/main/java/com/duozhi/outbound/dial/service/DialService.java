@@ -721,6 +721,15 @@ public class DialService {
             metadata.put("voice_ai_script", scenario.get("_script"));
             var selectedProfile = Support.map(frozenAi.get("_voice_profile"));
             if ("realtime".equals(selectedProfile.get("route"))) {
+                if (!client.mock(call)) {
+                    try {
+                        new com.duozhi.outbound.voiceai.service.ContentSafety(
+                                        new UnifiedServiceSettings(config, "voice"))
+                                .requireReady(Support.map(selectedProfile.get("content_safety")));
+                    } catch (com.duozhi.outbound.voiceai.service.ContentSafety.Failure missing) {
+                        throw new ApiError(503, missing.code);
+                    }
+                }
                 try {
                     new VoiceAiProfiles(
                                     credentials.runtime(
