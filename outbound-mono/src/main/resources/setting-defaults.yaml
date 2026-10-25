@@ -19,6 +19,18 @@ ai:
   external_llm_enabled: false
   voice_backend: legacy
   realtime_playback_mode: reviewed
+  vad_start_ms: 150
+  vad_end_ms: 400
+  vad_long_end_ms: 800
+  vad_max_input_ms: 20000
+  vad_idle_clear_ms: 2000
+  vad_rms: 200
+  vad_adaptive: true
+  answer_classification_enabled: true
+  answer_classify_timeout_ms: 2000
+  ai_disclosure_text: 您好，我是AI智能语音助手。
+  require_fact_templates: true
+  direct_s2s_enabled: false
 sms:
   enabled: true
   provider: mock

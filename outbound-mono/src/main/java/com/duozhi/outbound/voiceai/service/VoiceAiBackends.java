@@ -20,6 +20,13 @@ public final class VoiceAiBackends {
         void transcript(String text, String event) throws Exception;
 
         void speechStarted() throws Exception;
+
+        default void recognition(Map<String, Object> event) throws Exception {
+            if (Boolean.TRUE.equals(event.get("is_final")))
+                transcript(event.get("text").toString(), event.get("event_id").toString());
+        }
+
+        default void inputCommitted() throws Exception {}
     }
 
     @FunctionalInterface
@@ -37,6 +44,10 @@ public final class VoiceAiBackends {
         }
 
         default void interrupt() throws Exception {}
+
+        default void externalSpeech(String text) throws Exception {}
+
+        default void recognitionHint(String text) {}
 
         void check() throws Exception;
 
@@ -127,10 +138,35 @@ public final class VoiceAiBackends {
         return generate(spec, messages);
     }
 
+    @FunctionalInterface
+    public interface TextDelta {
+        void accept(String text) throws Exception;
+    }
+
+    public interface TextSession extends AutoCloseable {
+        void append(String text) throws Exception;
+
+        void finish() throws Exception;
+
+        void close();
+    }
+
     public String generate(Map<String, Object> spec, List<Map<String, String>> messages)
             throws Exception {
+        try (var scope = new ResponseScope()) {
+            return generate(spec, messages, delta -> {}, scope);
+        }
+    }
+
+    public String generate(
+            Map<String, Object> spec,
+            List<Map<String, String>> messages,
+            TextDelta output,
+            ResponseScope scope)
+            throws Exception {
         var backend = scoped(spec);
-        if (backend != this) return backend.generate(spec, messages);
+        if (backend != this) return backend.generate(spec, messages, output, scope);
+        scope.check();
         String vendor = str(spec, "vendor"),
                 key =
                         vendor.equals("aliyun")
@@ -154,173 +190,240 @@ public final class VoiceAiBackends {
                                                         "stream",
                                                         true,
                                                         "temperature",
-                                                        0.3,
+                                                        .3,
                                                         "max_tokens",
                                                         800))))
                         .build();
-        var response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        var result = new StringBuilder();
-        try (var input = Support.timed(response.body(), 20000)) {
+        var pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream());
+        scope.own(() -> pending.cancel(true));
+        var response = pending.get(20, TimeUnit.SECONDS);
+        try (var input = scope.own(Support.timed(response.body(), 20000))) {
             if (response.statusCode() / 100 != 2)
                 throw new IOException("vendor text model rejected request");
-            int received = 0;
             var line = new ByteArrayOutputStream();
+            var data = new StringBuilder();
+            var result = new StringBuilder();
+            int received = 0;
+            boolean done = false;
             for (int value; (value = input.read()) != -1; ) {
+                scope.check();
                 if (++received > 512 * 1024) throw new IOException("text model response limit");
                 if (value != '\n') {
+                    if (line.size() >= 65536) throw new IOException("SSE line exceeds limit");
                     line.write(value);
                     continue;
                 }
-                String text = line.toString(StandardCharsets.UTF_8).strip();
+                String text = line.toString(StandardCharsets.UTF_8);
                 line.reset();
-                if (!text.startsWith("data:") || text.substring(5).strip().equals("[DONE]"))
-                    continue;
-                Map<String, Object> event =
-                        Support.object(text.substring(5).strip().getBytes(StandardCharsets.UTF_8));
-                if (event.containsKey("error")) throw new IOException("text model stream error");
-                if (event.get("choices") instanceof List<?> choices && !choices.isEmpty()) {
-                    String delta = str(map(map(choices.get(0)).get("delta")), "content");
-                    result.append(delta);
+                if (text.endsWith("\r")) text = text.substring(0, text.length() - 1);
+                if (text.isEmpty()) {
+                    if (data.isEmpty()) continue;
+                    String payload = data.toString();
+                    data.setLength(0);
+                    if (payload.strip().equals("[DONE]")) {
+                        done = true;
+                        break;
+                    }
+                    var event = Support.object(payload.getBytes(StandardCharsets.UTF_8));
+                    if (event.containsKey("error"))
+                        throw new IOException("text model stream error");
+                    if (event.get("choices") instanceof List<?> choices && !choices.isEmpty()) {
+                        var choice = map(choices.get(0));
+                        var delta = map(choice.get("delta"));
+                        if (delta.containsKey("tool_calls")
+                                || (!str(choice, "finish_reason").isBlank()
+                                        && !"stop".equals(str(choice, "finish_reason"))))
+                            throw new IOException(
+                                    "model response requires controlled business handling");
+                        String token = str(delta, "content");
+                        result.append(token);
+                        if (result.length() > 4000)
+                            throw new IOException("text model output limit");
+                        if (!token.isEmpty()) output.accept(token);
+                    }
+                } else if (text.startsWith("data:")) {
+                    if (!data.isEmpty()) data.append('\n');
+                    data.append(text.substring(5).stripLeading());
+                    if (data.length() > 65536) throw new IOException("SSE event exceeds limit");
                 }
-                if (result.length() > 4000) throw new IOException("text model output limit");
             }
+            if (!done) throw new IOException("text model stream ended without DONE");
+            if (result.toString().isBlank())
+                throw new IOException("text model returned no speech text");
+            return result.toString().strip();
         }
-        if (result.toString().isBlank())
-            throw new IOException("text model returned no speech text");
-        return result.toString().strip();
+    }
+
+    public TextSession synthesis(Map<String, Object> spec, Audio output, ResponseScope scope)
+            throws Exception {
+        var backend = scoped(spec);
+        if (backend != this) return backend.synthesis(spec, output, scope);
+        profiles.requireReady(spec);
+        return scope.own(new Synthesis(spec, output, scope));
     }
 
     public void synthesize(Map<String, Object> spec, String text, Audio output) throws Exception {
-        var backend = scoped(spec);
-        if (backend != this) {
-            backend.synthesize(spec, text, output);
-            return;
+        try (var scope = new ResponseScope();
+                var session = synthesis(spec, output, scope)) {
+            session.append(text);
+            session.finish();
         }
-        String vendor = str(spec, "vendor"), task = uuid();
-        var ready = new CompletableFuture<Void>();
-        var done = new CompletableFuture<Void>();
-        var connected = new CompletableFuture<Void>();
+    }
 
-        Map<String, String> headers = new LinkedHashMap<>();
-        URI target = profiles.endpoint(str(spec, "tts_url"), false);
-        if (vendor.equals("aliyun"))
-            headers.put("Authorization", "Bearer " + secret("DASHSCOPE_API_KEY"));
-        else if (vendor.equals("volcengine"))
-            headers.putAll(volcHeaders(spec, "tts", str(spec, "tts_resource")));
-        else target = tencent(target, tencentTtsParams(task, str(spec, "voice")));
-        try (var socket =
-                new VendorSocket(
-                        http,
-                        target,
-                        headers,
-                        (binary, bytes) -> {
-                            try {
-                                if (vendor.equals("volcengine")) {
-                                    var frame = VolcVoiceProtocol.parse(bytes);
-                                    if (frame.event() == 50) connected.complete(null);
-                                    else if (frame.event() == 150) ready.complete(null);
-                                    else if (frame.event() == 352 || frame.type() == 11)
-                                        output.accept(frame.payload(), 24000);
-                                    else if (frame.event() == 152) done.complete(null);
-                                    else if (frame.event() == 51
-                                            || frame.event() == 153
-                                            || frame.event() == 599)
-                                        throw new IOException("volc synthesis error");
-                                } else if (binary)
-                                    output.accept(bytes, vendor.equals("aliyun") ? 24000 : 16000);
-                                else {
-                                    var event = Support.object(bytes);
-                                    var header = map(event.get("header"));
-                                    if (vendor.equals("aliyun")) {
-                                        String kind = str(header, "event");
-                                        if (kind.equals("task-started")) ready.complete(null);
-                                        if (kind.equals("task-finished")) done.complete(null);
-                                        if (kind.equals("task-failed"))
-                                            throw new IOException("aliyun synthesis error");
-                                    } else {
-                                        if (Support.integer(event, "code", 0) != 0)
-                                            throw new IOException("tencent synthesis error");
-                                        if (Support.integer(event, "ready", 0) == 1)
-                                            ready.complete(null);
-                                        if (Support.integer(event, "final", 0) == 1)
-                                            done.complete(null);
+    final class Synthesis implements TextSession {
+        final String vendor, task = uuid(), voice;
+        final VendorSocket socket;
+        final CompletableFuture<Void> ready = new CompletableFuture<>(),
+                connected = new CompletableFuture<>(),
+                done = new CompletableFuture<>();
+        boolean finished;
+
+        Synthesis(Map<String, Object> spec, Audio output, ResponseScope scope) throws Exception {
+            vendor = str(spec, "vendor");
+            voice = str(spec, "voice");
+            var headers = new LinkedHashMap<String, String>();
+            URI target = profiles.endpoint(str(spec, "tts_url"), false);
+            if (vendor.equals("aliyun"))
+                headers.put("Authorization", "Bearer " + secret("DASHSCOPE_API_KEY"));
+            else if (vendor.equals("volcengine"))
+                headers.putAll(volcHeaders(spec, "tts", str(spec, "tts_resource")));
+            else target = tencent(target, tencentTtsParams(task, voice));
+            socket =
+                    new VendorSocket(
+                            http,
+                            target,
+                            headers,
+                            (binary, bytes) -> {
+                                try {
+                                    if (vendor.equals("volcengine")) {
+                                        var frame = VolcVoiceProtocol.parse(bytes);
+                                        if (frame.event() == 50) connected.complete(null);
+                                        else if (frame.event() == 150) ready.complete(null);
+                                        else if (frame.event() == 352 || frame.type() == 11)
+                                            output.accept(frame.payload(), 24000);
+                                        else if (frame.event() == 152) done.complete(null);
+                                        else if (Set.of(51, 153, 599).contains(frame.event()))
+                                            throw new IOException("volc synthesis error");
+                                    } else if (binary)
+                                        output.accept(
+                                                bytes, vendor.equals("aliyun") ? 24000 : 16000);
+                                    else {
+                                        var event = Support.object(bytes);
+                                        if (vendor.equals("aliyun")) {
+                                            String kind = str(map(event.get("header")), "event");
+                                            if (kind.equals("task-started")) ready.complete(null);
+                                            if (kind.equals("task-finished")) done.complete(null);
+                                            if (kind.equals("task-failed"))
+                                                throw new IOException("aliyun synthesis error");
+                                        } else {
+                                            if (Support.integer(event, "code", 0) != 0)
+                                                throw new IOException("tencent synthesis error");
+                                            if (Support.integer(event, "ready", 0) == 1)
+                                                ready.complete(null);
+                                            if (Support.integer(event, "final", 0) == 1)
+                                                done.complete(null);
+                                        }
                                     }
+                                } catch (Exception error) {
+                                    ready.completeExceptionally(error);
+                                    connected.completeExceptionally(error);
+                                    done.completeExceptionally(error);
+                                    throw error;
                                 }
-                            } catch (Exception error) {
-                                ready.completeExceptionally(error);
-                                done.completeExceptionally(error);
-                                connected.completeExceptionally(error);
-                                throw error;
-                            }
-                        })) {
-            if (vendor.equals("aliyun")) {
-                socket.json(
-                        task(
-                                "run-task",
-                                task,
-                                Map.of(
-                                        "task_group",
-                                        "audio",
-                                        "task",
-                                        "tts",
-                                        "function",
-                                        "SpeechSynthesizer",
-                                        "model",
-                                        str(spec, "tts_model"),
-                                        "parameters",
-                                        Map.of(
-                                                "text_type",
-                                                "PlainText",
-                                                "voice",
-                                                str(spec, "voice"),
-                                                "format",
-                                                "pcm",
-                                                "sample_rate",
-                                                24000),
-                                        "input",
-                                        Map.of())));
+                            },
+                            scope);
+            try {
+                if (vendor.equals("aliyun"))
+                    socket.json(
+                            task(
+                                    "run-task",
+                                    task,
+                                    Map.of(
+                                            "task_group",
+                                            "audio",
+                                            "task",
+                                            "tts",
+                                            "function",
+                                            "SpeechSynthesizer",
+                                            "model",
+                                            str(spec, "tts_model"),
+                                            "parameters",
+                                            Map.of(
+                                                    "text_type",
+                                                    "PlainText",
+                                                    "voice",
+                                                    voice,
+                                                    "format",
+                                                    "pcm",
+                                                    "sample_rate",
+                                                    24000),
+                                            "input",
+                                            Map.of())));
+                else if (vendor.equals("volcengine")) {
+                    socket.bytes(VolcVoiceProtocol.event(1, "", json(Map.of()), false));
+                    await(connected, socket, 8);
+                    socket.bytes(
+                            VolcVoiceProtocol.event(
+                                    100,
+                                    task,
+                                    json(
+                                            Map.of(
+                                                    "event",
+                                                    100,
+                                                    "user",
+                                                    Map.of("uid", task),
+                                                    "namespace",
+                                                    "BidirectionalTTS",
+                                                    "req_params",
+                                                    Map.of(
+                                                            "speaker",
+                                                            voice,
+                                                            "audio_params",
+                                                            Map.of(
+                                                                    "format",
+                                                                    "pcm",
+                                                                    "sample_rate",
+                                                                    24000)))),
+                                    false));
+                }
                 await(ready, socket, 8);
+            } catch (Exception error) {
+                socket.close();
+                throw error;
+            }
+        }
+
+        public void append(String text) throws Exception {
+            if (finished || text.isBlank()) throw new IOException("invalid synthesis append");
+            if (vendor.equals("aliyun"))
                 socket.json(task("continue-task", task, Map.of("input", Map.of("text", text))));
-                socket.json(task("finish-task", task, Map.of("input", Map.of())));
-            } else if (vendor.equals("volcengine")) {
-                socket.bytes(VolcVoiceProtocol.event(1, "", json(Map.of()), false));
-                await(connected, socket, 8);
-                var payload =
-                        Map.of(
-                                "event",
-                                100,
-                                "user",
-                                Map.of("uid", task),
-                                "namespace",
-                                "BidirectionalTTS",
-                                "req_params",
-                                Map.of(
-                                        "speaker",
-                                        str(spec, "voice"),
-                                        "audio_params",
-                                        Map.of("format", "pcm", "sample_rate", 24000)));
-                socket.bytes(VolcVoiceProtocol.event(100, task, json(payload), false));
-                await(ready, socket, 8);
-                var request =
-                        Map.of(
-                                "event",
+            else if (vendor.equals("volcengine"))
+                socket.bytes(
+                        VolcVoiceProtocol.event(
                                 200,
-                                "user",
-                                Map.of("uid", task),
-                                "namespace",
-                                "BidirectionalTTS",
-                                "req_params",
-                                Map.of(
-                                        "text",
-                                        text,
-                                        "speaker",
-                                        str(spec, "voice"),
-                                        "audio_params",
-                                        Map.of("format", "pcm", "sample_rate", 24000)));
-                socket.bytes(VolcVoiceProtocol.event(200, task, json(request), false));
-                socket.bytes(VolcVoiceProtocol.event(102, task, json(Map.of()), false));
-            } else {
-                await(ready, socket, 8);
+                                task,
+                                json(
+                                        Map.of(
+                                                "event",
+                                                200,
+                                                "user",
+                                                Map.of("uid", task),
+                                                "namespace",
+                                                "BidirectionalTTS",
+                                                "req_params",
+                                                Map.of(
+                                                        "text",
+                                                        text,
+                                                        "speaker",
+                                                        voice,
+                                                        "audio_params",
+                                                        Map.of(
+                                                                "format",
+                                                                "pcm",
+                                                                "sample_rate",
+                                                                24000)))),
+                                false));
+            else
                 socket.json(
                         Map.of(
                                 "session_id",
@@ -331,6 +434,16 @@ public final class VoiceAiBackends {
                                 "ACTION_SYNTHESIS",
                                 "data",
                                 text));
+        }
+
+        public void finish() throws Exception {
+            if (finished) throw new IOException("synthesis already finished");
+            finished = true;
+            if (vendor.equals("aliyun"))
+                socket.json(task("finish-task", task, Map.of("input", Map.of())));
+            else if (vendor.equals("volcengine"))
+                socket.bytes(VolcVoiceProtocol.event(102, task, json(Map.of()), false));
+            else
                 socket.json(
                         Map.of(
                                 "session_id",
@@ -341,8 +454,11 @@ public final class VoiceAiBackends {
                                 "ACTION_COMPLETE",
                                 "data",
                                 ""));
-            }
             await(done, socket, 30);
+        }
+
+        public void close() {
+            socket.close();
         }
     }
 
@@ -434,6 +550,8 @@ public final class VoiceAiBackends {
         int sequence = 1;
         String lastFinal = "";
         long lastVolcStart = -1;
+        int revision;
+        String currentUtterance = "", previousText = "";
 
         Recognition(Map<String, Object> spec, Listener listener) throws Exception {
             this.spec = spec;
@@ -461,6 +579,18 @@ public final class VoiceAiBackends {
                 p.put("voice_format", "1");
                 p.put("needvad", "1");
                 p.put("filter_punc", "0");
+                if (spec.containsKey("turn_policy")) {
+                    p.put(
+                            "vad_silence_time",
+                            ""
+                                    + Math.max(
+                                            500,
+                                            Support.integer(
+                                                    map(spec.get("turn_policy")),
+                                                    "vad_end_ms",
+                                                    500)));
+                    p.put("filter_empty_result", "0");
+                }
                 target = tencent(target, p);
             }
             socket = new VendorSocket(http, target, headers, this::event);
@@ -480,7 +610,16 @@ public final class VoiceAiBackends {
                                             "model",
                                             str(spec, "asr_model"),
                                             "parameters",
-                                            Map.of("format", "pcm", "sample_rate", 8000),
+                                            Map.of(
+                                                    "format",
+                                                    "pcm",
+                                                    "sample_rate",
+                                                    8000,
+                                                    "max_sentence_silence",
+                                                    Support.integer(
+                                                            map(spec.get("turn_policy")),
+                                                            "vad_end_ms",
+                                                            400)),
                                             "input",
                                             Map.of())));
                 else if (vendor.equals("volcengine"))
@@ -505,7 +644,14 @@ public final class VoiceAiBackends {
                                                             "show_utterances",
                                                             true,
                                                             "result_type",
-                                                            "full"))),
+                                                            "full",
+                                                            "end_window_size",
+                                                            Support.integer(
+                                                                    map(spec.get("turn_policy")),
+                                                                    "vad_end_ms",
+                                                                    400),
+                                                            "force_to_speech_time",
+                                                            0))),
                                     true,
                                     sequence++));
                 await(ready, socket, 8);
@@ -530,8 +676,19 @@ public final class VoiceAiBackends {
                             if (Boolean.TRUE.equals(utterance.get("definite"))
                                     && start > lastVolcStart) {
                                 lastVolcStart = start;
-                                finalText(str(utterance, "text"), task + ":" + start);
-                            }
+                                recognized(
+                                        str(utterance, "text"),
+                                        task + ":" + start,
+                                        true,
+                                        start,
+                                        Support.integer(utterance, "end_time", -1));
+                            } else if (!Boolean.TRUE.equals(utterance.get("definite")))
+                                recognized(
+                                        str(utterance, "text"),
+                                        task + ":" + start,
+                                        false,
+                                        start,
+                                        Support.integer(utterance, "end_time", -1));
                         }
                     if (frame.last()) done.complete(null);
                 } else {
@@ -544,19 +701,24 @@ public final class VoiceAiBackends {
                             throw new IOException("recognition task failed");
                         var sentence =
                                 map(map(map(event.get("payload")).get("output")).get("sentence"));
-                        if (Boolean.TRUE.equals(sentence.get("sentence_end")))
-                            finalText(
-                                    str(sentence, "text"), task + ":" + sentence.get("begin_time"));
+                        recognized(
+                                str(sentence, "text"),
+                                task + ":" + sentence.get("begin_time"),
+                                Boolean.TRUE.equals(sentence.get("sentence_end")),
+                                Support.integer(sentence, "begin_time", -1),
+                                Support.integer(sentence, "end_time", -1));
                     } else {
                         if (Support.integer(event, "code", 0) != 0)
                             throw new IOException("recognition task failed");
                         ready.complete(null);
                         var result = map(event.get("result"));
                         if (Support.integer(result, "slice_type", 0) == 0) listener.speechStarted();
-                        if (Support.integer(result, "slice_type", -1) == 2)
-                            finalText(
-                                    str(result, "voice_text_str"),
-                                    task + ":" + result.get("index"));
+                        recognized(
+                                str(result, "voice_text_str"),
+                                task + ":" + result.get("index"),
+                                Support.integer(result, "slice_type", -1) == 2,
+                                Support.integer(result, "start_time", -1),
+                                Support.integer(result, "end_time", -1));
                         if (Support.integer(event, "final", 0) == 1) done.complete(null);
                     }
                 }
@@ -567,11 +729,40 @@ public final class VoiceAiBackends {
             }
         }
 
-        void finalText(String text, String id) throws Exception {
-            if (!text.isBlank() && !id.equals(lastFinal)) {
-                lastFinal = id;
-                listener.transcript(text, id);
+        void recognized(String text, String id, boolean last, long start, long end)
+                throws Exception {
+            if (text.isBlank() || id.equals(lastFinal)) return;
+            if (!currentUtterance.equals(id)) {
+                currentUtterance = id;
+                previousText = "";
+                revision = 0;
             }
+            if (!last && text.equals(previousText)) return;
+            int stable = 0;
+            while (stable < previousText.length()
+                    && stable < text.length()
+                    && previousText.charAt(stable) == text.charAt(stable)) stable++;
+            revision++;
+            previousText = text;
+            if (last) lastFinal = id;
+            listener.recognition(
+                    Map.of(
+                            "text",
+                            text,
+                            "utterance_id",
+                            id,
+                            "revision",
+                            revision,
+                            "stable_prefix_length",
+                            stable,
+                            "is_final",
+                            last,
+                            "start_ms",
+                            start,
+                            "end_ms",
+                            end,
+                            "event_id",
+                            id + (last ? ":final" : ":partial:" + revision)));
         }
 
         @Override
@@ -615,12 +806,18 @@ public final class VoiceAiBackends {
         String inputText = "", activeResponse = "", activeQuestion = "";
         volatile boolean responding, exactRequested, exactStarted, hasUserTurn;
         boolean acceptAudio = true;
-        long speechSamples, silenceSamples, bufferSamples;
-        boolean localSpeech;
+        final TurnManager turn;
+        volatile boolean inputPending;
+        volatile boolean cancelledResponse;
+        final Set<String> retiredResponses = ConcurrentHashMap.newKeySet();
+        String activeItem = "";
+        long emittedSamples;
+        int queuedAudioBytes;
 
         Realtime(Map<String, Object> spec, String script, Listener listener) throws Exception {
             this.spec = spec;
             this.listener = listener;
+            turn = new TurnManager(map(spec.get("turn_policy")), 16000);
             String vendor = str(spec, "vendor");
             URI target = profiles.endpoint(str(spec, "realtime_url"), false);
             var headers = new LinkedHashMap<String, String>();
@@ -652,7 +849,12 @@ public final class VoiceAiBackends {
                                                             "extra",
                                                             Map.of(
                                                                     "end_smooth_window_ms",
-                                                                    800,
+                                                                    Support.integer(
+                                                                            map(
+                                                                                    spec.get(
+                                                                                            "turn_policy")),
+                                                                            "vad_end_ms",
+                                                                            400),
                                                                     "enable_custom_vad",
                                                                     true)),
                                                     "tts",
@@ -730,7 +932,7 @@ public final class VoiceAiBackends {
                     if (event == 50) connectionReady.complete(null);
                     else if (event == 150) ready.complete(null);
                     else if (event == 450) {
-                        output.clear();
+                        clearOutput();
                         responseText.setLength(0);
                         exactRequested = false;
                         exactStarted = false;
@@ -744,6 +946,7 @@ public final class VoiceAiBackends {
                             inputText = str(map(results.get(results.size() - 1)), "text");
                     } else if (event == 459) {
                         hasUserTurn = true;
+                        listener.inputCommitted();
                         if (!inputText.isBlank()) {
                             listener.transcript(inputText, uuid());
                             inputText = "";
@@ -760,7 +963,7 @@ public final class VoiceAiBackends {
                                 activeQuestion.isBlank() || q.isBlank() || activeQuestion.equals(q);
                         if ("chat_tts_text".equals(str(value, "tts_type")) && exactRequested) {
                             exactStarted = true;
-                            output.clear();
+                            clearOutput();
                             responseText.setLength(0);
                         }
                     } else if (event == 550) {
@@ -779,13 +982,23 @@ public final class VoiceAiBackends {
                     var event = Support.object(bytes);
                     String type = str(event, "type");
                     if (type.equals("response.created")) {
-                        activeResponse = str(map(event.get("response")), "id");
+                        String id = str(map(event.get("response")), "id");
+                        if (cancelledResponse || retiredResponses.contains(id)) {
+                            retiredResponses.add(id);
+                            socket.json(Map.of("type", "response.cancel"));
+                            return;
+                        }
+                        if (!responding || !activeResponse.isBlank()) return;
+                        activeResponse = id;
                         return;
                     }
                     String responseId = str(event, "response_id");
                     if (type.equals("response.done"))
                         responseId = str(map(event.get("response")), "id");
-                    if (!responseId.isBlank() && !responseId.equals(activeResponse)) return;
+                    if (!responseId.isBlank()
+                            && (cancelledResponse
+                                    || retiredResponses.contains(responseId)
+                                    || !responseId.equals(activeResponse))) return;
                     if (type.equals("session.updated")) ready.complete(null);
                     else if (type.equals("error"))
                         throw new IOException("realtime voice provider error");
@@ -800,9 +1013,8 @@ public final class VoiceAiBackends {
                         responseText.append(str(event, "delta"));
                     else if (type.equals("response.done")) {
                         String status = str(map(event.get("response")), "status");
-                        if (status.equals("failed"))
-                            put(new IOException("realtime response failed"));
-                        else put(Boolean.TRUE);
+                        if (status.equals("completed")) put(Boolean.TRUE);
+                        else put(new IOException("realtime response did not complete: " + status));
                     }
                 }
                 if (responseText.length() > 8000) throw new IOException("realtime text limit");
@@ -814,8 +1026,17 @@ public final class VoiceAiBackends {
             }
         }
 
-        void put(Object value) throws IOException {
-            if (!output.offer(value)) throw new IOException("realtime output buffer full");
+        synchronized void put(Object value) throws IOException {
+            if (cancelledResponse) return;
+            int bytes = value instanceof byte[] pcm ? pcm.length : 0;
+            if (queuedAudioBytes + bytes > 48000 || !output.offer(value))
+                throw new IOException("realtime output exceeds one second buffer");
+            queuedAudioBytes += bytes;
+        }
+
+        synchronized void clearOutput() {
+            output.clear();
+            queuedAudioBytes = 0;
         }
 
         @Override
@@ -829,47 +1050,38 @@ public final class VoiceAiBackends {
                                 "input_audio_buffer.append",
                                 "audio",
                                 Base64.getEncoder().encodeToString(pcm)));
-                int samples = pcm.length / 2;
-                double energy = 0;
-                for (int i = 0; i + 1 < pcm.length; i += 2) {
-                    short v = (short) ((pcm[i] & 255) | (pcm[i + 1] << 8));
-                    energy += v * (double) v;
-                }
-                boolean voiced =
-                        Math.sqrt(energy / Math.max(1, samples))
-                                >= settings.number("JAVA_VAD_RMS_THRESHOLD", 200, 1, 32767);
-                bufferSamples += samples;
-                if (voiced) {
-                    speechSamples += samples;
-                    silenceSamples = 0;
-                    if (!localSpeech && speechSamples >= 1600) {
-                        localSpeech = true;
-                        listener.speechStarted();
+                inputPending = true;
+                switch (turn.audio(pcm)) {
+                    case START -> listener.speechStarted();
+                    case COMMIT -> finishInput();
+                    case CLEAR -> {
+                        socket.json(Map.of("type", "input_audio_buffer.clear"));
+                        inputPending = false;
                     }
-                } else {
-                    silenceSamples += samples;
-                    if (!localSpeech) speechSamples = 0;
-                }
-                if (localSpeech && (silenceSamples >= 12800 || bufferSamples >= 320000))
-                    finishInput();
-                else if (!localSpeech && bufferSamples >= 32000) {
-                    socket.json(Map.of("type", "input_audio_buffer.clear"));
-                    bufferSamples = 0;
+                    default -> {}
                 }
             }
         }
 
         @Override
+        public void recognitionHint(String text) {
+            turn.partial(text);
+        }
+
+        @Override
         public void finishInput() throws Exception {
-            if (!str(spec, "vendor").equals("volcengine") && bufferSamples > 1600) {
+            if (!str(spec, "vendor").equals("volcengine") && inputPending) {
+                inputPending = false;
                 socket.json(Map.of("type", "input_audio_buffer.commit"));
-                localSpeech = false;
-                speechSamples = silenceSamples = bufferSamples = 0;
+                turn.reset();
+                listener.inputCommitted();
             }
         }
 
         @Override
         public String reply(String text, boolean generate, Audio audio) throws Exception {
+            if (cancelledResponse)
+                throw new IOException("cancelled realtime session must be rebuilt");
             responding = true;
             try {
                 if (str(spec, "vendor").equals("volcengine")) {
@@ -878,7 +1090,7 @@ public final class VoiceAiBackends {
                         exactRequested = true;
                         exactStarted = !hasUserTurn;
                         acceptAudio = true;
-                        output.clear();
+                        clearOutput();
                         responseText.setLength(0);
                         socket.bytes(
                                 VolcVoiceProtocol.event(
@@ -893,7 +1105,7 @@ public final class VoiceAiBackends {
                                         false));
                     }
                 } else {
-                    output.clear();
+                    clearOutput();
                     responseText.setLength(0);
                     activeResponse = "";
                     firstAudioAt = 0;
@@ -912,8 +1124,13 @@ public final class VoiceAiBackends {
                 while (System.nanoTime() < deadline) {
                     socket.check();
                     Object value = output.poll(100, TimeUnit.MILLISECONDS);
-                    if (value instanceof byte[] pcm) audio.accept(pcm, 24000);
-                    else if (Boolean.TRUE.equals(value)) return responseText.toString();
+                    if (cancelledResponse) throw new IOException("realtime response cancelled");
+                    if (value instanceof byte[] pcm) {
+                        synchronized (this) {
+                            queuedAudioBytes -= pcm.length;
+                        }
+                        audio.accept(pcm, 24000);
+                    } else if (Boolean.TRUE.equals(value)) return responseText.toString();
                     else if (value instanceof Exception error) throw error;
                 }
                 throw new IOException("realtime response timeout");
@@ -924,10 +1141,15 @@ public final class VoiceAiBackends {
 
         @Override
         public void interrupt() throws Exception {
-            output.clear();
+            cancelledResponse = true;
+            acceptAudio = false;
+            if (!activeResponse.isBlank()) retiredResponses.add(activeResponse);
+            clearOutput();
             responseText.setLength(0);
             if (!str(spec, "vendor").equals("volcengine") && responding)
                 socket.json(Map.of("type", "response.cancel"));
+            // Context truncation is not verified for these profiles. NativeMedia rebuilds the
+            // provider session from confirmed history instead of reusing unplayed model memory.
         }
 
         @Override
@@ -942,8 +1164,9 @@ public final class VoiceAiBackends {
 
         @Override
         public void close() {
+            cancelledResponse = true;
             socket.close();
-            output.clear();
+            clearOutput();
         }
     }
 }

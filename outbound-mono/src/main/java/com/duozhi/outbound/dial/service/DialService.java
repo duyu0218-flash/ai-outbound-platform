@@ -719,15 +719,40 @@ public class DialService {
         if (VoiceAiProfiles.selected(frozenAi)) {
             metadata.put("voice_ai_profile", frozenAi.get("_voice_profile"));
             metadata.put("voice_ai_script", scenario.get("_script"));
-            metadata.put(
-                    "voice_ai_guard",
-                    JsonSupport.map(
-                            "realtime_playback_mode",
-                            frozenAi.get("realtime_playback_mode"),
-                            "max_reply_chars",
-                            frozenAi.get("max_reply_chars"),
-                            "forbidden_phrases",
-                            frozenAi.get("forbidden_phrases")));
+            var selectedProfile = Support.map(frozenAi.get("_voice_profile"));
+            if ("realtime".equals(selectedProfile.get("route"))) {
+                try {
+                    new VoiceAiProfiles(
+                                    credentials.runtime(
+                                            new UnifiedServiceSettings(config, "voice"),
+                                            tenant,
+                                            -1))
+                            .requireReady(Support.map(selectedProfile.get("speech_profile")));
+                } catch (Support.Failure missing) {
+                    if (!client.mock(call))
+                        throw new ApiError(missing.status, missing.getMessage());
+                }
+            }
+            if (Boolean.TRUE.equals(frozenAi.get("direct_s2s_enabled"))
+                    && call.get("script_flow_version_id") != null)
+                throw new ApiError(409, "流程画布通话必须由业务策略控制语音回复");
+            if (config.production()) {
+                try {
+                    var voiceRuntime =
+                            credentials.runtime(
+                                    new UnifiedServiceSettings(config, "voice"), tenant, -1);
+                    if (new com.duozhi.outbound.voiceai.service.OpeningAudioCache(voiceRuntime)
+                                    .read(
+                                            tenant,
+                                            selectedProfile,
+                                            Objects.toString(
+                                                    frozenAi.get("ai_disclosure_text"), ""))
+                            == null) throw new ApiError(409, "请先在语音方案页准备身份告知音频");
+                } catch (java.io.IOException unavailable) {
+                    throw new ApiError(409, "身份告知音频不可用");
+                }
+            }
+            metadata.put("voice_ai_guard", new LinkedHashMap<>(frozenAi));
             for (String key : Arrays.asList("asr_provider", "tts_provider", "voice", "language"))
                 metadata.put(key, frozenAi.get(key));
         }

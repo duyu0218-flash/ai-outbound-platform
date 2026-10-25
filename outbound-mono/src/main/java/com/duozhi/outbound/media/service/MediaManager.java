@@ -76,6 +76,17 @@ public interface MediaManager extends AutoCloseable {
         return speak(call, text, expected, operation);
     }
 
+    default String respond(
+            String call,
+            String text,
+            String expected,
+            String operation,
+            boolean modelReply,
+            Map<String, Object> context)
+            throws Exception {
+        return respond(call, text, expected, operation, modelReply);
+    }
+
     void interrupt(String call, String expected) throws Exception;
 
     void module(String call, String kind, long timestamp) throws Exception;

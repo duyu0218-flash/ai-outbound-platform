@@ -435,6 +435,12 @@ class VoiceAiBackendsTest {
         final AtomicLong completedAt = new AtomicLong();
         Map<String, String> expectedHeaders = Map.of();
         final String vendor, kind;
+        String transcript = "我想了解服务";
+        int responseDelayMs;
+        boolean suppressTranscript;
+        final CountDownLatch responseRequested = new CountDownLatch(1);
+        final CountDownLatch cancellations = new CountDownLatch(2);
+        final AtomicInteger connections = new AtomicInteger();
 
         static final class State {
             boolean recognized;
@@ -468,6 +474,7 @@ class VoiceAiBackendsTest {
                                 protected void channelRead0(
                                         ChannelHandlerContext ctx, FullHttpRequest request) {
                                     try {
+                                        connections.incrementAndGet();
                                         if (vendor.equals("tencent"))
                                             verifySignature(request.uri());
                                         if (vendor.equals("volcengine")) {
@@ -578,7 +585,7 @@ class VoiceAiBackendsTest {
                                                                             List.of(
                                                                                     Map.of(
                                                                                             "text",
-                                                                                            "我想了解服务",
+                                                                                            transcript,
                                                                                             "definite",
                                                                                             true,
                                                                                             "start_time",
@@ -607,7 +614,7 @@ class VoiceAiBackendsTest {
                         Support.json(
                                 Map.of(
                                         "results",
-                                        List.of(Map.of("text", "我想了解服务", "is_interim", false)))));
+                                        List.of(Map.of("text", transcript, "is_interim", false)))));
                 binary(ctx, 459, state.task, Support.json(Map.of()));
                 binary(ctx, 550, state.task, Support.json(Map.of("content", "好的，请问您方便了解吗？")));
                 binary(ctx, 352, state.task, pcm());
@@ -631,7 +638,7 @@ class VoiceAiBackendsTest {
                                                 "sentence",
                                                 Map.of(
                                                         "text",
-                                                        "我想了解服务",
+                                                        transcript,
                                                         "sentence_end",
                                                         true,
                                                         "begin_time",
@@ -643,7 +650,7 @@ class VoiceAiBackendsTest {
                                 "code",
                                 0,
                                 "result",
-                                Map.of("slice_type", 2, "voice_text_str", "我想了解服务", "index", 0)));
+                                Map.of("slice_type", 2, "voice_text_str", transcript, "index", 0)));
         }
 
         void message(ChannelHandlerContext ctx, Map<String, Object> event, State state) {
@@ -669,56 +676,61 @@ class VoiceAiBackendsTest {
                                         Map.of("event", "task-finished", "task_id", state.task)));
                 case "ACTION_COMPLETE" -> text(ctx, Map.of("code", 0, "final", 1));
                 default -> {
-                    if (type.equals("session.update")) text(ctx, Map.of("type", "session.updated"));
-                    else if (type.equals("input_audio_buffer.commit"))
+                    if (type.equals("response.cancel")) cancellations.countDown();
+                    else if (type.equals("session.update"))
+                        text(ctx, Map.of("type", "session.updated"));
+                    else if (type.equals("input_audio_buffer.commit") && !suppressTranscript)
                         text(
                                 ctx,
                                 Map.of(
                                         "type",
                                         "conversation.item.input_audio_transcription.completed",
                                         "transcript",
-                                        "我想了解服务",
+                                        transcript,
                                         "item_id",
                                         "test-item"));
                     else if (type.equals("response.create")) {
-                        text(
-                                ctx,
-                                Map.of(
-                                        "type",
-                                        "response.created",
-                                        "response",
-                                        Map.of("id", "fixture-response")));
-                        text(
-                                ctx,
-                                Map.of(
-                                        "type",
-                                        "response.audio_transcript.delta",
-                                        "delta",
-                                        "好的，请问您方便了解吗？"));
-                        text(
-                                ctx,
-                                Map.of(
-                                        "type",
-                                        "response.audio.delta",
-                                        "delta",
-                                        Base64.getEncoder().encodeToString(pcm())));
-                        complete(
-                                ctx,
-                                () ->
-                                        text(
-                                                ctx,
-                                                Map.of(
-                                                        "type",
-                                                        "response.done",
-                                                        "response",
-                                                        Map.of(
-                                                                "id",
-                                                                "fixture-response",
-                                                                "status",
-                                                                "completed"))));
+                        responseRequested.countDown();
+                        ctx.executor()
+                                .schedule(
+                                        () -> sendResponse(ctx),
+                                        responseDelayMs,
+                                        TimeUnit.MILLISECONDS);
                     }
                 }
             }
+        }
+
+        void sendResponse(ChannelHandlerContext ctx) {
+            text(
+                    ctx,
+                    Map.of(
+                            "type",
+                            "response.created",
+                            "response",
+                            Map.of("id", "fixture-response")));
+            text(ctx, Map.of("type", "response.audio_transcript.delta", "delta", "好的，请问您方便了解吗？"));
+            text(
+                    ctx,
+                    Map.of(
+                            "type",
+                            "response.audio.delta",
+                            "delta",
+                            Base64.getEncoder().encodeToString(pcm())));
+            complete(
+                    ctx,
+                    () ->
+                            text(
+                                    ctx,
+                                    Map.of(
+                                            "type",
+                                            "response.done",
+                                            "response",
+                                            Map.of(
+                                                    "id",
+                                                    "fixture-response",
+                                                    "status",
+                                                    "completed"))));
         }
 
         void complete(ChannelHandlerContext ctx, Runnable send) {

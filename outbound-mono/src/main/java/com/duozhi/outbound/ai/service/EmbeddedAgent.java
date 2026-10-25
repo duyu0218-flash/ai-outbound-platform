@@ -3,7 +3,6 @@ package com.duozhi.outbound.ai.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.dao.LedgerDatabase;
 import com.duozhi.outbound.integration.support.Support;
-import com.duozhi.outbound.voiceai.service.VoiceAiBackends;
 import jakarta.annotation.PreDestroy;
 import java.net.*;
 import java.net.http.*;
@@ -92,6 +91,7 @@ public class EmbeddedAgent {
             if (!Boolean.TRUE.equals(context.get("external_llm_enabled")))
                 throw new Support.Failure(409, "external model use is not approved");
             if (result.get("action").equals("speak")) {
+                if (Support.str(payload, "transcript", "").isBlank()) return result;
                 if ("realtime".equals(profile.get("route"))) {
                     result.put("model_reply", true);
                     result.put("tts_text", "按已批准话术回应当前语音");
@@ -103,9 +103,9 @@ public class EmbeddedAgent {
                     quota.acquire(estimate);
                     try {
                         var messages = messages(payload, context);
-                        result.put(
-                                "tts_text",
-                                new VoiceAiBackends(settings).generate(profile, messages));
+                        result.put("model_reply", true);
+                        result.put("tts_text", "按已批准话术回应当前语音");
+                        result.put("model_context", Map.of("messages", messages));
                     } finally {
                         quota.release();
                     }

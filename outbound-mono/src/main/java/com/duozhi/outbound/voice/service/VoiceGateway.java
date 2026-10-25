@@ -903,7 +903,8 @@ public final class VoiceGateway implements AutoCloseable {
                             text,
                             expected,
                             commandId,
-                            Boolean.TRUE.equals(payload.get("model_reply")));
+                            Boolean.TRUE.equals(payload.get("model_reply")),
+                            Support.map(payload.get("model_context")));
             Map<String, Object> result =
                     Map.of(
                             "result",

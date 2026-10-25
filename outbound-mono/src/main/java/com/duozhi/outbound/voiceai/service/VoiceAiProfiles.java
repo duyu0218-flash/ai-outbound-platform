@@ -267,6 +267,25 @@ public final class VoiceAiProfiles {
                             tenant,
                             "revision",
                             settings.number("VOICE_AI_CONFIG_REVISION", 0, 0, Long.MAX_VALUE)));
+        var approvals =
+                Support.object(
+                        settings.get("VOICE_AI_APPROVED_QUOTAS_JSON", "{}")
+                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        result.put("approved_quotas", Support.map(approvals.get(p.vendor)));
+        result.put("model_tier", settings.get("VOICE_AI_" + prefix + "_MODEL_TIER", "unverified"));
+        result.put(
+                "capabilities",
+                Map.of(
+                        "cancel",
+                        "unknown",
+                        "context_truncate",
+                        "unknown",
+                        "tool_call",
+                        "unknown",
+                        "audio_text_alignment",
+                        "unknown",
+                        "session_resume",
+                        "unknown"));
         result.put("revision", Support.hex(Support.sha(Support.json(result))));
         return Collections.unmodifiableMap(result);
     }

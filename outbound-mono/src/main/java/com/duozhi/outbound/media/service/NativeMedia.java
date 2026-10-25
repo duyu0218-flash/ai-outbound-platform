@@ -3,7 +3,7 @@ package com.duozhi.outbound.media.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.recording.storage.S3Store;
-import com.duozhi.outbound.voiceai.service.VoiceAiBackends;
+import com.duozhi.outbound.voiceai.service.*;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
@@ -33,6 +33,7 @@ public final class NativeMedia implements MediaManager {
     }
 
     private final Settings settings;
+    private final VoiceResources resources;
     private final Events events;
     private final Permits permits;
     private final Map<String, Session> calls = new ConcurrentHashMap<>();
@@ -54,6 +55,7 @@ public final class NativeMedia implements MediaManager {
 
     public NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings;
+        resources = new VoiceResources(settings);
         this.events = events;
         this.permits = permits;
         this.limit = limit;
@@ -225,7 +227,9 @@ public final class NativeMedia implements MediaManager {
                 "tts_first_audio_seconds_sum",
                 firstAudioSeconds.sum(),
                 "tts_first_audio_max_seconds",
-                firstAudioMax.get());
+                firstAudioMax.get(),
+                "ai_active_sessions",
+                resources.usage().getOrDefault("ai", 0));
     }
 
     boolean owns(String token) {
@@ -374,10 +378,25 @@ public final class NativeMedia implements MediaManager {
     public String respond(
             String call, String text, String expected, String operation, boolean modelReply)
             throws Exception {
+        return respond(call, text, expected, operation, modelReply, Map.of());
+    }
+
+    @Override
+    public String respond(
+            String call,
+            String text,
+            String expected,
+            String operation,
+            boolean modelReply,
+            Map<String, Object> context)
+            throws Exception {
         Session session = required(call);
         synchronized (session) {
             fence(call, expected, false);
-            String digest = Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8)));
+            String digest =
+                    Support.hex(
+                            Support.sha(
+                                    Support.canonical(Map.of("text", text, "context", context))));
             if (!operation.isEmpty() && session.operations.containsKey(operation)) {
                 var previous = session.operations.get(operation);
                 if (!digest.equals(previous.get("digest"))
@@ -391,19 +410,32 @@ public final class NativeMedia implements MediaManager {
             Stream stream = streams.get(call);
             if (stream == null) throw new Support.Failure(503, "media socket has not connected");
             String playback = UUID.randomUUID().toString();
+            var response = new ResponseScope();
+            long generation = stream.coordinator.begin(response);
             session.playback = playback;
-            long generation = ++stream.generation;
+            stream.response = response;
+            stream.context = Map.copyOf(context);
+            stream.generation = generation;
             long requested = System.nanoTime();
-            Future<?> task =
-                    work.submit(
-                            () -> {
-                                try {
-                                    synthesize(stream, text, generation, requested, modelReply);
-                                } catch (Exception error) {
-                                    if (stream.generation == generation && !session.closing)
-                                        fail(session, "TTS_REQUEST_FAILED");
-                                }
-                            });
+            Future<?> task;
+            try {
+                task =
+                        work.submit(
+                                () -> {
+                                    try {
+                                        synthesize(stream, text, generation, requested, modelReply);
+                                    } catch (Exception error) {
+                                        if (stream.generation == generation && !session.closing) {
+                                            stream.coordinator.interrupt();
+                                            fail(session, "TTS_REQUEST_FAILED");
+                                        }
+                                    }
+                                });
+            } catch (RejectedExecutionException full) {
+                stream.coordinator.interrupt();
+                session.playback = "";
+                throw new Support.Failure(503, "voice response worker overloaded");
+            }
             stream.tts = task;
             if (!operation.isEmpty()) {
                 session.operations.put(
@@ -411,6 +443,8 @@ public final class NativeMedia implements MediaManager {
                         Map.of(
                                 "digest",
                                 digest,
+                                "text_digest",
+                                Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8))),
                                 "playback_id",
                                 playback,
                                 "model_reply",
@@ -430,7 +464,8 @@ public final class NativeMedia implements MediaManager {
             var previous = session.operations.get(operation);
             if (previous == null
                     || !Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8)))
-                            .equals(previous.get("digest"))) return Map.of("confirmed", false);
+                            .equals(previous.getOrDefault("text_digest", previous.get("digest"))))
+                return Map.of("confirmed", false);
             return Map.of("confirmed", true, "playback_id", previous.get("playback_id"));
         }
     }
@@ -443,9 +478,12 @@ public final class NativeMedia implements MediaManager {
             fence(call, expected, false);
             session.interrupting = true;
             if (stream != null) {
+                stream.coordinator.interrupt();
                 stream.generation++;
                 if (stream.tts != null) stream.tts.cancel(true);
-                if (stream.vendor != null) stream.vendor.interrupt();
+                if (stream.vendor != null
+                        && "realtime".equals(stream.profile.get("route"))
+                        && stream.engineReady.isDone()) stream.vendor.interrupt();
                 if (voismart) stream.text(Map.of("type", "input_audio_buffer.speech_started"));
             }
             session.playback = "";
@@ -458,6 +496,7 @@ public final class NativeMedia implements MediaManager {
                     throw new Support.Failure(409, "module interruption was not confirmed");
             }
             media(session, "interrupted", "", "");
+            if (stream != null) stream.restartRealtime();
         } finally {
             session.interrupting = false;
         }
@@ -476,9 +515,53 @@ public final class NativeMedia implements MediaManager {
             } else if (kind.equals("openai_speech_stop")) {
                 session.speaking = false;
                 session.playback = "";
+                Stream stream = streams.get(call);
+                if (stream != null
+                        && Boolean.TRUE.equals(stream.coordinator.evidence().get("active"))
+                        && !session.interrupting) {
+                    String heard = stream.coordinator.drained(stream.generation, false);
+                    // This legacy module event has no playback/epoch correlation. It cannot
+                    // establish a played fact; a correlated acknowledgement uses acknowledge().
+                    if (!heard.isBlank()) {
+                        stream.remember("助手已播放：" + heard);
+                        replyTranscript(session, heard, stream.generation);
+                    }
+                }
                 media(session, "listening", "", "");
             } else if (Set.of("error", "disconnect").contains(kind))
                 fail(session, kind.equals("error") ? "MEDIA_MODULE_ERROR" : "MEDIA_DISCONNECTED");
+        }
+    }
+
+    public Map<String, Object> evidence(String call) {
+        Stream stream = streams.get(call);
+        return stream == null ? Map.of() : stream.coordinator.evidence();
+    }
+
+    public void acknowledge(String call, String playback, long generation, long samples)
+            throws Exception {
+        Session session = required(call);
+        Stream stream = streams.get(call);
+        synchronized (session) {
+            if (stream == null
+                    || !session.playback.equals(playback)
+                    || generation != stream.generation
+                    || samples < 0
+                    || stream.generationDone != generation
+                    || samples == 0
+                    || samples
+                            != ((Number) stream.coordinator.evidence().get("sent_samples"))
+                                    .longValue())
+                throw new Support.Failure(409, "stale or incomplete playback acknowledgement");
+            String heard = stream.coordinator.drained(generation, true);
+            stream.disclosurePlayed = stream.disclosureSent;
+            session.speaking = false;
+            session.playback = "";
+            if (!heard.isBlank()) {
+                stream.remember("助手已播放：" + heard);
+                replyTranscript(session, heard, generation);
+            }
+            media(session, "listening", "", "");
         }
     }
 
@@ -560,6 +643,13 @@ public final class NativeMedia implements MediaManager {
         payload.put("sample_rate", rate);
         payload.put("channel_count", 1);
         payload.put("provider", "java-native");
+        Stream stream = streams.get(session.call);
+        if (stream != null) {
+            payload.put("voice_evidence", stream.coordinator.evidence());
+            payload.put("answer_class", stream.classifier.answer().name().toLowerCase(Locale.ROOT));
+            payload.put("ai_disclosure_sent", stream.disclosureSent);
+            payload.put("ai_disclosure_played", stream.disclosurePlayed);
+        }
         payload.put("attempt", session.metadata.get("attempt"));
         payload.put("error_code", error.isEmpty() ? null : error);
         events.post(session.mediaUrl, payload);
@@ -570,21 +660,24 @@ public final class NativeMedia implements MediaManager {
         if (text.isBlank() || session.closing) return;
         var policy = Support.map(session.metadata.get("scenario_policy"));
         boolean playing = !session.playback.isEmpty() || session.speaking;
-        boolean urgent = text.contains("别再打") || text.contains("停止联系") || text.contains("挂断");
+        boolean urgent =
+                Set.of("stop_contact", "wrong_person", "handoff", "rejected", "end")
+                        .contains(com.duozhi.outbound.ai.service.DialogueRules.classify(text));
         long min = Support.integer(policy, "min_interrupt_chars", 1);
         if (playing
                 && !urgent
                 && (Boolean.FALSE.equals(policy.get("allow_interruptions"))
                         || text.strip().length() < min)) return;
         if (playing && (urgent || min > 1)) interrupt(session.call, null);
-        session.latest = id;
+        if (!Boolean.FALSE.equals(details.get("is_final"))) session.latest = id;
         if (session.speechUrl.isEmpty()) return;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("call_id", session.call);
         payload.put("provider_session_id", session.id);
         payload.put("event_id", id);
         payload.put("transcript", text);
-        payload.put("is_final", true);
+        boolean last = !Boolean.FALSE.equals(details.get("is_final"));
+        payload.put("is_final", last);
         payload.put("speaker_role", "customer");
         payload.put("channel_id", "inbound");
         payload.put(
@@ -592,10 +685,27 @@ public final class NativeMedia implements MediaManager {
                 session.metadata.get("voice_ai_profile") instanceof Map<?, ?> profile
                         ? Objects.toString(profile.get("id"), "")
                         : "pipecat:" + settings.get("PIPECAT_STT_PROVIDER", "openai-realtime"));
+        Stream source = streams.get(session.call);
+        payload.put(
+                "native_response",
+                source != null
+                        && !Boolean.FALSE.equals(details.get("is_final"))
+                        && (source.nativeResponse.getAndSet(false)
+                                || Boolean.TRUE.equals(
+                                        Support.map(session.metadata.get("voice_ai_guard"))
+                                                .get("direct_s2s_enabled"))));
         payload.put("barge_in", false);
         payload.put("attempt", session.metadata.get("attempt"));
-        for (String key : List.of("confidence", "start_ms", "end_ms", "latency_ms"))
-            payload.put(key, details.get(key));
+        for (String key :
+                List.of(
+                        "confidence",
+                        "start_ms",
+                        "end_ms",
+                        "latency_ms",
+                        "utterance_id",
+                        "revision",
+                        "stable_prefix_length",
+                        "answer_class")) payload.put(key, details.get(key));
         events.post(session.speechUrl, payload);
     }
 
@@ -700,6 +810,7 @@ public final class NativeMedia implements MediaManager {
                     if (voismart) stream.text(Map.of("type", "response.output_audio.done"));
                     else {
                         stream.session.playback = "";
+                        if (stream.profile.isEmpty()) stream.coordinator.drained(generation, false);
                         media(stream.session, "listening", "", "");
                     }
                 }
@@ -712,15 +823,39 @@ public final class NativeMedia implements MediaManager {
     private void synthesizeVendor(
             Stream stream, String text, long generation, long requested, boolean modelReply)
             throws Exception {
-        stream.session.started.get(10, TimeUnit.SECONDS);
+        if (modelReply) stream.session.started.get(10, TimeUnit.SECONDS);
         if (stream.session.closing || stream.generation != generation)
             throw new InterruptedException("superseded reply");
         String permit = UUID.randomUUID().toString();
-        permits.change(stream.session, permit, "tts", true, false);
+        boolean needsTts = !modelReply || !"realtime".equals(stream.profile.get("route"));
+        var speechSpec = OpeningAudioCache.speechProfile(stream.profile);
+        AutoCloseable speechLease =
+                resources.acquire(
+                        speechSpec,
+                        Support.integer(stream.session.metadata, "tenant_id", 0),
+                        needsTts ? new String[] {"tts"} : new String[] {});
         boolean confirmed = false;
-        try {
+        try (speechLease) {
+            if (needsTts) permits.change(stream.session, permit, "tts", true, false);
+            if (modelReply) {
+                stream.engineReady.get(10, TimeUnit.SECONDS);
+                stream.providerReady.get(10, TimeUnit.SECONDS);
+            }
             var player = new VendorPlayer(stream, generation, requested);
-            if ("realtime".equals(stream.profile.get("route"))) {
+            var guardPolicy = Support.map(stream.session.metadata.get("voice_ai_guard"));
+            if (!stream.disclosureStarted && guardPolicy.containsKey("ai_disclosure_text")) {
+                stream.disclosureStarted = true;
+                String disclosure = Support.str(guardPolicy, "ai_disclosure_text", "");
+                long tenant = Support.integer(stream.session.metadata, "tenant_id", 0);
+                byte[] prepared =
+                        new OpeningAudioCache(settings).read(tenant, stream.profile, disclosure);
+                if (prepared != null) player.accept(prepared, 24000);
+                else if (settings.production())
+                    throw new IOException("prepared AI disclosure is missing");
+                else synthesizeScoped(stream, speechSpec, disclosure, player);
+                stream.disclosureSent = true;
+            }
+            if ("realtime".equals(stream.profile.get("route")) && modelReply) {
                 // Reviewed is the safe existing behavior. Streaming is an explicit tenant choice:
                 // audio may already have played when the complete output guard rejects a response.
                 var guard = Support.map(stream.session.metadata.get("voice_ai_guard"));
@@ -741,12 +876,9 @@ public final class NativeMedia implements MediaManager {
                         || reply.codePointCount(0, reply.length())
                                 > Support.integer(guard, "max_reply_chars", 240))
                     throw new IOException("realtime output review failed");
-                for (String forbidden :
-                        Support.str(guard, "forbidden_phrases", "").replace('\n', ',').split(","))
-                    if (!forbidden.isBlank()
-                            && reply.toLowerCase(Locale.ROOT)
-                                    .contains(forbidden.strip().toLowerCase(Locale.ROOT)))
-                        throw new IOException("realtime output review failed");
+                var reviewer = new TextCommitter(guard, sentence -> {});
+                reviewer.append(reply);
+                reviewer.finish();
                 byte[] bytes = pending.toByteArray();
                 if (!streaming)
                     for (int offset = 0; offset < bytes.length; offset += 4800)
@@ -754,20 +886,84 @@ public final class NativeMedia implements MediaManager {
                                 Arrays.copyOfRange(
                                         bytes, offset, Math.min(bytes.length, offset + 4800)),
                                 24000);
-                if (modelReply && stream.generation == generation && !stream.session.closing)
-                    replyTranscript(stream.session, reply, generation);
-            } else new VoiceAiBackends(settings).synthesize(stream.profile, text, player::accept);
+                stream.coordinator.text(generation, reply);
+            } else {
+                var spec =
+                        "realtime".equals(stream.profile.get("route"))
+                                ? Support.map(stream.profile.get("speech_profile"))
+                                : stream.profile;
+                if (spec.isEmpty())
+                    throw new IOException("deterministic speech profile is required");
+                var backend = new VoiceAiBackends(settings);
+                if (modelReply) {
+                    Object source = stream.context.get("messages");
+                    if (!(source instanceof List<?> sourceMessages) || sourceMessages.isEmpty())
+                        throw new IOException("streaming response context is required");
+                    var messages = new ArrayList<Map<String, String>>();
+                    for (Object value : sourceMessages) {
+                        var item = Support.map(value);
+                        messages.add(
+                                Map.of(
+                                        "role",
+                                        Support.str(item, "role", "user"),
+                                        "content",
+                                        Support.str(item, "content", "")));
+                    }
+                    try (var modelLease =
+                                    resources.acquire(
+                                            spec,
+                                            Support.integer(
+                                                    stream.session.metadata, "tenant_id", 0),
+                                            "llm");
+                            var tts = backend.synthesis(spec, player::accept, stream.response)) {
+                        var committer =
+                                new TextCommitter(
+                                        Support.map(stream.session.metadata.get("voice_ai_guard")),
+                                        sentence -> {
+                                            stream.coordinator.stamp(
+                                                    generation, "segment_approved");
+                                            tts.append(sentence);
+                                        });
+                        backend.generate(
+                                spec,
+                                messages,
+                                delta -> {
+                                    stream.coordinator.stamp(generation, "llm_first");
+                                    committer.append(delta);
+                                },
+                                stream.response);
+                        String reply = committer.finish();
+                        stream.coordinator.text(generation, reply);
+                        tts.finish();
+                    }
+                } else {
+                    stream.coordinator.text(generation, text);
+                    synthesizeScoped(stream, spec, text, player);
+                }
+            }
             player.finish();
+            stream.generationDone = generation;
             confirmed = true;
             if (stream.generation == generation && !stream.session.closing) {
                 if (voismart) stream.text(Map.of("type", "response.output_audio.done"));
                 else {
                     stream.session.playback = "";
+                    stream.coordinator.drained(generation, false);
                     media(stream.session, "listening", "", "");
                 }
             }
         } finally {
-            permits.change(stream.session, permit, "tts", false, confirmed);
+            if (needsTts) permits.change(stream.session, permit, "tts", false, confirmed);
+        }
+    }
+
+    private void synthesizeScoped(
+            Stream stream, Map<String, Object> spec, String text, VendorPlayer player)
+            throws Exception {
+        try (var tts =
+                new VoiceAiBackends(settings).synthesis(spec, player::accept, stream.response)) {
+            tts.append(text);
+            tts.finish();
         }
     }
 
@@ -801,6 +997,8 @@ public final class NativeMedia implements MediaManager {
         }
 
         void accept(byte[] pcm, int sampleRate) throws Exception {
+            stream.coordinator.stamp(generation, "tts_first");
+            stream.coordinator.generated(generation, pcm.length / 2);
             if (conversion == null) conversion = new PcmResampler(sampleRate, rate);
             send(conversion.convert(pcm));
         }
@@ -821,7 +1019,10 @@ public final class NativeMedia implements MediaManager {
                     if (!voismart) media(stream.session, "speaking", stream.session.playback, "");
                 }
                 int end = Math.min(pcm.length, offset + rate / 50 * 2);
+                stream.coordinator.check(generation);
                 stream.binary(ByteBuffer.wrap(pcm, offset, end - offset));
+                stream.coordinator.sent(generation, (end - offset) / 2);
+                stream.coordinator.stamp(generation, "media_sent");
                 sent += end - offset;
                 long wait = started + sent * 1_000_000_000L / (rate * 2L) - System.nanoTime();
                 if (wait > 0) TimeUnit.NANOSECONDS.sleep(wait);
@@ -838,6 +1039,26 @@ public final class NativeMedia implements MediaManager {
         final Session session;
         final WebSocketSession socket;
         final Map<String, Object> profile;
+        final SessionCoordinator coordinator = new SessionCoordinator();
+        final AnswerClassifier classifier = new AnswerClassifier();
+        final AtomicBoolean activating = new AtomicBoolean();
+        final CompletableFuture<Void> engineReady = new CompletableFuture<>();
+        final ByteArrayOutputStream pendingInput = new ByteArrayOutputStream();
+        final List<String> confirmedHistory = new ArrayList<>();
+        volatile VoiceAiBackends.Connection classifierVendor;
+        PcmResampler classifierInput;
+        AutoCloseable asrLease, engineLease;
+        volatile boolean rebuilding;
+        volatile CompletableFuture<Void> providerReady = CompletableFuture.completedFuture(null);
+        volatile long providerEpoch;
+        volatile long generationDone;
+        final boolean classify;
+        volatile boolean disclosureStarted;
+        volatile boolean disclosureSent;
+        volatile boolean disclosurePlayed;
+        final AtomicBoolean nativeResponse = new AtomicBoolean();
+        volatile ResponseScope response;
+        volatile Map<String, Object> context = Map.of();
         volatile VoiceAiBackends.Connection vendor;
         PcmResampler vendorInput;
         volatile WebSocket asr;
@@ -861,6 +1082,11 @@ public final class NativeMedia implements MediaManager {
             this.session = session;
             this.socket = socket;
             profile = Support.map(session.metadata.get("voice_ai_profile"));
+            classify =
+                    Boolean.TRUE.equals(
+                            Support.map(session.metadata.get("voice_ai_guard"))
+                                    .get("answer_classification_enabled"));
+            if (!classify) classifier.timeout();
         }
 
         void connectAsr() throws Exception {
@@ -871,32 +1097,38 @@ public final class NativeMedia implements MediaManager {
                 permitAcquired = true;
             }
             if (!profile.isEmpty()) {
-                int inputRate =
-                        "cascade".equals(profile.get("route"))
-                                        && Set.of("aliyun", "tencent")
-                                                .contains(profile.get("vendor"))
-                                ? 8000
-                                : 16000;
-                vendorInput = new PcmResampler(rate, inputRate);
-                vendor =
-                        new VoiceAiBackends(settings)
-                                .connect(
-                                        profile,
-                                        Support.str(session.metadata, "voice_ai_script", ""),
-                                        new VoiceAiBackends.Listener() {
-                                            public void transcript(String text, String event)
-                                                    throws Exception {
-                                                NativeMedia.this.transcript(
-                                                        session, text, event, Map.of());
-                                            }
-
-                                            public void speechStarted() throws Exception {
-                                                speechStart(session);
-                                            }
-                                        });
+                var initial =
+                        classify && "realtime".equals(profile.get("route"))
+                                ? Support.map(profile.get("speech_profile"))
+                                : profile;
+                if (initial.isEmpty())
+                    throw new IOException("answer classifier speech profile is required");
+                long tenant = Support.integer(session.metadata, "tenant_id", 0);
+                if ("cascade".equals(initial.get("route")))
+                    asrLease = resources.acquire(initial, tenant, "asr");
+                if (!classify) engineLease = acquireEngine(tenant);
+                vendorInput = new PcmResampler(rate, inputRate(initial));
+                vendor = provider(initial, false);
                 if (closed.get() || session.closing) {
                     vendor.close();
-                    throw new IOException("media closed during vendor startup");
+                    throw new IOException("closed during startup");
+                }
+                if (classify) {
+                    deadlines.schedule(
+                            () -> {
+                                if (classifier.answer() == AnswerClassifier.Answer.CLASSIFYING
+                                        && !closed.get()) {
+                                    classifier.timeout();
+                                    activate(null, null, Map.of());
+                                }
+                            },
+                            Support.integer(
+                                    Support.map(session.metadata.get("voice_ai_guard")),
+                                    "answer_classify_timeout_ms",
+                                    2000),
+                            TimeUnit.MILLISECONDS);
+                } else {
+                    engineReady.complete(null);
                 }
                 asrStarted.complete(null);
                 return;
@@ -1000,11 +1232,236 @@ public final class NativeMedia implements MediaManager {
                     name);
         }
 
+        int inputRate(Map<String, Object> spec) {
+            return "cascade".equals(spec.get("route"))
+                            && Set.of("aliyun", "tencent").contains(spec.get("vendor"))
+                    ? 8000
+                    : 16000;
+        }
+
+        VoiceAiBackends.Connection provider(Map<String, Object> spec, boolean shadow)
+                throws Exception {
+            String script = Support.str(session.metadata, "voice_ai_script", "");
+            synchronized (confirmedHistory) {
+                if (!confirmedHistory.isEmpty())
+                    script += "\n已确认对话记录：\n" + String.join("\n", confirmedHistory);
+            }
+            boolean realtime = "realtime".equals(spec.get("route"));
+            long owner = realtime ? ++providerEpoch : 0;
+            return new VoiceAiBackends(settings)
+                    .connect(
+                            spec,
+                            script,
+                            new VoiceAiBackends.Listener() {
+                                public void transcript(String text, String event) throws Exception {
+                                    if (!shadow && (!realtime || owner == providerEpoch))
+                                        recognized(text, event, Map.of("is_final", true));
+                                }
+
+                                public void recognition(Map<String, Object> event)
+                                        throws Exception {
+                                    if (!shadow && (!realtime || owner == providerEpoch))
+                                        recognized(
+                                                event.get("text").toString(),
+                                                event.get("event_id").toString(),
+                                                event);
+                                }
+
+                                public void speechStarted() throws Exception {
+                                    if (!shadow && (!realtime || owner == providerEpoch))
+                                        speechStart(session);
+                                }
+
+                                public void inputCommitted() throws Exception {
+                                    var guard = Support.map(session.metadata.get("voice_ai_guard"));
+                                    if (Boolean.TRUE.equals(guard.get("direct_s2s_enabled"))
+                                            && !session.closing
+                                            && owner == providerEpoch) {
+                                        nativeResponse.set(true);
+                                        lifecycle.execute(
+                                                () -> {
+                                                    try {
+                                                        respond(
+                                                                session.call,
+                                                                "按已批准话术回应当前语音",
+                                                                null,
+                                                                UUID.randomUUID().toString(),
+                                                                true);
+                                                    } catch (Exception failure) {
+                                                        requestFailure(
+                                                                session, "DIRECT_RESPONSE_FAILED");
+                                                    }
+                                                });
+                                    }
+                                }
+                            });
+        }
+
+        void recognized(String text, String event, Map<String, Object> details) throws Exception {
+            boolean last = !Boolean.FALSE.equals(details.get("is_final"));
+            if (!last && vendor != null && "realtime".equals(profile.get("route")))
+                vendor.recognitionHint(text);
+            if (classify && classifier.answer() == AnswerClassifier.Answer.CLASSIFYING) {
+                var answer = classifier.transcript(text, last);
+                if (answer == AnswerClassifier.Answer.CLASSIFYING) return;
+                if (answer == AnswerClassifier.Answer.MACHINE) {
+                    engineReady.completeExceptionally(new IOException("non-human answer"));
+                    synchronized (pendingInput) {
+                        pendingInput.reset();
+                    }
+                    var evidence = new LinkedHashMap<>(details);
+                    evidence.put("answer_class", "machine");
+                    NativeMedia.this.transcript(session, text, event, evidence);
+                    media(session, "listening", "", "");
+                    return;
+                }
+                if (Set.of("stop_contact", "wrong_person", "handoff", "rejected", "end")
+                        .contains(com.duozhi.outbound.ai.service.DialogueRules.classify(text))) {
+                    engineReady.completeExceptionally(
+                            new IOException("business control required before voice model"));
+                    NativeMedia.this.transcript(session, text, event, details);
+                    return;
+                }
+                activate(text, event, details);
+                return;
+            }
+            if (classifier.answer() == AnswerClassifier.Answer.MACHINE) return;
+            if (last) remember("客户：" + text);
+            NativeMedia.this.transcript(session, text, event, details);
+        }
+
+        void remember(String text) {
+            synchronized (confirmedHistory) {
+                confirmedHistory.add(text);
+                while (confirmedHistory.size() > 12) confirmedHistory.remove(0);
+            }
+        }
+
+        AutoCloseable acquireEngine(long tenant) {
+            return resources.acquire(
+                    profile,
+                    tenant,
+                    "realtime".equals(profile.get("route"))
+                            ? new String[] {"ai", "s2s"}
+                            : new String[] {"ai"});
+        }
+
+        void activate(String text, String event, Map<String, Object> details) {
+            if (!activating.compareAndSet(false, true)) return;
+            try {
+                lifecycle.execute(
+                        () -> {
+                            try {
+                                engineLease =
+                                        acquireEngine(
+                                                Support.integer(session.metadata, "tenant_id", 0));
+                                if ("realtime".equals(profile.get("route"))) {
+                                    classifierVendor = vendor;
+                                    classifierInput = vendorInput;
+                                    rebuilding = true;
+                                    installRealtime();
+                                } else
+                                    synchronized (pendingInput) {
+                                        pendingInput.reset();
+                                    }
+                                if (closed.get() || session.closing)
+                                    throw new IOException("classification owner closed");
+                                engineReady.complete(null);
+                                media(session, "listening", "", "");
+                                if (text != null) {
+                                    remember("客户：" + text);
+                                    NativeMedia.this.transcript(session, text, event, details);
+                                }
+                            } catch (Exception failure) {
+                                engineReady.completeExceptionally(failure);
+                                if (failure instanceof Support.Failure f && f.status == 429) {
+                                    try {
+                                        media(session, "listening", "", "AI_CAPACITY_ABANDONED");
+                                    } catch (Exception callback) {
+                                        requestFailure(session, "VOICE_FAILURE_CALLBACK_FAILED");
+                                    }
+                                } else requestFailure(session, "VOICE_ENGINE_START_FAILED");
+                            }
+                        });
+            } catch (RejectedExecutionException full) {
+                requestFailure(session, "VOICE_ENGINE_OVERLOADED");
+            }
+        }
+
+        void installRealtime() throws Exception {
+            var replacement = provider(profile, classifierVendor != null);
+            try {
+                var conversion = new PcmResampler(rate, 16000);
+                // Keep capture running while a provider is establishing its fresh context.
+                for (; ; ) {
+                    byte[] queued;
+                    synchronized (pendingInput) {
+                        if (pendingInput.size() == 0) {
+                            if (closed.get() || session.closing)
+                                throw new IOException("closed during restart");
+                            vendorInput = conversion;
+                            vendor = replacement;
+                            rebuilding = false;
+                            return;
+                        }
+                        queued = pendingInput.toByteArray();
+                        pendingInput.reset();
+                    }
+                    byte[] converted = conversion.convert(queued);
+                    if (converted.length > 0) replacement.audio(converted);
+                }
+            } catch (Exception error) {
+                replacement.close();
+                throw error;
+            }
+        }
+
+        void restartRealtime() {
+            if (!"realtime".equals(profile.get("route")) || closed.get() || !engineReady.isDone())
+                return;
+            synchronized (pendingInput) {
+                if (rebuilding) return;
+                rebuilding = true;
+                providerReady = new CompletableFuture<>();
+            }
+            var ready = providerReady;
+            var old = vendor;
+            if (old != null && old != classifierVendor) old.close();
+            try {
+                lifecycle.execute(
+                        () -> {
+                            try {
+                                installRealtime();
+                                ready.complete(null);
+                            } catch (Exception failure) {
+                                ready.completeExceptionally(failure);
+                                requestFailure(session, "REALTIME_CONTEXT_REBUILD_FAILED");
+                            }
+                        });
+            } catch (RejectedExecutionException full) {
+                requestFailure(session, "VOICE_ENGINE_OVERLOADED");
+            }
+        }
+
         void audio(ByteBuffer pcm) throws Exception {
             if (session.closing) return;
-            if (vendor != null) {
-                byte[] input = vendorInput.convert(pcmToArray(pcm));
-                if (input.length > 0) vendor.audio(input);
+            if (!profile.isEmpty()) {
+                byte[] bytes = pcmToArray(pcm);
+                boolean pending = rebuilding || (classify && !engineReady.isDone());
+                if (pending)
+                    synchronized (pendingInput) {
+                        if (pendingInput.size() + bytes.length > rate * 2 * 4)
+                            throw new IOException("classification or restart input buffer full");
+                        pendingInput.writeBytes(bytes);
+                    }
+                if (classifierVendor != null) {
+                    byte[] classified = classifierInput.convert(bytes);
+                    if (classified.length > 0) classifierVendor.audio(classified);
+                }
+                if (!rebuilding && vendor != null) {
+                    byte[] input = vendorInput.convert(bytes);
+                    if (input.length > 0) vendor.audio(input);
+                }
                 return;
             }
             if (asr == null) return;
@@ -1146,10 +1603,14 @@ public final class NativeMedia implements MediaManager {
         public void close() throws Exception {
             if (!closed.compareAndSet(false, true)) return;
             asrStarted.completeExceptionally(new IOException("media closed during ASR startup"));
+            coordinator.close();
             generation++;
             if (tts != null) tts.cancel(true);
             boolean confirmed = false;
             if (vendor != null) vendor.close();
+            if (classifierVendor != null && classifierVendor != vendor) classifierVendor.close();
+            if (asrLease != null) asrLease.close();
+            if (engineLease != null) engineLease.close();
             if (asr != null) {
                 try {
                     if (aliyun) {

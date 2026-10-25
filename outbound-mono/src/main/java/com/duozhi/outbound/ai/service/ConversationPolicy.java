@@ -822,7 +822,9 @@ public class ConversationPolicy {
         Map<String, Object> state = state(call),
                 policy = policy(state),
                 data = json.object(state.get("data_json").toString());
-        if ("silence".equals(kind) && Boolean.TRUE.equals(data.get("model_pending"))) return;
+        if ("silence".equals(kind)
+                && (Boolean.TRUE.equals(data.get("model_pending"))
+                        || Boolean.TRUE.equals(data.get("media_failure")))) return;
         if (state.get("deadline") != null && kind.equals(state.get("timer_kind"))) return;
         int seconds =
                 JsonSupport.integer(
@@ -835,6 +837,7 @@ public class ConversationPolicy {
                         10);
         int generation = CallLifecycle.number(state, "generation") + 1;
         if ("handoff".equals(kind)) seconds = workforce.timeout(call, seconds);
+        if ("failure".equals(kind)) seconds = 0;
         LocalDateTime deadline = Store.now().plusSeconds(seconds);
         state.putAll(
                 JsonSupport.map(
@@ -867,6 +870,15 @@ public class ConversationPolicy {
 
     public void media(Map<String, Object> call, Map<String, Object> body) {
         Map<String, Object> state = state(call);
+        var data = json.object(state.get("data_json").toString());
+        if (!Objects.toString(body.get("error_code"), "").isEmpty() && aiAllowed(call)) {
+            data.put("media_failure", true);
+            data.put("media_error_code", body.get("error_code"));
+            save(state, data);
+            arm(call, "failure");
+            return;
+        }
+        if (Boolean.TRUE.equals(data.get("media_failure"))) return;
         if (!Values.set("answered", "in_ai", "waiting_human", "handoff_transferring")
                         .contains(call.get("status"))
                 || Values.set("speaking", "interrupted", "closed").contains(body.get("state"))) {

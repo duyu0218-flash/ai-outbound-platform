@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-26",
+  "source_changed": true,
+  "static_checks": "passed",
+  "development_functional_tests": "passed",
+  "unit_tests": 263,
+  "integration_tests": 320,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "main_browser_checks": 35,
+  "voice_browser_checks": 9,
+  "fatjar_smoke": "passed",
+  "enforcer": "passed",
+  "phone_measurement_tool": "synthetic unit test passed",
+  "real_supplier_tests": "not verified",
+  "real_operator_phone_tests": "not verified",
+  "device_tests": "not verified",
+  "capacity_500_cps": "not verified",
+  "long_run_tests": "not verified",
+  "test_environment_deployed": false,
+  "production_deployed": false,
+  "production_route_default": "legacy",
+  "limitations": [
+    "process-local voice resource budgets",
+    "no verified partial playout text alignment",
+    "provider capabilities remain unknown pending account tests",
+    "opening cache must be distributed to media workers before deployment"
+  ],
+  "release_prerequisites": [
+    "fixed supplier versions and approved quotas",
+    "verified disclosure and media playback acknowledgement",
+    "real dual-route phone and device measurements",
+    "accuracy gate",
+    "staged capacity and long-run gate",
+    "business and cost trial"
+  ]
+}

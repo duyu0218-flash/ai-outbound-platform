@@ -98,6 +98,27 @@ const selected = ref('legacy'),
   route = ref('cascade'),
   approved = ref(false);
 const playbackMode = ref('reviewed');
+const tuning = ref({});
+const openingBusy = ref(false);
+const tuningFields = [
+  { key: 'vad_start_ms', label: '起声确认毫秒', min: 20, max: 1000 },
+  { key: 'vad_end_ms', label: '短句判停毫秒', min: 200, max: 2000 },
+  { key: 'vad_long_end_ms', label: '数字未完句判停毫秒', min: 200, max: 3000 },
+  { key: 'vad_max_input_ms', label: '单次输入上限毫秒', min: 1000, max: 60000 },
+  { key: 'answer_classify_timeout_ms', label: '接通分类上限毫秒', min: 1500, max: 3000 },
+];
+async function prepareOpening() {
+  openingBusy.value = true;
+  error.value = '';
+  try {
+    await request('/api/v1/admin/voice-ai/openings/prepare', 'POST', {});
+    if (valid()) ElMessage.success('身份告知音频已准备，实际播放仍需电话验证。');
+  } catch (e) {
+    if (valid()) error.value = e.message;
+  } finally {
+    if (valid()) openingBusy.value = false;
+  }
+}
 const audioSources = ref({}),
   audioLoading = ref('');
 const saving = ref(false),
@@ -147,6 +168,7 @@ async function saveActive() {
   try {
     const data = {
       ...ai.data.value.data,
+      ...tuning.value,
       voice_backend: selected.value,
       external_llm_enabled: approved.value,
       realtime_playback_mode: playbackMode.value,
@@ -415,6 +437,42 @@ initialize();
         </el-select>
         <p>实时流式模式边生成边播放；整段审核不通过时会中止，但此前可能已播出部分回复。</p>
       </el-form-item>
+      <el-form-item v-for="field in tuningFields" :key="field.key" :label="field.label">
+        <el-input-number
+          :model-value="tuning[field.key] ?? ai.data.value?.data?.[field.key]"
+          :aria-label="field.label"
+          :min="field.min"
+          :max="field.max"
+          @update:model-value="tuning[field.key] = $event"
+        />
+      </el-form-item>
+      <el-form-item label="接通分类">
+        <el-checkbox
+          :model-value="
+            tuning.answer_classification_enabled ??
+            ai.data.value?.data?.answer_classification_enabled
+          "
+          aria-label="启用接通分类"
+          @update:model-value="tuning.answer_classification_enabled = $event"
+          >先识别真人与录音</el-checkbox
+        >
+      </el-form-item>
+      <el-form-item label="AI身份告知">
+        <el-input
+          :model-value="tuning.ai_disclosure_text ?? ai.data.value?.data?.ai_disclosure_text"
+          aria-label="AI身份告知"
+          maxlength="500"
+          @update:model-value="tuning.ai_disclosure_text = $event"
+        />
+      </el-form-item>
+      <el-form-item label="按语音端点回复">
+        <el-checkbox
+          :model-value="tuning.direct_s2s_enabled ?? ai.data.value?.data?.direct_s2s_enabled"
+          aria-label="按语音端点直接回复"
+          @update:model-value="tuning.direct_s2s_enabled = $event"
+          >端到端低风险流式场景使用，流程画布通话不支持</el-checkbox
+        >
+      </el-form-item>
       <el-form-item label="外部模型调用"
         ><el-checkbox v-model="approved" aria-label="允许外部模型调用"
           >允许将测试样本及通话所需内容发送至所选供应商</el-checkbox
@@ -426,6 +484,15 @@ initialize();
         ></el-form-item
       >
     </el-form>
+    <el-button
+      :loading="openingBusy"
+      :disabled="ai.data.value?.data?.voice_backend === 'legacy'"
+      @click="prepareOpening"
+      >准备身份告知音频</el-button
+    >
+    <p>
+      先保存方案及告知文字，再准备音频；准备操作调用所选播报供应商并产生费用。正式外呼前须准备成功。
+    </p>
     <el-alert
       title="电话联调需要平台启用实时媒体并配置供应商凭据；配置齐全不等于真实线路已验证。端到端默认审核整段后播放，可选择实时流式播放进行低延迟对标；对比测试记录原始 API 首包时间。"
       type="info"
@@ -440,6 +507,10 @@ initialize();
         ><template #default="{ row }">{{
           row.route === 'cascade' ? '三段式' : '端到端实时'
         }}</template></el-table-column
+      >
+      <el-table-column prop="model_tier" label="模型档位" min-width="120" />
+      <el-table-column label="能力验收" min-width="180"
+        ><template #default="{ row }">{{ row.verification }}</template></el-table-column
       >
       <el-table-column label="配置" min-width="200"
         ><template #default="{ row }"

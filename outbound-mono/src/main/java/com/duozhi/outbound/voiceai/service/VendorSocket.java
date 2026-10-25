@@ -28,11 +28,23 @@ final class VendorSocket implements WebSocket.Listener, AutoCloseable {
 
     VendorSocket(HttpClient http, URI uri, Map<String, String> headers, Handler handler)
             throws Exception {
+        this(http, uri, headers, handler, null);
+    }
+
+    VendorSocket(
+            HttpClient http,
+            URI uri,
+            Map<String, String> headers,
+            Handler handler,
+            ResponseScope scope)
+            throws Exception {
         this.handler = handler;
         receiver = Thread.ofVirtual().name("voice-ai-provider-events").unstarted(this::consume);
+        if (scope != null) scope.own(this);
         var builder = http.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8));
         headers.forEach(builder::header);
         var connecting = builder.buildAsync(uri, this);
+        if (scope != null) scope.own(() -> connecting.cancel(true));
         connecting.thenAccept(
                 ws -> {
                     if (closed.get()) ws.abort();
@@ -41,7 +53,7 @@ final class VendorSocket implements WebSocket.Listener, AutoCloseable {
             socket = connecting.get(8, TimeUnit.SECONDS);
             receiver.start();
         } catch (Exception error) {
-            closed.set(true);
+            close();
             throw new IOException("provider connection failed");
         }
     }

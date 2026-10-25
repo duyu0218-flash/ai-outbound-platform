@@ -272,7 +272,10 @@ public class AiRuntime {
                     if (call == null) return null;
                     String transcript = Objects.toString(payload.get("transcript"), "");
                     Map<String, Object> state = product.state(call),
-                            result = product.prepare(call, transcript, state),
+                            result =
+                                    "machine".equals(payload.get("answer_class"))
+                                            ? ConversationPolicy.reply("", "hangup")
+                                            : product.prepare(call, transcript, state),
                             policy = product.policy(state);
                     if (Boolean.TRUE.equals(
                             json.object(state.get("data_json").toString()).get("failure_handled")))
@@ -280,6 +283,8 @@ public class AiRuntime {
                                 ConversationPolicy.reply(
                                         policy.get("failure_prompt").toString(), "hangup");
                     if (result == null) result = flow(call, state, transcript);
+                    if (result == null && Boolean.TRUE.equals(payload.get("native_response")))
+                        result = ConversationPolicy.reply("", "continue");
                     Map<String, Object> ai =
                             policy.get("_ai") instanceof Map
                                     ? (Map<String, Object>) policy.get("_ai")
@@ -493,6 +498,8 @@ public class AiRuntime {
                         campaign.getOrDefault("recording_enabled", true),
                         "hangup_sms_enabled",
                         campaign.getOrDefault("hangup_sms_enabled", true),
+                        "ai_disclosure_text",
+                        ai.getOrDefault("ai_disclosure_text", "您好，我是AI智能语音助手。"),
                         "voice_ai_profile",
                         ai.get("_voice_profile"),
                         "llm_provider",
@@ -648,6 +655,8 @@ public class AiRuntime {
                             Objects.toString(policy.get("voice"), "").isEmpty()
                                     ? ai.get("voice")
                                     : policy.get("voice"),
+                            "model_context",
+                            result.getOrDefault("model_context", Map.of()),
                             "model_reply",
                             Boolean.TRUE.equals(result.get("model_reply")),
                             "provider",
@@ -1040,8 +1049,15 @@ public class AiRuntime {
                     } else if ("failure".equals(kind)) {
                         result =
                                 ConversationPolicy.reply(
-                                        policy.get("failure_prompt").toString(), "hangup");
-                        data.put("outcome", "service_failure");
+                                        "closed".equals(rt.get("state"))
+                                                ? ""
+                                                : policy.get("failure_prompt").toString(),
+                                        "hangup");
+                        data.put(
+                                "outcome",
+                                "AI_CAPACITY_ABANDONED".equals(data.get("media_error_code"))
+                                        ? "ai_capacity_abandoned"
+                                        : "service_failure");
                         product.work(
                                 call,
                                 "service_failure",

@@ -2,10 +2,10 @@ name: outbound-mono
 on:
   push:
     branches: [main]
-    paths: ['outbound-mono/**', '.github/workflows/outbound-mono.yml']
+    paths: ['outbound-mono/**', 'tools/*voice*.mjs', '.github/workflows/outbound-mono.yml']
   pull_request:
     branches: [main]
-    paths: ['outbound-mono/**', '.github/workflows/outbound-mono.yml']
+    paths: ['outbound-mono/**', 'tools/*voice*.mjs', '.github/workflows/outbound-mono.yml']
   workflow_dispatch:
     inputs:
       synthetic_capacity:
@@ -57,6 +57,8 @@ jobs:
           corepack prepare pnpm@11.25.0 --activate
           pnpm --dir frontend install --frozen-lockfile
           pnpm --dir frontend exec playwright install --with-deps chromium
+      - name: Verify phone measurement and route gates
+        run: node ../tools/test-voice-measure.mjs
       - name: Run the full functional suite and dependency policy
         run: |
           mvn -B verify

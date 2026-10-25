@@ -388,8 +388,21 @@ public final class MediaCluster implements MediaManager {
     public String respond(
             String call, String text, String expected, String operation, boolean modelReply)
             throws Exception {
+        return respond(call, text, expected, operation, modelReply, Map.of());
+    }
+
+    @Override
+    public String respond(
+            String call,
+            String text,
+            String expected,
+            String operation,
+            boolean modelReply,
+            Map<String, Object> context)
+            throws Exception {
         Owner owner = required(call);
         Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("model_context", context);
         payload.put("model_reply", modelReply);
         payload.put("text", text);
         payload.put("expected_speech_event_id", expected);

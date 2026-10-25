@@ -85,6 +85,33 @@ try {
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('腾讯云三段式');
   });
+  await check('frozen turn tuning saves reloads and rejects invalid combinations', async () => {
+    await page.getByRole('spinbutton', { name: '短句判停毫秒', exact: true }).fill('500');
+    await page.getByRole('spinbutton', { name: '数字未完句判停毫秒', exact: true }).fill('900');
+    await page
+      .getByRole('textbox', { name: 'AI身份告知', exact: true })
+      .fill('您好，我是AI智能语音助手。');
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await page.reload();
+    await expect(page.getByRole('spinbutton', { name: '短句判停毫秒', exact: true })).toHaveValue(
+      '500',
+    );
+    await expect(
+      page.getByRole('spinbutton', { name: '数字未完句判停毫秒', exact: true }),
+    ).toHaveValue('900');
+    const direct = page.getByRole('checkbox', { name: '按语音端点直接回复', exact: true });
+    await direct.locator('xpath=ancestor::label[1]').click();
+    await expect(direct).toBeChecked();
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await expect(
+      page.getByText('按语音端点直接回复只适用于端到端实时流式播放', { exact: true }),
+    ).toBeVisible();
+    await direct.locator('xpath=ancestor::label[1]').click();
+    await expect(direct).not.toBeChecked();
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await page.getByRole('button', { name: '准备身份告知音频', exact: true }).click();
+    await expect(page.getByText(/voice AI configuration missing/)).toBeVisible();
+  });
   await check('snapshot audio set saved and reloaded', async () => {
     await page.getByLabel('样本组名称', { exact: true }).fill('浏览器统一音频样本');
     await page.getByLabel('统一话术', { exact: true }).fill('固定话术：请简短介绍服务，不作承诺。');

@@ -86,6 +86,37 @@ public class VoiceAiController {
         return result;
     }
 
+    @PostMapping("/openings/prepare")
+    public Object prepareOpening(HttpServletRequest request) throws Exception {
+        var actor = Identity.from(request);
+        var ai = settings.freezeAi(actor.tenant());
+        var profile = Support.map(ai.get("_voice_profile"));
+        if (profile.isEmpty()) throw new ApiError(400, "请先选择供应商方案并保存");
+        if (!capacity.tryAcquire()) throw new ApiError(429, "已有语音测试或准备任务运行");
+        try {
+            var result =
+                    new OpeningAudioCache(runtime)
+                            .prepare(
+                                    actor.tenant(),
+                                    profile,
+                                    Support.str(ai, "ai_disclosure_text", ""),
+                                    backends);
+            audit.record(
+                    actor,
+                    "create",
+                    "voice_opening",
+                    result.get("key").toString(),
+                    "prepared deterministic AI disclosure");
+            return result;
+        } catch (Support.Failure invalid) {
+            throw new ApiError(invalid.status, invalid.getMessage());
+        } catch (Exception failed) {
+            throw new ApiError(502, "身份告知音频准备失败，请检查供应商连接与权限");
+        } finally {
+            capacity.release();
+        }
+    }
+
     @GetMapping("/test-sets")
     public Object sets(HttpServletRequest request) {
         return db.sets(Identity.from(request).tenant());
