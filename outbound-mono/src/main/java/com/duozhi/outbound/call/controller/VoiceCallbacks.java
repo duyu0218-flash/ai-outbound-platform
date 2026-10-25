@@ -155,6 +155,37 @@ public class VoiceCallbacks {
         if (existing != null)
             return JsonSupport.map(
                     "result", "ok", "duplicate", true, "turn_id", existing.get("id"));
+        if ("ai".equals(body.get("speaker_role"))) {
+            String text = Objects.toString(body.get("transcript"), "");
+            var rt = realtime(call);
+            var turn =
+                    store.insert(
+                            "speechturn",
+                            JsonSupport.map(
+                                    "tenant_id",
+                                    tenant,
+                                    "call_session_id",
+                                    id,
+                                    "provider_event_key",
+                                    key,
+                                    "turn_index",
+                                    rt.get("turn_sequence"),
+                                    "attempt",
+                                    call.get("attempts"),
+                                    "transcript",
+                                    text,
+                                    "normalized_transcript",
+                                    text.strip(),
+                                    "speaker_role",
+                                    "ai",
+                                    "channel_id",
+                                    "outbound",
+                                    "is_final",
+                                    true,
+                                    "asr_provider",
+                                    body.get("asr_provider")));
+            return JsonSupport.map("result", "ok", "turn_id", turn.get("id"));
+        }
         boolean last = Boolean.TRUE.equals(body.get("is_final"));
         String transcript = Objects.toString(body.get("transcript"), ""),
                 normalized = transcript.trim().replaceAll("(?U)\\s+", " ");

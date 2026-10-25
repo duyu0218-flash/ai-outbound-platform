@@ -2310,18 +2310,22 @@ class QueueConcurrencyIT {
                         "realtime-pressure",
                         "name",
                         "Realtime deadline pressure fixture"));
+        // The pressure query uses MySQL UTC_TIMESTAMP. Use that clock for the fixture too;
+        // host/container clock skew must not turn the one-second lower bound into 0.995s.
+        var databaseNow =
+                jdbc.queryForObject("SELECT UTC_TIMESTAMP(3)", java.time.LocalDateTime.class);
         var timer = outbox.enqueue(tid, "after_playback", key(), key(), Map.of());
         store.update(
                 "taskoutbox",
                 tid,
                 timer.get("id"),
-                Values.map("available_at", Store.now().plusHours(1)));
+                Values.map("available_at", databaseNow.plusHours(1)));
         var cold = outbox.enqueue(tid, "call_analysis", key(), key(), Map.of());
         store.update(
                 "taskoutbox",
                 tid,
                 cold.get("id"),
-                Values.map("available_at", Store.now().minusHours(1)));
+                Values.map("available_at", databaseNow.minusHours(1)));
         assertThat(RealtimeTaskPressure.fraction(taskPressure.snapshot(tid))).isEqualTo(1);
         store.update(
                 "taskoutbox",
@@ -2331,9 +2335,9 @@ class QueueConcurrencyIT {
                         "state",
                         "processing",
                         "available_at",
-                        Store.now().minusSeconds(1),
+                        databaseNow.minusSeconds(1),
                         "locked_at",
-                        Store.now(),
+                        databaseNow,
                         "lease_token",
                         "pressure-owner"));
         assertThat(taskPressure.snapshot(tid).get("control_age_sec")).isGreaterThanOrEqualTo(1);

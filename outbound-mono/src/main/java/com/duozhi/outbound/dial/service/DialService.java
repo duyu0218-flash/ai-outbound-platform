@@ -18,12 +18,16 @@ import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.dao.DialBatchStore;
 import com.duozhi.outbound.dial.dao.DialCommandJournal;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.service.GatewayCluster;
 import com.duozhi.outbound.integration.service.TelephonyClient;
+import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
+import com.duozhi.outbound.voiceai.service.VoiceAiProfiles;
 import java.nio.ByteBuffer;
 import java.time.*;
 import java.time.LocalDateTime;
@@ -71,6 +75,7 @@ public class DialService {
     private final CallbackInbox inbox;
     private final ConversationPolicy conversation;
     private final HumanRouting routing;
+    private final VoiceAiCredentials credentials;
 
     public DialService(
             Store store,
@@ -86,7 +91,9 @@ public class DialService {
             GatewayCluster gateways,
             CallbackInbox inbox,
             ConversationPolicy conversation,
-            HumanRouting routing) {
+            HumanRouting routing,
+            VoiceAiCredentials credentials) {
+        this.credentials = credentials;
         this.store = store;
         this.tx = tx;
         this.config = config;
@@ -547,11 +554,48 @@ public class DialService {
                                             : "legacy";
                         }
                     }
+                    var backendAi = settings.get(tenant, "ai");
+                    if (!"human_only".equals(call.get("mode"))
+                            && VoiceAiProfiles.selected(backendAi)) {
+                        if (campaign != null && "legacy".equals(campaign.get("voice_ai_pipeline")))
+                            throw new ApiError(409, "任务显式使用旧链路，请改为继承后测试供应商组合");
+                        pipeline = "pipecat";
+                    }
                     changes.put("voice_ai_pipeline", pipeline);
                     if (!rate.admit()) return null;
                     Map<String, Object> probe = new LinkedHashMap<>(call);
                     probe.putAll(changes);
                     client.validate(probe);
+                    var selectedAi = settings.get(tenant, "ai");
+                    if (!"human_only".equals(call.get("mode"))
+                            && pipeline.equals("pipecat")
+                            && !VoiceAiProfiles.selected(selectedAi)
+                            && config.flag("VOICE_AI_PROFILES_ENABLED", false)
+                            && !client.mock(probe)
+                            && new UnifiedServiceSettings(config, "voice")
+                                    .secret("PIPECAT_OPENAI_API_KEY")
+                                    .isEmpty())
+                        throw new ApiError(503, "旧版实时媒体链路缺少 OpenAI 凭据，请配置凭据或选择已配置的供应商组合");
+                    if (!"human_only".equals(call.get("mode"))
+                            && VoiceAiProfiles.selected(selectedAi)) {
+                        if (!pipeline.equals("pipecat"))
+                            throw new ApiError(409, "所选语音方案需要原生实时媒体链路，请将任务链路设为继承或实时媒体");
+                        if (!client.mock(probe)) {
+                            if (!"pipecat".equals(config.get("VOICE_AI_PIPELINE", "legacy"))
+                                    || !config.flag("VOICE_AI_PROFILES_ENABLED", false))
+                                throw new ApiError(503, "平台尚未启用六套供应商实时媒体链路");
+                            try {
+                                new VoiceAiProfiles(
+                                                credentials.runtime(
+                                                        new UnifiedServiceSettings(config, "voice"),
+                                                        tenant,
+                                                        -1))
+                                        .requireReady(selectedAi.get("voice_backend").toString());
+                            } catch (Support.Failure missing) {
+                                throw new ApiError(missing.status, missing.getMessage());
+                            }
+                        }
+                    }
                     var beforeClaim = new LinkedHashMap<>(call);
                     call =
                             batch == null
@@ -671,6 +715,22 @@ public class DialService {
                             tx.platform();
                             return conversation.policy(conversation.state(call));
                         });
+        var frozenAi = Support.map(scenario.get("_ai"));
+        if (VoiceAiProfiles.selected(frozenAi)) {
+            metadata.put("voice_ai_profile", frozenAi.get("_voice_profile"));
+            metadata.put("voice_ai_script", scenario.get("_script"));
+            metadata.put(
+                    "voice_ai_guard",
+                    JsonSupport.map(
+                            "realtime_playback_mode",
+                            frozenAi.get("realtime_playback_mode"),
+                            "max_reply_chars",
+                            frozenAi.get("max_reply_chars"),
+                            "forbidden_phrases",
+                            frozenAi.get("forbidden_phrases")));
+            for (String key : Arrays.asList("asr_provider", "tts_provider", "voice", "language"))
+                metadata.put(key, frozenAi.get(key));
+        }
         scenario.keySet().removeIf(key -> key.startsWith("_"));
         metadata.put("scenario_policy", scenario);
         metadata.put("voice_ai_pipeline", call.get("voice_ai_pipeline"));

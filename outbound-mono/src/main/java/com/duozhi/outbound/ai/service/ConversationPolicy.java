@@ -153,7 +153,7 @@ public class ConversationPolicy {
         long tenant = CallLifecycle.tenant(call);
         Map<String, Object> current = current(tenant, call.get("campaign_id"));
         Map<String, Object> policy = (Map<String, Object>) current.get("policy");
-        policy.put("_ai", settings.get(tenant, "ai"));
+        policy.put("_ai", settings.freezeAi(tenant));
         String script = "";
         if (call.get("campaign_id") != null) {
             Object campaignId = call.get("campaign_id");

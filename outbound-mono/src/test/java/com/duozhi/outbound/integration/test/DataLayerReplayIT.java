@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -108,8 +108,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(19);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("19");
+        assertThat(first.migrationsExecuted).isEqualTo(21);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("21");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -233,8 +233,11 @@ class DataLayerReplayIT {
             }
         }
         assertThat(tables)
-                .hasSize(77)
+                .hasSize(80)
                 .containsKeys(
+                        "aivoiceconfig",
+                        "aivoicetestset",
+                        "aivoicetestrun",
                         "flyway_schema_history",
                         "dial_admission_control",
                         "dial_drain_member",
@@ -263,6 +266,7 @@ class DataLayerReplayIT {
         report.put("auxiliaryTableCount", 10);
         report.put("operationsTableCount", 10);
         report.put("dialControlTableCount", 22);
+        report.put("voiceAiComparisonTableCount", 3);
         report.put("applicationTableCount", tables.size() - 1);
         report.put("tables", tables);
         Path target = Path.of("target", "data-layer-replay.json");

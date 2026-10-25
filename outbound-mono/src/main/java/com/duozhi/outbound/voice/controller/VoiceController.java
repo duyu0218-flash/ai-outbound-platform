@@ -13,6 +13,7 @@ import com.duozhi.outbound.voice.service.VoiceAdmissionBatchScope;
 import com.duozhi.outbound.voice.service.VoiceAuthorizations;
 import com.duozhi.outbound.voice.service.VoiceGateway;
 import com.duozhi.outbound.voice.service.VoiceQuota;
+import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
 import jakarta.annotation.PreDestroy;
 import jakarta.servlet.http.*;
 import java.io.InputStream;
@@ -42,8 +43,9 @@ public class VoiceController {
     private final Semaphore downloads = new Semaphore(2);
 
     @Autowired
-    public VoiceController(Config config, LedgerDatabase database) throws Exception {
-        this.settings = new UnifiedServiceSettings(config, "voice");
+    public VoiceController(Config config, LedgerDatabase database, VoiceAiCredentials credentials)
+            throws Exception {
+        this.settings = credentials.root(new UnifiedServiceSettings(config, "voice"));
         gateway = new VoiceGateway(settings, database);
         gateway.start();
     }

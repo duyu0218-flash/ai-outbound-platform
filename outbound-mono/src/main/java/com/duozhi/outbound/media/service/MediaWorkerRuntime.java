@@ -144,11 +144,12 @@ public class MediaWorkerRuntime {
                 case "speak" ->
                         Map.of(
                                 "playback_id",
-                                manager.speak(
+                                manager.respond(
                                         call,
                                         Support.required(command, "text", 50000),
                                         expected,
-                                        Support.str(command, "operation_id", "")));
+                                        Support.str(command, "operation_id", ""),
+                                        Boolean.TRUE.equals(command.get("model_reply"))));
                 case "fence" -> {
                     manager.fence(call, expected, Boolean.TRUE.equals(command.get("closing")));
                     yield Map.of("ok", true);

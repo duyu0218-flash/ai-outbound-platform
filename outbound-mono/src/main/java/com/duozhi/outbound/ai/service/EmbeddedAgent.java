@@ -3,6 +3,7 @@ package com.duozhi.outbound.ai.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.dao.LedgerDatabase;
 import com.duozhi.outbound.integration.support.Support;
+import com.duozhi.outbound.voiceai.service.VoiceAiBackends;
 import jakarta.annotation.PreDestroy;
 import java.net.*;
 import java.net.http.*;
@@ -86,6 +87,32 @@ public class EmbeddedAgent {
     private Map<String, Object> turnInternal(Map<String, Object> payload) throws Exception {
         Map<String, Object> result = policy.turn(payload, false),
                 context = Support.map(payload.get("context"));
+        var profile = Support.map(context.get("voice_ai_profile"));
+        if (!profile.isEmpty()) {
+            if (!Boolean.TRUE.equals(context.get("external_llm_enabled")))
+                throw new Support.Failure(409, "external model use is not approved");
+            if (result.get("action").equals("speak")) {
+                if ("realtime".equals(profile.get("route"))) {
+                    result.put("model_reply", true);
+                    result.put("tts_text", "按已批准话术回应当前语音");
+                } else {
+                    long estimate =
+                            4096
+                                    + Support.str(payload, "script", "").length()
+                                    + Support.str(payload, "transcript", "").length();
+                    quota.acquire(estimate);
+                    try {
+                        var messages = messages(payload, context);
+                        result.put(
+                                "tts_text",
+                                new VoiceAiBackends(settings).generate(profile, messages));
+                    } finally {
+                        quota.release();
+                    }
+                }
+            }
+            return result;
+        }
         String provider =
                 Support.asciiLower(
                         Support.str(context, "llm_provider", settings.get("LLM_PROVIDER", "rule"))

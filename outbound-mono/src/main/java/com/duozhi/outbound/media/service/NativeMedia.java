@@ -3,6 +3,7 @@ package com.duozhi.outbound.media.service;
 import com.duozhi.outbound.integration.config.Settings;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.recording.storage.S3Store;
+import com.duozhi.outbound.voiceai.service.VoiceAiBackends;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
@@ -66,7 +67,8 @@ public final class NativeMedia implements MediaManager {
             throw new IllegalArgumentException("unsupported speech provider");
         if (!settings.get("PIPECAT_TTS_PROVIDER", "openai").equals("openai"))
             throw new IllegalArgumentException("unsupported synthesis provider");
-        if (settings.secret("PIPECAT_OPENAI_API_KEY").isEmpty())
+        if (!settings.flag("VOICE_AI_PROFILES_ENABLED", false)
+                && settings.secret("PIPECAT_OPENAI_API_KEY").isEmpty())
             throw new IllegalArgumentException("speech synthesis credential required");
         if (provider.equals("aliyun-nls")
                 && (settings.secret("ALIYUN_NLS_TOKEN").isEmpty()
@@ -365,13 +367,21 @@ public final class NativeMedia implements MediaManager {
     @Override
     public String speak(String call, String text, String expected, String operation)
             throws Exception {
+        return respond(call, text, expected, operation, false);
+    }
+
+    @Override
+    public String respond(
+            String call, String text, String expected, String operation, boolean modelReply)
+            throws Exception {
         Session session = required(call);
         synchronized (session) {
             fence(call, expected, false);
             String digest = Support.hex(Support.sha(text.getBytes(StandardCharsets.UTF_8)));
             if (!operation.isEmpty() && session.operations.containsKey(operation)) {
                 var previous = session.operations.get(operation);
-                if (!digest.equals(previous.get("digest")))
+                if (!digest.equals(previous.get("digest"))
+                        || modelReply != Boolean.TRUE.equals(previous.get("model_reply")))
                     throw new Support.Failure(409, "reply operation payload changed");
                 return previous.get("playback_id").toString();
             }
@@ -388,7 +398,7 @@ public final class NativeMedia implements MediaManager {
                     work.submit(
                             () -> {
                                 try {
-                                    synthesize(stream, text, generation, requested);
+                                    synthesize(stream, text, generation, requested, modelReply);
                                 } catch (Exception error) {
                                     if (stream.generation == generation && !session.closing)
                                         fail(session, "TTS_REQUEST_FAILED");
@@ -397,7 +407,14 @@ public final class NativeMedia implements MediaManager {
             stream.tts = task;
             if (!operation.isEmpty()) {
                 session.operations.put(
-                        operation, Map.of("digest", digest, "playback_id", playback));
+                        operation,
+                        Map.of(
+                                "digest",
+                                digest,
+                                "playback_id",
+                                playback,
+                                "model_reply",
+                                modelReply));
                 while (session.operations.size() > 64)
                     session.operations.remove(session.operations.keySet().iterator().next());
             }
@@ -428,6 +445,7 @@ public final class NativeMedia implements MediaManager {
             if (stream != null) {
                 stream.generation++;
                 if (stream.tts != null) stream.tts.cancel(true);
+                if (stream.vendor != null) stream.vendor.interrupt();
                 if (voismart) stream.text(Map.of("type", "input_audio_buffer.speech_started"));
             }
             session.playback = "";
@@ -507,6 +525,15 @@ public final class NativeMedia implements MediaManager {
     private void expire() {
         pendingClosures.forEach(this::finishPendingClose);
         for (var session : calls.values()) {
+            var live = streams.get(session.call);
+            if (live != null && live.vendor != null) {
+                try {
+                    live.vendor.check();
+                } catch (Exception failed) {
+                    requestFailure(session, "VOICE_AI_PROVIDER_FAILED");
+                    continue;
+                }
+            }
             double age = (System.currentTimeMillis() - session.created) / 1000.0;
             if ((!session.connected
                             && age
@@ -562,7 +589,9 @@ public final class NativeMedia implements MediaManager {
         payload.put("channel_id", "inbound");
         payload.put(
                 "asr_provider",
-                "pipecat:" + settings.get("PIPECAT_STT_PROVIDER", "openai-realtime"));
+                session.metadata.get("voice_ai_profile") instanceof Map<?, ?> profile
+                        ? Objects.toString(profile.get("id"), "")
+                        : "pipecat:" + settings.get("PIPECAT_STT_PROVIDER", "openai-realtime"));
         payload.put("barge_in", false);
         payload.put("attempt", session.metadata.get("attempt"));
         for (String key : List.of("confidence", "start_ms", "end_ms", "latency_ms"))
@@ -570,8 +599,15 @@ public final class NativeMedia implements MediaManager {
         events.post(session.speechUrl, payload);
     }
 
-    private void synthesize(Stream stream, String text, long generation, long requested)
+    private void synthesize(
+            Stream stream, String text, long generation, long requested, boolean modelReply)
             throws Exception {
+        if (!stream.profile.isEmpty()) {
+            synthesizeVendor(stream, text, generation, requested, modelReply);
+            return;
+        }
+        if (settings.secret("PIPECAT_OPENAI_API_KEY").isEmpty())
+            throw new IOException("legacy synthesis credential missing");
         String permit = UUID.randomUUID().toString();
         boolean acquired = false, confirmed = false;
         boolean first = true;
@@ -673,9 +709,137 @@ public final class NativeMedia implements MediaManager {
         }
     }
 
+    private void synthesizeVendor(
+            Stream stream, String text, long generation, long requested, boolean modelReply)
+            throws Exception {
+        stream.session.started.get(10, TimeUnit.SECONDS);
+        if (stream.session.closing || stream.generation != generation)
+            throw new InterruptedException("superseded reply");
+        String permit = UUID.randomUUID().toString();
+        permits.change(stream.session, permit, "tts", true, false);
+        boolean confirmed = false;
+        try {
+            var player = new VendorPlayer(stream, generation, requested);
+            if ("realtime".equals(stream.profile.get("route"))) {
+                // Reviewed is the safe existing behavior. Streaming is an explicit tenant choice:
+                // audio may already have played when the complete output guard rejects a response.
+                var guard = Support.map(stream.session.metadata.get("voice_ai_guard"));
+                boolean streaming = "streaming".equals(guard.get("realtime_playback_mode"));
+                var pending = new ByteArrayOutputStream();
+                String reply =
+                        stream.vendor.reply(
+                                text,
+                                modelReply,
+                                (pcm, sampleRate) -> {
+                                    if (pending.size() + pcm.length > 1440000)
+                                        throw new IOException("realtime reply audio limit");
+                                    pending.writeBytes(pcm);
+                                    if (streaming) player.accept(pcm, sampleRate);
+                                });
+                if (!modelReply && reply.isBlank()) reply = text;
+                if (reply.isBlank()
+                        || reply.codePointCount(0, reply.length())
+                                > Support.integer(guard, "max_reply_chars", 240))
+                    throw new IOException("realtime output review failed");
+                for (String forbidden :
+                        Support.str(guard, "forbidden_phrases", "").replace('\n', ',').split(","))
+                    if (!forbidden.isBlank()
+                            && reply.toLowerCase(Locale.ROOT)
+                                    .contains(forbidden.strip().toLowerCase(Locale.ROOT)))
+                        throw new IOException("realtime output review failed");
+                byte[] bytes = pending.toByteArray();
+                if (!streaming)
+                    for (int offset = 0; offset < bytes.length; offset += 4800)
+                        player.accept(
+                                Arrays.copyOfRange(
+                                        bytes, offset, Math.min(bytes.length, offset + 4800)),
+                                24000);
+                if (modelReply && stream.generation == generation && !stream.session.closing)
+                    replyTranscript(stream.session, reply, generation);
+            } else new VoiceAiBackends(settings).synthesize(stream.profile, text, player::accept);
+            player.finish();
+            confirmed = true;
+            if (stream.generation == generation && !stream.session.closing) {
+                if (voismart) stream.text(Map.of("type", "response.output_audio.done"));
+                else {
+                    stream.session.playback = "";
+                    media(stream.session, "listening", "", "");
+                }
+            }
+        } finally {
+            permits.change(stream.session, permit, "tts", false, confirmed);
+        }
+    }
+
+    private void replyTranscript(Session session, String text, long generation) throws Exception {
+        if (session.speechUrl.isEmpty()) return;
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("call_id", session.call);
+        payload.put("provider_session_id", session.id);
+        payload.put("event_id", session.id + ":reply:" + generation);
+        payload.put("transcript", text);
+        payload.put("is_final", true);
+        payload.put("speaker_role", "ai");
+        payload.put("channel_id", "outbound");
+        payload.put(
+                "asr_provider", Support.map(session.metadata.get("voice_ai_profile")).get("id"));
+        payload.put("attempt", session.metadata.get("attempt"));
+        events.post(session.speechUrl, payload);
+    }
+
+    private final class VendorPlayer {
+        final Stream stream;
+        final long generation, requested;
+        long sent, started;
+        boolean first = true;
+        PcmResampler conversion;
+
+        VendorPlayer(Stream stream, long generation, long requested) {
+            this.stream = stream;
+            this.generation = generation;
+            this.requested = requested;
+        }
+
+        void accept(byte[] pcm, int sampleRate) throws Exception {
+            if (conversion == null) conversion = new PcmResampler(sampleRate, rate);
+            send(conversion.convert(pcm));
+        }
+
+        void send(byte[] pcm) throws Exception {
+            for (int offset = 0; offset < pcm.length; offset += rate / 50 * 2) {
+                if (stream.generation != generation
+                        || stream.session.closing
+                        || Thread.currentThread().isInterrupted())
+                    throw new InterruptedException("superseded reply");
+                if (first) {
+                    first = false;
+                    started = System.nanoTime();
+                    double elapsed = (started - requested) / 1_000_000_000.0;
+                    firstAudioCount.increment();
+                    firstAudioSeconds.add(elapsed);
+                    firstAudioMax.accumulate(elapsed);
+                    if (!voismart) media(stream.session, "speaking", stream.session.playback, "");
+                }
+                int end = Math.min(pcm.length, offset + rate / 50 * 2);
+                stream.binary(ByteBuffer.wrap(pcm, offset, end - offset));
+                sent += end - offset;
+                long wait = started + sent * 1_000_000_000L / (rate * 2L) - System.nanoTime();
+                if (wait > 0) TimeUnit.NANOSECONDS.sleep(wait);
+            }
+        }
+
+        void finish() throws Exception {
+            if (conversion != null) send(conversion.finish());
+            if (first) throw new IOException("provider produced no audio");
+        }
+    }
+
     final class Stream implements AutoCloseable, WebSocket.Listener {
         final Session session;
         final WebSocketSession socket;
+        final Map<String, Object> profile;
+        volatile VoiceAiBackends.Connection vendor;
+        PcmResampler vendorInput;
         volatile WebSocket asr;
         volatile Future<?> tts;
         volatile long generation;
@@ -696,6 +860,7 @@ public final class NativeMedia implements MediaManager {
         Stream(Session session, WebSocketSession socket) {
             this.session = session;
             this.socket = socket;
+            profile = Support.map(session.metadata.get("voice_ai_profile"));
         }
 
         void connectAsr() throws Exception {
@@ -705,6 +870,39 @@ public final class NativeMedia implements MediaManager {
                 permits.change(session, asrPermit, "asr", true, false);
                 permitAcquired = true;
             }
+            if (!profile.isEmpty()) {
+                int inputRate =
+                        "cascade".equals(profile.get("route"))
+                                        && Set.of("aliyun", "tencent")
+                                                .contains(profile.get("vendor"))
+                                ? 8000
+                                : 16000;
+                vendorInput = new PcmResampler(rate, inputRate);
+                vendor =
+                        new VoiceAiBackends(settings)
+                                .connect(
+                                        profile,
+                                        Support.str(session.metadata, "voice_ai_script", ""),
+                                        new VoiceAiBackends.Listener() {
+                                            public void transcript(String text, String event)
+                                                    throws Exception {
+                                                NativeMedia.this.transcript(
+                                                        session, text, event, Map.of());
+                                            }
+
+                                            public void speechStarted() throws Exception {
+                                                speechStart(session);
+                                            }
+                                        });
+                if (closed.get() || session.closing) {
+                    vendor.close();
+                    throw new IOException("media closed during vendor startup");
+                }
+                asrStarted.complete(null);
+                return;
+            }
+            if (settings.secret("PIPECAT_OPENAI_API_KEY").isEmpty())
+                throw new IOException("legacy speech credential missing");
             String target =
                     aliyun
                             ? settings.get(
@@ -803,7 +1001,13 @@ public final class NativeMedia implements MediaManager {
         }
 
         void audio(ByteBuffer pcm) throws Exception {
-            if (asr == null || session.closing) return;
+            if (session.closing) return;
+            if (vendor != null) {
+                byte[] input = vendorInput.convert(pcmToArray(pcm));
+                if (input.length > 0) vendor.audio(input);
+                return;
+            }
+            if (asr == null) return;
             if (aliyun) {
                 asr.sendBinary(pcm, true).get(5, TimeUnit.SECONDS);
                 return;
@@ -945,6 +1149,7 @@ public final class NativeMedia implements MediaManager {
             generation++;
             if (tts != null) tts.cancel(true);
             boolean confirmed = false;
+            if (vendor != null) vendor.close();
             if (asr != null) {
                 try {
                     if (aliyun) {
@@ -1090,8 +1295,14 @@ public final class NativeMedia implements MediaManager {
         asrEvents.shutdownNow();
     }
 
+    private static byte[] pcmToArray(ByteBuffer source) {
+        byte[] bytes = new byte[source.remaining()];
+        source.get(bytes);
+        return bytes;
+    }
+
     /** Stateful rate conversion keeps odd-byte carry and sample phase across network chunks. */
-    static final class PcmResampler {
+    public static final class PcmResampler {
         private static final int RADIUS = 16;
         final int input, output, phases;
         final double[][] weights;
@@ -1100,7 +1311,7 @@ public final class NativeMedia implements MediaManager {
         int carry = -1;
         boolean finished;
 
-        PcmResampler(int input, int output) {
+        public PcmResampler(int input, int output) {
             if (input <= 0 || output <= 0) throw new IllegalArgumentException("invalid PCM rate");
             this.input = input;
             this.output = output;
@@ -1179,14 +1390,14 @@ public final class NativeMedia implements MediaManager {
             return convertedBuffer.flip().asReadOnlyBuffer();
         }
 
-        synchronized byte[] convert(byte[] bytes) {
+        public synchronized byte[] convert(byte[] bytes) {
             ByteBuffer value = convertBuffer(ByteBuffer.wrap(bytes));
             byte[] result = new byte[value.remaining()];
             value.get(result);
             return result;
         }
 
-        synchronized byte[] finish() {
+        public synchronized byte[] finish() {
             ByteBuffer value = finishBuffer();
             byte[] result = new byte[value.remaining()];
             value.get(result);

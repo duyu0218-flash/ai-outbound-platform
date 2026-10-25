@@ -47,6 +47,10 @@ java -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -jar target/outbound-mono.jar
 
 P0—P2新增话单查询、线索跟进、运营分析、团队权限、表单标签、通知和坐席配置，详见 [功能对照与验收](OPERATIONS-ACCEPTANCE.md) 和 `operations-validation.json`。管理员入口 `/admin/operations/calls`，坐席入口 `/agent/operations/leads`。测试、真机及发布状态分别记录，GitHub源码更新不等于部署。
 
+## 语音供应商对比
+
+六套供应商组合、后台技术路线切换和统一话术音频对比，见 [接入配置](VOICE-AI-PROVIDERS.md) 与 [本次验收](VOICE-AI-ACCEPTANCE.md)。入口为 `/admin/voice-ai`。新增 V20 保存固定样本和测试历史；默认沿用原有链路，真实供应商和电话线路仍待联调。
+
 ## 数据与凭证
 
 迁移基线为 **44 张应用表**：原业务 34 张、语音账本 8 张、模型配额 2 张，V4新增10张运营表，当前共54张应用表，另有1张Flyway元数据表。V1 保持原样，V2 新增辅助账本，V3 增加队列查询索引，V5 增加号码、坐席和人工等待的3个非唯一索引。所有应用数据库持久化均使用 MySQL；Redis 保留原控制信号/队列用途。对象存储保存录音，spool/源录音是原文件处理暂存。

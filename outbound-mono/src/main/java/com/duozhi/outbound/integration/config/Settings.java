@@ -18,6 +18,10 @@ public class Settings {
         this.values = Map.copyOf(values);
     }
 
+    public Settings voiceAi(long tenant, long revision) {
+        return this;
+    }
+
     public String get(String key, String fallback) {
         return values.getOrDefault(key, fallback).strip();
     }

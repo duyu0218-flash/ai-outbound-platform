@@ -17,6 +17,8 @@ ai:
   voice_ai_pipeline: legacy
   pipecat_canary_percent: 0
   external_llm_enabled: false
+  voice_backend: legacy
+  realtime_playback_mode: reviewed
 sms:
   enabled: true
   provider: mock

@@ -369,7 +369,7 @@ public class AiRuntime {
                             metric(
                                     call,
                                     "ai.turn",
-                                    Objects.toString(ai.get("llm_provider"), "rule"),
+                                    providerLabel(ai, "llm_provider", "rule"),
                                     (System.nanoTime() - started) / 1000000,
                                     true,
                                     null);
@@ -380,6 +380,11 @@ public class AiRuntime {
             fenced.put("_generation", snapshot.get("generation"));
             apply(fenced, accepted);
         }
+    }
+
+    private String providerLabel(Map<String, Object> ai, String key, String fallback) {
+        String profile = Objects.toString(ai.get("voice_backend"), "legacy");
+        return profile.equals("legacy") ? Objects.toString(ai.get(key), fallback) : profile;
     }
 
     private Map<String, Object> guard(
@@ -395,6 +400,7 @@ public class AiRuntime {
                             .contains(phrase.trim().toLowerCase(Locale.ROOT)))
                 reason = "forbidden_phrase";
         if (!reason.isEmpty()) {
+            result.remove("model_reply");
             metric(call, "ai.output_guard", "policy", null, false, "AI_OUTPUT_BLOCKED");
             boolean human =
                     Values.set("ai_handoff", "mixed_human_first").contains(call.get("mode"));
@@ -487,6 +493,8 @@ public class AiRuntime {
                         campaign.getOrDefault("recording_enabled", true),
                         "hangup_sms_enabled",
                         campaign.getOrDefault("hangup_sms_enabled", true),
+                        "voice_ai_profile",
+                        ai.get("_voice_profile"),
                         "llm_provider",
                         ai.get("llm_provider"),
                         "llm_model",
@@ -640,6 +648,8 @@ public class AiRuntime {
                             Objects.toString(policy.get("voice"), "").isEmpty()
                                     ? ai.get("voice")
                                     : policy.get("voice"),
+                            "model_reply",
+                            Boolean.TRUE.equals(result.get("model_reply")),
                             "provider",
                             ai.get("tts_provider"),
                             "expected_speech_event_id",
@@ -687,17 +697,18 @@ public class AiRuntime {
                                                                 + rt.get("turn_sequence")
                                                                 + ":"
                                                                 + normalized);
-                                if (store.scalar(
-                                                "speechturn",
-                                                "scopedAiRuntime160",
-                                                Store.scopedParameters(
-                                                        CallLifecycle.tenant(call),
-                                                        store.encode(
-                                                                "speechturn",
-                                                                "call_session_id",
-                                                                id),
-                                                        key))
-                                        == 0)
+                                if (!Boolean.TRUE.equals(result.get("model_reply"))
+                                        && store.scalar(
+                                                        "speechturn",
+                                                        "scopedAiRuntime160",
+                                                        Store.scopedParameters(
+                                                                CallLifecycle.tenant(call),
+                                                                store.encode(
+                                                                        "speechturn",
+                                                                        "call_session_id",
+                                                                        id),
+                                                                key))
+                                                == 0)
                                     store.insert(
                                             "speechturn",
                                             JsonSupport.map(
@@ -724,7 +735,7 @@ public class AiRuntime {
                                 metric(
                                         latest,
                                         "tts.dispatch",
-                                        Objects.toString(ai.get("tts_provider"), "gateway"),
+                                        providerLabel(ai, "tts_provider", "gateway"),
                                         (System.nanoTime() - started) / 1000000,
                                         true,
                                         null);

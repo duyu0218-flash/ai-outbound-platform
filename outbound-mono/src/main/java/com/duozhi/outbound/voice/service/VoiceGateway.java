@@ -897,7 +897,13 @@ public final class VoiceGateway implements AutoCloseable {
         }
         if (binding.pipeline.equals("pipecat")
                 && !"fallback-audio".equals(payload.get("provider"))) {
-            String playback = media.speak(binding.call, text, expected, commandId);
+            String playback =
+                    media.respond(
+                            binding.call,
+                            text,
+                            expected,
+                            commandId,
+                            Boolean.TRUE.equals(payload.get("model_reply")));
             Map<String, Object> result =
                     Map.of(
                             "result",

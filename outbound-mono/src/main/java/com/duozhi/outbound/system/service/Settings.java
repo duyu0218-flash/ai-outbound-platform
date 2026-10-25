@@ -7,6 +7,10 @@ import com.duozhi.outbound.common.support.Ascii;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
+import com.duozhi.outbound.integration.support.Support;
+import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
+import com.duozhi.outbound.voiceai.service.VoiceAiProfiles;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,12 +25,15 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class Settings {
+    private final VoiceAiCredentials credentials;
     private final Store store;
     private final Config config;
     private final ObjectMapper mapper;
     private final Map<String, Map<String, Object>> defaults;
 
-    public Settings(Store store, Config config, ObjectMapper mapper) throws IOException {
+    public Settings(Store store, Config config, ObjectMapper mapper, VoiceAiCredentials credentials)
+            throws IOException {
+        this.credentials = credentials;
         this.store = store;
         this.config = config;
         this.mapper = mapper;
@@ -110,6 +117,18 @@ public class Settings {
         return result;
     }
 
+    public Map<String, Object> freezeAi(long tenant) {
+        var ai = get(tenant, "ai");
+        if (VoiceAiProfiles.selected(ai)) {
+            var profiles =
+                    new VoiceAiProfiles(
+                            credentials.runtime(
+                                    new UnifiedServiceSettings(config, "voice"), tenant, -1));
+            ai.put("_voice_profile", profiles.snapshot(ai.get("voice_backend").toString()));
+        }
+        return ai;
+    }
+
     private void range(Map<String, Object> data, String key, int min, int max) {
         Object value = data.get(key);
         if (!(value instanceof Number)
@@ -191,6 +210,18 @@ public class Settings {
                         400, "production requires consent, DNC and allowed phone prefixes");
         }
         if (section.equals("ai")) {
+            if (!Values.set("reviewed", "streaming").contains(data.get("realtime_playback_mode")))
+                throw new ApiError(400, "未知端到端播放模式");
+            if (VoiceAiProfiles.selected(data)) {
+                try {
+                    VoiceAiProfiles.profile(data.get("voice_backend").toString());
+                } catch (Support.Failure invalid) {
+                    throw new ApiError(400, "未知语音供应商组合");
+                }
+                if (!Boolean.TRUE.equals(data.get("external_llm_enabled")))
+                    throw new ApiError(400, "启用供应商方案需要允许外部模型调用");
+            }
+
             if (!Values.set("rule", "openai-compatible").contains(data.get("llm_provider")))
                 throw new ApiError(400, "unsupported llm provider");
             if (data.get("llm_provider").equals("openai-compatible")
