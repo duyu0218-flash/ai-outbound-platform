@@ -72,6 +72,12 @@ VOICE_AI_SAFETY_POLICY_REVISION=sentence-v1
 
 全量 `mvn verify` 通过：285 项单元测试 + 320 项集成测试，共 605 项，失败/错误/跳过均为 0。末次补齐非法配置错误处理后，再执行 56 项语音单元测试及 VoiceAiHttpIT / FrontendBrowserIT，全部通过；主业务浏览器 35 组、语音页 9 组检查通过。Spotless、Mapper XML、前端格式、依赖 Enforcer、Jar 独立启动与测量工具合成自测通过。机器摘要见 `s2s-content-safety-validation.json`。日志和本地音频位于忽略目录 `verification/s2s-content-safety-20261026/`，不随 Git 提交。源代码已修改；静态检查通过；开发环境功能测试通过；测试环境未发布、真机未验证、生产环境未发布。
 
+### PR #90 CI 运行时修复（2026-10-26）
+
+GitHub 功能回归发现 VoiceAiHttpIT 默认调用本机 Codex 专用 Node 路径，runner 上该文件不存在。现改为优先采用非空 `NODE_BINARY`，未配置时从 `PATH` 调用 `node`，与 CI 的 setup-node 环境一致。涉及入口及状态仍为上表，页面及生产代码无变更。
+
+取消 `NODE_BINARY` 后，使用 `PATH` 中的 Node 完成本地 `verify`：56 项语音单元测试及 VoiceAiHttpIT / FrontendBrowserIT 全部通过，失败/错误/跳过为 0；主业务浏览器 35 组、语音页 9 组通过，Java、XML、前端格式检查通过。日志：`verification/pr90-ci-fix-20261026/verify.log`（忽略目录）。源码已修改、静态检查及开发环境回归通过；远端 CI 需以本次提交的 GitHub 结果为准，测试环境未发布、真机未验证、生产环境未发布。
+
 ## 未验证项、已知限制及上线前置条件
 
 - 未调用真实付费识别/审核接口，未拨打电话，未部署。供应商权限、时间戳精度、识别完整率、真实审核覆盖、漏检/误拦截和 p50/p95 未验证。

@@ -471,12 +471,8 @@ class VoiceAiHttpIT {
         Path wav = Path.of("target/voice-ai-browser.wav").toAbsolutePath();
         Files.write(wav, VoiceAiAudio.wav(new byte[8000], 8000));
         Path log = Path.of("target/voice-ai-browser.log");
-        String node =
-                System.getenv()
-                        .getOrDefault(
-                                "NODE_BINARY",
-                                System.getProperty("user.home")
-                                        + "/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node");
+        String node = System.getenv("NODE_BINARY");
+        if (node == null || node.isBlank()) node = "node";
         var process =
                 new ProcessBuilder(node, "frontend/tests/voice-ai-browser.mjs")
                         .redirectErrorStream(true)
