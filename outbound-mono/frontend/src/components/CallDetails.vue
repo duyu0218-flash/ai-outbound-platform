@@ -11,7 +11,8 @@ const props = defineProps({ call: Object, role: { default: 'admin' } }),
   base = () => '/api/v1/calls/' + props.call.id;
 const permits = useData(() => (props.role === 'admin' ? null : '/api/v1/ops/me')),
   canRecord = computed(() => props.role === 'admin' || !!permits.data.value?.can_record);
-const speech = useData(() => base() + '/speech-turns'),
+const voiceAi = useData(() => base() + '/voice-ai'),
+  speech = useData(() => base() + '/speech-turns'),
   analysis = useData(() => base() + '/analysis'),
   recordings = useData(() => (canRecord.value ? base() + '/recordings' : null)),
   metrics = useData(() => base() + '/metrics'),
@@ -23,7 +24,9 @@ const speech = useData(() => base() + '/speech-turns'),
     :title="t('events') + ' · ' + call.phone"
     size="720px"
     @close="emit('close')"
-    ><template v-for="(q, index) in [speech, analysis, recordings, metrics, events]" :key="index"
+    ><template
+      v-for="(q, index) in [speech, analysis, recordings, metrics, events, voiceAi]"
+      :key="index"
       ><el-alert v-if="q.error.value" type="error" :title="q.error.value" /></template
     ><el-alert
       v-if="permits.data.value && !canRecord"
@@ -34,6 +37,25 @@ const speech = useData(() => base() + '/speech-turns'),
       ><el-descriptions-item :label="t('mode')">{{
         t(call.mode)
       }}</el-descriptions-item></el-descriptions
+    ><el-descriptions
+      v-for="attempt in voiceAi.data.value || []"
+      :key="attempt.attempt"
+      :column="1"
+      border
+    >
+      <el-descriptions-item :label="'第 ' + attempt.attempt + ' 次通话方案'"
+        >{{ attempt.name }} ·
+        {{
+          attempt.route === 'realtime'
+            ? '端到端实时语音'
+            : attempt.route === 'cascade'
+              ? '三段式'
+              : '原有链路'
+        }}</el-descriptions-item
+      >
+      <el-descriptions-item label="话术校验值">{{
+        attempt.script_sha
+      }}</el-descriptions-item> </el-descriptions
     ><el-tabs
       ><el-tab-pane label="结构化转写"
         ><div class="speech-list" v-loading="speech.loading.value">

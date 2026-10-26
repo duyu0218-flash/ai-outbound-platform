@@ -3,14 +3,17 @@ package com.duozhi.outbound.common.config;
 import com.duozhi.outbound.ai.service.EmbeddedAgent;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.dao.LedgerDatabase;
+import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 public class EmbeddedServicesConfiguration {
     @Bean
-    EmbeddedAgent embeddedAgent(Config config, LedgerDatabase database) throws Exception {
-        var settings = new UnifiedServiceSettings(config, "agent");
+    EmbeddedAgent embeddedAgent(
+            Config config, LedgerDatabase database, VoiceAiCredentials credentials)
+            throws Exception {
+        var settings = credentials.root(new UnifiedServiceSettings(config, "agent"));
         long connections = settings.number("LLM_MAX_CONNECTIONS", 256, 1, 1024);
         System.setProperty(
                 "jdk.httpclient.connectionPoolSize",

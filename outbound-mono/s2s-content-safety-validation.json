@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-26",
+  "source_modified": true,
+  "static_checks": "passed",
+  "development_functional_tests": "passed",
+  "full_suite": {
+    "unit": 285,
+    "integration": 320,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "final_focused_verification_after_input_validation_fix": {
+    "voice_unit_tests": 56,
+    "integration_tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "new_content_safety_tests": 22,
+  "main_browser_checks": 35,
+  "voice_browser_checks": 9,
+  "fatjar_smoke": "passed",
+  "dependency_enforcer": "passed",
+  "measurement_tool_tests": "passed",
+  "mechanism_verified": {
+    "first_sentence_does_not_wait_for_response_done": true,
+    "next_review_overlaps_previous_playback": true,
+    "actual_audio_independently_transcribed": true,
+    "legacy_streaming_cannot_bypass_gate": true,
+    "non_none_risk_and_unknown_results_blocked": true,
+    "uncertain_audio_boundaries_blocked": true,
+    "cancel_discards_pending_approval": true
+  },
+  "environment": {
+    "database": "local Docker MySQL/Redis",
+    "browser": "Chromium",
+    "asr": "local protocol fixture",
+    "moderation": "local HTTP fixture"
+  },
+  "real_asr_and_moderation": "not verified",
+  "actual_moderation_accuracy": "not verified",
+  "phone_latency_p50_p95": "not verified",
+  "capacity_and_long_run": "not verified",
+  "test_environment_deployed": false,
+  "device_tests": "not verified",
+  "production_deployed": false,
+  "known_limitations": [
+    "ASR and moderation can have false negatives and false positives",
+    "no standalone nonlinguistic acoustic classifier",
+    "resource limits remain process-local",
+    "strict missing-boundary rejection can interrupt legitimate replies"
+  ],
+  "release_prerequisites": [
+    "real account permissions and approved ASR/moderation quotas",
+    "adversarial audio evaluation and fixed safety rules",
+    "real phone/stop/playback confirmation and latency tests",
+    "staged capacity and long-run tests",
+    "controlled business pilot"
+  ]
+}

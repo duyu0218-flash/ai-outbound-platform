@@ -3,7 +3,11 @@ import { t } from '../i18n';
 import SettingSection from '../components/SettingSection.vue';
 </script>
 <template>
-  <PageHeader title="settings" description="settingsHint" /><el-card
+  <PageHeader title="settings" description="settingsHint"
+    ><el-button @click="$router.push('/admin/voice-ai')"
+      >供应商与技术路线对比</el-button
+    ></PageHeader
+  ><el-card
     ><el-tabs
       ><el-tab-pane
         v-for="section in ['capacity', 'ai', 'sms', 'compliance', 'integration']"

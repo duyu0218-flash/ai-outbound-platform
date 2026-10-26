@@ -34,7 +34,7 @@ class DialCommandChunkingTest {
                 spy(
                         new DialService(
                                 null, null, null, null, null, null, client, null, null, null, null,
-                                null, null, null));
+                                null, null, null, null));
         ReflectionTestUtils.setField(service, "drain", mock(DialDrainControl.class));
         var sent = new ArrayList<Integer>();
         var acknowledged = new ArrayList<String>();
@@ -124,7 +124,7 @@ class DialCommandChunkingTest {
         var service =
                 new DialService(
                         null, null, null, null, null, null, client, null, null, null, null, null,
-                        null, null);
+                        null, null, null);
         ReflectionTestUtils.setField(service, "drain", mock(DialDrainControl.class));
         when(client.dialBatch(anyList())).thenReturn(List.of());
         var entry =
@@ -149,7 +149,7 @@ class DialCommandChunkingTest {
                 spy(
                         new DialService(
                                 null, null, null, null, null, null, client, null, null, null, null,
-                                null, null, null));
+                                null, null, null, null));
         ReflectionTestUtils.setField(service, "drain", drain);
         doReturn(true).when(service).confirmClaimed(anyMap(), anyMap());
         var call = JsonSupport.map("id", "synthetic", "tenant_id", 1, "attempts", 1);

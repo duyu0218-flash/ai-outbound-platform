@@ -4,9 +4,14 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.Ascii;
+import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
+import com.duozhi.outbound.integration.support.Support;
+import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
+import com.duozhi.outbound.voiceai.service.VoiceAiProfiles;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,12 +26,15 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class Settings {
+    private final VoiceAiCredentials credentials;
     private final Store store;
     private final Config config;
     private final ObjectMapper mapper;
     private final Map<String, Map<String, Object>> defaults;
 
-    public Settings(Store store, Config config, ObjectMapper mapper) throws IOException {
+    public Settings(Store store, Config config, ObjectMapper mapper, VoiceAiCredentials credentials)
+            throws IOException {
+        this.credentials = credentials;
         this.store = store;
         this.config = config;
         this.mapper = mapper;
@@ -110,6 +118,45 @@ public class Settings {
         return result;
     }
 
+    public Map<String, Object> freezeAi(long tenant) {
+        var ai = get(tenant, "ai");
+        if (VoiceAiProfiles.selected(ai)) {
+            var profiles =
+                    new VoiceAiProfiles(
+                            credentials.runtime(
+                                    new UnifiedServiceSettings(config, "voice"), tenant, -1));
+            var profile =
+                    new LinkedHashMap<>(profiles.snapshot(ai.get("voice_backend").toString()));
+            var turn = new LinkedHashMap<String, Object>();
+            for (String key :
+                    List.of(
+                            "vad_start_ms",
+                            "vad_end_ms",
+                            "vad_long_end_ms",
+                            "vad_max_input_ms",
+                            "vad_idle_clear_ms",
+                            "vad_rms",
+                            "vad_adaptive")) turn.put(key, ai.get(key));
+            profile.put("turn_policy", Map.copyOf(turn));
+            if ("realtime".equals(profile.get("route"))) {
+                String speechProfile =
+                        config.get("VOICE_AI_REALTIME_SPEECH_PROFILE", "aliyun-cascade");
+                var speech = new LinkedHashMap<>(profiles.snapshot(speechProfile));
+                if (!"cascade".equals(speech.get("route")))
+                    throw new ApiError(400, "确定性播报与分类需要三段式组合");
+                speech.put("turn_policy", Map.copyOf(turn));
+                profile.put("speech_profile", Map.copyOf(speech));
+                profile.put(
+                        "content_safety",
+                        com.duozhi.outbound.voiceai.service.ContentSafety.policy(
+                                new UnifiedServiceSettings(config, "voice")));
+            }
+            profile.put("revision", Support.hex(Support.sha(Support.canonical(profile))));
+            ai.put("_voice_profile", Collections.unmodifiableMap(profile));
+        }
+        return ai;
+    }
+
     private void range(Map<String, Object> data, String key, int min, int max) {
         Object value = data.get(key);
         if (!(value instanceof Number)
@@ -191,6 +238,44 @@ public class Settings {
                         400, "production requires consent, DNC and allowed phone prefixes");
         }
         if (section.equals("ai")) {
+            range(data, "vad_start_ms", 20, 1000);
+            range(data, "vad_end_ms", 200, 2000);
+            range(data, "vad_long_end_ms", JsonSupport.integer(data.get("vad_end_ms"), 400), 3000);
+            range(data, "vad_max_input_ms", 1000, 60000);
+            range(data, "vad_idle_clear_ms", 500, 10000);
+            range(data, "vad_rms", 1, 32767);
+            range(data, "answer_classify_timeout_ms", 1500, 3000);
+            if (data.get("ai_disclosure_text").toString().isBlank()
+                    || data.get("ai_disclosure_text").toString().length() > 500)
+                throw new ApiError(400, "AI身份告知不能为空且不超过500字");
+            boolean realtimeProfile = false;
+            if (VoiceAiProfiles.selected(data)) {
+                try {
+                    realtimeProfile =
+                            "realtime"
+                                    .equals(
+                                            VoiceAiProfiles.profile(
+                                                            data.get("voice_backend").toString())
+                                                    .route());
+                } catch (Support.Failure invalid) {
+                    throw new ApiError(400, "未知语音供应商组合");
+                }
+            }
+            if (Boolean.TRUE.equals(data.get("direct_s2s_enabled"))
+                    && (!Set.of("streaming", "sentence_review")
+                                    .contains(data.get("realtime_playback_mode"))
+                            || !VoiceAiProfiles.selected(data)
+                            || !realtimeProfile)) throw new ApiError(400, "按语音端点直接回复只适用于端到端逐句审核播放");
+            if (!Values.set("reviewed", "streaming", "sentence_review")
+                    .contains(data.get("realtime_playback_mode")))
+                throw new ApiError(400, "未知端到端播放模式");
+            // Legacy mode values remain readable, but all S2S output uses the mandatory audio gate.
+            if (realtimeProfile) data.put("realtime_playback_mode", "sentence_review");
+            if (VoiceAiProfiles.selected(data)) {
+                if (!Boolean.TRUE.equals(data.get("external_llm_enabled")))
+                    throw new ApiError(400, "启用供应商方案需要允许外部模型调用");
+            }
+
             if (!Values.set("rule", "openai-compatible").contains(data.get("llm_provider")))
                 throw new ApiError(400, "unsupported llm provider");
             if (data.get("llm_provider").equals("openai-compatible")

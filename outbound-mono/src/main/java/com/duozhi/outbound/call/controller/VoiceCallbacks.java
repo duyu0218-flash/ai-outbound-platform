@@ -155,13 +155,45 @@ public class VoiceCallbacks {
         if (existing != null)
             return JsonSupport.map(
                     "result", "ok", "duplicate", true, "turn_id", existing.get("id"));
+        if ("ai".equals(body.get("speaker_role"))) {
+            String text = Objects.toString(body.get("transcript"), "");
+            var rt = realtime(call);
+            var turn =
+                    store.insert(
+                            "speechturn",
+                            JsonSupport.map(
+                                    "tenant_id",
+                                    tenant,
+                                    "call_session_id",
+                                    id,
+                                    "provider_event_key",
+                                    key,
+                                    "turn_index",
+                                    rt.get("turn_sequence"),
+                                    "attempt",
+                                    call.get("attempts"),
+                                    "transcript",
+                                    text,
+                                    "normalized_transcript",
+                                    text.strip(),
+                                    "speaker_role",
+                                    "ai",
+                                    "channel_id",
+                                    "outbound",
+                                    "is_final",
+                                    true,
+                                    "asr_provider",
+                                    body.get("asr_provider")));
+            return JsonSupport.map("result", "ok", "turn_id", turn.get("id"));
+        }
         boolean last = Boolean.TRUE.equals(body.get("is_final"));
         String transcript = Objects.toString(body.get("transcript"), ""),
                 normalized = transcript.trim().replaceAll("(?U)\\s+", " ");
         Map<String, Object> rt = realtime(call);
         int sequence = CallLifecycle.number(rt, "turn_sequence") + (last ? 1 : 0);
         Map<String, Object> change = JsonSupport.map("turn_sequence", sequence);
-        if (!CallLifecycle.TERMINAL.contains(call.get("status"))
+        if (last
+                && !CallLifecycle.TERMINAL.contains(call.get("status"))
                 && !"closed".equals(rt.get("state")))
             change.put("state", last ? "thinking" : "listening");
         if (rt.get("started_at") == null) change.put("started_at", Store.now());
@@ -174,7 +206,7 @@ public class VoiceCallbacks {
                                 CallLifecycle.tenant(call),
                                 store.encode("conversationstate", "call_id", id),
                                 call.get("attempts")));
-        if (state != null) {
+        if (state != null && last) {
             Map<String, Object> data = json.object(state.get("data_json").toString());
             if (last) data.put("speech_event_id", body.get("event_id"));
             store.writeLocked(
@@ -318,6 +350,10 @@ public class VoiceCallbacks {
                             sequence,
                             "speech_event_id",
                             body.get("event_id"),
+                            "native_response",
+                            body.get("native_response"),
+                            "answer_class",
+                            body.get("answer_class"),
                             "transcript",
                             transcript));
         outbox.callback(

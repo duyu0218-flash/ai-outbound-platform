@@ -25,6 +25,7 @@ export const adminNavigation = [
   ['lines', 'lines', 'Lines'],
   ['knowledge', 'knowledge', 'Knowledge'],
   ['settings', 'settings', 'Settings'],
+  ['voice-ai', '语音方案对比', 'VoiceAi'],
   ['product', '业务交付策略', 'Product'],
   ['system', 'system', 'System'],
 ];

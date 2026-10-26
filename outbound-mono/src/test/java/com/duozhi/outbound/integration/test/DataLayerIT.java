@@ -269,7 +269,8 @@ class DataLayerIT {
                             "dial_v3_quota_grant",
                             "dial_v3_quota_grant_scope",
                             "dial_v3_quota_allocation"));
-            assertThat(expectedTables).hasSize(77);
+            expectedTables.addAll(Set.of("aivoiceconfig", "aivoicetestset", "aivoicetestrun"));
+            assertThat(expectedTables).hasSize(80);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {

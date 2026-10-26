@@ -144,17 +144,27 @@ public class MediaWorkerRuntime {
                 case "speak" ->
                         Map.of(
                                 "playback_id",
-                                manager.speak(
+                                manager.respond(
                                         call,
                                         Support.required(command, "text", 50000),
                                         expected,
-                                        Support.str(command, "operation_id", "")));
+                                        Support.str(command, "operation_id", ""),
+                                        Boolean.TRUE.equals(command.get("model_reply")),
+                                        Support.map(command.get("model_context"))));
                 case "fence" -> {
                     manager.fence(call, expected, Boolean.TRUE.equals(command.get("closing")));
                     yield Map.of("ok", true);
                 }
                 case "interrupt" -> {
                     manager.interrupt(call, expected);
+                    yield Map.of("ok", true);
+                }
+                case "playback_ack" -> {
+                    manager.acknowledge(
+                            call,
+                            Support.required(command, "playback_id", 128),
+                            Support.integer(command, "response_epoch", -1),
+                            Support.integer(command, "played_samples", -1));
                     yield Map.of("ok", true);
                 }
                 case "module" -> {

@@ -4,16 +4,22 @@ import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.common.web.Contract;
+import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.operations.service.OperationsAccess;
+import com.duozhi.outbound.voiceai.dao.VoiceAiBenchmarkMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/calls")
 public class CallEvidence {
+    @Autowired
+    private VoiceAiBenchmarkMapper voiceAi;
     private final Store store;
     private final Contract contract;
     private final OperationsAccess operations;
@@ -75,6 +81,51 @@ public class CallEvidence {
                 id,
                 "",
                 "created_at DESC");
+    }
+
+    @GetMapping("/{id}/voice-ai")
+    public Object voiceAi(@PathVariable
+    UUID id, HttpServletRequest request) {
+        long tenant = visible(request, id);
+        var attempts = new ArrayList<Map<String, Object>>();
+        for (var row : voiceAi.callProfiles(tenant, id.toString())) {
+            var policy =
+                    Support.object(
+                            row.get("policy_json").toString().getBytes(StandardCharsets.UTF_8));
+            var profile = Support.map(Support.map(policy.get("_ai")).get("_voice_profile"));
+            var item = new LinkedHashMap<String, Object>();
+            item.put(
+                    "realtime_playback_mode",
+                    Support.map(policy.get("_ai"))
+                            .getOrDefault("realtime_playback_mode", "reviewed"));
+            item.put("attempt", row.get("attempt"));
+            for (String key :
+                    List.of(
+                            "id",
+                            "name",
+                            "route",
+                            "revision",
+                            "asr_model",
+                            "asr_resource",
+                            "llm_model",
+                            "tts_model",
+                            "voice",
+                            "realtime_model",
+                            "realtime_voice"))
+                if (profile.containsKey(key)) item.put(key, profile.get(key));
+            if (profile.isEmpty()) {
+                item.put("id", "legacy");
+                item.put("name", "原有链路");
+            }
+            item.put(
+                    "script_sha",
+                    Support.hex(
+                            Support.sha(
+                                    Support.str(policy, "_script", "")
+                                            .getBytes(StandardCharsets.UTF_8))));
+            attempts.add(item);
+        }
+        return attempts;
     }
 
     @GetMapping("/{id}/realtime")

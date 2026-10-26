@@ -1,0 +1,183 @@
+{
+  "date": "2026-10-25",
+  "baseCommit": "e3c9484f5d4e3272b0c741cc20a3f9ccbac0cf76",
+  "branch": "docs/platform-user-manual-20261023",
+  "scope": "本机模拟协议／媒体和111隔离测试部署；真实供应商与电话线路未验证",
+  "entry": "/admin/voice-ai",
+  "profiles": [
+    "aliyun-cascade",
+    "volcengine-cascade",
+    "tencent-cascade",
+    "volcengine-realtime",
+    "aliyun-realtime",
+    "baidu-realtime"
+  ],
+  "status": {
+    "sourceModified": true,
+    "staticChecksPassed": true,
+    "developmentChecksPassed": true,
+    "testEnvironmentDeployed": true,
+    "realDeviceVerified": false,
+    "productionDeployed": false,
+    "realVendorVerified": false,
+    "realCallsDialed": false,
+    "capacityVerified": false
+  },
+  "maven": {
+    "command": "mvn -o verify",
+    "result": "BUILD SUCCESS",
+    "duration": "07:06",
+    "unit": {
+      "tests": 252,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "integration": {
+      "tests": 320,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "browser": {
+    "existingChecks": 35,
+    "voiceAiChecks": 8,
+    "javascriptErrors": [],
+    "voiceAiCheckNames": [
+      "login and menu entry",
+      "six credential panels save masked values and clear after reload",
+      "route and provider switching persists after reload",
+      "snapshot audio set saved and reloaded",
+      "authenticated audio preview loads on demand",
+      "return path and restore legacy mode",
+      "call details show frozen supplier and script fingerprint",
+      "logout redirects protected page to login"
+    ],
+    "newAssertions": [
+      "per-service auth modes visible",
+      "independent ASR/TTS missing variables visible",
+      "six profile credential forms save masked values and clear after reload"
+    ]
+  },
+  "protocolChecks": {
+    "tests": 22,
+    "protocolAndNativeMediaCases": 17,
+    "invariantCases": 5,
+    "nativePcmPlayback": "passed against local vendor fixtures",
+    "authenticationCases": [
+      "service API Key",
+      "service legacy pair",
+      "mixed modes",
+      "shared API Key fallback",
+      "shared legacy fallback",
+      "partial service credentials fail without fallback",
+      "credential files",
+      "frozen credential references",
+      "legacy snapshot compatibility",
+      "no secret values in snapshots"
+    ],
+    "liveTelephony": "unverified"
+  },
+  "staticChecks": [
+    "Spotless Java format",
+    "Prettier frontend/resources/XML",
+    "mapper XML formatting",
+    "Maven Enforcer dependency/JDK rules",
+    "package layout policy",
+    "git diff --check"
+  ],
+  "migration": "V20 sample/result tables; V21 AES-GCM tenant credential versions; empty, V18 upgrade, replay verified",
+  "artifact": {
+    "path": "target/outbound-mono.jar",
+    "sha256": "51fc42edebc25ebc36bc65ee32b2765812f2d39e30c922edd3d862b12e47af66"
+  },
+  "fileSha256": {
+    "frontend/src/pages/VoiceAi.vue": "bdb6ce9df37eb7350ea9e4fc61b2b8fcb67bb741bdcad0044a1828d796e0d908",
+    "frontend/tests/voice-ai-browser.mjs": "1499962e03f607d38475d4dabf5424b17b657543491d7083c01fb9eb1dcc3724",
+    "src/main/java/com/duozhi/outbound/voiceai/controller/VoiceAiController.java": "be059195d9fd9069ecc97e15ebfb92b15b38d167555b9a814d0a292df4ba0cb2",
+    "src/main/java/com/duozhi/outbound/voiceai/dao/VoiceAiBenchmarkMapper.java": "78f5b8b6a7ffa4eefc6c6e0862092c2d228ef5f439b5220a0cbb415d69b77f55",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VendorSocket.java": "a081f40ff319d67041febb19d4110b02c8c30a79700fa42f6d8369221eb8abe8",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VoiceAiAudio.java": "5b4aee4912f24b4bb0492abedad256854fb5c25468a5857838792ca3f902d07e",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VoiceAiBackends.java": "82bfa9c26fda01b051d7793f94f70abf813b8b3f42c7ab73344d5eea7e050dbc",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VoiceAiProfiles.java": "4cf96fac06a8467caf6d02b144395606363305889804e0b9d604c56f4d9657dd",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VolcVoiceProtocol.java": "199b2220fce82c3dfc22de1940ffeb6ac452796a38f5f8fb9fac49a781e6f2bb",
+    "src/main/resources/db/migration/V20__voice_ai_comparison.sql": "6d8583f9f1ad61baf96c6d099d1a9df413e17717c2d6555138e40f4ac817f06e",
+    "src/test/java/com/duozhi/outbound/voiceai/VoiceAiBackendsTest.java": "877b4220bce8e264d20d8e84e57eaf74d4152bce0e9194b6bd13a949db3ab219",
+    "src/test/java/com/duozhi/outbound/voiceai/VoiceAiHttpIT.java": "a82266a46e80687079d283c5ec6a203be60a9e8b64adc0357f7e02413a779b04",
+    "src/test/java/com/duozhi/outbound/integration/test/QueueConcurrencyIT.java": "f9b05b05d79cfb972f1c3ec159109b8cc5c95c0925516256ee91e27a887647c6",
+    ".env.example": "7e628e3525dde7194d7763c29a43ef4e23425c483544c33bf9531c3376e64ce3",
+    "voice-ai-application.env.example": "d50e1ba18a458b8886c5a4b6ac19e853bf22e89a3009e539120449d8fd4a1a42",
+    "src/main/java/com/duozhi/outbound/voiceai/service/VoiceAiCredentials.java": "74f774fe4067d8089595dab60987d0ba3be3917d125527a15f445a4d351338a4",
+    "src/main/java/com/duozhi/outbound/voiceai/dao/VoiceAiConfigMapper.java": "0eaeef967159f5e62eb38d350e619a53c4fc1e14a1da3185ca7e69e4516f51f6",
+    "src/main/resources/db/migration/V21__voice_ai_encrypted_config.sql": "3219041e7363cd5b5032edee3a55194b9f8833725718e25eb6b5137a693e251c"
+  },
+  "evidenceDirectory": "target/voice-ai-credentials-full-verify.log",
+  "knownLimits": [
+    "本机没有可用供应商凭据；真实模型、音色、权限、余额未验证",
+    "单轮音频对比，不自动外呼；文字样本不测ASR",
+    "三段式收齐文本审核后合成，未完全重叠",
+    "端到端实时流式模式可能在整段审核拒绝前播出部分音频；默认整段审核",
+    "应用中断后的running记录代表结果未确认；不自动重试",
+    "O2.0接口，未实现Seeduplex；百度公测需开通",
+    "电话线路、多轮、打断、转人工、长稳和容量未验证",
+    "111测试应用保持仅回环出站策略；真实供应商联调前须受控放行"
+  ],
+  "prerequisites": [
+    "后台填写 API 凭据、模型、音色、千问工作空间和百度权限",
+    "外部调用授权；启用原生媒体及VOICE_AI_PROFILES_ENABLED",
+    "V20/V21 已在111测试环境升级；正式环境仍需备份和单实例升级",
+    "专用测试号码、真实供应商与PBX验收、成本和容量验证"
+  ],
+  "unrelatedWorkspaceChangesPreserved": [
+    "frontend/src/pages/OperationsCalls.vue",
+    "frontend/src/pages/OperationsLeads.vue",
+    "frontend/src/pages/OperationsReports.vue",
+    "frontend/src/page-query.js",
+    "frontend/tests/browser-acceptance.mjs",
+    "frontend/tests/navigation-race.mjs",
+    "../migration-history-20261020/"
+  ],
+  "revision": "voice-ai-encrypted-config-20261025",
+  "priorEvidenceDirectory": "verification/voice-ai-20261024/",
+  "configuration": {
+    "template": "voice-ai-application.env.example",
+    "entries": 50,
+    "credentialsBlank": true,
+    "realMediaEnabled": false,
+    "volcengineAuthPrecedence": [
+      "service API Key",
+      "complete service legacy pair; partial pair blocks",
+      "shared API Key",
+      "shared legacy pair"
+    ],
+    "tencentDefaultTextUrl": "https://tokenhub.tencentmaas.com/v1/chat/completions",
+    "credentialStore": "tenant-scoped AES-256-GCM versioned database",
+    "masterKey": "VOICE_AI_CONFIG_MASTER_KEY or _FILE; platform only",
+    "browserReturnsPlaintext": false,
+    "tenantOverridesEnvironment": true
+  },
+  "initialRunRepair": {
+    "test": "QueueConcurrencyIT.realtimePressureIgnoresFutureTimersAndColdWorkButCountsOwnedDueAndDeadControls",
+    "observed": "0.995s measured against >=1s fixture assertion",
+    "cause": "fixture used host time while measurement used MySQL UTC time",
+    "change": "fixture now uses MySQL UTC_TIMESTAMP(3); assertions and runtime logic unchanged",
+    "finalFullRerun": "passed"
+  },
+  "deploymentEvidence": "../../outputs/deployment_111_voice_ai_20261025/",
+  "deployment": {
+    "host": "111.229.134.208",
+    "kind": "isolated internal test",
+    "entry": "https://111.229.134.208/admin/voice-ai",
+    "browserChecks": 47,
+    "javascriptErrors": 0,
+    "http5xx": 0,
+    "databaseVersion": 21,
+    "health": 200,
+    "readiness": 503,
+    "realCalls": 0,
+    "originalBusinessProcessesUnchanged": true,
+    "network": "loopback-only; controlled vendor egress needed before real integration",
+    "evidence": "../../outputs/deployment_111_voice_ai_20261025/部署验收.md"
+  }
+}

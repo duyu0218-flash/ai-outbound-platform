@@ -1,0 +1,7 @@
+CREATE TABLE aivoiceconfig (
+ tenant_id BIGINT NOT NULL,
+ revision BIGINT NOT NULL,
+ payload LONGTEXT NOT NULL,
+ created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+ PRIMARY KEY (tenant_id, revision)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
