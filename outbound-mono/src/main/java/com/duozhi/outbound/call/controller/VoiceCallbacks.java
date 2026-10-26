@@ -143,6 +143,11 @@ public class VoiceCallbacks {
         if (stale(call, body.get("attempt"))) return ignored("stale_attempt");
         long tenant = CallLifecycle.tenant(call);
         Object id = call.get("id");
+        if (Boolean.TRUE.equals(body.get("provider_final"))
+                && Boolean.FALSE.equals(body.get("turn_committed"))) {
+            lifecycle.event(call, "speech_provider_final", "asr", body);
+            return JsonSupport.map("result", "ok", "provider_final", true, "turn_committed", false);
+        }
         String key = JsonSupport.sha(id + ":speech:" + body.get("event_id"));
         Map<String, Object> existing =
                 store.one(
@@ -354,6 +359,8 @@ public class VoiceCallbacks {
                             body.get("native_response"),
                             "answer_class",
                             body.get("answer_class"),
+                            "recognition_quality",
+                            body.get("recognition_quality"),
                             "transcript",
                             transcript));
         outbox.callback(

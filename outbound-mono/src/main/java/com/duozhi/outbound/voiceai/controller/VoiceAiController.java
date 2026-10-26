@@ -103,6 +103,15 @@ public class VoiceAiController {
                                     profile,
                                     Support.str(ai, "ai_disclosure_text", ""),
                                     backends);
+            if ("approved_audio_then_end".equals(ai.get("safety_fallback"))) {
+                TextCommitter.validate(Support.str(ai, "fallback_reply", ""), ai);
+                new OpeningAudioCache(runtime)
+                        .prepare(
+                                actor.tenant(),
+                                profile,
+                                Support.str(ai, "fallback_reply", ""),
+                                backends);
+            }
             audit.record(
                     actor,
                     "create",
@@ -279,7 +288,7 @@ public class VoiceAiController {
         if (!capacity.tryAcquire()) throw new ApiError(429, "同时最多运行两组供应商测试，请稍后再试");
         try {
             String runId = UUID.randomUUID().toString();
-            var snapshot = profiles.snapshot(profile);
+            var snapshot = Support.map(settings.freezeAi(tenant, profile).get("_voice_profile"));
             try {
                 db.createRun(
                         Map.of(
@@ -358,6 +367,42 @@ public class VoiceAiController {
         }
     }
 
+    private String reviewedCascade(
+            Map<String, Object> spec,
+            String script,
+            String text,
+            Map<String, Object> safety,
+            VoiceAiBackends.Audio output,
+            List<Map<String, Object>> evidence)
+            throws Exception {
+        try (var scope = new ResponseScope()) {
+            return CascadePipeline.run(
+                    scope,
+                    Map.of("max_reply_chars", 240, "require_fact_templates", true),
+                    () -> backends.synthesis(spec, output, scope),
+                    delta ->
+                            backends.generate(
+                                    spec,
+                                    List.of(
+                                            Map.of(
+                                                    "role",
+                                                    "system",
+                                                    "content",
+                                                    "用完整简短中文回答，第一句直接回应问题。遵守已批准话术，不编造事实：\n"
+                                                            + script),
+                                            Map.of("role", "user", "content", text)),
+                                    delta,
+                                    scope),
+                    (cumulative, child) ->
+                            contentSafety.review(
+                                    safety,
+                                    ContentSafety.withContext(List.of("客户：" + text), cumulative),
+                                    child),
+                    evidence::add,
+                    stage -> {});
+        }
+    }
+
     private Map<String, Object> evaluate(
             Map<String, Object> spec, String script, Map<String, Object> sample) throws Exception {
         long started = System.nanoTime();
@@ -365,8 +410,8 @@ public class VoiceAiController {
         boolean audio = !Support.str(sample, "audio_wav_base64", "").isBlank(),
                 realtime = "realtime".equals(spec.get("route"));
         var safetyEvidence = new ArrayList<Map<String, Object>>();
-        var safety = realtime ? ContentSafety.policy(runtime) : Map.<String, Object>of();
-        if (realtime) contentSafety.requireReady(safety);
+        var safety = ContentSafety.policy(runtime);
+        contentSafety.requireReady(safety);
         var pcm = new ByteArrayOutputStream();
         long[] first = {0}, inputEnd = {started};
         PcmResampler[] conversion = {null};
@@ -385,10 +430,7 @@ public class VoiceAiController {
         if (!audio && realtime) throw new ApiError(400, "端到端语音对比须使用 WAV 音频样本，不能用文字绕过语音理解");
         if (audio) {
             var input = VoiceAiAudio.wav(Support.str(sample, "audio_wav_base64", ""));
-            int targetRate =
-                    !realtime && Set.of("aliyun", "tencent").contains(spec.get("vendor"))
-                            ? 8000
-                            : 16000;
+            int targetRate = RecognitionOptions.rate(spec);
             byte[] bytes = VoiceAiAudio.resample(input.bytes(), input.rate(), targetRate);
             try (var connection =
                     backends.connect(
@@ -462,13 +504,11 @@ public class VoiceAiController {
                         }
                     }
                 } else {
-                    reply = backends.generate(spec, script, text, List.of());
-                    backends.synthesize(spec, reply, sink);
+                    reply = reviewedCascade(spec, script, text, safety, sink, safetyEvidence);
                 }
             }
         } else {
-            reply = backends.generate(spec, script, text, List.of());
-            backends.synthesize(spec, reply, sink);
+            reply = reviewedCascade(spec, script, text, safety, sink, safetyEvidence);
         }
         if (conversion[0] != null) pcm.writeBytes(conversion[0].finish());
         if (pcm.size() == 0 || reply.isBlank()) throw new IOException("empty vendor response");

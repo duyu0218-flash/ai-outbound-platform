@@ -11,12 +11,14 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.socket.*;
@@ -342,9 +344,11 @@ class S2sContentSafetyTest {
         }
     }
 
-    @Test
-    void actualMediaCannotBypassAudioReviewWithBenignModelTextOrLegacyStreamingMode()
-            throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void actualMediaCannotBypassAudioReviewWithBenignModelTextOrLegacyStreamingMode(
+            boolean preparedFallback, @TempDir
+            Path directory) throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var reviewed = new CompletableFuture<String>();
         server.createContext(
@@ -381,16 +385,30 @@ class S2sContentSafetyTest {
             env.put("VOICE_AI_PROFILES_ENABLED", "true");
             env.put("VOICE_AI_ALI_REALTIME_URL", model.url());
             env.put("VOICE_AI_ALI_ASR_URL", independent.url());
+            env.put("VOICE_AI_OPENING_CACHE_DIR", directory.toString());
             var runtime = new Settings(env);
-            var spec = new VoiceAiProfiles(runtime).snapshot("aliyun-realtime");
+            var spec =
+                    new LinkedHashMap<>(new VoiceAiProfiles(runtime).snapshot("aliyun-realtime"));
+            spec.put("speech_profile", new VoiceAiProfiles(runtime).snapshot("aliyun-cascade"));
+            String fallback = "抱歉，当前无法继续，请稍后联系。";
+            byte[] approved = VoiceStreamingTest.audio(100, 24000, 3200);
+            if (preparedFallback)
+                Files.write(
+                        directory.resolve(OpeningAudioCache.key(0, spec, fallback) + ".pcm"),
+                        approved);
             var socket = mock(WebSocketSession.class);
             when(socket.getId()).thenReturn("safety-output");
             when(socket.isOpen()).thenReturn(true);
             var played = new AtomicInteger();
+            var actual = new ByteArrayOutputStream();
             doAnswer(
                             inv -> {
-                                if (inv.getArgument(0) instanceof BinaryMessage)
+                                if (inv.getArgument(0) instanceof BinaryMessage binary) {
                                     played.incrementAndGet();
+                                    byte[] frame = new byte[binary.getPayload().remaining()];
+                                    binary.getPayload().get(frame);
+                                    actual.writeBytes(frame);
+                                }
                                 return null;
                             })
                     .when(socket)
@@ -419,7 +437,13 @@ class S2sContentSafetyTest {
                                                 "realtime_playback_mode",
                                                 "streaming",
                                                 "max_reply_chars",
-                                                240)));
+                                                240,
+                                                "safety_fallback",
+                                                preparedFallback
+                                                        ? "approved_audio_then_end"
+                                                        : "end",
+                                                "fallback_reply",
+                                                fallback)));
                 media.connectAsync(socket, session.token);
                 session.started.get(2, TimeUnit.SECONDS);
                 media.respond(session.call, "按批准话术回复", null, "safety-op", true);
@@ -427,7 +451,13 @@ class S2sContentSafetyTest {
                 assertThat(reviewed.get(2, TimeUnit.SECONDS))
                         .contains("违规测试内容")
                         .doesNotContain("好的，请问您方便了解吗");
-                assertThat(played).hasValue(0);
+                if (preparedFallback) {
+                    assertThat(played.get()).isPositive();
+                    assertThat(actual.toByteArray())
+                            .isEqualTo(VoiceAiAudio.resample(approved, 24000, 8000));
+                    assertThat(evidence.get("content_safety").toString())
+                            .contains("fallback_sent", "prepared_audio");
+                } else assertThat(played).hasValue(0);
                 assertThat(evidence.get("error_code")).isEqualTo("S2S_CONTENT_BLOCKED");
                 assertThat(evidence.get("content_safety").toString())
                         .contains("blocked")

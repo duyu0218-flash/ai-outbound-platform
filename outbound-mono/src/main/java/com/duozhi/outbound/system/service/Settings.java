@@ -10,6 +10,7 @@ import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.support.Support;
+import com.duozhi.outbound.voiceai.service.RecognitionOptions;
 import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
 import com.duozhi.outbound.voiceai.service.VoiceAiProfiles;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -119,14 +120,25 @@ public class Settings {
     }
 
     public Map<String, Object> freezeAi(long tenant) {
+        return freezeAi(tenant, null);
+    }
+
+    public Map<String, Object> freezeAi(long tenant, String selectedBackend) {
         var ai = get(tenant, "ai");
+        if (selectedBackend != null) ai.put("voice_backend", selectedBackend);
         if (VoiceAiProfiles.selected(ai)) {
             var profiles =
                     new VoiceAiProfiles(
                             credentials.runtime(
                                     new UnifiedServiceSettings(config, "voice"), tenant, -1));
             var profile =
-                    new LinkedHashMap<>(profiles.snapshot(ai.get("voice_backend").toString()));
+                    RecognitionOptions.attach(
+                            profiles.snapshot(ai.get("voice_backend").toString()),
+                            ai.get("customer_asr_options").toString(),
+                            false);
+            profile.put("config_schema_version", 3);
+            profile.put("conversation_history_turns", ai.get("conversation_history_turns"));
+            profile.put("conversation_history_chars", ai.get("conversation_history_chars"));
             var turn = new LinkedHashMap<String, Object>();
             for (String key :
                     List.of(
@@ -136,20 +148,32 @@ public class Settings {
                             "vad_max_input_ms",
                             "vad_idle_clear_ms",
                             "vad_rms",
-                            "vad_adaptive")) turn.put(key, ai.get(key));
+                            "vad_adaptive",
+                            "input_turn_controller")) turn.put(key, ai.get(key));
             profile.put("turn_policy", Map.copyOf(turn));
+            profile.put(
+                    "content_safety",
+                    com.duozhi.outbound.voiceai.service.ContentSafety.policy(
+                            new UnifiedServiceSettings(config, "voice")));
             if ("realtime".equals(profile.get("route"))) {
                 String speechProfile =
                         config.get("VOICE_AI_REALTIME_SPEECH_PROFILE", "aliyun-cascade");
-                var speech = new LinkedHashMap<>(profiles.snapshot(speechProfile));
+                var speech =
+                        RecognitionOptions.attach(
+                                profiles.snapshot(speechProfile),
+                                ai.get("customer_asr_options").toString(),
+                                false);
                 if (!"cascade".equals(speech.get("route")))
                     throw new ApiError(400, "确定性播报与分类需要三段式组合");
                 speech.put("turn_policy", Map.copyOf(turn));
                 profile.put("speech_profile", Map.copyOf(speech));
-                profile.put(
-                        "content_safety",
-                        com.duozhi.outbound.voiceai.service.ContentSafety.policy(
-                                new UnifiedServiceSettings(config, "voice")));
+                // Independent audit options never inherit customer hotwords or filtering.
+                var audit =
+                        RecognitionOptions.attach(
+                                profiles.snapshot(speechProfile),
+                                ai.get("output_audit_asr_options").toString(),
+                                true);
+                profile.put("output_audit_profile", Map.copyOf(audit));
             }
             profile.put("revision", Support.hex(Support.sha(Support.canonical(profile))));
             ai.put("_voice_profile", Collections.unmodifiableMap(profile));
@@ -238,6 +262,17 @@ public class Settings {
                         400, "production requires consent, DNC and allowed phone prefixes");
         }
         if (section.equals("ai")) {
+            if (!Set.of("approved_audio_then_end", "end").contains(data.get("safety_fallback")))
+                throw new ApiError(400, "未知审核失败处理方式");
+            range(data, "conversation_history_chars", 500, 20000);
+            if (!Set.of("observe", "enforce").contains(data.get("input_turn_controller")))
+                throw new ApiError(400, "未知话轮控制模式");
+            try {
+                RecognitionOptions.parse(data.get("customer_asr_options").toString(), false);
+                RecognitionOptions.parse(data.get("output_audit_asr_options").toString(), true);
+            } catch (RuntimeException invalid) {
+                throw new ApiError(400, "识别参数不合法或不支持：" + invalid.getMessage());
+            }
             range(data, "vad_start_ms", 20, 1000);
             range(data, "vad_end_ms", 200, 2000);
             range(data, "vad_long_end_ms", JsonSupport.integer(data.get("vad_end_ms"), 400), 3000);
@@ -266,6 +301,8 @@ public class Settings {
                                     .contains(data.get("realtime_playback_mode"))
                             || !VoiceAiProfiles.selected(data)
                             || !realtimeProfile)) throw new ApiError(400, "按语音端点直接回复只适用于端到端逐句审核播放");
+            if (realtimeProfile && "enforce".equals(data.get("input_turn_controller")))
+                throw new ApiError(400, "端到端方案暂保留供应商话轮控制，仅支持观察模式");
             if (!Values.set("reviewed", "streaming", "sentence_review")
                     .contains(data.get("realtime_playback_mode")))
                 throw new ApiError(400, "未知端到端播放模式");

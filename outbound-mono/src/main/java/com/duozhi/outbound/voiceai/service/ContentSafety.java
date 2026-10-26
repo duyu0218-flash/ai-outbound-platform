@@ -58,8 +58,7 @@ public final class ContentSafety {
     }
 
     public static String withContext(List<String> history, String output) {
-        String context = String.join("\n", history);
-        if (context.length() > 2000) context = context.substring(context.length() - 2000);
+        String context = String.join("\n", HistoryWindow.recent(history, 12, 2000, String::length));
         return context.isBlank() ? output : "已确认对话上下文：\n" + context + "\n当前助手待播回复：\n" + output;
     }
 

@@ -155,7 +155,13 @@ class VoiceStreamingTest {
                         "VOICE_AI_ALI_TTS_URL",
                         tts.url(),
                         "VOICE_AI_ALI_LLM_URL",
-                        "http://127.0.0.1:" + port + "/chat/completions"));
+                        "http://127.0.0.1:" + port + "/chat/completions",
+                        "VOICE_AI_SAFETY_ENDPOINT",
+                        "http://127.0.0.1:" + port + "/",
+                        "VOICE_AI_SAFETY_ACCESS_KEY_ID",
+                        "synthetic-id",
+                        "VOICE_AI_SAFETY_ACCESS_KEY_SECRET",
+                        "synthetic-secret"));
     }
 
     @Test
@@ -165,6 +171,28 @@ class VoiceStreamingTest {
         var failures = new CopyOnWriteArrayList<String>();
         var requests = new AtomicInteger();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.createContext(
+                "/",
+                exchange -> {
+                    exchange.getRequestBody().readAllBytes();
+                    byte[] body =
+                            com.duozhi.outbound.integration.support.Support.json(
+                                    Map.of(
+                                            "Code",
+                                            200,
+                                            "RequestId",
+                                            "local-cascade-review",
+                                            "Data",
+                                            Map.of(
+                                                    "RiskLevel",
+                                                    "none",
+                                                    "Result",
+                                                    List.of(Map.of("Label", "nonLabel")))));
+                    exchange.sendResponseHeaders(200, body.length);
+                    exchange.getResponseBody().write(body);
+                    exchange.close();
+                });
         server.createContext(
                 "/chat/completions",
                 exchange -> {

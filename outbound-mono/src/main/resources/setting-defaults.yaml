@@ -11,6 +11,12 @@ ai:
   voice: female-1
   language: zh-CN
   conversation_history_turns: 12
+  conversation_history_chars: 6000
+  tts_prepare_parallel: true
+  input_turn_controller: observe
+  customer_asr_options: '{}'
+  output_audit_asr_options: '{}'
+  safety_fallback: approved_audio_then_end
   max_reply_chars: 240
   forbidden_phrases: 保证收益,百分百,绝对有效
   fallback_reply: 抱歉，这个问题需要由人工客服为您确认。

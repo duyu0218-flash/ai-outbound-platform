@@ -112,6 +112,47 @@ try {
     await page.getByRole('button', { name: '准备身份告知音频', exact: true }).click();
     await expect(page.getByText(/voice AI configuration missing/)).toBeVisible();
   });
+  await check('optimization options save reload and reject biased audit parameters', async () => {
+    await page.getByRole('spinbutton', { name: '最近对话记录条数', exact: true }).fill('8');
+    await page.getByRole('spinbutton', { name: '历史文字总预算', exact: true }).fill('3500');
+    await page
+      .getByRole('textbox', { name: '客户识别词表参数', exact: true })
+      .fill('{"aliyun":{"vocabulary_id":"browser-vocabulary"}}');
+    await page
+      .getByRole('textbox', { name: '输出审核识别参数', exact: true })
+      .fill('{"aliyun":{"asr_model":"fun-asr-realtime"}}');
+    await select('话轮聚合').click();
+    await page.getByRole('option', { name: '三段式灰度聚合', exact: true }).click();
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await page.reload();
+    await expect(
+      page.getByRole('spinbutton', { name: '最近对话记录条数', exact: true }),
+    ).toHaveValue('8');
+    await expect(page.getByRole('spinbutton', { name: '历史文字总预算', exact: true })).toHaveValue(
+      '3500',
+    );
+    await expect(page.getByRole('textbox', { name: '客户识别词表参数', exact: true })).toHaveValue(
+      '{"aliyun":{"vocabulary_id":"browser-vocabulary"}}',
+    );
+    await expect(select('话轮聚合')).toContainText('三段式灰度聚合');
+    await page
+      .getByRole('textbox', { name: '输出审核识别参数', exact: true })
+      .fill('{"aliyun":{"vocabulary_id":"not-independent"}}');
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await expect(
+      page.getByRole('alert').filter({ hasText: '识别参数不合法或不支持' }),
+    ).toBeVisible();
+    await page.getByRole('textbox', { name: '输出审核识别参数', exact: true }).fill('{}');
+    await page.getByRole('textbox', { name: '客户识别词表参数', exact: true }).fill('{}');
+    await select('话轮聚合').click();
+    await page.getByRole('option', { name: '观察（保留当前触发方式）', exact: true }).click();
+    await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    await page.reload();
+    await expect(select('话轮聚合')).toContainText('观察');
+    await expect(
+      page.getByRole('checkbox', { name: '并行准备语音合成', exact: true }),
+    ).toBeChecked();
+  });
   await check('snapshot audio set saved and reloaded', async () => {
     await page.getByLabel('样本组名称', { exact: true }).fill('浏览器统一音频样本');
     await page.getByLabel('统一话术', { exact: true }).fill('固定话术：请简短介绍服务，不作承诺。');
@@ -142,7 +183,15 @@ try {
   await check('return path and restore legacy mode', async () => {
     await select('供应商组合').click();
     await page.getByRole('option', { name: '原有链路', exact: true }).click();
+    await expect(select('供应商组合')).toContainText('原有链路');
+    const saving = page.waitForResponse(
+      (r) => r.url().endsWith('/api/v1/admin/settings/ai') && r.request().method() === 'PUT',
+    );
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
+    const saved = await saving;
+    expect(saved.status()).toBe(200);
+    expect(saved.request().postDataJSON().data.voice_backend).toBe('legacy');
+    expect((await saved.json()).data?.voice_backend).toBe('legacy');
     await expect(page.getByTestId('active-voice-profile')).toHaveText('原有链路');
     await page.getByRole('button', { name: '返回系统设置', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/settings');

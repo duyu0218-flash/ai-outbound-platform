@@ -106,8 +106,16 @@ public final class VoiceAiBackends {
     }
 
     public Map<String, Object> outputSpeechProfile(Map<String, Object> spec) {
+        var audit = map(spec.get("output_audit_profile"));
+        if (!audit.isEmpty()) return audit;
         var nested = map(spec.get("speech_profile"));
-        if (!nested.isEmpty()) return nested;
+        if (!nested.isEmpty()) {
+            var independent = new LinkedHashMap<>(nested);
+            independent.put("recognition_options", Map.of());
+            independent.remove("turn_policy");
+            independent.put("recognition_purpose", "output_audit");
+            return Map.copyOf(independent);
+        }
         var backend = scoped(spec);
         return backend.profiles.snapshot(
                 backend.settings.get("VOICE_AI_REALTIME_SPEECH_PROFILE", "aliyun-cascade"));
@@ -116,7 +124,7 @@ public final class VoiceAiBackends {
     public Connection outputRecognizer(
             Map<String, Object> spec, Listener listener, ResponseScope scope) throws Exception {
         var source = scope.own(connect(spec, "", listener, scope));
-        int rate = Set.of("aliyun", "tencent").contains(spec.get("vendor")) ? 8000 : 16000;
+        int rate = RecognitionOptions.rate(spec);
         var resampler = new com.duozhi.outbound.media.service.NativeMedia.PcmResampler(24000, rate);
         return new Connection() {
             public void audio(byte[] pcm) throws Exception {
@@ -182,7 +190,12 @@ public final class VoiceAiBackends {
         var messages = new ArrayList<Map<String, String>>();
         messages.add(Map.of("role", "system", "content", prompt(script)));
         if (history != null)
-            messages.addAll(history.subList(Math.max(0, history.size() - 12), history.size()));
+            messages.addAll(
+                    HistoryWindow.recent(
+                            history,
+                            (int) Support.integer(spec, "conversation_history_turns", 12),
+                            (int) Support.integer(spec, "conversation_history_chars", 6000),
+                            item -> item.getOrDefault("content", "").length()));
         messages.add(Map.of("role", "user", "content", transcript));
         return generate(spec, messages);
     }
@@ -601,6 +614,7 @@ public final class VoiceAiBackends {
         long lastVolcStart = -1;
         int revision;
         String currentUtterance = "", previousText = "";
+        Map<String, Object> recognitionDetails = Map.of();
 
         Recognition(Map<String, Object> spec, Listener listener, ResponseScope scope)
                 throws Exception {
@@ -629,6 +643,12 @@ public final class VoiceAiBackends {
                 p.put("voice_format", "1");
                 p.put("needvad", "1");
                 p.put("filter_punc", "0");
+                p.put("filter_dirty", "0");
+                p.put("filter_modal", "0");
+                var options = map(spec.get("recognition_options"));
+                RecognitionOptions.validate(
+                        vendor, options, "output_audit".equals(spec.get("recognition_purpose")));
+                options.forEach((name, value) -> p.put(name, value.toString()));
                 if (spec.containsKey("turn_policy")) {
                     p.put(
                             "vad_silence_time",
@@ -660,16 +680,7 @@ public final class VoiceAiBackends {
                                             "model",
                                             str(spec, "asr_model"),
                                             "parameters",
-                                            Map.of(
-                                                    "format",
-                                                    "pcm",
-                                                    "sample_rate",
-                                                    8000,
-                                                    "max_sentence_silence",
-                                                    Support.integer(
-                                                            map(spec.get("turn_policy")),
-                                                            "vad_end_ms",
-                                                            400)),
+                                            RecognitionOptions.aliyunParameters(spec),
                                             "input",
                                             Map.of())));
                 else if (vendor.equals("volcengine"))
@@ -684,24 +695,7 @@ public final class VoiceAiBackends {
                                                             "format", "pcm", "codec", "raw", "rate",
                                                             16000, "bits", 16, "channel", 1),
                                                     "request",
-                                                    Map.of(
-                                                            "model_name",
-                                                            "bigmodel",
-                                                            "enable_itn",
-                                                            true,
-                                                            "enable_punc",
-                                                            true,
-                                                            "show_utterances",
-                                                            true,
-                                                            "result_type",
-                                                            "full",
-                                                            "end_window_size",
-                                                            Support.integer(
-                                                                    map(spec.get("turn_policy")),
-                                                                    "vad_end_ms",
-                                                                    400),
-                                                            "force_to_speech_time",
-                                                            0))),
+                                                    RecognitionOptions.volcRequest(spec))),
                                     true,
                                     sequence++));
                 await(ready, socket, 8);
@@ -722,6 +716,7 @@ public final class VoiceAiBackends {
                     if (result.get("utterances") instanceof List<?> utterances)
                         for (Object u : utterances) {
                             var utterance = map(u);
+                            recognitionDetails = utterance;
                             long start = Support.integer(utterance, "start_time", -1);
                             if (Boolean.TRUE.equals(utterance.get("definite"))
                                     && start > lastVolcStart) {
@@ -751,6 +746,7 @@ public final class VoiceAiBackends {
                             throw new IOException("recognition task failed");
                         var sentence =
                                 map(map(map(event.get("payload")).get("output")).get("sentence"));
+                        recognitionDetails = sentence;
                         recognized(
                                 str(sentence, "text"),
                                 task + ":" + sentence.get("begin_time"),
@@ -762,6 +758,7 @@ public final class VoiceAiBackends {
                             throw new IOException("recognition task failed");
                         ready.complete(null);
                         var result = map(event.get("result"));
+                        recognitionDetails = result;
                         if (Support.integer(result, "slice_type", 0) == 0) listener.speechStarted();
                         recognized(
                                 str(result, "voice_text_str"),
@@ -795,24 +792,31 @@ public final class VoiceAiBackends {
             revision++;
             previousText = text;
             if (last) lastFinal = id;
-            listener.recognition(
-                    Map.of(
-                            "text",
-                            text,
-                            "utterance_id",
-                            id,
-                            "revision",
-                            revision,
-                            "stable_prefix_length",
-                            stable,
-                            "is_final",
-                            last,
-                            "start_ms",
-                            start,
-                            "end_ms",
-                            end,
-                            "event_id",
-                            id + (last ? ":final" : ":partial:" + revision)));
+            var evidence = new LinkedHashMap<String, Object>();
+            evidence.put("text", text);
+            evidence.put("normalized_text", text.strip().replaceAll("(?U)\\s+", " "));
+            evidence.put("utterance_id", id);
+            evidence.put("revision", revision);
+            evidence.put("stable_prefix_length", stable);
+            evidence.put("is_final", last);
+            evidence.put("provider_final", last);
+            evidence.put("confidence_status", "unknown");
+            evidence.put("confidence_source", "not_provided");
+            evidence.put("provider", str(spec, "vendor"));
+            evidence.put(
+                    "recognition_purpose", Support.str(spec, "recognition_purpose", "customer"));
+            if (start >= 0) {
+                evidence.put("start_ms", start);
+                evidence.put("start_sample", start * RecognitionOptions.rate(spec) / 1000);
+            }
+            if (end >= 0) {
+                evidence.put("end_ms", end);
+                evidence.put("end_sample", end * RecognitionOptions.rate(spec) / 1000);
+            }
+            if (recognitionDetails.get("word_list") instanceof List<?> words && words.size() <= 512)
+                evidence.put("word_spans", List.copyOf(words));
+            evidence.put("event_id", id + (last ? ":final" : ":partial:" + revision));
+            listener.recognition(evidence);
         }
 
         @Override

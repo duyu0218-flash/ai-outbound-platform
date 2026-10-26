@@ -202,6 +202,8 @@ class VoiceAiHttpIT {
         headers.setBearerAuth(admin);
         var ai = settings.get(1, "ai");
         ai.put("external_llm_enabled", true);
+        ai.put("customer_asr_options", "{\"aliyun\":{\"vocabulary_id\":\"tenant-one-words\"}}");
+        ai.put("conversation_history_chars", 3500);
         for (var profile : VoiceAiProfiles.PROFILES) {
             ai.put("voice_backend", profile.id());
             if ("realtime".equals(profile.route())) ai.put("realtime_playback_mode", "streaming");
@@ -236,6 +238,46 @@ class VoiceAiHttpIT {
                     .isEqualTo(400);
         }
         var frozen = settings.freezeAi(1);
+        var frozenProfile = Support.map(frozen.get("_voice_profile"));
+        assertThat(
+                        Support.map(frozenProfile.get("speech_profile"))
+                                .get("recognition_options")
+                                .toString())
+                .contains("tenant-one-words");
+        assertThat(
+                        Support.map(frozenProfile.get("output_audit_profile"))
+                                .get("recognition_options")
+                                .toString())
+                .doesNotContain("tenant-one-words");
+        assertThat(frozenProfile)
+                .containsEntry("config_schema_version", 3)
+                .containsEntry("conversation_history_chars", 3500);
+        for (String invalidOptions :
+                List.of("{\"aliyun\":{\"context\":\"unsupported\"}}", "broken JSON")) {
+            var invalid = new LinkedHashMap<>(ai);
+            invalid.put("customer_asr_options", invalidOptions);
+            assertThat(
+                            http.exchange(
+                                            "/api/v1/admin/settings/ai",
+                                            HttpMethod.PUT,
+                                            new HttpEntity<>(Map.of("data", invalid), headers),
+                                            JsonNode.class)
+                                    .getStatusCode()
+                                    .value())
+                    .isEqualTo(400);
+        }
+        var biasedAudit = new LinkedHashMap<>(ai);
+        biasedAudit.put(
+                "output_audit_asr_options", "{\"aliyun\":{\"vocabulary_id\":\"model-expected\"}}");
+        assertThat(
+                        http.exchange(
+                                        "/api/v1/admin/settings/ai",
+                                        HttpMethod.PUT,
+                                        new HttpEntity<>(Map.of("data", biasedAudit), headers),
+                                        JsonNode.class)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(400);
         ai.put("voice_backend", "aliyun-cascade");
         http.exchange(
                 "/api/v1/admin/settings/ai",
@@ -282,6 +324,29 @@ class VoiceAiHttpIT {
         assertThat(evidence.getBody().get(0).path("id").asText()).isEqualTo("baidu-realtime");
         assertThat(evidence.getBody().toString()).doesNotContain("realtime_url");
         int before = ((Number) callbacks.realtime(voiceCall).get("turn_sequence")).intValue();
+        var providerFinal =
+                Values.<String, Object>map(
+                        "call_id",
+                        voiceCall.get("id"),
+                        "attempt",
+                        1,
+                        "event_id",
+                        "provider-segment-not-business-turn",
+                        "is_final",
+                        true,
+                        "provider_final",
+                        true,
+                        "turn_committed",
+                        false,
+                        "transcript",
+                        "明天下午");
+        assertThat(callbacks.handle("telephony_speech", providerFinal))
+                .containsEntry("turn_committed", false);
+        assertThat(callbacks.handle("telephony_speech", providerFinal))
+                .containsEntry("turn_committed", false);
+        assertThat(callbacks.realtime(voiceCall).get("turn_sequence")).isEqualTo(before);
+        assertThat(store.require("conversationstate", 1, state.get("id")).get("generation"))
+                .isEqualTo(0);
         var aiReply =
                 Values.<String, Object>map(
                         "call_id",

@@ -1,0 +1,29 @@
+{
+  "SpeechWebhookEvent": {
+    "utterance_id": {"type":"string","maxLength":255},
+    "revision": {"type":"integer","minimum":0},
+    "stable_prefix_length": {"type":"integer","minimum":0},
+    "provider_final": {"type":"boolean"},
+    "turn_committed": {"type":"boolean"},
+    "turn_id": {"type":"string","maxLength":255},
+    "turn_revision": {"type":"integer","minimum":0},
+    "source_utterances": {"type":"array","maxItems":32,"items":{"type":"string","maxLength":255}},
+    "native_response": {"type":"boolean"},
+    "answer_class": {"type":"string","enum":["human","machine","unknown"]},
+    "confidence_status": {"type":"string","enum":["unknown","provided"]},
+    "word_spans": {"type":"array","maxItems":512,"items":{"type":"object"}},
+    "recognition_quality": {"type":"object","properties":{
+      "status":{"type":"string","enum":["usable","needs_confirmation","unusable"]},
+      "audio_gap":{"type":"boolean"},
+      "confidence_status":{"type":"string","enum":["provided","unknown"]},
+      "reasons":{"type":"array","maxItems":16,"items":{"type":"string","maxLength":80}}
+    }}
+  },
+  "MediaWebhookEvent": {
+    "voice_evidence":{"type":"object"},
+    "content_safety":{"type":"array","maxItems":32,"items":{"type":"object"}},
+    "answer_class":{"type":"string"},
+    "ai_disclosure_sent":{"type":"boolean"},
+    "ai_disclosure_played":{"type":"boolean"}
+  }
+}

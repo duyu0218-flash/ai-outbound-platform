@@ -27,7 +27,7 @@ public final class SentenceSafetyGate implements AutoCloseable {
     private final BlockingQueue<byte[]> input = new ArrayBlockingQueue<>(64);
     private final BlockingQueue<Sentence> finals = new ArrayBlockingQueue<>(16);
     private final BlockingQueue<byte[]> approvedAudio = new ArrayBlockingQueue<>(2);
-    private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+    private final PcmWindow pcm = new PcmWindow();
     private final AtomicReference<Exception> failed = new AtomicReference<>();
     private final CompletableFuture<Void> done = new CompletableFuture<>();
     private final Object lock = new Object();
@@ -156,14 +156,14 @@ public final class SentenceSafetyGate implements AutoCloseable {
                 if (sentence == null) continue;
                 if (sentence == END_TEXT) {
                     synchronized (lock) {
-                        byte[] all = pcm.toByteArray();
-                        if ((approved.isEmpty() && pending.isEmpty())
-                                || !quiet(all, (int) lastFinalEnd, all.length))
+                        byte[] all = pcm.range(lastFinalEnd, pcm.size());
+                        if ((approved.isEmpty() && pending.isEmpty()) || !quiet(all, 0, all.length))
                             throw new ContentSafety.Failure("S2S_SAFETY_UNRECOGNIZED_AUDIO");
                     }
                     if (!pending.isEmpty()) approve(pending.toString(), pendingEnd);
                     synchronized (lock) {
                         released = pcm.size();
+                        pcm.release(released);
                         lock.notifyAll();
                     }
                     offer(approvedAudio, END_AUDIO);
@@ -173,7 +173,8 @@ public final class SentenceSafetyGate implements AutoCloseable {
                 synchronized (lock) {
                     if (start < lastFinalEnd || end > pcm.size() || end <= lastFinalEnd)
                         throw new ContentSafety.Failure("S2S_SAFETY_BOUNDARY_INVALID");
-                    if (!quiet(pcm.toByteArray(), (int) lastFinalEnd, (int) start))
+                    byte[] gap = pcm.range(lastFinalEnd, start);
+                    if (!quiet(gap, 0, gap.length))
                         throw new ContentSafety.Failure("S2S_SAFETY_UNRECOGNIZED_AUDIO");
                     if (start > lastFinalEnd) gaps.add(new Gap(lastFinalEnd, start));
                     lastFinalEnd = end;
@@ -203,7 +204,7 @@ public final class SentenceSafetyGate implements AutoCloseable {
         check();
         byte[] audio;
         synchronized (lock) {
-            audio = Arrays.copyOfRange(pcm.toByteArray(), (int) released, (int) end);
+            audio = pcm.range(released, end);
             // Only recognized spans may carry audio. Even low-energy unrecognized gaps are muted.
             for (var gap : gaps) {
                 long from = Math.max(released, gap.start), to = Math.min(end, gap.end);
@@ -211,6 +212,8 @@ public final class SentenceSafetyGate implements AutoCloseable {
                     Arrays.fill(audio, (int) (from - released), (int) (to - released), (byte) 0);
             }
             released = end;
+            pcm.release(released);
+            gaps.removeIf(gap -> gap.end <= released);
             lock.notifyAll();
         }
         trace.accept(
@@ -293,6 +296,12 @@ public final class SentenceSafetyGate implements AutoCloseable {
         if (error != null) throw error;
         scope.check();
         if (System.nanoTime() > deadline) throw new ContentSafety.Failure("S2S_SAFETY_TIMEOUT");
+    }
+
+    public long retainedAudioBytes() {
+        synchronized (lock) {
+            return pcm.retainedBytes();
+        }
     }
 
     private void fail(Exception error) {

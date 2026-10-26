@@ -16,6 +16,37 @@ import org.junit.jupiter.api.Test;
 
 class DirectAudioDispatcherTest {
     @Test
+    void sampleDurationBudgetReportsPerSessionGapsAndAbsoluteOffsets() throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var gaps = new CopyOnWriteArrayList<Map<String, Object>>();
+        try (var dispatcher = new DirectAudioDispatcher(1, 2, 16)) {
+            dispatcher.register(
+                    "budget",
+                    frame -> {
+                        entered.countDown();
+                        release.await();
+                    },
+                    e -> fail(e),
+                    8000,
+                    500,
+                    gaps::add);
+            dispatcher.offer("budget", ByteBuffer.allocate(3200));
+            assertTrue(entered.await(2, TimeUnit.SECONDS));
+            for (int i = 0; i < 4; i++) dispatcher.offer("budget", ByteBuffer.allocate(3200));
+            var evidence = dispatcher.evidence("budget");
+            assertEquals(3200L, evidence.get("dropped_samples"));
+            assertEquals(6400L, evidence.get("queued_bytes"));
+            assertEquals(1600L, gaps.getFirst().get("start_sample"));
+            assertEquals(3200L, gaps.getFirst().get("end_sample"));
+            assertTrue(((Number) evidence.get("oldest_frame_age_ms")).longValue() >= 0);
+            release.countDown();
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
     void saturatedSocketDropsOldFramesWithoutReorderingOrHeapBuffering() throws Exception {
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);

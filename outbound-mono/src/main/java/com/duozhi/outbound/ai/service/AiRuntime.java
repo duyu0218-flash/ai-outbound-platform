@@ -12,6 +12,7 @@ import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.dial.service.DialService;
 import com.duozhi.outbound.integration.service.TelephonyClient;
+import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.script.controller.ScriptFlows;
@@ -273,9 +274,23 @@ public class AiRuntime {
                     String transcript = Objects.toString(payload.get("transcript"), "");
                     Map<String, Object> state = product.state(call),
                             result =
-                                    "machine".equals(payload.get("answer_class"))
-                                            ? ConversationPolicy.reply("", "hangup")
-                                            : product.prepare(call, transcript, state),
+                                    "needs_confirmation"
+                                                            .equals(
+                                                                    Support.map(
+                                                                                    payload.get(
+                                                                                            "recognition_quality"))
+                                                                            .get("status"))
+                                                    || "unusable"
+                                                            .equals(
+                                                                    Support.map(
+                                                                                    payload.get(
+                                                                                            "recognition_quality"))
+                                                                            .get("status"))
+                                            ? ConversationPolicy.reply(
+                                                    "刚才没有听清，请您再说一遍需要办理的事项。", "continue")
+                                            : "machine".equals(payload.get("answer_class"))
+                                                    ? ConversationPolicy.reply("", "hangup")
+                                                    : product.prepare(call, transcript, state),
                             policy = product.policy(state);
                     if (Boolean.TRUE.equals(
                             json.object(state.get("data_json").toString()).get("failure_handled")))
@@ -481,6 +496,13 @@ public class AiRuntime {
                                 "content",
                                 text));
         }
+        history =
+                new ArrayList<>(
+                        com.duozhi.outbound.voiceai.service.HistoryWindow.recent(
+                                history,
+                                JsonSupport.integer(ai.get("conversation_history_turns"), 12),
+                                JsonSupport.integer(ai.get("conversation_history_chars"), 6000),
+                                item -> Objects.toString(item.get("content"), "").length()));
         Map<String, Object> campaign =
                 call.get("campaign_id") == null
                         ? Collections.emptyMap()

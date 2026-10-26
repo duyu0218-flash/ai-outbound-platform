@@ -16,6 +16,7 @@ public final class TurnManager {
     private final boolean adaptive;
     private long voicedSamples, silentSamples, totalSamples;
     private boolean speaking;
+    private boolean lastVoiced;
     private double noise;
     private String partial = "";
 
@@ -51,6 +52,7 @@ public final class TurnManager {
         double rms = Math.sqrt(energy / Math.max(1, samples));
         double threshold = adaptive ? Math.max(minimumRms, noise * 3) : minimumRms;
         boolean voiced = rms >= threshold;
+        lastVoiced = voiced;
         totalSamples += samples;
         Signal signal = Signal.NONE;
         if (voiced) {
@@ -67,10 +69,7 @@ public final class TurnManager {
                 if (adaptive) noise = .98 * noise + .02 * rms;
             }
         }
-        int silence =
-                partial.matches("(?s).*(?:[0-9]|地址|号码|姓名|如果|但是|然后|不要)[^。！？!?]*$")
-                        ? longEndMs
-                        : endMs;
+        int silence = unfinished(partial) ? longEndMs : endMs;
         if (speaking
                 && (silentSamples * 1000 >= (long) rate * silence
                         || totalSamples * 1000 >= (long) rate * maxMs)) {
@@ -82,6 +81,16 @@ public final class TurnManager {
             return Signal.CLEAR;
         }
         return signal;
+    }
+
+    public synchronized boolean lastVoiced() {
+        return lastVoiced;
+    }
+
+    public static boolean unfinished(String text) {
+        String tail = text.strip().replaceAll("[，,\\s]+$", "");
+        return tail.matches(
+                "(?s).*(?:如果|但是|然后|只要|因为|地址是?|号码是?|姓名是?|上午|下午|晚上|[0-9]+|[…]{1,}|\\.\\.\\.)$");
     }
 
     public synchronized void reset() {

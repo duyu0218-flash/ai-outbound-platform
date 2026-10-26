@@ -49,6 +49,7 @@ public final class NativeMedia implements MediaManager {
     private final int rate, limit;
     private final DirectAudioDispatcher ingress;
     private final boolean voismart;
+    private volatile long inputOverloadedUntil;
     private final LongAdder inputFrames = new LongAdder(), firstAudioCount = new LongAdder();
     private final DoubleAdder firstAudioSeconds = new DoubleAdder();
     private final DoubleAccumulator arrivalGap = new DoubleAccumulator(Math::max, 0),
@@ -181,6 +182,8 @@ public final class NativeMedia implements MediaManager {
             return previous;
         }
         if (calls.size() >= limit) throw new Support.Failure(503, "media process at capacity");
+        if (System.nanoTime() < inputOverloadedUntil)
+            throw new Support.Failure(503, "media ingress recovering from overload");
         if (tokens.containsKey(session.token))
             throw new Support.Failure(409, "media token conflict");
         calls.put(session.call, session);
@@ -304,7 +307,20 @@ public final class NativeMedia implements MediaManager {
                             TimeUnit.MILLISECONDS);
                     audio(socket, frame);
                 },
-                error -> requestFailure(session, "ASR_CONNECTION_ERROR"));
+                error -> requestFailure(session, "ASR_CONNECTION_ERROR"),
+                rate,
+                (int) settings.number("VOICE_AI_INGRESS_MAX_QUEUE_MS", 4000, 100, 4000),
+                gap -> {
+                    if (!stream.closed.get() && !session.closing) {
+                        stream.inputGap.set(true);
+                        stream.droppedInputFrames.increment();
+                        stream.droppedInputSamples.add(
+                                ((Number) gap.get("end_sample")).longValue()
+                                        - ((Number) gap.get("start_sample")).longValue());
+                        inputOverloadedUntil = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                        if (stream.inputGaps.size() < 32) stream.inputGaps.add(gap);
+                    }
+                });
         return stream;
     }
 
@@ -428,6 +444,14 @@ public final class NativeMedia implements MediaManager {
                                     try {
                                         synthesize(stream, text, generation, requested, modelReply);
                                     } catch (Exception error) {
+                                        if (error instanceof ContentSafety.Failure blocked) {
+                                            try {
+                                                if (recoverSafety(stream, generation, blocked.code))
+                                                    return;
+                                            } catch (Exception recoveryFailed) {
+                                                // Recovery also fails closed.
+                                            }
+                                        }
                                         if (stream.generation == generation && !session.closing) {
                                             stream.coordinator.interrupt();
                                             fail(
@@ -542,7 +566,18 @@ public final class NativeMedia implements MediaManager {
 
     public Map<String, Object> evidence(String call) {
         Stream stream = streams.get(call);
-        return stream == null ? Map.of() : stream.coordinator.evidence();
+        if (stream == null) return Map.of();
+        return voiceEvidence(stream);
+    }
+
+    private Map<String, Object> voiceEvidence(Stream stream) {
+        var result = new LinkedHashMap<>(stream.coordinator.evidence());
+        result.put("input_turns", stream.inputTurns.evidence());
+        result.put("ingress", ingress.evidence(stream.socket.getId()));
+        result.put("audio_gaps", List.copyOf(stream.inputGaps));
+        result.put("input_dropped_frames", stream.droppedInputFrames.sum());
+        result.put("input_dropped_samples", stream.droppedInputSamples.sum());
+        return Map.copyOf(result);
     }
 
     public void acknowledge(String call, String playback, long generation, long samples)
@@ -561,7 +596,8 @@ public final class NativeMedia implements MediaManager {
                                     .longValue())
                 throw new Support.Failure(409, "stale or incomplete playback acknowledgement");
             String heard = stream.coordinator.drained(generation, true);
-            stream.disclosurePlayed = stream.disclosureSent;
+            stream.disclosurePlayed |=
+                    stream.disclosureSent && stream.disclosureGeneration == generation;
             session.speaking = false;
             session.playback = "";
             if (!heard.isBlank()) {
@@ -616,7 +652,7 @@ public final class NativeMedia implements MediaManager {
         pendingClosures.forEach(this::finishPendingClose);
         for (var session : calls.values()) {
             var live = streams.get(session.call);
-            if (live != null && live.vendor != null) {
+            if (live != null && live.vendor != null && !live.recoveringSafety) {
                 try {
                     live.vendor.check();
                 } catch (Exception failed) {
@@ -656,7 +692,7 @@ public final class NativeMedia implements MediaManager {
         payload.put("channel_count", 1);
         payload.put("provider", "java-native");
         if (stream != null) {
-            payload.put("voice_evidence", stream.coordinator.evidence());
+            payload.put("voice_evidence", voiceEvidence(stream));
             payload.put("content_safety", List.copyOf(stream.safetyEvents));
             payload.put("answer_class", stream.classifier.answer().name().toLowerCase(Locale.ROOT));
             payload.put("ai_disclosure_sent", stream.disclosureSent);
@@ -717,7 +753,19 @@ public final class NativeMedia implements MediaManager {
                         "utterance_id",
                         "revision",
                         "stable_prefix_length",
-                        "answer_class")) payload.put(key, details.get(key));
+                        "answer_class"))
+            if (details.get(key) != null) payload.put(key, details.get(key));
+        for (String key :
+                List.of(
+                        "recognition_quality",
+                        "provider_final",
+                        "turn_committed",
+                        "turn_id",
+                        "turn_revision",
+                        "source_utterances",
+                        "confidence_status",
+                        "word_spans"))
+            if (details.containsKey(key)) payload.put(key, details.get(key));
         events.post(session.speechUrl, payload);
     }
 
@@ -856,6 +904,7 @@ public final class NativeMedia implements MediaManager {
             var player = new VendorPlayer(stream, generation, requested);
             var guardPolicy = Support.map(stream.session.metadata.get("voice_ai_guard"));
             if (!stream.disclosureStarted && guardPolicy.containsKey("ai_disclosure_text")) {
+                player.purpose = "disclosure";
                 stream.disclosureStarted = true;
                 String disclosure = Support.str(guardPolicy, "ai_disclosure_text", "");
                 long tenant = Support.integer(stream.session.metadata, "tenant_id", 0);
@@ -866,6 +915,8 @@ public final class NativeMedia implements MediaManager {
                     throw new IOException("prepared AI disclosure is missing");
                 else synthesizeScoped(stream, speechSpec, disclosure, player);
                 stream.disclosureSent = true;
+                stream.disclosureGeneration = generation;
+                player.purpose = "response";
             }
             if ("realtime".equals(stream.profile.get("route")) && modelReply) {
                 var guard = Support.map(stream.session.metadata.get("voice_ai_guard"));
@@ -901,12 +952,21 @@ public final class NativeMedia implements MediaManager {
                                                         scope),
                                         player::accept,
                                         evidence -> {
-                                            if (stream.safetyEvents.size() < 32)
-                                                stream.safetyEvents.add(evidence);
+                                            if (stream.safetyEvents.size() < 32) {
+                                                var bound = new LinkedHashMap<>(evidence);
+                                                bound.put("response_epoch", generation);
+                                                stream.safetyEvents.add(bound);
+                                            }
                                         },
                                         () -> stream.vendor.close())) {
                     try {
-                        stream.vendor.reply(text, modelReply, gate::accept);
+                        stream.vendor.reply(
+                                text,
+                                modelReply,
+                                (pcm, sampleRate) -> {
+                                    stream.coordinator.stamp(generation, "s2s_first_audio");
+                                    gate.accept(pcm, sampleRate);
+                                });
                         reply = gate.finish();
                     } catch (Exception error) {
                         gate.check();
@@ -936,32 +996,50 @@ public final class NativeMedia implements MediaManager {
                                         "content",
                                         Support.str(item, "content", "")));
                     }
+                    var moderation = Support.map(spec.get("content_safety"));
+                    if (moderation.isEmpty()) moderation = ContentSafety.policy(settings);
+                    contentSafety.requireReady(moderation);
+                    var frozenModeration = moderation;
+                    List<String> history;
+                    synchronized (stream.confirmedHistory) {
+                        history = List.copyOf(stream.confirmedHistory);
+                    }
                     try (var modelLease =
-                                    resources.acquire(
-                                            spec,
-                                            Support.integer(
-                                                    stream.session.metadata, "tenant_id", 0),
-                                            "llm");
-                            var tts = backend.synthesis(spec, player::accept, stream.response)) {
-                        var committer =
-                                new TextCommitter(
+                            resources.acquire(
+                                    spec,
+                                    Support.integer(stream.session.metadata, "tenant_id", 0),
+                                    "llm")) {
+                        String reply =
+                                CascadePipeline.run(
+                                        stream.response,
                                         Support.map(stream.session.metadata.get("voice_ai_guard")),
-                                        sentence -> {
-                                            stream.coordinator.stamp(
-                                                    generation, "segment_approved");
-                                            tts.append(sentence);
+                                        () ->
+                                                backend.synthesis(
+                                                        spec, player::accept, stream.response),
+                                        output ->
+                                                backend.generate(
+                                                        spec, messages, output, stream.response),
+                                        (cumulative, scope) ->
+                                                contentSafety.review(
+                                                        frozenModeration,
+                                                        ContentSafety.withContext(
+                                                                history, cumulative),
+                                                        scope),
+                                        evidence -> {
+                                            if (stream.safetyEvents.size() < 32) {
+                                                var bound = new LinkedHashMap<>(evidence);
+                                                bound.put("response_epoch", generation);
+                                                stream.safetyEvents.add(bound);
+                                            }
+                                        },
+                                        stage -> {
+                                            try {
+                                                stream.coordinator.stamp(generation, stage);
+                                            } catch (IOException cancelled) {
+                                                throw new CompletionException(cancelled);
+                                            }
                                         });
-                        backend.generate(
-                                spec,
-                                messages,
-                                delta -> {
-                                    stream.coordinator.stamp(generation, "llm_first");
-                                    committer.append(delta);
-                                },
-                                stream.response);
-                        String reply = committer.finish();
                         stream.coordinator.text(generation, reply);
-                        tts.finish();
                     }
                 } else {
                     stream.coordinator.text(generation, text);
@@ -994,6 +1072,88 @@ public final class NativeMedia implements MediaManager {
         }
     }
 
+    /** Recovery uses only explicitly prepared audio; it never retries a paid model request. */
+    private boolean recoverSafety(Stream stream, long expected, String reason) throws Exception {
+        var guard = Support.map(stream.session.metadata.get("voice_ai_guard"));
+        if (!"approved_audio_then_end".equals(guard.get("safety_fallback"))) return false;
+        String text = Support.str(guard, "fallback_reply", "");
+        if (text.isBlank()) return false;
+        byte[] prepared =
+                new OpeningAudioCache(settings)
+                        .read(
+                                Support.integer(stream.session.metadata, "tenant_id", 0),
+                                stream.profile,
+                                text);
+        if (prepared == null) return false;
+        long cancelling;
+        synchronized (stream.session) {
+            if (stream.generation != expected || stream.session.closing) return true;
+            stream.recoveringSafety = true;
+            stream.session.interrupting = true;
+            stream.coordinator.interrupt();
+            cancelling = ++stream.generation;
+        }
+        try {
+            if (voismart) {
+                stream.text(Map.of("type", "input_audio_buffer.speech_started"));
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+                while (stream.session.speaking && System.nanoTime() < deadline) Thread.sleep(10);
+                if (stream.session.speaking) {
+                    fail(stream.session, reason);
+                    return true;
+                }
+            }
+            long generation;
+            synchronized (stream.session) {
+                if (stream.generation != cancelling || stream.session.closing) return true;
+                stream.response = new ResponseScope();
+                generation = stream.coordinator.begin(stream.response);
+                stream.generation = generation;
+                stream.session.playback = UUID.randomUUID().toString();
+                stream.session.interrupting = false;
+            }
+            try {
+                var player = new VendorPlayer(stream, generation, System.nanoTime());
+                stream.coordinator.text(generation, text);
+                player.accept(prepared, 24000);
+                player.finish();
+                stream.generationDone = generation;
+                if (stream.safetyEvents.size() < 32)
+                    stream.safetyEvents.add(
+                            Map.of(
+                                    "status",
+                                    "fallback_sent",
+                                    "reason",
+                                    reason,
+                                    "response_epoch",
+                                    generation,
+                                    "source",
+                                    "prepared_audio",
+                                    "confirmed_playback",
+                                    false));
+                if (voismart) {
+                    stream.text(Map.of("type", "response.output_audio.done"));
+                    long deadline =
+                            System.nanoTime()
+                                    + TimeUnit.MILLISECONDS.toNanos(prepared.length / 48 + 1500);
+                    while (stream.generation == generation
+                            && !stream.session.closing
+                            && Boolean.TRUE.equals(stream.coordinator.evidence().get("active"))
+                            && System.nanoTime() < deadline) Thread.sleep(10);
+                }
+            } finally {
+                if (stream.generation == generation && !stream.session.closing)
+                    fail(stream.session, reason);
+            }
+            return true;
+        } finally {
+            stream.session.interrupting = false;
+            stream.recoveringSafety = false;
+            if (stream.generation == cancelling && !stream.session.closing)
+                fail(stream.session, reason);
+        }
+    }
+
     private void replyTranscript(Session session, String text, long generation) throws Exception {
         if (session.speechUrl.isEmpty()) return;
         var payload = new LinkedHashMap<String, Object>();
@@ -1015,6 +1175,7 @@ public final class NativeMedia implements MediaManager {
         final long generation, requested;
         long sent, started;
         boolean first = true;
+        String purpose = "response";
         PcmResampler conversion;
 
         VendorPlayer(Stream stream, long generation, long requested) {
@@ -1025,6 +1186,7 @@ public final class NativeMedia implements MediaManager {
 
         void accept(byte[] pcm, int sampleRate) throws Exception {
             stream.coordinator.stamp(generation, "tts_first");
+            stream.coordinator.stamp(generation, purpose + "_audio_first");
             stream.coordinator.generated(generation, pcm.length / 2);
             if (conversion == null) conversion = new PcmResampler(sampleRate, rate);
             send(conversion.convert(pcm));
@@ -1067,6 +1229,10 @@ public final class NativeMedia implements MediaManager {
         final WebSocketSession socket;
         final Map<String, Object> profile;
         final SessionCoordinator coordinator = new SessionCoordinator();
+        final InputTurnController inputTurns;
+        final AtomicBoolean inputGap = new AtomicBoolean();
+        final List<Map<String, Object>> inputGaps = new CopyOnWriteArrayList<>();
+        final LongAdder droppedInputFrames = new LongAdder(), droppedInputSamples = new LongAdder();
         final List<Map<String, Object>> safetyEvents = new CopyOnWriteArrayList<>();
         final AnswerClassifier classifier = new AnswerClassifier();
         final AtomicBoolean activating = new AtomicBoolean();
@@ -1077,6 +1243,7 @@ public final class NativeMedia implements MediaManager {
         PcmResampler classifierInput;
         AutoCloseable asrLease, engineLease;
         volatile boolean rebuilding;
+        volatile boolean recoveringSafety;
         volatile CompletableFuture<Void> providerReady = CompletableFuture.completedFuture(null);
         volatile long providerEpoch;
         volatile long generationDone;
@@ -1084,6 +1251,7 @@ public final class NativeMedia implements MediaManager {
         volatile boolean disclosureStarted;
         volatile boolean disclosureSent;
         volatile boolean disclosurePlayed;
+        volatile long disclosureGeneration;
         final AtomicBoolean nativeResponse = new AtomicBoolean();
         volatile ResponseScope response;
         volatile Map<String, Object> context = Map.of();
@@ -1110,6 +1278,26 @@ public final class NativeMedia implements MediaManager {
             this.session = session;
             this.socket = socket;
             profile = Support.map(session.metadata.get("voice_ai_profile"));
+            var inputPolicy = new LinkedHashMap<>(Support.map(profile.get("turn_policy")));
+            if (!"cascade".equals(profile.get("route")))
+                inputPolicy.put("input_turn_controller", "observe");
+            inputTurns =
+                    new InputTurnController(
+                            inputPolicy,
+                            rate,
+                            event -> {
+                                if (Boolean.FALSE.equals(event.get("turn_committed")))
+                                    NativeMedia.this.transcript(
+                                            session,
+                                            event.get("text").toString(),
+                                            event.get("event_id").toString(),
+                                            event);
+                                else
+                                    recognized(
+                                            event.get("text").toString(),
+                                            event.get("event_id").toString(),
+                                            event);
+                            });
             classify =
                     Boolean.TRUE.equals(
                             Support.map(session.metadata.get("voice_ai_guard"))
@@ -1261,10 +1449,7 @@ public final class NativeMedia implements MediaManager {
         }
 
         int inputRate(Map<String, Object> spec) {
-            return "cascade".equals(spec.get("route"))
-                            && Set.of("aliyun", "tencent").contains(spec.get("vendor"))
-                    ? 8000
-                    : 16000;
+            return RecognitionOptions.rate(spec);
         }
 
         VoiceAiBackends.Connection provider(Map<String, Object> spec, boolean shadow)
@@ -1282,17 +1467,32 @@ public final class NativeMedia implements MediaManager {
                             script,
                             new VoiceAiBackends.Listener() {
                                 public void transcript(String text, String event) throws Exception {
-                                    if (!shadow && (!realtime || owner == providerEpoch))
-                                        recognized(text, event, Map.of("is_final", true));
+                                    if (!shadow && (!realtime || owner == providerEpoch)) {
+                                        var evidence = new LinkedHashMap<String, Object>();
+                                        evidence.put("text", text);
+                                        evidence.put("event_id", event);
+                                        evidence.put("is_final", true);
+                                        evidence.put(
+                                                "recognition_quality",
+                                                RecognitionQuality.assess(
+                                                        evidence, inputGap.getAndSet(false)));
+                                        inputTurns.recognition(evidence);
+                                    }
                                 }
 
                                 public void recognition(Map<String, Object> event)
                                         throws Exception {
-                                    if (!shadow && (!realtime || owner == providerEpoch))
-                                        recognized(
-                                                event.get("text").toString(),
-                                                event.get("event_id").toString(),
-                                                event);
+                                    if (!shadow && (!realtime || owner == providerEpoch)) {
+                                        var enriched = new LinkedHashMap<>(event);
+                                        boolean gap =
+                                                Boolean.TRUE.equals(event.get("is_final"))
+                                                        ? inputGap.getAndSet(false)
+                                                        : inputGap.get();
+                                        enriched.put(
+                                                "recognition_quality",
+                                                RecognitionQuality.assess(event, gap));
+                                        inputTurns.recognition(enriched);
+                                    }
                                 }
 
                                 public void speechStarted() throws Exception {
@@ -1361,7 +1561,14 @@ public final class NativeMedia implements MediaManager {
         void remember(String text) {
             synchronized (confirmedHistory) {
                 confirmedHistory.add(text);
-                while (confirmedHistory.size() > 12) confirmedHistory.remove(0);
+                var bounded =
+                        HistoryWindow.recent(
+                                confirmedHistory,
+                                (int) Support.integer(profile, "conversation_history_turns", 12),
+                                (int) Support.integer(profile, "conversation_history_chars", 6000),
+                                String::length);
+                confirmedHistory.clear();
+                confirmedHistory.addAll(bounded);
             }
         }
 
@@ -1485,6 +1692,7 @@ public final class NativeMedia implements MediaManager {
             if (session.closing) return;
             if (!profile.isEmpty()) {
                 byte[] bytes = pcmToArray(pcm);
+                inputTurns.audio(bytes);
                 boolean pending = rebuilding || (classify && !engineReady.isDone());
                 if (pending)
                     synchronized (pendingInput) {

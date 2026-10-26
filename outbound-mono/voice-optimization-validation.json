@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-26",
+  "base_commit": "9cda1cda4ee922dfaffc8b0312449d4508483445",
+  "changed_code_sha256": "a93d188d9f29527599fea6604c3e591fdb40e3c55c4a8b86b491e910fc844c32",
+  "scope": "first-release safe optimizations; experimental and real-phone work remains open",
+  "source_modified": true,
+  "static_checks_passed": true,
+  "development_tests_passed": true,
+  "consolidated_local_unit": {
+    "tests": 307,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 36
+  },
+  "consolidated_local_integration": {
+    "tests": 320,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 21
+  },
+  "final_exact_code_run": {
+    "command": "mvn -Dtest=VoiceOptimizationTest,VoiceAiBackendsTest,VoiceStreamingTest,S2sContentSafetyTest,DirectAudioDispatcherTest -Dit.test=VoiceAiHttpIT,FrontendBrowserIT verify",
+    "unit_tests": 81,
+    "integration_tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "build": "passed"
+  },
+  "main_browser_checks": 35,
+  "voice_browser_checks": 10,
+  "main_browser_errors": [],
+  "voice_browser_errors": [],
+  "fat_jar_smoke": {
+    "fat_jar_started": true,
+    "healthz": 200,
+    "vue_login": 200,
+    "vue_asset": 200,
+    "metrics_authenticated": 200,
+    "metrics_anonymous": 401,
+    "application_processes": 1,
+    "gc": "G1 MaxGCPauseMillis=20; media load not performed"
+  },
+  "dependency_enforcer": "passed",
+  "phone_measurement_self_tests": "passed; synthetic only",
+  "environment": "JDK 21, Maven 3.9.11, MySQL 8.4/Redis isolated containers, Chromium, local supplier mocks",
+  "resolved_validation_issues": [
+    "Duration budget compatibility with pre-existing large PCM frames; configurable bound added and strict-budget test retained.",
+    "Browser route restoration now waits for selected value and explicitly checks request/response and refreshed view.",
+    "Final formatting and callback-contract preservation regression passed."
+  ],
+  "test_environment_deployed": false,
+  "real_supplier_verified": false,
+  "device_tests_passed": false,
+  "production_deployed": false,
+  "real_latency_accuracy_cost": "not verified",
+  "unimplemented_experiments": [
+    "neural VAD/semantic endpoint",
+    "AEC/noise processing",
+    "preemptive generation",
+    "structured async summaries",
+    "partial-playback ledger and provider context reuse",
+    "S2S text-first review",
+    "local guard/ASR",
+    "distributed quota"
+  ],
+  "release_prerequisites": [
+    "authorized supplier accounts and fixed protocol versions",
+    "authorized recordings and labelled evaluation set",
+    "controlled phone/device measurements and playback receipts",
+    "adversarial review and fallback checks",
+    "staged load/long-run and business/cost validation"
+  ]
+}

@@ -35,6 +35,20 @@ public class Contract {
                 ((ObjectNode) schemas).set(entry.getKey(), entry.getValue());
             }
         }
+        try (var in =
+                new ClassPathResource("contracts/voice-optimization-fields.json")
+                        .getInputStream()) {
+            for (var schema : mapper.readTree(in).properties()) {
+                if (!schemas.has(schema.getKey()))
+                    throw new IOException("unknown voice extension schema");
+                var properties = (ObjectNode) schemas.path(schema.getKey()).path("properties");
+                for (var field : schema.getValue().properties()) {
+                    if (properties.has(field.getKey()))
+                        throw new IOException("voice extension overrides baseline");
+                    properties.set(field.getKey(), field.getValue());
+                }
+            }
+        }
     }
 
     private JsonNode resolve(JsonNode schema) {
