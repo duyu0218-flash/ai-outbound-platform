@@ -43,6 +43,8 @@ class BailianTrialIT {
     static final VoiceAiBackendsTest.Fixture SUITE, ASR;
     static final HttpServer SAFETY;
     static volatile String risk = "none";
+    static final java.util.concurrent.atomic.AtomicInteger reviews =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     static {
         try {
@@ -53,6 +55,7 @@ class BailianTrialIT {
             SAFETY.createContext(
                     "/",
                     e -> {
+                        reviews.incrementAndGet();
                         e.getRequestBody().readAllBytes();
                         byte[] body =
                                 Support.json(
@@ -204,12 +207,13 @@ class BailianTrialIT {
     }
 
     JsonNode create() {
-        var response =
-                api(
-                        HttpMethod.POST,
-                        base() + "/trials",
-                        admin,
-                        createBody(UUID.randomUUID().toString()));
+        return create("native");
+    }
+
+    JsonNode create(String mode) {
+        var body = new LinkedHashMap<>(createBody(UUID.randomUUID().toString()));
+        body.put("review_mode", mode);
+        var response = api(HttpMethod.POST, base() + "/trials", admin, body);
         assertThat(response.getStatusCode().value()).as(response.toString()).isEqualTo(200);
         return response.getBody();
     }
@@ -402,7 +406,7 @@ class BailianTrialIT {
         assertThat(SUITE.connections.get()).isEqualTo(before);
         credentials.save(tenant, Map.of("VOICE_AI_BAILIAN_APP_ID", "app-fixture"));
         risk = "high";
-        var created = create();
+        var created = create("secondary_review");
         try (var client = new Client(created)) {
             client.send(Map.of("type", "prompt", "text", "测试审核失败"));
             client.await("closed");
@@ -539,6 +543,100 @@ class BailianTrialIT {
                 base() + "/trials/" + replacement.get("id").asText() + "/end",
                 admin,
                 Map.of());
+    }
+
+    @Test
+    void nativeDefaultBypassesSecondaryServicesAndFreezesModePricesAndMetrics() throws Exception {
+        int asrBefore = ASR.connections.get(), reviewBefore = reviews.get();
+        risk = "high"; // Native must never call this independently configured moderation fixture.
+        var body = new LinkedHashMap<>(createBody("native-default"));
+        body.put("prices", Map.of("suite_per_1000_turns", 5.45));
+        var created = api(HttpMethod.POST, base() + "/trials", admin, body).getBody();
+        String id = created.get("id").asText();
+        var changed = new LinkedHashMap<>(body);
+        changed.put("review_mode", "secondary_review");
+        assertThat(api(HttpMethod.POST, base() + "/trials", admin, changed).getStatusCode().value())
+                .isEqualTo(409);
+        changed.remove("review_mode");
+        changed.put("prices", Map.of("suite_per_1000_turns", 9));
+        assertThat(api(HttpMethod.POST, base() + "/trials", admin, changed).getStatusCode().value())
+                .isEqualTo(409);
+        try (var client = new Client(created)) {
+            client.send(Map.of("type", "prompt", "text", "原生试聊"));
+            client.await("audio");
+            assertThat(client.await("assistant_text").get("reviewed")).isEqualTo(false);
+            client.acknowledge();
+            client.send(Map.of("type", "close"));
+            client.await("closed");
+        }
+        assertThat(ASR.connections.get()).isEqualTo(asrBefore);
+        assertThat(reviews.get()).isEqualTo(reviewBefore);
+        var detail = api(HttpMethod.GET, base() + "/trials/" + id, admin, null).getBody();
+        var profile =
+                Support.object(
+                        detail.get("profile_json").asText().getBytes(StandardCharsets.UTF_8));
+        assertThat(profile.get("review_mode")).isEqualTo("native");
+        assertThat(Support.map(profile.get("safety")).get("enabled")).isEqualTo(false);
+        var metrics =
+                Support.object(
+                        detail.get("metrics_json").asText().getBytes(StandardCharsets.UTF_8));
+        assertThat(Support.map(metrics.get("usage")).get("secondary_review_requests")).isEqualTo(0);
+        assertThat(Support.map(metrics.get("cost")).get("actual_total")).isNull();
+        assertThat(((Number) Support.map(metrics.get("cost")).get("suite_estimate")).doubleValue())
+                .isEqualTo(0.00545);
+        assertThat(detail.get("audio").size()).isEqualTo(1);
+        var downstream =
+                Support.map(Support.map(SUITE.suitePayload.get("parameters")).get("downstream"));
+        assertThat(downstream.get("intermediate_text")).isEqualTo("transcript,dialog");
+        assertThat(downstream.get("incremental_response")).isEqualTo(false);
+        assertThat(api(HttpMethod.GET, "/api/v1/calls", admin, null).getBody().size()).isZero();
+    }
+
+    @Test
+    void optionalReviewRecordsExtraUsageAndSeparateLatency() throws Exception {
+        int asrBefore = ASR.connections.get(), reviewBefore = reviews.get();
+        var body = new LinkedHashMap<>(createBody("review-comparison"));
+        body.put("review_mode", "secondary_review");
+        body.put(
+                "prices",
+                Map.of(
+                        "suite_per_1000_turns",
+                        5.45,
+                        "asr_per_minute",
+                        0.0132,
+                        "review_per_10000_calls",
+                        15));
+        var created = api(HttpMethod.POST, base() + "/trials", admin, body).getBody();
+        String id = created.get("id").asText();
+        try (var client = new Client(created)) {
+            client.send(Map.of("type", "prompt", "text", "二次审核试聊"));
+            client.await("audio");
+            assertThat(client.await("assistant_text").get("reviewed")).isEqualTo(true);
+            client.acknowledge();
+            client.send(Map.of("type", "close"));
+            client.await("closed");
+        }
+        assertThat(ASR.connections.get()).isGreaterThan(asrBefore);
+        assertThat(reviews.get()).isGreaterThan(reviewBefore);
+        var detail = api(HttpMethod.GET, base() + "/trials/" + id, admin, null).getBody();
+        var metrics =
+                Support.object(
+                        detail.get("metrics_json").asText().getBytes(StandardCharsets.UTF_8));
+        var usage = Support.map(metrics.get("usage"));
+        assertThat(((Number) usage.get("secondary_asr_audio_seconds")).doubleValue())
+                .isGreaterThan(0);
+        assertThat(((Number) usage.get("secondary_review_requests")).intValue()).isGreaterThan(0);
+        var cost = Support.map(metrics.get("cost"));
+        assertThat(((Number) cost.get("secondary_asr_estimate")).doubleValue()).isGreaterThan(0);
+        assertThat(((Number) cost.get("secondary_review_estimate")).doubleValue()).isGreaterThan(0);
+        var turn = Support.map(((List<?>) metrics.get("turns")).getFirst());
+        assertThat(((Number) turn.get("provider_first_audio_ms")).doubleValue())
+                .isGreaterThanOrEqualTo(0);
+        assertThat(((Number) turn.get("platform_release_wait_ms")).doubleValue())
+                .isGreaterThanOrEqualTo(0);
+        assertThat(((Number) turn.get("browser_playback_ack_ms")).doubleValue())
+                .isGreaterThanOrEqualTo(
+                        ((Number) turn.get("provider_first_audio_ms")).doubleValue());
     }
 
     @AfterAll

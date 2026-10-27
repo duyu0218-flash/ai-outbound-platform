@@ -27,8 +27,12 @@ public class BailianTrialController {
     }
 
     @GetMapping("/readiness")
-    public Object readiness(HttpServletRequest r) {
-        return trials.readiness(Identity.from(r).tenant());
+    public Object readiness(
+            @RequestParam(defaultValue = "native")
+            String review_mode, HttpServletRequest r) {
+        return trials.readiness(
+                Identity.from(r).tenant(),
+                BailianTrialMetrics.mode(Map.of("review_mode", review_mode)));
     }
 
     @GetMapping("/trials")

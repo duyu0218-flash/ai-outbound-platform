@@ -21,6 +21,10 @@ class BailianLifecycleTest {
     final AuthIdentityMapper identities = mock(AuthIdentityMapper.class);
 
     BailianTrials.Live live() {
+        return live(BailianTrialMetrics.REVIEW);
+    }
+
+    BailianTrials.Live live(String mode) {
         var user = new SysUser();
         user.setId(1);
         user.setTenantId(1);
@@ -46,6 +50,8 @@ class BailianLifecycleTest {
                         new Identity(1, Map.of("id", 1), Set::of),
                         new Settings(Map.of()),
                         "test",
+                        Map.of(),
+                        mode,
                         Map.of());
         l.dialog = mock(BailianDialog.class);
         return l;
@@ -63,7 +69,14 @@ class BailianLifecycleTest {
                 };
         assertThatCode(() -> l.end("interrupted")).doesNotThrowAnyException();
         verify(l.dialog).close();
-        verify(db).save(eq(1L), eq("trial"), eq("interrupted"), anyString(), anyString());
+        verify(db)
+                .save(
+                        eq(1L),
+                        eq("trial"),
+                        eq("interrupted"),
+                        anyString(),
+                        anyString(),
+                        anyString());
         assertThat(closed).isTrue();
         assertThat(l.closed).isTrue();
     }
@@ -73,7 +86,7 @@ class BailianLifecycleTest {
         var l = live();
         doThrow(new IllegalStateException("db unavailable"))
                 .when(db)
-                .save(anyLong(), anyString(), anyString(), anyString(), anyString());
+                .save(anyLong(), anyString(), anyString(), anyString(), anyString(), anyString());
         assertThatThrownBy(() -> l.end("failed")).isInstanceOf(IllegalStateException.class);
         verify(l.dialog).close();
         assertThat(l.closed).isTrue();
@@ -115,6 +128,25 @@ class BailianLifecycleTest {
         tenant.setEnabled(false);
         when(identities.findTenantById(1)).thenReturn(tenant);
         assertThatThrownBy(l::authorize).hasMessageContaining("授权已失效");
+    }
+
+    @Test
+    void nativeInterruptionArchivesReleasedAudioAndRejectsLatePackets() throws Exception {
+        var l = live(BailianTrialMetrics.NATIVE);
+        List<Map<String, Object>> sent = new ArrayList<>();
+        l.sink = sent::add;
+        when(l.dialog.interrupt()).thenReturn(true);
+        l.provider("RespondingStarted", Map.of());
+        assertThat(l.gate).isNull();
+        l.providerAudio(new byte[960]);
+        l.command(Map.of("type", "interrupt"));
+        l.providerAudio(new byte[960]);
+        l.provider("RespondingEnded", Map.of());
+        assertThat(sent.stream().filter(e -> "audio".equals(e.get("type")))).hasSize(1);
+        assertThat(sent.stream().filter(e -> "assistant_text".equals(e.get("type")))).isEmpty();
+        assertThat(l.response).isNull();
+        verify(db).audio(argThat(row -> ((byte[]) row.get("pcm")).length == 960));
+        l.end("interrupted");
     }
 
     @Test

@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(4);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(5);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -101,6 +101,47 @@ class DataLayerReplayIT {
     }
 
     @Test
+    void v22TrialHistoryKeepsUnknownMeasurements() throws Exception {
+        String url =
+                "jdbc:mysql://"
+                        + MYSQL.getHost()
+                        + ":"
+                        + MYSQL.getMappedPort(3306)
+                        + "/trial_upgrade";
+        try (var c = DriverManager.getConnection(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
+                var st = c.createStatement()) {
+            st.execute("CREATE DATABASE trial_upgrade");
+        }
+        Flyway.configure()
+                .dataSource(url, "root", MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .target("22")
+                .load()
+                .migrate();
+        try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+                var st = c.createStatement()) {
+            st.executeUpdate(
+                    "INSERT INTO aivoicetrial(id,tenant_id,user_id,contact_id,client_key,request_hash,status,script_snapshot,profile_json,events_json,result_json,published_json) VALUES('old',1,1,1,'old','hash','completed','script','{}','[]','{}','{}')");
+        }
+        var upgrade =
+                Flyway.configure()
+                        .dataSource(url, "root", MYSQL.getPassword())
+                        .locations("classpath:db/migration")
+                        .load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+                var st = c.createStatement();
+                var row =
+                        st.executeQuery(
+                                "SELECT status,profile_json,metrics_json FROM aivoicetrial WHERE id='old'")) {
+            assertThat(row.next()).isTrue();
+            assertThat(row.getString(1)).isEqualTo("completed");
+            assertThat(row.getString(2)).isEqualTo("{}");
+            assertThat(row.getString(3)).isEqualTo("{}");
+        }
+    }
+
+    @Test
     void emptyDatabaseThenUnchangedReplay() throws Exception {
         var flyway =
                 Flyway.configure()
@@ -108,8 +149,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(22);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("22");
+        assertThat(first.migrationsExecuted).isEqualTo(23);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("23");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();

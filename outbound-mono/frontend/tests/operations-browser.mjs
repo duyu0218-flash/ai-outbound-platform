@@ -178,7 +178,12 @@ export async function operationsChecks({ page, context, origin, check, go }) {
     await expect(page).toHaveURL(/operations\/(leads|calls)/);
     await go('/admin/operations/workspace', '坐席个人配置');
     await page.getByLabel('个人整理秒数', { exact: true }).fill('12');
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/v1/ops/workspace') && response.request().method() === 'POST',
+    );
     await page.getByRole('button', { name: '保存个人配置', exact: true }).click();
+    expect((await saved).status()).toBe(200);
     await page.reload();
     await expect(page.getByLabel('个人整理秒数', { exact: true })).toHaveValue('12');
   });

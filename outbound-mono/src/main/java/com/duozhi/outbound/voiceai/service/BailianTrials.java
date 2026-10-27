@@ -89,6 +89,10 @@ public class BailianTrials {
     }
 
     public Map<String, Object> readiness(long tenant) {
+        return readiness(tenant, BailianTrialMetrics.NATIVE);
+    }
+
+    public Map<String, Object> readiness(long tenant, String mode) {
         var runtime = credentials.runtime(root, tenant, -1);
         var missing = new ArrayList<String>();
         for (String key :
@@ -99,16 +103,19 @@ public class BailianTrials {
                         "VOICE_AI_BAILIAN_APP_REVISION",
                         "VOICE_AI_BAILIAN_TOOL_API_KEY"))
             if (runtime.secret(key).isBlank()) missing.add(key);
-        try {
-            new ContentSafety(runtime).requireReady(ContentSafety.policy(runtime));
-        } catch (Exception e) {
-            missing.add("VOICE_AI_SAFETY_ACCESS_KEY_ID / VOICE_AI_SAFETY_ACCESS_KEY_SECRET");
-        }
+        if (BailianTrialMetrics.REVIEW.equals(mode))
+            try {
+                new ContentSafety(runtime).requireReady(ContentSafety.policy(runtime));
+            } catch (Exception e) {
+                missing.add("VOICE_AI_SAFETY_ACCESS_KEY_ID / VOICE_AI_SAFETY_ACCESS_KEY_SECRET");
+            }
         return Map.of(
                 "configured",
                 missing.isEmpty(),
                 "missing",
                 missing,
+                "review_mode",
+                mode,
                 "mode",
                 "push2talk",
                 "real_calls_enabled",
@@ -122,13 +129,18 @@ public class BailianTrials {
     public synchronized Map<String, Object> create(Identity actor, Map<String, Object> body) {
         actor.requireUser();
         String key = text(body, "client_key", 80), script = text(body, "script", 12000);
+        String mode = BailianTrialMetrics.mode(body);
+        var prices = BailianTrialMetrics.prices(body.get("prices"));
         long contact = Support.integer(body, "contact_id", 0);
         store.require("contact", actor.tenant(), contact);
         if (!Boolean.TRUE.equals(body.get("consent")))
             throw new ApiError(400, "请确认使用测试客户并授权本次付费供应商试聊");
-        String hash =
-                Support.hex(
-                        Support.sha(Support.json(Map.of("contact", contact, "script", script))));
+        var fingerprint = new TreeMap<String, Object>();
+        fingerprint.put("contact", contact);
+        fingerprint.put("script", script);
+        fingerprint.put("review_mode", mode);
+        fingerprint.put("prices", prices);
+        String hash = Support.hex(Support.sha(Support.json(fingerprint)));
         var prior = db.byKey(actor.tenant(), key);
         if (prior != null) {
             if (!hash.equals(prior.get("request_hash"))
@@ -136,7 +148,7 @@ public class BailianTrials {
                 throw new ApiError(409, "请求标识已被其他内容使用");
             return Map.of("id", prior.get("id"), "replayed", true, "status", prior.get("status"));
         }
-        var ready = readiness(actor.tenant());
+        var ready = readiness(actor.tenant(), mode);
         if (!Boolean.TRUE.equals(ready.get("configured")))
             throw new ApiError(503, "百炼试聊缺少配置：" + ready.get("missing"));
         if (live.size() >= 4
@@ -162,8 +174,14 @@ public class BailianTrials {
                         runtime.get("VOICE_AI_BAILIAN_APP_REVISION", ""),
                         "voice",
                         runtime.get("VOICE_AI_BAILIAN_VOICE", ""),
+                        "review_mode",
+                        mode,
+                        "prices",
+                        prices,
                         "safety",
-                        ContentSafety.policy(runtime),
+                        BailianTrialMetrics.REVIEW.equals(mode)
+                                ? ContentSafety.policy(runtime)
+                                : Map.of("enabled", false),
                         "telephony",
                         false);
         var row = new LinkedHashMap<String, Object>();
@@ -176,7 +194,15 @@ public class BailianTrials {
         row.put("script_snapshot", script);
         row.put("profile_json", json(profile));
         db.create(row);
-        var l = new Live(id, actor, runtime, script, settings.get(actor.tenant(), "ai"));
+        var l =
+                new Live(
+                        id,
+                        actor,
+                        runtime,
+                        script,
+                        settings.get(actor.tenant(), "ai"),
+                        mode,
+                        prices);
         live.put(id, l);
         audit.record(actor, "create", "bailian_trial", id, "browser only; no dialing");
         return Map.of("id", id, "ticket", l.ticket, "status", "created", "expires_in", 30);
@@ -332,6 +358,10 @@ public class BailianTrials {
         ByteArrayOutputStream input = new ByteArrayOutputStream(),
                 approved = new ByteArrayOutputStream();
         boolean responseDone, playStarted, discardOutput;
+        final String reviewMode;
+        final boolean secondaryReview;
+        final BailianTrialMetrics metrics;
+        String providerText = "", providerSpoken = "";
         String state = "Starting";
         long inputEnd, firstAudio;
 
@@ -340,7 +370,12 @@ public class BailianTrials {
                 Identity actor,
                 com.duozhi.outbound.integration.config.Settings runtime,
                 String script,
-                Map<String, Object> guard) {
+                Map<String, Object> guard,
+                String reviewMode,
+                Map<String, Object> prices) {
+            this.reviewMode = reviewMode;
+            secondaryReview = BailianTrialMetrics.REVIEW.equals(reviewMode);
+            metrics = new BailianTrialMetrics(reviewMode, prices);
             this.id = id;
             tenant = actor.tenant();
             user = Long.parseLong(actor.userId().toString());
@@ -412,21 +447,21 @@ public class BailianTrials {
                 if (closed || dialog == null) throw new IOException("trial not connected");
                 switch (type) {
                     case "begin" -> {
-                        if (gate != null) throw new IOException("playout pending");
+                        if (response != null) throw new IOException("playout pending");
                         input.reset();
                         inputBegan = System.nanoTime();
                         dialog.beginSpeech();
                         record("input_started", Map.of());
                     }
                     case "end" -> {
-                        dialog.endSpeech();
                         inputEnd = System.nanoTime();
+                        dialog.endSpeech();
                         archive("input", 16000, input.toByteArray(), "in-" + seq);
                         input.reset();
                         record("input_ended", Map.of());
                     }
                     case "prompt" -> {
-                        if (gate != null) throw new IOException("playout pending");
+                        if (response != null) throw new IOException("playout pending");
                         String value = text(command, "text", 2000);
                         inputEnd = System.nanoTime();
                         record("user_text", Map.of("text", value, "source", "typed"));
@@ -444,9 +479,10 @@ public class BailianTrials {
                     }
                     case "played_start" -> {
                         if (Support.integer(command, "epoch", -1) != epoch
-                                || gate == null
+                                || response == null
                                 || playStarted) return;
                         playStarted = true;
+                        metrics.playback(epoch);
                         dialog.command("LocalRespondingStarted", Map.of());
                         record(
                                 "playback_started",
@@ -454,14 +490,14 @@ public class BailianTrials {
                     }
                     case "played_end" -> {
                         if (Support.integer(command, "epoch", -1) != epoch
-                                || gate == null
+                                || response == null
                                 || !responseDone
                                 || !playStarted) return;
                         dialog.command("LocalRespondingEnded", Map.of());
                         record(
                                 "playback_ended",
                                 Map.of("evidence", "browser_reported", "epoch", epoch));
-                        gate.close();
+                        if (gate != null) gate.close();
                         gate = null;
                         response.close();
                         response = null;
@@ -480,10 +516,36 @@ public class BailianTrials {
                 throw new IOException("trial input limit");
             dialog.audio(pcm);
             input.writeBytes(pcm);
+            metrics.input(pcm.length);
         }
 
         void provider(String name, Map<String, Object> out) throws Exception {
             if (name.equals("RespondingEnded")) {
+                synchronized (this) {
+                    if (closed || discardOutput || response == null || responseDone) return;
+                    if (!secondaryReview) {
+                        responseDone = true;
+                        metrics.complete(epoch, "completed");
+                        archiveOutput(epoch);
+                        String text = providerSpoken.isBlank() ? providerText : providerSpoken;
+                        if (!text.isBlank())
+                            record(
+                                    "assistant_text",
+                                    Map.of(
+                                            "text",
+                                            text,
+                                            "epoch",
+                                            epoch,
+                                            "reviewed",
+                                            false,
+                                            "source",
+                                            providerSpoken.isBlank()
+                                                    ? "provider_text"
+                                                    : "provider_spoken"));
+                        record("response_done", Map.of("epoch", epoch, "review_mode", reviewMode));
+                        return;
+                    }
+                }
                 SentenceSafetyGate current;
                 long owner;
                 synchronized (this) {
@@ -503,6 +565,7 @@ public class BailianTrials {
                 synchronized (this) {
                     if (closed || owner != epoch) return;
                     responseDone = true;
+                    metrics.complete(owner, "completed");
                     archiveOutput(owner);
                     record(
                             "assistant_text",
@@ -527,19 +590,26 @@ public class BailianTrials {
                         else emit(Map.of("type", "partial", "text", value));
                     }
                     case "SpeechEnded" -> {
-                        inputEnd = System.nanoTime();
+                        // Preserve the same client input-end origin in both comparison modes.
                         record("provider_input_ended", Map.of());
                     }
                     case "RespondingStarted" -> {
                         if (discardOutput) return;
-                        if (gate != null) throw new IOException("overlapping response");
+                        if (response != null) throw new IOException("overlapping response");
                         epoch++;
                         responseDone = false;
                         playStarted = false;
                         firstAudio = 0;
+                        providerText = "";
+                        providerSpoken = "";
+                        metrics.start(epoch, inputEnd);
                         approved.reset();
                         response = new ResponseScope();
                         long owner = epoch;
+                        record(
+                                "response_started",
+                                Map.of("epoch", owner, "review_mode", reviewMode));
+                        if (!secondaryReview) break;
                         var backend = new VoiceAiBackends(runtime);
                         var speech = new VoiceAiProfiles(runtime).snapshot("aliyun-cascade");
                         var policy = ContentSafety.policy(runtime);
@@ -561,43 +631,65 @@ public class BailianTrials {
                                         response,
                                         policy,
                                         guard,
-                                        (listener, scope) ->
-                                                backend.outputRecognizer(speech, listener, scope),
-                                        (cumulative, scope) ->
-                                                safety.review(
-                                                        policy,
-                                                        ContentSafety.withContext(
-                                                                history, cumulative),
-                                                        scope),
-                                        (pcm, rate) -> {
-                                            synchronized (Live.this) {
-                                                if (closed || epoch != owner)
-                                                    throw new IOException("stale audio");
-                                                if (approved.size() + pcm.length > 1440000)
-                                                    throw new IOException("audio limit");
-                                                approved.writeBytes(pcm);
-                                                emit(
-                                                        Map.of(
-                                                                "type",
-                                                                "audio",
-                                                                "epoch",
-                                                                owner,
-                                                                "rate",
-                                                                rate,
-                                                                "pcm",
-                                                                Base64.getEncoder()
-                                                                        .encodeToString(pcm)));
+                                        (listener, scope) -> {
+                                            var recognizer =
+                                                    backend.outputRecognizer(
+                                                            speech, listener, scope);
+                                            return new VoiceAiBackends.Connection() {
+                                                public void audio(byte[] pcm) throws Exception {
+                                                    recognizer.audio(pcm);
+                                                    metrics.asr(pcm.length);
+                                                }
+
+                                                public void finishInput() throws Exception {
+                                                    recognizer.finishInput();
+                                                }
+
+                                                public void awaitFinished() throws Exception {
+                                                    recognizer.awaitFinished();
+                                                }
+
+                                                public void check() throws Exception {
+                                                    recognizer.check();
+                                                }
+
+                                                public void close() {
+                                                    recognizer.close();
+                                                }
+                                            };
+                                        },
+                                        (cumulative, scope) -> {
+                                            metrics.reviewStarted();
+                                            long began = System.nanoTime();
+                                            boolean returned = false;
+                                            try {
+                                                var decision =
+                                                        safety.review(
+                                                                policy,
+                                                                ContentSafety.withContext(
+                                                                        history, cumulative),
+                                                                scope);
+                                                returned = true;
+                                                return decision;
+                                            } finally {
+                                                metrics.reviewFinished(
+                                                        System.nanoTime() - began, returned);
                                             }
                                         },
+                                        (pcm, rate) -> releaseAudio(pcm, owner),
                                         e -> {
                                             synchronized (Live.this) {
                                                 if (!closed && epoch == owner) record("safety", e);
                                             }
                                         },
                                         () -> {});
-                        record("response_started", Map.of("epoch", owner));
                     }
                     case "RespondingContent" -> {
+                        if (discardOutput || response == null || responseDone) return;
+                        providerText = Support.str(out, "text", providerText);
+                        providerSpoken = Support.str(out, "spoken", providerSpoken);
+                        if (providerText.length() > 12000 || providerSpoken.length() > 12000)
+                            throw new IOException("provider text limit");
                         if (out.containsKey("llm_request_id"))
                             record(
                                     "provider_request",
@@ -617,7 +709,11 @@ public class BailianTrials {
             synchronized (this) {
                 if (closed || discardOutput) return;
                 current = gate;
-                if (current == null) throw new IOException("audio without response");
+                if (response == null || responseDone || (secondaryReview && current == null))
+                    throw new IOException("audio without response");
+                if (pcm.length == 0 || pcm.length % 2 != 0)
+                    throw new IOException("invalid provider audio");
+                metrics.provider(epoch, pcm.length);
                 if (firstAudio == 0) {
                     firstAudio = System.nanoTime();
                     record(
@@ -626,8 +722,32 @@ public class BailianTrials {
                                     "since_input_end_ms",
                                     inputEnd == 0 ? -1 : (firstAudio - inputEnd) / 1000000));
                 }
+                if (!secondaryReview) {
+                    releaseAudio(pcm, epoch);
+                    return;
+                }
             }
             current.accept(pcm, 24000);
+        }
+
+        synchronized void releaseAudio(byte[] pcm, long owner) throws Exception {
+            if (closed || discardOutput || epoch != owner || response == null)
+                throw new IOException("stale audio");
+            if (approved.size() + pcm.length > 1440000) throw new IOException("audio limit");
+            approved.writeBytes(pcm);
+            boolean first = metrics.release(owner);
+            emit(
+                    Map.of(
+                            "type",
+                            "audio",
+                            "epoch",
+                            owner,
+                            "rate",
+                            24000,
+                            "pcm",
+                            Base64.getEncoder().encodeToString(pcm)));
+            if (first)
+                record("first_platform_audio", Map.of("epoch", owner, "review_mode", reviewMode));
         }
 
         void emit(Map<String, Object> e) {
@@ -641,8 +761,9 @@ public class BailianTrials {
             e.put("seq", ++seq);
             e.put("elapsed_ms", (System.nanoTime() - began) / 1000000);
             events.add(e);
-            db.save(tenant, id, status, json(events), json(result));
+            db.save(tenant, id, status, json(events), json(result), json(metrics.snapshot()));
             emit(e);
+            emit(Map.of("type", "metrics", "metrics", metrics.snapshot()));
         }
 
         void archive(String direction, int rate, byte[] pcm, String audio) {
@@ -677,7 +798,7 @@ public class BailianTrials {
 
         synchronized void cancelResponse() {
             long owner = epoch++;
-
+            if (response != null && !responseDone) metrics.complete(owner, "interrupted");
             if (response != null) response.close();
             response = null;
             gate = null;
@@ -720,6 +841,7 @@ public class BailianTrials {
             status = finalStatus;
             try {
                 long owner = epoch++;
+                if (response != null && !responseDone) metrics.complete(owner, finalStatus);
                 if (response != null) response.close();
                 response = null;
                 gate = null;
@@ -728,7 +850,13 @@ public class BailianTrials {
                     archiveInput();
                     archiveOutput(owner);
                 } finally {
-                    db.save(tenant, id, status, json(events), json(result));
+                    db.save(
+                            tenant,
+                            id,
+                            status,
+                            json(events),
+                            json(result),
+                            json(metrics.snapshot()));
                 }
                 try {
                     emit(Map.of("type", "clear_audio", "epoch", epoch));

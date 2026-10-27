@@ -37,7 +37,10 @@ try {
     await expect(page.getByLabel('已发布应用版本标记', { exact: true })).toHaveValue('browser-v1');
     await expect(page.getByLabel('百炼 API Key', { exact: true })).toHaveValue('');
   });
-  await check('create browser-only trial', async () => {
+  await check('create browser-only trial with default native mode and frozen price', async () => {
+    await expect(page.getByRole('radio', { name: '百炼原生（默认）', exact: true })).toBeChecked();
+    await page.getByText('可选：填写估算单价', { exact: true }).click();
+    await page.getByLabel('套件估算单价（元/千轮）', { exact: true }).fill('5.45');
     await page.getByRole('combobox', { name: '测试客户', exact: true }).click();
     await page
       .getByRole('option', {
@@ -54,20 +57,25 @@ try {
       timeout: 15000,
     });
   });
-  await check('microphone PCM and reviewed output', async () => {
+  await check('microphone PCM and native output without secondary review', async () => {
     await page.getByRole('button', { name: '开始说话', exact: true }).click();
     await expect(page.getByRole('button', { name: '结束说话', exact: true })).toBeEnabled();
     await page.waitForTimeout(350);
     await page.getByRole('button', { name: '结束说话', exact: true }).click();
     await expect(page.locator('.dialogue')).toContainText('我想了解服务');
-    await expect(page.locator('.dialogue')).toContainText('助手（已审核）', { timeout: 15000 });
+    await expect(page.locator('.dialogue')).toContainText('助手（百炼原生）', { timeout: 15000 });
+    await expect(page.getByTestId('trial-metrics')).toContainText('额外 ASR 音频 0.00 秒');
+    await expect(page.getByTestId('trial-metrics')).toContainText('二次审核请求 0 次');
+    await expect(
+      page.getByRole('radio', { name: '独立 ASR + 二次审核（对照）', exact: true }),
+    ).toBeDisabled();
   });
   await check('multi-turn text and interruption', async () => {
     await expect(page.getByRole('button', { name: '发送文字', exact: true })).toBeEnabled();
     await page.getByLabel('文字试聊', { exact: true }).fill('我希望进一步了解服务');
     await page.getByRole('button', { name: '发送文字', exact: true }).click();
     await expect(page.locator('.dialogue')).toContainText('我希望进一步了解服务');
-    await expect(page.locator('.dialogue li').filter({ hasText: '助手（已审核）' })).toHaveCount(
+    await expect(page.locator('.dialogue li').filter({ hasText: '助手（百炼原生）' })).toHaveCount(
       2,
       { timeout: 15000 },
     );
@@ -101,6 +109,48 @@ try {
     await expect(page).toHaveURL(origin + '/admin/voice-ai');
     await page.getByRole('button', { name: '百炼多模态套件业务试聊' }).click();
     await expect(page).toHaveURL(origin + '/admin/bailian-trial');
+  });
+  await check('optional review mode, separate costs and persistent history filters', async () => {
+    await page.getByText('独立 ASR + 二次审核（对照）', { exact: true }).click();
+    await page.getByRole('combobox', { name: '测试客户', exact: true }).click();
+    await page
+      .getByRole('option', {
+        name: '百炼测试客户 #' + process.env.BAILIAN_TEST_CONTACT,
+        exact: true,
+      })
+      .click();
+    await page.getByText('可选：填写估算单价', { exact: true }).click();
+    await page.getByLabel('套件估算单价（元/千轮）', { exact: true }).fill('5.45');
+    await page.getByLabel('额外 ASR 单价（元/分钟）', { exact: true }).fill('0.0132');
+    await page.getByLabel('二次审核单价（元/万次）', { exact: true }).fill('15');
+    await page.getByText('我已选择测试客户，并授权本次付费供应商试聊', { exact: true }).click();
+    await page.getByRole('button', { name: '创建并连接试聊' }).click();
+    await expect(page.getByRole('button', { name: '发送文字', exact: true })).toBeEnabled({
+      timeout: 15000,
+    });
+    await page.getByLabel('文字试聊', { exact: true }).fill('对照试聊请求');
+    await page.getByRole('button', { name: '发送文字', exact: true }).click();
+    await expect(page.locator('.dialogue')).toContainText('助手（二次审核通过）', {
+      timeout: 15000,
+    });
+    await expect(page.getByTestId('trial-metrics')).toContainText('二次审核请求 1 次');
+    await expect(page.getByTestId('trial-metrics')).toContainText('0.001500 元');
+    await page.getByRole('button', { name: '结束试聊', exact: true }).click();
+    await expect(page.getByRole('button', { name: '刷新记录', exact: true })).toBeEnabled();
+    await page.reload();
+    await page.getByText('仅二次审核对照', { exact: true }).click();
+    await expect(page.getByRole('button', { name: '查看', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: '查看', exact: true }).click();
+    await expect(page.getByTestId('trial-metrics')).toContainText('二次审核对照');
+    await expect(page.getByTestId('trial-metrics')).toContainText('0.001500 元');
+    await page.getByText('仅百炼原生', { exact: true }).click();
+    await expect(page.getByRole('button', { name: '查看', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: '查看', exact: true }).click();
+    await expect(page.getByTestId('trial-metrics')).toContainText('本次成本与延时 · 百炼原生');
+    await expect(page.getByTestId('trial-metrics')).toContainText('二次审核请求 0 次');
+    await expect(page.getByTestId('trial-metrics')).toContainText('0.010900 元');
+    await page.getByText('全部记录', { exact: true }).click();
+    await expect(page.getByRole('button', { name: '查看', exact: true })).toHaveCount(2);
   });
   await page.screenshot({ path: 'target/bailian-browser.png', fullPage: true });
   expect(errors).toEqual([]);

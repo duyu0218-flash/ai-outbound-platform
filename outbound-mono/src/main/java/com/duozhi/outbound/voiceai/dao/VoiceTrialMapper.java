@@ -20,11 +20,11 @@ public interface VoiceTrialMapper {
     String key);
 
     @Select(
-            "SELECT id,contact_id,status,created_at,updated_at FROM aivoicetrial WHERE tenant_id=#{tenant} ORDER BY created_at DESC LIMIT 100")
+            "SELECT id,contact_id,status,created_at,updated_at,profile_json,metrics_json FROM aivoicetrial WHERE tenant_id=#{tenant} ORDER BY created_at DESC LIMIT 100")
     List<Map<String, Object>> list(long tenant);
 
     @Update(
-            "UPDATE aivoicetrial SET status=#{status},events_json=#{events},result_json=#{result} WHERE tenant_id=#{tenant} AND id=#{id}")
+            "UPDATE aivoicetrial SET status=#{status},events_json=#{events},result_json=#{result},metrics_json=#{metrics} WHERE tenant_id=#{tenant} AND id=#{id}")
     void save(
             @Param("tenant")
             long tenant,
@@ -35,7 +35,9 @@ public interface VoiceTrialMapper {
             @Param("events")
             String events,
             @Param("result")
-            String result);
+            String result,
+            @Param("metrics")
+            String metrics);
 
     @Update(
             "UPDATE aivoicetrial SET published_json=#{result} WHERE tenant_id=#{tenant} AND id=#{id}")

@@ -5,7 +5,10 @@ import { useData } from '../data';
 import { formatDate } from '../api';
 import { ElMessage } from 'element-plus';
 const base = '/api/v1/admin/voice-ai/bailian';
-const ready = useData(base + '/readiness'),
+const reviewMode = ref('native'),
+  historyMode = ref('all'),
+  prices = ref({});
+const ready = useData(() => base + '/readiness?review_mode=' + reviewMode.value),
   history = useData(base + '/trials');
 const configuration = useData('/api/v1/admin/voice-ai/configuration');
 const contacts = useData('/api/v1/contacts?page=1&size=100');
@@ -69,6 +72,24 @@ let socket,
   flushCapture = () => {},
   minimumEpoch = 0,
   blockedPlayback = false;
+const profileOf = (row) => JSON.parse(row?.profile_json || '{}');
+const metricsOf = (row) => JSON.parse(row?.metrics_json || '{}');
+const modeOf = (row) => profileOf(row).review_mode || 'secondary_review';
+const modeLabel = (mode) => (mode === 'native' ? '百炼原生' : '二次审核对照');
+const currentMode = computed(() => modeOf(current.value));
+const measured = computed(() => metricsOf(current.value));
+const filteredHistory = computed(() =>
+  (history.data.value || []).filter(
+    (row) => historyMode.value === 'all' || modeOf(row) === historyMode.value,
+  ),
+);
+const number = (v) => (v == null ? '未测得' : Number(v).toFixed(2));
+const money = (v) => (v == null ? '未估算' : Number(v).toFixed(6) + ' 元');
+const rateFields = [
+  { key: 'suite_per_1000_turns', label: '套件估算单价（元/千轮）' },
+  { key: 'asr_per_minute', label: '额外 ASR 单价（元/分钟）' },
+  { key: 'review_per_10000_calls', label: '二次审核单价（元/万次）' },
+];
 const epoch = session.epoch;
 const valid = () => !disposed && epoch === session.epoch;
 const dialogue = computed(() =>
@@ -123,6 +144,12 @@ async function create() {
       contact_id: contact.value,
       script: script.value,
       consent: true,
+      review_mode: reviewMode.value,
+      prices: Object.fromEntries(
+        Object.entries(prices.value)
+          .filter(([, v]) => v !== '' && v != null)
+          .map(([k, v]) => [k, Number(v)]),
+      ),
     });
     if (!valid()) return;
     current.value = await request(base + '/trials/' + result.id);
@@ -136,12 +163,17 @@ async function create() {
       `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/v1/voice-trial/socket`,
     );
     socket.onopen = () => {
+      if (!valid() || current.value?.id !== result.id) return;
       connected.value = true;
       send({ type: 'attach', id: result.id, ticket: result.ticket });
     };
     socket.onmessage = (e) => {
-      if (!valid()) return;
+      if (!valid() || current.value?.id !== result.id) return;
       const event = JSON.parse(e.data);
+      if (event.type === 'metrics') {
+        current.value.metrics_json = JSON.stringify(event.metrics);
+        return;
+      }
       if (event.type === 'audio') {
         play(event);
         return;
@@ -175,9 +207,11 @@ async function create() {
       events.value.push(event);
     };
     socket.onerror = () => {
+      if (!valid() || current.value?.id !== result.id) return;
       error.value = '试聊连接失败，请检查网络并刷新历史';
     };
     socket.onclose = () => {
+      if (!valid() || current.value?.id !== result.id) return;
       connected.value = false;
       stopCapture();
       clearAudio();
@@ -422,7 +456,7 @@ onUnmounted(() => {
         >
         <p>
           应用提示词须引用 business_script。工具须透传 trial_id、trial_token，并配置业务回调地址和
-          X-API-KEY。独立输出识别与内容审核由平台服务端配置。
+          X-API-KEY。仅二次审核对照模式需要服务端配置独立输出识别与内容审核。
         </p>
       </el-collapse-item></el-collapse
     >
@@ -433,6 +467,33 @@ onUnmounted(() => {
     <el-card
       ><template #header>创建业务试聊</template>
       <el-form label-position="top">
+        <el-form-item label="试聊方案">
+          <el-radio-group v-model="reviewMode" :disabled="active" aria-label="试聊方案">
+            <el-radio value="native">百炼原生（默认）</el-radio>
+            <el-radio value="secondary_review">独立 ASR + 二次审核（对照）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <p v-if="reviewMode === 'native'">
+          直接播放百炼返回的音频，不调用平台额外 ASR
+          或二次内容审核；供应商原生审核范围仍待真实联调确认。
+        </p>
+        <p v-else>对照模式会额外识别输出音频，完整短句审核通过后播放；增加的调用和等待单独统计。</p>
+        <el-collapse
+          ><el-collapse-item title="可选：填写估算单价">
+            <p>
+              单价和方案在创建时固定，空白表示未估算。套件按实际选择的应用组合填写每千轮估算价，实际收费仍以账单为准。
+            </p>
+            <el-form-item v-for="field in rateFields" :key="field.key" :label="field.label">
+              <el-input
+                v-model="prices[field.key]"
+                :aria-label="field.label"
+                :disabled="
+                  active || (reviewMode === 'native' && field.key !== 'suite_per_1000_turns')
+                "
+                placeholder="留空不估算"
+              />
+            </el-form-item> </el-collapse-item
+        ></el-collapse>
         <el-form-item label="测试客户"
           ><el-select v-model="contact" filterable aria-label="测试客户" :disabled="active"
             ><el-option
@@ -481,7 +542,10 @@ onUnmounted(() => {
       </el-form>
     </el-card>
     <el-card v-if="current"
-      ><template #header>试聊 {{ current.id }} · {{ state }} / {{ current.status }}</template>
+      ><template #header
+        >试聊 {{ current.id }} · {{ modeLabel(currentMode) }} · {{ state }} /
+        {{ current.status }}</template
+      >
       <el-space wrap>
         <el-button :disabled="!connected || recording || state !== 'Listening'" @click="begin"
           >开始说话</el-button
@@ -493,7 +557,7 @@ onUnmounted(() => {
       </el-space>
       <p>
         每次收音最长 30 秒，会话最长 5
-        分钟。输入录音与已审核输出分开保存；播放证据来自浏览器报告，不等于电话端实测。
+        分钟。输入录音与输出分开保存；输出标记当前固定方案。播放回执来自浏览器，不等于设备扬声器或电话端实测。
       </p>
       <el-input
         v-model="typed"
@@ -514,7 +578,9 @@ onUnmounted(() => {
             e.type === 'user_text'
               ? '用户'
               : e.type === 'assistant_text'
-                ? '助手（已审核）'
+                ? (e.reviewed ?? currentMode === 'secondary_review')
+                  ? '助手（二次审核通过）'
+                  : '助手（百炼原生）'
                 : e.type === 'intent_saved'
                   ? '业务草稿'
                   : '错误'
@@ -522,6 +588,61 @@ onUnmounted(() => {
           {{ e.text || e.message || e.result?.note }}
         </li>
       </ol>
+      <div class="trial-metrics" data-testid="trial-metrics">
+        <h2>本次成本与延时 · {{ modeLabel(currentMode) }}</h2>
+        <p v-if="!measured.version">本记录尚无分项测量；旧版记录不能按零费用计算。</p>
+        <template v-else>
+          <p>
+            观测回复轮数 {{ measured.usage.suite_response_turns }}；套件输入/输出音频
+            {{ number(measured.usage.suite_input_audio_seconds) }} /
+            {{ number(measured.usage.suite_output_audio_seconds) }} 秒。
+          </p>
+          <p>
+            额外 ASR 音频 {{ number(measured.usage.secondary_asr_audio_seconds) }} 秒；二次审核请求
+            {{ measured.usage.secondary_review_requests }} 次（取得结果
+            {{ measured.usage.secondary_review_results }} 次）。
+          </p>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="套件估算费用">{{
+              money(measured.cost.suite_estimate)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="额外 ASR 估算费用">{{
+              money(measured.cost.secondary_asr_estimate)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="二次审核估算费用">{{
+              money(measured.cost.secondary_review_estimate)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="实际账单">待对账</el-descriptions-item>
+          </el-descriptions>
+          <p>
+            按创建时单价估算：{{
+              measured.prices
+            }}。观测回复轮数不等于供应商确认计费轮数；审核按请求尝试估算。未知价格显示未估算。
+          </p>
+          <el-table :data="measured.turns">
+            <el-table-column prop="epoch" label="响应序号" />
+            <el-table-column prop="status" label="响应状态" />
+            <el-table-column label="套件首包 ms"
+              ><template #default="{ row }">{{
+                number(row.provider_first_audio_ms)
+              }}</template></el-table-column
+            >
+            <el-table-column label="平台放行等待 ms"
+              ><template #default="{ row }">{{
+                number(row.platform_release_wait_ms)
+              }}</template></el-table-column
+            >
+            <el-table-column label="浏览器回执 ms"
+              ><template #default="{ row }">{{
+                number(row.browser_playback_ack_ms)
+              }}</template></el-table-column
+            >
+          </el-table>
+          <p>
+            首包与播放回执均从服务端收到本轮输入结束计算；放行等待从首包到首次发送给浏览器计算，包含平台处理及所选审核。不同会话的差值不直接等于审核净耗时。
+          </p>
+        </template>
+      </div>
       <el-collapse
         ><el-collapse-item title="录音与测量记录"
           ><div v-for="audio in current.audio || []" :key="audio.audio_id">
@@ -533,7 +654,14 @@ onUnmounted(() => {
                   audio.audio_id + '.wav',
                 )
               "
-              >下载 {{ audio.direction === 'input' ? '用户输入' : '审核后输出' }}
+              >下载
+              {{
+                audio.direction === 'input'
+                  ? '用户输入'
+                  : currentMode === 'native'
+                    ? '原生输出'
+                    : '二次审核后输出'
+              }}
               {{ audio.audio_id }}</el-button
             >
           </div>
@@ -584,11 +712,32 @@ onUnmounted(() => {
     </el-card>
     <el-card
       ><template #header>试聊历史</template
-      ><el-table :data="history.data.value || []"
-        ><el-table-column prop="id" label="试聊编号" /><el-table-column
-          prop="contact_id"
-          label="客户 ID"
-        /><el-table-column prop="status" label="状态" /><el-table-column label="创建时间"
+      ><el-radio-group v-model="historyMode" aria-label="历史方案筛选">
+        <el-radio value="all">全部记录</el-radio><el-radio value="native">仅百炼原生</el-radio
+        ><el-radio value="secondary_review">仅二次审核对照</el-radio>
+      </el-radio-group>
+      <el-table :data="filteredHistory"
+        ><el-table-column prop="id" label="试聊编号" /><el-table-column label="方案"
+          ><template #default="{ row }">{{ modeLabel(modeOf(row)) }}</template></el-table-column
+        >
+        <el-table-column label="套件估算"
+          ><template #default="{ row }">{{
+            money(metricsOf(row).cost?.suite_estimate)
+          }}</template></el-table-column
+        >
+        <el-table-column label="额外 ASR 估算"
+          ><template #default="{ row }">{{
+            money(metricsOf(row).cost?.secondary_asr_estimate)
+          }}</template></el-table-column
+        >
+        <el-table-column label="二次审核估算"
+          ><template #default="{ row }">{{
+            money(metricsOf(row).cost?.secondary_review_estimate)
+          }}</template></el-table-column
+        ><el-table-column prop="contact_id" label="客户 ID" /><el-table-column
+          prop="status"
+          label="状态"
+        /><el-table-column label="创建时间"
           ><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column
         ><el-table-column label="操作"
           ><template #default="{ row }"

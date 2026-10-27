@@ -65,7 +65,15 @@ public final class BailianDialog implements AutoCloseable {
         try {
             var downstream =
                     new LinkedHashMap<String, Object>(
-                            Map.of("sample_rate", 24000, "audio_format", "pcm"));
+                            Map.of(
+                                    "sample_rate",
+                                    24000,
+                                    "audio_format",
+                                    "pcm",
+                                    "intermediate_text",
+                                    "transcript,dialog",
+                                    "incremental_response",
+                                    false));
             String voice = settings.get("VOICE_AI_BAILIAN_VOICE", "");
             if (!voice.isBlank()) downstream.put("voice", voice);
             var payload = new LinkedHashMap<String, Object>();
