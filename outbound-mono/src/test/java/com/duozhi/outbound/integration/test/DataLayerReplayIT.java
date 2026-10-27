@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(4);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -108,8 +108,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(21);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("21");
+        assertThat(first.migrationsExecuted).isEqualTo(22);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("22");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -233,8 +233,10 @@ class DataLayerReplayIT {
             }
         }
         assertThat(tables)
-                .hasSize(80)
+                .hasSize(82)
                 .containsKeys(
+                        "aivoicetrial",
+                        "aivoicetrialaudio",
                         "aivoiceconfig",
                         "aivoicetestset",
                         "aivoicetestrun",

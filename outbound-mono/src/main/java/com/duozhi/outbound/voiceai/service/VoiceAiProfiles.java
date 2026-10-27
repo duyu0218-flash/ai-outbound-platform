@@ -21,6 +21,13 @@ public final class VoiceAiProfiles {
 
     static {
         var d = new LinkedHashMap<String, String>();
+        d.put("VOICE_AI_BAILIAN_WORKSPACE_ID", "");
+        d.put("VOICE_AI_BAILIAN_APP_ID", "");
+        d.put("VOICE_AI_BAILIAN_APP_REVISION", "");
+        d.put("VOICE_AI_BAILIAN_VOICE", "");
+        d.put("VOICE_AI_BAILIAN_TOOL_API_KEY", "");
+        d.put("VOICE_AI_BAILIAN_TOOL_API_KEY_FILE", "");
+        d.put("VOICE_AI_BAILIAN_URL", "wss://dashscope.aliyuncs.com/api-ws/v1/inference");
         d.put("VOICE_AI_ALI_ASR_URL", "wss://dashscope.aliyuncs.com/api-ws/v1/inference");
         d.put("VOICE_AI_ALI_TTS_URL", "wss://dashscope.aliyuncs.com/api-ws/v1/inference");
         d.put(

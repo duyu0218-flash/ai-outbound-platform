@@ -76,3 +76,7 @@ API Key 继续从 TENANT_API_SCOPES_JSON 取得租户权限集合；管理员接
 源码与GitHub同步不等于部署。测试环境未发布、真机未验证、生产未发布，未替换现有部署。真实FreeSWITCH/SIP/RTP、云ASR/LLM/TTS、录音/设备、长稳和目标Linux仍未验证。媒体专属有界队列、丢帧策略、DirectByteBuffer与G1/20ms目标已实现；真实媒体压测和暂停目标是否达到仍未验证。
 
 正式上线前须按 [部署文档](DEPLOYMENT.md) 完成生产初始化、备份恢复、单实例升级、目标宿主与真实线路/音频/容量验收，再设置发布验收标志。
+
+## 百炼套件平台试聊
+
+独立入口 `/admin/bailian-trial` 支持百炼套件多轮语音、业务草稿及人工确认写入现有线索跟进，不开启真实外呼。账号配置、工具协议、验收范围和未验证项见 [接入说明](BAILIAN-TRIAL.md) 与 [验收记录](BAILIAN-TRIAL-ACCEPTANCE.md)。

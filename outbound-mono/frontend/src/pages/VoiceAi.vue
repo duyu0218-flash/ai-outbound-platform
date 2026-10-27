@@ -321,6 +321,9 @@ async function initialize() {
 initialize();
 </script>
 <template>
+  <el-button type="primary" @click="$router.push('/admin/bailian-trial')"
+    >百炼多模态套件业务试聊</el-button
+  >
   <PageHeader
     title="语音方案对比"
     description="切换供应商与技术路线，使用固定话术和相同样本进行对比。"

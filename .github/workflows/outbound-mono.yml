@@ -73,6 +73,9 @@ jobs:
             outbound-mono/target/surefire-reports/
             outbound-mono/target/failsafe-reports/
             outbound-mono/target/frontend-browser-result.json
+            outbound-mono/target/bailian-browser-results.json
+            outbound-mono/target/bailian-browser.png
+            outbound-mono/target/bailian-browser.log
             outbound-mono/target/fatjar-smoke/result.json
   mono-synthetic-capacity:
     name: Synthetic capacity (500 CPS and 500 in-flight)

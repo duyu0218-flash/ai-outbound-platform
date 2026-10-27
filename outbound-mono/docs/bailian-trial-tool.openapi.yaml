@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: Platform trial business tool
+  version: 1.0.0
+servers:
+  - url: https://trial.example.com
+paths:
+  /api/v1/webhooks/bailian/trial-tool:
+    post:
+      operationId: trial_business
+      summary: 查询本次试聊业务资料或保存待人工确认的意向草稿
+      description: 不能执行真实预约或拨号。trial_id/trial_token 必须配置为业务透传参数，不由模型生成。
+      security:
+        - ToolKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trial_id, trial_token, action]
+              properties:
+                trial_id:
+                  type: string
+                  description: 业务透传的本次试聊 ID
+                trial_token:
+                  type: string
+                  description: 业务透传的本次短期工具令牌，不向用户展示
+                action:
+                  type: string
+                  enum: [business_context, save_intent]
+                event_id:
+                  type: string
+                  description: save_intent 必填；单次操作唯一编号，重试保持相同
+                intent:
+                  type: string
+                  enum: [interested, declined, uncertain]
+                note:
+                  type: string
+                  maxLength: 1000
+                  description: save_intent 必填；意向及跟进备注
+                next_at:
+                  type: string
+                  description: 可留空；未来 UTC ISO-8601 时间
+                evidence_seq:
+                  type: integer
+                  description: save_intent 必填；business_context 返回的本次 user_evidence.seq
+      responses:
+        '200':
+          description: 查询成功或试聊草稿已保存；saved 不等于真实预约成功
+        '400':
+          description: 字段或证据不合法
+        '401':
+          description: 凭证错误、会话已结束或账号已退出
+        '409':
+          description: 状态或幂等内容冲突
+components:
+  securitySchemes:
+    ToolKey:
+      type: apiKey
+      in: header
+      name: X-API-KEY

@@ -461,6 +461,9 @@ class VoiceAiBackendsTest {
         final AtomicLong completedAt = new AtomicLong();
         Map<String, String> expectedHeaders = Map.of();
         final String vendor, kind;
+        volatile Map<String, Object> suitePayload = Map.of();
+        final List<String> suiteCommands = new java.util.concurrent.CopyOnWriteArrayList<>();
+        volatile boolean suiteBlockResponse;
         String transcript = "我想了解服务";
         int responseDelayMs;
         boolean suppressTranscript;
@@ -681,7 +684,70 @@ class VoiceAiBackendsTest {
                                 Map.of("slice_type", 2, "voice_text_str", transcript, "index", 0)));
         }
 
+        void suiteEvent(
+                ChannelHandlerContext ctx, State state, String name, Map<String, Object> extra) {
+            var output = new LinkedHashMap<String, Object>(extra);
+            output.put("event", name);
+            output.put("dialog_id", "fixture-dialog");
+            text(
+                    ctx,
+                    Map.of(
+                            "header",
+                            Map.of("event", "result-generated", "task_id", state.task),
+                            "payload",
+                            Map.of("output", output)));
+        }
+
+        void suite(ChannelHandlerContext ctx, Map<String, Object> message, State state) {
+            var payload = Support.map(message.get("payload"));
+            var input = Support.map(payload.get("input"));
+            String directive = Support.str(input, "directive", "");
+            suiteCommands.add(directive);
+            if (directive.equals("Start")) {
+                suitePayload = payload;
+                state.task = Support.str(Support.map(message.get("header")), "task_id", "");
+                assertThat(payload.get("model")).isEqualTo("multimodal-dialog");
+                suiteEvent(ctx, state, "Started", Map.of());
+                suiteEvent(ctx, state, "DialogStateChanged", Map.of("state", "Listening"));
+            } else if (directive.equals("StopSpeech") || directive.equals("RequestToRespond")) {
+                if (directive.equals("StopSpeech"))
+                    suiteEvent(
+                            ctx,
+                            state,
+                            "SpeechContent",
+                            Map.of("text", "我想了解服务", "finished", true));
+                suiteEvent(ctx, state, "DialogStateChanged", Map.of("state", "Thinking"));
+                if (suiteBlockResponse) return;
+                suiteEvent(ctx, state, "RespondingStarted", Map.of());
+                suiteEvent(
+                        ctx,
+                        state,
+                        "RespondingContent",
+                        Map.of(
+                                "text",
+                                "好的，请问您方便了解吗？",
+                                "spoken",
+                                "好的，请问您方便了解吗？",
+                                "finished",
+                                true,
+                                "round_id",
+                                "round-fixture",
+                                "llm_request_id",
+                                "llm-fixture"));
+                ctx.writeAndFlush(new BinaryWebSocketFrame(Unpooled.wrappedBuffer(pcm())));
+                suiteEvent(ctx, state, "RespondingEnded", Map.of());
+            } else if (directive.equals("RequestToSpeak")
+                    || directive.equals("CancelSpeech")
+                    || directive.equals("LocalRespondingEnded"))
+                suiteEvent(ctx, state, "DialogStateChanged", Map.of("state", "Listening"));
+            else if (directive.equals("HeartBeat")) suiteEvent(ctx, state, "HeartBeat", Map.of());
+        }
+
         void message(ChannelHandlerContext ctx, Map<String, Object> event, State state) {
+            if (kind.equals("suite")) {
+                suite(ctx, event, state);
+                return;
+            }
             String type = Support.str(event, "type", "");
             var header = Support.map(event.get("header"));
             String action = Support.str(header, "action", Support.str(event, "action", ""));

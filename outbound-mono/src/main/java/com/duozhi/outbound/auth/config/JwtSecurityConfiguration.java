@@ -89,6 +89,8 @@ public class JwtSecurityConfiguration {
                         "/healthz",
                         "/api/v1/auth/login",
                         "/api/v1/runtime",
+                        "/api/v1/voice-trial/socket",
+                        "/api/v1/webhooks/bailian/trial-tool",
                         "/api/v1/webhooks/telephony/status",
                         "/api/v1/webhooks/telephony/speech",
                         "/api/v1/webhooks/telephony/transcript",
