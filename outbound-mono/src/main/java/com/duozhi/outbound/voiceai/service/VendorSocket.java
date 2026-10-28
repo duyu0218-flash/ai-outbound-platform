@@ -91,12 +91,20 @@ final class VendorSocket implements WebSocket.Listener, AutoCloseable {
         send(true, value);
     }
 
-    private synchronized void send(boolean binary, byte[] value) throws Exception {
-        check();
-        if (binary) socket.sendBinary(ByteBuffer.wrap(value), true).get(5, TimeUnit.SECONDS);
-        else
-            socket.sendText(new String(value, StandardCharsets.UTF_8), true)
-                    .get(5, TimeUnit.SECONDS);
+    private final java.util.concurrent.locks.ReentrantLock sendLock =
+            new java.util.concurrent.locks.ReentrantLock();
+
+    private void send(boolean binary, byte[] value) throws Exception {
+        if (!sendLock.tryLock(5, TimeUnit.SECONDS)) throw new IOException("provider send busy");
+        try {
+            check();
+            if (binary) socket.sendBinary(ByteBuffer.wrap(value), true).get(5, TimeUnit.SECONDS);
+            else
+                socket.sendText(new String(value, StandardCharsets.UTF_8), true)
+                        .get(5, TimeUnit.SECONDS);
+        } finally {
+            sendLock.unlock();
+        }
     }
 
     @Override
@@ -156,6 +164,7 @@ final class VendorSocket implements WebSocket.Listener, AutoCloseable {
     @Override
     public void onError(WebSocket ws, Throwable error) {
         failure = new IOException("provider socket error");
+        close();
     }
 
     @Override

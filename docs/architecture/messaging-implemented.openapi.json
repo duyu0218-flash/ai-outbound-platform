@@ -1,0 +1,1311 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "消息开放平台——当前沙箱实现契约",
+    "version": "0.1.0",
+    "description": "以 MessageApi 控制器为准。全部通道为 mock，无真实发送。跨企业委托、终端探测、自动降级、真实资费与供应商适配未开放。每个下游企业必须建立独立租户；同租户应用共享余额。签名说明见 messaging-implementation.md。"
+  },
+  "servers": [
+    {
+      "url": "/openapi/v1"
+    }
+  ],
+  "security": [
+    {
+      "Hmac": []
+    }
+  ],
+  "paths": {
+    "/messages": {
+      "post": {
+        "operationId": "createMessage",
+        "summary": "受理单条模拟消息",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{id}": {
+      "get": {
+        "operationId": "getMessage",
+        "summary": "查询消息",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{id}/cancel": {
+      "post": {
+        "operationId": "cancelMessage",
+        "summary": "取消尚未提交的消息",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{id}/events": {
+      "get": {
+        "operationId": "messageEvents",
+        "summary": "查询消息事件",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "events",
+        "summary": "拉取当前应用事件",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 0,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "summary": "查询已开放能力",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/balance": {
+      "get": {
+        "operationId": "balance",
+        "summary": "查询企业共享模拟账户",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-batches": {
+      "post": {
+        "operationId": "createBatch",
+        "summary": "异步受理批次",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-batches/{id}": {
+      "get": {
+        "operationId": "getBatch",
+        "summary": "查询批次",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-batches/{id}/items": {
+      "get": {
+        "operationId": "batchItems",
+        "summary": "查询批次及逐项结果",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/{id}/interactions": {
+      "post": {
+        "operationId": "interaction",
+        "summary": "上报互动",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interaction"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-subscriptions": {
+      "post": {
+        "operationId": "subscribe",
+        "summary": "创建回调订阅",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-subscriptions/{id}": {
+      "get": {
+        "operationId": "getSubscription",
+        "summary": "查询回调订阅",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-subscriptions/{id}/disable": {
+      "post": {
+        "operationId": "disableSubscription",
+        "summary": "停用订阅",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；受理不等于送达",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "业务错误；框架层非法参数可能返回已有通用错误结构",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Hmac": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "HMAC-SHA256 Credential=app_xxx,Signature=hex_sha256"
+      }
+    },
+    "parameters": {
+      "Timestamp": {
+        "name": "X-Timestamp",
+        "in": "header",
+        "required": true,
+        "description": "UTC Unix 秒，允许正负 300 秒",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Nonce": {
+        "name": "X-Nonce",
+        "in": "header",
+        "required": true,
+        "description": "32–128 位十六进制随机数，10 分钟内不可复用",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Digest": {
+        "name": "X-Content-SHA256",
+        "in": "header",
+        "required": true,
+        "description": "原始请求体 SHA256 小写十六进制；GET 为空字节摘要",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Idempotency": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "稳定业务键；消息/批次/订阅/互动为 8–128 位 [A-Za-z0-9_.:-]",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "MessageRequest": {
+        "type": "object",
+        "properties": {
+          "client_message_id": {
+            "type": "string"
+          },
+          "service_product_id": {
+            "type": "string"
+          },
+          "sender_identity_id": {
+            "type": "string"
+          },
+          "template_version_id": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ]
+          },
+          "consent_reference": {
+            "type": "string",
+            "description": "当前企业已授权联系人的编号，号码必须匹配"
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "marketing",
+              "service_notification"
+            ]
+          },
+          "channel_policy": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "automatic"
+                ]
+              },
+              "allowed_forms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "sms",
+                    "rcs",
+                    "yuexin",
+                    "oem_ip"
+                  ]
+                }
+              },
+              "allow_fallback": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              }
+            },
+            "required": [
+              "mode",
+              "allowed_forms"
+            ]
+          },
+          "scheduled_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "marketing_campaign_id": {
+            "type": "string"
+          },
+          "max_sales_amount": {
+            "type": "string",
+            "description": "十进制元，最多六位小数"
+          }
+        },
+        "required": [
+          "service_product_id",
+          "sender_identity_id",
+          "template_version_id",
+          "recipient",
+          "consent_reference",
+          "purpose",
+          "channel_policy"
+        ],
+        "additionalProperties": false
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "SUBMITTING",
+              "DELIVERED",
+              "REJECTED",
+              "UNKNOWN",
+              "BLOCKED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "state": {
+            "type": "string"
+          },
+          "recipient_mask": {
+            "type": "string"
+          },
+          "requested_form": {
+            "type": "string",
+            "enum": [
+              "sms",
+              "rcs",
+              "yuexin",
+              "oem_ip"
+            ]
+          },
+          "actual_transport": {
+            "type": "string",
+            "nullable": true
+          },
+          "billing_state": {
+            "type": "string",
+            "enum": [
+              "HELD",
+              "SETTLED",
+              "RELEASED",
+              "REFUNDED"
+            ]
+          },
+          "sales_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "simulated": {
+            "type": "boolean"
+          },
+          "amount_unit": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "UTC ISO 8601",
+            "format": "date-time"
+          },
+          "scheduled_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "UTC ISO 8601",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "UTC ISO 8601",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "UTC ISO 8601",
+            "format": "date-time"
+          },
+          "campaign_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "message_id",
+          "status",
+          "billing_state",
+          "simulated"
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "id",
+          "type"
+        ]
+      },
+      "BatchRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "properties": {
+                "client_item_id": {
+                  "type": "string"
+                },
+                "message": {
+                  "$ref": "#/components/schemas/MessageRequest"
+                }
+              },
+              "required": [
+                "client_item_id",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Batch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "batch_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "PROCESSING",
+              "COMPLETED"
+            ]
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "client_item_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ACCEPTED",
+                    "REJECTED"
+                  ]
+                },
+                "message_id": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "client_item_id",
+                "status"
+              ]
+            }
+          },
+          "simulated": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id",
+          "state",
+          "results"
+        ]
+      },
+      "InteractionRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "reply",
+              "callback_requested",
+              "human_takeover",
+              "unsubscribe",
+              "conversion"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "business_event_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "description": "reply 必须 text；conversion 必须 business_event_id，同一应用内业务事件唯一。只记录上报事实，不触发真实回拨。"
+      },
+      "Interaction": {
+        "type": "object",
+        "properties": {
+          "interaction_id": {
+            "type": "string"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "REPORTED",
+              "SANDBOX"
+            ]
+          }
+        },
+        "required": [
+          "interaction_id",
+          "duplicate"
+        ]
+      },
+      "SubscriptionRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "公网 HTTPS 443，拒绝私网、重定向及 DNS 重绑定"
+          },
+          "event_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "url",
+          "event_types"
+        ]
+      },
+      "Subscription": {
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING_VERIFICATION",
+              "ACTIVE",
+              "VERIFICATION_FAILED",
+              "DISABLED"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "event_types": {
+            "type": "string",
+            "description": "当前版本返回 JSON 数组字符串"
+          },
+          "secret": {
+            "type": "string",
+            "description": "仅首次创建返回；丢失后停用并新建"
+          },
+          "verification": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "Balance": {
+        "type": "object",
+        "properties": {
+          "environment": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "amount_unit": {
+            "type": "string"
+          },
+          "account": {
+            "type": "object",
+            "properties": {
+              "available": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "frozen": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "spent": {
+                "type": "integer",
+                "format": "int64"
+              }
+            },
+            "required": [
+              "available",
+              "frozen",
+              "spent"
+            ]
+          }
+        },
+        "required": [
+          "account"
+        ]
+      },
+      "Capabilities": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "live_supplier_connected": {
+            "type": "boolean"
+          },
+          "forms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "form": {
+                  "type": "string",
+                  "enum": [
+                    "sms",
+                    "rcs",
+                    "yuexin",
+                    "oem_ip"
+                  ]
+                },
+                "adapter": {
+                  "type": "string"
+                },
+                "real_delivery_verified": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "recipient_capability_probe": {
+            "type": "boolean"
+          },
+          "billing_currency": {
+            "type": "string"
+          },
+          "amount_unit": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request_id",
+          "code",
+          "message",
+          "retryable"
+        ]
+      }
+    }
+  }
+}

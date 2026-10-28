@@ -30,6 +30,7 @@ public class VoiceAiController {
     private final com.duozhi.outbound.integration.config.Settings runtime;
     private final VoiceAiCredentials credentials;
     private final VoiceAiBackends backends;
+    private final java.net.http.HttpClient transport = Support.client();
     private final VoiceAiBenchmarkMapper db;
     private final Settings settings;
     private final Store store;
@@ -48,13 +49,18 @@ public class VoiceAiController {
             VoiceAiCredentials credentials) {
         this.credentials = credentials;
         this.runtime = credentials.root(new UnifiedServiceSettings(config, "voice"));
-        this.backends = new VoiceAiBackends(runtime);
-        this.contentSafety = new ContentSafety(runtime);
+        this.backends = new VoiceAiBackends(runtime, transport);
+        this.contentSafety = new ContentSafety(runtime, transport);
         this.db = db;
         this.settings = settings;
         this.store = store;
         this.audit = audit;
         this.json = json;
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void closeTransport() {
+        transport.shutdownNow();
     }
 
     @GetMapping("/profiles")

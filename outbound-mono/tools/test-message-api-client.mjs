@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { createHmac, createHash } from 'node:crypto';
+import { signedRequest, canonicalQuery } from './message-api-client.mjs';
+assert.equal(canonicalQuery('b=%E4%B8%AD&a=hello+world'), 'a=hello%20world&b=%E4%B8%AD');
+assert.throws(() => canonicalQuery('a=1&a=2'));
+const body = { hello: '客户' };
+const result = signedRequest({ applicationId: 'app_test', secret: 'synthetic-secret', method: 'POST', path: '/openapi/v1/messages', body, idempotencyKey: 'stable-business-key', timestamp: '1700000000', nonce: '1'.repeat(32) });
+const hash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
+const expected = createHmac('sha256','synthetic-secret').update(['POST','/openapi/v1/messages','','1700000000','1'.repeat(32),hash,'stable-business-key',''].join('\n')).digest('hex');
+assert.equal(result.headers.Authorization, `HMAC-SHA256 Credential=app_test,Signature=${expected}`);
+assert.equal(result.body,JSON.stringify(body));
+assert.throws(()=>signedRequest({method:'POST',path:'/openapi/v1/messages'}));
+assert.throws(()=>signedRequest({method:'GET',path:'/openapi/v1/../admin'}));
+console.log('Message SDK signing, canonical query and write guard checks passed');

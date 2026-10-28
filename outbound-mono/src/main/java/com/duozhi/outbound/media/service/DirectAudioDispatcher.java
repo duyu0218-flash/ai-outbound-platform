@@ -20,7 +20,7 @@ public final class DirectAudioDispatcher implements AutoCloseable {
 
     private record Frame(ByteBuffer data, long start, long end, long queuedAt) {}
 
-    private final ThreadPoolExecutor executor;
+    private final ExecutorService executor;
     private final ArrayBlockingQueue<ByteBuffer> free;
     private final Semaphore allocations;
     private final ConcurrentMap<String, Channel> channels = new ConcurrentHashMap<>();
@@ -52,10 +52,14 @@ public final class DirectAudioDispatcher implements AutoCloseable {
     }
 
     DirectAudioDispatcher(int sessions) {
-        this(
-                Math.min(32, Math.max(4, sessions)),
-                Math.min(8192, Math.max(32, sessions * 2)),
-                Math.min(1024, Math.max(32, sessions * 4)));
+        int frames = Math.min(8192, Math.max(32, sessions * 4));
+        free = new ArrayBlockingQueue<>(frames);
+        allocations = new Semaphore(frames);
+        // One in-flight sender per channel. A slow network send cannot occupy another session's
+        // worker.
+        executor =
+                new com.duozhi.outbound.integration.support.BoundedVirtualExecutor(
+                        "mono-media-pcm-", Math.max(4, sessions * 2));
     }
 
     DirectAudioDispatcher(int threads, int tasks, int frames) {
@@ -74,7 +78,7 @@ public final class DirectAudioDispatcher implements AutoCloseable {
                             return thread;
                         },
                         new ThreadPoolExecutor.AbortPolicy());
-        executor.allowCoreThreadTimeOut(true);
+        ((ThreadPoolExecutor) executor).allowCoreThreadTimeOut(true);
     }
 
     void register(String id, Sink sink, Consumer<Exception> failure) {

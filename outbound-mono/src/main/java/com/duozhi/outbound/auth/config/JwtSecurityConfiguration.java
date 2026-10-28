@@ -135,6 +135,9 @@ public class JwtSecurityConfiguration {
                         "/v1/recordings/*",
                         "/v1/recording-cleanup/*",
                         "/v1/pipecat/media/*")) chain.put(path, "noSessionCreation,anon");
+        chain.put(
+                "/openapi/v1/**",
+                "noSessionCreation,anon"); // MessageApi verifies independent HMAC credentials.
         chain.put("/api/**", "noSessionCreation,jwt");
         chain.put("/**", "noSessionCreation,authcBasic");
         factory.setFilterChainDefinitionMap(chain);

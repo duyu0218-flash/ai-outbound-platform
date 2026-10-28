@@ -208,6 +208,36 @@ class MediaTest {
     }
 
     @Test
+    void optInPartialMigrationKeepsFinalAndUrgentControlDurable() throws Exception {
+        for (boolean enabled : List.of(false, true)) {
+            events.clear();
+            try (var media =
+                    new NativeMedia(
+                            settings(
+                                    Map.of(
+                                            "VOICE_PARTIAL_TRANSIENT_ENABLED",
+                                            Boolean.toString(enabled))),
+                            (url, payload) -> events.add(payload),
+                            (session, id, kind, acquire, confirmed) -> {},
+                            2)) {
+                var session =
+                        media.create(
+                                "partial-" + enabled,
+                                "http://controller/speech",
+                                "http://controller/media",
+                                Map.of("tenant_id", 1, "attempt", 1));
+                media.transcript(session, "我想了解一下", "ordinary", Map.of("is_final", false));
+                media.transcript(session, "不要再给我打电话", "urgent", Map.of("is_final", false));
+                media.transcript(session, "我想了解一下", "final", Map.of("is_final", true));
+                var ids = events.stream().map(e -> e.get("event_id")).toList();
+                assertEquals(!enabled, ids.contains("ordinary"));
+                assertTrue(ids.contains("urgent"));
+                assertTrue(ids.contains("final"));
+            }
+        }
+    }
+
+    @Test
     void actualAsrWebSocketAndTtsHttpProduceTranscriptAndPcm() throws Exception {
         List<WebSocketMessage<?>> audio = new CopyOnWriteArrayList<>();
         List<String> permits = new CopyOnWriteArrayList<>();

@@ -9,13 +9,17 @@ public final class ResponseScope implements AutoCloseable {
     private final List<AutoCloseable> resources = new ArrayList<>();
     private volatile boolean cancelled;
 
-    public synchronized <T extends AutoCloseable> T own(T resource) throws Exception {
-        if (cancelled) {
-            resource.close();
-            check();
+    public <T extends AutoCloseable> T own(T resource) throws Exception {
+        synchronized (this) {
+            if (!cancelled) {
+                resources.add(resource);
+                return resource;
+            }
         }
-        resources.add(resource);
-        return resource;
+        // Closing a stream may block. Never hold the scope monitor during transport cleanup.
+        resource.close();
+        check();
+        throw new InterruptedIOException("voice response cancelled");
     }
 
     public void check() throws InterruptedIOException {

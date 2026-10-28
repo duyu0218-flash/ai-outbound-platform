@@ -14,7 +14,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /** Independent semantic moderation. Only an explicit risk-free result can authorize audio. */
-public final class ContentSafety {
+public final class ContentSafety implements AutoCloseable {
     public static final class Failure extends IOException {
         public final String code;
 
@@ -30,14 +30,22 @@ public final class ContentSafety {
     }
 
     private final Settings settings;
-    private final HttpClient http = Support.client();
+    private final HttpClient http;
+    private boolean ownsClient;
     private final Semaphore capacity;
 
     public ContentSafety(Settings settings) {
+        this(settings, Support.client());
+        ownsClient = true;
+    }
+
+    public ContentSafety(Settings settings, HttpClient http) {
+        this.http = http;
         this.settings = settings;
         capacity =
                 new Semaphore(
-                        (int) settings.number("VOICE_AI_SAFETY_MAX_CONCURRENT", 64, 1, 10000));
+                        (int) settings.number("VOICE_AI_SAFETY_MAX_CONCURRENT", 64, 1, 10000),
+                        true);
     }
 
     public static Map<String, Object> policy(Settings settings) {
@@ -103,8 +111,11 @@ public final class ContentSafety {
         scope.check();
         requireReady(policy);
         if (text.isBlank() || text.length() > 5000) throw new Failure("S2S_SAFETY_TEXT_INVALID");
-        if (!capacity.tryAcquire()) throw new Failure("S2S_SAFETY_OVERLOADED");
+        if (!capacity.tryAcquire(
+                settings.number("VOICE_AI_SAFETY_QUEUE_MS", 100, 0, 500), TimeUnit.MILLISECONDS))
+            throw new Failure("S2S_SAFETY_OVERLOADED");
         try {
+            scope.check();
             int timeout = (int) Support.integer(policy, "timeout_ms", 1200);
             if (timeout < 100 || timeout > 5000) throw new Failure("S2S_SAFETY_POLICY_INVALID");
             var params = new TreeMap<String, String>();
@@ -224,5 +235,10 @@ public final class ContentSafety {
         var out = new StringJoiner("&");
         params.forEach((k, v) -> out.add(encode(k) + "=" + encode(v)));
         return out.toString();
+    }
+
+    @Override
+    public void close() {
+        if (ownsClient) http.shutdownNow();
     }
 }

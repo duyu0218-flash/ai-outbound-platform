@@ -144,10 +144,15 @@ public final class Support {
                         READ_TIMEOUTS.schedule(
                                 () -> {
                                     expired = true;
-                                    try {
-                                        input.close();
-                                    } catch (IOException ignored) {
-                                    }
+                                    Thread.ofVirtual()
+                                            .name("service-read-close")
+                                            .start(
+                                                    () -> {
+                                                        try {
+                                                            input.close();
+                                                        } catch (IOException ignored) {
+                                                        }
+                                                    });
                                 },
                                 milliseconds,
                                 TimeUnit.MILLISECONDS);

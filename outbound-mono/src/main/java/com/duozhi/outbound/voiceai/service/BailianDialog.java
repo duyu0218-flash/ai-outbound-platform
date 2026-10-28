@@ -25,6 +25,32 @@ public final class BailianDialog implements AutoCloseable {
             Map<String, Object> business,
             Listener listener)
             throws Exception {
+        this(settings, user, script, business, listener, Support.client(), true);
+    }
+
+    public BailianDialog(
+            Settings settings,
+            String user,
+            String script,
+            Map<String, Object> business,
+            Listener listener,
+            java.net.http.HttpClient http)
+            throws Exception {
+        this(settings, user, script, business, listener, http, false);
+    }
+
+    private final java.net.http.HttpClient owned;
+
+    private BailianDialog(
+            Settings settings,
+            String user,
+            String script,
+            Map<String, Object> business,
+            Listener listener,
+            java.net.http.HttpClient http,
+            boolean owns)
+            throws Exception {
+        owned = owns ? http : null;
         if (user == null || user.isBlank() || user.length() > 36)
             throw new IOException("bailian user_id must contain 1..36 characters");
         String target = settings.get("VOICE_AI_BAILIAN_TOOL_TARGET", "");
@@ -37,7 +63,7 @@ public final class BailianDialog implements AutoCloseable {
                         VoiceAiProfiles.DEFAULTS.get("VOICE_AI_BAILIAN_URL"));
         socket =
                 new VendorSocket(
-                        Support.client(),
+                        http,
                         profiles.endpoint(url, false),
                         Map.of("Authorization", "Bearer " + settings.secret("DASHSCOPE_API_KEY")),
                         (binary, data) -> {
@@ -188,5 +214,6 @@ public final class BailianDialog implements AutoCloseable {
 
     public void close() {
         socket.close();
+        if (owned != null) owned.shutdownNow();
     }
 }

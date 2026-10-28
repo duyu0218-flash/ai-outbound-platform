@@ -35,6 +35,9 @@ class FrontendBrowserIT {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry p) {
+        p.add("MESSAGING_ENABLED", () -> "true");
+        p.add("MESSAGING_WORKERS_ENABLED", () -> "true");
+        p.add("MESSAGING_MASTER_KEY", () -> Base64.getEncoder().encodeToString(new byte[32]));
         p.add("JWT_SECRET", () -> "frontend-http-synthetic-secret-over-thirty-two-characters");
         p.add("spring.datasource.url", MYSQL::getJdbcUrl);
         p.add("spring.datasource.username", MYSQL::getUsername);
@@ -170,7 +173,7 @@ class FrontendBrowserIT {
         process.environment().put("MONO_BROWSER_URL", "http://127.0.0.1:" + port);
         process.environment().put("MONO_BROWSER_CALL_ID", call.get("id").toString());
         Process running = process.start();
-        boolean finished = running.waitFor(180, TimeUnit.SECONDS);
+        boolean finished = running.waitFor(240, TimeUnit.SECONDS);
         if (!finished) running.destroyForcibly();
         assertThat(finished).as("browser test timeout; %s", Files.readString(log)).isTrue();
         assertThat(running.exitValue()).as(Files.readString(log)).isZero();

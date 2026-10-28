@@ -84,7 +84,7 @@ public final class VoiceAiBackends {
         this(settings, Support.client());
     }
 
-    VoiceAiBackends(Settings settings, HttpClient http) {
+    public VoiceAiBackends(Settings settings, HttpClient http) {
         this.settings = settings;
         this.profiles = new VoiceAiProfiles(settings);
         this.http = http;
@@ -256,63 +256,20 @@ public final class VoiceAiBackends {
                                                         "max_tokens",
                                                         800))))
                         .build();
-        var pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream());
-        scope.own(() -> pending.cancel(true));
-        var response = pending.get(20, TimeUnit.SECONDS);
-        try (var input = scope.own(Support.timed(response.body(), 20000))) {
-            if (response.statusCode() / 100 != 2)
-                throw new IOException("vendor text model rejected request");
-            var line = new ByteArrayOutputStream();
-            var data = new StringBuilder();
-            var result = new StringBuilder();
-            int received = 0;
-            boolean done = false;
-            for (int value; (value = input.read()) != -1; ) {
-                scope.check();
-                if (++received > 512 * 1024) throw new IOException("text model response limit");
-                if (value != '\n') {
-                    if (line.size() >= 65536) throw new IOException("SSE line exceeds limit");
-                    line.write(value);
-                    continue;
-                }
-                String text = line.toString(StandardCharsets.UTF_8);
-                line.reset();
-                if (text.endsWith("\r")) text = text.substring(0, text.length() - 1);
-                if (text.isEmpty()) {
-                    if (data.isEmpty()) continue;
-                    String payload = data.toString();
-                    data.setLength(0);
-                    if (payload.strip().equals("[DONE]")) {
-                        done = true;
-                        break;
-                    }
-                    var event = Support.object(payload.getBytes(StandardCharsets.UTF_8));
-                    if (event.containsKey("error"))
-                        throw new IOException("text model stream error");
-                    if (event.get("choices") instanceof List<?> choices && !choices.isEmpty()) {
-                        var choice = map(choices.get(0));
-                        var delta = map(choice.get("delta"));
-                        if (delta.containsKey("tool_calls")
-                                || (!str(choice, "finish_reason").isBlank()
-                                        && !"stop".equals(str(choice, "finish_reason"))))
-                            throw new IOException(
-                                    "model response requires controlled business handling");
-                        String token = str(delta, "content");
-                        result.append(token);
-                        if (result.length() > 4000)
-                            throw new IOException("text model output limit");
-                        if (!token.isEmpty()) output.accept(token);
-                    }
-                } else if (text.startsWith("data:")) {
-                    if (!data.isEmpty()) data.append('\n');
-                    data.append(text.substring(5).stripLeading());
-                    if (data.length() > 65536) throw new IOException("SSE event exceeds limit");
-                }
+        try (var deadline =
+                new TextStreamDeadline(
+                        scope,
+                        settings.number("VOICE_LLM_FIRST_CONTENT_MS", 1500, 100, 60000),
+                        settings.number("VOICE_LLM_CONTENT_IDLE_MS", 2000, 100, 60000),
+                        settings.number("VOICE_LLM_TOTAL_MS", 15000, 100, 120000))) {
+            var pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream());
+            scope.own(() -> pending.cancel(true));
+            var response = pending.get(20, TimeUnit.SECONDS);
+            try (var input = scope.own(response.body())) {
+                if (response.statusCode() / 100 != 2)
+                    throw new IOException("vendor text model rejected request");
+                return SseTextReader.read(input, output, scope, deadline);
             }
-            if (!done) throw new IOException("text model stream ended without DONE");
-            if (result.toString().isBlank())
-                throw new IOException("text model returned no speech text");
-            return result.toString().strip();
         }
     }
 

@@ -271,7 +271,24 @@ class DataLayerIT {
                             "dial_v3_quota_allocation"));
             expectedTables.addAll(Set.of("aivoiceconfig", "aivoicetestset", "aivoicetestrun"));
             expectedTables.addAll(Set.of("aivoicetrial", "aivoicetrialaudio"));
-            assertThat(expectedTables).hasSize(82);
+            expectedTables.addAll(
+                    Set.of(
+                            "msg_account",
+                            "msg_application",
+                            "msg_attempt",
+                            "msg_batch",
+                            "msg_call_intent",
+                            "msg_event",
+                            "msg_inbox",
+                            "msg_interaction",
+                            "msg_journal",
+                            "msg_message",
+                            "msg_nonce",
+                            "msg_resource",
+                            "msg_suppression",
+                            "msg_webhook",
+                            "msg_webhook_delivery"));
+            assertThat(expectedTables).hasSize(97);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {

@@ -26,6 +26,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class IntegrationTasks {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.messaging.service.Messaging messaging;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -49,6 +52,10 @@ public class IntegrationTasks {
         this.json = json;
         this.client = client;
         this.embedded = embedded;
+    }
+
+    public boolean migratedMessages() {
+        return config.flag("MESSAGING_MIGRATE_CALL_SMS", false);
     }
 
     public void execute(String type, Map<String, Object> task, Map<String, Object> payload) {
@@ -435,6 +442,14 @@ public class IntegrationTasks {
                 || CallLifecycle.number(call, "attempts")
                         != JsonSupport.integer(payload.get("attempt"), -1)) return;
         long tenant = CallLifecycle.tenant(call);
+        if (tenant != CallLifecycle.tenant(task))
+            throw new ApiError(403, "SMS task tenant mismatch");
+        if (config.flag("MESSAGING_MIGRATE_CALL_SMS", false)) {
+            // Only a durable intent is created here. The message worker waits for confirmed hangup.
+            messaging.deferCall(
+                    tenant, call.get("id").toString(), CallLifecycle.number(call, "attempts"));
+            return;
+        }
         String text = payload.get("text").toString();
         Map<String, Object> log =
                 tx.run(

@@ -25,6 +25,7 @@ export const adminNavigation = [
   ['lines', 'lines', 'Lines'],
   ['knowledge', 'knowledge', 'Knowledge'],
   ['settings', 'settings', 'Settings'],
+  ['messaging', '消息营销', 'Messaging'],
   ['voice-ai', '语音方案对比', 'VoiceAi'],
   ['bailian-trial', '百炼业务试聊', 'BailianTrial'],
   ['product', '业务交付策略', 'Product'],

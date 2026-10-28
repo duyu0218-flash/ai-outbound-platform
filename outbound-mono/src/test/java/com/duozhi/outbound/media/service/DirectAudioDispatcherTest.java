@@ -16,6 +16,35 @@ import org.junit.jupiter.api.Test;
 
 class DirectAudioDispatcherTest {
     @Test
+    void blockedNetworkSessionCannotOccupyAnotherSessionsSender() throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var fast = new CountDownLatch(1);
+        try (var dispatcher = new DirectAudioDispatcher(2)) {
+            dispatcher.register(
+                    "slow",
+                    frame -> {
+                        entered.countDown();
+                        release.await();
+                    },
+                    error -> {});
+            dispatcher.register(
+                    "fast",
+                    frame -> {
+                        assertTrue(Thread.currentThread().isVirtual());
+                        fast.countDown();
+                    },
+                    error -> fail(error));
+            dispatcher.offer("slow", ByteBuffer.allocate(320));
+            assertTrue(entered.await(2, TimeUnit.SECONDS));
+            dispatcher.offer("fast", ByteBuffer.allocate(320));
+            assertTrue(fast.await(2, TimeUnit.SECONDS));
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
     void sampleDurationBudgetReportsPerSessionGapsAndAbsoluteOffsets() throws Exception {
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);

@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(6);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(10);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -128,7 +128,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(6);
         try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var st = c.createStatement();
                 var row =
@@ -149,8 +149,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(24);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("24");
+        assertThat(first.migrationsExecuted).isEqualTo(28);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("28");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -274,8 +274,14 @@ class DataLayerReplayIT {
             }
         }
         assertThat(tables)
-                .hasSize(82)
+                .hasSize(97)
                 .containsKeys(
+                        "msg_message",
+                        "msg_journal",
+                        "msg_application",
+                        "msg_webhook_delivery",
+                        "msg_call_intent",
+                        "msg_interaction",
                         "aivoicetrial",
                         "aivoicetrialaudio",
                         "aivoiceconfig",
