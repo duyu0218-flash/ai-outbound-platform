@@ -67,7 +67,7 @@ jobs:
           mvn -B enforcer:enforce
       - name: Preserve functional verification results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: outbound-mono-functional-results
           retention-days: 7
@@ -132,7 +132,7 @@ jobs:
         run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
       - name: Publish first CPS evidence before the longer AI probe
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: outbound-mono-cps-profile-${{ github.run_attempt }}
           retention-days: 7
@@ -157,7 +157,7 @@ jobs:
         run: test "$CPS_FIRST" = success && test "$CPS_REPEAT" = success && test "$AI_CAPACITY" = success
       - name: Preserve synthetic-only capacity evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: outbound-mono-synthetic-capacity
           retention-days: 7
