@@ -51,4 +51,6 @@ public interface SmsLogMapper {
     List<Map<String, Object>> rawReports127_0(Map<String, Object> parameters);
 
     List<SmsLog> searchSms(Map<String, Object> parameters);
+
+    List<Map<String, Object>> reportPageSms(Map<String, Object> parameters);
 }

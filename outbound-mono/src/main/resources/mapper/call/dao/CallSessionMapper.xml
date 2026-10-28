@@ -313,6 +313,50 @@
         SELECT * FROM `callsession` WHERE tenant_id=#{tenantId} AND phone=#{p1} ORDER BY created_at
         DESC LIMIT 1
     </select>
+    <select id="reportPage" resultMap="row">
+        SELECT id,tenant_id,contact_id,status,mode,attempts,handoff_reason,campaign_id,
+        human_agent_id,telephony_line_id,created_at FROM callsession
+        WHERE tenant_id=#{tenantId} AND created_at &gt;= #{since} AND created_at &lt;= #{until}
+        <if test="lastId != null">
+            AND (created_at &gt; #{lastCreated} OR (created_at=#{lastCreated} AND
+            id &gt; #{lastId,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}))
+        </if>
+        ORDER BY created_at,id LIMIT 250
+    </select>
+    <select id="reportAggregate" resultType="java.util.LinkedHashMap">
+        SELECT
+        <choose>
+            <when test="dimension == 'campaign'">
+                COALESCE(campaign_id,0)
+            </when>
+            <when test="dimension == 'agent'">
+                COALESCE(human_agent_id,0)
+            </when>
+            <otherwise>
+                COALESCE(telephony_line_id,0)
+            </otherwise>
+        </choose>
+        AS dimension_key,
+        <choose>
+            <when test="granularity == 'hour'">
+                DATE_FORMAT(created_at,'%Y-%m-%d %H:00')
+            </when>
+            <otherwise>
+                DATE_FORMAT(created_at,'%Y-%m-%d')
+            </otherwise>
+        </choose>
+        AS bucket,
+        COUNT(*) AS calls,
+        SUM(status IN
+        ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED')) AS
+        reached,
+        SUM(COALESCE(handoff_reason,'') &lt;&gt; '') AS handoff,
+        SUM(status='COMPLETED') AS completed,SUM(status='FAILED') AS failed,
+        SUM(status='NO_ANSWER') AS no_answer,
+        SUM(status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS loss
+        FROM callsession WHERE tenant_id=#{tenantId} AND created_at &gt;= #{since}
+        GROUP BY dimension_key,bucket ORDER BY MIN(created_at),MIN(id)
+    </select>
     <select id="sourceReports31_0" resultMap="row">
         SELECT * FROM `callsession` WHERE tenant_id=#{tenantId} AND created_at&gt;=#{p1} ORDER BY
         created_at,id

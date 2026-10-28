@@ -1,6 +1,7 @@
 package com.duozhi.outbound.voiceai.service;
 
 import com.duozhi.outbound.auth.dao.AuthIdentityMapper;
+import com.duozhi.outbound.auth.domain.AuthorizationChanged;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
@@ -20,6 +21,8 @@ import java.util.function.Consumer;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /** Bounded browser-only trials. Never creates a call, campaign, dial job or PBX command. */
 @Service
@@ -68,6 +71,7 @@ public class BailianTrials {
                     for (var l : live.values())
                         try {
                             l.tick();
+                            l.flush();
                         } catch (Exception e) {
                             try {
                                 l.fail("会话已过期、账号已退出或供应商连接中断");
@@ -80,6 +84,16 @@ public class BailianTrials {
                 2,
                 2,
                 TimeUnit.SECONDS);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void revoked(AuthorizationChanged event) {
+        for (var l : live.values()) {
+            if (l.tenant != event.tenant() || l.user != event.user()) continue;
+            l.revoked = true;
+            if (l.dialog != null) l.dialog.close();
+            Thread.ofVirtual().start(() -> l.fail("账号授权已失效，试聊已结束"));
+        }
     }
 
     @PreDestroy
@@ -101,6 +115,7 @@ public class BailianTrials {
                         "VOICE_AI_BAILIAN_WORKSPACE_ID",
                         "VOICE_AI_BAILIAN_APP_ID",
                         "VOICE_AI_BAILIAN_APP_REVISION",
+                        "VOICE_AI_BAILIAN_TOOL_TARGET",
                         "VOICE_AI_BAILIAN_TOOL_API_KEY"))
             if (runtime.secret(key).isBlank()) missing.add(key);
         if (BailianTrialMetrics.REVIEW.equals(mode))
@@ -172,6 +187,8 @@ public class BailianTrials {
                         runtime.get("VOICE_AI_CONFIG_REVISION", "0"),
                         "app_revision",
                         runtime.get("VOICE_AI_BAILIAN_APP_REVISION", ""),
+                        "tool_target",
+                        runtime.get("VOICE_AI_BAILIAN_TOOL_TARGET", ""),
                         "voice",
                         runtime.get("VOICE_AI_BAILIAN_VOICE", ""),
                         "review_mode",
@@ -363,7 +380,56 @@ public class BailianTrials {
         final BailianTrialMetrics metrics;
         String providerText = "", providerSpoken = "";
         String state = "Starting";
-        long inputEnd, firstAudio;
+        long inputEnd, firstAudio, responseBegan, responseFinished, awaitingSince;
+        volatile long authorizedUntil;
+        volatile boolean revoked;
+        final Object persistenceLock = new Object();
+        long snapshotVersion, savedVersion;
+        boolean dirty;
+
+        record Snapshot(
+                long version,
+                String status,
+                List<Map<String, Object>> events,
+                Map<String, Object> result,
+                Map<String, Object> metrics) {}
+
+        void flush() {
+            Snapshot snapshot;
+            synchronized (this) {
+                if (!dirty) return;
+                snapshot =
+                        new Snapshot(
+                                ++snapshotVersion,
+                                status,
+                                List.copyOf(events),
+                                result,
+                                metrics.snapshot());
+                dirty = false;
+            }
+            synchronized (persistenceLock) {
+                if (snapshot.version() <= savedVersion) return;
+                try {
+                    db.save(
+                            tenant,
+                            id,
+                            snapshot.status(),
+                            json(snapshot.events()),
+                            json(snapshot.result()),
+                            json(snapshot.metrics()));
+                    savedVersion = snapshot.version();
+                } catch (RuntimeException failure) {
+                    revoked = true;
+                    if (!closed && dialog != null) dialog.close();
+                    throw failure;
+                }
+            }
+        }
+
+        void checkAuthorizationLease() throws IOException {
+            if (revoked || System.nanoTime() > authorizedUntil)
+                throw new IOException("trial authorization expired");
+        }
 
         Live(
                 String id,
@@ -386,6 +452,7 @@ public class BailianTrials {
         }
 
         void authorize() {
+            if (revoked) throw new ApiError(401, "试聊授权已失效");
             var u = identities.findByIdForJwt(user);
             var t = identities.findTenantById(tenant);
             if (t == null
@@ -397,6 +464,10 @@ public class BailianTrials {
                     || u.getTokenVersion() != tokenVersion
                     || System.nanoTime() - began > TimeUnit.MINUTES.toNanos(5))
                 throw new ApiError(401, "试聊已过期或账号授权已失效");
+            authorizedUntil =
+                    Math.min(
+                            began + TimeUnit.MINUTES.toNanos(5),
+                            System.nanoTime() + TimeUnit.SECONDS.toNanos(5));
         }
 
         public void start() {
@@ -410,7 +481,7 @@ public class BailianTrials {
                 var d =
                         new BailianDialog(
                                 runtime,
-                                "trial-" + id,
+                                id,
                                 script,
                                 Map.of("trial_id", id, "trial_token", toolToken),
                                 new BailianDialog.Listener() {
@@ -455,6 +526,7 @@ public class BailianTrials {
                     }
                     case "end" -> {
                         inputEnd = System.nanoTime();
+                        awaitingSince = inputEnd;
                         dialog.endSpeech();
                         archive("input", 16000, input.toByteArray(), "in-" + seq);
                         input.reset();
@@ -464,6 +536,7 @@ public class BailianTrials {
                         if (response != null) throw new IOException("playout pending");
                         String value = text(command, "text", 2000);
                         inputEnd = System.nanoTime();
+                        awaitingSince = inputEnd;
                         record("user_text", Map.of("text", value, "source", "typed"));
                         dialog.prompt(value);
                     }
@@ -483,6 +556,7 @@ public class BailianTrials {
                                 || playStarted) return;
                         playStarted = true;
                         metrics.playback(epoch);
+                        metrics.clientTiming(epoch, command);
                         dialog.command("LocalRespondingStarted", Map.of());
                         record(
                                 "playback_started",
@@ -508,7 +582,7 @@ public class BailianTrials {
         }
 
         public synchronized void audio(byte[] pcm) throws Exception {
-            authorize();
+            checkAuthorizationLease();
             if (closed
                     || dialog == null
                     || input.size() + pcm.length > 960000
@@ -525,6 +599,12 @@ public class BailianTrials {
                     if (closed || discardOutput || response == null || responseDone) return;
                     if (!secondaryReview) {
                         responseDone = true;
+                        responseFinished = System.nanoTime();
+                        if (firstAudio == 0) {
+                            metrics.complete(epoch, "no_audio");
+                            fail("百炼未返回语音，本次试聊已结束，请重新创建；不会自动重试付费请求");
+                            return;
+                        }
                         metrics.complete(epoch, "completed");
                         archiveOutput(epoch);
                         String text = providerSpoken.isBlank() ? providerText : providerSpoken;
@@ -565,6 +645,7 @@ public class BailianTrials {
                 synchronized (this) {
                     if (closed || owner != epoch) return;
                     responseDone = true;
+                    responseFinished = System.nanoTime();
                     metrics.complete(owner, "completed");
                     archiveOutput(owner);
                     record(
@@ -597,6 +678,9 @@ public class BailianTrials {
                         if (discardOutput) return;
                         if (response != null) throw new IOException("overlapping response");
                         epoch++;
+                        awaitingSince = 0;
+                        responseBegan = System.nanoTime();
+                        responseFinished = 0;
                         responseDone = false;
                         playStarted = false;
                         firstAudio = 0;
@@ -761,7 +845,9 @@ public class BailianTrials {
             e.put("seq", ++seq);
             e.put("elapsed_ms", (System.nanoTime() - began) / 1000000);
             events.add(e);
-            db.save(tenant, id, status, json(events), json(result), json(metrics.snapshot()));
+            dirty = true;
+            // Business evidence and moderation keep durable-before-success semantics.
+            if (Set.of("user_text", "intent_saved", "safety").contains(type)) flush();
             emit(e);
             emit(Map.of("type", "metrics", "metrics", metrics.snapshot()));
         }
@@ -803,6 +889,7 @@ public class BailianTrials {
             response = null;
             gate = null;
             responseDone = false;
+            awaitingSince = 0;
             archiveOutput(owner);
             emit(Map.of("type", "clear_audio", "epoch", epoch));
         }
@@ -813,6 +900,17 @@ public class BailianTrials {
                 if (closed) return;
                 if (!attached && System.nanoTime() - began > TimeUnit.SECONDS.toNanos(30))
                     throw new IOException();
+                long now = System.nanoTime();
+                if (awaitingSince != 0 && now - awaitingSince > TimeUnit.SECONDS.toNanos(20))
+                    throw new IOException("provider response start timeout");
+                if (response != null) {
+                    if (firstAudio == 0 && now - responseBegan > TimeUnit.SECONDS.toNanos(15))
+                        throw new IOException("provider first audio timeout");
+                    if (!responseDone && now - responseBegan > TimeUnit.SECONDS.toNanos(40))
+                        throw new IOException("provider response completion timeout");
+                    if (responseDone && now - responseFinished > TimeUnit.SECONDS.toNanos(40))
+                        throw new IOException("browser playback acknowledgement timeout");
+                }
                 if (dialog != null) {
                     dialog.check();
                     if (gate != null && !responseDone) gate.check();
@@ -850,13 +948,8 @@ public class BailianTrials {
                     archiveInput();
                     archiveOutput(owner);
                 } finally {
-                    db.save(
-                            tenant,
-                            id,
-                            status,
-                            json(events),
-                            json(result),
-                            json(metrics.snapshot()));
+                    dirty = true;
+                    flush();
                 }
                 try {
                     emit(Map.of("type", "clear_audio", "epoch", epoch));

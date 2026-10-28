@@ -24,6 +24,7 @@ public final class VoiceAiProfiles {
         d.put("VOICE_AI_BAILIAN_WORKSPACE_ID", "");
         d.put("VOICE_AI_BAILIAN_APP_ID", "");
         d.put("VOICE_AI_BAILIAN_APP_REVISION", "");
+        d.put("VOICE_AI_BAILIAN_TOOL_TARGET", "");
         d.put("VOICE_AI_BAILIAN_VOICE", "");
         d.put("VOICE_AI_BAILIAN_TOOL_API_KEY", "");
         d.put("VOICE_AI_BAILIAN_TOOL_API_KEY_FILE", "");

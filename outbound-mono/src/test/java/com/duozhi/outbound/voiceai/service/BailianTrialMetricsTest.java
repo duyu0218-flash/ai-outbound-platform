@@ -99,6 +99,8 @@ class BailianTrialMetricsTest {
                                 "app",
                                 "VOICE_AI_BAILIAN_APP_REVISION",
                                 "v1",
+                                "VOICE_AI_BAILIAN_TOOL_TARGET",
+                                "plugin-fixture",
                                 "VOICE_AI_BAILIAN_TOOL_API_KEY",
                                 "tool"));
         when(credentials.runtime(any(), eq(1L), eq(-1L))).thenReturn(runtime);

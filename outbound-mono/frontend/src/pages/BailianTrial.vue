@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue';
+import captureUrl from '../audio/pcm-capture.js?url';
 import { request, download, session } from '../session';
 import { useData } from '../data';
 import { formatDate } from '../api';
@@ -18,6 +19,7 @@ const keys = [
   'VOICE_AI_BAILIAN_WORKSPACE_ID',
   'VOICE_AI_BAILIAN_APP_ID',
   'VOICE_AI_BAILIAN_APP_REVISION',
+  'VOICE_AI_BAILIAN_TOOL_TARGET',
   'VOICE_AI_BAILIAN_VOICE',
   'VOICE_AI_BAILIAN_TOOL_API_KEY',
 ];
@@ -26,6 +28,7 @@ const labels = [
   'Workspace ID',
   'App ID',
   '已发布应用版本标记',
+  '业务透传目标 ID（插件或 Agent）',
   '音色 ID（留空沿用应用）',
   '业务工具 X-API-KEY',
 ];
@@ -51,6 +54,7 @@ const current = ref(null),
   state = ref('未连接'),
   connected = ref(false),
   recording = ref(false),
+  finishing = ref(false),
   typed = ref(''),
   intent = ref('uncertain'),
   note = ref(''),
@@ -69,7 +73,11 @@ let socket,
   startedEpoch = -1,
   disposed = false,
   recordTimer,
-  flushCapture = () => {},
+  drainCapture,
+  rejectDrain,
+  captureGeneration = 0,
+  clientInputEndedAt = 0,
+  captureDrainMs = null,
   minimumEpoch = 0,
   blockedPlayback = false;
 const profileOf = (row) => JSON.parse(row?.profile_json || '{}');
@@ -268,10 +276,19 @@ function play(event) {
   source.start(start);
   if (startedEpoch !== event.epoch) {
     startedEpoch = event.epoch;
-    send({ type: 'played_start', epoch: event.epoch });
+    send({
+      type: 'played_start',
+      epoch: event.epoch,
+      client_input_to_schedule_ms: clientInputEndedAt
+        ? performance.now() - clientInputEndedAt
+        : null,
+      scheduled_lead_ms: Math.max(0, (start - context.currentTime) * 1000),
+      capture_drain_ms: captureDrainMs,
+    });
   }
 }
 async function begin() {
+  if (busy.value || finishing.value || recording.value || !connected.value) return;
   await run(async () => {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
@@ -283,42 +300,52 @@ async function begin() {
     capture = new AudioContext({ sampleRate: 16000 });
     await capture.resume();
     inputSource = capture.createMediaStreamSource(stream);
-    processor = capture.createScriptProcessor(4096, 1, 1);
+    const generation = ++captureGeneration;
+    await capture.audioWorklet.addModule(captureUrl);
+    if (!valid() || !connected.value || generation !== captureGeneration) {
+      stopCapture();
+      return;
+    }
+    processor = new AudioWorkletNode(capture, 'trial-pcm-capture');
     silent = capture.createGain();
     silent.gain.value = 0;
-    let queue = [],
-      position = 0;
-    flushCapture = () => {
-      if (!queue.length || socket?.readyState !== WebSocket.OPEN) return;
-      const bytes = new ArrayBuffer(queue.length * 2),
-        view = new DataView(bytes);
-      queue.splice(0).forEach((sample, i) => view.setInt16(i * 2, sample, true));
-      socket.send(bytes);
+    let resolveDrain;
+    const drained = new Promise((resolve, reject) => {
+      resolveDrain = resolve;
+      rejectDrain = reject;
+    });
+    // Cancellation can precede finishSpeech; avoid an unhandled rejected promise.
+    drained.catch(() => {});
+    drainCapture = async () => {
+      processor.port.postMessage({ type: 'stop' });
+      let timeout;
+      try {
+        await Promise.race([
+          drained,
+          new Promise((_, reject) => {
+            timeout = setTimeout(() => reject(new Error('收音尾包确认超时，试聊已停止')), 1500);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+    processor.port.onmessage = ({ data }) => {
+      if (generation !== captureGeneration) return;
+      if (data.type === 'drained') {
+        resolveDrain(data.samples);
+        return;
+      }
+      if (data.type !== 'pcm') return;
+      if (socket?.readyState !== WebSocket.OPEN || socket.bufferedAmount > 64000) {
+        error.value = '音频上传积压或连接中断，试聊已停止';
+        end();
+        return;
+      }
+      socket.send(data.bytes);
     };
     send({ type: 'begin' });
     recording.value = true;
-    processor.onaudioprocess = (e) => {
-      if (!recording.value || !socket || socket.readyState !== WebSocket.OPEN) return;
-      const floats = e.inputBuffer.getChannelData(0);
-      for (let i = position; i < floats.length; i += capture.sampleRate / 16000)
-        queue.push(Math.max(-32768, Math.min(32767, Math.round(floats[Math.floor(i)] * 32768))));
-      position =
-        position +
-        Math.ceil((floats.length - position) / (capture.sampleRate / 16000)) *
-          (capture.sampleRate / 16000) -
-        floats.length;
-      while (queue.length >= 1600) {
-        if (socket.bufferedAmount > 64000) {
-          error.value = '音频上传积压，试聊已停止';
-          end();
-          return;
-        }
-        const bytes = new ArrayBuffer(3200),
-          v = new DataView(bytes);
-        queue.splice(0, 1600).forEach((sample, i) => v.setInt16(i * 2, sample, true));
-        socket.send(bytes);
-      }
-    };
     inputSource.connect(processor);
     processor.connect(silent);
     silent.connect(capture.destination);
@@ -328,12 +355,16 @@ async function begin() {
 }
 function stopCapture() {
   clearTimeout(recordTimer);
-  flushCapture = () => {};
+  captureGeneration++;
+  rejectDrain?.(new Error('收音已取消'));
+  rejectDrain = null;
+  drainCapture = null;
   recording.value = false;
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   if (processor) {
-    processor.onaudioprocess = null;
+    processor.port.onmessage = null;
+    processor.port.close();
     processor.disconnect();
     processor = null;
   }
@@ -344,11 +375,29 @@ function stopCapture() {
   capture?.close();
   capture = null;
 }
-function finishSpeech() {
-  flushCapture();
-  stopCapture();
-  send({ type: 'end' });
+async function finishSpeech() {
+  if (finishing.value || !recording.value) return;
+  finishing.value = true;
+  recording.value = false;
+  clearTimeout(recordTimer);
+  const generation = captureGeneration;
+  clientInputEndedAt = performance.now();
+  try {
+    await drainCapture();
+    if (generation !== captureGeneration || !valid()) return;
+    captureDrainMs = performance.now() - clientInputEndedAt;
+    stopCapture();
+    send({ type: 'end' });
+  } catch (e) {
+    if (generation === captureGeneration && valid()) {
+      error.value = e.message;
+      await end();
+    }
+  } finally {
+    finishing.value = false;
+  }
 }
+
 function interrupt() {
   blockedPlayback = true;
   stopCapture();
@@ -357,7 +406,17 @@ function interrupt() {
   state.value = '等待重新收音';
 }
 function prompt() {
-  if (!typed.value.trim()) return;
+  if (
+    busy.value ||
+    finishing.value ||
+    recording.value ||
+    !connected.value ||
+    state.value !== 'Listening' ||
+    !typed.value.trim()
+  )
+    return;
+  clientInputEndedAt = performance.now();
+  captureDrainMs = null;
   send({ type: 'prompt', text: typed.value });
   typed.value = '';
   state.value = 'Thinking';
@@ -547,7 +606,9 @@ onUnmounted(() => {
         {{ current.status }}</template
       >
       <el-space wrap>
-        <el-button :disabled="!connected || recording || state !== 'Listening'" @click="begin"
+        <el-button
+          :disabled="!connected || busy || finishing || recording || state !== 'Listening'"
+          @click="begin"
           >开始说话</el-button
         >
         <el-button :disabled="!recording" @click="finishSpeech">结束说话</el-button>
@@ -567,7 +628,9 @@ onUnmounted(() => {
         :disabled="!connected"
         @keyup.enter="prompt"
         ><template #append
-          ><el-button :disabled="state !== 'Listening' || !connected" @click="prompt"
+          ><el-button
+            :disabled="state !== 'Listening' || !connected || busy || recording || finishing"
+            @click="prompt"
             >发送文字</el-button
           ></template
         ></el-input
@@ -632,14 +695,29 @@ onUnmounted(() => {
                 number(row.platform_release_wait_ms)
               }}</template></el-table-column
             >
-            <el-table-column label="浏览器回执 ms"
+            <el-table-column label="客户端结束至排定 ms"
+              ><template #default="{ row }">{{
+                number(row.client_input_to_schedule_ms)
+              }}</template></el-table-column
+            >
+            <el-table-column label="收音尾包等待 ms"
+              ><template #default="{ row }">{{
+                number(row.capture_drain_ms)
+              }}</template></el-table-column
+            >
+            <el-table-column label="排定至计划播放 ms"
+              ><template #default="{ row }">{{
+                number(row.scheduled_lead_ms)
+              }}</template></el-table-column
+            >
+            <el-table-column label="服务端至播放排定回执 ms"
               ><template #default="{ row }">{{
                 number(row.browser_playback_ack_ms)
               }}</template></el-table-column
             >
           </el-table>
           <p>
-            首包与播放回执均从服务端收到本轮输入结束计算；放行等待从首包到首次发送给浏览器计算，包含平台处理及所选审核。不同会话的差值不直接等于审核净耗时。
+            首包与排定回执均从服务端收到本轮输入结束计算；排定回执不代表实际发声。放行等待从首包到首次发送给浏览器计算，包含平台处理及所选审核。不同会话的差值不直接等于审核净耗时。
           </p>
         </template>
       </div>

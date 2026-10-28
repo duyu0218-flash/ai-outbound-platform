@@ -25,6 +25,11 @@ public final class BailianDialog implements AutoCloseable {
             Map<String, Object> business,
             Listener listener)
             throws Exception {
+        if (user == null || user.isBlank() || user.length() > 36)
+            throw new IOException("bailian user_id must contain 1..36 characters");
+        String target = settings.get("VOICE_AI_BAILIAN_TOOL_TARGET", "");
+        if (!target.matches("[A-Za-z0-9_-]{1,128}"))
+            throw new IOException("bailian tool target is required");
         var profiles = new VoiceAiProfiles(settings);
         String url =
                 settings.get(
@@ -112,7 +117,7 @@ public final class BailianDialog implements AutoCloseable {
                                     "user_prompt_params",
                                     Map.of("business_script", script),
                                     "user_defined_params",
-                                    business)));
+                                    Map.of(target, business))));
             send("run-task", payload);
         } catch (Exception e) {
             close();

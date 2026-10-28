@@ -106,6 +106,7 @@ class BailianTrialIT {
         p.add("DASHSCOPE_API_KEY", () -> "synthetic-bailian-key");
         p.add("VOICE_AI_BAILIAN_WORKSPACE_ID", () -> "workspace-fixture");
         p.add("VOICE_AI_BAILIAN_APP_ID", () -> "app-fixture");
+        p.add("VOICE_AI_BAILIAN_TOOL_TARGET", () -> "plugin-fixture");
         p.add("VOICE_AI_BAILIAN_APP_REVISION", () -> "fixture-v1");
         p.add("VOICE_AI_BAILIAN_TOOL_API_KEY", () -> "synthetic-tool-key");
         p.add("VOICE_AI_BAILIAN_URL", SUITE::url);
@@ -295,7 +296,10 @@ class BailianTrialIT {
         var params =
                 Support.map(Support.map(SUITE.suitePayload.get("parameters")).get("biz_params"));
         var body =
-                new LinkedHashMap<String, Object>(Support.map(params.get("user_defined_params")));
+                new LinkedHashMap<String, Object>(
+                        Support.map(
+                                Support.map(params.get("user_defined_params"))
+                                        .get("plugin-fixture")));
         body.put("action", action);
         return body;
     }

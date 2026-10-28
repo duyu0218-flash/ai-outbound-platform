@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import org.apache.commons.csv.*;
 import org.springframework.http.ResponseEntity;
@@ -66,11 +65,55 @@ public class Reports {
             throw new ApiError(400, "unsupported dimension");
     }
 
-    private List<Map<String, Object>> calls(long tenant, LocalDateTime since) {
-        return store.query(
-                "callsession",
-                "sourceReports31_0",
-                Store.queryParameters(0, tenant, store.encode("callsession", "created_at", since)));
+    private Iterable<List<Map<String, Object>>> batches(long tenant, LocalDateTime since) {
+        final var until = Store.now();
+        return () ->
+                new Iterator<>() {
+                    List<Map<String, Object>> next;
+                    Object lastId, lastCreated;
+                    boolean ended;
+
+                    public boolean hasNext() {
+                        if (next == null && !ended) {
+                            next =
+                                    store.query(
+                                            "callsession",
+                                            "reportPage",
+                                            JsonSupport.map(
+                                                    "tenantId",
+                                                    tenant,
+                                                    "since",
+                                                    since,
+                                                    "until",
+                                                    until,
+                                                    "lastId",
+                                                    lastId,
+                                                    "lastCreated",
+                                                    lastCreated));
+                            ended = next.isEmpty();
+                        }
+                        return !ended;
+                    }
+
+                    public List<Map<String, Object>> next() {
+                        if (!hasNext()) throw new NoSuchElementException();
+                        var batch = next;
+                        var last = batch.getLast();
+                        lastId = store.encode("callsession", "id", last.get("id"));
+                        lastCreated =
+                                store.encode("callsession", "created_at", last.get("created_at"));
+                        next = null;
+                        return batch;
+                    }
+                };
+    }
+
+    private void aggregate(Map<String, Object> target, Map<String, Object> source) {
+        for (String name : COUNTS)
+            target.put(
+                    name,
+                    ((Number) target.get(name)).longValue()
+                            + ((Number) source.get(name)).longValue());
     }
 
     private Map<String, Object> window(int days, LocalDateTime since) {
@@ -169,17 +212,25 @@ public class Reports {
         Map<String, String> labels = labels(tenant, dimension);
         Map<String, Map<String, Object>> groups = new LinkedHashMap<>(), trend = new TreeMap<>();
         Map<String, Object> summary = empty("summary", "全部");
-        DateTimeFormatter format =
-                DateTimeFormatter.ofPattern(
-                        "hour".equals(granularity) ? "yyyy-MM-dd HH:00" : "yyyy-MM-dd");
-        for (Map<String, Object> call : calls(tenant, since)) {
-            String key = key(call, dimension),
-                    bucket = LocalDateTime.parse(call.get("created_at").toString()).format(format);
-            count(groups.computeIfAbsent(key, k -> empty(k, label(k, dimension, labels))), call);
-            count(summary, call);
-            Map<String, Object> point = trend.computeIfAbsent(bucket, k -> empty(k, k));
+        for (Map<String, Object> row :
+                store.projection(
+                        "callsession",
+                        "reportAggregate",
+                        JsonSupport.map(
+                                "tenantId",
+                                tenant,
+                                "since",
+                                since,
+                                "dimension",
+                                dimension,
+                                "granularity",
+                                granularity))) {
+            String key = row.get("dimension_key").toString(), bucket = row.get("bucket").toString();
+            aggregate(groups.computeIfAbsent(key, k -> empty(k, label(k, dimension, labels))), row);
+            aggregate(summary, row);
+            var point = trend.computeIfAbsent(bucket, k -> empty(k, k));
             point.put("bucket", bucket);
-            count(point, call);
+            aggregate(point, row);
         }
         List<Map<String, Object>> points = new ArrayList<>();
         for (Map<String, Object> point : trend.values())
@@ -235,14 +286,15 @@ public class Reports {
             }
         }
         groups.computeIfAbsent("未分组", this::emptyGroup);
-        for (Map<String, Object> call : calls(tenant, since)) {
-            count(
-                    groups.get(
-                            contactGroups.getOrDefault(
-                                    Objects.toString(call.get("contact_id"), ""), "未分组")),
-                    call);
-            count(summary, call);
-        }
+        for (var batch : batches(tenant, since))
+            for (Map<String, Object> call : batch) {
+                count(
+                        groups.get(
+                                contactGroups.getOrDefault(
+                                        Objects.toString(call.get("contact_id"), ""), "未分组")),
+                        call);
+                count(summary, call);
+            }
         return JsonSupport.map(
                 "window", window(days, since), "summary", summary, "rows", sorted(groups.values()));
     }
@@ -333,68 +385,64 @@ public class Reports {
                     ai_unit_price_per_minute, telephony_unit_price_per_minute, sms_unit_price
                 })
             if (!Double.isFinite(price) || price < 0) throw new ApiError(400, "invalid unit price");
-        Map<String, List<Map<String, Object>>> usage = new HashMap<>();
-        for (Map<String, Object> row :
-                store.query(
-                        "callusage",
-                        "sourceReports125_3",
-                        Store.queryParameters(
-                                0,
-                                tenant,
-                                tenant,
-                                store.encode("callsession", "created_at", since))))
-            usage.computeIfAbsent(row.get("call_session_id").toString(), k -> new ArrayList<>())
-                    .add(row);
-        Map<String, Long> sms = new HashMap<>();
-        for (Map<String, Object> row :
-                store.projection(
-                        "smslog",
-                        "rawReports127_0",
-                        Store.queryParameters(
-                                0, tenant, store.encode("smslog", "created_at", since))))
-            sms.put(
-                    row.get("call_session_id").toString().replace("-", ""),
-                    ((Number) row.get("n")).longValue());
         Map<String, String> labels = labels(tenant, dimension);
         Map<String, Map<String, Object>> groups = new LinkedHashMap<>();
         Map<String, Object> summary = emptyBill("summary", "全部");
-        for (Map<String, Object> call : calls(tenant, since)) {
-            String key = key(call, dimension);
-            Map<String, Object> row =
-                    groups.computeIfAbsent(key, k -> emptyBill(k, label(k, dimension, labels)));
-            Map<String, Object> duration =
-                    usage(
-                            call,
-                            usage.getOrDefault(call.get("id").toString(), Collections.emptyList()));
-            long messages = sms.getOrDefault(call.get("id").toString().replace("-", ""), 0L);
-            double cost =
-                    ((Number) duration.get("telephony_minutes")).doubleValue()
-                                    * telephony_unit_price_per_minute
-                            + ((Number) duration.get("ai_minutes")).doubleValue()
-                                    * ai_unit_price_per_minute
-                            + messages * sms_unit_price;
-            for (Map<String, Object> target : Arrays.asList(row, summary)) {
-                count(target, call);
-                if (REACHED.contains(call.get("status"))) increment(target, "billable_calls");
-                for (String field : Arrays.asList("telephony_minutes", "ai_minutes"))
-                    add(target, field, ((Number) duration.get(field)).doubleValue());
-                for (String field :
-                        Arrays.asList(
-                                "missing_duration_count",
-                                "missing_ai_duration_count",
-                                "estimated_duration_count"))
+        for (var batch : batches(tenant, since)) {
+            var ids =
+                    batch.stream()
+                            .map(c -> store.encode("callsession", "id", c.get("id")))
+                            .toList();
+            var params = JsonSupport.map("tenantId", tenant, "ids", ids, "since", since);
+            Map<String, List<Map<String, Object>>> usage = new HashMap<>();
+            for (var row : store.query("callusage", "reportPageUsage", params))
+                usage.computeIfAbsent(row.get("call_session_id").toString(), k -> new ArrayList<>())
+                        .add(row);
+            Map<String, Long> sms = new HashMap<>();
+            for (var row : store.projection("smslog", "reportPageSms", params))
+                sms.put(
+                        row.get("call_session_id").toString().replace("-", ""),
+                        ((Number) row.get("n")).longValue());
+            for (Map<String, Object> call : batch) {
+                String key = key(call, dimension);
+                Map<String, Object> row =
+                        groups.computeIfAbsent(key, k -> emptyBill(k, label(k, dimension, labels)));
+                Map<String, Object> duration =
+                        usage(
+                                call,
+                                usage.getOrDefault(
+                                        call.get("id").toString(), Collections.emptyList()));
+                long messages = sms.getOrDefault(call.get("id").toString().replace("-", ""), 0L);
+                double cost =
+                        ((Number) duration.get("telephony_minutes")).doubleValue()
+                                        * telephony_unit_price_per_minute
+                                + ((Number) duration.get("ai_minutes")).doubleValue()
+                                        * ai_unit_price_per_minute
+                                + messages * sms_unit_price;
+                for (Map<String, Object> target : Arrays.asList(row, summary)) {
+                    count(target, call);
+                    if (REACHED.contains(call.get("status"))) increment(target, "billable_calls");
+                    for (String field : Arrays.asList("telephony_minutes", "ai_minutes"))
+                        add(target, field, ((Number) duration.get(field)).doubleValue());
+                    for (String field :
+                            Arrays.asList(
+                                    "missing_duration_count",
+                                    "missing_ai_duration_count",
+                                    "estimated_duration_count"))
+                        target.put(
+                                field,
+                                ((Number) target.get(field)).longValue()
+                                        + ((Number) duration.get(field)).longValue());
                     target.put(
-                            field,
-                            ((Number) target.get(field)).longValue()
-                                    + ((Number) duration.get(field)).longValue());
-                target.put("sms_count", ((Number) target.get("sms_count")).longValue() + messages);
-                add(target, "estimated_cost", cost);
+                            "sms_count", ((Number) target.get("sms_count")).longValue() + messages);
+                    add(target, "estimated_cost", cost);
+                }
+                summary.put(
+                        "estimated_cost",
+                        BigDecimal.valueOf(((Number) summary.get("estimated_cost")).doubleValue())
+                                .setScale(4, RoundingMode.HALF_EVEN)
+                                .doubleValue());
             }
-            summary.put(
-                    "estimated_cost",
-                    BigDecimal.valueOf(((Number) summary.get("estimated_cost")).doubleValue())
-                            .setScale(4, RoundingMode.HALF_EVEN)
-                            .doubleValue());
         }
         for (Map<String, Object> row : groups.values()) round(row);
         Map<String, Object> rates =

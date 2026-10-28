@@ -2,6 +2,7 @@ package com.duozhi.outbound.auth.service;
 
 import com.duozhi.outbound.auth.dao.AuthIdentityMapper;
 import com.duozhi.outbound.auth.dao.SysUserMapper;
+import com.duozhi.outbound.auth.domain.AuthorizationChanged;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.auth.domain.SysUser;
 import com.duozhi.outbound.auth.support.UserRecords;
@@ -13,6 +14,8 @@ import java.io.IOException;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,13 @@ public class AuthService {
     private final Crypto crypto;
     private final Config config;
     private final ExpiringValues media;
+
+    @Autowired
+    private ApplicationEventPublisher events;
+
+    private void changed(long tenant, long user) {
+        if (events != null) events.publishEvent(new AuthorizationChanged(tenant, user));
+    }
 
     public AuthService(
             AuthIdentityMapper identities,
@@ -76,6 +86,9 @@ public class AuthService {
                 || users.findById((int) id, tenant) == null)
             throw new ApiError(404, "user not found");
         identities.updateUser(id, tenant, changes, now());
+        if (changes.keySet().stream()
+                .anyMatch(Set.of("token_version", "enabled", "role", "password_hash")::contains))
+            changed(tenant, id);
         return UserRecords.map(users.findById((int) id, tenant));
     }
 
@@ -84,6 +97,7 @@ public class AuthService {
         Map<String, Object> user = identity.requireUser();
         media.delete("ai-outbound:agent-media:" + identity.tenant() + ":" + user.get("id"));
         identities.revoke(((Number) user.get("id")).longValue(), (int) identity.tenant(), now());
+        changed(identity.tenant(), ((Number) user.get("id")).longValue());
     }
 
     @Transactional

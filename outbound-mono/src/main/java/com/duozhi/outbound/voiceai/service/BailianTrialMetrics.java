@@ -80,6 +80,19 @@ public final class BailianTrialMetrics {
         if (t != null && t.playback == 0) t.playback = clock.getAsLong();
     }
 
+    public synchronized void clientTiming(long epoch, Map<String, Object> command) {
+        var t = turns.get(epoch);
+        if (t == null) return;
+        for (String key :
+                List.of("client_input_to_schedule_ms", "scheduled_lead_ms", "capture_drain_ms")) {
+            Object raw = command.get(key);
+            if (raw instanceof Number n
+                    && Double.isFinite(n.doubleValue())
+                    && n.doubleValue() >= 0
+                    && n.doubleValue() <= 300000) t.client.put(key, n.doubleValue());
+        }
+    }
+
     public synchronized void complete(long epoch, String status) {
         var t = turns.get(epoch);
         if (t != null) t.status = status;
@@ -154,6 +167,7 @@ public final class BailianTrialMetrics {
         final long epoch, inputEnd;
         long firstAudio, released, playback;
         String status = "responding";
+        final Map<String, Object> client = new LinkedHashMap<>();
 
         Turn(long epoch, long inputEnd) {
             this.epoch = epoch;
@@ -167,6 +181,8 @@ public final class BailianTrialMetrics {
             result.put("provider_first_audio_ms", elapsed(inputEnd, firstAudio));
             result.put("platform_release_wait_ms", elapsed(firstAudio, released));
             result.put("browser_playback_ack_ms", elapsed(inputEnd, playback));
+            result.put("evidence_level", "browser_scheduled_not_acoustic");
+            result.putAll(client);
             return result;
         }
 

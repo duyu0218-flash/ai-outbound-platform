@@ -171,4 +171,12 @@
         </if>
         ORDER BY created_at DESC LIMIT #{limit} OFFSET #{offset}
     </select>
+    <select id="reportPageSms" resultType="java.util.LinkedHashMap">
+        SELECT call_session_id,COUNT(*) AS n FROM smslog WHERE tenant_id=#{tenantId}
+        AND created_at &gt;= #{since} AND call_session_id IN
+        <foreach close=")" collection="ids" item="id" open="(" separator=",">
+            #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        </foreach>
+        GROUP BY call_session_id
+    </select>
 </mapper>

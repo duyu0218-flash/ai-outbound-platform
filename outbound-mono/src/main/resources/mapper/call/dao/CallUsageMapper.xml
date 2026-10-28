@@ -298,4 +298,10 @@
             #{r.id,jdbcType=INTEGER}
         </foreach>
     </update>
+    <select id="reportPageUsage" resultMap="row">
+        SELECT * FROM callusage WHERE tenant_id=#{tenantId} AND call_session_id IN
+        <foreach close=")" collection="ids" item="id" open="(" separator=",">
+            #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+        </foreach>
+    </select>
 </mapper>

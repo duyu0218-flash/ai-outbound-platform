@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(6);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -128,7 +128,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(2);
         try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var st = c.createStatement();
                 var row =
@@ -149,8 +149,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(23);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("23");
+        assertThat(first.migrationsExecuted).isEqualTo(24);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("24");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();

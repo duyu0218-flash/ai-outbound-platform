@@ -47,4 +47,6 @@ public interface CallUsageMapper {
     List<CallUsage> scopedCallLifecycle80(Map<String, Object> parameters);
 
     List<Map<String, Object>> rawProductOperations61_1(Map<String, Object> parameters);
+
+    List<CallUsage> reportPageUsage(Map<String, Object> parameters);
 }

@@ -719,6 +719,104 @@ class BusinessHttpIT {
     }
 
     @Test
+    void reportsAndBillingPreserveTotalsAcrossThreeKeysetPagesAndTenantBoundary() {
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='callsession' AND index_name='ix_call_report_page'",
+                                String.class))
+                .isEqualTo("tenant_id,created_at,id");
+        var tenant = new Tenant();
+        tenant.setId(901);
+        tenant.setCode("report-paging");
+        tenant.setName("Report paging fixture");
+        tenants.insert(tenant);
+        var reporter = new SysUser();
+        reporter.setTenantId(901);
+        reporter.setUsername("report-paging-admin");
+        reporter.setFullName("Report fixture");
+        reporter.setRole("admin");
+        users.insert(reporter);
+        token = crypto.token(UserRecords.map(reporter));
+        var at = Store.now().minusMinutes(1);
+        for (int i = 0; i < 501; i++) {
+            var call =
+                    store.insert(
+                            "callsession",
+                            Values.map(
+                                    "tenant_id",
+                                    901,
+                                    "phone",
+                                    "13900000000",
+                                    "mode",
+                                    "ai_only",
+                                    "status",
+                                    "completed",
+                                    "attempts",
+                                    1,
+                                    "created_at",
+                                    at));
+            store.insert(
+                    "callusage",
+                    Values.map(
+                            "tenant_id",
+                            901,
+                            "call_session_id",
+                            call.get("id"),
+                            "attempt",
+                            1,
+                            "ended_at",
+                            at,
+                            "telephony_seconds",
+                            60.0,
+                            "ai_seconds",
+                            30.0,
+                            "duration_source",
+                            "provider"));
+            if (i % 100 == 0)
+                store.insert(
+                        "smslog",
+                        Values.map(
+                                "tenant_id",
+                                901,
+                                "call_session_id",
+                                call.get("id"),
+                                "to_phone",
+                                "13900000000",
+                                "template_code",
+                                "fixture",
+                                "content",
+                                "fixture"));
+        }
+        for (String dimension : List.of("campaign", "agent", "line")) {
+            var report =
+                    ok(
+                            request(
+                                    HttpMethod.GET,
+                                    "/api/v1/admin/call-reports?dimension="
+                                            + dimension
+                                            + "&granularity=hour",
+                                    null));
+            assertThat(report.path("summary").path("calls").asInt()).isEqualTo(501);
+            assertThat(report.path("summary").path("completed").asInt()).isEqualTo(501);
+            assertThat(report.path("trend").get(0).path("calls").asInt()).isEqualTo(501);
+        }
+        var billing =
+                ok(request(
+                                HttpMethod.GET,
+                                "/api/v1/admin/billing?telephony_unit_price_per_minute=0.5&ai_unit_price_per_minute=1&sms_unit_price=0.1",
+                                null))
+                        .path("summary");
+        assertThat(billing.path("calls").asInt()).isEqualTo(501);
+        assertThat(billing.path("telephony_minutes").asDouble()).isEqualTo(501.0);
+        assertThat(billing.path("ai_minutes").asDouble()).isEqualTo(250.5);
+        assertThat(billing.path("sms_count").asInt()).isEqualTo(6);
+        assertThat(billing.path("estimated_cost").asDouble()).isEqualTo(501.6);
+        assertThat(billing.path("missing_duration_count").asInt()).isZero();
+        var groups = ok(request(HttpMethod.GET, "/api/v1/admin/contact-groups", null));
+        assertThat(groups.path("summary").path("calls").asInt()).isEqualTo(501);
+    }
+
+    @Test
     void everyBaselineOperationHasAConcreteHandler() throws Exception {
         JsonNode baseline;
         try (var in = getClass().getResourceAsStream("/contracts/openapi-baseline.json")) {

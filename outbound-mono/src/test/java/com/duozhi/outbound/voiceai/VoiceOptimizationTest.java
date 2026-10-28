@@ -116,6 +116,47 @@ class VoiceOptimizationTest {
     }
 
     @Test
+    void slowReviewDoesNotBlockReadingNextModelDeltaAndStillGatesTts() throws Exception {
+        var reviewing = new CompletableFuture<Void>();
+        var generated = new CompletableFuture<Void>();
+        var heard = new CopyOnWriteArrayList<String>();
+        var reviews = new CopyOnWriteArrayList<String>();
+        try (var scope = new ResponseScope()) {
+            String result =
+                    CascadePipeline.run(
+                            scope,
+                            Map.of(),
+                            () ->
+                                    new VoiceAiBackends.TextSession() {
+                                        public void append(String text) {
+                                            heard.add(text);
+                                        }
+
+                                        public void finish() {}
+
+                                        public void close() {}
+                                    },
+                            delta -> {
+                                delta.accept("第一句回答。");
+                                reviewing.get(2, TimeUnit.SECONDS);
+                                delta.accept("第二句回答。");
+                                generated.complete(null);
+                            },
+                            (text, child) -> {
+                                reviewing.complete(null);
+                                generated.get(2, TimeUnit.SECONDS);
+                                reviews.add(text);
+                                return passed();
+                            },
+                            e -> {},
+                            stage -> {});
+            assertThat(result).isEqualTo("第一句回答。第二句回答。");
+            assertThat(heard).containsExactly("第一句回答。", "第二句回答。");
+            assertThat(reviews.getLast()).contains("第一句回答。", "第二句回答。");
+        }
+    }
+
+    @Test
     void aLateApprovalAfterCancellationCannotSubmitAnyText() throws Exception {
         var reviewing = new CompletableFuture<Void>();
         var release = new CompletableFuture<Void>();

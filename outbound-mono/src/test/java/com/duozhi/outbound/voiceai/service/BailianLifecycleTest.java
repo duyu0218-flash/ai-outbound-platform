@@ -150,9 +150,74 @@ class BailianLifecycleTest {
     }
 
     @Test
-    void inputAudioBeforeCaptureAndOversizedAudioAreRejected() {
+    void inputAudioBeforeCaptureAndOversizedAudioAreRejected() throws Exception {
         var l = live();
+        l.authorize();
         assertThatThrownBy(() -> l.audio(new byte[3200])).hasMessageContaining("limit");
         verifyNoInteractions(l.dialog);
+    }
+
+    @Test
+    void emptyNativeResponseTerminatesAndPersistsInsteadOfBlockingNextTurn() throws Exception {
+        var l = live(BailianTrialMetrics.NATIVE);
+        l.provider("RespondingStarted", Map.of());
+        l.provider("RespondingEnded", Map.of());
+        assertThat(l.closed).isTrue();
+        assertThat(l.status).isEqualTo("failed");
+        assertThat(l.response).isNull();
+        verify(l.dialog).close();
+        verify(db)
+                .save(
+                        eq(1L),
+                        eq("trial"),
+                        eq("failed"),
+                        contains("未返回语音"),
+                        anyString(),
+                        anyString());
+    }
+
+    @Test
+    void audioUsesLeaseAndRejectsRevocationWithoutDatabaseReads() throws Exception {
+        var l = live();
+        l.authorize();
+        clearInvocations(identities);
+        l.inputBegan = System.nanoTime();
+        for (int i = 0; i < 10; i++) l.audio(new byte[3200]);
+        verifyNoInteractions(identities);
+        verify(l.dialog, times(10)).audio(any());
+        l.revoked = true;
+        assertThatThrownBy(() -> l.audio(new byte[3200])).hasMessageContaining("authorization");
+        l.revoked = false;
+        l.authorizedUntil = 0;
+        assertThatThrownBy(() -> l.audio(new byte[3200])).hasMessageContaining("authorization");
+    }
+
+    @Test
+    void ordinaryEventsDoNotWriteDatabaseBeforeFirstAudioAndFlushOnce() throws Exception {
+        var l = live(BailianTrialMetrics.NATIVE);
+        l.provider("RespondingStarted", Map.of());
+        l.providerAudio(new byte[960]);
+        verify(db, never())
+                .save(anyLong(), anyString(), anyString(), anyString(), anyString(), anyString());
+        l.flush();
+        l.flush();
+        verify(db).save(anyLong(), anyString(), anyString(), anyString(), anyString(), anyString());
+        l.end("completed");
+    }
+
+    @Test
+    void missingProviderResponseAndPlaybackAcknowledgementHaveDeadlines() throws Exception {
+        var l = live(BailianTrialMetrics.NATIVE);
+        l.awaitingSince = System.nanoTime() - java.util.concurrent.TimeUnit.SECONDS.toNanos(21);
+        assertThatThrownBy(l::tick).hasMessageContaining("start timeout");
+        l.awaitingSince = 0;
+        l.provider("RespondingStarted", Map.of());
+        l.responseBegan -= java.util.concurrent.TimeUnit.SECONDS.toNanos(16);
+        assertThatThrownBy(l::tick).hasMessageContaining("first audio timeout");
+        l.providerAudio(new byte[960]);
+        l.provider("RespondingEnded", Map.of());
+        l.responseFinished -= java.util.concurrent.TimeUnit.SECONDS.toNanos(41);
+        assertThatThrownBy(l::tick).hasMessageContaining("acknowledgement timeout");
+        l.end("failed");
     }
 }

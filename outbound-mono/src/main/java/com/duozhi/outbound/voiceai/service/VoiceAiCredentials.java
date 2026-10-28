@@ -207,6 +207,10 @@ public class VoiceAiCredentials {
                     || !(entry.getValue() instanceof String raw)
                     || raw.length() > 4096) throw new ApiError(400, "无效的语音配置项");
             String value = raw.strip();
+            if (key.equals("VOICE_AI_BAILIAN_TOOL_TARGET")
+                    && !value.isEmpty()
+                    && !value.matches("[A-Za-z0-9_-]{1,128}"))
+                throw new ApiError(400, "业务透传目标 ID 格式无效");
             if (key.equals("VOICE_AI_ALI_REALTIME_URL") && !value.isEmpty()) {
                 try {
                     URI uri = URI.create(value);

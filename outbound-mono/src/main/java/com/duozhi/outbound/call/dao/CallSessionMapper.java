@@ -115,4 +115,8 @@ public interface CallSessionMapper {
     CallSession currentAiRead(Map<String, Object> parameters);
 
     CallSession currentAiLock(Map<String, Object> parameters);
+
+    List<CallSession> reportPage(Map<String, Object> parameters);
+
+    List<Map<String, Object>> reportAggregate(Map<String, Object> parameters);
 }

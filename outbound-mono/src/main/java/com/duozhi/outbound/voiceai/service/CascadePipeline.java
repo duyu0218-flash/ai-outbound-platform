@@ -40,6 +40,7 @@ public final class CascadePipeline {
         Factory taskFactory = preparing;
         var sentences = new ArrayBlockingQueue<String>(8);
         var synthesis = new CompletableFuture<Void>();
+        var failure = new CompletableFuture<Void>();
         Thread worker =
                 Thread.ofVirtual()
                         .name("voice-cascade-tts")
@@ -61,58 +62,109 @@ public final class CascadePipeline {
                                         }
                                         synthesis.complete(null);
                                     } catch (Throwable error) {
+                                        failure.completeExceptionally(error);
                                         synthesis.completeExceptionally(error);
                                         owner.close();
                                     }
                                 });
         owner.own(() -> worker.interrupt());
-        worker.start();
+        var deltas = new ArrayBlockingQueue<String>(32);
+        var reviewed = new CompletableFuture<String>();
+        Thread reviewing =
+                Thread.ofVirtual()
+                        .name("voice-cascade-review")
+                        .unstarted(
+                                () -> {
+                                    try {
+                                        var gate =
+                                                new SegmentSafetyGate(
+                                                        owner,
+                                                        guard,
+                                                        reviewer,
+                                                        text -> {
+                                                            stage.accept("first_reviewed_sentence");
+                                                            while (!sentences.offer(
+                                                                    text,
+                                                                    50,
+                                                                    TimeUnit.MILLISECONDS)) {
+                                                                check(synthesis);
+                                                                owner.check();
+                                                            }
+                                                        },
+                                                        trace);
+                                        for (; ; ) {
+                                            owner.check();
+                                            String delta = deltas.poll(50, TimeUnit.MILLISECONDS);
+                                            if (delta == null) continue;
+                                            if (delta == END) break;
+                                            gate.append(delta);
+                                        }
+                                        String result = gate.finish();
+                                        while (!sentences.offer(END, 50, TimeUnit.MILLISECONDS)) {
+                                            check(synthesis);
+                                            owner.check();
+                                        }
+                                        reviewed.complete(result);
+                                    } catch (Throwable error) {
+                                        failure.completeExceptionally(error);
+                                        reviewed.completeExceptionally(error);
+                                        owner.close();
+                                    }
+                                });
+        owner.own(() -> reviewing.interrupt());
         try {
-            var gate =
-                    new SegmentSafetyGate(
-                            owner,
-                            guard,
-                            reviewer,
-                            text -> {
-                                while (!sentences.offer(text, 50, TimeUnit.MILLISECONDS)) {
-                                    check(synthesis);
-                                    owner.check();
-                                }
-                            },
-                            trace);
+            worker.start();
+            reviewing.start();
             stage.accept("llm_request");
             generator.run(
                     delta -> {
+                        check(reviewed);
                         check(synthesis);
                         owner.check();
                         stage.accept("llm_first_token");
-                        gate.append(delta);
+                        if (delta.length() > 4000)
+                            throw new IOException("text delta exceeds limit");
+                        while (!deltas.offer(delta, 50, TimeUnit.MILLISECONDS)) {
+                            check(reviewed);
+                            check(synthesis);
+                            owner.check();
+                        }
                     });
-            String result = gate.finish();
-            while (!sentences.offer(END, 50, TimeUnit.MILLISECONDS)) {
+            while (!deltas.offer(END, 50, TimeUnit.MILLISECONDS)) {
+                check(reviewed);
                 check(synthesis);
                 owner.check();
             }
-            while (!synthesis.isDone()) {
+            while (!reviewed.isDone() || !synthesis.isDone()) {
+                check(reviewed);
+                check(synthesis);
                 owner.check();
                 try {
                     synthesis.get(50, TimeUnit.MILLISECONDS);
                 } catch (TimeoutException pending) {
-                    /* Owner cancellation remains responsive. */
+                    /* cancellation remains bounded */
                 }
             }
+            check(reviewed);
             check(synthesis);
             owner.check();
-            return result;
+            return reviewed.get();
         } catch (Exception error) {
+            // Capture the substantive failure before cancellation interrupts other stages.
+            Exception cause = error;
+            try {
+                check(failure);
+            } catch (Exception original) {
+                cause = original;
+            }
             owner.close();
+            reviewing.interrupt();
             worker.interrupt();
-            if (synthesis.isCompletedExceptionally()) check(synthesis);
-            throw error;
+            throw cause;
         }
     }
 
-    private static void check(CompletableFuture<Void> result) throws Exception {
+    private static void check(CompletableFuture<?> result) throws Exception {
         if (!result.isCompletedExceptionally()) return;
         try {
             result.get();

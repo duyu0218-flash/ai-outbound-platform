@@ -24,6 +24,7 @@
 | 百炼 API Key | 试聊页面加密保存 `DASHSCOPE_API_KEY`，或服务端 `_FILE` | 套件；选用二次审核时还用于独立输出 ASR。不要发在聊天或提交 Git |
 | Workspace ID | `VOICE_AI_BAILIAN_WORKSPACE_ID` | 账号实际支持的工作空间 |
 | App ID | `VOICE_AI_BAILIAN_APP_ID` | 已发布、支持纯音频和自定义业务工具的应用；不是 Omni 模型 ID |
+| 工具插件 ID / 智能体节点 ID | `VOICE_AI_BAILIAN_TOOL_TARGET` | 必填；与已发布应用实际调用目标一致，用作业务透传参数的外层键 |
 | 应用版本标记 | `VOICE_AI_BAILIAN_APP_REVISION` | 可追溯配置，需与控制台发布记录一致 |
 | ASR、文本模型、TTS 型号 | 百炼应用控制台 | 套件内选型；第一期不要用不支持工具调用的轻量闲聊配置 |
 | 音色 ID（可选） | `VOICE_AI_BAILIAN_VOICE` | 留空沿用应用音色；输出请求 PCM/24 kHz |
@@ -43,7 +44,7 @@
 
 1. 创建并发布支持自定义工具的应用。提示词显式引用自定义变量 `business_script`，将其作为本次业务约束；不要开放无关联网搜索或知识工具。
 2. 从 `docs/bailian-trial-tool.openapi.yaml` 配置工具，替换示例域名，设置 `X-API-KEY`。应用中绑定并发布该工具。
-3. `trial_id`、`trial_token` 必须映射为**业务透传参数**，从本次 Start 的 `parameters.biz_params.user_defined_params` 取得，不能让模型生成或向用户询问。参数的配置位置及实际透传行为需在当前控制台联调确认。
+3. `trial_id`、`trial_token` 必须映射为**业务透传参数**，从本次 Start 的 `parameters.biz_params.user_defined_params[VOICE_AI_BAILIAN_TOOL_TARGET]` 取得，不能让模型生成或向用户询问。参数的配置位置及实际透传行为需在当前控制台联调确认。
 4. 调用 `business_context` 获取业务话术及 `user_evidence`（当前会话最终转写，每项带 `seq`）。需要时重新读取，不能缓存其他会话的证据。
 5. 调用 `save_intent`：`event_id` 是本次工具操作唯一编号，`intent` 为 `interested / declined / uncertain`，`note` 是备注，`evidence_seq` 引用上一步用户转写。`next_at` 可为空；填写时必须为未来的 UTC ISO-8601 时间。
 6. 同一 `event_id`、同一内容幂等返回；同一编号不同内容返回 409。收到不确定响应不能声称保存成功。结束、过期、退出登录后的工具请求被拒绝。
@@ -105,3 +106,12 @@ Start/Listening、SendSpeech/StopSpeech、RequestToRespond、RequestToSpeak、Lo
 - https://help.aliyun.com/zh/model-studio/multimodal-interaction-protocol
 - https://help.aliyun.com/zh/model-studio/custom-plug-ins
 - https://help.aliyun.com/zh/model-studio/product-billing
+
+## 2026-10-28 延时与完整性修复
+
+- Start 使用 36 位试聊 UUID 作为 `client_info.user_id`；工具透传按已配置插件或节点 ID 包裹，缺少目标 ID 时禁止创建付费会话。
+- 浏览器用 AudioWorklet 采集，按 100 ms 打包 PCM；结束说话先等待最后不足一包的数据发出，再发送 StopSpeech。收尾等待超过 1.5 秒时终止会话，不继续提交缺音频输入。
+- 音频帧使用最长 5 秒授权租约；每 2 秒刷新，退出登录、账号禁用和角色变更在本实例提交后立即撤销。跨实例/直接数据库变更依靠周期复核；租约过期时拒绝音频。
+- 普通事件和指标每 2 秒持久化；用户转写、审核结果、意向草稿和终态同步保存。进程异常退出可能丢失最后一个周期的普通诊断事件，业务确认不使用这种延迟保存。
+- 无音频的响应显式失败并关闭供应商会话。响应开始、首音频、响应完成、播放结束确认均设超时，不自动重试付费请求。
+- 界面新增客户端输入结束到排定首音频、录音收尾和排期提前量。浏览器回执只证明音频已安排播放；真实扬声器/电话首声仍需声学或 RTP 证据。

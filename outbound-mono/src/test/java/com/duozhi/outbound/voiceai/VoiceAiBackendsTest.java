@@ -707,6 +707,14 @@ class VoiceAiBackendsTest {
                 suitePayload = payload;
                 state.task = Support.str(Support.map(message.get("header")), "task_id", "");
                 assertThat(payload.get("model")).isEqualTo("multimodal-dialog");
+                var parameters = Support.map(payload.get("parameters"));
+                assertThat(
+                                Support.str(
+                                                Support.map(parameters.get("client_info")),
+                                                "user_id",
+                                                "")
+                                        .length())
+                        .isBetween(1, 36);
                 suiteEvent(ctx, state, "Started", Map.of());
                 suiteEvent(ctx, state, "DialogStateChanged", Map.of("state", "Listening"));
             } else if (directive.equals("StopSpeech") || directive.equals("RequestToRespond")) {

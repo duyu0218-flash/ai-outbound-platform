@@ -104,3 +104,31 @@ noVersion.cases.forEach((r) => {
 delete noVersion.model_version;
 assert.equal(evaluate(noVersion).trial_eligible, false);
 console.log('PASS model and policy identity are required for route eligibility');
+
+// Execute the browser audio-thread contract without a microphone or supplier.
+const { readFileSync } = await import('node:fs');
+const { runInNewContext } = await import('node:vm');
+for (const rate of [16000, 48000]) {
+  const messages = [];
+  let Processor;
+  runInNewContext(readFileSync(new URL('../outbound-mono/frontend/src/audio/pcm-capture.js', import.meta.url), 'utf8'), {
+    sampleRate: rate,
+    AudioWorkletProcessor: class { port = { postMessage: (message) => messages.push(message) }; },
+    registerProcessor: (name, value) => { assert.equal(name, 'trial-pcm-capture'); Processor = value; },
+  });
+  const capture = new Processor();
+  const samples = new Float32Array(rate / 5 + 96).fill(0.5);
+  for (let i = 0; i < samples.length; i += 128) capture.process([[samples.subarray(i, i + 128)]]);
+  capture.port.onmessage({ data: { type: 'stop' } });
+  const expected = Math.floor(samples.length * 16000 / rate);
+  assert.equal(messages.at(-1).type, 'drained');
+  assert.equal(messages.at(-1).samples, expected);
+  assert.equal(messages.slice(0, -1).reduce((n, m) => n + m.bytes.byteLength / 2, 0), expected);
+  assert.equal(messages[0].bytes.byteLength, 3200);
+  assert.equal(new DataView(messages[0].bytes).getInt16(0, true), 16384);
+  const count = messages.length;
+  assert.equal(capture.process([[samples]]), false);
+  capture.port.onmessage({ data: { type: 'stop' } });
+  assert.equal(messages.length, count);
+}
+console.log('PASS AudioWorklet 16/48 kHz packet sizes, final partial drain, PCM endian, idempotent stop');

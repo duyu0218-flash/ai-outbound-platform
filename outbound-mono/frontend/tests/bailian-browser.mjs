@@ -30,6 +30,9 @@ try {
   await check('configuration encrypted save and reload', async () => {
     await page.getByText('百炼账号与应用配置', { exact: true }).click();
     await page.getByLabel('已发布应用版本标记', { exact: true }).fill('browser-v1');
+    await page
+      .getByLabel('业务透传目标 ID（插件或 Agent）', { exact: true })
+      .fill('plugin-fixture');
     await page.getByRole('button', { name: '加密保存百炼配置' }).click();
     await expect(page.getByText('配置已加密保存', { exact: true })).toBeVisible();
     await page.reload();
