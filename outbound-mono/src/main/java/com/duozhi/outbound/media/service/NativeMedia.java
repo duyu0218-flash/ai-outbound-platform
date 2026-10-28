@@ -58,7 +58,7 @@ public final class NativeMedia implements MediaManager {
     public NativeMedia(Settings settings, Events events, Permits permits, int limit) {
         this.settings = settings;
         resources = new VoiceResources(settings);
-        contentSafety = new ContentSafety(settings);
+        contentSafety = new ContentSafety(settings, http);
         this.events = events;
         this.permits = permits;
         this.limit = limit;
@@ -85,22 +85,9 @@ public final class NativeMedia implements MediaManager {
         if (!Set.of("raw_pcm", "voismart").contains(protocol))
             throw new IllegalArgumentException("invalid PCM transport protocol");
         voismart = protocol.equals("voismart");
-        int speechThreads = Math.min(128, Math.max(4, limit));
-        var synthesis =
-                new ThreadPoolExecutor(
-                        speechThreads,
-                        speechThreads,
-                        30,
-                        TimeUnit.SECONDS,
-                        new ArrayBlockingQueue<>(Math.max(32, limit * 2)),
-                        r -> {
-                            Thread t = new Thread(r, "java-tts");
-                            t.setDaemon(true);
-                            return t;
-                        },
-                        new ThreadPoolExecutor.AbortPolicy());
-        synthesis.allowCoreThreadTimeOut(true);
-        work = synthesis;
+        work =
+                new com.duozhi.outbound.integration.support.BoundedVirtualExecutor(
+                        "java-tts-", Math.max(4, limit * 2));
         int eventThreads = Math.min(64, Math.max(4, limit));
         var receive =
                 new ThreadPoolExecutor(
@@ -719,6 +706,11 @@ public final class NativeMedia implements MediaManager {
         if (playing && (urgent || min > 1)) interrupt(session.call, null);
         if (!Boolean.FALSE.equals(details.get("is_final"))) session.latest = id;
         if (session.speechUrl.isEmpty()) return;
+        // Opt-in only after consumers migrate. Local turn detection still receives every revision;
+        // urgent control intent and final transcripts retain their durable callback path.
+        if (Boolean.FALSE.equals(details.get("is_final"))
+                && !urgent
+                && settings.flag("VOICE_PARTIAL_TRANSIENT_ENABLED", false)) return;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("call_id", session.call);
         payload.put("provider_session_id", session.id);
@@ -924,7 +916,8 @@ public final class NativeMedia implements MediaManager {
                 if (policy.isEmpty()) policy = ContentSafety.policy(settings);
                 contentSafety.requireReady(policy);
                 var frozenPolicy = policy;
-                var speech = new VoiceAiBackends(settings).outputSpeechProfile(stream.profile);
+                var speech =
+                        new VoiceAiBackends(settings, http).outputSpeechProfile(stream.profile);
                 if (speech.isEmpty()) throw new ContentSafety.Failure("S2S_SAFETY_ASR_MISSING");
                 List<String> safetyHistory;
                 synchronized (stream.confirmedHistory) {
@@ -942,7 +935,7 @@ public final class NativeMedia implements MediaManager {
                                         policy,
                                         guard,
                                         (listener, scope) ->
-                                                new VoiceAiBackends(settings)
+                                                new VoiceAiBackends(settings, http)
                                                         .outputRecognizer(speech, listener, scope),
                                         (cumulative, scope) ->
                                                 contentSafety.review(
@@ -981,7 +974,7 @@ public final class NativeMedia implements MediaManager {
                                 : stream.profile;
                 if (spec.isEmpty())
                     throw new IOException("deterministic speech profile is required");
-                var backend = new VoiceAiBackends(settings);
+                var backend = new VoiceAiBackends(settings, http);
                 if (modelReply) {
                     Object source = stream.context.get("messages");
                     if (!(source instanceof List<?> sourceMessages) || sourceMessages.isEmpty())
@@ -1066,7 +1059,8 @@ public final class NativeMedia implements MediaManager {
             Stream stream, Map<String, Object> spec, String text, VendorPlayer player)
             throws Exception {
         try (var tts =
-                new VoiceAiBackends(settings).synthesis(spec, player::accept, stream.response)) {
+                new VoiceAiBackends(settings, http)
+                        .synthesis(spec, player::accept, stream.response)) {
             tts.append(text);
             tts.finish();
         }
@@ -1177,19 +1171,32 @@ public final class NativeMedia implements MediaManager {
         boolean first = true;
         String purpose = "response";
         PcmResampler conversion;
+        final PcmPlayback playback;
 
-        VendorPlayer(Stream stream, long generation, long requested) {
+        VendorPlayer(Stream stream, long generation, long requested) throws Exception {
             this.stream = stream;
             this.generation = generation;
             this.requested = requested;
+            playback =
+                    new PcmPlayback(
+                            rate,
+                            () -> {
+                                stream.coordinator.check(generation);
+                                stream.response.check();
+                                if (stream.generation != generation || stream.session.closing)
+                                    throw new InterruptedException("superseded reply");
+                            },
+                            (bytes, purpose) -> send(bytes),
+                            stream.response);
         }
 
         void accept(byte[] pcm, int sampleRate) throws Exception {
             stream.coordinator.stamp(generation, "tts_first");
             stream.coordinator.stamp(generation, purpose + "_audio_first");
-            stream.coordinator.generated(generation, pcm.length / 2);
             if (conversion == null) conversion = new PcmResampler(sampleRate, rate);
-            send(conversion.convert(pcm));
+            byte[] converted = conversion.convert(pcm);
+            stream.coordinator.generated(generation, converted.length / 2);
+            playback.accept(converted, purpose);
         }
 
         void send(byte[] pcm) throws Exception {
@@ -1219,7 +1226,12 @@ public final class NativeMedia implements MediaManager {
         }
 
         void finish() throws Exception {
-            if (conversion != null) send(conversion.finish());
+            if (conversion != null) {
+                byte[] tail = conversion.finish();
+                stream.coordinator.generated(generation, tail.length / 2);
+                playback.accept(tail, purpose);
+            }
+            playback.finish();
             if (first) throw new IOException("provider produced no audio");
         }
     }
@@ -1461,7 +1473,7 @@ public final class NativeMedia implements MediaManager {
             }
             boolean realtime = "realtime".equals(spec.get("route"));
             long owner = realtime ? ++providerEpoch : 0;
-            return new VoiceAiBackends(settings)
+            return new VoiceAiBackends(settings, http)
                     .connect(
                             spec,
                             script,
@@ -2000,6 +2012,7 @@ public final class NativeMedia implements MediaManager {
         pendingClosures.clear();
         work.shutdownNow();
         asrEvents.shutdownNow();
+        http.shutdownNow();
     }
 
     private static byte[] pcmToArray(ByteBuffer source) {

@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 public class Outbox {
     @Autowired
     private CapacityCommitEvidence timing;
+    @Autowired
+    private org.springframework.context.ApplicationEventPublisher events;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -115,6 +117,7 @@ public class Outbox {
                                 tenant,
                                 aggregate,
                                 JsonSupport.integer(payload.get("attempt"), 0) + 1);
+                    if (events != null) events.publishEvent(new OutboxCommitted(type));
                     return saved;
                 });
     }

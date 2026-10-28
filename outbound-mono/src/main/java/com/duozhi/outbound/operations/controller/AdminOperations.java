@@ -148,6 +148,8 @@ public class AdminOperations {
     public Map<String, Object> smsRetry(@PathVariable
     long id, HttpServletRequest request) {
         Identity i = actor(request);
+        if (integrations.migratedMessages())
+            throw new ApiError(409, "该环境已切换独立消息域，历史短信不能直接重发，请在消息营销中重新审核创建");
         Map<String, Object> snapshot =
                 tx.serialized(
                         () -> {

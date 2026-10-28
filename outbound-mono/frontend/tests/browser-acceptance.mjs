@@ -1,3 +1,4 @@
+import { messagingChecks } from './messaging-browser.mjs';
 import { operationsChecks } from './operations-browser.mjs';
 import { navigationRaceChecks } from './navigation-race.mjs';
 import { chromium, expect } from '@playwright/test';
@@ -238,6 +239,7 @@ try {
     }
   });
   await operationsChecks({ page, context, origin, check, go });
+  await messagingChecks({ page, origin, check });
   await check('P0-P1 human admission policy form saves and echoes', async () => {
     await go('/admin/product', '业务交付策略');
     await page.getByRole('tab', { name: '转人工与时间安排', exact: true }).click();

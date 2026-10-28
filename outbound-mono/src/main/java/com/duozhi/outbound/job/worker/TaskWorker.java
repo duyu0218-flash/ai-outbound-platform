@@ -1054,6 +1054,18 @@ public class TaskWorker {
         return true;
     }
 
+    @org.springframework.transaction.event.TransactionalEventListener(
+            phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
+    public void committed(com.duozhi.outbound.job.service.OutboxCommitted event) {
+        try {
+            tick();
+        } catch (RuntimeException hintFailed) {
+            // Commit succeeded; the durable task remains recoverable by polling.
+            LoggerFactory.getLogger(TaskWorker.class)
+                    .warn("outbox wake hint failed: {}", hintFailed.getClass().getSimpleName());
+        }
+    }
+
     @Scheduled(fixedDelayString = "${JAVA_WORKER_POLL_MS:250}")
     public void tick() {
         if (!ready || !config.flag("JAVA_WORKERS_ENABLED", false) || dialControl.frozen()) return;

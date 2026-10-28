@@ -42,7 +42,7 @@ public final class DialogueRules {
             if (!part.isEmpty()) last = part;
         if (has(
                         content,
-                        "别(?:再)?(?:给我)?打|不要再(?:联系|打)|停止(?:联系|打)|删除(?:我的)?号码|取消订阅|不要联系|勿扰|stopcalling|donotcall")
+                        "别(?:再)?(?:给我)?打|不要再(?:给我)?(?:联系|打)|停止(?:联系|打)|删除(?:我的)?号码|取消订阅|不要联系|勿扰|stopcalling|donotcall")
                 && !has(content, "(?:没说|不是说|没有说).{0,4}(?:别|不要)|(?:如果|假如).*(?:别再打|不要再)"))
             return "stop_contact";
         if (has(last, "打错(?:了|电话|号码)?|不是本人|不是机主|不是我的号码")) return "wrong_person";

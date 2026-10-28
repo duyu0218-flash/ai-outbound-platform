@@ -35,6 +35,7 @@ public class BailianTrials {
     private final com.duozhi.outbound.system.service.Settings settings;
     private final Transactions tx;
     private final Audit audit;
+    private final java.net.http.HttpClient transport = Support.client();
     private final Map<String, Live> live = new ConcurrentHashMap<>();
     private final ScheduledExecutorService timer =
             Executors.newSingleThreadScheduledExecutor(
@@ -100,6 +101,7 @@ public class BailianTrials {
     public void stop() {
         timer.shutdownNow();
         for (var l : live.values()) l.end("interrupted");
+        transport.shutdownNow();
     }
 
     public Map<String, Object> readiness(long tenant) {
@@ -120,7 +122,7 @@ public class BailianTrials {
             if (runtime.secret(key).isBlank()) missing.add(key);
         if (BailianTrialMetrics.REVIEW.equals(mode))
             try {
-                new ContentSafety(runtime).requireReady(ContentSafety.policy(runtime));
+                new ContentSafety(runtime, transport).requireReady(ContentSafety.policy(runtime));
             } catch (Exception e) {
                 missing.add("VOICE_AI_SAFETY_ACCESS_KEY_ID / VOICE_AI_SAFETY_ACCESS_KEY_SECRET");
             }
@@ -493,7 +495,8 @@ public class BailianTrials {
                                     public void audio(byte[] pcm) throws Exception {
                                         providerAudio(pcm);
                                     }
-                                });
+                                },
+                                transport);
                 synchronized (this) {
                     if (closed) {
                         d.close();
@@ -694,10 +697,10 @@ public class BailianTrials {
                                 "response_started",
                                 Map.of("epoch", owner, "review_mode", reviewMode));
                         if (!secondaryReview) break;
-                        var backend = new VoiceAiBackends(runtime);
+                        var backend = new VoiceAiBackends(runtime, transport);
                         var speech = new VoiceAiProfiles(runtime).snapshot("aliyun-cascade");
                         var policy = ContentSafety.policy(runtime);
-                        var safety = new ContentSafety(runtime);
+                        var safety = new ContentSafety(runtime, transport);
                         Set<Object> played = new HashSet<>();
                         for (var event : events)
                             if ("playback_ended".equals(event.get("type")))
