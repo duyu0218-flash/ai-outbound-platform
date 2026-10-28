@@ -88,29 +88,40 @@ export async function http(
   p,
   { method = "GET", body, headers = {}, status, timeout = 10000 } = {},
 ) {
-  const r = await fetch(base + p, {
-    method,
-    headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...headers,
-    },
-    body:
-      body === undefined
-        ? undefined
-        : typeof body === "string"
-          ? body
-          : JSON.stringify(body),
-    signal: AbortSignal.timeout(timeout),
-    redirect: "error",
-  });
-  const text = await r.text();
-  if (status !== undefined)
-    assert.equal(r.status, status, `${p}: ${text.slice(0, 1000)}`);
-  let json;
+  // Keep the deadline referenced even if fetch temporarily has no active socket.
+  // Otherwise a CLI can exit with unresolved top-level await before its timeout.
+  const controller = new AbortController();
+  const deadline = setTimeout(
+    () => controller.abort(new DOMException("HTTP request timed out", "TimeoutError")),
+    timeout,
+  );
   try {
-    json = JSON.parse(text);
-  } catch {}
-  return { status: r.status, headers: r.headers, text, json };
+    const r = await fetch(base + p, {
+      method,
+      headers: {
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...headers,
+      },
+      body:
+        body === undefined
+          ? undefined
+          : typeof body === "string"
+            ? body
+            : JSON.stringify(body),
+      signal: controller.signal,
+      redirect: "error",
+    });
+    const text = await r.text();
+    if (status !== undefined)
+      assert.equal(r.status, status, `${p}: ${text.slice(0, 1000)}`);
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {}
+    return { status: r.status, headers: r.headers, text, json };
+  } finally {
+    clearTimeout(deadline);
+  }
 }
 export function args(argv = process.argv.slice(2)) {
   const out = {};
