@@ -1,5 +1,7 @@
 # AI 外呼平台
 
+- **[平台操作手册（截图＋步骤说明）](docs/user-guide/README.md)**：管理员配置、客户与话术、外呼任务、话单查询、线索跟进、运营报表和坐席操作。
+
 最新单实例、单进程迁移代码位于 [outbound-mono](outbound-mono/README.md)：JDK17、Boot3.5.16、MySQL8.4、Redis、Vue3，API/AI/语音/录音/媒体合入一个JVM。本地336项功能回归通过；500总在途、50轮/秒模拟仍未达标，最新42.9轮/秒，边界见 [验证摘要](outbound-mono/VALIDATION.md)。默认Compose及现有部署未切换，下列多进程工程保留为原实现与契约基准。
 
 业务后端统一为 **JDK 17 + Spring Boot 4.1.1**。核心 API/调度/任务位于 `backend-java`；Agent、语音网关、媒体工作器和录音适配位于 `services-java`。前端使用 React/TypeScript。
