@@ -365,6 +365,10 @@
         SELECT COUNT(*) FROM `callsession` WHERE tenant_id=#{tenantId} AND status IN
         ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')
     </select>
+    <select id="tenantOfId" resultType="long">
+        SELECT tenant_id FROM callsession WHERE id =
+        #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler}
+    </select>
     <select id="lockById" resultMap="row">
         SELECT * FROM callsession WHERE tenant_id = #{tenantId} AND id =
         #{id,typeHandler=com.duozhi.outbound.common.dao.typehandler.UuidTypeHandler} FOR UPDATE

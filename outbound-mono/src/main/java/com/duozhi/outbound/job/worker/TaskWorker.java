@@ -68,9 +68,11 @@ public class TaskWorker {
     private final ExecutorService executor;
     private final ExecutorService aiExecutor, controlExecutor, analysisExecutor;
     private final int controlOwners;
+    // Renewals are short UPDATEs; more than one thread keeps a slow commit from delaying every
+    // other lease past its cutoff.
     private final ScheduledExecutorService heartbeat =
             Executors.newScheduledThreadPool(
-                    1,
+                    Math.max(2, Math.min(8, Runtime.getRuntime().availableProcessors() / 2)),
                     r -> {
                         Thread t = new Thread(r, "java-outbox-lease");
                         t.setDaemon(true);
@@ -1063,6 +1065,18 @@ public class TaskWorker {
             // Commit succeeded; the durable task remains recoverable by polling.
             LoggerFactory.getLogger(TaskWorker.class)
                     .warn("outbox wake hint failed: {}", hintFailed.getClass().getSimpleName());
+        }
+    }
+
+    @org.springframework.transaction.event.TransactionalEventListener(
+            phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
+    public void received(com.duozhi.outbound.callback.service.CallbackReceived event) {
+        try {
+            receiveTick();
+        } catch (RuntimeException hintFailed) {
+            // Commit succeeded; the receipt remains recoverable by polling.
+            LoggerFactory.getLogger(TaskWorker.class)
+                    .warn("inbox wake hint failed: {}", hintFailed.getClass().getSimpleName());
         }
     }
 

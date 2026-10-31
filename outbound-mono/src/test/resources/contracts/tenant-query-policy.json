@@ -305,6 +305,11 @@
       "category": "A",
       "table": "callbackinboxworker",
       "reason": "Internal worker heartbeat and cumulative processing metrics; original platform worker table has no tenant_id."
+    },
+    "com.duozhi.outbound.call.dao.CallSessionMapper.tenantOfId": {
+      "category": "B",
+      "table": "callsession",
+      "reason": "callsession.id is the global UUID primary key; Store.locate reads only tenant_id, then loads the row through the tenant-scoped findById/lockById."
     }
   }
 }

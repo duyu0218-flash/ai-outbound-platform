@@ -870,6 +870,20 @@ class BusinessHttpIT {
                 .isEqualTo(partitions);
     }
 
+    @Test
+    void locateResolvesTheOwningTenantFromThePrimaryKeyWithoutScanningTenants() {
+        tenantTwo();
+        var call = stateCall("queued");
+        Object id = call.get("id");
+        var unlocked = store.locate("callsession", id, false);
+        assertThat(unlocked).isNotNull();
+        assertThat(((Number) unlocked.get("tenant_id")).intValue()).isEqualTo(2);
+        assertThat(unlocked.get("id").toString()).isEqualTo(id.toString());
+        var locked = tx.run(() -> store.locate("callsession", id, true));
+        assertThat(locked.get("status")).isEqualTo(unlocked.get("status"));
+        assertThat(store.locate("callsession", UUID.randomUUID().toString(), false)).isNull();
+    }
+
     void tenantTwo() {
         SysUser admin = new SysUser();
         admin.setTenantId(2);

@@ -538,9 +538,25 @@ public class Store {
         return " FOR UPDATE";
     }
 
+    // Tables whose mapper resolves the owning tenant from the globally unique primary key.
+    private static final Set<String> TENANT_LOCATORS = Set.of("callsession");
+
     public Map<String, Object> locate(String table, Object id, boolean locked) {
         if (!tables.get(table).containsKey("tenant_id"))
             throw new IllegalArgumentException("only tenant business records can be located");
+        if (TENANT_LOCATORS.contains(table)) {
+            // One primary-key read instead of one query per tenant; the row itself, and any lock,
+            // still comes from the tenant-scoped statement.
+            Object encoded = encode(table, "id", id);
+            flushBuffered();
+            Number tenant = sql.selectOne(namespace(table) + ".tenantOfId", Map.of("id", encoded));
+            return tenant == null
+                    ? null
+                    : one(
+                            table,
+                            locked ? "lockById" : "findById",
+                            Map.of("id", encoded, "tenantId", tenant.longValue()));
+        }
         for (var tenant : query("tenant", "allForMaintenance", Map.of())) {
             var result =
                     one(
