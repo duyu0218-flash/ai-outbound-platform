@@ -1239,6 +1239,10 @@ public final class NativeMedia implements MediaManager {
     final class Stream implements AutoCloseable, WebSocket.Listener {
         final Session session;
         final WebSocketSession socket;
+        // Senders include TTS virtual threads; a monitor held across the blocking write would pin
+        // their carrier on JDK 21, so writes serialize on a ReentrantLock instead.
+        final java.util.concurrent.locks.ReentrantLock send =
+                new java.util.concurrent.locks.ReentrantLock();
         final Map<String, Object> profile;
         final SessionCoordinator coordinator = new SessionCoordinator();
         final InputTurnController inputTurns;
@@ -1780,15 +1784,21 @@ public final class NativeMedia implements MediaManager {
         }
 
         void binary(ByteBuffer value) throws Exception {
-            synchronized (socket) {
+            send.lock();
+            try {
                 if (!socket.isOpen()) throw new IOException("media socket closed");
                 socket.sendMessage(new BinaryMessage(value));
+            } finally {
+                send.unlock();
             }
         }
 
         void text(Object value) throws Exception {
-            synchronized (socket) {
+            send.lock();
+            try {
                 if (socket.isOpen()) socket.sendMessage(new TextMessage(Support.json(value)));
+            } finally {
+                send.unlock();
             }
         }
 

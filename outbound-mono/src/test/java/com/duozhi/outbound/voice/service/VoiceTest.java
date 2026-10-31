@@ -1040,6 +1040,51 @@ class VoiceTest {
         }
     }
 
+    @Test
+    void committedCallbacksAndAcknowledgedPredecessorsWakeDeliveryBeforeThePollInterval()
+            throws Exception {
+        List<Integer> received = new CopyOnWriteArrayList<>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(
+                "/api/v1/webhooks/telephony/status",
+                request -> {
+                    byte[] body = request.getRequestBody().readAllBytes();
+                    received.add(((Number) Support.object(body).get("sequence")).intValue());
+                    request.sendResponseHeaders(200, -1);
+                    request.close();
+                });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort();
+        // A ten-second interval: only the commit and acknowledgement wake-ups can deliver in time.
+        var settings =
+                settings(
+                        Map.of(
+                                "VOICE_CALLBACK_BASE_URL",
+                                url,
+                                "WEBHOOK_SECRET",
+                                "callback-signing-test",
+                                "VOICE_CALLBACK_POLL_SEC",
+                                "10"));
+        try (var ledger = new LocalLedger(settings);
+                var callbacks =
+                        new VoiceCallbacks(settings, ledger, new VoiceSecurity(settings, ledger))) {
+            callbacks.start();
+            Thread.sleep(200);
+            long started = System.nanoTime();
+            callbacks.post(
+                    url + "/api/v1/webhooks/telephony/status",
+                    Map.of("call_id", "a", "sequence", 1));
+            callbacks.post(
+                    url + "/api/v1/webhooks/telephony/status",
+                    Map.of("call_id", "a", "sequence", 2));
+            await(() -> received.size() >= 2);
+            assertEquals(List.of(1, 2), received);
+            assertTrue(System.nanoTime() - started < 3_000_000_000L);
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private static void await(BooleanSupplier condition) throws Exception {
         long deadline = System.nanoTime() + 5_000_000_000L;
         while (!condition.getAsBoolean()) {

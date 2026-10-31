@@ -24,6 +24,9 @@ public final class VoiceCallbacks implements AutoCloseable {
     private final ScheduledExecutorService poll;
     private final int concurrency;
     private final AtomicInteger deliveries = new AtomicInteger();
+    private final java.util.concurrent.atomic.AtomicBoolean wakePending =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private volatile boolean started;
 
     VoiceCallbacks(Settings settings, LocalLedger ledger, VoiceSecurity security) {
         this.settings = settings;
@@ -60,6 +63,24 @@ public final class VoiceCallbacks implements AutoCloseable {
                                                     "VOICE_CALLBACK_BATCH_DELAY_MS", 5, 0, 5)));
         poll.scheduleWithFixedDelay(this::tick, 0, interval, TimeUnit.MILLISECONDS);
         poll.scheduleWithFixedDelay(this::purge, 60, 60, TimeUnit.SECONDS);
+        started = true;
+    }
+
+    /**
+     * Run one delivery pass on the poll thread right after a commit or acknowledgement, instead of
+     * waiting for the next interval. Coalesced to one queued pass; the interval stays as recovery.
+     */
+    private void wake() {
+        if (!started || !wakePending.compareAndSet(false, true)) return;
+        try {
+            poll.execute(
+                    () -> {
+                        wakePending.set(false);
+                        tick();
+                    });
+        } catch (RejectedExecutionException closed) {
+            wakePending.set(false);
+        }
     }
 
     private final ThreadLocal<List<Object[]>> bufferedPosts = new ThreadLocal<>();
@@ -85,6 +106,7 @@ public final class VoiceCallbacks implements AutoCloseable {
                         bufferedPosts.remove();
                     }
                 });
+        wake();
     }
 
     public int inflight() {
@@ -125,6 +147,7 @@ public final class VoiceCallbacks implements AutoCloseable {
                             stream);
                     return null;
                 });
+        wake();
     }
 
     synchronized int tickOnce() {
@@ -346,6 +369,7 @@ public final class VoiceCallbacks implements AutoCloseable {
         } finally {
             for (var row : rows) inflight.remove((String) row.get("id"));
             deliveries.decrementAndGet();
+            wake();
         }
     }
 

@@ -24,6 +24,6 @@
     "@prettier/plugin-xml": "3.4.2",
     "@vitejs/plugin-vue": "5.2.4",
     "prettier": "3.6.2",
-    "vite": "6.4.4"
+    "vite": "6.4.5"
   }
 }

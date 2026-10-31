@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 @Component
 public final class JvmPlatformLock implements PlatformLock {
     private static final class Entry {
-        final ReentrantLock lock = new ReentrantLock(true);
+        // Non-fair: queued waiters are still served in order, but a thread arriving at release may
+        // take the lock without a park/unpark hand-off, which dominates on the hot platform key.
+        final ReentrantLock lock = new ReentrantLock();
         int users;
     }
 

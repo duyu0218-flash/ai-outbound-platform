@@ -29,6 +29,8 @@ import org.springframework.stereotype.Service;
 public class CallbackInbox {
     @Autowired
     private RealtimeTaskCleanup taskCleanup;
+    @Autowired
+    private org.springframework.context.ApplicationEventPublisher events;
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -249,6 +251,7 @@ public class CallbackInbox {
                             "callbackinboxpartition",
                             "rawCallbackInbox67_4",
                             Store.queryParameters(-1, size, partitionId));
+                    received();
                     return JsonSupport.map(
                             "result",
                             "received",
@@ -259,6 +262,11 @@ public class CallbackInbox {
                             "processing",
                             "pending");
                 });
+    }
+
+    // Wake the receipt consumers after commit; the scheduled poll remains the recovery path.
+    private void received() {
+        if (events != null) events.publishEvent(new CallbackReceived());
     }
 
     public Map<String, Object> batch(List<Map<String, Object>> events) {
@@ -405,10 +413,12 @@ public class CallbackInbox {
                                 }
                                 return null;
                             });
-                    if (!deltas.isEmpty())
+                    if (!deltas.isEmpty()) {
                         batchDb.write(
                                 "partitionDelta",
                                 Map.of("deltas", new ArrayList<>(deltas.values())));
+                        received();
+                    }
                     return JsonSupport.map(
                             "result",
                             "received",
