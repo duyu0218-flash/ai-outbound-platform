@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { adminNavigation } from './router';
+import { adminMenu } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
 import { t, language, setLanguage } from './i18n';
@@ -16,19 +16,42 @@ onMounted(() =>
     .then((v) => (opsProfile.value = v))
     .catch(() => {}),
 );
+const agentPath = (p) => '/agent/operations/' + p;
 const navigation = computed(() =>
   props.role === 'admin'
-    ? adminNavigation.map(([path, label]) => ({ path: '/admin' + (path ? '/' + path : ''), label }))
-    : [
-        { path: '/agent', label: 'workspace' },
-        ...(session.user?.is_supervisor && opsProfile.value?.all_scope
-          ? [{ path: '/agent/quality', label: 'qualityReview' }]
-          : []),
-        { path: '/agent/calls', label: 'calls' },
-        ...['calls', 'leads', 'reports', 'notices', 'workspace'].map((p, i) => ({
-          path: '/agent/operations/' + p,
-          label: ['话单查询', '线索与跟进', '运营报表', '通知中心', '坐席个人配置'][i],
+    ? adminMenu.map(({ group, items }) => ({
+        group,
+        items: items.map(([path, label]) => ({
+          path: '/admin' + (path ? '/' + path : ''),
+          label,
         })),
+      }))
+    : [
+        {
+          group: 'navWorkbench',
+          items: [
+            { path: '/agent', label: 'workspace' },
+            { path: agentPath('notices'), label: '通知中心' },
+          ],
+        },
+        {
+          group: 'navDialing',
+          items: [
+            { path: '/agent/calls', label: 'calls' },
+            { path: agentPath('calls'), label: '话单查询' },
+          ],
+        },
+        {
+          group: 'navQuality',
+          items: [
+            ...(session.user?.is_supervisor && opsProfile.value?.all_scope
+              ? [{ path: '/agent/quality', label: 'qualityReview' }]
+              : []),
+            { path: agentPath('leads'), label: '线索与跟进' },
+          ],
+        },
+        { group: 'navAnalysis', items: [{ path: agentPath('reports'), label: '运营报表' }] },
+        { group: 'navPersonal', items: [{ path: agentPath('workspace'), label: '坐席个人配置' }] },
       ],
 );
 watch(
@@ -63,10 +86,14 @@ async function leave() {
         background-color="#0b1736"
         text-color="#c6d2ee"
         active-text-color="#fff"
-        ><el-menu-item v-for="(item, index) in navigation" :key="item.path" :index="item.path"
-          ><el-icon
-            ><span>{{ index + 1 }}</span></el-icon
-          ><template #title>{{ t(item.label) }}</template></el-menu-item
+        ><el-menu-item-group v-for="section in navigation" :key="section.group"
+          ><template #title
+            ><span v-if="!collapsed" class="nav-group">{{ t(section.group) }}</span
+            ><span v-else class="nav-group-rule"></span></template
+          ><el-menu-item v-for="item in section.items" :key="item.path" :index="item.path"
+            ><el-icon><span class="nav-dot"></span></el-icon
+            ><template #title>{{ t(item.label) }}</template></el-menu-item
+          ></el-menu-item-group
         ></el-menu
       >
       <footer v-if="!collapsed">

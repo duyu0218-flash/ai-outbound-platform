@@ -43,3 +43,10 @@ B 类查出的 DB tenant_id 是 JWT 身份后续租户上下文唯一来源；AP
 C 类统一直接带 tenant_id；更新和删除同样直接绑定 tenantId。35 个 XML 共 145 条 select/update/delete：121 条带条件，24 条明确例外（原 A20 + 本域 A1/B3）。逐条 SQL 见 verification/mapper-tenant-conditions.md。
 
 原 global username 冲突检查改由保留的全局唯一索引在插入时判定并映射为相同 409 / username already exists，不为身份确定后的用户管理新增全局读方法。跨租户 PUT 用户资源的真实 HTTP 验证为 404、未返回数据且未保存更改。
+
+## 企业门户新增的 2 条（认证查找，仅 SELECT）
+
+| Mapper 方法 | 所属表 | 豁免类别 | 依据 / 调用边界 |
+|---|---|---|---|
+| com.duozhi.outbound.client.dao.ClientMapper.userByName | client_user | B | 全局 UNIQUE(username)；仅 ClientAccounts.login 在租户确定前定位企业账号，结果不直接作为业务响应。 |
+| com.duozhi.outbound.client.dao.ClientMapper.userById | client_user | B | client_user.id 主键全局唯一；仅 ClientAuthenticator 定位令牌主体，再从数据库行读取 tenant/client 并校验 enabled/sub/cid/tv。其余账号读写均带 tenant_id 条件（userGet 等）。 |

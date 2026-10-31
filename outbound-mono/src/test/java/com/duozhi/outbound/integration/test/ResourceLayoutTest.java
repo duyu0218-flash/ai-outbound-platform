@@ -48,7 +48,7 @@ class ResourceLayoutTest {
         Path root = Path.of("src/main/resources/mapper");
         try (var files = Files.walk(root)) {
             var xml = files.filter(p -> p.toString().endsWith(".xml")).toList();
-            assertThat(xml).hasSize(38);
+            assertThat(xml).hasSize(39);
             for (Path file : xml) {
                 var mapper = factory.newDocumentBuilder().parse(file.toFile()).getDocumentElement();
                 String namespace = mapper.getAttribute("namespace");

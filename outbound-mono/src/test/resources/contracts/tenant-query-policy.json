@@ -310,6 +310,16 @@
       "category": "B",
       "table": "callsession",
       "reason": "callsession.id is the global UUID primary key; Store.locate reads only tenant_id, then loads the row through the tenant-scoped findById/lockById."
+    },
+    "com.duozhi.outbound.client.dao.ClientMapper.userByName": {
+      "category": "B",
+      "table": "client_user",
+      "reason": "Global UNIQUE(username); client portal login lookup before the tenant is established."
+    },
+    "com.duozhi.outbound.client.dao.ClientMapper.userById": {
+      "category": "B",
+      "table": "client_user",
+      "reason": "Global PRIMARY KEY(id); only ClientAuthenticator locates the token subject, then reads tenant/client from the row and checks enabled/sub/cid/tv."
     }
   }
 }

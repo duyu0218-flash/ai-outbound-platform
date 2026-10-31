@@ -288,7 +288,17 @@ class DataLayerIT {
                             "msg_suppression",
                             "msg_webhook",
                             "msg_webhook_delivery"));
-            assertThat(expectedTables).hasSize(97);
+            expectedTables.addAll(
+                    Set.of(
+                            "client_org",
+                            "client_setting",
+                            "client_user",
+                            "client_campaign",
+                            "client_campaign_log",
+                            "client_lead",
+                            "client_lead_event",
+                            "client_staff_scope"));
+            assertThat(expectedTables).hasSize(105);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {

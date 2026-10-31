@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { ElMessage } from 'element-plus';
 import { request } from '../session';
 import { useData, action, modes } from '../data';
 import { t } from '../i18n';
@@ -12,14 +13,43 @@ const page = ref(1),
   editing = ref(null),
   model = ref({}),
   busy = ref(false),
+  clients = useData('/api/v1/ops/clients?status=active&size=200'),
+  bindings = useData(() => {
+    const ids = (query.data.value || []).map((row) => row.id);
+    return ids.length ? '/api/v1/ops/clients/bindings?campaign_ids=' + ids.join(',') : '';
+  }),
+  clientFilter = ref(''),
   flows = useData(() =>
     open.value && model.value.script_template_id
       ? `/api/v1/script-templates/${model.value.script_template_id}/flows`
       : '',
   );
+const bindingOf = computed(() =>
+  Object.fromEntries((bindings.data.value || []).map((b) => [b.campaign_id, b])),
+);
+const visibleRows = computed(() =>
+  (query.data.value || [])
+    .filter((row) => row.status !== 'deleted')
+    .filter((row) => {
+      if (!clientFilter.value) return true;
+      const bound = bindingOf.value[row.id];
+      return clientFilter.value === 'none'
+        ? !bound
+        : String(bound?.client_id) === String(clientFilter.value);
+    }),
+);
 const capacity = computed(() => system.data.value?.capacity?.effective_max_concurrent_calls);
 const fields = computed(() => [
   { key: 'name', label: 'name', required: true },
+  {
+    key: 'client_id',
+    label: 'clientTenantOwner',
+    options: [
+      { value: '', label: '不绑定（线索不交付给企业）' },
+      ...(clients.data.value || []).map((v) => ({ value: v.id, label: `${v.name}（${v.code}）` })),
+    ],
+    hint: '质检通过的线索将交付到该企业租户门户；改绑只影响之后的交付。',
+  },
   {
     key: 'mode',
     label: 'mode',
@@ -86,15 +116,16 @@ function edit(row) {
         voice_ai_pipeline: 'inherit',
         contact_ids: [],
       };
+  model.value.client_id = row ? (bindingOf.value[row.id]?.client_id ?? '') : '';
   open.value = true;
 }
 async function save() {
   busy.value = true;
   try {
-    const payload = { ...model.value };
+    const { client_id: clientId, ...payload } = model.value;
     for (const key of ['script_template_id', 'script_flow_version_id'])
       if (payload[key] === '') payload[key] = null;
-    await action(
+    const saved = await action(
       () =>
         request(
           '/api/v1/campaigns' + (editing.value ? '/' + editing.value.id : ''),
@@ -103,6 +134,20 @@ async function save() {
         ),
       { refresh: query.load },
     );
+    const campaignId = saved?.id ?? editing.value?.id,
+      before = bindingOf.value[campaignId]?.client_id ?? '';
+    if (campaignId && String(before) !== String(clientId ?? '')) {
+      try {
+        await request(`/api/v1/ops/campaigns/${campaignId}/client`, 'PUT', {
+          client_id: clientId === '' ? null : clientId,
+        });
+      } catch (e) {
+        ElMessage.error('任务已保存，但归属企业租户设置失败：' + e.message);
+        return;
+      } finally {
+        await bindings.load();
+      }
+    }
     open.value = false;
   } finally {
     busy.value = false;
@@ -117,7 +162,9 @@ function command(row, kind) {
       ),
     {
       confirm: ['start', 'stop'].includes(kind)
-        ? t(kind === 'start' ? 'confirmStart' : 'confirmStop')
+        ? kind === 'start' && !bindingOf.value[row.id]
+          ? '该任务未绑定企业租户，产生的线索不会交付给任何企业。确认启动？'
+          : t(kind === 'start' ? 'confirmStart' : 'confirmStop')
         : undefined,
       refresh: query.load,
     },
@@ -128,12 +175,30 @@ function command(row, kind) {
   <PageHeader title="campaigns" description="campaignHint"
     ><el-button type="primary" @click="edit()">{{ t('createCampaign') }}</el-button></PageHeader
   ><el-card
-    ><el-alert v-if="query.error.value" :title="query.error.value" type="error" /><DataGrid
-      :rows="(query.data.value || []).filter((row) => row.status !== 'deleted')"
+    ><div class="actions">
+      <el-select
+        v-model="clientFilter"
+        clearable
+        placeholder="按归属企业租户筛选"
+        style="width: 240px"
+        ><el-option label="未绑定" value="none" /><el-option
+          v-for="c in clients.data.value || []"
+          :key="c.id"
+          :label="c.name"
+          :value="String(c.id)"
+      /></el-select>
+    </div>
+    <el-alert v-if="query.error.value" :title="query.error.value" type="error" /><DataGrid
+      :rows="visibleRows"
       :loading="query.loading.value"
       :columns="[
         { key: 'id', label: 'ID' },
         { key: 'name', label: 'name' },
+        {
+          key: 'client_tenant',
+          label: 'clientTenantOwner',
+          render: (value, row) => bindingOf[row.id]?.client_name || '未绑定',
+        },
         { key: 'mode', label: 'mode', translate: true },
         { key: 'voice_ai_pipeline', label: 'voiceAiPipeline' },
         { key: 'contact_ids', label: 'contactsSelected', render: (value) => value?.length || 0 },
