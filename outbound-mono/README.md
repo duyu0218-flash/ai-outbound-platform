@@ -47,6 +47,10 @@ java -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -jar target/outbound-mono.jar
 
 P0—P2新增话单查询、线索跟进、运营分析、团队权限、表单标签、通知和坐席配置，详见 [功能对照与验收](OPERATIONS-ACCEPTANCE.md) 和 `operations-validation.json`。管理员入口 `/admin/operations/calls`，坐席入口 `/agent/operations/leads`。测试、真机及发布状态分别记录，GitHub源码更新不等于部署。
 
+## 企业租户线索门户
+
+平台在 `/admin/clients` 开通 B 端企业租户与账号，并把外呼任务绑定到企业；人工复核通过的线索自动交付到企业门户 `/client`，企业可跟进、分配、申诉和导出。企业账号与员工账号完全隔离。管理端左侧导航同时按业务链路重新分组。范围、测试与未实现项见 [企业门户验收](CLIENT-PORTAL-ACCEPTANCE.md)。
+
 ## 语音供应商对比
 
 六套供应商组合、后台技术路线切换和统一话术音频对比，见 [接入配置](VOICE-AI-PROVIDERS.md) 与 [本次验收](VOICE-AI-ACCEPTANCE.md)。入口为 `/admin/voice-ai`。新增 V20 保存固定样本和测试历史；默认沿用原有链路，真实供应商和电话线路仍待联调。

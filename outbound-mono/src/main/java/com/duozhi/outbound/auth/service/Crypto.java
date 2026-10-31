@@ -100,22 +100,45 @@ public class Crypto {
     }
 
     public String token(Map<String, Object> user) {
+        return signed(
+                Values.map(
+                        "sub",
+                        user.get("username"),
+                        "uid",
+                        user.get("id"),
+                        "tenant_id",
+                        user.get("tenant_id"),
+                        "role",
+                        user.get("role"),
+                        "tv",
+                        user.get("token_version"),
+                        "exp",
+                        Instant.now().getEpochSecond() + config.number("JWT_TTL_SECONDS", 43200)));
+    }
+
+    /** Client portal token: typed so the staff realm rejects it and vice versa. */
+    public String clientToken(Map<String, Object> user) {
+        return signed(
+                Values.map(
+                        "typ",
+                        "client",
+                        "sub",
+                        user.get("username"),
+                        "cuid",
+                        user.get("id"),
+                        "cid",
+                        user.get("client_id"),
+                        "tenant_id",
+                        user.get("tenant_id"),
+                        "tv",
+                        user.get("token_version"),
+                        "exp",
+                        Instant.now().getEpochSecond()
+                                + config.number("CLIENT_JWT_TTL_SECONDS", 28800)));
+    }
+
+    private String signed(Map<String, Object> claims) {
         try {
-            Map<String, Object> claims =
-                    Values.map(
-                            "sub",
-                            user.get("username"),
-                            "uid",
-                            user.get("id"),
-                            "tenant_id",
-                            user.get("tenant_id"),
-                            "role",
-                            user.get("role"),
-                            "tv",
-                            user.get("token_version"),
-                            "exp",
-                            Instant.now().getEpochSecond()
-                                    + config.number("JWT_TTL_SECONDS", 43200));
             String body =
                     URL.encodeToString(
                                     mapper.writeValueAsBytes(

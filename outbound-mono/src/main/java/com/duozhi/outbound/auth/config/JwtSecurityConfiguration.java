@@ -5,6 +5,8 @@ import com.duozhi.outbound.auth.security.JwtFilter;
 import com.duozhi.outbound.auth.security.JwtRealm;
 import com.duozhi.outbound.auth.service.AuthStartupPolicy;
 import com.duozhi.outbound.auth.service.Crypto;
+import com.duozhi.outbound.client.security.ClientAuthenticator;
+import com.duozhi.outbound.client.security.ClientJwtFilter;
 import com.duozhi.outbound.common.config.Config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.DispatcherType;
@@ -79,10 +81,19 @@ public class JwtSecurityConfiguration {
 
     @Bean
     ShiroFilterFactoryBean shiroFilterFactoryBean(
-            DefaultWebSecurityManager manager, AuthIdentityMapper identities, ObjectMapper json) {
+            DefaultWebSecurityManager manager,
+            AuthIdentityMapper identities,
+            ObjectMapper json,
+            ClientAuthenticator clients) {
         var factory = new ShiroFilterFactoryBean();
         factory.setSecurityManager(manager);
-        factory.setFilters(new LinkedHashMap<>(Map.of("jwt", new JwtFilter(identities, json))));
+        factory.setFilters(
+                new LinkedHashMap<>(
+                        Map.of(
+                                "jwt",
+                                new JwtFilter(identities, json),
+                                "clientJwt",
+                                new ClientJwtFilter(clients, json))));
         var chain = new LinkedHashMap<String, String>();
         for (String path :
                 List.of(
@@ -115,6 +126,8 @@ public class JwtSecurityConfiguration {
                         "/admin/**",
                         "/agent",
                         "/agent/**",
+                        "/client",
+                        "/client/**",
                         "/assets/**",
                         "/index.html")) chain.put(path, "noSessionCreation,anon");
         // These original service routes enforce their own service tokens, signatures or signed
@@ -138,6 +151,9 @@ public class JwtSecurityConfiguration {
         chain.put(
                 "/openapi/v1/**",
                 "noSessionCreation,anon"); // MessageApi verifies independent HMAC credentials.
+        // Client portal tokens are a separate principal; they never reach the staff JWT chain.
+        chain.put("/api/v1/client/auth/login", "noSessionCreation,anon");
+        chain.put("/api/v1/client/**", "noSessionCreation,clientJwt");
         chain.put("/api/**", "noSessionCreation,jwt");
         chain.put("/**", "noSessionCreation,authcBasic");
         factory.setFilterChainDefinitionMap(chain);

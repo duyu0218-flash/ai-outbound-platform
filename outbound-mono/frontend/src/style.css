@@ -41,6 +41,30 @@ a {
 .sidebar .el-menu-item.is-active {
   background: #2457d6;
 }
+.sidebar .el-menu-item {
+  height: 40px;
+  line-height: 40px;
+}
+.sidebar .el-menu-item-group__title {
+  padding-top: 14px;
+  padding-bottom: 4px;
+}
+.nav-group {
+  color: #7f8fb5;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.nav-group-rule {
+  display: block;
+  border-top: 1px solid #22335e;
+}
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
 .sidebar footer {
   padding: 20px;
   font-size: 12px;
@@ -406,4 +430,56 @@ a {
   .ops-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+.metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.metric-card {
+  min-width: 130px;
+  cursor: pointer;
+}
+.metric-card strong {
+  font-size: 24px;
+}
+.muted {
+  color: #8a94a8;
+  font-size: 12px;
+  margin-left: 8px;
+}
+.client-leads .lead-unread td {
+  font-weight: 600;
+}
+.client-leads .el-table__row {
+  cursor: pointer;
+}
+.transcript {
+  max-height: 260px;
+  overflow-y: auto;
+  background: #f6f8fc;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.bar-label {
+  width: 44px;
+  color: #8a94a8;
+}
+.bar {
+  display: inline-block;
+  height: 10px;
+  min-width: 2px;
+  background: #2457d6;
+  border-radius: 3px;
+}
+.client-shell .brand small {
+  display: block;
 }

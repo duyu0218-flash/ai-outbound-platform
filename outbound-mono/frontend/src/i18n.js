@@ -1,5 +1,17 @@
 import { ref } from 'vue';
 const zh = {
+  navWorkbench: '工作台',
+  navContacts: '客户名单',
+  navScripts: '话术与 AI',
+  navDialing: '外呼执行',
+  navQuality: '质检与线索',
+  navClients: '企业交付',
+  navAnalysis: '数据分析',
+  navOrganization: '组织与权限',
+  navPlatform: '系统设置',
+  navPersonal: '个人设置',
+  clientTenants: '企业租户',
+  clientTenantOwner: '归属企业租户',
   prepared: '已准备',
   needs_review: '有新证据，待复核',
   product: 'AI 外呼平台',
@@ -363,6 +375,18 @@ const zh = {
 };
 
 const en = {
+  navWorkbench: 'Workbench',
+  navContacts: 'Contact lists',
+  navScripts: 'Scripts & AI',
+  navDialing: 'Dialing',
+  navQuality: 'QA & leads',
+  navClients: 'Client delivery',
+  navAnalysis: 'Analytics',
+  navOrganization: 'Organization',
+  navPlatform: 'Platform',
+  navPersonal: 'Personal',
+  clientTenants: 'Client tenants',
+  clientTenantOwner: 'Client tenant',
   prepared: 'Prepared',
   needs_review: 'New evidence, review required',
   product: 'AI Outbound Platform',

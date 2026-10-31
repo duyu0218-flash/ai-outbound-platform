@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.duozhi.outbound.client.dao.ClientMapper">
+    <select id="orgList" resultType="java.util.LinkedHashMap">
+        SELECT
+        o.id,o.code,o.name,o.contact_name,o.contact_phone,o.contract_start,o.contract_end,o.status,
+        o.remark,o.revision,o.created_at,o.updated_at,(SELECT COUNT(*) FROM client_campaign b WHERE
+        b.tenant_id=o.tenant_id AND b.client_id=o.id) AS campaign_count,(SELECT COUNT(*) FROM
+        client_user u
+        WHERE u.tenant_id=o.tenant_id AND u.client_id=o.id) AS user_count,(SELECT COUNT(*) FROM
+        client_lead l
+        WHERE l.tenant_id=o.tenant_id AND l.client_id=o.id AND l.status='delivered' AND
+        l.delivered_at &gt;=
+        #{since}) AS recent_leads FROM client_org o WHERE o.tenant_id=#{tenantId}
+        <if test="scopeUser != null">
+            AND EXISTS(SELECT 1 FROM client_staff_scope s WHERE s.tenant_id=o.tenant_id AND
+            s.client_id=o.id AND
+            s.user_id=#{scopeUser})
+        </if>
+        <if test="status != null">
+            AND o.status=#{status}
+        </if>
+        <if test="keyword != null">
+            AND (o.name LIKE CONCAT('%',#{keyword},'%') OR o.code LIKE CONCAT('%',#{keyword},'%'))
+        </if>
+        ORDER BY o.id DESC LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="orgGet" resultType="java.util.LinkedHashMap">
+        SELECT
+        id,tenant_id,code,name,contact_name,contact_phone,contract_start,contract_end,status,remark,
+        revision,created_at,updated_at FROM client_org WHERE tenant_id=#{tenantId} AND
+        id=#{clientId}
+    </select>
+    <select id="orgLock" resultType="java.util.LinkedHashMap">
+        SELECT id,tenant_id,code,name,contract_start,contract_end,status,revision FROM client_org
+        WHERE
+        tenant_id=#{tenantId} AND id=#{clientId} FOR UPDATE
+    </select>
+    <insert id="orgInsert" keyProperty="client_id" useGeneratedKeys="true">
+        INSERT INTO
+        client_org(tenant_id,code,name,contact_name,contact_phone,contract_start,contract_end,status,
+        remark,created_by) VALUES(#{tenantId},#{code},#{name},#{contact_name},#{contact_phone},
+        #{contract_start},#{contract_end},#{status},#{remark},#{actorId})
+    </insert>
+    <update id="orgUpdate">
+        UPDATE client_org SET
+        name=#{name},contact_name=#{contact_name},contact_phone=#{contact_phone},
+        contract_start=#{contract_start},contract_end=#{contract_end},status=#{status},remark=#{remark},
+        revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND
+        id=#{clientId} AND
+        revision=#{revision}
+    </update>
+    <select id="settingLatest" resultType="java.util.LinkedHashMap">
+        SELECT revision,config_json,created_by,created_at FROM client_setting WHERE
+        tenant_id=#{tenantId} AND
+        client_id=#{clientId} ORDER BY revision DESC LIMIT 1
+    </select>
+    <insert id="settingInsert">
+        INSERT INTO client_setting(tenant_id,client_id,revision,config_json,created_by)
+        VALUES(#{tenantId},#{clientId},#{revision},#{config_json},#{actorId})
+    </insert>
+    <select id="userByName" resultType="java.util.LinkedHashMap">
+        SELECT * FROM client_user WHERE username=#{username}
+    </select>
+    <select id="userById" resultType="java.util.LinkedHashMap">
+        SELECT * FROM client_user WHERE id=#{userId}
+    </select>
+    <select id="userGet" resultType="java.util.LinkedHashMap">
+        SELECT * FROM client_user WHERE tenant_id=#{tenantId} AND id=#{userId}
+    </select>
+    <select id="usersByOrg" resultType="java.util.LinkedHashMap">
+        SELECT id,client_id,username,full_name,phone,role,grants_json,enabled,must_change_password,
+        last_login_at,locked_until,created_at FROM client_user WHERE tenant_id=#{tenantId} AND
+        client_id=#{clientId} ORDER BY id
+    </select>
+    <insert id="userInsert" keyProperty="user_id" useGeneratedKeys="true">
+        INSERT INTO
+        client_user(tenant_id,client_id,username,password_hash,full_name,phone,role,grants_json)
+        VALUES(#{tenantId},#{clientId},#{username},#{password_hash},#{full_name},#{phone},#{role},#{grants_json})
+    </insert>
+    <update id="userLoginFailed">
+        UPDATE client_user SET failed_login_attempts=#{failed},locked_until=#{locked_until},
+        updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND id=#{userId}
+    </update>
+    <update id="userLoginSucceeded">
+        UPDATE client_user SET failed_login_attempts=0,locked_until=NULL,last_login_at=#{now},
+        updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND id=#{userId}
+    </update>
+    <update id="userUpdate">
+        UPDATE client_user SET
+        full_name=#{full_name},phone=#{phone},enabled=#{enabled},grants_json=#{grants_json},
+        token_version=token_version+#{revoke},updated_at=CURRENT_TIMESTAMP(3) WHERE
+        tenant_id=#{tenantId} AND
+        client_id=#{clientId} AND id=#{userId}
+    </update>
+    <update id="userPassword">
+        UPDATE client_user SET
+        password_hash=#{password_hash},must_change_password=#{must_change_password},
+        token_version=token_version+1,failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP(3)
+        WHERE tenant_id=#{tenantId} AND id=#{userId}
+    </update>
+    <update id="userRevoke">
+        UPDATE client_user SET token_version=token_version+1,updated_at=CURRENT_TIMESTAMP(3) WHERE
+        tenant_id=#{tenantId} AND id=#{userId}
+    </update>
+    <select id="campaignLock" resultType="java.util.LinkedHashMap">
+        SELECT id,name,status FROM campaign WHERE tenant_id=#{tenantId} AND id=#{campaignId} FOR
+        UPDATE
+    </select>
+    <select id="bindingGet" resultType="java.util.LinkedHashMap">
+        SELECT b.campaign_id,b.client_id,b.deliver_history,b.revision,b.bound_by,b.bound_at,o.name
+        AS client_name,
+        o.status AS client_status FROM client_campaign b JOIN client_org o ON
+        o.tenant_id=b.tenant_id AND
+        o.id=b.client_id WHERE b.tenant_id=#{tenantId} AND b.campaign_id=#{campaignId}
+    </select>
+    <select id="bindingsFor" resultType="java.util.LinkedHashMap">
+        SELECT b.campaign_id,b.client_id,o.name AS client_name,o.status AS client_status FROM
+        client_campaign b JOIN
+        client_org o ON o.tenant_id=b.tenant_id AND o.id=b.client_id WHERE b.tenant_id=#{tenantId}
+        <if test="ids != null">
+            AND b.campaign_id IN
+            <foreach close=")" collection="ids" item="cid" open="(" separator=",">
+                #{cid}
+            </foreach>
+        </if>
+    </select>
+    <select id="bindingsByOrg" resultType="java.util.LinkedHashMap">
+        SELECT b.campaign_id,b.deliver_history,b.revision,b.bound_by,b.bound_at,g.name AS
+        campaign_name,
+        g.status AS campaign_status FROM client_campaign b JOIN campaign g ON
+        g.tenant_id=b.tenant_id AND
+        g.id=b.campaign_id WHERE b.tenant_id=#{tenantId} AND b.client_id=#{clientId} ORDER BY
+        b.bound_at DESC
+    </select>
+    <insert id="bindingUpsert">
+        INSERT INTO
+        client_campaign(tenant_id,campaign_id,client_id,deliver_history,bound_by,bound_at)
+        VALUES(#{tenantId},#{campaignId},#{clientId},#{deliver_history},#{actorId},#{now}) ON
+        DUPLICATE KEY UPDATE
+        client_id=VALUES(client_id),deliver_history=VALUES(deliver_history),revision=revision+1,
+        bound_by=VALUES(bound_by),bound_at=VALUES(bound_at)
+    </insert>
+    <delete id="bindingDelete">
+        DELETE FROM client_campaign WHERE tenant_id=#{tenantId} AND campaign_id=#{campaignId}
+    </delete>
+    <insert id="bindingLogInsert">
+        INSERT INTO client_campaign_log(tenant_id,campaign_id,from_client_id,to_client_id,actor_id)
+        VALUES(#{tenantId},#{campaignId},#{fromClient},#{toClient},#{actorId})
+    </insert>
+    <select id="bindingLog" resultType="java.util.LinkedHashMap">
+        SELECT l.id,l.from_client_id,f.name AS from_client_name,l.to_client_id,t.name AS
+        to_client_name,l.actor_id,
+        u.username AS actor_username,l.created_at FROM client_campaign_log l LEFT JOIN client_org f
+        ON
+        f.tenant_id=l.tenant_id AND f.id=l.from_client_id LEFT JOIN client_org t ON
+        t.tenant_id=l.tenant_id AND
+        t.id=l.to_client_id LEFT JOIN sys_user u ON u.tenant_id=l.tenant_id AND u.id=l.actor_id
+        WHERE
+        l.tenant_id=#{tenantId} AND l.campaign_id=#{campaignId} ORDER BY l.id DESC LIMIT 200
+    </select>
+    <select id="contactName" resultType="string">
+        SELECT name FROM contact WHERE tenant_id=#{tenantId} AND id=#{contactId}
+    </select>
+    <select id="leadsByCall" resultType="java.util.LinkedHashMap">
+        SELECT id,client_id,status,withdraw_reason FROM client_lead WHERE tenant_id=#{tenantId} AND
+        call_session_id=#{callId}
+        <if test="locked != null">
+            FOR UPDATE
+        </if>
+    </select>
+    <select id="leadDuplicate" resultType="long">
+        SELECT COUNT(*) FROM client_lead WHERE tenant_id=#{tenantId} AND client_id=#{clientId} AND
+        dedup_key=#{dedupKey} AND status='delivered' AND delivered_at &gt;=#{since}
+    </select>
+    <insert id="leadInsert" keyProperty="lead_id" useGeneratedKeys="true">
+        INSERT INTO
+        client_lead(tenant_id,client_id,campaign_id,call_session_id,contact_id,dedup_key,phone_masked,
+        contact_name,result_code,intent,summary,slots_json,delivered_at)
+        VALUES(#{tenantId},#{clientId},
+        #{campaignId},#{callId},#{contactId},#{dedupKey},#{phone_masked},#{contact_name},#{result_code},
+        #{intent},#{summary},#{slots_json},#{now})
+    </insert>
+    <update id="leadSnapshot">
+        UPDATE client_lead SET result_code=#{result_code},intent=#{intent},summary=#{summary},
+        slots_json=#{slots_json},contact_name=#{contact_name},status='delivered',withdraw_reason=NULL,
+        withdraw_note=NULL,revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE
+        tenant_id=#{tenantId} AND id=#{leadId}
+    </update>
+    <update id="leadWithdraw">
+        UPDATE client_lead SET status='withdrawn',withdraw_reason=#{reason},withdraw_note=#{note},
+        revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND
+        id=#{leadId} AND
+        status='delivered'
+    </update>
+    <sql id="leadColumns">
+        l.id,l.client_id,l.campaign_id,g.name AS
+        campaign_name,l.call_session_id,l.contact_id,l.phone_masked,
+        l.contact_name,l.result_code,l.intent,l.summary,l.slots_json,l.status,l.withdraw_reason,l.withdraw_note,
+        l.follow_state,l.invalid_reason,l.follow_note,l.next_follow_at,l.assignee_id,au.full_name AS
+        assignee_name,l.dispute_state,l.dispute_note,l.first_viewed_at,l.delivered_at,l.updated_at,l.revision,
+        (COALESCE(ct.dnc,FALSE) OR COALESCE(ct.consent_state,'')='REVOKED') AS consent_revoked
+    </sql>
+    <sql id="leadJoin">
+        FROM client_lead l LEFT JOIN campaign g ON g.tenant_id=l.tenant_id AND g.id=l.campaign_id
+        LEFT JOIN
+        contact ct ON ct.tenant_id=l.tenant_id AND ct.id=l.contact_id LEFT JOIN client_user au ON
+        au.tenant_id=l.tenant_id AND au.id=l.assignee_id
+    </sql>
+    <sql id="leadWhere">
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+        <if test="campaign_id != null">
+            AND l.campaign_id=#{campaign_id}
+        </if>
+        <if test="status != null">
+            AND l.status=#{status}
+        </if>
+        <if test="follow_state != null">
+            AND l.follow_state=#{follow_state}
+        </if>
+        <if test="dispute_state != null">
+            AND l.dispute_state=#{dispute_state}
+        </if>
+        <if test="unassigned != null">
+            AND l.assignee_id IS NULL
+        </if>
+        <if test="from != null">
+            AND l.delivered_at &gt;=#{from}
+        </if>
+        <if test="until != null">
+            AND l.delivered_at &lt;#{until}
+        </if>
+        <if test="keyword != null">
+            AND (l.contact_name LIKE CONCAT('%',#{keyword},'%') OR
+            RIGHT(l.phone_masked,4)=#{keyword})
+        </if>
+    </sql>
+    <select id="leadList" resultType="java.util.LinkedHashMap">
+        SELECT
+        <include refid="leadColumns"/>
+        <include refid="leadJoin"/>
+        WHERE l.tenant_id=#{tenantId} AND l.client_id=#{clientId}
+        <include refid="leadWhere"/>
+        <if test="cursorAt != null">
+            AND (l.delivered_at &lt;#{cursorAt} OR (l.delivered_at=#{cursorAt} AND l.id &lt;#{cursorId}))
+        </if>
+        ORDER BY l.delivered_at DESC,l.id DESC LIMIT #{limit}
+    </select>
+    <select id="leadCount" resultType="long">
+        SELECT COUNT(*)
+        <include refid="leadJoin"/>
+        WHERE l.tenant_id=#{tenantId} AND l.client_id=#{clientId}
+        <include refid="leadWhere"/>
+    </select>
+    <select id="leadGet" resultType="java.util.LinkedHashMap">
+        SELECT
+        <include refid="leadColumns"/>
+        <include refid="leadJoin"/>
+        WHERE l.tenant_id=#{tenantId} AND l.client_id=#{clientId} AND l.id=#{leadId}
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+    </select>
+    <select id="leadPhone" resultType="string">
+        SELECT COALESCE(ct.phone,c.phone) FROM client_lead l LEFT JOIN contact ct ON
+        ct.tenant_id=l.tenant_id AND
+        ct.id=l.contact_id LEFT JOIN callsession c ON c.tenant_id=l.tenant_id AND
+        c.id=l.call_session_id WHERE
+        l.tenant_id=#{tenantId} AND l.id=#{leadId}
+    </select>
+    <select id="leadRecording" resultType="string">
+        SELECT c.recording_url FROM client_lead l JOIN callsession c ON c.tenant_id=l.tenant_id AND
+        c.id=l.call_session_id WHERE l.tenant_id=#{tenantId} AND l.id=#{leadId}
+    </select>
+    <select id="leadTranscript" resultType="java.util.LinkedHashMap">
+        SELECT t.speaker_role,t.transcript,t.start_ms,t.end_ms FROM client_lead l JOIN speechturn t
+        ON
+        t.tenant_id=l.tenant_id AND t.call_session_id=l.call_session_id WHERE
+        l.tenant_id=#{tenantId} AND
+        l.id=#{leadId} AND t.is_final=TRUE ORDER BY t.created_at,t.id LIMIT 500
+    </select>
+    <select id="leadSummary" resultType="java.util.LinkedHashMap">
+        SELECT COUNT(*) AS total,COALESCE(SUM(l.first_viewed_at IS NULL),0) AS unread,
+        COALESCE(SUM(l.follow_state='pending'),0) AS
+        pending,COALESCE(SUM(l.follow_state='contacted'),0) AS
+        contacted,COALESCE(SUM(l.follow_state='valid'),0) AS
+        valid,COALESCE(SUM(l.follow_state='invalid'),0) AS
+        invalid,COALESCE(SUM(l.follow_state='won'),0) AS
+        won,COALESCE(SUM(l.dispute_state='submitted'),0) AS
+        disputing FROM client_lead l WHERE l.tenant_id=#{tenantId} AND l.client_id=#{clientId} AND
+        l.status='delivered'
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+    </select>
+    <update id="leadViewed">
+        UPDATE client_lead SET first_viewed_at=#{now} WHERE tenant_id=#{tenantId} AND id=#{leadId}
+        AND
+        first_viewed_at IS NULL
+    </update>
+    <update id="leadFollow">
+        UPDATE client_lead SET follow_state=#{follow_state},invalid_reason=#{invalid_reason},
+        follow_note=#{follow_note},next_follow_at=#{next_follow_at},revision=revision+1,
+        updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND client_id=#{clientId} AND
+        id=#{leadId} AND
+        revision=#{revision}
+    </update>
+    <update id="leadAssign">
+        UPDATE client_lead SET
+        assignee_id=#{assignee},revision=revision+1,updated_at=CURRENT_TIMESTAMP(3) WHERE
+        tenant_id=#{tenantId} AND client_id=#{clientId} AND status='delivered' AND id IN
+        <foreach close=")" collection="ids" item="lid" open="(" separator=",">
+            #{lid}
+        </foreach>
+    </update>
+    <update id="leadDispute">
+        UPDATE client_lead SET
+        dispute_state=#{dispute_state},dispute_note=#{dispute_note},revision=revision+1,
+        updated_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND client_id=#{clientId} AND
+        id=#{leadId} AND
+        revision=#{revision}
+    </update>
+    <select id="leadTrend" resultType="java.util.LinkedHashMap">
+        SELECT DATE(l.delivered_at) AS day,COUNT(*) AS delivered,COALESCE(SUM(l.follow_state IN
+        ('valid','won')),0) AS valid,COALESCE(SUM(l.follow_state='invalid'),0) AS invalid FROM
+        client_lead l WHERE
+        l.tenant_id=#{tenantId} AND l.client_id=#{clientId} AND l.status='delivered' AND
+        l.delivered_at &gt;=#{from}
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+        GROUP BY DATE(l.delivered_at) ORDER BY day
+    </select>
+    <select id="leadByCampaign" resultType="java.util.LinkedHashMap">
+        SELECT l.campaign_id,g.name AS campaign_name,COUNT(*) AS
+        delivered,COALESCE(SUM(l.follow_state IN
+        ('valid','won')),0) AS valid,COALESCE(SUM(l.follow_state='invalid'),0) AS invalid,
+        COALESCE(SUM(l.dispute_state='accepted'),0) AS disputes_accepted FROM client_lead l LEFT
+        JOIN campaign g ON
+        g.tenant_id=l.tenant_id AND g.id=l.campaign_id WHERE l.tenant_id=#{tenantId} AND
+        l.client_id=#{clientId}
+        AND l.status='delivered' AND l.delivered_at &gt;=#{from}
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+        GROUP BY l.campaign_id,g.name ORDER BY delivered DESC LIMIT 50
+    </select>
+    <select id="leadReasons" resultType="java.util.LinkedHashMap">
+        SELECT l.invalid_reason AS reason,COUNT(*) AS total FROM client_lead l WHERE
+        l.tenant_id=#{tenantId} AND
+        l.client_id=#{clientId} AND l.status='delivered' AND l.follow_state='invalid' AND
+        l.delivered_at &gt;=#{from}
+        <if test="assignee != null">
+            AND l.assignee_id=#{assignee}
+        </if>
+        GROUP BY l.invalid_reason ORDER BY total DESC
+    </select>
+    <select id="backfillRows" resultType="java.util.LinkedHashMap">
+        SELECT a.id AS
+        analysis_id,c.id,c.tenant_id,c.campaign_id,c.contact_id,c.phone,a.result_code,a.intent,
+        a.summary,a.structured_json,a.review_state,a.needs_review,a.updated_at AS
+        analysis_updated_at FROM
+        callanalysis a JOIN callsession c ON c.tenant_id=a.tenant_id AND c.id=a.call_session_id
+        WHERE
+        a.tenant_id=#{tenantId} AND c.campaign_id=#{campaignId} AND a.id &gt;#{afterId} ORDER BY a.id
+        LIMIT #{limit}
+    </select>
+    <insert id="eventInsert">
+        INSERT IGNORE INTO
+        client_lead_event(tenant_id,client_id,lead_id,actor_kind,actor_id,action,detail_json,
+        event_key)
+        VALUES(#{tenantId},#{clientId},#{leadId},#{actorKind},#{actorId},#{action},#{detail_json},
+        #{eventKey})
+    </insert>
+    <select id="eventsByLead" resultType="java.util.LinkedHashMap">
+        SELECT id,actor_kind,actor_id,action,detail_json,created_at FROM client_lead_event WHERE
+        tenant_id=#{tenantId} AND client_id=#{clientId} AND lead_id=#{leadId} ORDER BY id DESC LIMIT
+        200
+    </select>
+    <select id="eventCount" resultType="long">
+        SELECT COUNT(*) FROM client_lead_event WHERE tenant_id=#{tenantId} AND client_id=#{clientId}
+        AND
+        action=#{action} AND created_at &gt;=#{since}
+        <if test="actorId != null">
+            AND actor_id=#{actorId} AND actor_kind='client'
+        </if>
+    </select>
+    <select id="eventDetailSum" resultType="long">
+        SELECT COALESCE(SUM(CAST(JSON_EXTRACT(detail_json,'$.rows') AS UNSIGNED)),0) FROM
+        client_lead_event WHERE
+        tenant_id=#{tenantId} AND client_id=#{clientId} AND action=#{action} AND created_at
+        &gt;=#{since}
+    </select>
+    <select id="staffScopes" resultType="java.util.LinkedHashMap">
+        SELECT s.user_id,u.username,u.full_name FROM client_staff_scope s JOIN sys_user u ON
+        u.tenant_id=s.tenant_id
+        AND u.id=s.user_id WHERE s.tenant_id=#{tenantId} AND s.client_id=#{clientId} ORDER BY
+        s.user_id
+    </select>
+    <select id="staffHas" resultType="long">
+        SELECT COUNT(*) FROM client_staff_scope WHERE tenant_id=#{tenantId} AND
+        client_id=#{clientId} AND
+        user_id=#{userId}
+    </select>
+    <delete id="staffClear">
+        DELETE FROM client_staff_scope WHERE tenant_id=#{tenantId} AND client_id=#{clientId}
+    </delete>
+    <insert id="staffAdd">
+        INSERT INTO client_staff_scope(tenant_id,user_id,client_id) SELECT
+        u.tenant_id,u.id,#{clientId} FROM sys_user
+        u WHERE u.tenant_id=#{tenantId} AND u.id=#{userId} AND u.role='agent'
+    </insert>
+</mapper>

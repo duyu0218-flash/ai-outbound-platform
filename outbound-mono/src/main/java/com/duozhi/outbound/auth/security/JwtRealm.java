@@ -49,6 +49,8 @@ public final class JwtRealm extends AuthorizingRealm {
                 throw new ApiError(401, "Invalid token");
             var claims = crypto.claims(token.authorization.substring(7));
             token.expiresAt = ((Number) claims.get("exp")).longValue();
+            if (claims.containsKey("typ"))
+                throw new ApiError(401, "Invalid token"); // client portal tokens stay isolated
             if (!(claims.get("uid") instanceof Number))
                 throw new ApiError(401, "Invalid token payload");
             var row = identities.findByIdForJwt(((Number) claims.get("uid")).longValue());

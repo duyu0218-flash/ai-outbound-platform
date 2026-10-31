@@ -4,6 +4,7 @@ import com.duozhi.outbound.ai.service.DialogueRules;
 import com.duozhi.outbound.auth.domain.AdminPermission;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.call.service.CallLifecycle;
+import com.duozhi.outbound.client.service.ClientDelivery;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.service.Transactions;
@@ -26,6 +27,7 @@ public class CallAnalysis {
     private final Outbox outbox;
     private final Contract contract;
     private final OperationsAccess operations;
+    private final ClientDelivery clients;
 
     public CallAnalysis(
             Store store,
@@ -33,13 +35,15 @@ public class CallAnalysis {
             JsonSupport json,
             Outbox outbox,
             Contract contract,
-            OperationsAccess operations) {
+            OperationsAccess operations,
+            ClientDelivery clients) {
         this.store = store;
         this.tx = tx;
         this.json = json;
         this.outbox = outbox;
         this.contract = contract;
         this.operations = operations;
+        this.clients = clients;
     }
 
     // The transaction's first snapshot must follow its scoped parent row lock;
@@ -333,6 +337,7 @@ public class CallAnalysis {
         String version = JsonSupport.sha(json.canonical(data, true));
         data.put("version", version);
         outbox.callback(call, "call.result", data, "result:" + call.get("id") + ":" + version);
+        clients.sync(call, record);
     }
 
     @GetMapping("/api/v1/calls/{id}/analysis")

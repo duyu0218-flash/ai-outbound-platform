@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(10);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(11);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -128,7 +128,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(6);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(7);
         try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var st = c.createStatement();
                 var row =
@@ -149,8 +149,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(28);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("28");
+        assertThat(first.migrationsExecuted).isEqualTo(29);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("29");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -274,8 +274,11 @@ class DataLayerReplayIT {
             }
         }
         assertThat(tables)
-                .hasSize(97)
+                .hasSize(105)
                 .containsKeys(
+                        "client_org",
+                        "client_lead",
+                        "client_lead_event",
                         "msg_message",
                         "msg_journal",
                         "msg_application",
