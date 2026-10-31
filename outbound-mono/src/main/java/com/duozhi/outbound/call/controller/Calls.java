@@ -180,17 +180,17 @@ public class Calls {
             int page,
             @RequestParam(defaultValue = "50")
             int size) {
-        visible(Identity.from(request), id);
-        return store
-                .across(
-                        "callevent",
-                        "scopedCalls71",
-                        Store.queryParameters(
-                                -1,
-                                store.encode("callevent", "call_session_id", id),
-                                size,
-                                Contract.page(page, size)))
-                .stream()
+        Identity identity = Identity.from(request);
+        visible(identity, id);
+        // visible() proved the call belongs to the caller's tenant; query only that tenant.
+        Map<String, Object> parameters =
+                Store.queryParameters(
+                        -1,
+                        store.encode("callevent", "call_session_id", id),
+                        size,
+                        Contract.page(page, size));
+        parameters.put("tenantId", identity.tenant());
+        return store.query("callevent", "scopedCalls71", parameters).stream()
                 .map(row -> contract.output("CallEventOut", row))
                 .collect(Collectors.toList());
     }
@@ -204,17 +204,17 @@ public class Calls {
             int page,
             @RequestParam(defaultValue = "50")
             int size) {
-        visible(Identity.from(request), id);
-        return store
-                .across(
-                        "webhookeventingest",
-                        "scopedCalls79",
-                        Store.queryParameters(
-                                -1,
-                                store.encode("webhookeventingest", "call_session_id", id),
-                                size,
-                                Contract.page(page, size)))
-                .stream()
+        Identity identity = Identity.from(request);
+        visible(identity, id);
+        // visible() proved the call belongs to the caller's tenant; query only that tenant.
+        Map<String, Object> parameters =
+                Store.queryParameters(
+                        -1,
+                        store.encode("webhookeventingest", "call_session_id", id),
+                        size,
+                        Contract.page(page, size));
+        parameters.put("tenantId", identity.tenant());
+        return store.query("webhookeventingest", "scopedCalls79", parameters).stream()
                 .map(row -> contract.output("WebhookEventIngestOut", row))
                 .collect(Collectors.toList());
     }

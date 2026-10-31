@@ -1081,6 +1081,151 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void atomicAnalysisReclaimsALoneExpiredLeaseWithoutASuccessor() {
+        long tid = 97;
+        store.insert(
+                "tenant",
+                Values.map(
+                        "id",
+                        tid,
+                        "code",
+                        "analysis-lone-reclaim-fixture",
+                        "name",
+                        "Isolated lone analysis reclaim fixture"));
+        var property =
+                new MapPropertySource(
+                        "analysis-lone-reclaim",
+                        Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
+        environment.getPropertySources().addFirst(property);
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        int lane =
+                Arrays.asList((String[]) ReflectionTestUtils.getField(worker, "laneTypes"))
+                        .indexOf("('call_analysis')");
+        try {
+            var call =
+                    store.insert(
+                            "callsession",
+                            Values.map(
+                                    "tenant_id",
+                                    tid,
+                                    "phone",
+                                    "15500008890",
+                                    "mode",
+                                    "ai_only",
+                                    "status",
+                                    "no_answer",
+                                    "attempts",
+                                    1,
+                                    "max_attempts",
+                                    1));
+            var task =
+                    outbox.enqueue(
+                            tid,
+                            "call_analysis",
+                            call.get("id"),
+                            key(),
+                            Values.map("call_id", call.get("id"), "attempt", 1));
+            var abandoned =
+                    store.update(
+                            "taskoutbox",
+                            tid,
+                            task.get("id"),
+                            Values.map(
+                                    "state",
+                                    "processing",
+                                    "attempts",
+                                    1,
+                                    "locked_at",
+                                    Store.now().minusSeconds(60),
+                                    "lease_token",
+                                    "crashed-analysis-owner"));
+            // A worker that died mid-task must not leave its only task in PROCESSING forever.
+            assertThat(worker.processLane(tid, lane)).isTrue();
+            assertThat(worker.owns(abandoned)).isFalse();
+            assertThat(store.require("taskoutbox", tid, task.get("id")).get("state"))
+                    .isEqualTo("completed");
+            assertThat(
+                            store.query(
+                                    "callanalysis",
+                                    "list",
+                                    Values.map("tenantId", tid, "offset", 0, "limit", 100)))
+                    .hasSize(1);
+        } finally {
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
+            environment.getPropertySources().remove(property.getName());
+        }
+    }
+
+    @Test
+    void atomicAnalysisLeavesALiveLeaseWithItsOwner() {
+        long tid = 98;
+        store.insert(
+                "tenant",
+                Values.map(
+                        "id",
+                        tid,
+                        "code",
+                        "analysis-live-lease-fixture",
+                        "name",
+                        "Isolated live analysis lease fixture"));
+        var property =
+                new MapPropertySource(
+                        "analysis-live-lease", Map.of("JAVA_TASK_CLAIM_PARALLEL_ENABLED", "true"));
+        environment.getPropertySources().addFirst(property);
+        ReflectionTestUtils.setField(worker, "analysisBatchSize", 16);
+        int lane =
+                Arrays.asList((String[]) ReflectionTestUtils.getField(worker, "laneTypes"))
+                        .indexOf("('call_analysis')");
+        try {
+            var call =
+                    store.insert(
+                            "callsession",
+                            Values.map(
+                                    "tenant_id",
+                                    tid,
+                                    "phone",
+                                    "15500008891",
+                                    "mode",
+                                    "ai_only",
+                                    "status",
+                                    "no_answer",
+                                    "attempts",
+                                    1,
+                                    "max_attempts",
+                                    1));
+            var task =
+                    outbox.enqueue(
+                            tid,
+                            "call_analysis",
+                            call.get("id"),
+                            key(),
+                            Values.map("call_id", call.get("id"), "attempt", 1));
+            var live =
+                    store.update(
+                            "taskoutbox",
+                            tid,
+                            task.get("id"),
+                            Values.map(
+                                    "state",
+                                    "processing",
+                                    "attempts",
+                                    1,
+                                    "locked_at",
+                                    Store.now(),
+                                    "lease_token",
+                                    "live-analysis-owner"));
+            // A just-renewed lease belongs to a running worker and must not be taken over.
+            assertThat(worker.processLane(tid, lane)).isFalse();
+            assertThat(worker.owns(live)).isTrue();
+            assertThat(store.require("taskoutbox", tid, task.get("id")).get("state"))
+                    .isEqualTo("processing");
+        } finally {
+            ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
+            environment.getPropertySources().remove(property.getName());
+        }
+    }
+
+    @Test
     void analysisBatchDoesNotPassAnOlderDeadTaskBeingReactivated() throws Exception {
         long tid = 96;
         store.insert(

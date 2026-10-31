@@ -392,7 +392,7 @@ public class TaskWorker {
     }
 
     private Map<String, Object> claim(Long tenant, String types, int partition, int partitions) {
-        boolean parallel = config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", false);
+        boolean parallel = config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", true);
         Supplier<Map<String, Object>> work =
                 () -> {
                     Object now = store.encode("taskoutbox", "available_at", Store.now());
@@ -601,7 +601,7 @@ public class TaskWorker {
      * before ordinary per-task retry.
      */
     private boolean processAnalysisBatch(Long only) {
-        if (!config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", false))
+        if (!config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", true))
             return processOne(only, "('call_analysis')");
         var tenants = new ArrayList<>(store.query("tenant", "allForMaintenance", Map.of()));
         long previous = cursor.get();
