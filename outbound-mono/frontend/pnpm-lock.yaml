@@ -29,13 +29,13 @@ importers:
         version: 3.4.2(prettier@3.6.2)
       '@vitejs/plugin-vue':
         specifier: 5.2.4
-        version: 5.2.4(vite@6.4.4)(vue@3.5.42)
+        version: 5.2.4(vite@6.4.5)(vue@3.5.42)
       prettier:
         specifier: 3.6.2
         version: 3.6.2
       vite:
-        specifier: 6.4.4
-        version: 6.4.4
+        specifier: 6.4.5
+        version: 6.4.5
 
 packages:
 
@@ -576,8 +576,8 @@ packages:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
 
-  vite@6.4.4:
-    resolution: {integrity: sha512-xGjU/SyjeNyb0E4KxXBvYz/1C+3JXuujvf2hXNOtnlcE+58o5ajd9N2/n2VhkiJvpCP2qQasnUpx5PXNeI+p1Q==}
+  vite@6.4.5:
+    resolution: {integrity: sha512-4enwjFfi4IwtEh0w+jPzpLVOFQiPHmmzPxcHXQOyEur47o6u0jE573DmGpjA+7irXoMLYRZD5ZaFUEneS3abPg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
     peerDependencies:
@@ -851,9 +851,9 @@ snapshots:
 
   '@types/web-bluetooth@0.0.16': {}
 
-  '@vitejs/plugin-vue@5.2.4(vite@6.4.4)(vue@3.5.42)':
+  '@vitejs/plugin-vue@5.2.4(vite@6.4.5)(vue@3.5.42)':
     dependencies:
-      vite: 6.4.4
+      vite: 6.4.5
       vue: 3.5.42
 
   '@vue/compiler-core@3.5.42':
@@ -1094,7 +1094,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
 
-  vite@6.4.4:
+  vite@6.4.5:
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.7)
