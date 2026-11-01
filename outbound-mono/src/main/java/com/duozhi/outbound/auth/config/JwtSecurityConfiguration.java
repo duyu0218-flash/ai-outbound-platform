@@ -148,6 +148,8 @@ public class JwtSecurityConfiguration {
                         "/v1/recordings/*",
                         "/v1/recording-cleanup/*",
                         "/v1/pipecat/media/*")) chain.put(path, "noSessionCreation,anon");
+        // Public short-link redirect (marketing P2); it reads no identity and only issues 302s.
+        chain.put("/s/*", "noSessionCreation,anon");
         chain.put(
                 "/openapi/v1/**",
                 "noSessionCreation,anon"); // MessageApi verifies independent HMAC credentials.

@@ -2,6 +2,7 @@ import { ref } from 'vue';
 const zh = {
   navWorkbench: '工作台',
   navContacts: '客户名单',
+  navMarketing: '营销中台',
   navScripts: '话术与 AI',
   navDialing: '外呼执行',
   navQuality: '质检与线索',
@@ -377,6 +378,7 @@ const zh = {
 const en = {
   navWorkbench: 'Workbench',
   navContacts: 'Contact lists',
+  navMarketing: 'Marketing',
   navScripts: 'Scripts & AI',
   navDialing: 'Dialing',
   navQuality: 'QA & leads',
