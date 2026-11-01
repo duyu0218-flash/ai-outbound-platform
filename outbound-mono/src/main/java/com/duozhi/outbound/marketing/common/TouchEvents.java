@@ -1,5 +1,6 @@
 package com.duozhi.outbound.marketing.common;
 
+import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
 import java.time.LocalDateTime;
@@ -64,7 +65,7 @@ public class TouchEvents {
                         d == null ? null : d.journeyId(),
                         d == null ? null : d.journeyMemberId(),
                         json.json(t.detail() == null ? Map.of() : t.detail()),
-                        t.occurredAt() == null ? LocalDateTime.now() : t.occurredAt());
+                        t.occurredAt() == null ? Store.now() : t.occurredAt());
         if (inserted == 0) return null;
         var recorded = new Recorded(id, t);
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
