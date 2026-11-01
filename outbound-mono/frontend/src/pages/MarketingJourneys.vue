@@ -7,6 +7,7 @@ import { ElMessage } from 'element-plus';
 
 const query = useData('/api/v1/marketing/journeys');
 const vocabulary = useData('/api/v1/marketing/ping');
+const snapshots = useData('/api/v1/marketing/snapshots');
 const statusText = {
   draft: '草稿',
   published: '已发布',
@@ -469,7 +470,20 @@ async function savePolicy() {
         </el-card>
         <el-card v-if="current" shadow="never" header="启动与运行控制" style="margin-top: 12px">
           <template v-if="['published'].includes(current.status)">
-            <el-input v-model="snapshotId" placeholder="人群快照编号（在“人群圈选”页复制）" />
+            <el-select
+              v-model="snapshotId"
+              placeholder="选择人群快照"
+              filterable
+              style="width: 100%"
+              @visible-change="(open) => open && snapshots.load()"
+            >
+              <el-option
+                v-for="s in snapshots.data.value || []"
+                :key="s.id"
+                :value="s.id"
+                :label="`${s.name}（实验组 ${s.test_size} 人，对照组 ${s.control_size} 人）`"
+              />
+            </el-select>
             <div class="actions" style="margin-top: 8px">
               <el-button :disabled="!snapshotId" @click="runEstimate">预估触达与成本</el-button>
               <el-button

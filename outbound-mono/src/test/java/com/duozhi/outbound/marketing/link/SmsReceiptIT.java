@@ -119,8 +119,15 @@ class SmsReceiptIT extends LinkTestSupport {
         event(late, "message.delivered", "{\"status\":\"DELIVERED\"}");
         receipts.scanOnce(Duration.ofMinutes(10), 1000);
         assertThat(codes(late)).isEmpty();
-        drain();
-        assertThat(codes(late)).containsExactly("SMS_DELIVERED");
+        // msg_event timestamps come from MySQL; a small host/container clock skew can put
+        // a freshly inserted event just beyond the application's zero-settle cutoff.
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(
+                        () -> {
+                            drain();
+                            assertThat(codes(late)).containsExactly("SMS_DELIVERED");
+                        });
     }
 
     @Test

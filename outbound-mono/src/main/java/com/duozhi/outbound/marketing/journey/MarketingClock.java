@@ -6,10 +6,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
 /**
- * Time for journeys, frequency control and statistics. Two stored time bases meet here:
- * application-local values (mk_touch_event.occurred_at and every P4 table, written in the JVM zone)
- * and database-session values (mk_dispatch.created_at, filled by CURRENT_TIMESTAMP). Both are
- * converted through instants, so a JVM and a MySQL server in different zones still agree.
+ * Time for journeys, frequency control and statistics. Two stored time bases meet here: UTC
+ * application values (mk_touch_event.occurred_at and every P4 table) and database-session values
+ * (mk_dispatch.created_at, filled by CURRENT_TIMESTAMP). Both are converted through instants, so a
+ * JVM and a MySQL server in different zones still agree.
  *
  * <p>{@link #fix(Instant)} / {@link #advance(Duration)} / {@link #reset()} exist for integration
  * tests and drills; production always runs on the system clock.
@@ -47,7 +47,7 @@ public class MarketingClock {
     }
 
     public static ZoneId appZone() {
-        return ZoneId.systemDefault();
+        return ZoneOffset.UTC;
     }
 
     public static LocalDateTime app(Instant instant) {
@@ -79,7 +79,7 @@ public class MarketingClock {
         return local.toInstant(dbOffset());
     }
 
-    /** Seconds to add to a database-session DATETIME to obtain the application-local value. */
+    /** Seconds to add to a database-session DATETIME to obtain the UTC application value. */
     public long dbToAppSeconds() {
         Instant probe = now();
         return appZone().getRules().getOffset(probe).getTotalSeconds()
