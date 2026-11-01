@@ -24,6 +24,7 @@ export async function clientChecks({ page, origin, check }) {
     expect(groups).toEqual([
       '工作台',
       '客户名单',
+      '营销中台',
       '话术与 AI',
       '外呼执行',
       '质检与线索',

@@ -42,6 +42,9 @@ public abstract class MarketingTestBase {
         p.add("MESSAGING_ENABLED", () -> "true");
         p.add("MESSAGING_WORKERS_ENABLED", () -> "false");
         p.add("MARKETING_WORKERS_ENABLED", () -> "false");
+        // Explicit all-day contact window so admission results never depend on the hour a test
+        // runs; window tests configure their tenant's mk_policy_config and a fixed clock.
+        p.add("MARKETING_CONTACT_WINDOW", () -> "00:00-24:00");
         p.add("spring.datasource.url", MYSQL::getJdbcUrl);
         p.add("spring.datasource.username", MYSQL::getUsername);
         p.add("spring.datasource.password", MYSQL::getPassword);

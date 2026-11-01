@@ -219,6 +219,9 @@ class DataLayerIT {
             try (var rs = statement.executeQuery("SHOW TABLES")) {
                 while (rs.next()) actualTables.add(rs.getString(1));
             }
+            // mk_ tables belong to the marketing modules (MARKETING-ARCHITECTURE.md) and are
+            // covered by their own integration tests.
+            actualTables.removeIf(t -> t.startsWith("mk_"));
             var expectedTables = new HashSet<String>();
             tables().forEach(t -> expectedTables.add(meta(t).get("table").asText()));
             assertThat(expectedTables).hasSize(34);

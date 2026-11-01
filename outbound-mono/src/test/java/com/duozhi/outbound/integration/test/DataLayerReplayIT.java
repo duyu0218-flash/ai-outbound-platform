@@ -16,6 +16,29 @@ import org.testcontainers.mysql.MySQLContainer;
 /** Acceptance evidence only: two real migrations and an independent database inventory. */
 @Testcontainers
 class DataLayerReplayIT {
+    /**
+     * Marketing modules (V30 and later, see MARKETING-ARCHITECTURE.md) add their own migrations and
+     * mk_ tables; this replay pins the core schema up to V29 and only counts those on top.
+     */
+    static final List<Integer> MARKETING_VERSIONS = marketingVersions();
+
+    static List<Integer> marketingVersions() {
+        try (var files = Files.list(Path.of("src/main/resources/db/migration"))) {
+            return files.map(f -> f.getFileName().toString())
+                    .filter(n -> n.matches("V\\d+__.*\\.sql"))
+                    .map(n -> Integer.parseInt(n.substring(1, n.indexOf("__"))))
+                    .filter(v -> v >= 30)
+                    .sorted()
+                    .toList();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static String latestVersion() {
+        return MARKETING_VERSIONS.isEmpty() ? "29" : String.valueOf(MARKETING_VERSIONS.getLast());
+    }
+
     @Container
     static final MySQLContainer MYSQL =
             new MySQLContainer("mysql:8.4")
@@ -66,7 +89,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(11);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(11 + MARKETING_VERSIONS.size());
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -128,7 +151,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(7);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(7 + MARKETING_VERSIONS.size());
         try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var st = c.createStatement();
                 var row =
@@ -149,8 +172,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(29);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("29");
+        assertThat(first.migrationsExecuted).isEqualTo(29 + MARKETING_VERSIONS.size());
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo(latestVersion());
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -273,8 +296,10 @@ class DataLayerReplayIT {
                 }
             }
         }
+        // mk_ tables belong to the marketing modules and are checked by their own tests.
+        assertThat(tables.keySet().stream().filter(t -> !t.startsWith("mk_")).count())
+                .isEqualTo(105);
         assertThat(tables)
-                .hasSize(105)
                 .containsKeys(
                         "client_org",
                         "client_lead",
