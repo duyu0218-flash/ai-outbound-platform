@@ -32,7 +32,11 @@ public interface MatchAdapter {
         return 300;
     }
 
-    record Query(String e164, int topN, String authorizationRef) {}
+    record Query(String e164, int topN, String authorizationRef, String operationId) {
+        public Query(String e164, int topN, String authorizationRef) {
+            this(e164, topN, authorizationRef, null);
+        }
+    }
 
     record Normalized(
             boolean hit,

@@ -27,6 +27,7 @@ public class Matching {
     private final Config config;
     private final TransactionTemplate tx;
     private final AntDasMatchAdapter das;
+    private final MatchFlights flights;
     private final Map<String, MatchAdapter> adapters = new LinkedHashMap<>();
 
     public Matching(
@@ -36,13 +37,15 @@ public class Matching {
             Config config,
             TransactionTemplate tx,
             List<MatchAdapter> adapters,
-            AntDasMatchAdapter das) {
+            AntDasMatchAdapter das,
+            MatchFlights flights) {
         this.db = db;
         this.phones = phones;
         this.json = json;
         this.config = config;
         this.tx = tx;
         this.das = das;
+        this.flights = flights;
         for (var a : adapters)
             if (this.adapters.put(a.id(), a) != null)
                 throw new IllegalStateException("duplicate adapter");
@@ -143,6 +146,7 @@ public class Matching {
                 List.of(
                         "reserved",
                         "pending",
+                        "waiting",
                         "success",
                         "no_data",
                         "cached",
@@ -285,6 +289,7 @@ public class Matching {
                 "UPDATE mk_match_job SET state='running' WHERE tenant_id=? AND id=? AND state='queued'",
                 tenant,
                 id);
+        flights.refresh(job);
         var batch =
                 db.rows(
                         "SELECT * FROM mk_match_request WHERE tenant_id=? AND job_id=? AND state='reserved' ORDER BY position LIMIT ?",
@@ -370,7 +375,7 @@ public class Matching {
                 tenant,
                 id);
         if (db.count(
-                        "SELECT COUNT(*) FROM mk_match_request WHERE tenant_id=? AND job_id=? AND state IN ('reserved','pending')",
+                        "SELECT COUNT(*) FROM mk_match_request WHERE tenant_id=? AND job_id=? AND state IN ('reserved','pending','waiting')",
                         tenant,
                         id)
                 == 0)
@@ -384,23 +389,6 @@ public class Matching {
             Map<String, Object> job, MatchAdapter adapter, Map<String, Object> request) {
         long tenant = ((Number) job.get("tenant_id")).longValue();
         String rid = (String) request.get("id");
-        var cached =
-                cached(
-                        tenant,
-                        (String) job.get("partner_id"),
-                        (String) job.get("product"),
-                        (String) request.get("phone_hash"));
-        if (cached != null) {
-            db.write(
-                    "UPDATE mk_match_request SET state='cached',code='CACHED',message='复用 30 天内结果，未再次计费。',hit=?,score=?,grade=?,best_hours=?,labels=?,finished_at=NOW(6) WHERE id=? AND state='reserved'",
-                    cached.get("hit"),
-                    cached.get("score"),
-                    cached.get("grade"),
-                    cached.get("best_hours"),
-                    cached.get("labels"),
-                    rid);
-            return new Done(false, "cached", "CACHED");
-        }
         String e164 = phones.decrypt(tenant, (String) request.get("phone_cipher"));
         if (MatchAdapter.ANT_DAS.equals(adapter.id()) && AntDasMatchAdapter.local(e164) == null) {
             db.write(
@@ -408,17 +396,15 @@ public class Matching {
                     rid);
             return new Done(false, "failed", "INVALID_PHONE");
         }
-        // The compare-and-set below is the sole permission to send this request.
-        if (db.write(
-                        "UPDATE mk_match_request SET state='pending',charged=TRUE,code='PENDING',sent_at=NOW(6) WHERE id=? AND state='reserved'",
-                        rid)
-                != 1) return new Done(false, "skipped", "");
+        // The database flight and request CAS commit together before any network activity.
+        if (!flights.claim(job, request)) return new Done(false, "shared", "");
         var outcome =
                 adapter.query(
                         new MatchAdapter.Query(
                                 e164,
                                 ((Number) job.get("top_n")).intValue(),
-                                (String) job.get("authorization_ref")));
+                                (String) job.get("authorization_ref"),
+                                rid));
         save(
                 tenant,
                 (String) job.get("partner_id"),
@@ -452,19 +438,24 @@ public class Matching {
         var r = o.result();
         tx.executeWithoutResult(
                 s -> {
-                    db.write(
-                            "UPDATE mk_match_request SET state=?,code=?,message=?,request_id=?,hit=?,score=?,grade=?,best_hours=?,labels=?,finished_at=NOW(6) WHERE id=? AND state=?",
-                            o.state(),
-                            trim(o.code(), 32),
-                            trim(o.message(), 255),
-                            trim(o.requestId(), 128),
-                            r == null ? null : r.hit(),
-                            r == null ? null : r.score(),
-                            r == null ? null : r.grade(),
-                            r == null ? null : json.json(r.bestHours()),
-                            r == null ? null : json.json(r.labels()),
-                            requestId,
-                            fromState);
+                    if ("api".equals(source)) flights.lockOwner(requestId);
+                    int changed =
+                            db.write(
+                                    "UPDATE mk_match_request SET state=?,code=?,message=?,request_id=?,hit=?,score=?,grade=?,best_hours=?,labels=?,finished_at=NOW(6) WHERE id=? AND (state=? OR (?='pending' AND state='uncertain'))",
+                                    o.state(),
+                                    trim(o.code(), 32),
+                                    trim(o.message(), 255),
+                                    trim(o.requestId(), 128),
+                                    r == null ? null : r.hit(),
+                                    r == null ? null : r.score(),
+                                    r == null ? null : r.grade(),
+                                    r == null ? null : json.json(r.bestHours()),
+                                    r == null ? null : json.json(r.labels()),
+                                    requestId,
+                                    fromState,
+                                    fromState);
+                    if (changed != 1) return;
+                    if ("api".equals(source)) flights.complete(requestId, o.state());
                     if (r != null && Set.of("success", "no_data").contains(o.state()))
                         cache(tenant, partner, product, hash, r, source, o.requestId());
                 });
@@ -815,6 +806,13 @@ public class Matching {
                     normalized,
                     "import",
                     rid);
+            flights.reconcile(
+                    tenant,
+                    partnerId,
+                    (String) partner.get("product"),
+                    hash,
+                    requestRow,
+                    hit ? "success" : "no_data");
         }
         var out = new LinkedHashMap<>(job(tenant, id));
         out.put("imported", items.size());

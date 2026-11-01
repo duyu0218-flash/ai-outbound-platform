@@ -256,6 +256,9 @@ class MatchingIT extends DatasetTestSupport {
         jdbc.update(
                 "UPDATE mk_match_result SET expires_at=NOW(6) - INTERVAL 1 DAY WHERE tenant_id=?",
                 tenant);
+        jdbc.update(
+                "UPDATE mk_match_flight SET expires_at=NOW(6)-INTERVAL 1 DAY WHERE tenant_id=? AND state IN ('success','no_data')",
+                tenant);
         String third = submit(partner, version).path("id").asText();
         runToEnd(third);
         assertThat(((Map<?, ?>) matching.job(tenant, third).get("counts")).get("charged"))

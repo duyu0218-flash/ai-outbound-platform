@@ -332,7 +332,7 @@ const maxBucket = computed(() =>
               label: '进度',
               width: 260,
               render: (c) =>
-                `成功 ${c.success} · 无数据 ${c.no_data} · 缓存 ${c.cached} · 失败 ${c.failed} · 待核对 ${c.uncertain + c.pending} · 待发 ${c.reserved}`,
+                `成功 ${c.success} · 无数据 ${c.no_data} · 缓存 ${c.cached} · 共享等待 ${c.waiting} · 失败 ${c.failed} · 待核对 ${c.uncertain + c.pending} · 待发 ${c.reserved}`,
             },
             { key: 'counts.charged', label: '计费次数' },
             { key: 'pause_reason', label: '暂停原因' },

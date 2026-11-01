@@ -67,7 +67,7 @@ public class AntDasMatchAdapter implements MatchAdapter {
 
     @Override
     public String unavailableReason() {
-        return configured() ? "" : "意愿分服务尚未配置，请管理员确认接口权限、密钥和数据集 ID。";
+        return configured() ? "" : "意愿分服务尚未配置或启用，请管理员确认接口权限、密钥、产品和数据集 ID。";
     }
 
     @Override
@@ -101,7 +101,7 @@ public class AntDasMatchAdapter implements MatchAdapter {
         String code = "UNKNOWN", requestId = "";
         Outcome outcome;
         try {
-            var raw = gateway.query(phone, topN, query.authorizationRef());
+            var raw = gateway.query(phone, topN, query.authorizationRef(), query.operationId());
             code = raw.code() == null || raw.code().isEmpty() ? "UNKNOWN" : raw.code();
             if (!code.matches("[A-Z0-9_]{1,32}")) code = "UNKNOWN";
             String rid = raw.requestId() == null ? "" : raw.requestId();

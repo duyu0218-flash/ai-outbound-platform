@@ -22,4 +22,9 @@ public interface DasGateway {
 
     /** Must not retry: charging semantics are unknown, a repeated call may be charged twice. */
     Response query(String phone, int topN, String authorizationRef) throws Exception;
+
+    default Response query(String phone, int topN, String authorizationRef, String operationId)
+            throws Exception {
+        return query(phone, topN, authorizationRef);
+    }
 }

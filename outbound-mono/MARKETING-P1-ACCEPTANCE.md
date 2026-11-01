@@ -23,7 +23,7 @@
     - 每个进程共享一个限流器，默认 300 QPS，可通过 `DAS_QPS_LIMIT` 在 1–300 之间配置。
     - 状态机为 `reserved → pending → success / no_data / failed / uncertain`。其中 `reserved→pending` 用 CAS 更新，这是唯一的发送许可。pending 和 uncertain 的请求永远不会自动重发；pending 超过 5 分钟仍没有回报的，记为 `uncertain / PENDING_REVIEW`。
     - 暂停阈值与原实现一致：遇到 10001/10025/10027/10032/10034/20002 立即暂停；连续 5 次失败暂停；发送不少于 20 次且错误率达到 10% 时暂停。结果保存出错也会暂停。暂停后在页面点“继续”恢复。
-    - 传输层使用 `DasGateway` 接口。默认实现 `HttpDasGateway` 把请求 POST 到 `DAS_GATEWAY_URL`：这是一个包装 AntChain SDK 的中转网关，请求体字段与原调用一致，并用 HMAC-SHA256 签名，只发一次、不重试。只有 `DAS_ACCESS_KEY_ID`、`DAS_ACCESS_KEY_SECRET`、`DAS_DATASET_ID` 都已配置且 `DAS_GATEWAY_URL` 以 https 开头时，才视为已配置；否则提交撞库返回 503“意愿分服务尚未配置”，不会生成任何分数。
+    - 传输层使用 `DasGateway` 接口。`HttpDasGateway` 按官方 DAS OpenAPI 协议直接 POST 到 `/gateway.do`，使用 HmacSHA1 表单签名并校验成功响应签名，无需额外中转服务。必须显式设置 `DAS_ENABLED=true` 及密钥、产品实例和数据集，默认关闭；生产只允许 HTTPS。详见 `MARKETING-DAS-ACCEPTANCE.md`。
   - `hash_file`：导出 SHA-256 文件（大陆号码按 11 位数字计算），再导入命中结果文件（列为 sha256、hit、score、grade、labels、best_hours；没有出现在文件中的号码记为未命中）。
 - 结果统一为：是否命中、分数 0–100（合作方给的 0–1 视为概率并乘以 100）、等级（A ≥80，B ≥60，C ≥40，其余为 D）、最佳时段 best_hours、标签 labels。
 - 缓存：按“合作方 + 产品 + 号码”缓存 30 天（`mk_match_result`），success 和 no_data 都缓存。命中缓存的请求记为 `cached`，`charged=false`，不会再调用合作方。
@@ -95,10 +95,10 @@ Claude 最后一轮 P1 单模块 `mvn -B verify` 于 2026-11-01 20:31 完成（�
 Codex 已将 P1 与 P2/P3/P4 接合，补充跨模块及浏览器验收；最终结果统一见 `MARKETING-RESUME-ACCEPTANCE.md`。
 
 ## 未验证项
-- 真实的蚂蚁 DAS 联调：本仓库没有 AntChain SDK，`HttpDasGateway` 依赖一个包装官方 SDK 的中转网关（`DAS_GATEWAY_URL`），其请求格式和签名约定没有和真实网关联调过；DAS 分值的量纲（0–1 还是更大的范围）也需要拿真实数据确认。测试中全部使用脚本化的网关。
+- 真实蚂蚁 DAS 联调与真实分值量纲仍未验证。直连协议已由本地 HTTP 模拟网关验证，不代表真实鉴权、服务权限或计费已验收。
 - 除 DAS 外的其他联合建模合作方：只提供了 mock 和哈希文件交换两种方式，没有对接任何真实合作方。
 - 真实短信通道和外呼线路：短信走 messaging 的沙箱模拟供应商；外呼只创建了 callsession，没有实际拨打。
 - 短链：接续分支已包含 P2；个人短链的创建、消息绑定、点击归因已通过 `MarketingLifecycleIT` 联合测试。真实域名和运营商环境仍未验证。
 - 准入策略：接续分支已接入 P4 的 `@Primary` ContactPolicy；联合测试验证短信后外呼间隔限制和点击后的解除。
-- 已知限制：两个任务同时对同一号码撞库时，可能各计费一次（缓存只在结果落库后生效）；缓存的结果如果当初请求的 topN 比现在小，复用时不会补齐时段。
+- 并发去重：V35 通过数据库持久化凭证在同租户、同合作方、同产品、同号码范围内共享查询，pending/uncertain/failed 不自动释放重发。缓存原先 topN 较小时不会为补齐时段而自动增加付费查询。详见本次 DAS 验收记录。
 - 新建联系人时，授权状态记为 CONSENTED，依据是数据包版本的授权凭证（`consented_by = marketing:{snapshot}`）；已有联系人的授权状态不会改动。

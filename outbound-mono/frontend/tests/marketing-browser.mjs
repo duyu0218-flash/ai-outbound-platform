@@ -66,6 +66,23 @@ export async function marketingChecks({ page, origin, check, go }) {
       await page.getByRole('tab', { name: tab, exact: true }).click();
       await expect(page.getByRole('tabpanel').filter({ visible: true })).toBeVisible();
     }
+    const versions = await api('dataset-versions');
+    const version = versions.find((v) => v.dataset_name === '浏览器营销数据包');
+    const partner = await api('partners', 'POST', {
+      name: '浏览器模拟合作方',
+      code: 'browser-local-mock',
+      adapter: 'mock',
+    });
+    await api('match-jobs', 'POST', { partnerId: partner.id, versionId: version.id });
+    await page.getByRole('tab', { name: '撞库任务', exact: true }).click();
+    await page.getByRole('button', { name: '刷新', exact: true }).click();
+    const matchRow = row('浏览器模拟合作方');
+    await matchRow.getByRole('button', { name: '立即执行', exact: true }).click();
+    await expect(matchRow).toContainText('已完成');
+    await expect(matchRow).toContainText('共享等待 0');
+    await expect(matchRow).not.toContainText('undefined');
+    await page.screenshot({ path: 'target/marketing-browser/matching.png', fullPage: true });
+    await page.getByRole('tab', { name: '数据包', exact: true }).click();
     await page.screenshot({ path: 'target/marketing-browser/datasets.png', fullPage: true });
   });
 
