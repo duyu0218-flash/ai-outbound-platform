@@ -211,15 +211,34 @@ public class SnapshotChannelSender implements ChannelSender {
                         List.of("sms", "rcs", "yuexin", "oem_ip"),
                         "allow_fallback",
                         false));
-        Map<String, Object> message;
+        final LinkMinter.ShortLink minted = shortLink;
+        String messageId;
         try {
-            message = messaging.create(new Messaging.Principal(tenant, application), key, request);
+            // One transaction: the dispatch exists before any worker can see the queued message.
+            messageId =
+                    tx.execute(
+                            s -> {
+                                var message =
+                                        messaging.create(
+                                                new Messaging.Principal(tenant, application),
+                                                key,
+                                                request);
+                                String created = String.valueOf(message.get("id"));
+                                register(
+                                        tenant,
+                                        OutcomeCodes.SMS,
+                                        Attribution.MESSAGE,
+                                        created,
+                                        hash,
+                                        contactId,
+                                        origin);
+                                if (minted != null)
+                                    minter.bindMessage(tenant, minted.code(), created);
+                                return created;
+                            });
         } catch (ApiError e) {
             return reject(e.getMessage());
         }
-        String messageId = String.valueOf(message.get("id"));
-        if (shortLink != null) minter.bindMessage(tenant, shortLink.code(), messageId);
-        register(tenant, OutcomeCodes.SMS, Attribution.MESSAGE, messageId, hash, contactId, origin);
         return new Result(true, "", messageId);
     }
 
@@ -265,97 +284,101 @@ public class SnapshotChannelSender implements ChannelSender {
                 recipient.phoneHash() != null ? recipient.phoneHash() : phones.hash(tenant, e164);
         var admission = policy.admit(tenant, e164, hash, OutcomeCodes.CALL);
         if (!admission.allowed()) return reject(admission.reason());
-        record Added(String callId, long contactId, String error) {}
+        // The dispatch is registered in the same transaction, before the call can be dialed.
         Added added =
                 tx.execute(
                         s -> {
-                            // Serializes membership changes of this campaign (same row Campaigns
-                            // locks).
-                            if (db.one(
-                                            "SELECT id FROM campaign WHERE tenant_id=? AND id=? FOR UPDATE",
-                                            tenant,
-                                            call.campaignId())
-                                    == null) return new Added(null, 0, "外呼任务不存在");
-                            var campaign = store.require("campaign", tenant, call.campaignId());
-                            String status = String.valueOf(campaign.get("status"));
-                            if ("deleted".equals(status)) return new Added(null, 0, "外呼任务已删除");
-                            long contactId = contact(tenant, e164, origin);
-                            var contactRow =
-                                    db.one(
-                                            "SELECT dnc,consent_state FROM contact WHERE tenant_id=? AND id=?",
-                                            tenant,
-                                            contactId);
-                            if (Boolean.TRUE.equals(contactRow.get("dnc"))
-                                    || "REVOKED".equals(contactRow.get("consent_state")))
-                                return new Added(null, contactId, "联系人拒绝联系");
-                            // campaigncontact has no tenant_id; the campaign row above is
-                            // tenant-checked.
-                            if (db.one(
-                                            "SELECT id FROM campaigncontact WHERE campaign_id=? AND contact_id=?",
-                                            call.campaignId(),
-                                            contactId)
-                                    == null) {
-                                long order =
-                                        db.count(
-                                                "SELECT COALESCE(MAX(contact_order)+1,0) FROM campaigncontact WHERE campaign_id=?",
-                                                call.campaignId());
-                                store.insert(
-                                        "campaigncontact",
-                                        Values.map(
-                                                "campaign_id",
-                                                call.campaignId(),
-                                                "contact_id",
-                                                contactId,
-                                                "contact_order",
-                                                order));
-                            }
-                            String contactKey =
-                                    "campaign:" + call.campaignId() + ":contact:" + contactId;
-                            var existing =
-                                    db.one(
-                                            "SELECT id FROM callsession WHERE tenant_id=? AND campaign_contact_key=?",
-                                            tenant,
-                                            contactKey);
-                            if (existing != null)
-                                return new Added(
-                                        String.valueOf(existing.get("id")), contactId, null);
-                            Map<String, Object> values = new LinkedHashMap<>();
-                            values.put("tenant_id", tenant);
-                            values.put("campaign_id", call.campaignId());
-                            values.put("contact_id", contactId);
-                            values.put("campaign_contact_key", contactKey);
-                            values.put(
-                                    "phone",
-                                    e164.startsWith("+86") ? local(e164) : e164.substring(1));
-                            values.put("mode", campaign.get("mode"));
-                            // A running campaign dials the new member right away; otherwise the
-                            // call waits as "created" and the campaign start picks it up.
-                            values.put("status", "running".equals(status) ? "queued" : "created");
-                            values.put(
-                                    "max_attempts",
-                                    ((Number) campaign.get("retry_limit")).intValue() + 1);
-                            values.put(
-                                    "script_flow_version_id",
-                                    campaign.get("script_flow_version_id"));
-                            values.put(
-                                    "flow_node_key",
-                                    startNode(tenant, campaign.get("script_flow_version_id")));
-                            values.put("voice_ai_pipeline", "pending");
-                            return new Added(
-                                    String.valueOf(store.insert("callsession", values).get("id")),
-                                    contactId,
-                                    null);
+                            Added a = addToCampaign(tenant, e164, origin, call);
+                            if (a.error() == null)
+                                register(
+                                        tenant,
+                                        OutcomeCodes.CALL,
+                                        Attribution.CALL,
+                                        a.callId(),
+                                        hash,
+                                        a.contactId(),
+                                        origin);
+                            return a;
                         });
         if (added.error() != null) return reject(added.error());
-        register(
-                tenant,
-                OutcomeCodes.CALL,
-                Attribution.CALL,
-                added.callId(),
-                hash,
-                added.contactId(),
-                origin);
         return new Result(true, "", added.callId());
+    }
+
+    record Added(String callId, long contactId, String error) {}
+
+    private Added addToCampaign(long tenant, String e164, Origin origin, Call call) {
+        return tx.execute(
+                s -> {
+                    // Serializes membership changes of this campaign (same row Campaigns
+                    // locks).
+                    if (db.one(
+                                    "SELECT id FROM campaign WHERE tenant_id=? AND id=? FOR UPDATE",
+                                    tenant,
+                                    call.campaignId())
+                            == null) return new Added(null, 0, "外呼任务不存在");
+                    var campaign = store.require("campaign", tenant, call.campaignId());
+                    String status = String.valueOf(campaign.get("status"));
+                    if ("deleted".equals(status)) return new Added(null, 0, "外呼任务已删除");
+                    long contactId = contact(tenant, e164, origin);
+                    var contactRow =
+                            db.one(
+                                    "SELECT dnc,consent_state FROM contact WHERE tenant_id=? AND id=?",
+                                    tenant,
+                                    contactId);
+                    if (Boolean.TRUE.equals(contactRow.get("dnc"))
+                            || "REVOKED".equals(contactRow.get("consent_state")))
+                        return new Added(null, contactId, "联系人拒绝联系");
+                    // campaigncontact has no tenant_id; the campaign row above is
+                    // tenant-checked.
+                    if (db.one(
+                                    "SELECT id FROM campaigncontact WHERE campaign_id=? AND contact_id=?",
+                                    call.campaignId(),
+                                    contactId)
+                            == null) {
+                        long order =
+                                db.count(
+                                        "SELECT COALESCE(MAX(contact_order)+1,0) FROM campaigncontact WHERE campaign_id=?",
+                                        call.campaignId());
+                        store.insert(
+                                "campaigncontact",
+                                Values.map(
+                                        "campaign_id",
+                                        call.campaignId(),
+                                        "contact_id",
+                                        contactId,
+                                        "contact_order",
+                                        order));
+                    }
+                    String contactKey = "campaign:" + call.campaignId() + ":contact:" + contactId;
+                    var existing =
+                            db.one(
+                                    "SELECT id FROM callsession WHERE tenant_id=? AND campaign_contact_key=?",
+                                    tenant,
+                                    contactKey);
+                    if (existing != null)
+                        return new Added(String.valueOf(existing.get("id")), contactId, null);
+                    Map<String, Object> values = new LinkedHashMap<>();
+                    values.put("tenant_id", tenant);
+                    values.put("campaign_id", call.campaignId());
+                    values.put("contact_id", contactId);
+                    values.put("campaign_contact_key", contactKey);
+                    values.put("phone", e164.startsWith("+86") ? local(e164) : e164.substring(1));
+                    values.put("mode", campaign.get("mode"));
+                    // A running campaign dials the new member right away; otherwise the
+                    // call waits as "created" and the campaign start picks it up.
+                    values.put("status", "running".equals(status) ? "queued" : "created");
+                    values.put(
+                            "max_attempts", ((Number) campaign.get("retry_limit")).intValue() + 1);
+                    values.put("script_flow_version_id", campaign.get("script_flow_version_id"));
+                    values.put(
+                            "flow_node_key",
+                            startNode(tenant, campaign.get("script_flow_version_id")));
+                    values.put("voice_ai_pipeline", "pending");
+                    return new Added(
+                            String.valueOf(store.insert("callsession", values).get("id")),
+                            contactId,
+                            null);
+                });
     }
 
     /** Same start-node resolution as Campaigns: the published flow's "start" node. */
