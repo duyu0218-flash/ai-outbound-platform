@@ -66,7 +66,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(11);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(13);
         assertThat(upgrade.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var statement = connection.createStatement()) {
@@ -128,7 +128,7 @@ class DataLayerReplayIT {
                         .dataSource(url, "root", MYSQL.getPassword())
                         .locations("classpath:db/migration")
                         .load();
-        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(7);
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(9);
         try (var c = DriverManager.getConnection(url, "root", MYSQL.getPassword());
                 var st = c.createStatement();
                 var row =
@@ -149,8 +149,8 @@ class DataLayerReplayIT {
                         .locations("classpath:db/migration")
                         .load();
         var first = flyway.migrate();
-        assertThat(first.migrationsExecuted).isEqualTo(29);
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("29");
+        assertThat(first.migrationsExecuted).isEqualTo(31);
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("32");
         var second = flyway.migrate();
         assertThat(second.migrationsExecuted).isZero();
         flyway.validate();
@@ -274,8 +274,14 @@ class DataLayerReplayIT {
             }
         }
         assertThat(tables)
-                .hasSize(105)
+                .hasSize(113)
                 .containsKeys(
+                        "mk_dispatch",
+                        "mk_touch_event",
+                        "mk_link_domain",
+                        "mk_short_link",
+                        "mk_link_click",
+                        "mk_sms_status_map",
                         "client_org",
                         "client_lead",
                         "client_lead_event",

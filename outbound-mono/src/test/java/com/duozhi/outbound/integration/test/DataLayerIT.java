@@ -298,7 +298,17 @@ class DataLayerIT {
                             "client_lead",
                             "client_lead_event",
                             "client_staff_scope"));
-            assertThat(expectedTables).hasSize(105);
+            // Marketing foundation (V30) and module P2 short links (V32).
+            expectedTables.addAll(Set.of("mk_dispatch", "mk_touch_event"));
+            expectedTables.addAll(
+                    Set.of(
+                            "mk_link_domain",
+                            "mk_landing_domain",
+                            "mk_short_link",
+                            "mk_link_click",
+                            "mk_sms_status_map",
+                            "mk_link_cursor"));
+            assertThat(expectedTables).hasSize(113);
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {
