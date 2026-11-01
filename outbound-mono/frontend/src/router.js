@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { initialize, session } from './session';
 import { initializeClient, clientSession } from './client/session';
 const page = (name) => () => import(`./pages/${name}.vue`);
-// Grouped by the business chain: lists -> scripts -> dialing -> QA/leads -> client delivery
+// Grouped by the business chain: lists -> marketing -> scripts -> dialing -> QA/leads -> client delivery
 // -> analysis, followed by organisation and platform administration.
 export const adminMenu = [
   {
@@ -17,6 +17,19 @@ export const adminMenu = [
     items: [
       ['contacts', 'contacts', 'Contacts'],
       ['contacts-operations', 'contactsOperations', 'ContactOperations'],
+    ],
+  },
+  // Marketing domain: each module owns its pages (see MARKETING-ARCHITECTURE.md).
+  {
+    group: 'navMarketing',
+    items: [
+      ['marketing/datasets', '数据包与撞库', 'MarketingDatasets'],
+      ['marketing/segments', '人群圈选', 'MarketingSegments'],
+      ['marketing/links', '短链与域名', 'MarketingLinks'],
+      ['marketing/outcomes', '触达结果判定', 'MarketingOutcomes'],
+      ['marketing/journeys', '营销活动编排', 'MarketingJourneys'],
+      ['marketing/profiles', '用户触达档案', 'MarketingProfiles'],
+      ['marketing/dashboard', '营销漏斗看板', 'MarketingDashboard'],
     ],
   },
   {
