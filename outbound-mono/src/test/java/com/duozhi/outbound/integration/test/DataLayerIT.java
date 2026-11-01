@@ -299,6 +299,8 @@ class DataLayerIT {
                             "client_lead_event",
                             "client_staff_scope"));
             assertThat(expectedTables).hasSize(105);
+            // Marketing tables (mk_*) are owned and verified by the marketing module tests.
+            actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);
             int count = 0;
             for (String table : tables().toList()) {

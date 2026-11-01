@@ -1348,6 +1348,11 @@ public final class VoiceGateway implements AutoCloseable {
         data.put("voice_ai_pipeline", binding.pipeline);
         String bill = Support.str(event, "variable_billsec", "");
         if (bill.matches("[0-9]+")) data.put("billable_duration_sec", Long.parseLong(bill));
+        // Optional signals for marketing outcome classification (stored in callevent payload).
+        String sip = Support.str(event, "variable_sip_term_status", "");
+        if (sip.matches("[1-6][0-9]{2}")) data.put("sip_code", Integer.parseInt(sip));
+        String disposition = Support.str(event, "variable_sip_hangup_disposition", "");
+        if (!disposition.isEmpty()) data.put("hangup_disposition", disposition);
         if (!reason.isEmpty()) data.put("hangup_reason", reason);
         callbacks.post(
                 binding.statusUrl,
