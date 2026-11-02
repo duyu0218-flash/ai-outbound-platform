@@ -32,7 +32,10 @@ import org.testcontainers.mysql.MySQLContainer;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ClientPortalHttpIT {
     @Container
-    static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
+    static final MySQLContainer MYSQL =
+            new MySQLContainer("mysql:8.4")
+                    .withUrlParam("connectTimeout", "5000")
+                    .withUrlParam("socketTimeout", "15000");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry p) {

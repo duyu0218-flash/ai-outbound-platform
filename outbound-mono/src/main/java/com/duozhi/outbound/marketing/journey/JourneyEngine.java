@@ -52,6 +52,9 @@ public class JourneyEngine {
         this.senders = senders;
         this.json = json;
         this.tx = new TransactionTemplate(manager);
+        // Node/member ownership is locked explicitly. Sends share the phone guard;
+        // unrelated nodes must not retain RR gap locks before creating their targets.
+        this.tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         this.fresh = new TransactionTemplate(manager);
         fresh.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }

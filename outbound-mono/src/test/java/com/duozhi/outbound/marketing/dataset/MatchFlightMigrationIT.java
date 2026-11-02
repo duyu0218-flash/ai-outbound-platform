@@ -56,6 +56,7 @@ class MatchFlightMigrationIT extends MarketingTestBase {
                         Flyway.configure()
                                 .dataSource(url, "root", MYSQL.getPassword())
                                 .locations("classpath:db/migration")
+                                .target("35")
                                 .load();
                 assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
                 assertThat(flyway.migrate().migrationsExecuted).isZero();

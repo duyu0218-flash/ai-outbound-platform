@@ -16,7 +16,7 @@ transaction-isolation=REPEATABLE-READ
 
 应用启动用独立 voiceLedgerDataSource 实测上述全局参数/连接隔离级别，未满足拒绝启动。全局 RR 仍应配置，以保证维护工具的一致性。硬件/文件系统必须正确履行 fsync；应用参数不能补偿断电不持久的存储。
 
-独立语音池使用 MYSQL_JDBC_URL / MYSQL_USER / MYSQL_PASSWORD，同库不同池，不加入业务事务。Flyway 按序执行 V1—V6；当前应用表 54 张加迁移元数据 1 张。V4 增加运营表，V5 增加号码准入、坐席占用和人工排队的三个非唯一索引，V6 增加准入/每日计数及全局待处理回执的四个非唯一索引。允许单独配置 FLYWAY_JDBC_URL / FLYWAY_USER / FLYWAY_PASSWORD，指向同一目标库。业务凭证须能读写新增辅助表。上线前独立执行迁移并备份，禁止编辑已执行迁移。
+独立语音池使用 MYSQL_JDBC_URL / MYSQL_USER / MYSQL_PASSWORD，同库不同池，不加入业务事务。Flyway 按序执行 V1—V36。V36 新增 mk_contact_guard，用于营销渠道间、活动间共享的号码准入串行化；必须先完成迁移再启动新应用。该表参与发送事务，事务回滚同时释放准入占有。表数和迁移版本以目标库实际查询为准。允许单独配置 FLYWAY_JDBC_URL / FLYWAY_USER / FLYWAY_PASSWORD，指向同一目标库。业务凭证须能读写新增辅助表。上线前独立执行迁移并备份，禁止编辑已执行迁移。
 
 模型配额启用开关映射：原来已配置持久路径的部署设置 `LLM_QUOTA_ENABLED=true`；原来未配置的保持 false（默认），仅保留原连接数限制。LLM_QUOTA_SCOPE/RPM/TPM/RPS 名称及默认值不变。
 

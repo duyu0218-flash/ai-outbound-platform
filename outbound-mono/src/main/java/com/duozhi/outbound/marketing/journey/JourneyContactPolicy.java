@@ -24,7 +24,7 @@ public class JourneyContactPolicy implements ContactPolicy {
     public Admission admit(long tenant, String e164, String phoneHash, String channel) {
         Admission base = suppression.admit(tenant, e164, phoneHash, channel);
         if (!base.allowed()) return base;
-        FrequencyRules.Decision d = frequency.check(tenant, phoneHash, channel);
+        FrequencyRules.Decision d = frequency.checkForSend(tenant, phoneHash, channel);
         return d.allowed() ? Admission.OK : Admission.deny(d.reason());
     }
 }
