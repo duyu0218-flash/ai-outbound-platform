@@ -12,6 +12,7 @@ import java.util.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -51,7 +52,10 @@ public class SnapshotChannelSender implements ChannelSender {
         this.messaging = messaging;
         this.links = links;
         this.mapper = mapper;
-        this.tx = tx;
+        this.tx = new TransactionTemplate(tx.getTransactionManager());
+        // Phone guards protect admission. RC avoids next-key gap locks between
+        // unrelated recipients; existing caller transactions still retain their isolation.
+        this.tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
 
     public boolean linksAvailable() {
@@ -109,7 +113,7 @@ public class SnapshotChannelSender implements ChannelSender {
         } catch (DuplicateKeyException race) {
             var row =
                     db.one(
-                            "SELECT id FROM contact WHERE tenant_id=? AND phone IN (?,?,?) ORDER BY id LIMIT 1",
+                            "SELECT id FROM contact WHERE tenant_id=? AND phone IN (?,?,?) ORDER BY id LIMIT 1 FOR UPDATE",
                             tenant,
                             local,
                             e164,
@@ -133,11 +137,31 @@ public class SnapshotChannelSender implements ChannelSender {
 
     @Override
     public Result sms(long tenant, Origin origin, Recipient recipient, Sms sms) {
-        String e164 = phones.decrypt(tenant, recipient.phoneCipher());
-        String hash =
-                recipient.phoneHash() != null ? recipient.phoneHash() : phones.hash(tenant, e164);
-        var admission = policy.admit(tenant, e164, hash, OutcomeCodes.SMS);
-        if (!admission.allowed()) return reject(admission.reason());
+        return tx.execute(
+                status -> {
+                    // Messaging also locks this parent. Take it before phone/contact rows
+                    // to avoid shared-FK to exclusive-parent upgrades and lock inversion.
+                    var tenantRow =
+                            db.one("SELECT id,enabled FROM tenant WHERE id=? FOR UPDATE", tenant);
+                    if (tenantRow == null || !Boolean.TRUE.equals(tenantRow.get("enabled")))
+                        throw new ApiError(403, "企业已停用");
+                    String e164 = phones.decrypt(tenant, recipient.phoneCipher());
+                    String hash = phones.hash(tenant, e164);
+                    if (recipient.phoneHash() != null && !hash.equals(recipient.phoneHash()))
+                        throw new ApiError(422, "号码身份不一致");
+                    // Upsert takes a current row lock even when the outer RR transaction already
+                    // established a snapshot. The same guard covers SMS-to-call spacing.
+                    db.write(
+                            "INSERT INTO mk_contact_guard(tenant_id,phone_hash) VALUES(?,?) "
+                                    + "ON DUPLICATE KEY UPDATE phone_hash=phone_hash",
+                            tenant,
+                            hash);
+                    return smsLocked(tenant, origin, recipient, sms, e164, hash);
+                });
+    }
+
+    private Result smsLocked(
+            long tenant, Origin origin, Recipient recipient, Sms sms, String e164, String hash) {
         boolean link = sms.landingUrl() != null && !sms.landingUrl().isBlank();
         LinkMinter minter = link ? links.getIfAvailable() : null;
         if (link && minter == null) return reject("短链模块未接入");
@@ -148,7 +172,7 @@ public class SnapshotChannelSender implements ChannelSender {
         String key = key(tenant, origin, "sms|" + sms.templateId() + "|" + sms.landingUrl(), hash);
         var existing =
                 db.one(
-                        "SELECT id,contact_id FROM msg_message WHERE tenant_id=? AND application_id=? AND idempotency_key=?",
+                        "SELECT id,contact_id FROM msg_message WHERE tenant_id=? AND application_id=? AND idempotency_key=? FOR UPDATE",
                         tenant,
                         application,
                         key);
@@ -167,6 +191,8 @@ public class SnapshotChannelSender implements ChannelSender {
                     origin);
             return new Result(true, "", (String) existing.get("id"));
         }
+        var admission = policy.admit(tenant, e164, hash, OutcomeCodes.SMS);
+        if (!admission.allowed()) return reject(admission.reason());
         long contactId = tx.execute(s -> contact(tenant, e164, origin));
         Map<String, Object> variables =
                 new LinkedHashMap<>(sms.variables() == null ? Map.of() : sms.variables());
@@ -279,11 +305,31 @@ public class SnapshotChannelSender implements ChannelSender {
 
     @Override
     public Result call(long tenant, Origin origin, Recipient recipient, Call call) {
-        String e164 = phones.decrypt(tenant, recipient.phoneCipher());
-        String hash =
-                recipient.phoneHash() != null ? recipient.phoneHash() : phones.hash(tenant, e164);
-        var admission = policy.admit(tenant, e164, hash, OutcomeCodes.CALL);
-        if (!admission.allowed()) return reject(admission.reason());
+        return tx.execute(
+                status -> {
+                    // Messaging also locks this parent. Take it before phone/contact rows
+                    // to avoid shared-FK to exclusive-parent upgrades and lock inversion.
+                    var tenantRow =
+                            db.one("SELECT id,enabled FROM tenant WHERE id=? FOR SHARE", tenant);
+                    if (tenantRow == null || !Boolean.TRUE.equals(tenantRow.get("enabled")))
+                        throw new ApiError(403, "企业已停用");
+                    String e164 = phones.decrypt(tenant, recipient.phoneCipher());
+                    String hash = phones.hash(tenant, e164);
+                    if (recipient.phoneHash() != null && !hash.equals(recipient.phoneHash()))
+                        throw new ApiError(422, "号码身份不一致");
+                    // Upsert takes a current row lock even when the outer RR transaction already
+                    // established a snapshot. The same guard covers SMS-to-call spacing.
+                    db.write(
+                            "INSERT INTO mk_contact_guard(tenant_id,phone_hash) VALUES(?,?) "
+                                    + "ON DUPLICATE KEY UPDATE phone_hash=phone_hash",
+                            tenant,
+                            hash);
+                    return callLocked(tenant, origin, recipient, call, e164, hash);
+                });
+    }
+
+    private Result callLocked(
+            long tenant, Origin origin, Recipient recipient, Call call, String e164, String hash) {
         // The dispatch is registered in the same transaction, before the call can be dialed.
         Added added =
                 tx.execute(
@@ -322,12 +368,24 @@ public class SnapshotChannelSender implements ChannelSender {
                     long contactId = contact(tenant, e164, origin);
                     var contactRow =
                             db.one(
-                                    "SELECT dnc,consent_state FROM contact WHERE tenant_id=? AND id=?",
+                                    "SELECT dnc,consent_state FROM contact WHERE tenant_id=? AND id=? FOR UPDATE",
                                     tenant,
                                     contactId);
                     if (Boolean.TRUE.equals(contactRow.get("dnc"))
                             || "REVOKED".equals(contactRow.get("consent_state")))
                         return new Added(null, contactId, "联系人拒绝联系");
+                    String contactKey = "campaign:" + call.campaignId() + ":contact:" + contactId;
+                    var existing =
+                            db.one(
+                                    "SELECT id FROM callsession WHERE tenant_id=? AND campaign_contact_key=? FOR UPDATE",
+                                    tenant,
+                                    contactKey);
+                    if (existing != null)
+                        return new Added(String.valueOf(existing.get("id")), contactId, null);
+                    var admission =
+                            policy.admit(
+                                    tenant, e164, phones.hash(tenant, e164), OutcomeCodes.CALL);
+                    if (!admission.allowed()) return new Added(null, contactId, admission.reason());
                     // campaigncontact has no tenant_id; the campaign row above is
                     // tenant-checked.
                     if (db.one(
@@ -349,14 +407,6 @@ public class SnapshotChannelSender implements ChannelSender {
                                         "contact_order",
                                         order));
                     }
-                    String contactKey = "campaign:" + call.campaignId() + ":contact:" + contactId;
-                    var existing =
-                            db.one(
-                                    "SELECT id FROM callsession WHERE tenant_id=? AND campaign_contact_key=?",
-                                    tenant,
-                                    contactKey);
-                    if (existing != null)
-                        return new Added(String.valueOf(existing.get("id")), contactId, null);
                     Map<String, Object> values = new LinkedHashMap<>();
                     values.put("tenant_id", tenant);
                     values.put("campaign_id", call.campaignId());
