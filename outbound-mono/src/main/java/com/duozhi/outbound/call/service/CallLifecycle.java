@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class CallLifecycle {
     @Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+    @Autowired
     private RealtimeTaskCleanup taskCleanup;
     public static final Set<String> TERMINAL =
             Values.set("completed", "failed", "no_answer", "busy", "voicemail");
@@ -520,6 +522,34 @@ public class CallLifecycle {
                             batch.terminalControls
                                     .computeIfAbsent(tenant(call), key -> new TreeSet<>())
                                     .add(call.get("id").toString());
+                        if (workspace != null
+                                && "completed".equals(updated.get("status"))
+                                && updated.get("campaign_id") != null) {
+                            var snapshot =
+                                    workspace.campaignSnapshot(
+                                            tenant(updated), updated.get("campaign_id"));
+                            if (snapshot != null
+                                    && Boolean.TRUE.equals(snapshot.get("hangup_sms_enabled"))
+                                    && snapshot.get("sms_rule") instanceof Map<?, ?> rule
+                                    && !rule.isEmpty())
+                                outbox.enqueue(
+                                        tenant(updated),
+                                        "send_sms",
+                                        updated.get("id"),
+                                        "workspace-sms:"
+                                                + updated.get("id")
+                                                + ":"
+                                                + updated.get("attempts"),
+                                        JsonSupport.map(
+                                                "call_id",
+                                                updated.get("id"),
+                                                "attempt",
+                                                updated.get("attempts"),
+                                                "workspace_rule",
+                                                true,
+                                                "text",
+                                                "已配置模板联动"));
+                        }
                         completeCampaign(updated);
                         outbox.enqueue(
                                 tenant(call),

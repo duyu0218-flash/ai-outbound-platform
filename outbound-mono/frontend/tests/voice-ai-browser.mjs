@@ -80,6 +80,7 @@ try {
     await page.getByRole('option', { name: '端到端实时语音', exact: true }).click();
     await select('供应商组合').click();
     await page.getByRole('option', { name: '百度端到端实时语音', exact: true }).click();
+    await page.getByRole('tab', { name: '运行参数', exact: true }).click();
     await select('端到端播放方式').click();
     await page.getByRole('option', { name: '完整短句审核后播放', exact: true }).click();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
@@ -87,6 +88,7 @@ try {
     await reloadActive();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('百度端到端实时语音');
     await expect(select('端到端播放方式')).toContainText('完整短句审核后播放');
+    await page.getByRole('tab', { name: '默认通话组合', exact: true }).click();
     await select('技术路线').click();
     await page.getByRole('option', { name: '三段式 ASR → 模型 → TTS', exact: true }).click();
     await select('供应商组合').click();
@@ -95,6 +97,7 @@ try {
     await expect(page.getByTestId('active-voice-profile')).toHaveText('腾讯云三段式');
   });
   await check('frozen turn tuning saves reloads and rejects invalid combinations', async () => {
+    await page.getByRole('tab', { name: '运行参数', exact: true }).click();
     await page.getByRole('spinbutton', { name: '短句判停毫秒', exact: true }).fill('500');
     await page.getByRole('spinbutton', { name: '数字未完句判停毫秒', exact: true }).fill('900');
     await page

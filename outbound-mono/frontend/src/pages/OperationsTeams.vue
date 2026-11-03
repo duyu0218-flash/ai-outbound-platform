@@ -1,6 +1,14 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import { ops, perform, parse } from '../operations';
+import { request } from '../session';
+import ResourceCatalog from '../components/ResourceCatalog.vue';
+const skills = ref([]),
+  teamStatus = ref([]);
+async function catalog() {
+  skills.value = await request('/api/v1/workspace/catalog/skill');
+  teamStatus.value = await request('/api/v1/workspace/catalog/skill-status');
+}
 const rows = ref([]),
   profile = ref({}),
   error = ref(''),
@@ -12,6 +20,7 @@ async function load() {
   try {
     profile.value = await ops('/me');
     rows.value = await ops('/teams');
+    await catalog();
   } catch (e) {
     error.value = e.message;
   }
@@ -94,6 +103,13 @@ onMounted(load);
     <p>
       管理员保留全租户管理权限。组长在成员表中设置，数据范围实时生效；普通坐席导出默认关闭，号码默认脱敏。
     </p></el-card
+  ><ResourceCatalog kind="skill" @changed="catalog" /><el-card header="团队接待检查"
+    ><el-table :data="teamStatus"
+      ><el-table-column prop="name" label="团队" /><el-table-column
+        prop="enabled_members"
+        label="启用成员" /><el-table-column
+        prop="reason"
+        label="接待状态说明" /></el-table></el-card
   ><el-dialog v-model="open" title="坐席组配置" width="760px"
     ><el-form label-position="top"
       ><el-form-item label="组名"
@@ -128,10 +144,21 @@ onMounted(load);
             v-model="model.settings.routing_skills"
             multiple
             filterable
-            allow-create
             default-first-option
             aria-label="接听技能"
-            placeholder="例如：北京、口腔、普通话" /></el-form-item
+            placeholder="从技能字典选择"
+            ><el-option
+              v-for="s in skills"
+              :key="s.object_id"
+              :label="s.name"
+              :value="s.name"
+              :disabled="!s.enabled && !model.settings.routing_skills.includes(s.name)" /><el-option
+              v-for="s in model.settings.routing_skills.filter(
+                (s) => !skills.some((v) => v.name === s),
+              )"
+              :key="s"
+              :label="s + '（历史技能）'"
+              :value="s" /></el-select></el-form-item
         ><el-form-item label="通话后整理时长（秒）"
           ><el-input-number
             v-model="model.settings.after_call_seconds"

@@ -15,6 +15,7 @@ const route = useRoute(),
   ),
   libraries = useData('/api/v1/workspace/libraries'),
   teams = useData('/api/v1/ops/teams');
+const skills = useData('/api/v1/workspace/catalog/skill');
 const selected = ref(null),
   model = ref({}),
   tab = ref('dialogue'),
@@ -70,6 +71,47 @@ const dialogue = [
   ['ending', '结束语'],
   ['content', '补充话术'],
 ].map(([key, label]) => ({ key, label, type: 'textarea', rows: key === 'steps' ? 5 : 3 }));
+const publicationReview = ref(null);
+const rulesBySlot = new WeakMap();
+function slotRule(slot) {
+  model.value.slot_rules ||= [];
+  let rule = rulesBySlot.get(slot);
+  if (rule && model.value.slot_rules.includes(rule)) {
+    if (rule.key !== slot.key) rule.key = slot.key;
+    return rule;
+  }
+  rule = model.value.slot_rules.find((r) => r.key === slot.key);
+  if (!rule) {
+    model.value.slot_rules.push({
+      key: slot.key,
+      min_length: 1,
+      max_length: 500,
+      max_retries: 2,
+      missing_action: 'end',
+      retry_prompt: '',
+    });
+    rule = model.value.slot_rules.at(-1);
+  }
+  rulesBySlot.set(slot, rule);
+  return rule;
+}
+const ruleFields = [
+  { key: 'min_length', label: '最少字符', type: 'number', min: 0, max: 500 },
+  { key: 'max_length', label: '最多字符', type: 'number', min: 1, max: 500 },
+  { key: 'min_value', label: '数值下限（整数字段，可选）', type: 'number' },
+  { key: 'max_value', label: '数值上限（整数字段，可选）', type: 'number' },
+  { key: 'max_retries', label: '最多重问次数', type: 'number', min: 0, max: 3 },
+  { key: 'retry_prompt', label: '校验失败重问提示（可选）' },
+  {
+    key: 'missing_action',
+    label: '仍缺失时处理',
+    options: [
+      { value: 'end', label: '说明后结束' },
+      { value: 'handoff', label: '转人工确认' },
+      { value: 'skip', label: '记录缺失并继续' },
+    ],
+  },
+];
 const slotFields = [
   { key: 'key', label: '字段标识', required: true },
   { key: 'label', label: '字段名称', required: true },
@@ -87,7 +129,25 @@ const behavior = computed(() => [
     multiple: true,
     options: (teams.data.value || []).map((v) => ({ value: v.id, label: v.name })),
   },
-  { key: 'handoff_skills', label: '转接所需技能', multiple: true, tags: true, options: [] },
+  {
+    key: 'handoff_skills',
+    label: '转接所需技能',
+    multiple: true,
+    options: [
+      ...(skills.data.value || [])
+        .filter((s) => s.enabled || (model.value.policy?.handoff_skills || []).includes(s.name))
+        .map((s) => ({
+          value: s.name,
+          label:
+            s.name +
+            ' · ' +
+            ({ business: '业务', region: '地区', language: '语言' }[s.draft.group] || ''),
+        })),
+      ...(model.value.policy?.handoff_skills || [])
+        .filter((s) => !(skills.data.value || []).some((v) => v.name === s))
+        .map((s) => ({ value: s, label: s + '（历史技能）' })),
+    ],
+  },
   { key: 'handoff_wait_seconds', label: '转接最长等待（秒）', type: 'number', min: 5, max: 300 },
   {
     key: 'handoff_fallback',
@@ -106,6 +166,7 @@ const behavior = computed(() => [
   { key: 'end_hour', label: '结束时刻', type: 'number', min: 1, max: 24 },
 ]);
 async function run(fn) {
+  if (busy.value) return;
   busy.value = true;
   error.value = '';
   try {
@@ -151,6 +212,9 @@ async function copy(row) {
   });
 }
 async function save() {
+  model.value.slot_rules = (model.value.slot_rules || []).filter((r) =>
+    model.value.policy.slots.some((s) => s.key === r.key),
+  );
   const v = await request(`/api/v1/workspace/scripts/${selected.value.id}/draft`, 'PUT', {
     draft: model.value,
     expected_revision: selected.value.revision,
@@ -162,11 +226,19 @@ async function save() {
 async function publish() {
   await run(async () => {
     await save();
+    publicationReview.value = await request(
+      `/api/v1/workspace/scripts/${selected.value.id}/publish-check`,
+    );
+  });
+}
+async function confirmPublish() {
+  await run(async () => {
     selected.value = await request(
       `/api/v1/workspace/scripts/${selected.value.id}/publish`,
       'POST',
-      { expected_revision: selected.value.revision },
+      { expected_revision: publicationReview.value.revision },
     );
+    publicationReview.value = null;
     history.value = await request(`/api/v1/workspace/scripts/${selected.value.id}/history`);
     await query.load();
   });
@@ -263,6 +335,7 @@ onMounted(async () => {
   <template v-else>
     <div class="actions">
       <el-button
+        :disabled="busy"
         @click="
           selected = null;
           query.load();
@@ -289,7 +362,8 @@ onMounted(async () => {
         label="版本记录"
     /></el-tabs>
     <el-card v-if="tab === 'dialogue'"
-      ><FieldForm :model="model" :fields="basic" hide-submit /><FieldForm
+      ><FieldForm :disabled="busy" :model="model" :fields="basic" hide-submit /><FieldForm
+        :disabled="busy"
         :model="model"
         :fields="dialogue"
         hide-submit
@@ -305,16 +379,72 @@ onMounted(async () => {
         字段用于对话采集，合格取值用于业务结果判定。字段标识供模板变量引用，例如 {{ '{姓名}' }}。
       </p>
       <el-card v-for="(slot, index) in model.policy.slots" :key="index" style="margin-bottom: 16px"
-        ><FieldForm :model="slot" :fields="slotFields" hide-submit /><el-button
+        ><FieldForm :disabled="busy" :model="slot" :fields="slotFields" hide-submit /><FieldForm
+          :disabled="busy"
+          v-if="slot.key"
+          :model="slotRule(slot)"
+          :fields="ruleFields"
+          hide-submit
+        /><el-button
           type="danger"
           link
-          @click="model.policy.slots.splice(index, 1)"
+          @click="
+            model.slot_rules = (model.slot_rules || []).filter((r) => r.key !== slot.key);
+            model.policy.slots.splice(index, 1);
+          "
           >移除字段</el-button
         ></el-card
-      ><el-button @click="addSlot">添加采集字段</el-button></el-card
+      ><el-button @click="addSlot">添加采集字段</el-button>
+      <h3>名单导入变量</h3>
+      <p>
+        与对话采集分开：仅勾选导入必填的字段要求上传名单时提供；话术中使用的变量自动设为导入必填。
+      </p>
+      <el-card v-for="(field, index) in model.import_fields || []" :key="index"
+        ><FieldForm
+          :disabled="busy"
+          :model="field"
+          :fields="
+            slotFields
+              .filter((f) => !['question', 'confirm', 'qualifies'].includes(f.key))
+              .map((f) => (f.key === 'required' ? { ...f, label: '导入必填' } : f))
+          "
+          hide-submit
+        /><el-button link @click="model.import_fields.splice(index, 1)"
+          >移除导入变量</el-button
+        ></el-card
+      ><el-button
+        @click="
+          model.import_fields ||= [];
+          model.import_fields.push({
+            key: '',
+            label: '',
+            kind: 'text',
+            required: false,
+            choices: [],
+          });
+        "
+        >添加导入变量</el-button
+      ></el-card
     >
     <el-card v-if="tab === 'knowledge'"
-      ><el-form label-position="top"
+      ><FieldForm
+        :disabled="busy"
+        :model="model"
+        :fields="[
+          {
+            key: 'unknown_strategy',
+            label: '知识未命中处理',
+            options: [
+              { value: 'clarify', label: '记录问题并澄清' },
+              { value: 'handoff', label: '转人工确认' },
+              { value: 'end', label: '说明后结束' },
+            ],
+          },
+          { key: 'unknown_prompt', label: '未命中提示', type: 'textarea' },
+        ]"
+        hide-submit /><el-alert
+        title="动作由业务规则控制：拒绝/禁呼优先结束；回拨需要客户确认；转人工受团队技能及接待容量约束；挂机短信在任务详情单独选择已审核模板和预算。"
+        :closable="false" /><el-form label-position="top"
         ><el-form-item label="关联知识库"
           ><el-select v-model="model.knowledge_library_ids" multiple aria-label="关联知识库"
             ><el-option
@@ -327,7 +457,7 @@ onMounted(async () => {
               " /></el-select></el-form-item
       ></el-form>
       <p>发布话术时冻结选中知识库的已发布条目；知识库后续修改不会替换已创建任务的知识快照。</p>
-      <FieldForm :model="model.policy" :fields="behavior" hide-submit
+      <FieldForm :disabled="busy" :model="model.policy" :fields="behavior" hide-submit
     /></el-card>
     <el-card v-if="tab === 'debug'"
       ><el-alert
@@ -345,8 +475,8 @@ onMounted(async () => {
         "
         >本地预检</el-button
       ><el-button
-        @click="$router.push({ path: '/admin/bailian-trial', query: { script_id: selected.id } })"
-        >语音对话调试</el-button
+        @click="$router.push({ path: '/admin/business-debug', query: { script_id: selected.id } })"
+        >进入业务调试工作台</el-button
       >
       <section v-if="probe" aria-label="话术预检结果" class="probe-result">
         <h3>规则识别</h3>
@@ -390,10 +520,51 @@ onMounted(async () => {
       <p>恢复只创建当前草稿，重新发布后才可供新任务使用，已保存任务不受影响。</p></el-card
     >
   </template>
-  <el-dialog v-model="createOpen" title="新建话术" width="560px"
+  <el-dialog
+    :model-value="!!publicationReview"
+    title="发布前核对"
+    width="min(1000px,95vw)"
+    @close="publicationReview = null"
+    ><template v-if="publicationReview"
+      ><el-alert v-for="e in publicationReview.errors" :key="e" :title="e" type="error" /><el-alert
+        v-for="w in publicationReview.warnings"
+        :key="w"
+        :title="w"
+        type="warning" />
+      <p>{{ publicationReview.version_note }}</p>
+      <h3>变更对比</h3>
+      <el-table :data="publicationReview.changes"
+        ><el-table-column prop="field" label="配置项" /><el-table-column label="上次发布"
+          ><template #default="{ row }">
+            <pre>{{ row.before }}</pre>
+          </template></el-table-column
+        ><el-table-column label="本次草稿"
+          ><template #default="{ row }">
+            <pre>{{ row.after }}</pre>
+          </template></el-table-column
+        ></el-table
+      >
+      <h3>引用任务（{{ publicationReview.references.length }}）</h3>
+      <el-table :data="publicationReview.references"
+        ><el-table-column prop="name" label="任务" /><el-table-column
+          prop="status"
+          label="状态" /></el-table></template
+    ><template #footer
+      ><el-button @click="publicationReview = null">返回修改</el-button
+      ><el-button
+        type="primary"
+        :disabled="!publicationReview?.ready"
+        :loading="busy"
+        @click="confirmPublish"
+        >确认发布版本</el-button
+      ></template
+    ></el-dialog
+  >
+  <el-dialog v-model="createOpen" destroy-on-close title="新建话术" width="560px"
     ><FieldForm
+      :disabled="busy"
       :model="newScript"
-      :fields="basic.slice(0, 2)"
+      :fields="[...basic.slice(0, 2), { key: 'goal', label: '本次话术目标', type: 'textarea' }]"
       :busy="busy"
       @submit="create" /></el-dialog
   ><FlowDesigner v-if="flow" :template="flow" @close="flow = null" />

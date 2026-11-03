@@ -99,12 +99,14 @@ try {
     await page.getByRole('button', { name: '新建话术', exact: true }).click();
     await page.getByLabel('话术名称', { exact: true }).fill('Vue浏览器话术');
     await save();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByLabel('业务目标', { exact: true }).fill('了解咨询意向');
     await page.getByLabel('开场白', { exact: true }).fill('您好，这是经过批准的服务介绍。');
     await page.getByRole('tab', { name: '知识与动作', exact: true }).click();
     await page.getByRole('spinbutton', { name: '开始时刻', exact: true }).fill('0');
     await page.getByRole('spinbutton', { name: '结束时刻', exact: true }).fill('24');
     await page.getByRole('button', { name: '发布版本', exact: true }).click();
+    await page.getByRole('button', { name: '确认发布版本', exact: true }).click();
     await expect(page.getByText('发布 v1', { exact: false })).toBeVisible();
     await page.getByRole('tab', { name: '流程画布', exact: true }).click();
     await page.getByRole('button', { name: '打开话术画布', exact: true }).click();
@@ -251,8 +253,8 @@ try {
     await page.getByLabel('知识库名称', { exact: true }).fill('Vue知识库');
     await page.getByRole('button', { name: '创建知识库', exact: true }).click();
     await page.getByRole('button', { name: '添加问答', exact: true }).click();
-    await page.getByLabel('标准问题 / 文档标题', { exact: true }).fill('Vue知识条目');
-    await page.getByLabel('标准答案 / 文档正文', { exact: true }).fill('该服务可以预约咨询。');
+    await page.getByLabel('标准问题', { exact: true }).fill('Vue知识条目');
+    await page.getByLabel('标准答案', { exact: true }).fill('该服务可以预约咨询。');
     await page.getByLabel('检索关键词', { exact: true }).fill('预约 咨询');
     await save();
     await expect(row('Vue知识条目')).toBeVisible();
@@ -263,7 +265,7 @@ try {
     await page.getByRole('button', { name: '检索测试', exact: true }).click();
     await expect(page.getByText('该服务可以预约咨询。', { exact: true })).toBeVisible();
     await page.reload();
-    await page.getByRole('button', { name: '管理知识', exact: true }).click();
+    await page.getByRole('tab', { name: '知识条目', exact: true }).click();
     await expect(row('Vue知识条目')).toBeVisible();
   });
   await check('settings load save echo all five sections', async () => {

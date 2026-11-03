@@ -30,6 +30,12 @@ public class WorkspaceController {
     private final HumanRouting routing;
     private final AiRuntime runtime;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.KnowledgeDrafts knowledgeDrafts;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.KnowledgeDirectories knowledgeDirectories;
+
     public WorkspaceController(
             WorkspaceDocuments docs,
             Store store,
@@ -272,11 +278,26 @@ public class WorkspaceController {
         }
         value.put("knowledge_library_ids", libraries);
         value.put(
+                "import_fields",
+                com.duozhi.outbound.workspace.service.ContactVariables.normalize(
+                        body.getOrDefault("import_fields", List.of())));
+        value.put(
                 "policy",
                 product.normalize(
                         map(
                                 body.getOrDefault(
                                         "policy", policies.current(tenant, null).get("policy")))));
+        value.put(
+                "slot_rules",
+                com.duozhi.outbound.workspace.service.SlotRules.normalize(
+                        body.getOrDefault("slot_rules", List.of()),
+                        (List<?>) map(value.get("policy")).getOrDefault("slots", List.of())));
+        String unknown = Objects.toString(body.get("unknown_strategy"), "clarify");
+        if (!Set.of("clarify", "handoff", "end").contains(unknown))
+            throw new ApiError(422, "未命中处理方式无效");
+        value.put("unknown_strategy", unknown);
+        String prompt = text(body, "unknown_prompt", 500, false);
+        value.put("unknown_prompt", prompt.isBlank() ? "这个问题需要进一步确认，我先记录下来，请不要以未核实的信息办理。" : prompt);
         return value;
     }
 
@@ -336,6 +357,74 @@ public class WorkspaceController {
         }
         if (items.size() > 500) throw new ApiError(422, "本话术最多引用 500 条发布知识");
         return items;
+    }
+
+    @GetMapping("/scripts/{id}/publish-check")
+    public Object publishCheck(@PathVariable
+    String id, HttpServletRequest r) {
+        var i = actor(r);
+        var doc = docs.require(i.tenant(), "script", id);
+        var value = draft(doc);
+        var errors = new ArrayList<String>();
+        var warnings = new ArrayList<String>();
+        try {
+            value = scriptDraft(value, i.tenant());
+            if (compiled(value).isBlank()) errors.add("话术内容为空");
+            scriptKnowledge(i.tenant(), value);
+            routing.validate(i.tenant(), map(value.get("policy")));
+        } catch (ApiError e) {
+            errors.add(e.getMessage());
+        }
+        if (Objects.toString(value.get("goal"), "").isBlank()) warnings.add("未单独说明业务目标");
+        if (value.get("owner_id") == null) warnings.add("未指定负责人");
+        var previous =
+                doc.get("published") == null ? Map.<String, Object>of() : map(doc.get("published"));
+        var changes = new ArrayList<Map<String, Object>>();
+        for (String key :
+                List.of(
+                        "name",
+                        "category",
+                        "description",
+                        "identity",
+                        "goal",
+                        "opening",
+                        "steps",
+                        "limits",
+                        "ending",
+                        "content",
+                        "policy",
+                        "knowledge_library_ids",
+                        "import_fields",
+                        "slot_rules",
+                        "unknown_strategy",
+                        "unknown_prompt"))
+            if (!Objects.equals(previous.get(key), value.get(key)))
+                changes.add(
+                        JsonSupport.map(
+                                "field",
+                                key,
+                                "before",
+                                previous.get(key),
+                                "after",
+                                value.get(key)));
+        return JsonSupport.map(
+                "revision",
+                doc.get("revision"),
+                "ready",
+                errors.isEmpty(),
+                "errors",
+                errors,
+                "warnings",
+                warnings,
+                "changes",
+                changes,
+                "references",
+                docs.jdbc.queryForList(
+                        "SELECT id,name,status FROM campaign WHERE tenant_id=? AND script_template_id=? AND status<>'deleted' ORDER BY id DESC LIMIT 200",
+                        i.tenant(),
+                        id),
+                "version_note",
+                "发布仅供新建或重新保存的任务选用；运行中的任务使用已冻结版本");
     }
 
     @PostMapping("/scripts/{id}/publish")
@@ -498,6 +587,7 @@ public class WorkspaceController {
         var doc = docs.require(i.tenant(), "library", id);
         var result = new LinkedHashMap<>(doc);
         result.put("items", docs.list(i.tenant(), "knowledge", id));
+        result.put("categories", knowledgeDirectories.list(i.tenant(), id));
         return result;
     }
 
@@ -524,41 +614,7 @@ public class WorkspaceController {
     }
 
     Map<String, Object> item(Map<String, Object> raw) {
-        var value = new LinkedHashMap<String, Object>();
-        for (String key :
-                List.of(
-                        "name",
-                        "content",
-                        "category",
-                        "keywords",
-                        "source",
-                        "similar_questions",
-                        "valid_from",
-                        "valid_until"))
-            value.put(
-                    key,
-                    text(
-                            raw,
-                            key,
-                            key.equals("content") ? 20000 : 4000,
-                            key.equals("name") || key.equals("content")));
-        value.put("enabled", !Boolean.FALSE.equals(raw.get("enabled")));
-        for (String key : List.of("valid_from", "valid_until")) {
-            String date = value.get(key).toString();
-            if (!date.isBlank())
-                try {
-                    LocalDateTime.parse(date);
-                } catch (Exception e) {
-                    throw new ApiError(422, "知识有效期须为 UTC 日期时间");
-                }
-        }
-        String from = value.get("valid_from").toString(),
-                until = value.get("valid_until").toString();
-        if (!from.isBlank()
-                && !until.isBlank()
-                && !LocalDateTime.parse(from).isBefore(LocalDateTime.parse(until)))
-            throw new ApiError(422, "结束时间必须晚于开始时间");
-        return value;
+        return knowledgeDrafts.normalize(raw);
     }
 
     @PutMapping("/libraries/{library}/items/{id}")
@@ -570,25 +626,12 @@ public class WorkspaceController {
             @RequestBody
             Map<String, Object> body,
             HttpServletRequest r) {
-        var i = actor(r);
-        if (!id.matches("[A-Za-z0-9-]{1,64}")) throw new ApiError(422, "知识标识不正确");
-        return docs.tx.serialized(
-                () -> {
-                    var lib = docs.require(i.tenant(), "library", library);
-                    var prior = docs.find(i.tenant(), "knowledge", id);
-                    if (prior != null && !library.equals(prior.get("parent_id")))
-                        throw new ApiError(404, "知识不存在于此库");
-                    var result =
-                            docs.save(
-                                    i,
-                                    "knowledge",
-                                    id,
-                                    library,
-                                    item(map(body.get("draft"))),
-                                    number(body.get("expected_revision")));
-                    docs.save(i, "library", library, "", draft(lib), number(lib.get("revision")));
-                    return result;
-                });
+        return knowledgeDrafts.save(
+                actor(r),
+                library,
+                id,
+                map(body.get("draft")),
+                number(body.get("expected_revision")));
     }
 
     List<Map<String, Object>> knowledgeItems(long tenant, String library, int version) {
@@ -612,7 +655,8 @@ public class WorkspaceController {
                             value.get("source"),
                             "version",
                             version);
-            for (String key : List.of("valid_from", "valid_until"))
+            for (String key :
+                    List.of("valid_from", "valid_until", "kind", "document_id", "segment_index"))
                 if (!Objects.toString(value.get(key), "").isBlank())
                     normalized.put(key, value.get(key));
             items.add(normalized);
@@ -631,6 +675,12 @@ public class WorkspaceController {
                 () -> {
                     var doc = docs.require(i.tenant(), "library", id);
                     var value = draft(doc);
+                    value.put(
+                            "categories",
+                            docs.list(i.tenant(), "knowledge_category", id).stream()
+                                    .map(c -> c.get("name"))
+                                    .sorted()
+                                    .toList());
                     value.put(
                             "items",
                             knowledgeItems(
@@ -726,6 +776,8 @@ public class WorkspaceController {
                                             entry.get("valid_until"),
                                             "enabled",
                                             true);
+                            for (String field : List.of("kind", "document_id", "segment_index"))
+                                if (entry.get(field) != null) restored.put(field, entry.get(field));
                             docs.save(
                                     i,
                                     "knowledge",
@@ -734,7 +786,20 @@ public class WorkspaceController {
                                     item(restored),
                                     old == null ? 0 : number(old.get("revision")));
                         }
+                        docs.jdbc.update(
+                                "DELETE FROM platform_document WHERE tenant_id=? AND kind='knowledge_category' AND parent_id=?",
+                                i.tenant(),
+                                id);
+                        for (Object path : (List<?>) value.getOrDefault("categories", List.of()))
+                            docs.save(
+                                    i,
+                                    "knowledge_category",
+                                    UUID.randomUUID().toString(),
+                                    id,
+                                    JsonSupport.map("name", path.toString()),
+                                    0);
                         value.remove("items");
+                        value.remove("categories");
                         return docs.save(i, type, id, "", value, number(current.get("revision")));
                     });
         return docs.save(

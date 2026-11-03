@@ -113,6 +113,12 @@ export async function operationsChecks({ page, context, origin, check, go }) {
   });
   await check('P0 teams membership leader and unified workplace save echo', async () => {
     await go('/admin/operations/teams', '团队与权限');
+    for (const name of ['北京', '口腔']) {
+      await page.getByRole('button', { name: '新增技能', exact: true }).click();
+      await page.getByLabel('技能名称', { exact: true }).fill(name);
+      await page.getByRole('button', { name: '保存技能', exact: true }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
     await page.getByRole('button', { name: '新增坐席组', exact: true }).click();
     await page.getByLabel('坐席组名', { exact: true }).fill('浏览器运营组');
     await choose('坐席组成员', 'Vue新坐席');
@@ -126,8 +132,18 @@ export async function operationsChecks({ page, context, origin, check, go }) {
     await page.getByLabel('组整理秒数', { exact: true }).fill('30');
     await page.getByRole('button', { name: '保存坐席组', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(row('浏览器运营组')).toContainText('Vue新坐席');
-    await row('浏览器运营组').getByRole('button', { name: '编辑坐席组', exact: true }).click();
+    await expect(
+      page
+        .getByRole('row')
+        .filter({ has: page.getByRole('button', { name: '编辑坐席组', exact: true }) })
+        .filter({ hasText: '浏览器运营组' }),
+    ).toContainText('Vue新坐席');
+    await page
+      .getByRole('row')
+      .filter({ has: page.getByRole('button', { name: '编辑坐席组', exact: true }) })
+      .filter({ hasText: '浏览器运营组' })
+      .getByRole('button', { name: '编辑坐席组', exact: true })
+      .click();
     await expect(page.getByLabel('组整理秒数', { exact: true })).toHaveValue('30');
     await expect(page.getByRole('dialog')).toContainText('北京');
     await expect(page.getByRole('dialog')).toContainText('口腔');

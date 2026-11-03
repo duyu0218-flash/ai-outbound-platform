@@ -27,6 +27,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /** Bounded browser-only trials. Never creates a call, campaign, dial job or PBX command. */
 @Service
 public class BailianTrials {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.controller.BusinessDebug businessDebug;
+
     public final VoiceTrialMapper db;
     private final VoiceAiCredentials credentials;
     private final com.duozhi.outbound.integration.config.Settings root;
@@ -154,6 +157,20 @@ public class BailianTrials {
             throw new ApiError(400, "请确认使用测试客户并授权本次付费供应商试聊");
         var fingerprint = new TreeMap<String, Object>();
         fingerprint.put("contact", contact);
+        String debugId = Objects.toString(body.get("debug_session_id"), "");
+        if (!debugId.isBlank()) {
+            var session = businessDebug.require(actor.tenant(), debugId);
+            if (!"active".equals(session.get("state"))) throw new ApiError(409, "业务调试会话已结束，请另建会话");
+            String frozen =
+                    Objects.toString(
+                            Support.map(session.get("snapshot")).get("compiled_content"), "");
+            frozen =
+                    com.duozhi.outbound.workspace.service.ContactVariables.render(
+                            frozen,
+                            Support.map(Support.map(session.get("snapshot")).get("variables")));
+            if (!script.equals(frozen)) throw new ApiError(409, "语音试聊必须使用会话已冻结的话术，不能直接覆盖");
+        }
+        fingerprint.put("debug_session_id", debugId);
         fingerprint.put("script", script);
         fingerprint.put("review_mode", mode);
         fingerprint.put("prices", prices);
@@ -211,7 +228,9 @@ public class BailianTrials {
         row.put("client_key", key);
         row.put("request_hash", hash);
         row.put("script_snapshot", script);
-        row.put("profile_json", json(profile));
+        var storedProfile = new LinkedHashMap<String, Object>(profile);
+        storedProfile.put("debug_session_id", debugId);
+        row.put("profile_json", json(storedProfile));
         db.create(row);
         var l =
                 new Live(
@@ -222,6 +241,7 @@ public class BailianTrials {
                         settings.get(actor.tenant(), "ai"),
                         mode,
                         prices);
+        l.debugSessionId = debugId;
         live.put(id, l);
         audit.record(actor, "create", "bailian_trial", id, "browser only; no dialing");
         return Map.of("id", id, "ticket", l.ticket, "status", "created", "expires_in", 30);
@@ -269,16 +289,23 @@ public class BailianTrials {
             l.authorize();
             if (!l.attached || l.closed) throw new ApiError(409, "试聊尚未连接或已结束");
             String action = text(body, "action", 40);
-            if (action.equals("business_context"))
-                return Map.of(
-                        "script",
-                        l.script,
-                        "user_evidence",
-                        l.events.stream().filter(e -> "user_text".equals(e.get("type"))).toList(),
-                        "trial_only",
-                        true,
-                        "instruction",
-                        "只登记试聊意向草稿，不承诺真实预约或自动拨号；保存后告知等待人工确认。");
+            if (action.equals("business_context")) {
+                var evidence =
+                        l.events.stream().filter(e -> "user_text".equals(e.get("type"))).toList();
+                String query =
+                        evidence.isEmpty()
+                                ? ""
+                                : Objects.toString(evidence.getLast().get("text"), "");
+                var context =
+                        l.debugSessionId.isBlank()
+                                ? new LinkedHashMap<String, Object>()
+                                : businessDebug.context(l.tenant, l.debugSessionId, query);
+                context.put("script", l.script);
+                context.put("user_evidence", evidence);
+                context.put("trial_only", true);
+                context.put("instruction", "只登记试聊意向草稿，不承诺真实预约或自动拨号；保存后告知等待人工确认。");
+                return context;
+            }
             if (!action.equals("save_intent")) throw new ApiError(400, "不支持的试聊工具动作");
             String key = text(body, "event_id", 80),
                     intent = text(body, "intent", 30),
@@ -380,6 +407,7 @@ public class BailianTrials {
         final String reviewMode;
         final boolean secondaryReview;
         final BailianTrialMetrics metrics;
+        String debugSessionId = "";
         String providerText = "", providerSpoken = "";
         String state = "Starting";
         long inputEnd, firstAudio, responseBegan, responseFinished, awaitingSince;

@@ -391,6 +391,33 @@ public class Campaigns {
             var planned = java.time.Instant.parse(taskSnapshot.get("start_at").toString());
             if (planned.isAfter(preflightInstant)) preflightInstant = planned;
         }
+        if (taskSnapshot != null) {
+            if (Boolean.TRUE.equals(campaign.get("hangup_sms_enabled"))
+                    && !(taskSnapshot.get("sms_rule") instanceof Map<?, ?> rule && !rule.isEmpty()))
+                throw new ApiError(409, "请先在任务详情配置并确认已审核的挂机短信规则，或关闭挂机短信");
+            if (taskSnapshot.get("line_ids") instanceof List<?> lines && !lines.isEmpty())
+                for (Object line : lines) {
+                    var configured = store.require("telephonyline", tenant, line);
+                    if (!Boolean.TRUE.equals(configured.get("enabled")))
+                        throw new ApiError(409, "绑定线路已停用，请修改任务线路后启动");
+                }
+            var schema =
+                    com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                            taskSnapshot.get("variable_schema"));
+            var validator = new com.duozhi.outbound.workspace.service.ContactVariables(workspace);
+            for (var member :
+                    workspace.jdbc.queryForList(
+                            "SELECT m.variables_json,c.phone FROM platform_audience_member m JOIN contact c ON c.tenant_id=m.tenant_id AND c.id=m.contact_id WHERE m.tenant_id=? AND m.snapshot_id=?",
+                            tenant,
+                            "call:" + id)) {
+                var values = workspace.json.object(member.get("variables_json").toString());
+                if (!Objects.equals(values.get("phone"), member.get("phone")))
+                    throw new ApiError(409, "名单客户号码已变更，请重新保存任务后启动");
+                var text = new HashMap<String, String>();
+                values.forEach((k, v) -> text.put(k, Objects.toString(v, "")));
+                validator.values(schema, text);
+            }
+        }
         List<Map<String, Object>> relations = relations(id);
         Map<Long, Map<String, Object>> existing = new HashMap<>();
         for (Map<String, Object> call :

@@ -118,6 +118,8 @@ public class Messaging {
 
     public Map<String, Object> capabilities() {
         return Map.of(
+                "workers_enabled",
+                config.flag("MESSAGING_WORKERS_ENABLED", false),
                 "enabled",
                 config.flag("MESSAGING_ENABLED", false),
                 "environment",
@@ -204,6 +206,20 @@ public class Messaging {
             }
             case "sender" -> required(payload, "brand", 128);
             case "audience" -> {
+                if (payload.get("workspace_snapshot") instanceof String snapshot) {
+                    if (!snapshot.startsWith("sms:")
+                            || db.one(
+                                            "SELECT object_id FROM platform_document WHERE tenant_id=? AND kind='sms_task' AND object_id=?",
+                                            tenant,
+                                            snapshot.substring(4))
+                                    == null) throw new ApiError(404, "短信名单快照不存在");
+                    if (db.one(
+                                    "SELECT contact_id FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=? LIMIT 1",
+                                    tenant,
+                                    snapshot)
+                            == null) throw new ApiError(422, "短信名单为空");
+                    break;
+                }
                 if (!(payload.get("contact_ids") instanceof List<?> members)
                         || members.isEmpty()
                         || members.size() > 1000) throw new ApiError(422, "人群应包含 1 至 1000 个联系人");
@@ -1226,6 +1242,8 @@ public class Messaging {
                 object(
                         resource(tenant, cp.get("audience_id").toString(), "audience", true)
                                 .get("payload"));
+        if (audience.containsKey("workspace_snapshot"))
+            throw new ApiError(409, "此活动由短信任务工作区管理，请在发送任务中启动或恢复，不能重复启动活动");
         var members = (List<?>) audience.get("contact_ids");
         if (members.size() > 100) throw new ApiError(422, "本阶段单活动最多 100 人；请拆分人群");
         var items = new ArrayList<Object>();
@@ -1352,6 +1370,46 @@ public class Messaging {
                                                         true)
                                                 .get("payload"));
                         if (call.get("contact_id") == null) throw new ApiError(409, "缺少授权联系人");
+                        if (Boolean.TRUE.equals(rule.get("workspace"))
+                                && "qualified_lead".equals(rule.get("condition"))) {
+                            var conversation =
+                                    db.one(
+                                            "SELECT data_json FROM conversationstate WHERE tenant_id=? AND call_id=? AND attempt=?",
+                                            tenant,
+                                            call.get("id"),
+                                            call.get("attempts"));
+                            if (conversation == null
+                                    || !"qualified_lead"
+                                            .equals(
+                                                    object(conversation.get("data_json"))
+                                                            .get("outcome")))
+                                throw new ApiError(409, "未达到已配置的合格线索触发条件");
+                        }
+                        if (Boolean.TRUE.equals(rule.get("workspace"))) {
+                            long unit =
+                                    number(
+                                            object(
+                                                    resource(
+                                                                    tenant,
+                                                                    rule.get("product_id")
+                                                                            .toString(),
+                                                                    "product",
+                                                                    true)
+                                                            .get("payload")),
+                                            "unit_price",
+                                            0,
+                                            1_000_000_000);
+                            long used =
+                                    db.jdbc()
+                                            .queryForObject(
+                                                    "SELECT COALESCE(SUM(m.sales_amount),0) FROM msg_message m JOIN msg_call_intent i ON i.message_id=m.id AND i.tenant_id=m.tenant_id WHERE i.tenant_id=? AND i.rule_id=? AND m.billing_state IN ('HELD','SETTLED')",
+                                                    Long.class,
+                                                    tenant,
+                                                    intent.get("rule_id"));
+                            if (used + unit > number(rule, "budget", 0, 1_000_000_000_000L))
+                                throw new ApiError(409, "挂机短信规则预算不足");
+                        }
+
                         String form =
                                 object(
                                                 resource(
@@ -1374,7 +1432,41 @@ public class Messaging {
                                         "value",
                                         phone(call.get("phone").toString())));
                         body.put("consent_reference", call.get("contact_id").toString());
-                        body.put("variables", rule.get("variables"));
+                        var selectedVariables =
+                                new LinkedHashMap<>(
+                                        object(rule.getOrDefault("variables", Map.of())));
+                        if (Boolean.TRUE.equals(rule.get("workspace"))) {
+                            var frozen =
+                                    db.one(
+                                            "SELECT variables_json FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=? AND contact_id=?",
+                                            tenant,
+                                            "call:" + call.get("campaign_id"),
+                                            call.get("contact_id"));
+                            if (frozen == null) throw new ApiError(409, "挂机短信缺少任务变量快照");
+                            var values = object(frozen.get("variables_json"));
+                            String templateBody =
+                                    required(
+                                            object(
+                                                    resource(
+                                                                    tenant,
+                                                                    rule.get("template_id")
+                                                                            .toString(),
+                                                                    "template",
+                                                                    true)
+                                                            .get("payload")),
+                                            "body",
+                                            4000);
+                            var matcher =
+                                    java.util.regex.Pattern.compile(
+                                                    "\\{\\{([A-Za-z][A-Za-z0-9_]{0,63})}}")
+                                            .matcher(templateBody);
+                            selectedVariables.clear();
+                            while (matcher.find())
+                                selectedVariables.put(
+                                        matcher.group(1),
+                                        values.getOrDefault(matcher.group(1), ""));
+                        }
+                        body.put("variables", selectedVariables);
                         body.put("purpose", "marketing");
                         body.put(
                                 "expires_at",

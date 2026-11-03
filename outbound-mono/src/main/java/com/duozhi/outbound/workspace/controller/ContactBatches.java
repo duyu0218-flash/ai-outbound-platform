@@ -20,6 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/workspace/contact-batches")
 @AdminPermission("contacts:write")
 public class ContactBatches {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ContactVariables variables;
+
     private final WorkspaceDocuments docs;
     private final ContactFiles files;
 
@@ -51,6 +54,34 @@ public class ContactBatches {
                             return row;
                         })
                 .toList();
+    }
+
+    @GetMapping("/schema")
+    public Object schema(
+            @RequestParam(defaultValue = "")
+            String script_id,
+            @RequestParam(defaultValue = "")
+            String template_id,
+            HttpServletRequest r) {
+        return variables.schema(actor(r).tenant(), script_id, template_id);
+    }
+
+    @GetMapping("/template")
+    public ResponseEntity<byte[]> template(
+            @RequestParam(defaultValue = "")
+            String script_id,
+            @RequestParam(defaultValue = "")
+            String template_id,
+            HttpServletRequest r)
+            throws IOException {
+        return ResponseEntity.ok()
+                .header(
+                        "Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=contact-variables.xlsx")
+                .body(
+                        variables.workbook(
+                                variables.schema(actor(r).tenant(), script_id, template_id)));
     }
 
     @GetMapping("/uploads")
@@ -118,19 +149,32 @@ public class ContactBatches {
             boolean upsert,
             @RequestParam(defaultValue = "{}")
             String mapping,
+            @RequestParam(defaultValue = "")
+            String script_id,
+            @RequestParam(defaultValue = "")
+            String template_id,
             HttpServletRequest r)
             throws IOException {
-        return files.process(file, upsert, null, actor(r), true, mapping(mapping));
+        return files.process(
+                file,
+                upsert,
+                null,
+                actor(r),
+                true,
+                mapping(mapping),
+                variables.schema(actor(r).tenant(), script_id, template_id));
     }
 
     private Map<String, String> mapping(String text) {
         var raw = docs.json.object(text);
-        if (raw.size() > 32) throw new ApiError(422, "最多映射32列");
+        if (raw.size() > 64) throw new ApiError(422, "最多映射64列");
         var result = new TreeMap<String, String>();
         for (var e : raw.entrySet()) {
             String field = Objects.toString(e.getValue(), "");
             if (!Set.of("phone", "name", "tags", "consent_state", "dnc", "dnc_reason", "timezone")
-                    .contains(field)) throw new ApiError(422, "不支持的映射列");
+                            .contains(field)
+                    && !field.matches("变量:[A-Za-z][A-Za-z0-9_]{0,63}"))
+                throw new ApiError(422, "不支持的映射列");
             result.put(e.getKey(), field);
         }
         return result;
@@ -144,6 +188,10 @@ public class ContactBatches {
             boolean upsert,
             @RequestParam(defaultValue = "{}")
             String mapping,
+            @RequestParam(defaultValue = "")
+            String script_id,
+            @RequestParam(defaultValue = "")
+            String template_id,
             @RequestHeader("Idempotency-Key")
             String key,
             HttpServletRequest r)
@@ -159,6 +207,7 @@ public class ContactBatches {
             throw new ApiError(422, "请上传xlsx或UTF-8 CSV");
         byte[] bytes = file.getBytes();
         var fields = mapping(mapping);
+        var schema = variables.schema(i.tenant(), script_id, template_id);
         String encoded = docs.json.json(fields), digest;
         try {
             digest =
@@ -170,7 +219,10 @@ public class ContactBatches {
                                                                     + ":"
                                                                     + upsert
                                                                     + ":"
-                                                                    + fields)
+                                                                    + fields
+                                                                    + ":"
+                                                                    + docs.json.canonical(
+                                                                            schema, false))
                                                             .getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
@@ -196,7 +248,7 @@ public class ContactBatches {
                     if (pending >= 3) throw new ApiError(429, "已有3个保留文件的导入任务，请等待完成或移除失败任务");
                     String id = UUID.randomUUID().toString();
                     docs.jdbc.update(
-                            "INSERT INTO platform_contact_upload(tenant_id,id,request_key,filename,file_sha,file_bytes,upsert_rows,mapping_json,actor_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                            "INSERT INTO platform_contact_upload(tenant_id,id,request_key,filename,file_sha,file_bytes,upsert_rows,mapping_json,schema_json,actor_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                             i.tenant(),
                             id,
                             key,
@@ -205,6 +257,7 @@ public class ContactBatches {
                             bytes,
                             upsert,
                             encoded,
+                            docs.json.json(schema),
                             docs.json.json(
                                     JsonSupport.map(
                                             "id",

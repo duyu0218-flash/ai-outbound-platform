@@ -173,7 +173,7 @@ class FrontendBrowserIT {
         process.environment().put("MONO_BROWSER_URL", "http://127.0.0.1:" + port);
         process.environment().put("MONO_BROWSER_CALL_ID", call.get("id").toString());
         Process running = process.start();
-        boolean finished = running.waitFor(240, TimeUnit.SECONDS);
+        boolean finished = running.waitFor(420, TimeUnit.SECONDS);
         if (!finished) running.destroyForcibly();
         assertThat(finished).as("browser test timeout; %s", Files.readString(log)).isTrue();
         assertThat(running.exitValue()).as(Files.readString(log)).isZero();

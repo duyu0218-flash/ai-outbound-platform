@@ -1,6 +1,36 @@
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useData } from '../data';
+import { request } from '../session';
+const tab = ref('usage'),
+  metadata = reactive({ source: '', valid_from: '', valid_until: '' }),
+  revision = ref(0),
+  error = ref(''),
+  savedAt = ref('');
+async function savePrices() {
+  try {
+    const v = await request('/api/v1/workspace/cost-assumptions', 'PUT', {
+      expected_revision: revision.value,
+      draft: { ...prices, ...metadata },
+    });
+    revision.value = v.revision;
+    savedAt.value = v.updated_at;
+    error.value = '';
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+onMounted(async () => {
+  try {
+    const v = await request('/api/v1/workspace/cost-assumptions');
+    revision.value = v.revision;
+    savedAt.value = v.updated_at || '';
+    for (const k of ['telephony', 'ai', 'sms']) prices[k] = v.draft[k] ?? undefined;
+    for (const k of ['source', 'valid_from', 'valid_until']) metadata[k] = v.draft[k] || '';
+  } catch (e) {
+    error.value = e.message;
+  }
+});
 import { t } from '../i18n';
 import MetricCards from '../components/MetricCards.vue';
 const dimension = ref('campaign'),
@@ -65,7 +95,11 @@ const columns = [
         :value="value"
         :label="t('last' + value + 'Days')" /></el-select
     ><el-button @click="query.load">{{ t('refresh') }}</el-button></PageHeader
-  ><el-card
+  ><el-tabs v-model="tab"
+    ><el-tab-pane name="usage" label="使用量" /><el-tab-pane
+      name="estimate"
+      label="费用估算与口径" /></el-tabs
+  ><el-alert v-if="error" :title="error" type="error" /><el-card v-if="tab === 'estimate'"
     ><div class="toolbar">
       <el-form-item
         v-for="key in ['telephony', 'ai', 'sms']"
@@ -78,9 +112,27 @@ const columns = [
           )
         "
         ><el-input-number v-model="prices[key]" :min="0" :precision="6"
-      /></el-form-item></div></el-card
+      /></el-form-item>
+    </div>
+    <el-form label-position="top"
+      ><el-form-item label="价格来源与适用范围"
+        ><el-input
+          v-model="metadata.source"
+          aria-label="估算价格来源"
+          placeholder="例如合同/报价版本，未填写项目不参与计价" /></el-form-item
+      ><el-form-item label="价格有效期起（YYYY-MM-DD）"
+        ><el-input v-model="metadata.valid_from" aria-label="估算价格有效期起" /></el-form-item
+      ><el-form-item label="价格有效期止（YYYY-MM-DD）"
+        ><el-input
+          v-model="metadata.valid_until"
+          aria-label="估算价格有效期止" /></el-form-item></el-form
+    ><el-button @click="savePrices">保存估算口径</el-button>
+    <p>
+      币种 CNY；话费与AI：元/分钟，短信：元/条。保存时间
+      {{ savedAt || '尚未保存' }}；按当前单价重新估算所选时段，不作为历史账单重算。
+    </p></el-card
   ><el-alert
-    v-if="Object.values(prices).some((v) => v == null)"
+    v-if="tab === 'estimate' && Object.values(prices).some((v) => v == null)"
     title="单价未填写，费用显示为未计价。请输入所有单价后查看估算；明确免费项目请填0。"
     :closable="false"
   /><el-alert
@@ -89,22 +141,24 @@ const columns = [
     :description="`话费使用每轮拨号的 CDR 时长，缺少 CDR 时使用接通至结束的观测时长；AI 使用接通至转人工或结束的占用时长。缺少话费时长 ${query.data.value?.summary?.missing_duration_count || 0} 轮，缺少 AI 时长 ${query.data.value?.summary?.missing_ai_duration_count || 0} 轮，观测估算 ${query.data.value?.summary?.estimated_duration_count || 0} 轮；缺失部分未计价。`"
   /><el-alert v-if="query.error.value" :title="query.error.value" type="error" /><MetricCards
     :data="query.data.value?.summary"
-    :items="[
-      { key: 'calls', label: 'total' },
-      { key: 'billable_calls', label: 'billableCalls' },
-      {
-        key: 'estimated_cost',
-        label: 'estimatedCost',
-        render: (v) =>
-          Object.values(prices).some((v) => v == null) ? '未计价' : Number(v || 0).toFixed(4),
-      },
-      { key: 'ai_minutes', label: 'aiMinutes', suffix: 'min' },
-    ]"
+    :items="
+      [
+        { key: 'calls', label: 'total' },
+        { key: 'billable_calls', label: 'billableCalls' },
+        {
+          key: 'estimated_cost',
+          label: 'estimatedCost',
+          render: (v) =>
+            Object.values(prices).some((v) => v == null) ? '未计价' : Number(v || 0).toFixed(4),
+        },
+        { key: 'ai_minutes', label: 'aiMinutes', suffix: 'min' },
+      ].filter((i) => tab === 'estimate' || i.key !== 'estimated_cost')
+    "
   /><el-card :header="t('billingRows')"
     ><DataGrid
       :pagination="10"
       :rows="query.data.value?.rows"
-      :columns="columns"
+      :columns="columns.filter((c) => tab === 'estimate' || c.key !== 'estimated_cost')"
       row-key="key"
       :loading="query.loading.value"
   /></el-card>

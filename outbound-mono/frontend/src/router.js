@@ -21,7 +21,7 @@ export const adminMenu = [
     items: [
       ['sms/overview', '短信概览', 'Messaging', 'overview'],
       ['sms/content', '签名与模板', 'SmsAssets', 'content'],
-      ['sms/tasks', '发送任务', 'Messaging', 'campaigns'],
+      ['sms/tasks', '发送任务', 'SmsTasks'],
       ['sms/records', '发送记录', 'Messaging', 'records'],
       ['sms/analytics', '效果分析', 'Messaging', 'interactions'],
     ],
@@ -62,6 +62,7 @@ const hiddenAdmin = [
   ['operations/reports', 'OperationsReports'],
   ['group-monitor', 'Groups'],
   ['product', 'Product'],
+  ['business-debug', 'BusinessDebug'],
   ['bailian-trial', 'BailianTrial'],
   ['messaging', 'Messaging'],
   ['operations/notices', 'OperationsNotices'],

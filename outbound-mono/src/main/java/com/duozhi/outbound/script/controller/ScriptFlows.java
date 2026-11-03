@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/script-templates/{template_id}/flows")
 @AdminPermission("script-templates:write")
 public class ScriptFlows {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
     private final Store store;
     private final Contract contract;
     private final JsonSupport json;
@@ -311,7 +314,20 @@ public class ScriptFlows {
                                                             "templateId",
                                                             template_id))
                                     + 1;
-                    Map<String, Object> g = defaults(Objects.toString(template.get("content"), ""));
+                    String opening = Objects.toString(template.get("content"), "");
+                    if (workspace != null) {
+                        var doc = workspace.find(tenant, "script", String.valueOf(template_id));
+                        if (doc != null) {
+                            opening =
+                                    Objects.toString(
+                                            com.duozhi.outbound.workspace.service.WorkspaceDocuments
+                                                    .map(doc.get("draft"))
+                                                    .get("opening"),
+                                            "");
+                            if (opening.isBlank()) opening = "您好，我是智能语音助手，请问现在方便沟通吗？";
+                        }
+                    }
+                    Map<String, Object> g = defaults(opening);
                     if (input.get("clone_version_id") != null)
                         g =
                                 json.object(

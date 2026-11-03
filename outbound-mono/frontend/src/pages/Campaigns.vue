@@ -1,11 +1,25 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { request } from '../session';
+import { request, download } from '../session';
+const recipientPage = ref(1),
+  recipientView = ref(null);
+async function loadRecipients() {
+  const id = detail.value?.id;
+  if (!id) return;
+  const v = await request(
+    '/api/v1/workspace/task-resources/tasks/' + id + '/members?page=' + recipientPage.value,
+  );
+  if (detail.value?.id === id) recipientView.value = v;
+}
 import { t } from '../i18n';
 import { useData, action } from '../data';
 import ContactImport from '../components/ContactImport.vue';
 import ContactSelect from '../components/ContactSelect.vue';
+import AudiencePicker from '../components/AudiencePicker.vue';
+import HangupMessageRule from '../components/HangupMessageRule.vue';
+const lines = useData('/api/v1/admin/lines'),
+  combos = useData('/api/v1/admin/voice-ai/profiles');
 const filter = ref('');
 const route = useRoute(),
   page = ref(1),
@@ -27,6 +41,13 @@ const open = ref(false),
   busy = ref(false),
   error = ref(''),
   detail = ref(null);
+watch(
+  () => detail.value?.id,
+  () => {
+    recipientPage.value = 1;
+    recipientView.value = null;
+  },
+);
 const flows = useData(() =>
   open.value && model.value.script_template_id
     ? `/api/v1/script-templates/${model.value.script_template_id}/flows`
@@ -121,6 +142,10 @@ async function edit(row) {
       model.value = {
         ...v,
         batch_ids: v.snapshot?.batch_ids || [],
+        segment_snapshot_ids: v.snapshot?.segment_snapshot_ids || [],
+        excluded_contact_ids: v.snapshot?.excluded_contact_ids || [],
+        line_ids: v.snapshot?.line_ids || [],
+        service_combo: v.snapshot?.service_combo || 'inherit',
         contact_ids: v.snapshot ? v.snapshot.direct_contact_ids || [] : v.contacts.map((c) => c.id),
         client_id: null,
         execution_policy: clone(v.snapshot?.policy || {}),
@@ -141,6 +166,10 @@ async function edit(row) {
         script_flow_version_id: null,
         batch_ids: route.query.batch_id ? [route.query.batch_id] : [],
         contact_ids: [],
+        segment_snapshot_ids: [],
+        excluded_contact_ids: [],
+        line_ids: [],
+        service_combo: 'inherit',
         concurrency: 5,
         retry_limit: 1,
         retry_interval_sec: 30,
@@ -162,7 +191,7 @@ function next() {
     error.value = '请填写任务名称并选择已发布话术。';
     return;
   }
-  if (step.value === 1 && !contactCount.value) {
+  if (step.value === 1 && !contactCount.value && !model.value.segment_snapshot_ids?.length) {
     error.value = '请选择名单批次或联系人。';
     return;
   }
@@ -185,6 +214,10 @@ async function save() {
       'hangup_sms_enabled',
       'voice_ai_pipeline',
       'batch_ids',
+      'segment_snapshot_ids',
+      'excluded_contact_ids',
+      'line_ids',
+      'service_combo',
       'contact_ids',
       'client_id',
       'execution_policy',
@@ -213,7 +246,6 @@ async function save() {
 async function imported(value) {
   await batches.load();
   model.value.batch_ids = [...new Set([...(model.value.batch_ids || []), value.batch_id])];
-  importing.value = false;
 }
 function command(row, kind) {
   return action(
@@ -311,14 +343,8 @@ onMounted(() => {
         <el-button type="primary" @click="importing = true">上传号码 / 下载模板</el-button
         ><el-button @click="batches.load()">刷新批次</el-button>
       </div>
+      <AudiencePicker :model="model" :script-id="model.script_template_id" />
       <el-form label-position="top"
-        ><el-form-item label="选择名单批次"
-          ><el-select v-model="model.batch_ids" multiple aria-label="选择名单批次"
-            ><el-option
-              v-for="batch in batches.data.value || []"
-              :key="batch.id"
-              :value="batch.id"
-              :label="`${batch.name} · ${batch.result.selected_count}个联系人`" /></el-select></el-form-item
         ><el-form-item label="补充选择联系人"
           ><ContactSelect v-model="model.contact_ids" /></el-form-item
       ></el-form>
@@ -327,6 +353,32 @@ onMounted(() => {
       </p></template
     >
     <template v-if="step === 2">
+      <el-form label-position="top"
+        ><el-form-item label="线路与主叫资源"
+          ><el-select v-model="model.line_ids" multiple aria-label="任务线路资源"
+            ><el-option
+              v-for="line in lines.data.value || []"
+              :key="line.id"
+              :value="line.id"
+              :label="line.name + ' · 主叫 ' + (line.caller_id || '未配置')"
+              :disabled="!line.enabled" /></el-select
+          ><small
+            >不选则继承租户路由；选择后仅使用所选线路，不会回退到其他线路。</small
+          ></el-form-item
+        ><el-form-item label="语音服务组合"
+          ><el-select v-model="model.service_combo" aria-label="任务语音服务组合"
+            ><el-option value="inherit" label="继承租户默认组合" /><el-option
+              value="legacy"
+              label="旧版业务链路" /><el-option
+              v-for="c in combos.data.value || []"
+              :key="c.id"
+              :value="c.id"
+              :label="c.name + (c.configured ? '' : '（待配置）')" /></el-select
+          ><small
+            >任务保存组合选择，开始通话时冻结供应商配置；真实通道仍需完成联调。</small
+          ></el-form-item
+        ></el-form
+      >
       <div class="form-grid">
         <el-form-item label="开始时间（本地时区，可选）"
           ><input
@@ -451,14 +503,53 @@ onMounted(() => {
           }}</template></el-table-column
         ><el-table-column prop="total" label="数量"
       /></el-table>
-      <h3>名单预览（前50条）</h3>
+      <h3>任务名单快照</h3>
+      <el-button @click="run(loadRecipients)">查看冻结名单与变量</el-button
+      ><el-button
+        @click="
+          run(() =>
+            download(
+              '/api/v1/workspace/task-resources/tasks/' + detail.id + '/export',
+              '任务冻结名单.csv',
+            ),
+          )
+        "
+        >导出任务冻结名单</el-button
+      ><template v-if="recipientView"
+        ><el-table :data="recipientView.rows"
+          ><el-table-column prop="contact_id" label="客户ID" /><el-table-column label="冻结业务变量"
+            ><template #default="{ row }">{{ row.variables }}</template></el-table-column
+          ></el-table
+        ><el-pagination
+          v-model:current-page="recipientPage"
+          :total="recipientView.total"
+          :page-size="50"
+          layout="prev,pager,next"
+          @current-change="run(loadRecipients)"
+      /></template>
+      <h3>客户当前资料（前50条）</h3>
       <el-table :data="detail.contacts"
         ><el-table-column prop="phone" label="号码" /><el-table-column
           prop="name"
           label="姓名" /><el-table-column prop="dnc" label="禁呼" /></el-table
       ><el-button @click="$router.push({ path: '/admin/calls', query: { campaign_id: detail.id } })"
         >查看通话记录</el-button
-      ></template
-    ></el-drawer
-  ><ContactImport v-model="importing" select-for-task @imported="imported" />
+      >
+      <p v-if="detail.snapshot">
+        线路：{{
+          detail.snapshot.lines?.map((l) => l.name + ' / ' + l.caller_id).join('、') ||
+          '继承租户路由'
+        }}；服务组合 {{ detail.snapshot.service_combo || 'inherit' }}；任务开始
+        {{ detail.snapshot.start_at || '立即' }}；结束 {{ detail.snapshot.end_at || '未设置' }}
+      </p>
+      <HangupMessageRule
+        v-if="detail.snapshot"
+        :key="detail.id"
+        :task-id="detail.id" /></template></el-drawer
+  ><ContactImport
+    :script-id="model.script_template_id"
+    v-model="importing"
+    select-for-task
+    @imported="imported"
+  />
 </template>

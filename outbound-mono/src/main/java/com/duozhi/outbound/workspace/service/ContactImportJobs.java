@@ -147,7 +147,7 @@ public class ContactImportJobs {
                 var fields = new ArrayList<String>();
                 for (String value : record) fields.add(value.trim());
                 if (fields.stream().allMatch(String::isEmpty)) continue;
-                if (fields.size() > 32) throw new ApiError(422, "最多支持32列，请检查文件");
+                if (fields.size() > 64) throw new ApiError(422, "最多支持64列，请检查文件");
                 if (first) {
                     first = false;
                     var header =
@@ -156,10 +156,7 @@ public class ContactImportJobs {
                                             v ->
                                                     Objects.toString(
                                                             mapping.getOrDefault(
-                                                                    v,
-                                                                    ContactWorkbook.column(
-                                                                            v.toLowerCase(
-                                                                                    Locale.ROOT)))))
+                                                                    v, ContactWorkbook.column(v))))
                                     .toList();
                     if (header.contains("phone")) {
                         if (new HashSet<>(header).size() != header.size())
@@ -195,6 +192,8 @@ public class ContactImportJobs {
         int created = 0, updated = 0, skipped = duplicates, failed = 0, processed = duplicates;
         var previews = new ArrayList<Map<String, Object>>();
         var children = new ArrayList<String>();
+        var flags = new LinkedHashMap<String, Integer>();
+        for (String f : List.of("dnc", "not_consented", "existing")) flags.put(f, 0);
         for (int start = 0, part = 0; start < rows.size(); start += CHUNK, part++) {
             if (closing || Thread.currentThread().isInterrupted()) throw new InterruptedException();
             var chunk = rows.subList(start, Math.min(start + CHUNK, rows.size()));
@@ -211,7 +210,18 @@ public class ContactImportJobs {
                             "workspace-chunk:" + id + ":" + part,
                             actor,
                             false,
-                            Map.of());
+                            Map.of(),
+                            job.get("schema_json") == null
+                                    ? Map.of()
+                                    : docs.json.object(job.get("schema_json").toString()));
+            for (String f : flags.keySet())
+                flags.put(
+                        f,
+                        flags.get(f)
+                                + WorkspaceDocuments.number(
+                                        WorkspaceDocuments.map(
+                                                        result.getOrDefault("flags", Map.of()))
+                                                .get(f)));
             String child = result.get("batch_id").toString();
             children.add(child);
             created += WorkspaceDocuments.number(result.get("created"));
@@ -273,7 +283,13 @@ public class ContactImportJobs {
                         "batch_id",
                         batch,
                         "preview_rows",
-                        previews);
+                        previews,
+                        "flags",
+                        flags,
+                        "variable_schema",
+                        job.get("schema_json") == null
+                                ? Map.of()
+                                : docs.json.object(job.get("schema_json").toString()));
         return docs.tx.run(
                 () -> {
                     docs.jdbc.update(
@@ -288,7 +304,7 @@ public class ContactImportJobs {
                             Store.now());
                     for (String child : children)
                         docs.jdbc.update(
-                                "INSERT IGNORE INTO platform_contact_batch_member(tenant_id,batch_id,contact_id) SELECT tenant_id,?,contact_id FROM platform_contact_batch_member WHERE tenant_id=? AND batch_id=?",
+                                "INSERT IGNORE INTO platform_contact_batch_member(tenant_id,batch_id,contact_id,variables_json) SELECT tenant_id,?,contact_id,variables_json FROM platform_contact_batch_member WHERE tenant_id=? AND batch_id=?",
                                 batch,
                                 tenant,
                                 child);
