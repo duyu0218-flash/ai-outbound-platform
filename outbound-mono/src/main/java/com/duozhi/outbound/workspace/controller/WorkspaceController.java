@@ -380,7 +380,10 @@ public class WorkspaceController {
             Map<String, Object> body, HttpServletRequest r) {
         var i = actor(r);
         var doc = script(id, r);
-        var value = draft(doc);
+        var value =
+                body.get("draft") instanceof Map<?, ?>
+                        ? scriptDraft(map(body.get("draft")), i.tenant())
+                        : draft(doc);
         String query = text(body, "query", 2000, true);
         var knowledge = scriptKnowledge(i.tenant(), value);
         return JsonSupport.map(

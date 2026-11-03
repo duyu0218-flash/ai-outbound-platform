@@ -896,6 +896,21 @@ class CustomerHttpIT {
                         HttpMethod.POST,
                         "/scripts/" + id + "/publish",
                         Map.of("expected_revision", script.path("revision").asInt()));
+        var previewDraft = new LinkedHashMap<>(draft);
+        previewDraft.put("knowledge_library_ids", List.of());
+        var preview =
+                workspace(
+                        HttpMethod.POST,
+                        "/scripts/" + id + "/probe",
+                        Map.of("query", "预约咨询", "draft", previewDraft));
+        assertThat(preview.path("knowledge")).isEmpty();
+        var savedProbe =
+                workspace(HttpMethod.POST, "/scripts/" + id + "/probe", Map.of("query", "预约咨询"));
+        assertThat(savedProbe.path("knowledge")).hasSize(1);
+        var afterProbe = workspace(HttpMethod.GET, "/scripts/" + id, null);
+        assertThat(afterProbe.path("revision")).isEqualTo(script.path("revision"));
+        assertThat(afterProbe.path("state").asText()).isEqualTo("published");
+        assertThat(afterProbe.path("draft")).isEqualTo(script.path("draft"));
         long contact = create(phone()).path("id").asLong();
         var task =
                 workspace(
