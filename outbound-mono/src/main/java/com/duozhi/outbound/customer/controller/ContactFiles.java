@@ -25,6 +25,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @RequestMapping("/api/v1/contacts")
 @AdminPermission("contacts:write")
 public class ContactFiles {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ContactVariables variables;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -136,6 +139,18 @@ public class ContactFiles {
             boolean preview,
             Map<String, String> mapping)
             throws IOException {
+        return process(file, upsert, key, i, preview, mapping, Map.of());
+    }
+
+    public Map<String, Object> process(
+            MultipartFile file,
+            boolean upsert,
+            String key,
+            Identity i,
+            boolean preview,
+            Map<String, String> mapping,
+            Map<String, Object> schema)
+            throws IOException {
         if (!preview && config.production() && key == null)
             throw new ApiError(400, "Idempotency-Key is required in production");
         String requestKey = key == null ? UUID.randomUUID().toString() : key.trim();
@@ -160,10 +175,7 @@ public class ContactFiles {
                                         .map(
                                                 v ->
                                                         mapping.getOrDefault(
-                                                                v,
-                                                                ContactWorkbook.column(
-                                                                        v.toLowerCase(
-                                                                                Locale.ROOT))))
+                                                                v, ContactWorkbook.column(v)))
                                         .anyMatch("phone"::equals);
                         if (header) continue;
                     }
@@ -187,7 +199,9 @@ public class ContactFiles {
                                                                     + ":"
                                                                     + upsert
                                                                     + ":"
-                                                                    + new TreeMap<>(mapping))
+                                                                    + new TreeMap<>(mapping)
+                                                                    + ":"
+                                                                    + json.canonical(schema, false))
                                                             .getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
@@ -230,6 +244,9 @@ public class ContactFiles {
                     List<String> errors = new ArrayList<>();
                     List<Map<String, Object>> previewRows = new ArrayList<>();
                     List<Object> contactIds = new ArrayList<>();
+                    var memberValues = new LinkedHashMap<Object, Map<String, Object>>();
+                    var newContactIds = new HashSet<Object>();
+                    int validRows = 0, dncRows = 0, unknownRows = 0, existingRows = 0;
                     String batchId = UUID.randomUUID().toString();
                     Set<String> seen = new HashSet<>();
                     try (CSVParser parser = CSVFormat.DEFAULT.parse(new StringReader(content))) {
@@ -255,9 +272,7 @@ public class ContactFiles {
                                 for (String field : fields)
                                     header.add(
                                             mapping.getOrDefault(
-                                                    field,
-                                                    ContactWorkbook.column(
-                                                            field.transform(Ascii::lower))));
+                                                    field, ContactWorkbook.column(field)));
                                 if (header.contains("phone")) {
                                     if (header.get(0).isEmpty())
                                         throw new ApiError(400, "invalid CSV header");
@@ -316,11 +331,51 @@ public class ContactFiles {
                                                 + ": duplicate phone in uploaded file");
                                 continue;
                             }
+                            if (nameLength(values) > 160
+                                    || values.getOrDefault("tags", "").length() > 2000
+                                    || values.getOrDefault("dnc_reason", "").length() > 1000) {
+                                failed++;
+                                errors.add("row " + row.getRecordNumber() + ": 文本长度超出限制");
+                                continue;
+                            }
                             Map<String, Object> old =
                                     store.one(
                                             "contact",
                                             "findByPhone",
                                             Values.map("tenantId", i.tenant(), "phone", phone));
+                            Map<String, Object> business;
+                            try {
+                                var effective = new HashMap<>(values);
+                                if (old != null
+                                        && (!upsert || values.getOrDefault("name", "").isBlank()))
+                                    effective.put("name", Objects.toString(old.get("name"), ""));
+                                effective.put("phone", phone);
+                                business = variables.values(schema, effective);
+                            } catch (ApiError e) {
+                                failed++;
+                                errors.add("row " + row.getRecordNumber() + ": " + e.getMessage());
+                                continue;
+                            }
+                            validRows++;
+                            if (old != null) existingRows++;
+                            boolean effectiveDnc =
+                                    old != null
+                                                    && (!upsert
+                                                            || values.getOrDefault("dnc", "")
+                                                                    .isBlank())
+                                            ? Boolean.TRUE.equals(old.get("dnc"))
+                                            : Set.of("1", "true", "是", "yes")
+                                                    .contains(values.getOrDefault("dnc", ""));
+                            String effectiveConsent =
+                                    old != null
+                                                    && (!upsert
+                                                            || values.getOrDefault(
+                                                                            "consent_state", "")
+                                                                    .isBlank())
+                                            ? Objects.toString(old.get("consent_state"), "unknown")
+                                            : consent;
+                            if (effectiveDnc) dncRows++;
+                            if (!"consented".equals(effectiveConsent)) unknownRows++;
                             if (previewRows.size() < 50)
                                 previewRows.add(
                                         JsonSupport.map(
@@ -330,16 +385,18 @@ public class ContactFiles {
                                                 phone,
                                                 "name",
                                                 values.getOrDefault("name", ""),
+                                                "variables",
+                                                business,
+                                                "dnc",
+                                                effectiveDnc,
+                                                "consent_state",
+                                                effectiveConsent,
                                                 "action",
                                                 old == null ? "新增" : upsert ? "更新" : "跳过已有号码"));
-                            if (nameLength(values) > 160
-                                    || values.getOrDefault("tags", "").length() > 2000
-                                    || values.getOrDefault("dnc_reason", "").length() > 1000) {
-                                failed++;
-                                errors.add("row " + row.getRecordNumber() + ": 文本长度超出限制");
-                                continue;
+                            if (old != null) {
+                                contactIds.add(old.get("id"));
+                                memberValues.put(old.get("id"), business);
                             }
-                            if (old != null) contactIds.add(old.get("id"));
                             if (old != null && !upsert) {
                                 skipped++;
                                 continue;
@@ -391,8 +448,12 @@ public class ContactFiles {
                             }
                             if (old == null) {
                                 changes.put("tenant_id", i.tenant());
-                                if (!preview)
-                                    contactIds.add(store.insert("contact", changes).get("id"));
+                                if (!preview) {
+                                    Object newId = store.insert("contact", changes).get("id");
+                                    contactIds.add(newId);
+                                    newContactIds.add(newId);
+                                    memberValues.put(newId, business);
+                                }
                                 created++;
                             } else {
                                 if (!preview)
@@ -421,7 +482,17 @@ public class ContactFiles {
                     result.put("error_count", errors.size());
                     if (preview) result.put("contact_ids", List.of());
                     result.put("batch_id", preview ? null : batchId);
-                    result.put("selected_count", contactIds.size());
+                    result.put("selected_count", preview ? validRows : contactIds.size());
+                    result.put(
+                            "flags",
+                            JsonSupport.map(
+                                    "dnc",
+                                    dncRows,
+                                    "not_consented",
+                                    unknownRows,
+                                    "existing",
+                                    existingRows));
+                    result.put("variable_schema", schema);
                     result.put("preview_rows", previewRows);
                     if (preview) return result;
                     store.update(
@@ -441,14 +512,31 @@ public class ContactFiles {
                             i.userId(),
                             Store.now());
                     jdbc.batchUpdate(
-                            "INSERT INTO platform_contact_batch_member(tenant_id,batch_id,contact_id) VALUES(?,?,?)",
+                            "INSERT INTO platform_contact_batch_member(tenant_id,batch_id,contact_id,variables_json) VALUES(?,?,?,?)",
                             contactIds,
                             500,
                             (ps, id) -> {
                                 ps.setLong(1, i.tenant());
                                 ps.setString(2, batchId);
                                 ps.setObject(3, id);
+                                ps.setString(4, json.json(memberValues.getOrDefault(id, Map.of())));
                             });
+                    for (var entry : memberValues.entrySet()) {
+                        if (entry.getValue().isEmpty()) continue;
+                        // Skipped existing profiles are preserved; batch variables remain usable
+                        // independently.
+                        if (!upsert && !newContactIds.contains(entry.getKey())) continue;
+                        var merged =
+                                variables.current(
+                                        i.tenant(), ((Number) entry.getKey()).longValue());
+                        merged.putAll(entry.getValue());
+                        jdbc.update(
+                                "INSERT INTO platform_contact_value(tenant_id,contact_id,values_json,updated_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE values_json=VALUES(values_json),updated_at=VALUES(updated_at)",
+                                i.tenant(),
+                                entry.getKey(),
+                                json.json(merged),
+                                Store.now());
+                    }
                     var detailRows = new ArrayList<Map<String, Object>>();
                     for (int n = 0; n < errors.size(); n++)
                         detailRows.add(JsonSupport.map("seq", n + 1, "message", errors.get(n)));

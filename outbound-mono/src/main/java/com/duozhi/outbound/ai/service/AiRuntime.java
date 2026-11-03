@@ -43,6 +43,9 @@ public class AiRuntime {
     private final Handoffs handoffs;
     private final DialService dial;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.KnowledgeGaps knowledgeGaps;
+
     public AiRuntime(
             Store store,
             Transactions tx,
@@ -292,11 +295,59 @@ public class AiRuntime {
                                                     ? ConversationPolicy.reply("", "hangup")
                                                     : product.prepare(call, transcript, state),
                             policy = product.policy(state);
+                    if (knowledgeGaps != null
+                            && policy.containsKey("_knowledge")
+                            && "question".equals(DialogueRules.classify(transcript))
+                            && !Values.set("needs_confirmation", "unusable")
+                                    .contains(
+                                            Support.map(payload.get("recognition_quality"))
+                                                    .get("status"))
+                            && ((Map<?, ?>) policy.getOrDefault("faqs", Map.of()))
+                                    .keySet().stream()
+                                            .noneMatch(k -> transcript.contains(k.toString()))
+                            && knowledge(call, policy, transcript).isEmpty())
+                        knowledgeGaps.capture(
+                                CallLifecycle.tenant(call),
+                                "call",
+                                call.get("id").toString(),
+                                call.get("campaign_id"),
+                                transcript,
+                                JsonSupport.map(
+                                        "reason",
+                                        "published_knowledge_miss",
+                                        "attempt",
+                                        call.get("attempts"),
+                                        "turn_sequence",
+                                        payload.get("turn_sequence"),
+                                        "script_id",
+                                        policy.get("_script_id"),
+                                        "script_version",
+                                        policy.get("_script_version"),
+                                        "simulated",
+                                        "mock".equals(config.get("TELEPHONY_PROVIDER", "mock"))));
                     if (Boolean.TRUE.equals(
                             json.object(state.get("data_json").toString()).get("failure_handled")))
                         result =
                                 ConversationPolicy.reply(
                                         policy.get("failure_prompt").toString(), "hangup");
+                    if (result == null
+                            && policy.containsKey("_knowledge_fallback")
+                            && "question".equals(DialogueRules.classify(transcript))
+                            && knowledge(call, policy, transcript).isEmpty()
+                            && ((Map<?, ?>) policy.getOrDefault("faqs", Map.of()))
+                                    .keySet().stream()
+                                            .noneMatch(k -> transcript.contains(k.toString()))) {
+                        String strategy =
+                                Objects.toString(policy.get("_knowledge_fallback"), "clarify");
+                        result =
+                                ConversationPolicy.reply(
+                                        Objects.toString(
+                                                policy.get("_knowledge_fallback_prompt"),
+                                                "这个问题需要进一步确认。"),
+                                        strategy.equals("handoff")
+                                                ? "handoff"
+                                                : strategy.equals("end") ? "hangup" : "continue");
+                    }
                     if (result == null) result = flow(call, state, transcript);
                     if (result == null && Boolean.TRUE.equals(payload.get("native_response")))
                         result = ConversationPolicy.reply("", "continue");
@@ -508,6 +559,7 @@ public class AiRuntime {
                         ? Collections.emptyMap()
                         : store.require(
                                 "campaign", CallLifecycle.tenant(call), call.get("campaign_id"));
+        var matchedKnowledge = knowledge(call, policy, transcript);
         Map<String, Object> context =
                 JsonSupport.map(
                         "campaign_id",
@@ -533,7 +585,7 @@ public class AiRuntime {
                         "conversation",
                         history,
                         "knowledge",
-                        knowledge(call, policy, transcript));
+                        matchedKnowledge);
         return JsonSupport.map(
                 "call_id",
                 call.get("id"),

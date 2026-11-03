@@ -1,8 +1,46 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { request, download, session } from '../session';
-const props = defineProps({ modelValue: Boolean, selectForTask: Boolean });
+const props = defineProps({
+  modelValue: Boolean,
+  selectForTask: Boolean,
+  scriptId: [Number, String],
+  templateId: String,
+  channel: { type: String, default: 'call' },
+});
 const emit = defineEmits(['update:modelValue', 'imported']);
+const schema = ref({ fields: [] });
+const source = computed(
+  () =>
+    '?script_id=' +
+    encodeURIComponent(props.scriptId || '') +
+    '&template_id=' +
+    encodeURIComponent(props.templateId || ''),
+);
+const sourceFields = computed(() => [
+  ['phone', '手机号码列'],
+  ['name', '姓名列'],
+  ['tags', '标签列'],
+  ['consent_state', '同意状态列'],
+  ['dnc', '禁止呼叫列'],
+  ['dnc_reason', '禁呼原因列'],
+  ['timezone', '时区列'],
+  ...(schema.value.fields || []).map((f) => [
+    '变量:' + f.key,
+    f.label + '列' + (f.required ? '（必填）' : ''),
+  ]),
+]);
+watch(
+  () => [props.modelValue, props.scriptId, props.templateId],
+  async () => {
+    if (props.modelValue)
+      try {
+        schema.value = await request('/api/v1/workspace/contact-batches/schema' + source.value);
+      } catch (e) {
+        error.value = e.message;
+      }
+  },
+);
 const mapping = ref({}),
   job = ref(null);
 const file = ref(null),
@@ -39,7 +77,10 @@ watch(upsert, () => {
 });
 async function template() {
   try {
-    await download('/api/v1/contacts/import/template', '外呼名单导入模板.xlsx');
+    await download(
+      '/api/v1/workspace/contact-batches/template' + source.value,
+      (props.channel === 'sms' ? '短信' : '外呼') + '名单导入模板.xlsx',
+    );
   } catch (e) {
     error.value = e.message;
   }
@@ -68,7 +109,8 @@ async function submit(dryRun) {
     let value = await request(
       '/api/v1/workspace/contact-batches' +
         (dryRun ? '/preview' : '') +
-        '?upsert=' +
+        source.value +
+        '&upsert=' +
         upsert.value +
         '&mapping=' +
         encodeURIComponent(
@@ -110,7 +152,7 @@ async function submit(dryRun) {
 <template>
   <el-dialog
     :model-value="modelValue"
-    title="导入外呼名单"
+    :title="channel === 'sms' ? '导入短信名单' : '导入外呼名单'"
     width="min(900px, 95vw)"
     :close-on-click-modal="!busy"
     :close-on-press-escape="!busy"
@@ -122,7 +164,7 @@ async function submit(dryRun) {
     /></el-steps>
     <p>
       每行填写一个号码，手机号按文本保存。支持 .xlsx 和 UTF-8 CSV，最多
-      20MB。导入仅保存名单，任务启动后才会拨打。
+      20MB。导入仅保存名单，任务启动后才会执行触达。
     </p>
     <div class="actions">
       <el-button :disabled="busy" @click="template">下载导入模板</el-button>
@@ -135,6 +177,17 @@ async function submit(dryRun) {
           @change="inspect"
       /></label>
     </div>
+    <el-alert
+      v-if="schema.fields?.length"
+      type="info"
+      :closable="false"
+      :title="
+        '当前模板变量：' +
+        schema.fields
+          .map((f) => f.label + '（' + f.kind + '，' + (f.required ? '必填' : '选填') + '）')
+          .join('、')
+      "
+    />
     <p v-if="file">已选择：{{ file.name }}</p>
     <el-form label-position="top"
       ><el-form-item label="平台已有号码的处理方式">
@@ -151,18 +204,7 @@ async function submit(dryRun) {
       ><el-collapse-item title="自定义列映射（使用平台模板无需填写）"
         ><p>填写您文件中的准确列名。手机号码列必填；其他列可留空，系统自动识别平台模板。</p>
         <el-form label-position="top"
-          ><el-form-item
-            v-for="[field, label] in [
-              ['phone', '手机号码列'],
-              ['name', '姓名列'],
-              ['tags', '标签列'],
-              ['consent_state', '同意状态列'],
-              ['dnc', '禁止呼叫列'],
-              ['dnc_reason', '禁呼原因列'],
-              ['timezone', '时区列'],
-            ]"
-            :key="field"
-            :label="label"
+          ><el-form-item v-for="[field, label] in sourceFields" :key="field" :label="label"
             ><el-input
               v-model="mapping[field]"
               :aria-label="label"
@@ -182,6 +224,12 @@ async function submit(dryRun) {
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="busy">
       <template v-if="result || preview">
+        <p>
+          预检标记可重叠：禁呼 {{ (result || preview).flags?.dnc ?? '—' }}，非已同意
+          {{
+            (result || preview).flags?.not_consented ?? '—'
+          }}。本批次业务变量独立保存；跳过已有号码只保留原客户资料，不丢弃本批变量。
+        </p>
         <el-descriptions :title="result ? '导入结果' : '导入预览（尚未保存）'" :column="3" border>
           <el-descriptions-item
             v-for="[field, label] in [

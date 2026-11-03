@@ -75,6 +75,8 @@ jobs:
             outbound-mono/target/surefire-reports/
             outbound-mono/target/failsafe-reports/
             outbound-mono/target/frontend-browser-result.json
+            outbound-mono/target/platform-completion/
+            outbound-mono/PLATFORM-PLAN-COMPLETION.md
             outbound-mono/target/messaging-browser.png
             outbound-mono/target/bailian-browser-results.json
             outbound-mono/target/bailian-browser.png

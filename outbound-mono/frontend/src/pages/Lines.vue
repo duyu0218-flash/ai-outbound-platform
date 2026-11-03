@@ -2,6 +2,23 @@
 import { ref } from 'vue';
 import { request } from '../session';
 import { useData } from '../data';
+const impact = ref(null);
+async function showImpact(row) {
+  try {
+    impact.value = await request('/api/v1/workspace/task-resources/line/' + row.id + '/impact');
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+import ResourceCatalog from '../components/ResourceCatalog.vue';
+const connections = useData('/api/v1/workspace/catalog/connection');
+function selectConnection(id) {
+  const row = connections.data.value?.find((c) => c.object_id === id);
+  if (row) {
+    model.value.credential_ref = row.draft.credential_ref;
+    model.value.gateway_url = row.draft.gateway_url;
+  }
+}
 const query = useData('/api/v1/admin/lines'),
   open = ref(false),
   editing = ref(null),
@@ -132,17 +149,38 @@ async function save() {
         ></el-table-column
       ><el-table-column label="操作"
         ><template #default="{ row }"
-          ><el-button link @click="edit(row)">配置线路</el-button></template
+          ><el-button link @click="edit(row)">配置线路</el-button
+          ><el-button link @click="showImpact(row)">使用影响</el-button></template
         ></el-table-column
       ></el-table
     ><el-empty
       v-if="!query.loading.value && !query.data.value?.length"
       description="添加已采购的语音网关线路，填写主叫和开通容量" /></el-card
-  ><el-dialog v-model="open" title="线路配置" width="min(820px,95vw)" :close-on-click-modal="false"
+  ><el-dialog :model-value="!!impact" title="线路使用影响" @close="impact = null"
+    ><template v-if="impact"
+      ><p>{{ impact.effect }}</p>
+      <p>当前活动通话 {{ impact.active_calls }} 路</p>
+      <el-table :data="impact.tasks"
+        ><el-table-column prop="name" label="绑定任务" /><el-table-column
+          prop="status"
+          label="状态" /></el-table></template></el-dialog
+  ><ResourceCatalog kind="connection" @changed="connections.load" /><el-dialog
+    v-model="open"
+    title="线路配置"
+    width="min(820px,95vw)"
+    :close-on-click-modal="false"
     ><el-alert v-if="error" :title="error" type="error" /><el-tabs v-model="tab"
       ><el-tab-pane label="基本信息" name="basic" /><el-tab-pane
         label="网关接入"
         name="access" /><el-tab-pane label="高级路由" name="advanced" /></el-tabs
+    ><el-form-item v-if="tab === 'access'" label="选择已配置连接"
+      ><el-select clearable aria-label="选择已配置连接" @change="selectConnection"
+        ><el-option
+          v-for="c in connections.data.value || []"
+          :key="c.object_id"
+          :value="c.object_id"
+          :label="c.name + (c.credential_configured ? '' : '（服务端凭据待配置）')"
+          :disabled="!c.enabled" /></el-select></el-form-item
     ><FieldForm
       :model="model"
       :fields="tab === 'basic' ? basic : tab === 'access' ? access : advanced"

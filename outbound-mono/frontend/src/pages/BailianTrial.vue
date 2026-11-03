@@ -153,6 +153,7 @@ async function create() {
       client_key: crypto.randomUUID(),
       contact_id: contact.value,
       script: script.value,
+      debug_session_id: route.query.debug_session_id || '',
       consent: true,
       review_mode: reviewMode.value,
       prices: Object.fromEntries(
@@ -467,6 +468,15 @@ onMounted(async () => {
       if (!value.published) throw Error('请选择已发布话术进行语音调试');
       script.value = value.published.compiled_content;
       template.value = value.id;
+      if (route.query.debug_session_id) {
+        const session = await request(
+          '/api/v1/workspace/debug-sessions/' + route.query.debug_session_id,
+        );
+        script.value = String(session.snapshot.compiled_content).replace(
+          /\{\{?([A-Za-z][A-Za-z0-9_]{0,63})\}?\}/g,
+          (_, key) => String(session.snapshot.variables[key] ?? '（待确认）'),
+        );
+      }
     } catch (e) {
       error.value = e.message;
     }

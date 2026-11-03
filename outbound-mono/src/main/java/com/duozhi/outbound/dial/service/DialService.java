@@ -64,7 +64,22 @@ public class DialService {
     private final Store store;
     private final Transactions tx;
     private final Config config;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
     private final Settings settings;
+
+    private Map<String, Object> taskAi(long tenant, Object campaign) {
+        var ai = settings.get(tenant, "ai");
+        var snap = workspace == null ? null : workspace.campaignSnapshot(tenant, campaign);
+        if (snap != null) {
+            String combo = Objects.toString(snap.get("service_combo"), "inherit");
+            if (!combo.equals("inherit")) ai.put("voice_backend", combo);
+        }
+        return ai;
+    }
+
     private final CallPolicy policy;
     private final CallLifecycle lifecycle;
     private final TelephonyClient client;
@@ -376,6 +391,40 @@ public class DialService {
                                     call.get("phone").toString(),
                                     call.get("campaign_id") != null,
                                     id);
+                    var workspaceTask =
+                            workspace == null
+                                    ? null
+                                    : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+                    if (workspaceTask != null && workspaceTask.containsKey("variable_schema")) {
+                        var member =
+                                call.get("contact_id") == null
+                                        ? null
+                                        : workspace.one(
+                                                "SELECT variables_json FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=? AND contact_id=?",
+                                                tenant,
+                                                "call:" + call.get("campaign_id"),
+                                                call.get("contact_id"));
+                        if (member == null) reason = "workspace_task_contact_not_frozen";
+                        else {
+                            var values = json.object(member.get("variables_json").toString());
+                            if (!Objects.equals(values.get("phone"), call.get("phone")))
+                                reason = "workspace_task_phone_changed";
+                            else
+                                try {
+                                    var text = new HashMap<String, String>();
+                                    values.forEach((k, v) -> text.put(k, Objects.toString(v, "")));
+                                    new com.duozhi.outbound.workspace.service.ContactVariables(
+                                                    workspace)
+                                            .values(
+                                                    com.duozhi.outbound.workspace.service
+                                                            .WorkspaceDocuments.map(
+                                                            workspaceTask.get("variable_schema")),
+                                                    text);
+                                } catch (ApiError e) {
+                                    reason = "workspace_task_variables_missing: " + e.getMessage();
+                                }
+                        }
+                    }
                     Map<String, Object> compliance = settings.get(tenant, "compliance");
                     ZonedDateTime local =
                             (batch == null ? Instant.now() : batch.instant)
@@ -446,6 +495,23 @@ public class DialService {
                                                             "sourceDialService94_3",
                                                             Store.queryParameters(
                                                                     0, tenant, true)));
+                    var taskSnapshot =
+                            workspace == null
+                                    ? null
+                                    : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+                    if (taskSnapshot != null
+                            && taskSnapshot.get("line_ids") instanceof List<?> allowed
+                            && !allowed.isEmpty()) {
+                        var allowedIds =
+                                allowed.stream()
+                                        .map(Object::toString)
+                                        .collect(java.util.stream.Collectors.toSet());
+                        lines =
+                                lines.stream()
+                                        .filter(l -> allowedIds.contains(l.get("id").toString()))
+                                        .toList();
+                        if (lines.isEmpty()) return null;
+                    }
                     Map<String, Object> selected = null;
                     double best = Double.MAX_VALUE;
                     int priority = Integer.MAX_VALUE, lineCapacity = 0;
@@ -559,7 +625,7 @@ public class DialService {
                                             : "legacy";
                         }
                     }
-                    var backendAi = settings.get(tenant, "ai");
+                    var backendAi = taskAi(tenant, call.get("campaign_id"));
                     if (!"human_only".equals(call.get("mode"))
                             && VoiceAiProfiles.selected(backendAi)) {
                         if (campaign != null && "legacy".equals(campaign.get("voice_ai_pipeline")))
@@ -571,7 +637,7 @@ public class DialService {
                     Map<String, Object> probe = new LinkedHashMap<>(call);
                     probe.putAll(changes);
                     client.validate(probe);
-                    var selectedAi = settings.get(tenant, "ai");
+                    var selectedAi = taskAi(tenant, call.get("campaign_id"));
                     if (!"human_only".equals(call.get("mode"))
                             && pipeline.equals("pipecat")
                             && !VoiceAiProfiles.selected(selectedAi)
@@ -792,6 +858,19 @@ public class DialService {
                                     .orElseThrow(
                                             () -> new ApiError(409, "claimed line disappeared"))
                                     .get("caller_id"));
+        if (workspace != null
+                && call.get("campaign_id") != null
+                && call.get("telephony_line_id") != null) {
+            var snap = workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+            if (snap != null)
+                for (Object raw : (List<?>) snap.getOrDefault("lines", List.of())) {
+                    var line = Support.map(raw);
+                    if (call.get("telephony_line_id")
+                            .toString()
+                            .equals(Objects.toString(line.get("id"), "")))
+                        metadata.put("caller_id", line.get("caller_id"));
+                }
+        }
         if (call.get("campaign_id") != null) {
             Map<String, Object> campaign =
                     batch == null

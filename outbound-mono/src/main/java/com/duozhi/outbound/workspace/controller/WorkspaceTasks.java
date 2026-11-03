@@ -16,6 +16,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/workspace/tasks")
 @AdminPermission("campaigns:write")
 public class WorkspaceTasks {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceAudience audience;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ContactVariables variables;
+
     private final WorkspaceDocuments docs;
     private final Campaigns campaigns;
     private final Store store;
@@ -121,38 +127,48 @@ public class WorkspaceTasks {
         return docs.tx.serialized(
                 () -> {
                     var data = new LinkedHashMap<>(body);
+                    if (id == null) data.putIfAbsent("hangup_sms_enabled", false);
                     Object rawBatches = data.remove("batch_ids");
                     Object clientId = data.remove("client_id");
                     Object execution = data.remove("execution_policy");
                     String startAt = Objects.toString(data.remove("start_at"), ""),
                             endAt = Objects.toString(data.remove("end_at"), "");
                     com.duozhi.outbound.workspace.service.TaskSchedule.validate(startAt, endAt);
-                    var selected = new LinkedHashSet<Long>();
+                    var selection = audience.resolve(tenant, body);
+                    var selected = new LinkedHashSet<>(selection.members().keySet());
                     var ids = data.getOrDefault("contact_ids", List.of());
-                    if (!(ids instanceof List<?>)) throw new ApiError(422, "联系人格式不正确");
-                    for (Object raw : (List<?>) ids) {
-                        if (!(raw instanceof Number n)) throw new ApiError(422, "联系人标识不正确");
-                        selected.add(n.longValue());
+                    var batches = rawBatches == null ? List.of() : rawBatches;
+                    Object segmentIds = data.remove("segment_snapshot_ids"),
+                            excludedIds = data.remove("excluded_contact_ids");
+                    Object lineIds = data.remove("line_ids");
+                    if (lineIds == null) lineIds = List.of();
+                    if (!(lineIds instanceof List<?> lines) || lines.size() > 100)
+                        throw new ApiError(422, "线路选择格式不正确");
+                    var lineSnapshot = new ArrayList<Map<String, Object>>();
+                    for (Object line : (List<?>) lineIds) {
+                        if (!(line instanceof Number n)) throw new ApiError(422, "线路标识不正确");
+                        var l = store.require("telephonyline", tenant, n.longValue());
+                        if (!Boolean.TRUE.equals(l.get("enabled")))
+                            throw new ApiError(409, "所选线路已停用");
+                        lineSnapshot.add(
+                                JsonSupport.map(
+                                        "id",
+                                        l.get("id"),
+                                        "name",
+                                        l.get("name"),
+                                        "caller_id",
+                                        l.get("caller_id")));
                     }
-                    if (rawBatches != null && !(rawBatches instanceof List<?>))
-                        throw new ApiError(422, "名单批次格式不正确");
-                    var batches = rawBatches == null ? List.of() : (List<?>) rawBatches;
-                    if (batches.size() > 50) throw new ApiError(422, "最多选择50个批次");
-                    for (Object batch : batches) {
-                        if (docs.one(
-                                        "SELECT id FROM platform_contact_batch WHERE tenant_id=? AND id=?",
-                                        tenant,
-                                        batch)
-                                == null) throw new ApiError(404, "名单批次不存在");
-                        for (var row :
-                                docs.jdbc.queryForList(
-                                        "SELECT contact_id FROM platform_contact_batch_member WHERE tenant_id=? AND batch_id=?",
-                                        tenant,
-                                        batch))
-                            selected.add(((Number) row.get("contact_id")).longValue());
-                    }
-                    if (selected.isEmpty() || selected.size() > 200000)
-                        throw new ApiError(422, "任务名单须为1至200000个联系人");
+                    String backend = Objects.toString(data.remove("service_combo"), "inherit");
+                    if (!backend.equals("inherit") && !backend.equals("legacy"))
+                        try {
+                            com.duozhi.outbound.voiceai.service.VoiceAiProfiles.profile(backend);
+                        } catch (com.duozhi.outbound.integration.support.Support.Failure e) {
+                            throw new ApiError(422, "语音服务组合不存在");
+                        }
+                    if (backend.equals("legacy")) data.put("voice_ai_pipeline", "legacy");
+                    else if (!backend.equals("inherit")) data.put("voice_ai_pipeline", "inherit");
+                    if (selected.isEmpty()) throw new ApiError(422, "排除及去重后没有可触达客户");
                     Object scriptId = data.get("script_template_id");
                     if (scriptId == null) throw new ApiError(422, "请选择已发布话术");
                     var doc = docs.require(tenant, "script", scriptId.toString());
@@ -184,6 +200,8 @@ public class WorkspaceTasks {
                             && ((List<?>) executionPolicy.get("handoff_team_ids")).isEmpty()
                             && ((List<?>) executionPolicy.get("handoff_agent_ids")).isEmpty())
                         throw new ApiError(422, "AI转人工模式必须配置接听团队或坐席");
+                    executionPolicy.put("_task_line_ids", lineIds);
+                    executionPolicy.put("_task_service_combo", backend);
                     executionPolicy.put("_task_start_at", startAt);
                     executionPolicy.put("_task_end_at", endAt);
                     data.put("script", publication.get("compiled_content"));
@@ -201,6 +219,7 @@ public class WorkspaceTasks {
                         else r.setAttribute("workspaceTaskWrite", oldContext);
                     }
                     Object taskId = row.get("id");
+                    audience.freeze(tenant, "call:" + taskId, selection);
                     var runtimePolicy = new LinkedHashMap<>(executionPolicy);
                     runtimePolicy.put("_knowledge", publication.get("knowledge"));
                     store.insert(
@@ -230,14 +249,38 @@ public class WorkspaceTasks {
                                     endAt,
                                     "knowledge",
                                     publication.get("knowledge"),
+                                    "slot_rules",
+                                    publication.getOrDefault("slot_rules", List.of()),
+                                    "unknown_strategy",
+                                    publication.getOrDefault("unknown_strategy", "clarify"),
+                                    "unknown_prompt",
+                                    publication.getOrDefault("unknown_prompt", "这个问题需要进一步确认。"),
                                     "batch_ids",
                                     batches,
                                     "direct_contact_ids",
                                     ids,
+                                    "segment_snapshot_ids",
+                                    segmentIds == null ? List.of() : segmentIds,
+                                    "excluded_contact_ids",
+                                    excludedIds == null ? List.of() : excludedIds,
+                                    "line_ids",
+                                    lineIds,
+                                    "lines",
+                                    lineSnapshot,
+                                    "service_combo",
+                                    backend,
+                                    "variable_schema",
+                                    variables.schema(tenant, scriptId.toString(), ""),
                                     "contact_count",
                                     selected.size(),
                                     "saved_at",
                                     Store.now().toString());
+                    if (id != null) {
+                        var previous = docs.campaignSnapshot(tenant, id);
+                        if (previous != null && previous.containsKey("sms_rule"))
+                            snapshot.put("sms_rule", previous.get("sms_rule"));
+                    }
+                    snapshot.put("hangup_sms_enabled", row.get("hangup_sms_enabled"));
                     docs.jdbc.update(
                             "INSERT INTO platform_campaign_snapshot(tenant_id,campaign_id,snapshot_json,created_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE snapshot_json=VALUES(snapshot_json),created_at=VALUES(created_at)",
                             tenant,

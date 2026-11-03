@@ -357,9 +357,9 @@ initialize();
   <el-tabs v-model="serviceTab"
     ><el-tab-pane name="credentials" label="服务凭据" /><el-tab-pane
       name="defaults"
-      label="默认通话组合" /><el-tab-pane name="catalog" label="接入能力" /><el-tab-pane
-      name="evaluation"
-      label="技术评测"
+      label="默认通话组合" /><el-tab-pane name="runtime" label="运行参数" /><el-tab-pane
+      name="catalog"
+      label="接入能力" /><el-tab-pane name="evaluation" label="技术评测"
   /></el-tabs>
   <el-card
     v-show="serviceTab === 'credentials'"
@@ -440,7 +440,7 @@ initialize();
     </el-form>
   </el-card>
   <el-card
-    v-show="serviceTab === 'defaults'"
+    v-show="['defaults', 'runtime'].includes(serviceTab)"
     class="voice-card"
     v-loading="ai.loading.value || profiles.loading.value"
   >
@@ -450,138 +450,144 @@ initialize();
       >。每通电话固定话术和配置，切换不影响进行中的通话。
     </p>
     <el-form label-width="140px" @submit.prevent="saveActive">
-      <el-form-item label="技术路线"
-        ><el-select
-          v-model="route"
-          aria-label="技术路线"
-          @change="selected = routeProfiles[0]?.id || 'legacy'"
-          ><el-option label="三段式 ASR → 模型 → TTS" value="cascade" /><el-option
-            label="端到端实时语音"
-            value="realtime" /></el-select
-      ></el-form-item>
-      <el-form-item label="供应商组合"
-        ><el-select v-model="selected" aria-label="供应商组合"
-          ><el-option label="原有链路" value="legacy" /><el-option
-            v-for="p in routeProfiles"
-            :key="p.id"
-            :label="p.name"
-            :value="p.id" /></el-select
-      ></el-form-item>
-      <el-form-item label="端到端播放方式">
-        <el-select v-model="playbackMode" aria-label="端到端播放方式">
-          <el-option label="完整短句审核后播放" value="sentence_review" />
-        </el-select>
+      <div v-show="serviceTab === 'defaults'">
+        <el-form-item label="技术路线"
+          ><el-select
+            v-model="route"
+            aria-label="技术路线"
+            @change="selected = routeProfiles[0]?.id || 'legacy'"
+            ><el-option label="三段式 ASR → 模型 → TTS" value="cascade" /><el-option
+              label="端到端实时语音"
+              value="realtime" /></el-select
+        ></el-form-item>
+        <el-form-item label="供应商组合"
+          ><el-select v-model="selected" aria-label="供应商组合"
+            ><el-option label="原有链路" value="legacy" /><el-option
+              v-for="p in routeProfiles"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id" /></el-select
+        ></el-form-item>
+      </div>
+      <div v-show="serviceTab === 'runtime'">
+        <el-form-item label="端到端播放方式">
+          <el-select v-model="playbackMode" aria-label="端到端播放方式">
+            <el-option label="完整短句审核后播放" value="sentence_review" />
+          </el-select>
+          <p>
+            三段式短句经内容审核后送入合成；端到端实际音频经独立识别与内容审核后逐句播放。两种路线均需平台配置审核服务，审核异常不放行生成内容。
+          </p>
+        </el-form-item>
+        <el-form-item label="话轮聚合">
+          <el-select
+            :model-value="
+              tuning.input_turn_controller ?? ai.data.value?.data?.input_turn_controller
+            "
+            aria-label="话轮聚合"
+            @update:model-value="tuning.input_turn_controller = $event"
+          >
+            <el-option label="观察（保留当前触发方式）" value="observe" />
+            <el-option label="三段式灰度聚合" value="enforce" :disabled="route === 'realtime'" />
+          </el-select>
+          <p>灰度聚合等待客户停口及最终转写，再提交完整话轮。端到端方案保留当前话轮控制。</p>
+        </el-form-item>
+        <el-form-item label="审核失败处理">
+          <el-select
+            :model-value="tuning.safety_fallback ?? ai.data.value?.data?.safety_fallback"
+            aria-label="审核失败处理"
+            @update:model-value="tuning.safety_fallback = $event"
+          >
+            <el-option label="播放已准备的兜底音频后结束" value="approved_audio_then_end" />
+            <el-option label="直接结束" value="end" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="兜底提示文字">
+          <el-input
+            :model-value="tuning.fallback_reply ?? ai.data.value?.data?.fallback_reply"
+            aria-label="兜底提示文字"
+            maxlength="240"
+            @update:model-value="tuning.fallback_reply = $event"
+          />
+          <p>保存后准备音频；缺少对应版本缓存或媒体异常时直接结束，不自动重试模型请求。</p>
+        </el-form-item>
+        <el-form-item label="并行准备语音合成">
+          <el-checkbox
+            :model-value="tuning.tts_prepare_parallel ?? ai.data.value?.data?.tts_prepare_parallel"
+            aria-label="并行准备语音合成"
+            @update:model-value="tuning.tts_prepare_parallel = $event"
+            >三段式生成回答时同时建立合成连接</el-checkbox
+          >
+        </el-form-item>
+        <el-form-item label="客户识别词表参数">
+          <el-input
+            type="textarea"
+            :rows="3"
+            :model-value="tuning.customer_asr_options ?? ai.data.value?.data?.customer_asr_options"
+            aria-label="客户识别词表参数"
+            maxlength="4000"
+            @update:model-value="tuning.customer_asr_options = $event"
+          />
+          <p>
+            按供应商填写 JSON，例如
+            {"aliyun":{"vocabulary_id":"词表ID"}}；仅允许已支持的词表字段。腾讯临时热词权重为 1—10。
+          </p>
+        </el-form-item>
+        <el-form-item label="输出审核识别参数">
+          <el-input
+            type="textarea"
+            :rows="3"
+            :model-value="
+              tuning.output_audit_asr_options ?? ai.data.value?.data?.output_audit_asr_options
+            "
+            aria-label="输出审核识别参数"
+            maxlength="4000"
+            @update:model-value="tuning.output_audit_asr_options = $event"
+          />
+          <p>
+            默认
+            {}，独立于客户词表。支持阿里或腾讯审核识别型号、腾讯词时间戳；不接受引导识别内容的热词。型号更换需先验证。
+          </p>
+        </el-form-item>
+        <el-form-item v-for="field in tuningFields" :key="field.key" :label="field.label">
+          <el-input-number
+            :model-value="tuning[field.key] ?? ai.data.value?.data?.[field.key]"
+            :aria-label="field.label"
+            :min="field.min"
+            :max="field.max"
+            @update:model-value="tuning[field.key] = $event"
+          />
+        </el-form-item>
         <p>
-          三段式短句经内容审核后送入合成；端到端实际音频经独立识别与内容审核后逐句播放。两种路线均需平台配置审核服务，审核异常不放行生成内容。
+          历史预算的单位是记录条数，一条客户发言或助手回答各计一条；超出文字预算时保留完整的最近记录。
         </p>
-      </el-form-item>
-      <el-form-item label="话轮聚合">
-        <el-select
-          :model-value="tuning.input_turn_controller ?? ai.data.value?.data?.input_turn_controller"
-          aria-label="话轮聚合"
-          @update:model-value="tuning.input_turn_controller = $event"
-        >
-          <el-option label="观察（保留当前触发方式）" value="observe" />
-          <el-option label="三段式灰度聚合" value="enforce" :disabled="route === 'realtime'" />
-        </el-select>
-        <p>灰度聚合等待客户停口及最终转写，再提交完整话轮。端到端方案保留当前话轮控制。</p>
-      </el-form-item>
-      <el-form-item label="审核失败处理">
-        <el-select
-          :model-value="tuning.safety_fallback ?? ai.data.value?.data?.safety_fallback"
-          aria-label="审核失败处理"
-          @update:model-value="tuning.safety_fallback = $event"
-        >
-          <el-option label="播放已准备的兜底音频后结束" value="approved_audio_then_end" />
-          <el-option label="直接结束" value="end" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="兜底提示文字">
-        <el-input
-          :model-value="tuning.fallback_reply ?? ai.data.value?.data?.fallback_reply"
-          aria-label="兜底提示文字"
-          maxlength="240"
-          @update:model-value="tuning.fallback_reply = $event"
-        />
-        <p>保存后准备音频；缺少对应版本缓存或媒体异常时直接结束，不自动重试模型请求。</p>
-      </el-form-item>
-      <el-form-item label="并行准备语音合成">
-        <el-checkbox
-          :model-value="tuning.tts_prepare_parallel ?? ai.data.value?.data?.tts_prepare_parallel"
-          aria-label="并行准备语音合成"
-          @update:model-value="tuning.tts_prepare_parallel = $event"
-          >三段式生成回答时同时建立合成连接</el-checkbox
-        >
-      </el-form-item>
-      <el-form-item label="客户识别词表参数">
-        <el-input
-          type="textarea"
-          :rows="3"
-          :model-value="tuning.customer_asr_options ?? ai.data.value?.data?.customer_asr_options"
-          aria-label="客户识别词表参数"
-          maxlength="4000"
-          @update:model-value="tuning.customer_asr_options = $event"
-        />
-        <p>
-          按供应商填写 JSON，例如
-          {"aliyun":{"vocabulary_id":"词表ID"}}；仅允许已支持的词表字段。腾讯临时热词权重为 1—10。
-        </p>
-      </el-form-item>
-      <el-form-item label="输出审核识别参数">
-        <el-input
-          type="textarea"
-          :rows="3"
-          :model-value="
-            tuning.output_audit_asr_options ?? ai.data.value?.data?.output_audit_asr_options
-          "
-          aria-label="输出审核识别参数"
-          maxlength="4000"
-          @update:model-value="tuning.output_audit_asr_options = $event"
-        />
-        <p>
-          默认
-          {}，独立于客户词表。支持阿里或腾讯审核识别型号、腾讯词时间戳；不接受引导识别内容的热词。型号更换需先验证。
-        </p>
-      </el-form-item>
-      <el-form-item v-for="field in tuningFields" :key="field.key" :label="field.label">
-        <el-input-number
-          :model-value="tuning[field.key] ?? ai.data.value?.data?.[field.key]"
-          :aria-label="field.label"
-          :min="field.min"
-          :max="field.max"
-          @update:model-value="tuning[field.key] = $event"
-        />
-      </el-form-item>
-      <p>
-        历史预算的单位是记录条数，一条客户发言或助手回答各计一条；超出文字预算时保留完整的最近记录。
-      </p>
-      <el-form-item label="接通分类">
-        <el-checkbox
-          :model-value="
-            tuning.answer_classification_enabled ??
-            ai.data.value?.data?.answer_classification_enabled
-          "
-          aria-label="启用接通分类"
-          @update:model-value="tuning.answer_classification_enabled = $event"
-          >先识别真人与录音</el-checkbox
-        >
-      </el-form-item>
-      <el-form-item label="AI身份告知">
-        <el-input
-          :model-value="tuning.ai_disclosure_text ?? ai.data.value?.data?.ai_disclosure_text"
-          aria-label="AI身份告知"
-          maxlength="500"
-          @update:model-value="tuning.ai_disclosure_text = $event"
-        />
-      </el-form-item>
-      <el-form-item label="按语音端点回复">
-        <el-checkbox
-          :model-value="tuning.direct_s2s_enabled ?? ai.data.value?.data?.direct_s2s_enabled"
-          aria-label="按语音端点直接回复"
-          @update:model-value="tuning.direct_s2s_enabled = $event"
-          >按语音端点启动生成，输出仍须逐句审核；流程画布通话不支持</el-checkbox
-        >
-      </el-form-item>
+        <el-form-item label="接通分类">
+          <el-checkbox
+            :model-value="
+              tuning.answer_classification_enabled ??
+              ai.data.value?.data?.answer_classification_enabled
+            "
+            aria-label="启用接通分类"
+            @update:model-value="tuning.answer_classification_enabled = $event"
+            >先识别真人与录音</el-checkbox
+          >
+        </el-form-item>
+        <el-form-item label="AI身份告知">
+          <el-input
+            :model-value="tuning.ai_disclosure_text ?? ai.data.value?.data?.ai_disclosure_text"
+            aria-label="AI身份告知"
+            maxlength="500"
+            @update:model-value="tuning.ai_disclosure_text = $event"
+          />
+        </el-form-item>
+        <el-form-item label="按语音端点回复">
+          <el-checkbox
+            :model-value="tuning.direct_s2s_enabled ?? ai.data.value?.data?.direct_s2s_enabled"
+            aria-label="按语音端点直接回复"
+            @update:model-value="tuning.direct_s2s_enabled = $event"
+            >按语音端点启动生成，输出仍须逐句审核；流程画布通话不支持</el-checkbox
+          >
+        </el-form-item>
+      </div>
       <el-form-item label="外部模型调用"
         ><el-checkbox v-model="approved" aria-label="允许外部模型调用"
           >允许将测试样本及通话所需内容发送至所选供应商</el-checkbox

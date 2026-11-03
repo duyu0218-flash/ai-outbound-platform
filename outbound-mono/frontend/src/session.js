@@ -67,8 +67,15 @@ export function request(path, method = 'GET', body, options = {}) {
     session.token,
   );
 }
-export async function download(path, name) {
-  const response = await fetch(path, { headers: { Authorization: 'Bearer ' + session.token } });
+export async function download(path, name, options = {}) {
+  const response = await fetch(path, {
+    method: options.method || 'GET',
+    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    headers: {
+      Authorization: 'Bearer ' + session.token,
+      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+  });
   if (!response.ok) {
     let body = await response.json().catch(() => ({}));
     throw new Error(body.message || body.detail || `HTTP ${response.status}`);

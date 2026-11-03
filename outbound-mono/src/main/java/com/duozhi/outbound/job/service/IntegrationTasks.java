@@ -27,6 +27,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class IntegrationTasks {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.messaging.service.Messaging messaging;
 
     private final Store store;
@@ -444,7 +447,16 @@ public class IntegrationTasks {
         long tenant = CallLifecycle.tenant(call);
         if (tenant != CallLifecycle.tenant(task))
             throw new ApiError(403, "SMS task tenant mismatch");
-        if (config.flag("MESSAGING_MIGRATE_CALL_SMS", false)) {
+        var snapshot =
+                workspace == null
+                        ? null
+                        : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+        if (snapshot != null
+                && !(snapshot.get("sms_rule") instanceof Map<?, ?> rule && !rule.isEmpty()))
+            throw new ApiError(409, "工作区任务缺少已确认的挂机短信规则，不回退到旧版自由文本发送");
+        if (snapshot != null
+                || config.flag("MESSAGING_MIGRATE_CALL_SMS", false)
+                || Boolean.TRUE.equals(payload.get("workspace_rule"))) {
             // Only a durable intent is created here. The message worker waits for confirmed hangup.
             messaging.deferCall(
                     tenant, call.get("id").toString(), CallLifecycle.number(call, "attempts"));

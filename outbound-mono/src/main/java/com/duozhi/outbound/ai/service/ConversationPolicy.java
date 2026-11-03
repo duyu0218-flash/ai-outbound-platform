@@ -125,7 +125,48 @@ public class ConversationPolicy {
                                         call.get("attempts")));
         if (state != null) return state;
         long tenant = CallLifecycle.tenant(call);
-        var initial = initialStatePolicy(call);
+        var initial = new LinkedHashMap<>(initialStatePolicy(call));
+        Map<String, Object> initialData = new LinkedHashMap<>();
+        if (workspace != null
+                && call.get("campaign_id") != null
+                && call.get("contact_id") instanceof Number cid) {
+            var row =
+                    workspace.one(
+                            "SELECT variables_json FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=? AND contact_id=?",
+                            tenant,
+                            "call:" + call.get("campaign_id"),
+                            cid.longValue());
+            if (row != null) {
+                var values = json.object(row.get("variables_json").toString());
+                var frozen = json.object(initial.get("json").toString());
+                frozen.put("_customer_variables", values);
+                for (String k :
+                        List.of("_script", "opening_prompt", "handoff_prompt", "failure_prompt"))
+                    if (frozen.get(k) instanceof String text)
+                        frozen.put(
+                                k,
+                                com.duozhi.outbound.workspace.service.ContactVariables.render(
+                                        text, values));
+                initial.put("json", json.json(frozen));
+                var slots = new LinkedHashMap<String, Object>();
+                for (Object raw : (List<?>) frozen.getOrDefault("slots", List.of())) {
+                    var slot = (Map<String, Object>) raw;
+                    String name = Objects.toString(slot.get("key"), "");
+                    if (values.containsKey(name))
+                        slots.put(
+                                name,
+                                JsonSupport.map(
+                                        "value",
+                                        values.get(name),
+                                        "confirmed",
+                                        false,
+                                        "source",
+                                        "import_snapshot"));
+                }
+                initialData.put("slots", slots);
+                initialData.put("customer_variables", values);
+            }
+        }
         state =
                 store.insert(
                         "conversationstate",
@@ -139,7 +180,9 @@ public class ConversationPolicy {
                                 "policy_version_id",
                                 initial.get("version"),
                                 "policy_json",
-                                initial.get("json")));
+                                initial.get("json"),
+                                "data_json",
+                                json.json(initialData)));
         if (batch != null) {
             batch.stateKeys.add(key);
             batch.states.put(key, state);
@@ -183,9 +226,23 @@ public class ConversationPolicy {
                         : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
         if (snapshot != null) {
             var frozen = new LinkedHashMap<>((Map<String, Object>) snapshot.get("policy"));
-            frozen.put("_ai", policy.get("_ai"));
+            String combo = Objects.toString(frozen.get("_task_service_combo"), "inherit");
+            frozen.put(
+                    "_ai",
+                    combo.equals("inherit") ? policy.get("_ai") : settings.freezeAi(tenant, combo));
             frozen.put("_knowledge", snapshot.get("knowledge"));
+            frozen.put("_slot_rules", snapshot.getOrDefault("slot_rules", List.of()));
+            if (snapshot.containsKey("unknown_strategy")) {
+                frozen.put(
+                        "_knowledge_fallback",
+                        snapshot.getOrDefault("unknown_strategy", "clarify"));
+                frozen.put(
+                        "_knowledge_fallback_prompt",
+                        snapshot.getOrDefault("unknown_prompt", "这个问题需要进一步确认。"));
+            }
             frozen.put("_workspace_script_version", snapshot.get("script_version"));
+            frozen.put("_script_id", snapshot.get("script_id"));
+            frozen.put("_script_version", snapshot.get("script_version"));
             policy = frozen;
             script = Objects.toString(snapshot.get("script"), "");
         }
@@ -503,6 +560,33 @@ public class ConversationPolicy {
             if (Objects.equals(s.get("key"), data.get("active_slot"))) slot = s;
         if (slot == null) return nextSlot(data, policy);
         String value = text.trim(), kind = Objects.toString(slot.get("kind"), "text");
+        for (Object raw : (List<?>) policy.getOrDefault("_slot_rules", List.of())) {
+            var rule = com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(raw);
+            if (!Objects.equals(rule.get("key"), slot.get("key"))) continue;
+            String invalid =
+                    com.duozhi.outbound.workspace.service.SlotRules.invalid(rule, slot, value);
+            if (!invalid.isBlank()) {
+                var counts = dict(data, "slot_retries");
+                String key = slot.get("key").toString();
+                int count = JsonSupport.integer(counts.get(key), 0) + 1;
+                counts.put(key, count);
+                if (count > JsonSupport.integer(rule.get("max_retries"), 2)) {
+                    String missing = Objects.toString(rule.get("missing_action"), "end");
+                    if (missing.equals("skip")) {
+                        dict(data, "slots")
+                                .put(
+                                        key,
+                                        JsonSupport.map(
+                                                "confirmed", true, "value", "", "missing", true));
+                        return nextSlot(data, policy);
+                    }
+                    return reply(
+                            "这项信息需要人工进一步确认。", missing.equals("handoff") ? "handoff" : "hangup");
+                }
+                String prompt = Objects.toString(rule.get("retry_prompt"), "");
+                return reply(prompt.isBlank() ? invalid + "。" + slot.get("question") : prompt);
+            }
+        }
         if (Values.set("integer", "digits").contains(kind) && !value.matches("[0-9]{1,20}"))
             return reply("请用数字回答：" + slot.get("question"));
         if ("date".equals(kind))
