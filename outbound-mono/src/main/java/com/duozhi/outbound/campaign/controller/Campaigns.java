@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.*;
 public class Campaigns {
     @Autowired
     private DialQuotaCounters quotas;
+    @Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
     private final Store store;
     private final Contract contract;
     private final CallPolicy policy;
@@ -86,9 +88,10 @@ public class Campaigns {
 
     private List<Long> validate(long tenant, Map<String, Object> data) {
         List<Long> ids = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
         for (Object value : (List<?>) data.getOrDefault("contact_ids", Collections.emptyList())) {
             long id = ((Number) value).longValue();
-            if (ids.contains(id)) throw new ApiError(400, "duplicate contact id");
+            if (!seen.add(id)) throw new ApiError(400, "duplicate contact id");
             if (store.one("contact", "sourceCampaigns54_2", Store.queryParameters(0, tenant, id))
                     == null) throw new ApiError(400, "contact not found: " + id);
             ids.add(id);
@@ -231,6 +234,9 @@ public class Campaigns {
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
         Map<String, Object> existing = locked(tenant, id);
+        if (workspace.campaignSnapshot(tenant, id) != null
+                && !Boolean.TRUE.equals(request.getAttribute("workspaceTaskWrite")))
+            throw new ApiError(409, "该任务已锁定发布版本，请通过外呼任务工作台修改");
         if (Values.set("deleted", "running", "paused").contains(existing.get("status")))
             throw new ApiError(409, "stop campaign before editing");
         List<Long> contacts = validate(tenant, data);
@@ -379,6 +385,12 @@ public class Campaigns {
             throw new ApiError(
                     409, "campaign cannot be started from status " + campaign.get("status"));
         if (auto_dial) dial.available();
+        java.time.Instant preflightInstant = java.time.Instant.now();
+        var taskSnapshot = workspace.campaignSnapshot(tenant, id);
+        if (taskSnapshot != null && !Objects.toString(taskSnapshot.get("start_at"), "").isBlank()) {
+            var planned = java.time.Instant.parse(taskSnapshot.get("start_at").toString());
+            if (planned.isAfter(preflightInstant)) preflightInstant = planned;
+        }
         List<Map<String, Object>> relations = relations(id);
         Map<Long, Map<String, Object>> existing = new HashMap<>();
         for (Map<String, Object> call :
@@ -436,7 +448,7 @@ public class Campaigns {
                     reason = "invalid phone or missing contact";
                 }
                 if (code.isEmpty()) {
-                    reason = policy.check(tenant, phone, true, null);
+                    reason = policy.checkAt(tenant, phone, true, null, preflightInstant);
                     if (!reason.isEmpty()) code = CallPolicy.code(reason);
                 }
                 if (code.isEmpty()) {

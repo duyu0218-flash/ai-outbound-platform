@@ -1,3 +1,4 @@
+import { workspaceChecks } from './workspace-browser.mjs';
 import { messagingChecks } from './messaging-browser.mjs';
 import { clientChecks } from './client-browser.mjs';
 import { operationsChecks } from './operations-browser.mjs';
@@ -39,7 +40,21 @@ async function login(role) {
   await expect(page.locator('.app-shell')).toBeVisible();
 }
 async function go(path, title) {
-  await page.getByRole('menuitem').filter({ hasText: title }).first().click();
+  const labels = {
+    '/admin/contacts': '客户名单',
+    '/admin/lines': '线路与号码',
+    '/admin/settings': '平台配置',
+    '/admin/reports': '外呼报表',
+    '/admin/users': '账号与角色',
+    '/admin/operations/teams': '团队与坐席',
+    '/admin/billing': '用量与费用',
+  };
+  const item = page.getByRole('menuitem').filter({ hasText: labels[path] || title });
+  if (await item.count()) await item.first().click();
+  else
+    await page.evaluate((path) => {
+      document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path);
+    }, path);
   await expect(page).toHaveURL(origin + path);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);
@@ -82,11 +97,17 @@ try {
   await check('scripts create canvas drag save publish readonly', async () => {
     await go('/admin/scripts', '话术管理');
     await page.getByRole('button', { name: '新建话术', exact: true }).click();
-    await page.getByLabel('名称', { exact: true }).fill('Vue浏览器话术');
-    await page.getByLabel('话术内容', { exact: true }).fill('您好，这是经过批准的服务介绍。');
+    await page.getByLabel('话术名称', { exact: true }).fill('Vue浏览器话术');
     await save();
-    await expect(page.getByText('Vue浏览器话术', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '话术画布', exact: true }).click();
+    await page.getByLabel('业务目标', { exact: true }).fill('了解咨询意向');
+    await page.getByLabel('开场白', { exact: true }).fill('您好，这是经过批准的服务介绍。');
+    await page.getByRole('tab', { name: '知识与动作', exact: true }).click();
+    await page.getByRole('spinbutton', { name: '开始时刻', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: '结束时刻', exact: true }).fill('24');
+    await page.getByRole('button', { name: '发布版本', exact: true }).click();
+    await expect(page.getByText('发布 v1', { exact: false })).toBeVisible();
+    await page.getByRole('tab', { name: '流程画布', exact: true }).click();
+    await page.getByRole('button', { name: '打开话术画布', exact: true }).click();
     await page.getByRole('button', { name: '创建画布', exact: true }).click();
     await expect(page.locator('.flow-node')).not.toHaveCount(0);
     const node = page.locator('.flow-node').first();
@@ -110,16 +131,22 @@ try {
   await check('campaign form remote contacts save and start', async () => {
     await go('/admin/campaigns', '外呼任务');
     await page.getByRole('button', { name: '创建任务', exact: true }).click();
-    await page.getByLabel('名称', { exact: true }).fill('Vue浏览器活动');
+    await page.getByLabel('任务名称', { exact: true }).fill('Vue浏览器活动');
+    await select('已发布话术').click();
+    await page.getByRole('option', { name: 'Vue浏览器话术 · v1', exact: true }).click();
+    await page.getByRole('button', { name: '下一步', exact: true }).click();
     const field = page
       .getByRole('dialog')
       .locator('.el-form-item')
-      .filter({ has: page.getByText('选择客户', { exact: true }) });
+      .filter({ has: page.getByText('补充选择联系人', { exact: true }) });
     await field.getByRole('combobox').click();
     await page.getByRole('option').filter({ hasText: '13100000002' }).click();
     await page.keyboard.press('Escape');
-    await save();
+    await page.getByRole('button', { name: '下一步', exact: true }).click();
+    await page.getByRole('button', { name: '下一步', exact: true }).click();
+    await page.getByRole('button', { name: '保存任务', exact: true }).click();
     await expect(row('Vue浏览器活动')).toBeVisible();
+    await page.locator('.el-drawer__close-btn').click();
     await row('Vue浏览器活动').getByRole('button', { name: '启动', exact: true }).click();
     await page.getByRole('button', { name: '确定', exact: true }).click();
     await expect(row('Vue浏览器活动')).toContainText('运行中');
@@ -201,23 +228,42 @@ try {
     await save();
     await expect(row('browser-created-agent')).toBeVisible();
   });
-  await check('lines mock save echo and disable', async () => {
-    await go('/admin/lines', '外呼线路');
+  await check('lines basic and advanced form save reload', async () => {
+    await go('/admin/lines', '线路与号码');
     await page.getByRole('button', { name: '新增线路', exact: true }).click();
-    await page.getByLabel('名称', { exact: true }).fill('Vue测试线路');
-    await select('服务商').click();
-    await page.getByRole('option').filter({ hasText: 'Mock' }).click();
-    await save();
+    await page.getByLabel('线路名称', { exact: true }).fill('Vue测试线路');
+    await select('接入方式').click();
+    await page.getByRole('option', { name: '模拟线路（仅测试）', exact: true }).click();
+    await page.getByRole('tab', { name: '高级路由', exact: true }).click();
+    await page.getByRole('spinbutton', { name: '路由优先级', exact: true }).fill('50');
+    await page.getByRole('button', { name: '保存线路配置', exact: true }).click();
     await expect(row('Vue测试线路')).toBeVisible();
-    await row('Vue测试线路').locator('.el-switch').click();
-    await expect(row('Vue测试线路').getByRole('switch')).not.toBeChecked();
+    await row('Vue测试线路').getByRole('button', { name: '配置线路' }).click();
+    await page.getByRole('tab', { name: '高级路由', exact: true }).click();
+    await expect(page.getByRole('spinbutton', { name: '路由优先级', exact: true })).toHaveValue(
+      '50',
+    );
+    await page.getByRole('button', { name: '取消', exact: true }).click();
   });
-  await check('knowledge create update persistence', async () => {
+  await check('knowledge library FAQ draft publish retrieve history', async () => {
     await go('/admin/knowledge', '知识库');
-    await page.getByRole('button', { name: '新建', exact: true }).click();
-    await page.getByLabel('名称', { exact: true }).fill('Vue知识条目');
-    await page.getByLabel('话术内容', { exact: true }).fill('该服务可以预约咨询。');
+    await page.getByRole('button', { name: '新建知识库', exact: true }).click();
+    await page.getByLabel('知识库名称', { exact: true }).fill('Vue知识库');
+    await page.getByRole('button', { name: '创建知识库', exact: true }).click();
+    await page.getByRole('button', { name: '添加问答', exact: true }).click();
+    await page.getByLabel('标准问题 / 文档标题', { exact: true }).fill('Vue知识条目');
+    await page.getByLabel('标准答案 / 文档正文', { exact: true }).fill('该服务可以预约咨询。');
+    await page.getByLabel('检索关键词', { exact: true }).fill('预约 咨询');
     await save();
+    await expect(row('Vue知识条目')).toBeVisible();
+    await page.getByRole('button', { name: '发布知识库', exact: true }).click();
+    await expect(page.getByText('已发布 v1', { exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: '检索测试', exact: true }).click();
+    await page.getByLabel('知识检索问题').fill('预约咨询');
+    await page.getByRole('button', { name: '检索测试', exact: true }).click();
+    await expect(page.getByText('该服务可以预约咨询。', { exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: '管理知识', exact: true }).click();
     await expect(row('Vue知识条目')).toBeVisible();
   });
   await check('settings load save echo all five sections', async () => {
@@ -239,6 +285,7 @@ try {
       await expect(page.getByText('操作成功', { exact: true }).last()).toBeVisible();
     }
   });
+  await workspaceChecks({ page, origin, check, go });
   await operationsChecks({ page, context, origin, check, go });
   await messagingChecks({ page, origin, check });
   await clientChecks({ page, origin, check });

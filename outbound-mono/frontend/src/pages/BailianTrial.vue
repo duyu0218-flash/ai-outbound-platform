@@ -1,10 +1,12 @@
 <script setup>
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted, onMounted } from 'vue';
 import captureUrl from '../audio/pcm-capture.js?url';
 import { request, download, session } from '../session';
 import { useData } from '../data';
 import { formatDate } from '../api';
 import { ElMessage } from 'element-plus';
+import { useRoute } from 'vue-router';
+const route = useRoute();
 const base = '/api/v1/admin/voice-ai/bailian';
 const reviewMode = ref('native'),
   historyMode = ref('all'),
@@ -458,6 +460,18 @@ async function publish() {
     ElMessage.success('已写入测试客户的线索跟进记录');
   });
 }
+onMounted(async () => {
+  if (route.query.script_id) {
+    try {
+      const value = await request('/api/v1/workspace/scripts/' + route.query.script_id);
+      if (!value.published) throw Error('请选择已发布话术进行语音调试');
+      script.value = value.published.compiled_content;
+      template.value = value.id;
+    } catch (e) {
+      error.value = e.message;
+    }
+  }
+});
 onUnmounted(() => {
   disposed = true;
   stopCapture();
@@ -470,8 +484,8 @@ onUnmounted(() => {
 <template>
   <section class="bailian-trial">
     <div class="page-head">
-      <h1>百炼业务试聊</h1>
-      <el-button @click="$router.push('/admin/voice-ai')">返回语音方案对比</el-button>
+      <h1>话术语音调试</h1>
+      <el-button @click="$router.push('/admin/scripts')">返回话术管理</el-button>
     </div>
     <el-alert
       title="平台内部试聊：不会创建拨号任务或开启真实外呼。语音使用点击开始/结束说话，支持手动打断。"
@@ -480,45 +494,13 @@ onUnmounted(() => {
     />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
     <el-alert v-if="ready.error.value" :title="ready.error.value" type="error" :closable="false" />
-    <el-collapse
-      ><el-collapse-item title="百炼账号与应用配置" name="config">
-        <el-form label-position="top"
-          ><el-form-item v-for="field in fields" :key="field.key" :label="field.label">
-            <el-input
-              :model-value="
-                Object.hasOwn(changes, field.key)
-                  ? changes[field.key]
-                  : field.secret
-                    ? ''
-                    : field.value
-              "
-              :type="field.secret ? 'password' : 'text'"
-              :placeholder="field.configured ? '已配置，留空保持原值' : '未配置'"
-              autocomplete="off"
-              @update:model-value="
-                (v) => {
-                  if (v) changes[field.key] = v;
-                  else delete changes[field.key];
-                }
-              "
-            />
-            <el-button v-if="field.configured" link type="danger" @click="changes[field.key] = ''"
-              >清空此项</el-button
-            > </el-form-item
-          ><el-button
-            type="primary"
-            :loading="busy"
-            :disabled="!configuration.data.value?.writable || !Object.keys(changes).length"
-            @click="saveConfig"
-            >加密保存百炼配置</el-button
-          ></el-form
-        >
-        <p>
-          应用提示词须引用 business_script。工具须透传 trial_id、trial_token，并配置业务回调地址和
-          X-API-KEY。仅二次审核对照模式需要服务端配置独立输出识别与内容审核。
-        </p>
-      </el-collapse-item></el-collapse
-    >
+    <p>
+      当前对话调试使用已接入的百炼语音应用。供应商与应用凭据由系统管理员在
+      <el-button link type="primary" @click="$router.push('/admin/system/voice-ai')"
+        >模型与语音服务</el-button
+      >
+      中配置。
+    </p>
     <p v-if="!ready.data.value?.configured">
       待配置：{{ ready.data.value?.missing?.join('、') || '正在检查' }}
     </p>

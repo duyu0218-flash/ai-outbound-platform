@@ -4,6 +4,7 @@ import { request, session } from '../session';
 import { formatDate } from '../api';
 import { useData } from '../data';
 import { ElMessage } from 'element-plus';
+const serviceTab = ref('credentials');
 const profiles = useData('/api/v1/admin/voice-ai/profiles');
 const ai = useData('/api/v1/admin/settings/ai');
 const configuration = useData('/api/v1/admin/voice-ai/configuration');
@@ -11,6 +12,15 @@ const configProfile = ref('aliyun-cascade'),
   configChanges = ref({}),
   configSaving = ref(false);
 const profileFields = {
+  'bailian-app': [
+    'DASHSCOPE_API_KEY',
+    'VOICE_AI_BAILIAN_WORKSPACE_ID',
+    'VOICE_AI_BAILIAN_APP_ID',
+    'VOICE_AI_BAILIAN_APP_REVISION',
+    'VOICE_AI_BAILIAN_TOOL_TARGET',
+    'VOICE_AI_BAILIAN_VOICE',
+    'VOICE_AI_BAILIAN_TOOL_API_KEY',
+  ],
   'aliyun-cascade': [
     'DASHSCOPE_API_KEY',
     'VOICE_AI_ALI_ASR_MODEL',
@@ -67,7 +77,17 @@ const credentialFields = computed(() =>
 function configLabel(key) {
   if (key === 'DASHSCOPE_API_KEY') return '百炼 API Key';
   const part = key.replace(/^VOICE_AI_(ALI|VOLC|TENCENT|BAIDU)_/, '');
-  return part.replaceAll('_', ' ');
+  return (
+    {
+      ASR_MODEL: '语音识别模型',
+      LLM_MODEL: '对话模型',
+      TTS_MODEL: '语音合成模型',
+      VOICE: '播报音色',
+      REALTIME_MODEL: '实时语音模型',
+      REALTIME_VOICE: '实时语音音色',
+      REALTIME_URL: '实时服务地址',
+    }[part] || part.replaceAll('_', ' ')
+  );
 }
 function configInput(field) {
   return Object.hasOwn(configChanges.value, field.key)
@@ -321,12 +341,9 @@ async function initialize() {
 initialize();
 </script>
 <template>
-  <el-button type="primary" @click="$router.push('/admin/bailian-trial')"
-    >百炼多模态套件业务试聊</el-button
-  >
   <PageHeader
-    title="语音方案对比"
-    description="切换供应商与技术路线，使用固定话术和相同样本进行对比。"
+    title="模型与语音服务"
+    description="管理服务凭据、默认通话组合与技术评测。业务对话调试从话术管理进入。"
   >
     <el-button @click="$router.push('/admin/settings')">返回系统设置</el-button>
   </PageHeader>
@@ -337,7 +354,18 @@ initialize();
     :closable="false"
     show-icon
   />
-  <el-card class="voice-card" v-loading="configuration.loading.value">
+  <el-tabs v-model="serviceTab"
+    ><el-tab-pane name="credentials" label="服务凭据" /><el-tab-pane
+      name="defaults"
+      label="默认通话组合" /><el-tab-pane name="catalog" label="接入能力" /><el-tab-pane
+      name="evaluation"
+      label="技术评测"
+  /></el-tabs>
+  <el-card
+    v-show="serviceTab === 'credentials'"
+    class="voice-card"
+    v-loading="configuration.loading.value"
+  >
     <template #header><strong>供应商账号与密钥配置</strong></template>
     <el-alert
       v-if="
@@ -356,7 +384,7 @@ initialize();
     <el-form label-width="185px" @submit.prevent="saveConfiguration">
       <el-form-item label="配置方案"
         ><el-select v-model="configProfile" aria-label="凭据配置方案"
-          ><el-option
+          ><el-option value="bailian-app" label="百炼语音应用" /><el-option
             v-for="p in profiles.data.value || []"
             :key="p.id"
             :value="p.id"
@@ -411,7 +439,11 @@ initialize();
       >
     </el-form>
   </el-card>
-  <el-card class="voice-card" v-loading="ai.loading.value || profiles.loading.value">
+  <el-card
+    v-show="serviceTab === 'defaults'"
+    class="voice-card"
+    v-loading="ai.loading.value || profiles.loading.value"
+  >
     <template #header><strong>后续通话方案</strong></template>
     <p>
       当前方案：<strong data-testid="active-voice-profile">{{ activeName }}</strong
@@ -576,7 +608,7 @@ initialize();
       :closable="false"
     />
   </el-card>
-  <el-card class="voice-card">
+  <el-card v-show="serviceTab === 'catalog'" class="voice-card">
     <template #header><strong>六套接入组合与配置状态</strong></template>
     <el-table :data="profiles.data.value || []" row-key="id">
       <el-table-column prop="name" label="组合" min-width="180" />
@@ -627,7 +659,7 @@ initialize();
       <el-table-column prop="verification" label="验证状态" min-width="180" />
     </el-table>
   </el-card>
-  <el-card class="voice-card">
+  <el-card v-show="serviceTab === 'evaluation'" class="voice-card">
     <template #header><strong>建立统一对比样本</strong></template>
     <el-form label-width="140px" @submit.prevent="createSet">
       <el-form-item label="样本组名称"
@@ -691,7 +723,7 @@ initialize();
       8/16/24/48kHz。保存后固定话术全文与音频，所有组合复用同一份样本；最多 10 条。
     </p>
   </el-card>
-  <el-card class="voice-card" v-loading="resultsBusy">
+  <el-card v-show="serviceTab === 'evaluation'" class="voice-card" v-loading="resultsBusy">
     <template #header><strong>运行对比与查看历史</strong></template>
     <el-select
       :model-value="activeSet?.id"

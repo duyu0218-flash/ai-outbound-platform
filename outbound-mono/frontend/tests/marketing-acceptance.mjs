@@ -17,7 +17,17 @@ const check = async (name, work) => {
   console.log('PASS ' + name);
 };
 const go = async (path, title) => {
-  await page.getByRole('menuitem').filter({ hasText: title }).first().click();
+  const labels = {
+    触达结果判定: '触达结果规则',
+    营销活动编排: '活动编排',
+    用户触达档案: '客户触达档案',
+    营销漏斗看板: '营销漏斗',
+  };
+  await page
+    .getByRole('menuitem')
+    .filter({ hasText: labels[title] || title })
+    .first()
+    .click();
   await expect(page).toHaveURL(origin + path);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);

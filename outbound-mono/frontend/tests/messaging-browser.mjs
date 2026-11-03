@@ -18,11 +18,13 @@ export async function messagingChecks({ page, origin, check }) {
   };
   let contact;
   await check('messaging independent entrance resource forms approval persistence', async () => {
-    await page.getByRole('menuitem').filter({ hasText: '消息营销' }).click();
+    await page.getByRole('menuitem').filter({ hasText: '短信概览' }).click();
+    await expect(page).toHaveURL(origin + '/admin/sms/overview');
+    await page.goto(origin + '/admin/messaging');
     await expect(page).toHaveURL(origin + '/admin/messaging');
-    await expect(page.getByRole('heading', { name: '消息营销', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '短信营销', exact: true })).toBeVisible();
     await expect(page.getByText(/当前为模拟环境/)).toBeVisible();
-    await tab('内容与主体');
+    await tab('签名与模板');
     for (const [kind, name, field, value] of [
       ['消息产品', '浏览器消息产品', null, null],
       ['发送主体', '浏览器消息主体', '品牌主体', '测试品牌'],
@@ -111,7 +113,7 @@ export async function messagingChecks({ page, origin, check }) {
       await expect(
         row('浏览器下游应用').getByRole('button', { name: '撤销应用', exact: true }),
       ).toHaveCount(0);
-      await tab('人群与活动');
+      await tab('发送任务');
       await expect(
         page.getByRole('heading', { name: '新建人群与活动', exact: true }),
       ).toBeVisible();
@@ -144,7 +146,7 @@ export async function messagingChecks({ page, origin, check }) {
     await page.getByRole('button', { name: '取消', exact: true }).first().click();
     await expect(page.getByText('CANCELLED', { exact: true })).toBeVisible();
     await saved();
-    await tab('内容与主体');
+    await tab('签名与模板');
     await choose('资源类型', '外呼联动规则');
     await page.getByRole('textbox', { name: '资源名称', exact: true }).fill('浏览器外呼联动');
     for (const [label, value] of [
@@ -167,7 +169,7 @@ export async function messagingChecks({ page, origin, check }) {
     await saved();
   });
   await check('messaging audience campaign launch interaction report and suppression', async () => {
-    await tab('人群与活动');
+    await tab('发送任务');
     await choose('资源类型', '客户人群');
     await page.getByRole('textbox', { name: '资源名称', exact: true }).fill('浏览器客户人群');
     await page
@@ -207,7 +209,7 @@ export async function messagingChecks({ page, origin, check }) {
         return page.locator('body').innerText();
       })
       .toContain('ACCEPTED');
-    await tab('互动与成效');
+    await tab('效果分析');
     await page
       .getByRole('combobox', { name: '互动消息', exact: true })
       .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')

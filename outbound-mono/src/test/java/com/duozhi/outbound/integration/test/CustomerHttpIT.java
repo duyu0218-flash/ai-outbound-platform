@@ -363,8 +363,12 @@ class CustomerHttpIT {
         assertThat(result.get("skipped").asInt()).isEqualTo(1);
         assertThat(result.get("failed").asInt()).isEqualTo(1);
         assertThat(result.get("errors")).hasSize(2);
-        assertThat(ok(upload("phone\n000000\n".getBytes(StandardCharsets.UTF_8), key, true)))
-                .isEqualTo(result);
+        assertThat(ok(upload(csv.getBytes(StandardCharsets.UTF_8), key, true))).isEqualTo(result);
+        assertThat(
+                        upload("phone\n000000\n".getBytes(StandardCharsets.UTF_8), key, true)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
         var updated =
                 ok(
                         upload(
@@ -822,5 +826,533 @@ class CustomerHttpIT {
                 .isEqualTo("completed");
         assertThat(store.require("taskoutbox", 1, other.get("id")).get("state"))
                 .isEqualTo("pending");
+    }
+
+    @Autowired
+    com.duozhi.outbound.ai.service.ConversationPolicy conversations;
+    @Autowired
+    com.duozhi.outbound.workspace.controller.ContactBatches importBatches;
+
+    JsonNode workspace(HttpMethod method, String path, Object body) {
+        return ok(request(method, "/api/v1/workspace" + path, body));
+    }
+
+    Map<String, Object> object(JsonNode node) {
+        return json.convertValue(
+                node, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    }
+
+    @Test
+    void workspacePublicationsAreImmutableTaskBoundAndRejectStaleWrites() {
+        var lib = workspace(HttpMethod.POST, "/libraries", Map.of("name", "知识测试"));
+        String library = lib.path("object_id").asText();
+        workspace(
+                HttpMethod.PUT,
+                "/libraries/" + library + "/items/faq-a",
+                Map.of(
+                        "expected_revision",
+                        0,
+                        "draft",
+                        Map.of(
+                                "name",
+                                "办理条件",
+                                "content",
+                                "可通过预约进行咨询",
+                                "keywords",
+                                "预约 咨询",
+                                "source",
+                                "服务条款")));
+        lib = workspace(HttpMethod.GET, "/libraries/" + library, null);
+        var publication =
+                workspace(
+                        HttpMethod.POST,
+                        "/libraries/" + library + "/publish",
+                        Map.of("expected_revision", lib.path("revision").asInt()));
+        assertThat(publication.path("published_version").asInt()).isEqualTo(1);
+        assertThat(
+                        request(
+                                        HttpMethod.POST,
+                                        "/api/v1/workspace/libraries/" + library + "/publish",
+                                        Map.of("expected_revision", lib.path("revision").asInt()))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        var script = workspace(HttpMethod.POST, "/scripts", Map.of("name", "版本快照话术"));
+        String id = script.path("id").asText();
+        var draft = object(script.path("draft"));
+        draft.put("goal", "了解咨询意向");
+        draft.put("knowledge_library_ids", List.of(library));
+        script =
+                workspace(
+                        HttpMethod.PUT,
+                        "/scripts/" + id + "/draft",
+                        Map.of(
+                                "draft",
+                                draft,
+                                "expected_revision",
+                                script.path("revision").asInt()));
+        script =
+                workspace(
+                        HttpMethod.POST,
+                        "/scripts/" + id + "/publish",
+                        Map.of("expected_revision", script.path("revision").asInt()));
+        long contact = create(phone()).path("id").asLong();
+        var task =
+                workspace(
+                        HttpMethod.POST,
+                        "/tasks",
+                        Map.of(
+                                "name",
+                                "快照任务",
+                                "mode",
+                                "ai_only",
+                                "script_template_id",
+                                Long.parseLong(id),
+                                "contact_ids",
+                                List.of(contact)));
+        assertThat(task.path("snapshot").path("script_version").asInt()).isEqualTo(1);
+        assertThat(task.path("snapshot").path("knowledge").get(0).path("content").asText())
+                .contains("预约");
+        var frozen = task.path("snapshot");
+        draft.put("goal", "改成另外一个目标");
+        script =
+                workspace(
+                        HttpMethod.PUT,
+                        "/scripts/" + id + "/draft",
+                        Map.of(
+                                "draft",
+                                draft,
+                                "expected_revision",
+                                script.path("revision").asInt()));
+        workspace(
+                HttpMethod.POST,
+                "/scripts/" + id + "/publish",
+                Map.of("expected_revision", script.path("revision").asInt()));
+        assertThat(
+                        workspace(HttpMethod.GET, "/tasks/" + task.path("id").asLong(), null)
+                                .path("snapshot"))
+                .isEqualTo(frozen);
+        var initial =
+                conversations.initialStatePolicy(
+                        Values.map("tenant_id", 1, "campaign_id", task.path("id").asLong()));
+        assertThat(initial.get("json").toString())
+                .contains("了解咨询意向", "可通过预约进行咨询")
+                .doesNotContain("改成另外一个目标");
+        var history = workspace(HttpMethod.GET, "/scripts/" + id + "/history", null);
+        assertThat(history).hasSize(2);
+        var current = workspace(HttpMethod.GET, "/scripts/" + id, null);
+        var restored =
+                workspace(
+                        HttpMethod.POST,
+                        "/scripts/" + id + "/restore",
+                        Map.of(
+                                "version",
+                                1,
+                                "expected_revision",
+                                current.path("revision").asInt()));
+        assertThat(restored.path("draft").path("goal").asText()).isEqualTo("了解咨询意向");
+        var foreign =
+                store.insert(
+                        "scripttemplate",
+                        Values.map("tenant_id", 2, "name", "foreign", "content", "foreign"));
+        assertThat(
+                        request(
+                                        HttpMethod.GET,
+                                        "/api/v1/workspace/scripts/" + foreign.get("id"),
+                                        null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(404);
+        user.setRole("agent");
+        users.updateById(user, 1);
+        token = crypto.token(UserRecords.map(user));
+        assertThat(
+                        request(HttpMethod.GET, "/api/v1/workspace/libraries", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void importedBatchProtectsBlankConsentAndDncAndCanBeReusedWithoutBrowserIds() {
+        String number = phone();
+        var contact = create(number);
+        long id = contact.path("id").asLong();
+        ok(
+                request(
+                        HttpMethod.PATCH,
+                        "/api/v1/contacts/" + id,
+                        Map.of("dnc", true, "dnc_reason", "客户拒绝", "tags", "保留标签")));
+        var result =
+                ok(
+                        upload(
+                                ("手机号,姓名,同意状态,禁止呼叫,标签\n" + number + ",更新姓名,,,\n")
+                                        .getBytes(StandardCharsets.UTF_8),
+                                UUID.randomUUID().toString(),
+                                true));
+        assertThat(result.path("batch_id").asText()).isNotBlank();
+        assertThat(result.path("selected_count").asInt()).isEqualTo(1);
+        assertThat(result.has("contact_ids")).isFalse();
+        var after = ok(request(HttpMethod.GET, "/api/v1/contacts/" + id, null));
+        assertThat(after.path("dnc").asBoolean()).isTrue();
+        assertThat(after.path("consent_state").asText()).isEqualTo("consented");
+        assertThat(after.path("tags").asText()).isEqualTo("保留标签");
+        var script = workspace(HttpMethod.POST, "/scripts", Map.of("name", "批次话术", "goal", "业务介绍"));
+        String scriptId = script.path("id").asText();
+        script =
+                workspace(
+                        HttpMethod.POST,
+                        "/scripts/" + scriptId + "/publish",
+                        Map.of("expected_revision", script.path("revision").asInt()));
+        var task =
+                workspace(
+                        HttpMethod.POST,
+                        "/tasks",
+                        Map.of(
+                                "name",
+                                "批次任务",
+                                "mode",
+                                "ai_only",
+                                "script_template_id",
+                                script.path("id").asLong(),
+                                "batch_ids",
+                                List.of(result.path("batch_id").asText())));
+        assertThat(task.path("contact_count").asInt()).isEqualTo(1);
+        assertThat(task.path("status").asText()).isEqualTo("draft");
+        assertThat(
+                        http.exchange(
+                                        "/api/v1/contacts/import/template",
+                                        HttpMethod.GET,
+                                        new HttpEntity<>(auth()),
+                                        byte[].class)
+                                .getBody())
+                .startsWith((byte) 0x50, (byte) 0x4b);
+    }
+
+    @Test
+    void asynchronousMappedImportCompletesReplaysAndRejectsDifferentPayload() throws Exception {
+        String key = UUID.randomUUID().toString(), number = phone();
+        var parts = new LinkedMultiValueMap<String, Object>();
+        parts.add(
+                "file",
+                new ByteArrayResource(
+                        ("mobile,nick\n" + number + ",异步客户\ninvalid,错误\n")
+                                .getBytes(StandardCharsets.UTF_8)) {
+                    public String getFilename() {
+                        return "mapped.csv";
+                    }
+                });
+        var headers = auth();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", key);
+        String path = "/api/v1/workspace/contact-batches?mapping={mapping}";
+        String mapping = "{\"mobile\":\"phone\",\"nick\":\"name\"}";
+        var submitted =
+                ok(
+                        http.exchange(
+                                path,
+                                HttpMethod.POST,
+                                new HttpEntity<>(parts, headers),
+                                JsonNode.class,
+                                mapping));
+        String id = submitted.path("id").asText();
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () ->
+                                assertThat(
+                                                workspace(
+                                                                HttpMethod.GET,
+                                                                "/contact-batches/uploads/" + id,
+                                                                null)
+                                                        .path("state")
+                                                        .asText())
+                                        .isEqualTo("completed"));
+        var complete = workspace(HttpMethod.GET, "/contact-batches/uploads/" + id, null);
+        assertThat(complete.path("result").path("created").asInt()).isEqualTo(1);
+        assertThat(complete.path("result").path("failed").asInt()).isEqualTo(1);
+        var replay =
+                ok(
+                        http.exchange(
+                                path,
+                                HttpMethod.POST,
+                                new HttpEntity<>(parts, headers),
+                                JsonNode.class,
+                                mapping));
+        assertThat(replay.path("id").asText()).isEqualTo(id);
+        assertThat(
+                        http.exchange(
+                                        path,
+                                        HttpMethod.POST,
+                                        new HttpEntity<>(parts, headers),
+                                        JsonNode.class,
+                                        "{\"mobile\":\"phone\"}")
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        var errorFile =
+                http.exchange(
+                        "/api/v1/workspace/contact-batches/"
+                                + complete.path("result").path("batch_id").asText()
+                                + "/errors",
+                        HttpMethod.GET,
+                        new HttpEntity<>(auth()),
+                        String.class);
+        assertThat(errorFile.getBody()).contains("row 3", "invalid phone");
+        try (var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            var sheet = wb.createSheet("外呼名单");
+            sheet.createRow(0).createCell(0).setCellValue("手机号");
+            sheet.createRow(1).createCell(0).setCellValue(phone());
+            var out = new java.io.ByteArrayOutputStream();
+            wb.write(out);
+            parts.set(
+                    "file",
+                    new ByteArrayResource(out.toByteArray()) {
+                        public String getFilename() {
+                            return "contacts.xlsx";
+                        }
+                    });
+            headers.set("Idempotency-Key", UUID.randomUUID().toString());
+            var xlsx =
+                    ok(
+                            http.exchange(
+                                    "/api/v1/contacts/import?upsert=false",
+                                    HttpMethod.POST,
+                                    new HttpEntity<>(parts, headers),
+                                    JsonNode.class));
+            assertThat(xlsx.path("created").asInt()).isEqualTo(1);
+        }
+    }
+
+    @Autowired
+    com.duozhi.outbound.workspace.service.WorkspaceDocuments workspaceDocuments;
+
+    @Test
+    void hundredRowChunksPreserveFirstDuplicateAndReplayAfterInterruptedFinalization()
+            throws Exception {
+        String first = phone();
+        long firstId = create(first).path("id").asLong();
+        var csv = new StringBuilder("手机号,姓名,同意状态,禁止呼叫\n");
+        csv.append(first).append(",首条有效,,\n");
+        for (int n = 1; n < 250; n++)
+            csv.append(phone()).append(",客户").append(n).append(",已同意,否\n");
+        csv.append(first).append(",不得覆盖,已撤回,是\n");
+        byte[] bytes = csv.toString().getBytes(StandardCharsets.UTF_8);
+        var parts = new LinkedMultiValueMap<String, Object>();
+        parts.add(
+                "file",
+                new ByteArrayResource(bytes) {
+                    public String getFilename() {
+                        return "chunked.csv";
+                    }
+                });
+        var headers = auth();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", UUID.randomUUID().toString());
+        var submitted =
+                ok(
+                        http.exchange(
+                                "/api/v1/workspace/contact-batches?upsert=true",
+                                HttpMethod.POST,
+                                new HttpEntity<>(parts, headers),
+                                JsonNode.class));
+        String id = submitted.path("id").asText();
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .untilAsserted(
+                        () ->
+                                assertThat(
+                                                workspace(
+                                                                HttpMethod.GET,
+                                                                "/contact-batches/uploads/" + id,
+                                                                null)
+                                                        .path("state")
+                                                        .asText())
+                                        .isEqualTo("completed"));
+        var initial =
+                workspace(HttpMethod.GET, "/contact-batches/uploads/" + id, null).path("result");
+        assertThat(initial.path("created").asInt()).isEqualTo(249);
+        assertThat(initial.path("updated").asInt()).isEqualTo(1);
+        assertThat(initial.path("skipped").asInt()).isEqualTo(1);
+        assertThat(initial.path("selected_count").asInt()).isEqualTo(250);
+        var contact = ok(request(HttpMethod.GET, "/api/v1/contacts/" + firstId, null));
+        assertThat(contact.path("name").asText()).isEqualTo("首条有效");
+        assertThat(contact.path("dnc").asBoolean()).isFalse();
+        assertThat(
+                        workspaceDocuments.jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM platform_contact_batch WHERE tenant_id=1 AND request_key LIKE ?",
+                                Integer.class,
+                                "workspace-chunk:" + id + ":%"))
+                .isEqualTo(3);
+        long before =
+                workspaceDocuments.jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM contact WHERE tenant_id=1", Long.class);
+        // Model a crash after child commits but before publishing the parent batch/result.
+        String batch = initial.path("batch_id").asText();
+        workspaceDocuments.tx.run(
+                () -> {
+                    workspaceDocuments.jdbc.update(
+                            "DELETE FROM platform_contact_batch_member WHERE tenant_id=1 AND batch_id=?",
+                            batch);
+                    workspaceDocuments.jdbc.update(
+                            "DELETE FROM platform_contact_batch_error WHERE tenant_id=1 AND batch_id=?",
+                            batch);
+                    workspaceDocuments.jdbc.update(
+                            "DELETE FROM platform_contact_batch WHERE tenant_id=1 AND id=?", batch);
+                    workspaceDocuments.jdbc.update(
+                            "UPDATE platform_contact_upload SET state='queued',file_bytes=? WHERE tenant_id=1 AND id=?",
+                            bytes,
+                            id);
+                    return null;
+                });
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .untilAsserted(
+                        () ->
+                                assertThat(
+                                                workspace(
+                                                                HttpMethod.GET,
+                                                                "/contact-batches/uploads/" + id,
+                                                                null)
+                                                        .path("state")
+                                                        .asText())
+                                        .isEqualTo("completed"));
+        var resumed =
+                workspace(HttpMethod.GET, "/contact-batches/uploads/" + id, null).path("result");
+        assertThat(resumed.path("created").asInt()).isEqualTo(249);
+        assertThat(resumed.path("updated").asInt()).isEqualTo(1);
+        assertThat(resumed.path("selected_count").asInt()).isEqualTo(250);
+        assertThat(
+                        workspaceDocuments.jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM contact WHERE tenant_id=1", Long.class))
+                .isEqualTo(before);
+    }
+
+    @Test
+    void failedUploadCanRetryAndDiscardWithoutKeepingPayload() {
+        var parts = new LinkedMultiValueMap<String, Object>();
+        parts.add(
+                "file",
+                new ByteArrayResource(new byte[] {(byte) 0xff}) {
+                    public String getFilename() {
+                        return "invalid.csv";
+                    }
+                });
+        var headers = auth();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", UUID.randomUUID().toString());
+        var job =
+                ok(
+                        http.exchange(
+                                "/api/v1/workspace/contact-batches",
+                                HttpMethod.POST,
+                                new HttpEntity<>(parts, headers),
+                                JsonNode.class));
+        String id = job.path("id").asText();
+        String path = "/contact-batches/uploads/" + id;
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () ->
+                                assertThat(
+                                                workspace(HttpMethod.GET, path, null)
+                                                        .path("state")
+                                                        .asText())
+                                        .isEqualTo("failed"));
+        assertThat(workspace(HttpMethod.GET, path, null).path("retryable").asBoolean()).isTrue();
+        workspace(HttpMethod.POST, path + "/retry", null);
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () ->
+                                assertThat(
+                                                workspace(HttpMethod.GET, path, null)
+                                                        .path("state")
+                                                        .asText())
+                                        .isEqualTo("failed"));
+        var removed = workspace(HttpMethod.DELETE, path, null);
+        assertThat(removed.path("state").asText()).isEqualTo("cancelled");
+        assertThat(removed.path("retryable").asBoolean()).isFalse();
+        assertThat(
+                        request(HttpMethod.POST, "/api/v1/workspace" + path + "/retry", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+    }
+
+    @Test
+    void taskOverridesAreFrozenAndCopiedScriptRemainsDraft() {
+        var script = workspace(HttpMethod.POST, "/scripts", Map.of("name", "排期话术", "goal", "业务介绍"));
+        String id = script.path("id").asText();
+        script =
+                workspace(
+                        HttpMethod.POST,
+                        "/scripts/" + id + "/publish",
+                        Map.of("expected_revision", script.path("revision").asInt()));
+        var copy = workspace(HttpMethod.POST, "/scripts/" + id + "/copy", null);
+        assertThat(copy.path("state").asText()).isEqualTo("draft");
+        assertThat(copy.path("published_version").asInt()).isZero();
+        assertThat(copy.path("draft").path("goal").asText()).isEqualTo("业务介绍");
+        long contact = create(phone()).path("id").asLong();
+        String
+                start =
+                        java.time.ZonedDateTime.now(ZoneId.of("Asia/Shanghai"))
+                                .plusDays(1)
+                                .withHour(12)
+                                .withMinute(0)
+                                .withSecond(0)
+                                .toInstant()
+                                .toString(),
+                end = Instant.parse(start).plusSeconds(3600).toString();
+        var data =
+                new LinkedHashMap<String, Object>(
+                        Map.of(
+                                "name",
+                                "排期任务",
+                                "mode",
+                                "ai_only",
+                                "script_template_id",
+                                Long.parseLong(id),
+                                "contact_ids",
+                                List.of(contact),
+                                "start_at",
+                                start,
+                                "end_at",
+                                end,
+                                "execution_policy",
+                                Map.of("start_hour", 0, "end_hour", 24, "timezone", "UTC")));
+        var task = workspace(HttpMethod.POST, "/tasks", data);
+        var snapshot = task.path("snapshot");
+        assertThat(snapshot.path("start_at").asText()).isEqualTo(start);
+        assertThat(snapshot.path("policy").path("start_hour").asInt()).isZero();
+        assertThat(snapshot.path("policy").path("timezone").asText()).isEqualTo("UTC");
+        var runtime = conversations.current(1, task.path("id").asLong());
+        var policy = object(json.valueToTree(runtime.get("policy")));
+        assertThat(policy).containsEntry("_task_start_at", start);
+        assertThat(com.duozhi.outbound.workspace.service.TaskSchedule.isOpen(policy, Instant.now()))
+                .isFalse();
+        assertThat(
+                        com.duozhi.outbound.workspace.service.TaskSchedule.isOpen(
+                                policy, Instant.parse(start)))
+                .isTrue();
+        assertThat(
+                        com.duozhi.outbound.workspace.service.TaskSchedule.isOpen(
+                                policy, Instant.parse(end)))
+                .isFalse();
+        var prepared =
+                ok(
+                        request(
+                                HttpMethod.POST,
+                                "/api/v1/campaigns/"
+                                        + task.path("id").asLong()
+                                        + "/start?auto_dial=false",
+                                null));
+        assertThat(prepared.path("created").asInt()).isEqualTo(1);
+        data.put("mode", "ai_handoff");
+        assertThat(
+                        request(HttpMethod.POST, "/api/v1/workspace/tasks", data)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
     }
 }

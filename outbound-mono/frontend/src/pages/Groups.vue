@@ -7,7 +7,7 @@ const days = ref(30),
   query = useData(() => '/api/v1/admin/contact-groups?days=' + days.value);
 </script>
 <template>
-  <PageHeader title="groupMonitor" description="groupMonitorHint"
+  <PageHeader title="分组统计" description="groupMonitorHint"
     ><el-select v-model="days" style="width: 130px"
       ><el-option
         v-for="value in [7, 30, 90]"

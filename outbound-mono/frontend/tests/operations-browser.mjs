@@ -117,7 +117,7 @@ export async function operationsChecks({ page, context, origin, check, go }) {
     await page.getByLabel('坐席组名', { exact: true }).fill('浏览器运营组');
     await choose('坐席组成员', 'Vue新坐席');
     await page.keyboard.press('Escape');
-    const skills = page.getByRole('combobox', { name: '接待技能', exact: true });
+    const skills = page.getByRole('combobox', { name: '接听技能', exact: true });
     await skills.fill('北京');
     await skills.press('Enter');
     await skills.fill('口腔');

@@ -1,106 +1,355 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { request } from '../session';
-import { useData, action } from '../data';
-import { t } from '../i18n';
 import { formatDate } from '../api';
+import { action, useData } from '../data';
 import FlowDesigner from '../components/FlowDesigner.vue';
-const page = ref(1),
-  query = useData(() => `/api/v1/script-templates?page=${page.value}&size=50`),
-  open = ref(false),
-  editing = ref(null),
+const clone = (v) => JSON.parse(JSON.stringify(v));
+const route = useRoute(),
+  page = ref(1),
+  keyword = ref(''),
+  query = useData(
+    () =>
+      `/api/v1/workspace/scripts?page=${page.value}&size=30&keyword=${encodeURIComponent(keyword.value)}`,
+  ),
+  libraries = useData('/api/v1/workspace/libraries'),
+  teams = useData('/api/v1/ops/teams');
+const selected = ref(null),
   model = ref({}),
+  tab = ref('dialogue'),
   busy = ref(false),
-  flow = ref(null);
-const fields = [
-  { key: 'name', label: 'name', required: true },
-  { key: 'category', label: 'category', required: true },
-  { key: 'content', label: 'content', type: 'textarea', rows: 8, required: true },
-  { key: 'description', label: 'description', type: 'textarea', rows: 2 },
-  { key: 'tags', label: 'tags' },
-  { key: 'is_active', label: 'enabled', type: 'boolean' },
+  error = ref(''),
+  history = ref([]),
+  flow = ref(null),
+  probe = ref(null),
+  sample = ref('我想了解办理条件'),
+  createOpen = ref(false),
+  newScript = ref({ name: '', category: '业务话术' });
+const users = useData('/api/v1/admin/users?page=1&size=200');
+const rows = computed(() => query.data.value?.rows || []);
+const labels = { draft: '草稿', published: '已发布', review: '待审核', disabled: '已停用' };
+const basic = computed(() => [
+  { key: 'name', label: '话术名称', required: true },
+  { key: 'category', label: '业务分类', required: true },
+  { key: 'description', label: '适用场景', type: 'textarea', rows: 2 },
+  {
+    key: 'owner_id',
+    label: '负责人',
+    options: (users.data.value || []).map((v) => ({
+      value: v.id,
+      label: v.full_name || v.username,
+    })),
+  },
+]);
+const dialogue = [
+  ['identity', 'AI身份'],
+  ['goal', '业务目标'],
+  ['opening', '开场白'],
+  ['steps', '沟通步骤'],
+  ['limits', '回答边界与禁止承诺'],
+  ['ending', '结束语'],
+  ['content', '补充话术'],
+].map(([key, label]) => ({ key, label, type: 'textarea', rows: key === 'steps' ? 5 : 3 }));
+const slotFields = [
+  { key: 'key', label: '字段标识', required: true },
+  { key: 'label', label: '字段名称', required: true },
+  { key: 'kind', label: '字段类型', options: ['text', 'integer', 'choice', 'date', 'digits'] },
+  { key: 'question', label: '询问话术', required: true },
+  { key: 'required', label: '必填', type: 'boolean' },
+  { key: 'confirm', label: '复述确认', type: 'boolean' },
+  { key: 'choices', label: '可选值', options: [], multiple: true, tags: true },
+  { key: 'qualifies', label: '合格取值', options: [], multiple: true, tags: true },
 ];
-function edit(row) {
-  editing.value = row;
-  model.value = row
-    ? Object.fromEntries(fields.map((f) => [f.key, row[f.key]]))
-    : { category: 'default', is_active: true };
-  open.value = true;
-}
-async function save() {
+const behavior = computed(() => [
+  {
+    key: 'handoff_team_ids',
+    label: '转接团队',
+    multiple: true,
+    options: (teams.data.value || []).map((v) => ({ value: v.id, label: v.name })),
+  },
+  { key: 'handoff_skills', label: '转接所需技能', multiple: true, tags: true, options: [] },
+  { key: 'handoff_wait_seconds', label: '转接最长等待（秒）', type: 'number', min: 5, max: 300 },
+  {
+    key: 'handoff_fallback',
+    label: '无人接待处理',
+    options: [
+      { value: 'end', label: '说明后结束' },
+      { value: 'ai', label: '返回AI继续沟通' },
+    ],
+  },
+  { key: 'handoff_auto_callback', label: '无人接待创建回拨待办', type: 'boolean' },
+  { key: 'allow_interruptions', label: '允许打断', type: 'boolean' },
+  { key: 'silence_seconds', label: '无应答等待（秒）', type: 'number', min: 3, max: 120 },
+  { key: 'failure_prompt', label: '服务失败结束语' },
+  { key: 'timezone', label: '服务时区' },
+  { key: 'start_hour', label: '开始时刻', type: 'number', min: 0, max: 23 },
+  { key: 'end_hour', label: '结束时刻', type: 'number', min: 1, max: 24 },
+]);
+async function run(fn) {
   busy.value = true;
+  error.value = '';
   try {
-    await action(
-      () =>
-        request(
-          '/api/v1/script-templates' + (editing.value ? '/' + editing.value.id : ''),
-          editing.value ? 'PUT' : 'POST',
-          model.value,
-        ),
-      { refresh: query.load },
-    );
-    open.value = false;
+    await fn();
+  } catch (e) {
+    error.value = e.message;
   } finally {
     busy.value = false;
   }
 }
+async function open(row) {
+  await run(async () => {
+    selected.value = await request('/api/v1/workspace/scripts/' + row.id);
+    model.value = clone(selected.value.draft);
+    tab.value = 'dialogue';
+    probe.value = null;
+    history.value = selected.value.revision
+      ? await request(`/api/v1/workspace/scripts/${row.id}/history`)
+      : [];
+  });
+}
+async function create() {
+  await run(async () => {
+    const v = await request('/api/v1/workspace/scripts', 'POST', newScript.value);
+    createOpen.value = false;
+    await query.load();
+    selected.value = v;
+    model.value = clone(v.draft);
+    tab.value = 'dialogue';
+    history.value = [];
+    probe.value = null;
+  });
+}
+async function copy(row) {
+  await run(async () => {
+    const value = await request('/api/v1/workspace/scripts/' + row.id + '/copy', 'POST');
+    await query.load();
+    selected.value = value;
+    model.value = clone(value.draft);
+    tab.value = 'dialogue';
+    history.value = [];
+    probe.value = null;
+  });
+}
+async function save() {
+  const v = await request(`/api/v1/workspace/scripts/${selected.value.id}/draft`, 'PUT', {
+    draft: model.value,
+    expected_revision: selected.value.revision,
+  });
+  selected.value = v;
+  model.value = clone(v.draft);
+  await query.load();
+}
+async function publish() {
+  await run(async () => {
+    await save();
+    selected.value = await request(
+      `/api/v1/workspace/scripts/${selected.value.id}/publish`,
+      'POST',
+      { expected_revision: selected.value.revision },
+    );
+    history.value = await request(`/api/v1/workspace/scripts/${selected.value.id}/history`);
+    await query.load();
+  });
+}
+async function state(value) {
+  await run(async () => {
+    await save();
+    selected.value = await request(`/api/v1/workspace/scripts/${selected.value.id}/state`, 'POST', {
+      state: value,
+      expected_revision: selected.value.revision,
+    });
+    await query.load();
+  });
+}
+async function restore(version) {
+  await run(async () => {
+    selected.value = await request(
+      `/api/v1/workspace/scripts/${selected.value.id}/restore`,
+      'POST',
+      { version, expected_revision: selected.value.revision },
+    );
+    model.value = clone(selected.value.draft);
+    await query.load();
+  });
+}
+function addSlot() {
+  model.value.policy.slots.push({
+    key: '',
+    label: '',
+    kind: 'text',
+    question: '',
+    required: true,
+    confirm: true,
+    choices: [],
+    qualifies: [],
+  });
+}
+onMounted(async () => {
+  if (route.query.script_id) await open({ id: route.query.script_id });
+});
 </script>
 <template>
-  <PageHeader title="scripts" description="scriptHint"
-    ><el-button type="primary" @click="edit()">{{ t('createScript') }}</el-button></PageHeader
-  ><el-alert v-if="query.error.value" type="error" :title="query.error.value" />
-  <div v-loading="query.loading.value" class="script-grid">
-    <el-card v-for="item in query.data.value || []" :key="item.id"
-      ><template #header
-        ><div class="actions">
-          <strong>{{ item.name }}</strong
-          ><el-switch
-            :model-value="item.is_active"
-            :aria-label="item.name + '启用'"
-            @change="
-              action(
-                () =>
-                  request('/api/v1/script-templates/' + item.id, 'PUT', {
-                    is_active: !item.is_active,
-                  }),
-                { refresh: query.load },
-              )
-            "
-          /></div
-      ></template>
-      <div class="actions">
-        <el-tag>{{ item.category }}</el-tag
-        ><el-tag>v{{ item.version }}</el-tag
-        ><el-tag v-if="item.tags">{{ item.tags }}</el-tag>
-      </div>
-      <p class="script-content">{{ item.content }}</p>
-      <small>{{ formatDate(item.updated_at) }}</small
-      ><template #footer
-        ><div class="actions">
-          <el-button link @click="flow = item">话术画布</el-button
-          ><el-button link @click="edit(item)">{{ t('edit') }}</el-button
-          ><el-button
-            link
-            type="danger"
-            @click="
-              action(() => request('/api/v1/script-templates/' + item.id, 'DELETE'), {
-                confirm: t('confirmDelete'),
-                refresh: query.load,
-              })
-            "
-            >{{ t('delete') }}</el-button
-          >
-        </div></template
+  <PageHeader title="话术管理" description="编排对话、采集业务信息并发布版本，任务引用已发布内容"
+    ><el-button
+      type="primary"
+      @click="
+        newScript = { name: '', category: '业务话术' };
+        createOpen = true;
+      "
+      >新建话术</el-button
+    ></PageHeader
+  >
+  <el-alert
+    v-if="error || query.error.value"
+    type="error"
+    :title="error || query.error.value"
+    :closable="false"
+  />
+  <template v-if="!selected"
+    ><el-card
+      ><el-input
+        v-model="keyword"
+        aria-label="搜索话术"
+        placeholder="按名称或分类搜索"
+        clearable
+        style="max-width: 360px"
+        @input="page = 1" />
+      <el-table :data="rows" v-loading="query.loading.value"
+        ><el-table-column label="话术名称"
+          ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
+        ><el-table-column label="分类"
+          ><template #default="{ row }">{{ row.draft.category }}</template></el-table-column
+        ><el-table-column label="状态"
+          ><template #default="{ row }"
+            ><el-tag>{{ labels[row.state] }}</el-tag
+            ><small v-if="row.published_version && row.state === 'draft'"
+              >已发布版本仍可被引用</small
+            ></template
+          ></el-table-column
+        ><el-table-column prop="owner_name" label="负责人" /><el-table-column label="更新时间"
+          ><template #default="{ row }">{{ formatDate(row.updated_at) }}</template></el-table-column
+        ><el-table-column prop="published_version" label="发布版本" /><el-table-column
+          prop="references"
+          label="引用任务"
+        /><el-table-column label="操作"
+          ><template #default="{ row }"
+            ><el-button link type="primary" @click="open(row)">配置话术</el-button
+            ><el-button link @click="copy(row)">复制</el-button></template
+          ></el-table-column
+        ></el-table
+      >
+      <Pager :page="page" :count="rows.length" @change="page = $event" /></el-card
+  ></template>
+  <template v-else>
+    <div class="actions">
+      <el-button
+        @click="
+          selected = null;
+          query.load();
+        "
+        >返回话术列表</el-button
+      ><strong>{{ model.name }}</strong
+      ><el-tag>{{ labels[selected.state] }}</el-tag
+      ><span
+        >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
+      ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
+      ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
+      ><el-button type="primary" :loading="busy" @click="publish">发布版本</el-button
+      ><el-button type="danger" plain :disabled="busy" @click="state('disabled')"
+        >停用话术</el-button
+      >
+    </div>
+    <el-tabs v-model="tab"
+      ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
+        name="flow"
+        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
+        name="knowledge"
+        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
+        name="history"
+        label="版本记录"
+    /></el-tabs>
+    <el-card v-if="tab === 'dialogue'"
+      ><FieldForm :model="model" :fields="basic" hide-submit /><FieldForm
+        :model="model"
+        :fields="dialogue"
+        hide-submit
+    /></el-card>
+    <el-card v-if="tab === 'flow'"
+      ><p>画布独立保存与发布。创建任务时选择具体画布版本，文字话术作为业务说明。</p>
+      <el-button @click="flow = { id: selected.id, name: model.name }"
+        >打开话术画布</el-button
       ></el-card
     >
-  </div>
-  <el-card v-if="!query.loading.value && !query.data.value?.length"
-    ><el-empty :description="t('empty')" /></el-card
-  ><Pager :page="page" :count="query.data.value?.length || 0" @change="page = $event" /><el-dialog
-    v-model="open"
-    :title="t(editing ? 'edit' : 'createScript')"
-    width="680px"
-    destroy-on-close
-    ><FieldForm :model="model" :fields="fields" :busy="busy" @submit="save" /></el-dialog
+    <el-card v-if="tab === 'slots'"
+      ><p>
+        字段用于对话采集，合格取值用于业务结果判定。字段标识供模板变量引用，例如 {{ '{姓名}' }}。
+      </p>
+      <el-card v-for="(slot, index) in model.policy.slots" :key="index" style="margin-bottom: 16px"
+        ><FieldForm :model="slot" :fields="slotFields" hide-submit /><el-button
+          type="danger"
+          link
+          @click="model.policy.slots.splice(index, 1)"
+          >移除字段</el-button
+        ></el-card
+      ><el-button @click="addSlot">添加采集字段</el-button></el-card
+    >
+    <el-card v-if="tab === 'knowledge'"
+      ><el-form label-position="top"
+        ><el-form-item label="关联知识库"
+          ><el-select v-model="model.knowledge_library_ids" multiple aria-label="关联知识库"
+            ><el-option
+              v-for="lib in libraries.data.value?.rows || []"
+              :key="lib.object_id"
+              :label="`${lib.name} · 发布v${lib.published_version}`"
+              :value="lib.object_id"
+              :disabled="
+                !lib.published_version || lib.state === 'disabled'
+              " /></el-select></el-form-item
+      ></el-form>
+      <p>发布话术时冻结选中知识库的已发布条目；知识库后续修改不会替换已创建任务的知识快照。</p>
+      <FieldForm :model="model.policy" :fields="behavior" hide-submit
+    /></el-card>
+    <el-card v-if="tab === 'debug'"
+      ><el-alert
+        title="本地预检不调用模型、不拨号、不生成业务线索。检索按关键词和中文片段匹配。"
+        :closable="false"
+      /><el-input v-model="sample" aria-label="调试输入" style="margin: 16px 0" /><el-button
+        :loading="busy"
+        @click="
+          run(async () => {
+            await save();
+            probe = await request(`/api/v1/workspace/scripts/${selected.id}/probe`, 'POST', {
+              query: sample,
+            });
+          })
+        "
+        >本地预检</el-button
+      ><el-button
+        @click="$router.push({ path: '/admin/bailian-trial', query: { script_id: selected.id } })"
+        >语音对话调试</el-button
+      >
+      <pre v-if="probe">{{ probe }}</pre>
+    </el-card>
+    <el-card v-if="tab === 'history'"
+      ><el-table :data="history"
+        ><el-table-column prop="version" label="发布版本" /><el-table-column
+          prop="published_at"
+          label="发布时间"
+        /><el-table-column label="操作"
+          ><template #default="{ row }"
+            ><el-button link @click="restore(row.version)">恢复为草稿</el-button></template
+          ></el-table-column
+        ></el-table
+      >
+      <p>恢复只创建当前草稿，重新发布后才可供新任务使用，已保存任务不受影响。</p></el-card
+    >
+  </template>
+  <el-dialog v-model="createOpen" title="新建话术" width="560px"
+    ><FieldForm
+      :model="newScript"
+      :fields="basic.slice(0, 2)"
+      :busy="busy"
+      @submit="create" /></el-dialog
   ><FlowDesigner v-if="flow" :template="flow" @close="flow = null" />
 </template>

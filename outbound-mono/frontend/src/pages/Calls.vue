@@ -1,5 +1,7 @@
 <script setup>
 import { ref } from 'vue';
+import { useRoute } from 'vue-router';
+const route = useRoute();
 import { request, download } from '../session';
 import { useData, action, modes } from '../data';
 import { t } from '../i18n';
@@ -7,7 +9,10 @@ import CallTable from '../components/CallTable.vue';
 import CallDetails from '../components/CallDetails.vue';
 const props = defineProps({ role: String }),
   page = ref(1),
-  query = useData(() => `/api/v1/calls?page=${page.value}&size=20`),
+  query = useData(
+    () =>
+      `/api/v1/calls?page=${page.value}&size=20${route.query.campaign_id ? '&campaign_id=' + encodeURIComponent(route.query.campaign_id) : ''}`,
+  ),
   open = ref(false),
   model = ref({}),
   busy = ref(false),
