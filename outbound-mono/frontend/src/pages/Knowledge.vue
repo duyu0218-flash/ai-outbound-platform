@@ -329,7 +329,9 @@ onBeforeUnmount(() => {
   <template v-else>
     <div class="actions">
       <el-button @click="closeLibrary">返回知识库列表</el-button><strong>{{ selected.name }}</strong
-      ><el-tag>已发布 v{{ selected.published_version }}</el-tag
+      ><el-tag>{{
+        selected.published_version > 0 ? `已发布 v${selected.published_version}` : '尚未发布'
+      }}</el-tag
       ><el-button :loading="busy" @click="run(reload)">刷新知识库</el-button
       ><el-button :loading="busy" @click="state('review')">提交审核</el-button
       ><el-button type="primary" :loading="busy" @click="publish">发布知识库</el-button

@@ -186,8 +186,37 @@ export async function workspaceChecks({ page, origin, check, go }) {
         mimeType: 'text/plain',
         buffer: Buffer.from('办理材料要求：请准备本人有效证件和业务预约编号。'),
       });
-      await page.getByRole('button', { name: '开始解析', exact: true }).click();
-      await expect(page.getByLabel('分段正文1', { exact: true })).toBeVisible({ timeout: 30000 });
+      // Hold the initial detail until parsing finishes, then deliver its earlier queued
+      // snapshot. The following list already says ready; the selected preview must still poll.
+      let initialDetail = true;
+      const detailRoute = /\/api\/v1\/workspace\/libraries\/[^/]+\/documents\/[^/?]+$/;
+      const staleInitialDetail = async (route) => {
+        if (route.request().method() !== 'GET' || !initialDetail) return route.continue();
+        initialDetail = false;
+        let response = await route.fetch();
+        let job = await response.json();
+        for (
+          let attempt = 0;
+          ['queued', 'parsing'].includes(job.state) && attempt < 100;
+          attempt++
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          response = await route.fetch();
+          job = await response.json();
+        }
+        expect(job.state).toBe('ready');
+        await route.fulfill({
+          response,
+          json: { ...job, state: 'queued', progress: 0, segments: [] },
+        });
+      };
+      await page.route(detailRoute, staleInitialDetail);
+      try {
+        await page.getByRole('button', { name: '开始解析', exact: true }).click();
+        await expect(page.getByLabel('分段正文1', { exact: true })).toBeVisible({ timeout: 30000 });
+      } finally {
+        await page.unroute(detailRoute, staleInitialDetail);
+      }
       await page.getByLabel('分段标题1', { exact: true }).fill('办理材料说明');
       await page
         .getByLabel('分段正文1', { exact: true })
