@@ -226,15 +226,42 @@ export async function workspaceChecks({ page, origin, check, go }) {
         path: 'target/platform-completion/knowledge-segments.png',
         fullPage: true,
       });
-      await page.getByRole('button', { name: '确认分段并生成草稿', exact: true }).click();
-      await expect(
-        page.getByText(
-          '已生成草稿。请回到知识条目核对，再发布知识库。重复确认不会创建第二份条目。',
-          { exact: true },
-        ),
-      ).toBeVisible();
-      await page.getByRole('tab', { name: '知识条目', exact: true }).click();
-      await expect(page.getByRole('row').filter({ hasText: '办理材料说明' })).toBeVisible();
+      // Finish the confirmation refresh after the user selects another tab.
+      // A background reload must preserve that newer selection.
+      const library = new URL(page.url()).searchParams.get('library');
+      const reloadRoute = new RegExp('/api/v1/workspace/libraries/' + library + '$');
+      let releaseRefresh;
+      let heldRefresh = false;
+      const refreshGate = new Promise((resolve) => {
+        releaseRefresh = resolve;
+      });
+      const delayedRefresh = async (route) => {
+        if (route.request().method() !== 'GET' || heldRefresh) return route.continue();
+        heldRefresh = true;
+        const response = await route.fetch();
+        await refreshGate;
+        await route.fulfill({ response });
+      };
+      await page.route(reloadRoute, delayedRefresh);
+      try {
+        await page.getByRole('button', { name: '确认分段并生成草稿', exact: true }).click();
+        await expect(
+          page.getByText(
+            '已生成草稿。请回到知识条目核对，再发布知识库。重复确认不会创建第二份条目。',
+            { exact: true },
+          ),
+        ).toBeVisible();
+        await page.getByRole('tab', { name: '知识条目', exact: true }).click();
+        releaseRefresh();
+        await expect(page.getByRole('button', { name: '刷新知识库', exact: true })).not.toHaveClass(
+          /is-loading/,
+        );
+        expect(heldRefresh).toBe(true);
+        await expect(page.getByRole('row').filter({ hasText: '办理材料说明' })).toBeVisible();
+      } finally {
+        releaseRefresh();
+        await page.unroute(reloadRoute, delayedRefresh);
+      }
       await page.reload();
       await expect(page.getByRole('row').filter({ hasText: '办理材料说明' })).toBeVisible();
       await page.getByRole('button', { name: '发布知识库', exact: true }).click();
@@ -244,10 +271,37 @@ export async function workspaceChecks({ page, origin, check, go }) {
   await check(
     'business debug three columns recover turns and missed questions enter review queue',
     async () => {
-      await go('/admin/business-debug', '业务调试');
-      await select('调试话术').click();
-      await page.getByRole('option', { name: 'Vue浏览器话术 · v1', exact: true }).click();
-      await page.getByLabel('调试名称', { exact: true }).fill('浏览器业务调试');
+      let releaseHistory;
+      let heldHistory = false;
+      const historyGate = new Promise((resolve) => {
+        releaseHistory = resolve;
+      });
+      const historyRoute = /\/api\/v1\/workspace\/debug-sessions$/;
+      const delayedHistory = async (route) => {
+        if (route.request().method() !== 'GET' || heldHistory) return route.continue();
+        heldHistory = true;
+        const response = await route.fetch();
+        await historyGate;
+        await route.fulfill({ response });
+      };
+      await page.route(historyRoute, delayedHistory);
+      try {
+        await go('/admin/business-debug', '业务调试');
+        await select('调试话术').click();
+        await page.getByRole('option', { name: 'Vue浏览器话术 · v1', exact: true }).click();
+        await page.getByLabel('调试名称', { exact: true }).fill('浏览器业务调试');
+        releaseHistory();
+        await expect(
+          page.getByRole('button', { name: '新建调试会话', exact: true }),
+        ).not.toHaveClass(/is-loading/);
+        expect(heldHistory).toBe(true);
+        await expect(
+          page.locator('.el-select__selected-item').filter({ hasText: 'Vue浏览器话术 · v1' }),
+        ).toBeVisible();
+      } finally {
+        releaseHistory();
+        await page.unroute(historyRoute, delayedHistory);
+      }
       await page.getByRole('button', { name: '新建调试会话', exact: true }).click();
       await page.getByLabel('业务调试输入', { exact: true }).fill('贷款利率优惠是多少？');
       await page.getByRole('button', { name: '发送调试输入', exact: true }).click();

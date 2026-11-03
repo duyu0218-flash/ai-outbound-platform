@@ -8,7 +8,7 @@ const route = useRoute(),
   scripts = useData('/api/v1/workspace/scripts?size=200');
 const history = ref([]),
   active = ref(null),
-  selected = ref(null),
+  selected = ref(route.query.script_id ? Number(route.query.script_id) : null),
   name = ref('业务调试'),
   variables = ref({}),
   text = ref(''),
@@ -81,7 +81,6 @@ async function end() {
 onMounted(() =>
   run(async () => {
     await load();
-    selected.value = route.query.script_id || null;
     if (route.query.session_id) await open(route.query.session_id);
   }),
 );

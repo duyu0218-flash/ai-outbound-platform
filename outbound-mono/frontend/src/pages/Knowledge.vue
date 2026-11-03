@@ -100,7 +100,7 @@ function remember() {
       query: { ...route.query, library: selected.value.object_id, tab: tab.value },
     });
 }
-async function loadLibrary(id, preferred = tab.value) {
+async function loadLibrary(id, preferred) {
   const [lib, versions] = await Promise.all([
     request('/api/v1/workspace/libraries/' + id),
     request(`/api/v1/workspace/libraries/${id}/history`),
@@ -109,7 +109,8 @@ async function loadLibrary(id, preferred = tab.value) {
   selected.value = lib;
   model.value = clone(lib.draft);
   history.value = versions;
-  tab.value = allowedTabs.includes(preferred) ? preferred : 'entries';
+  const nextTab = preferred ?? tab.value;
+  tab.value = allowedTabs.includes(nextTab) ? nextTab : 'entries';
   remember();
 }
 async function reload() {
