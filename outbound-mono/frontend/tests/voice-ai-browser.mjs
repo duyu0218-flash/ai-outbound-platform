@@ -20,6 +20,57 @@ async function reloadActive() {
   await page.reload();
   if (id) await page.locator('#' + id).click();
 }
+async function saveCredentials(key, holdResponse = false) {
+  const save = page.getByRole('button', { name: '加密保存供应商配置', exact: true });
+  const pattern = '**/api/v1/admin/voice-ai/configuration';
+  let release, reached, finished;
+  const held = new Promise((resolve) => {
+    reached = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const handled = new Promise((resolve) => {
+    finished = resolve;
+  });
+  if (holdResponse)
+    await page.route(pattern, async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      try {
+        const response = await route.fetch();
+        reached();
+        await gate;
+        await route.fulfill({ response });
+      } finally {
+        finished();
+      }
+    });
+  const response = page.waitForResponse(
+    (r) =>
+      r.url().endsWith('/api/v1/admin/voice-ai/configuration') && r.request().method() === 'PUT',
+  );
+  try {
+    await save.click();
+    if (holdResponse) {
+      await held;
+      await expect(page.getByLabel(key, { exact: true })).toBeDisabled();
+      await expect(
+        page.getByRole('combobox', { name: '凭据配置方案', exact: true }),
+      ).toBeDisabled();
+      await expect(save).toBeDisabled();
+      release();
+    }
+    expect((await response).ok()).toBe(true);
+    await expect(save).not.toHaveClass(/is-loading/);
+    await expect(page.getByLabel(key, { exact: true })).toHaveValue('');
+  } finally {
+    if (holdResponse) {
+      release();
+      await handled;
+      await page.unroute(pattern);
+    }
+  }
+}
 async function login(role) {
   await page.goto(origin + '/admin/login');
   await page.getByLabel('用户名', { exact: true }).fill('voice-browser-' + role);
@@ -57,8 +108,7 @@ try {
       await select('凭据配置方案').click();
       await page.getByRole('option', { name, exact: true }).click();
       await page.getByLabel(key, { exact: true }).fill('ui-synthetic-private-key');
-      await page.getByRole('button', { name: '加密保存供应商配置', exact: true }).click();
-      await expect(page.getByLabel(key, { exact: true })).toHaveValue('');
+      await saveCredentials(key, name === '阿里云三段式');
       await reloadActive();
       await select('凭据配置方案').click();
       await page.getByRole('option', { name, exact: true }).click();
@@ -68,7 +118,7 @@ try {
       );
       await expect(page.locator('body')).not.toContainText('ui-synthetic-private-key');
       await page.getByRole('button', { name: '清空 ' + key, exact: true }).click();
-      await page.getByRole('button', { name: '加密保存供应商配置', exact: true }).click();
+      await saveCredentials(key);
       await expect(page.getByRole('button', { name: '清空 ' + key, exact: true })).toHaveCount(0);
     }
     await page.getByRole('tab', { name: '接入能力', exact: true }).click();
