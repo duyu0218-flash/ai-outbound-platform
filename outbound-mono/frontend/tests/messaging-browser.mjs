@@ -75,7 +75,7 @@ export async function messagingChecks({ page, origin, check }) {
       /msg_[A-Za-z0-9_-]+/,
     )?.[0];
     expect(sentId).toBeTruthy();
-    const sentRow = row(sentId);
+    const sentRow = page.locator('.el-table__body .el-table__row').filter({ hasText: sentId });
     await saved();
     await tab('发送记录');
     await expect
@@ -87,15 +87,15 @@ export async function messagingChecks({ page, origin, check }) {
         },
         { timeout: 20000 },
       )
-      .toContain('DELIVERED');
+      .toContain('已送达');
     await sentRow.getByRole('button', { name: '详情', exact: true }).click();
     await expect(page.getByRole('heading', { name: '消息详情', exact: true })).toBeVisible();
-    await expect(page.getByText('message.delivered', { exact: true })).toBeVisible();
+    await expect(page.getByText('消息已送达', { exact: true })).toBeVisible();
     await saved();
     await page.getByRole('button', { name: '返回列表', exact: true }).click();
     await expect(page.getByRole('heading', { name: '消息详情', exact: true })).toHaveCount(0);
     await sentRow.getByRole('button', { name: '模拟退款', exact: true }).click();
-    await expect(page.getByText('REFUNDED', { exact: true })).toBeVisible();
+    await expect(sentRow).toContainText('已退款');
   });
   await check(
     'messaging application grants one-time secret revocation and browser history',
@@ -149,10 +149,15 @@ export async function messagingChecks({ page, origin, check }) {
     await page.getByRole('textbox', { name: '计划发送时间', exact: true }).fill(later);
     await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
     await expect(page.getByText(/已受理模拟消息/)).toBeVisible();
+    const cancelId = (await page.getByText(/已受理模拟消息/).textContent()).match(
+      /msg_[A-Za-z0-9_-]+/,
+    )?.[0];
+    expect(cancelId).toBeTruthy();
+    const cancelRow = page.locator('.el-table__body .el-table__row').filter({ hasText: cancelId });
     await saved();
     await tab('发送记录');
-    await page.getByRole('button', { name: '取消', exact: true }).first().click();
-    await expect(page.getByText('CANCELLED', { exact: true })).toBeVisible();
+    await cancelRow.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(cancelRow).toContainText('已取消');
     await saved();
     await tab('签名与模板');
     await choose('资源类型', '外呼联动规则');
@@ -214,9 +219,12 @@ export async function messagingChecks({ page, origin, check }) {
       .poll(async () => {
         await page.getByRole('button', { name: '刷新批次', exact: true }).click();
         await saved();
-        return page.locator('body').innerText();
+        return page
+          .getByRole('heading', { name: /^活动批次/ })
+          .locator('..')
+          .innerText();
       })
-      .toContain('ACCEPTED');
+      .toContain('已受理');
     await tab('效果分析');
     await page
       .getByRole('combobox', { name: '互动消息', exact: true })

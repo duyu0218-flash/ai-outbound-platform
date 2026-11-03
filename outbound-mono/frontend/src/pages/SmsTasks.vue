@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { request, session } from '../session';
 import { useData, action } from '../data';
+import { formatDate } from '../api';
+import { messageState, microAmount } from '../message-presentation';
 import ContactImport from '../components/ContactImport.vue';
 import ContactSelect from '../components/ContactSelect.vue';
 import AudiencePicker from '../components/AudiencePicker.vue';
@@ -25,6 +27,8 @@ const current = ref(null),
   importing = ref(false),
   check = ref(null),
   detail = ref(null);
+const detailPlan = computed(() => detail.value?.published || detail.value?.draft || {});
+const detailFields = computed(() => detailPlan.value.variable_schema?.fields || []);
 watch(
   () => detail.value?.object_id,
   () => {
@@ -294,10 +298,53 @@ async function imported(v) {
         >停止后续提交</el-button
       ><el-button @click="view(detail)">刷新进度</el-button
       ><el-button @click="$router.push('/admin/sms/records')">查看发送记录与送达</el-button>
+      <h3>任务内容与发送安排</h3>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="短信产品">{{
+          detailPlan.product_name || '未选择'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="短信签名">{{
+          detailPlan.sender_name || '未选择'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="短信模板">{{
+          detailPlan.template_name || '未选择'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="冻结版本">{{
+          detail.published_version ? 'v' + detail.published_version : '草稿，尚未启动'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="名单人数"
+          >{{ detailPlan.recipient_count || 0 }} 人</el-descriptions-item
+        >
+        <el-descriptions-item label="模拟预算上限">{{
+          microAmount(detailPlan.budget)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="提交安排">{{
+          detailPlan.scheduled_at ? formatDate(detailPlan.scheduled_at) : '确认启动后提交'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="任务失效时间">{{
+          formatDate(detailPlan.expires_at)
+        }}</el-descriptions-item>
+      </el-descriptions>
       <h3>冻结名单与业务变量</h3>
       <el-table :data="detail.members?.rows || []"
-        ><el-table-column prop="contact_id" label="客户ID" /><el-table-column label="冻结变量"
-          ><template #default="{ row }">{{ row.variables }}</template></el-table-column
+        ><el-table-column label="客户"
+          ><template #default="{ row }"
+            ><p>{{ row.variables.name || '未填写姓名' }}</p>
+            <small>客户编号 {{ row.contact_id }}</small></template
+          ></el-table-column
+        >
+        <el-table-column label="手机号码"
+          ><template #default="{ row }">{{
+            row.variables.phone || '未填写'
+          }}</template></el-table-column
+        >
+        <el-table-column label="业务变量"
+          ><template #default="{ row }"
+            ><p v-for="field in detailFields" :key="field.key">
+              {{ field.label || field.key }}：{{ row.variables[field.key] ?? '未填写' }}
+            </p>
+            <span v-if="!detailFields.length">无需额外变量</span></template
+          ></el-table-column
         ></el-table
       ><el-pagination
         v-model:current-page="memberPage"
@@ -306,15 +353,30 @@ async function imported(v) {
         layout="prev,pager,next"
         @current-change="memberPageChanged"
       />
-      <pre>{{ detail.published || detail.draft }}</pre>
-      <p>流水批次 {{ detail.job?.chunks }}</p>
+      <h3>提交批次</h3>
+      <p>
+        已建立 {{ detail.job?.chunks?.length || 0 }} 个批次；批次受理后可在发送记录查看逐条送达。
+      </p>
       <el-collapse
         ><el-collapse-item
-          v-for="batch in detail.job?.batch_results || []"
+          v-for="(batch, index) in detail.job?.batch_results || []"
           :key="batch.id"
-          :title="batch.id + ' · ' + batch.state"
+          :title="'第' + (index + 1) + '批 · ' + messageState(batch.state)"
         >
-          <pre>{{ batch.results }}</pre>
+          <el-table :data="batch.results || []">
+            <el-table-column prop="client_item_id" label="客户编号" />
+            <el-table-column label="提交结果"
+              ><template #default="{ row }">{{
+                messageState(row.status)
+              }}</template></el-table-column
+            >
+            <el-table-column prop="message_id" label="消息编号" show-overflow-tooltip />
+            <el-table-column label="未受理原因"
+              ><template #default="{ row }">{{
+                row.error?.message || '—'
+              }}</template></el-table-column
+            >
+          </el-table>
         </el-collapse-item></el-collapse
       >
       <p>
@@ -323,9 +385,3 @@ async function imported(v) {
     ></el-drawer
   >
 </template>
-<style scoped>
-pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-</style>
