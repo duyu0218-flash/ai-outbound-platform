@@ -2,6 +2,14 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../session';
+import { formatDate } from '../api';
+import {
+  messageState,
+  billingState,
+  messageForm,
+  microAmount,
+  messageEvent,
+} from '../message-presentation';
 const route = useRoute(),
   router = useRouter();
 const sections = [
@@ -198,7 +206,7 @@ async function send() {
     headers: { 'Idempotency-Key': pendingSendKey.value },
   });
   pendingSendKey.value = '';
-  success.value = `已受理模拟消息 ${result.message_id}，当前状态 ${result.status}。`;
+  success.value = `已受理模拟消息 ${result.message_id}，当前状态${messageState(result.status)}。`;
   detail.value = result;
 }
 watch(message, () => (pendingSendKey.value = ''));
@@ -214,6 +222,17 @@ watch(
 async function open(row) {
   detail.value = await api('/messages/' + row.id);
   events.value = await api('/messages/' + row.id + '/events');
+}
+async function commandMessage(row, command) {
+  await run(async () => {
+    await api(
+      '/messages/' + row.id + '/' + command,
+      'POST',
+      command === 'refund' ? { reason: '控制台模拟退款' } : undefined,
+    );
+    success.value = command === 'refund' ? '模拟退款已入账' : '已取消并释放预占额度';
+    if ((detail.value?.id || detail.value?.message_id) === row.id) await open(row);
+  });
 }
 async function createApp() {
   newKey.value = await api('/applications', 'POST', {
@@ -455,15 +474,15 @@ onMounted(() => run(async () => {}));
     </el-card>
     <el-card v-if="batch"
       ><h3>活动批次 {{ batch.batch_id }}</h3>
-      <p>状态：{{ batch.state }}</p>
+      <p>状态：{{ messageState(batch.state) }}</p>
       <el-button @click="run(refreshBatch)">刷新批次</el-button
       ><DataGrid
         :rows="batch.results"
         :columns="[
           { key: 'client_item_id', label: '联系人' },
-          { key: 'status', label: '受理状态' },
+          { key: 'status', label: '受理状态', render: messageState },
           { key: 'message_id', label: '消息编号' },
-          { key: 'error', label: '拒绝原因' },
+          { key: 'error', label: '拒绝原因', render: (value) => value?.message || '—' },
         ]"
     /></el-card>
   </template>
@@ -522,33 +541,20 @@ onMounted(() => run(async () => {}));
         :columns="[
           { key: 'message_id', label: '消息编号' },
           { key: 'recipient_mask', label: '接收人' },
-          { key: 'requested_form', label: '形态' },
-          { key: 'status', label: '状态' },
-          { key: 'billing_state', label: '账务状态' },
-          { key: 'sales_amount', label: '模拟费用（微元）' },
+          { key: 'requested_form', label: '形态', render: messageForm },
+          { key: 'status', label: '状态', render: messageState },
+          { key: 'billing_state', label: '账务状态', render: billingState },
+          { key: 'sales_amount', label: '模拟费用', render: microAmount },
         ]"
         :pagination="20"
         ><template #actions="{ row }"
           ><el-button link @click="run(() => open(row))">详情</el-button
-          ><el-button
-            v-if="row.status === 'QUEUED'"
-            link
-            @click="
-              run(async () => {
-                await api('/messages/' + row.id + '/cancel', 'POST');
-                success = '已取消并释放预占额度';
-              })
-            "
+          ><el-button v-if="row.status === 'QUEUED'" link @click="commandMessage(row, 'cancel')"
             >取消</el-button
           ><el-button
             v-if="row.billing_state === 'SETTLED'"
             link
-            @click="
-              run(async () => {
-                await api('/messages/' + row.id + '/refund', 'POST', { reason: '控制台模拟退款' });
-                success = '模拟退款已入账';
-              })
-            "
+            @click="commandMessage(row, 'refund')"
             >模拟退款</el-button
           ></template
         ></DataGrid
@@ -556,12 +562,37 @@ onMounted(() => run(async () => {}));
     >
     <el-card v-if="detail"
       ><h3>消息详情</h3>
-      <pre>{{ JSON.stringify(detail, null, 2) }}</pre>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="消息编号">{{
+          detail.message_id || detail.id
+        }}</el-descriptions-item>
+        <el-descriptions-item label="接收号码">{{
+          detail.recipient_mask || '—'
+        }}</el-descriptions-item>
+        <el-descriptions-item label="消息形态">{{
+          messageForm(detail.requested_form)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="发送状态">{{
+          messageState(detail.status || detail.state)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="账务状态">{{
+          billingState(detail.billing_state)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="模拟费用">{{
+          microAmount(detail.sales_amount)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{
+          formatDate(detail.created_at)
+        }}</el-descriptions-item>
+        <el-descriptions-item label="完成时间">{{
+          detail.finished_at ? formatDate(detail.finished_at) : '尚未完成'
+        }}</el-descriptions-item>
+      </el-descriptions>
       <DataGrid
         :rows="events"
         :columns="[
           { key: 'sequence', label: '序号' },
-          { key: 'type', label: '事件' },
+          { key: 'type', label: '事件', render: messageEvent },
           { key: 'created_at', label: '发生时间', date: true },
         ]"
       /><el-button
@@ -714,11 +745,11 @@ onMounted(() => run(async () => {}));
       <DataGrid
         :rows="report.messages || []"
         :columns="[
-          { key: 'requested_form', label: '形态' },
-          { key: 'state', label: '状态' },
-          { key: 'billing_state', label: '账务状态' },
+          { key: 'requested_form', label: '形态', render: messageForm },
+          { key: 'state', label: '状态', render: messageState },
+          { key: 'billing_state', label: '账务状态', render: billingState },
           { key: 'messages', label: '消息数' },
-          { key: 'sales_amount_micro_cny', label: '报价合计（微元）' },
+          { key: 'sales_amount_micro_cny', label: '报价合计', render: microAmount },
         ]" />
       <p>报价合计按当前账务状态分组展示，退款和冻结不能计为净收入。</p>
       <DataGrid

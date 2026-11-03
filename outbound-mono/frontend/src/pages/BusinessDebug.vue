@@ -19,6 +19,59 @@ const publication = computed(
 );
 const fields = computed(() => publication.value?.import_fields || []);
 const latest = computed(() => active.value?.turns?.at(-1)?.result);
+const actionLabel = (value) =>
+  ({
+    speak: '继续沟通',
+    transfer: '转人工',
+    handoff: '转人工',
+    hangup: '结束沟通',
+    end: '结束沟通',
+    qualify: '记录意向',
+    wait: '等待回复',
+    clarify: '询问澄清',
+  })[value] || '流程处理';
+const intentLabel = (value) =>
+  ({
+    question: '客户提问',
+    affirm: '肯定',
+    deny: '否定',
+    busy: '稍后联系',
+    reject: '拒绝',
+    optout: '拒绝后续联系',
+    handoff: '请求人工',
+    human: '请求人工',
+    unknown: '未识别',
+    silence: '未回应',
+    greet: '问候',
+    interested: '有意向',
+  })[value] || '其他意图';
+const fieldLabel = (key) =>
+  ({ name: '客户姓名', phone: '手机号码' })[key] ||
+  [
+    ...(active.value?.snapshot.import_fields || []),
+    ...(active.value?.snapshot.policy?.slots || []),
+  ].find((f) => f.key === key)?.label ||
+  key;
+function displayValue(value) {
+  if (value == null || value === '') return '未填写';
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  if (Array.isArray(value)) return value.join('、');
+  if (typeof value === 'object') return displayValue(value.value);
+  return String(value);
+}
+function nodeLabel(value) {
+  if (value === 'opening') return '开场';
+  if (String(value || '').startsWith('collect:')) return '采集：' + fieldLabel(value.slice(8));
+  const node = active.value?.snapshot.flow?.graph?.nodes?.find(
+    (n) => String(n.id) === String(value),
+  );
+  return node?.data?.label || node?.label || node?.name || '流程节点';
+}
+const traceLabel = (value) =>
+  String(value).replace(
+    /(使用发布版本的未命中处理：)\s*(clarify|handoff|end)/,
+    (_, prefix, strategy) => prefix + actionLabel(strategy),
+  );
 async function run(fn) {
   if (busy.value) return;
   busy.value = true;
@@ -123,10 +176,29 @@ onMounted(() =>
           会话 {{ active.name }} · v{{ active.script_version }} ·
           {{ active.state === 'active' ? '进行中' : '已结束' }}
         </p>
-        <pre>{{ active.snapshot.variables }}</pre>
+        <dl v-if="Object.keys(active.snapshot.variables || {}).length" class="debug-values">
+          <template v-for="(value, key) in active.snapshot.variables" :key="key"
+            ><dt>{{ fieldLabel(key) }}</dt>
+            <dd>{{ displayValue(value) }}</dd></template
+          >
+        </dl>
+        <p v-else>未填写客户变量</p>
         <details>
-          <summary>冻结话术与知识</summary>
-          <pre>{{ active.snapshot }}</pre>
+          <summary>冻结版本摘要</summary>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="话术版本"
+              >v{{ active.script_version }}</el-descriptions-item
+            >
+            <el-descriptions-item label="业务目标">{{
+              active.snapshot.goal || active.snapshot.policy?.goal || '未设置'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="开场白">{{
+              active.snapshot.policy?.opening || '未设置'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="知识使用方式"
+              >使用创建会话时的发布版本，本轮命中在右侧显示</el-descriptions-item
+            >
+          </el-descriptions>
         </details>
         <el-button :disabled="active.state !== 'active'" @click="end">结束会话</el-button
         ><el-button
@@ -145,7 +217,7 @@ onMounted(() =>
         ><div v-for="turn in active.turns" :key="turn.id" class="debug-turn">
           <p>客户：{{ turn.input_text }}</p>
           <p>AI：{{ turn.result.reply || '（等待下一节点）' }}</p>
-          <small>第 {{ turn.turn_number }} 轮 · {{ turn.result.action }}</small>
+          <small>第 {{ turn.turn_number }} 轮 · {{ actionLabel(turn.result.action) }}</small>
         </div>
         <el-input
           v-model="text"
@@ -165,13 +237,27 @@ onMounted(() =>
     >
     <el-card header="逐轮观察"
       ><template v-if="latest"
-        ><p>节点：{{ latest.node }} · 意图：{{ latest.intent }} · 动作：{{ latest.action }}</p>
-        <p>客户变量 / 已采集字段</p>
-        <pre>{{ latest.variables }}</pre>
-        <p v-if="Object.keys(latest.pending_slot || {}).length">
-          等待确认：{{ latest.pending_slot }}
+        ><p>
+          节点：{{ nodeLabel(latest.node) }} · 意图：{{ intentLabel(latest.intent) }} · 动作：{{
+            actionLabel(latest.action)
+          }}
         </p>
-        <p v-if="Object.keys(latest.collected || {}).length">采集记录：{{ latest.collected }}</p>
+        <p>客户变量 / 已采集字段</p>
+        <dl v-if="Object.keys(latest.variables || {}).length" class="debug-values">
+          <template v-for="(value, key) in latest.variables" :key="key"
+            ><dt>{{ fieldLabel(key) }}</dt>
+            <dd>{{ displayValue(value) }}</dd></template
+          >
+        </dl>
+        <p v-else>尚无采集结果</p>
+        <p v-if="latest.pending_slot?.key">
+          等待确认：{{ fieldLabel(latest.pending_slot.key) }} ·
+          {{ displayValue(latest.pending_slot.value) }}
+        </p>
+        <p v-for="(value, key) in latest.collected || {}" :key="key">
+          {{ fieldLabel(key) }}：{{ displayValue(value) }} ·
+          {{ value.waived ? '已跳过' : value.confirmed ? '已确认' : '待确认' }}
+        </p>
         <p>知识命中</p>
         <div v-for="hit in latest.knowledge" :key="hit.id">
           <strong>{{ hit.title }} · v{{ hit.version }}</strong>
@@ -179,14 +265,19 @@ onMounted(() =>
           <small>{{ hit.source }}</small>
         </div>
         <el-empty v-if="!latest.knowledge.length" description="本轮无知识命中" />
-        <p v-for="trace in latest.trace" :key="trace">{{ trace }}</p>
+        <p v-for="trace in latest.trace" :key="trace">{{ traceLabel(trace) }}</p>
+        <details>
+          <summary>节点定位信息</summary>
+          <p>{{ latest.node }}</p>
+        </details>
         <el-button @click="router.push('/admin/knowledge?tab=gaps')"
           >查看待补知识</el-button
         ></template
       >
       <p>历史会话（点击恢复）</p>
       <el-button v-for="s in history" :key="s.id" link @click="run(() => open(s.id))"
-        >{{ s.name }} · v{{ s.script_version }} · {{ s.state }}</el-button
+        >{{ s.name }} · v{{ s.script_version }} ·
+        {{ s.state === 'active' ? '进行中' : '已结束' }}</el-button
       ></el-card
     >
   </div>
@@ -202,12 +293,17 @@ onMounted(() =>
   padding: 12px;
   border-bottom: 1px solid #e6e8ef;
 }
-pre {
-  white-space: pre-wrap;
+.debug-values {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+.debug-values dt {
+  color: #64748b;
+}
+.debug-values dd {
+  margin: 0;
   overflow-wrap: anywhere;
-  font-size: 12px;
-  max-height: 360px;
-  overflow: auto;
 }
 @media (max-width: 1100px) {
   .debug-grid {
