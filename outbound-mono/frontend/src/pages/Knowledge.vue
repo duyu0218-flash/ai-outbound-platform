@@ -100,7 +100,7 @@ function remember() {
       query: { ...route.query, library: selected.value.object_id, tab: tab.value },
     });
 }
-async function loadLibrary(id, preferred = tab.value) {
+async function loadLibrary(id, preferred) {
   const [lib, versions] = await Promise.all([
     request('/api/v1/workspace/libraries/' + id),
     request(`/api/v1/workspace/libraries/${id}/history`),
@@ -109,7 +109,8 @@ async function loadLibrary(id, preferred = tab.value) {
   selected.value = lib;
   model.value = clone(lib.draft);
   history.value = versions;
-  tab.value = allowedTabs.includes(preferred) ? preferred : 'entries';
+  const nextTab = preferred ?? tab.value;
+  tab.value = allowedTabs.includes(nextTab) ? nextTab : 'entries';
   remember();
 }
 async function reload() {
@@ -329,7 +330,9 @@ onBeforeUnmount(() => {
   <template v-else>
     <div class="actions">
       <el-button @click="closeLibrary">返回知识库列表</el-button><strong>{{ selected.name }}</strong
-      ><el-tag>已发布 v{{ selected.published_version }}</el-tag
+      ><el-tag>{{
+        selected.published_version > 0 ? `已发布 v${selected.published_version}` : '尚未发布'
+      }}</el-tag
       ><el-button :loading="busy" @click="run(reload)">刷新知识库</el-button
       ><el-button :loading="busy" @click="state('review')">提交审核</el-button
       ><el-button type="primary" :loading="busy" @click="publish">发布知识库</el-button

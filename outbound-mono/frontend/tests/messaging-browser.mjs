@@ -71,22 +71,30 @@ export async function messagingChecks({ page, origin, check }) {
     await page.getByRole('textbox', { name: '发送模板变量', exact: true }).fill('{"name":"客户"}');
     await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
     await expect(page.getByText(/已受理模拟消息/)).toBeVisible();
+    const sentId = (await page.getByText(/已受理模拟消息/).textContent()).match(
+      /msg_[A-Za-z0-9_-]+/,
+    )?.[0];
+    expect(sentId).toBeTruthy();
+    const sentRow = row(sentId);
     await saved();
     await tab('发送记录');
     await expect
-      .poll(async () => {
-        await page.getByRole('button', { name: '刷新', exact: true }).click();
-        await saved();
-        return page.locator('.el-table__body').first().innerText();
-      })
+      .poll(
+        async () => {
+          await page.getByRole('button', { name: '刷新', exact: true }).click();
+          await saved();
+          return sentRow.innerText();
+        },
+        { timeout: 20000 },
+      )
       .toContain('DELIVERED');
-    await page.getByRole('button', { name: '详情', exact: true }).first().click();
+    await sentRow.getByRole('button', { name: '详情', exact: true }).click();
     await expect(page.getByRole('heading', { name: '消息详情', exact: true })).toBeVisible();
     await expect(page.getByText('message.delivered', { exact: true })).toBeVisible();
     await saved();
     await page.getByRole('button', { name: '返回列表', exact: true }).click();
     await expect(page.getByRole('heading', { name: '消息详情', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: '模拟退款', exact: true }).first().click();
+    await sentRow.getByRole('button', { name: '模拟退款', exact: true }).click();
     await expect(page.getByText('REFUNDED', { exact: true })).toBeVisible();
   });
   await check(

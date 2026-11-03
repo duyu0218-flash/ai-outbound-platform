@@ -105,7 +105,10 @@ async function tick() {
   if (polling || busy.value || !valid()) return;
   polling = true;
   try {
-    if (jobs.value.some((x) => ['queued', 'parsing'].includes(x.state))) {
+    if (
+      jobs.value.some((x) => ['queued', 'parsing'].includes(x.state)) ||
+      (selected.value && ['queued', 'parsing'].includes(selected.value.state))
+    ) {
       await load();
       if (selected.value && ['queued', 'parsing'].includes(selected.value.state)) {
         const id = selected.value.id,
