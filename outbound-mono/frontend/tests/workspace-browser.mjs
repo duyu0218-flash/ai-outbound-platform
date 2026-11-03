@@ -48,6 +48,51 @@ export async function workspaceChecks({ page, origin, check, go }) {
       '浏览器agent',
     );
   });
+  await check(
+    'local script probe uses current edits without saving or changing publication',
+    async () => {
+      await go('/admin/scripts', '话术管理');
+      const source = page
+        .getByRole('row')
+        .filter({ has: page.getByRole('cell', { name: 'Vue浏览器话术', exact: true }) });
+      await source.getByRole('button', { name: '配置话术', exact: true }).click();
+      await expect(page.locator('.el-main .actions .el-tag')).toHaveText('已发布');
+      await page.getByRole('tab', { name: '知识与动作', exact: true }).click();
+      await page
+        .getByRole('combobox', { name: '关联知识库', exact: true })
+        .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')
+        .click();
+      await page.getByRole('option', { name: 'Vue知识库 · 发布v1', exact: true }).click();
+      await page.keyboard.press('Escape');
+      await page.getByRole('tab', { name: '调试', exact: true }).click();
+      await page.getByLabel('调试输入', { exact: true }).fill('预约咨询');
+      const writes = [];
+      const capture = (request) => {
+        if (request.method() === 'PUT' && request.url().endsWith('/draft'))
+          writes.push(request.url());
+      };
+      page.on('request', capture);
+      try {
+        await page.getByRole('button', { name: '本地预检', exact: true }).click();
+        await expect(page.locator('.knowledge-hit')).toContainText('预约咨询');
+        await expect(page.getByRole('region', { name: '话术预检结果' })).toContainText(
+          '未配置采集字段',
+        );
+        await expect(page.locator('.el-main .actions .el-tag')).toHaveText('已发布');
+        expect(writes).toEqual([]);
+      } finally {
+        page.off('request', capture);
+      }
+      await page.reload();
+      await expect(source).toContainText('已发布');
+      await source.getByRole('button', { name: '配置话术', exact: true }).click();
+      await page.getByRole('tab', { name: '知识与动作', exact: true }).click();
+      await expect(
+        page.locator('.el-select__selected-item').filter({ hasText: 'Vue知识库' }),
+      ).toHaveCount(0);
+      await page.getByRole('button', { name: '返回话术列表', exact: true }).click();
+    },
+  );
   await check('SMS signature template list approval version copy and reload', async () => {
     await go('/admin/sms/content', '签名与模板');
     await page.getByRole('button', { name: '新建模板', exact: true }).click();

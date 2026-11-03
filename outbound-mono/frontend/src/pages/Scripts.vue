@@ -29,6 +29,25 @@ const selected = ref(null),
 const users = useData('/api/v1/admin/users?page=1&size=200');
 const rows = computed(() => query.data.value?.rows || []);
 const labels = { draft: '草稿', published: '已发布', review: '待审核', disabled: '已停用' };
+const intents = {
+  continue: '继续沟通',
+  question: '客户提问',
+  unclear: '需要澄清',
+  stop_contact: '要求停止联系',
+  wrong_person: '非本人或号码错误',
+  cancel_callback: '取消回访',
+  callback: '要求回访',
+  decline_handoff: '不需要转人工',
+  handoff: '要求转人工',
+  end: '结束沟通',
+  wait: '请稍候',
+  machine_candidate: '疑似语音信箱',
+  rejected: '明确拒绝',
+  permission_to_listen: '愿意继续了解',
+  interested: '表达意向',
+  affirm: '肯定回应',
+  deny: '否定回应',
+};
 const basic = computed(() => [
   { key: 'name', label: '话术名称', required: true },
   { key: 'category', label: '业务分类', required: true },
@@ -312,15 +331,15 @@ onMounted(async () => {
     /></el-card>
     <el-card v-if="tab === 'debug'"
       ><el-alert
-        title="本地预检不调用模型、不拨号、不生成业务线索。检索按关键词和中文片段匹配。"
+        title="预检当前编辑内容，不保存草稿、不改变发布状态。仅使用本地规则与已发布知识，不调用模型或拨号。"
         :closable="false"
       /><el-input v-model="sample" aria-label="调试输入" style="margin: 16px 0" /><el-button
         :loading="busy"
         @click="
           run(async () => {
-            await save();
             probe = await request(`/api/v1/workspace/scripts/${selected.id}/probe`, 'POST', {
               query: sample,
+              draft: model,
             });
           })
         "
@@ -329,7 +348,33 @@ onMounted(async () => {
         @click="$router.push({ path: '/admin/bailian-trial', query: { script_id: selected.id } })"
         >语音对话调试</el-button
       >
-      <pre v-if="probe">{{ probe }}</pre>
+      <section v-if="probe" aria-label="话术预检结果" class="probe-result">
+        <h3>规则识别</h3>
+        <el-tag>{{ intents[probe.intent] || '需要人工确认' }}</el-tag>
+        <p class="muted">这是本地规则识别结果，实际回复和执行动作需另行验证。</p>
+        <h3>命中知识</h3>
+        <el-card v-for="hit in probe.knowledge" :key="hit.id" shadow="never" class="knowledge-hit">
+          <strong>{{ hit.title }}</strong>
+          <p>{{ hit.content }}</p>
+          <small>知识版本 v{{ hit.version || '—' }} · 来源：{{ hit.source || '未填写' }}</small>
+        </el-card>
+        <el-empty
+          v-if="!probe.knowledge?.length"
+          description="未命中已发布知识，请检查业务范围、问法和有效期；实际沟通应澄清或转人工。"
+        />
+        <h3>待采集字段</h3>
+        <p class="muted">以下为配置中的采集要求，本地预检不会提取或保存客户信息。</p>
+        <el-table v-if="probe.slots?.length" :data="probe.slots">
+          <el-table-column prop="label" label="字段名称" />
+          <el-table-column prop="question" label="询问话术" />
+          <el-table-column label="必采"
+            ><template #default="{ row }">{{
+              row.required ? '是' : '否'
+            }}</template></el-table-column
+          >
+        </el-table>
+        <p v-else>未配置采集字段</p>
+      </section>
     </el-card>
     <el-card v-if="tab === 'history'"
       ><el-table :data="history"
@@ -353,3 +398,18 @@ onMounted(async () => {
       @submit="create" /></el-dialog
   ><FlowDesigner v-if="flow" :template="flow" @close="flow = null" />
 </template>
+<style scoped>
+.probe-result {
+  margin-top: 24px;
+}
+.knowledge-hit {
+  margin: 12px 0;
+}
+.knowledge-hit p {
+  white-space: pre-wrap;
+}
+.muted,
+.knowledge-hit small {
+  color: #64748b;
+}
+</style>
