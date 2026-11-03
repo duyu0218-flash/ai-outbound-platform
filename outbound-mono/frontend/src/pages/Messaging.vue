@@ -538,6 +538,7 @@ onMounted(() => run(async () => {}));
     ><el-card
       ><DataGrid
         :rows="rows"
+        :loading="busy"
         :columns="[
           { key: 'message_id', label: '消息编号' },
           { key: 'recipient_mask', label: '接收人' },
@@ -548,12 +549,17 @@ onMounted(() => run(async () => {}));
         ]"
         :pagination="20"
         ><template #actions="{ row }"
-          ><el-button link @click="run(() => open(row))">详情</el-button
-          ><el-button v-if="row.status === 'QUEUED'" link @click="commandMessage(row, 'cancel')"
+          ><el-button link :disabled="busy" @click="run(() => open(row))">详情</el-button
+          ><el-button
+            v-if="row.status === 'QUEUED'"
+            link
+            :disabled="busy"
+            @click="commandMessage(row, 'cancel')"
             >取消</el-button
           ><el-button
             v-if="row.billing_state === 'SETTLED'"
             link
+            :disabled="busy"
             @click="commandMessage(row, 'refund')"
             >模拟退款</el-button
           ></template
@@ -596,6 +602,7 @@ onMounted(() => run(async () => {}));
           { key: 'created_at', label: '发生时间', date: true },
         ]"
       /><el-button
+        :disabled="busy"
         @click="
           detail = null;
           events = [];

@@ -88,7 +88,36 @@ export async function messagingChecks({ page, origin, check }) {
         { timeout: 20000 },
       )
       .toContain('已送达');
-    await sentRow.getByRole('button', { name: '详情', exact: true }).click();
+    let releaseDetail;
+    const detailGate = new Promise((resolve) => {
+      releaseDetail = resolve;
+    });
+    const detailPath = origin + '/api/v1/admin/messaging/messages/' + sentId;
+    let detailRequested = false;
+    let finishDetail;
+    const detailDone = new Promise((resolve) => {
+      finishDetail = resolve;
+    });
+    const delayedDetail = async (route) => {
+      detailRequested = true;
+      try {
+        const response = await route.fetch();
+        await detailGate;
+        await route.fulfill({ response });
+      } finally {
+        finishDetail();
+      }
+    };
+    await page.route(detailPath, delayedDetail);
+    try {
+      await sentRow.getByRole('button', { name: '详情', exact: true }).click();
+      await expect.poll(() => detailRequested).toBe(true);
+      await expect(sentRow.getByRole('button', { name: '模拟退款', exact: true })).toBeDisabled();
+    } finally {
+      releaseDetail();
+      if (detailRequested) await detailDone;
+      await page.unroute(detailPath, delayedDetail);
+    }
     await expect(page.getByRole('heading', { name: '消息详情', exact: true })).toBeVisible();
     await expect(page.getByText('消息已送达', { exact: true })).toBeVisible();
     await saved();
