@@ -97,13 +97,15 @@ function configInput(field) {
       : field.value;
 }
 async function saveConfiguration() {
+  if (configSaving.value || configuration.loading.value) return;
   configSaving.value = true;
   error.value = '';
   try {
     await request('/api/v1/admin/voice-ai/configuration', 'PUT', { changes: configChanges.value });
     if (!valid()) return;
-    configChanges.value = {};
     await Promise.all([configuration.load(), profiles.load()]);
+    if (!valid()) return;
+    configChanges.value = {};
     ElMessage.success('供应商配置已加密保存，仅后续新测试和新通话使用。');
   } catch (e) {
     if (valid()) error.value = e.message;
@@ -381,7 +383,11 @@ initialize();
       凭据，无需云网站登录密码。密钥加密保存，只显示配置状态；留空不修改，密钥点击清空后保存可停用该字段，模型留空使用系统默认值。火山新版
       API Key 与对应完整 AppID＋Token 二选一，优先使用 API Key。
     </p>
-    <el-form label-width="185px" @submit.prevent="saveConfiguration">
+    <el-form
+      label-width="185px"
+      :disabled="configSaving || configuration.loading.value"
+      @submit.prevent="saveConfiguration"
+    >
       <el-form-item label="配置方案"
         ><el-select v-model="configProfile" aria-label="凭据配置方案"
           ><el-option value="bailian-app" label="百炼语音应用" /><el-option
