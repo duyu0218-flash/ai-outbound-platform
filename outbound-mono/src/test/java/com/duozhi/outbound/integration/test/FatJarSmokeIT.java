@@ -152,6 +152,23 @@ class FatJarSmokeIT {
             assertThat(metrics.statusCode()).isEqualTo(200);
             assertThat(metrics.body())
                     .contains("ai_outbound_process_id", "ai_outbound_jvm_threads");
+            var prometheus =
+                    client.send(
+                            HttpRequest.newBuilder(URI.create(origin + "/actuator/prometheus"))
+                                    .header("Authorization", "Bearer " + env.get("METRICS_TOKEN"))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            assertThat(prometheus.statusCode()).isEqualTo(200);
+            assertThat(prometheus.body()).contains("ai_outbound_up", "ai_outbound_process_id");
+            for (String phase : List.of("wait", "hold"))
+                for (String scope : List.of("platform", "identity", "partition"))
+                    assertThat(prometheus.body())
+                            .contains(
+                                    "outbound_lock_"
+                                            + phase
+                                            + "_seconds_count{scope=\""
+                                            + scope
+                                            + "\"}");
             // Tomcat's "Started" log precedes ApplicationRunner's development account seed.
             boolean seeded = false;
             try (var db =
