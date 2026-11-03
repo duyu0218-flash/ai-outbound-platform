@@ -29,7 +29,12 @@ function edit(row) {
       : {
           name: '',
           enabled: true,
-          settings: { after_call_seconds: 0, queue_timeout_seconds: 60, personal_override: false },
+          settings: {
+            routing_skills: [],
+            after_call_seconds: 0,
+            queue_timeout_seconds: 60,
+            personal_override: false,
+          },
           members: [],
         },
   );
@@ -118,22 +123,22 @@ onMounted(load);
         ><el-checkbox v-model="m.is_lead">组长</el-checkbox>
       </div>
       <template v-if="model.settings"
-        ><el-form-item label="接待技能"
+        ><el-form-item label="接听技能"
           ><el-select
             v-model="model.settings.routing_skills"
             multiple
             filterable
             allow-create
             default-first-option
-            aria-label="接待技能"
+            aria-label="接听技能"
             placeholder="例如：北京、口腔、普通话" /></el-form-item
-        ><el-form-item label="通话后整理秒数"
+        ><el-form-item label="通话后整理时长（秒）"
           ><el-input-number
             v-model="model.settings.after_call_seconds"
             :min="0"
             :max="600"
             aria-label="组整理秒数" /></el-form-item
-        ><el-form-item label="转接等待秒数"
+        ><el-form-item label="最长等待接听时长（秒）"
           ><el-input-number
             v-model="model.settings.queue_timeout_seconds"
             :min="5"

@@ -7,7 +7,12 @@ defineProps({ data: Object, items: Array });
     <el-card v-for="item in items" :key="item.key"
       ><span class="hint">{{ t(item.label || item.key) }}</span>
       <div class="metric-value">
-        {{ item.render ? item.render(data?.[item.key]) : (data?.[item.key] ?? 0)
+        {{
+          data?.[item.key] == null
+            ? '—'
+            : item.render
+              ? item.render(data[item.key])
+              : data[item.key]
         }}<small v-if="item.suffix"> {{ item.suffix }}</small>
       </div></el-card
     >

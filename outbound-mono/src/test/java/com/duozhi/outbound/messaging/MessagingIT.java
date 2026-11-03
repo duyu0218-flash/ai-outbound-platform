@@ -199,6 +199,8 @@ class MessagingIT {
                                         false),
                                 "expires_at",
                                 Instant.now().plusSeconds(3600).toString()));
+        // Keep adapter assertions independent of millisecond host/container clock drift.
+        body.put("scheduled_at", Instant.now().minusSeconds(5).toString());
     }
 
     @AfterEach

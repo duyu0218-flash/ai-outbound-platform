@@ -767,7 +767,14 @@ export function setLanguage(value) {
   document.documentElement.lang = value;
 }
 export function t(key, values = {}) {
-  let result = (language.value.startsWith('en') ? en : zh)[key] || key;
+  const aliases = {
+    human_only: 'humanOnly',
+    ai_only: 'aiOnly',
+    ai_handoff: 'aiHandoff',
+    ai_with_sms: 'aiWithSms',
+    not_consented: 'notConsented',
+  };
+  let result = (language.value.startsWith('en') ? en : zh)[aliases[key] || key] || key;
   for (const [name, value] of Object.entries(values))
     result = result.replaceAll('{{' + name + '}}', value);
   return result;

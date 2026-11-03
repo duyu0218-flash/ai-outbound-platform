@@ -15,6 +15,11 @@ const select = (label) =>
   page
     .getByRole('combobox', { name: label, exact: true })
     .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]');
+async function reloadActive() {
+  const id = await page.locator('.el-tabs__item.is-active').first().getAttribute('id');
+  await page.reload();
+  if (id) await page.locator('#' + id).click();
+}
 async function login(role) {
   await page.goto(origin + '/admin/login');
   await page.getByLabel('用户名', { exact: true }).fill('voice-browser-' + role);
@@ -24,9 +29,10 @@ async function login(role) {
 try {
   await check('login and menu entry', async () => {
     await login('admin');
-    await page.getByRole('menuitem').filter({ hasText: '语音方案对比' }).click();
-    await expect(page).toHaveURL(origin + '/admin/voice-ai');
-    await expect(page.getByRole('heading', { name: '语音方案对比' })).toBeVisible();
+    await page.getByRole('menuitem').filter({ hasText: '模型与语音服务' }).click();
+    await expect(page).toHaveURL(origin + '/admin/system/voice-ai');
+    await expect(page.getByRole('heading', { name: '模型与语音服务' })).toBeVisible();
+    await page.getByRole('tab', { name: '接入能力', exact: true }).click();
     await expect(page.getByText('缺少配置', { exact: true })).toHaveCount(6);
     await expect(
       page.getByTestId('voice-auth-modes').filter({ hasText: 'ASR：API Key；TTS：API Key' }),
@@ -39,6 +45,7 @@ try {
     ).toBeVisible();
   });
   await check('six credential panels save masked values and clear after reload', async () => {
+    await page.getByRole('tab', { name: '服务凭据', exact: true }).click();
     for (const [name, key] of [
       ['阿里云三段式', 'DASHSCOPE_API_KEY'],
       ['千问端到端实时语音', 'DASHSCOPE_API_KEY'],
@@ -52,7 +59,7 @@ try {
       await page.getByLabel(key, { exact: true }).fill('ui-synthetic-private-key');
       await page.getByRole('button', { name: '加密保存供应商配置', exact: true }).click();
       await expect(page.getByLabel(key, { exact: true })).toHaveValue('');
-      await page.reload();
+      await reloadActive();
       await select('凭据配置方案').click();
       await page.getByRole('option', { name, exact: true }).click();
       await expect(page.getByLabel(key, { exact: true })).toHaveAttribute(
@@ -64,9 +71,11 @@ try {
       await page.getByRole('button', { name: '加密保存供应商配置', exact: true }).click();
       await expect(page.getByRole('button', { name: '清空 ' + key, exact: true })).toHaveCount(0);
     }
+    await page.getByRole('tab', { name: '接入能力', exact: true }).click();
     await expect(page.getByText('缺少配置', { exact: true })).toHaveCount(6);
   });
   await check('route and provider switching persists after reload', async () => {
+    await page.getByRole('tab', { name: '默认通话组合', exact: true }).click();
     await select('技术路线').click();
     await page.getByRole('option', { name: '端到端实时语音', exact: true }).click();
     await select('供应商组合').click();
@@ -75,7 +84,7 @@ try {
     await page.getByRole('option', { name: '完整短句审核后播放', exact: true }).click();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('百度端到端实时语音');
-    await page.reload();
+    await reloadActive();
     await expect(page.getByTestId('active-voice-profile')).toHaveText('百度端到端实时语音');
     await expect(select('端到端播放方式')).toContainText('完整短句审核后播放');
     await select('技术路线').click();
@@ -92,7 +101,7 @@ try {
       .getByRole('textbox', { name: 'AI身份告知', exact: true })
       .fill('您好，我是AI智能语音助手。');
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
-    await page.reload();
+    await reloadActive();
     await expect(page.getByRole('spinbutton', { name: '短句判停毫秒', exact: true })).toHaveValue(
       '500',
     );
@@ -124,7 +133,7 @@ try {
     await select('话轮聚合').click();
     await page.getByRole('option', { name: '三段式灰度聚合', exact: true }).click();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
-    await page.reload();
+    await reloadActive();
     await expect(
       page.getByRole('spinbutton', { name: '最近对话记录条数', exact: true }),
     ).toHaveValue('8');
@@ -147,13 +156,14 @@ try {
     await select('话轮聚合').click();
     await page.getByRole('option', { name: '观察（保留当前触发方式）', exact: true }).click();
     await page.getByRole('button', { name: '保存通话方案', exact: true }).click();
-    await page.reload();
+    await reloadActive();
     await expect(select('话轮聚合')).toContainText('观察');
     await expect(
       page.getByRole('checkbox', { name: '并行准备语音合成', exact: true }),
     ).toBeChecked();
   });
   await check('snapshot audio set saved and reloaded', async () => {
+    await page.getByRole('tab', { name: '技术评测', exact: true }).click();
     await page.getByLabel('样本组名称', { exact: true }).fill('浏览器统一音频样本');
     await page.getByLabel('统一话术', { exact: true }).fill('固定话术：请简短介绍服务，不作承诺。');
     await page
@@ -165,7 +175,7 @@ try {
     await expect(
       page.getByTestId('voice-comparison-results').getByText('未配置', { exact: true }),
     ).toHaveCount(6, { timeout: 20000 });
-    await page.reload();
+    await reloadActive();
     await select('已保存样本组').click();
     await page.getByRole('option', { name: '浏览器统一音频样本', exact: true }).click();
     await expect(
@@ -181,6 +191,7 @@ try {
     await page.getByRole('option', { name: '浏览器统一音频样本', exact: true }).click();
   });
   await check('return path and restore legacy mode', async () => {
+    await page.getByRole('tab', { name: '默认通话组合', exact: true }).click();
     await select('供应商组合').click();
     await page.getByRole('option', { name: '原有链路', exact: true }).click();
     await expect(select('供应商组合')).toContainText('原有链路');
@@ -195,8 +206,8 @@ try {
     await expect(page.getByTestId('active-voice-profile')).toHaveText('原有链路');
     await page.getByRole('button', { name: '返回系统设置', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/settings');
-    await page.getByRole('button', { name: '供应商与技术路线对比', exact: true }).click();
-    await expect(page).toHaveURL(origin + '/admin/voice-ai');
+    await page.getByRole('button', { name: '模型与语音服务', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/admin/system/voice-ai');
   });
   await check('call details show frozen supplier and script fingerprint', async () => {
     await page.getByRole('menuitem').filter({ hasText: '通话记录' }).click();
@@ -206,7 +217,8 @@ try {
       page.getByText('百度端到端实时语音 · 端到端实时语音', { exact: true }),
     ).toBeVisible();
     await page.locator('.el-drawer__close-btn').click();
-    await page.getByRole('menuitem').filter({ hasText: '语音方案对比' }).click();
+    await page.getByRole('menuitem').filter({ hasText: '模型与语音服务' }).click();
+    await page.getByRole('tab', { name: '技术评测', exact: true }).click();
     await select('已保存样本组').click();
     await page.getByRole('option', { name: '浏览器统一音频样本', exact: true }).click();
     await expect(
@@ -216,7 +228,7 @@ try {
   await page.screenshot({ path: 'target/voice-ai-browser.png', fullPage: true });
   await check('logout redirects protected page to login', async () => {
     await page.getByRole('button', { name: '退出登录', exact: true }).click();
-    await page.goto(origin + '/admin/voice-ai');
+    await page.goto(origin + '/admin/system/voice-ai');
     await expect(page).toHaveURL(origin + '/admin/login');
   });
   expect(errors).toEqual([]);

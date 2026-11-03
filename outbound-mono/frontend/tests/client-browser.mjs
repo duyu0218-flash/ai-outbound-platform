@@ -20,18 +20,11 @@ export async function clientChecks({ page, origin, check }) {
     );
   await check('admin sidebar is grouped along the business chain', async () => {
     await page.goto(origin + '/admin');
-    const groups = await page.locator('.sidebar .nav-group').allTextContents();
-    expect(groups).toEqual([
-      '工作台',
-      '客户名单',
+    await expect(page.locator('.sidebar .nav-group')).toHaveText([
+      'AI 外呼',
+      '短信营销',
       '营销中台',
-      '话术与 AI',
-      '外呼执行',
-      '质检与线索',
-      '企业交付',
-      '数据分析',
-      '组织与权限',
-      '系统设置',
+      '系统',
     ]);
     await expect(page.getByRole('menuitem').filter({ hasText: '企业租户' })).toBeVisible();
   });

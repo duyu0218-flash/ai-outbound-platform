@@ -298,7 +298,16 @@ class DataLayerIT {
                             "client_lead",
                             "client_lead_event",
                             "client_staff_scope"));
-            assertThat(expectedTables).hasSize(105);
+            expectedTables.addAll(
+                    Set.of(
+                            "platform_document",
+                            "platform_publication",
+                            "platform_campaign_snapshot",
+                            "platform_contact_batch",
+                            "platform_contact_batch_member",
+                            "platform_contact_upload",
+                            "platform_contact_batch_error"));
+            assertThat(expectedTables).hasSize(112);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);

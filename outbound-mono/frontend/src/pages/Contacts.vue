@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
+import ContactImport from '../components/ContactImport.vue';
+import { download } from '../session';
 import { request } from '../session';
 import { useData, action } from '../data';
 import { t } from '../i18n';
+const importing = ref(false);
 const page = ref(1),
   keyword = ref(''),
   search = ref(''),
@@ -85,6 +88,9 @@ function reset() {
 </script>
 <template>
   <PageHeader title="contacts" description="contactHint"
+    ><el-button @click="importing = true">导入号码</el-button
+    ><el-button @click="download('/api/v1/contacts/import/template', '外呼名单导入模板.xlsx')"
+      >下载模板</el-button
     ><el-button type="primary" @click="edit()">{{ t('addContact') }}</el-button></PageHeader
   ><el-card
     ><div class="toolbar">
@@ -126,6 +132,6 @@ function reset() {
     :title="t(editing ? 'edit' : 'addContact')"
     destroy-on-close
     width="600px"
-    ><FieldForm :model="model" :fields="fields" :busy="busy" @submit="save"
-  /></el-dialog>
+    ><FieldForm :model="model" :fields="fields" :busy="busy" @submit="save" /></el-dialog
+  ><ContactImport v-model="importing" @imported="query.load" />
 </template>

@@ -28,6 +28,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ConversationPolicy {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
     private final Store store;
     private final JsonSupport json;
     private final Settings settings;
@@ -173,6 +176,18 @@ public class ConversationPolicy {
                 if (template != null && Boolean.TRUE.equals(template.get("is_active")))
                     script = Objects.toString(template.get("content"), "");
             }
+        }
+        var snapshot =
+                workspace == null
+                        ? null
+                        : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+        if (snapshot != null) {
+            var frozen = new LinkedHashMap<>((Map<String, Object>) snapshot.get("policy"));
+            frozen.put("_ai", policy.get("_ai"));
+            frozen.put("_knowledge", snapshot.get("knowledge"));
+            frozen.put("_workspace_script_version", snapshot.get("script_version"));
+            policy = frozen;
+            script = Objects.toString(snapshot.get("script"), "");
         }
         policy.put("_script", script);
         var result = JsonSupport.map("version", current.get("version"), "json", json.json(policy));

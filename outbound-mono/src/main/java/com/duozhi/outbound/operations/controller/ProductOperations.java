@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.*;
 @AdminPermission("product:write")
 @RequestMapping("/api/v1/product")
 public class ProductOperations {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
     private final Store store;
     private final Transactions tx;
     private final Contract contract;
@@ -64,7 +67,7 @@ public class ProductOperations {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> normalize(Map<String, Object> raw) {
+    public Map<String, Object> normalize(Map<String, Object> raw) {
         Map<String, Object> policy = contract.input("ScenarioPolicy", raw, true);
         policy.putIfAbsent("weekdays", Arrays.asList(0, 1, 2, 3, 4, 5, 6));
         policy.putIfAbsent("holidays", new ArrayList<>());
@@ -176,6 +179,8 @@ public class ProductOperations {
                     tx.platform();
                     tx.tenant(i.tenant());
                     campaign(i.tenant(), input.get("campaign_id"));
+                    if (workspace.campaignSnapshot(i.tenant(), input.get("campaign_id")) != null)
+                        throw new ApiError(409, "新版任务使用发布快照，请在话术工作台修改并更新未运行任务");
                     Map<String, Object> current =
                             product.current(i.tenant(), input.get("campaign_id"));
                     if (!Objects.toString(current.get("version"), "")

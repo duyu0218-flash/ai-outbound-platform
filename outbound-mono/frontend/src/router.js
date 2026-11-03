@@ -2,91 +2,71 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { initialize, session } from './session';
 import { initializeClient, clientSession } from './client/session';
 const page = (name) => () => import(`./pages/${name}.vue`);
-// Grouped by the business chain: lists -> marketing -> scripts -> dialing -> QA/leads -> client delivery
-// -> analysis, followed by organisation and platform administration.
 export const adminMenu = [
   {
-    group: 'navWorkbench',
+    group: 'AI 外呼',
     items: [
-      ['', 'dashboard', 'Dashboard'],
-      ['operations/notices', '通知中心', 'OperationsNotices'],
+      ['', '外呼工作台', 'Dashboard'],
+      ['scripts', '话术管理', 'Scripts'],
+      ['knowledge', '知识库', 'Knowledge'],
+      ['campaigns', '外呼任务', 'Campaigns'],
+      ['calls', '通话记录', 'CallsWorkspace'],
+      ['quality', '质检复核', 'Quality'],
+      ['operations/leads', '线索与跟进', 'OperationsLeads'],
+      ['reports', '外呼报表', 'ReportsWorkspace'],
     ],
   },
   {
-    group: 'navContacts',
+    group: '短信营销',
     items: [
-      ['contacts', 'contacts', 'Contacts'],
-      ['contacts-operations', 'contactsOperations', 'ContactOperations'],
+      ['sms/overview', '短信概览', 'Messaging', 'overview'],
+      ['sms/content', '签名与模板', 'SmsAssets', 'content'],
+      ['sms/tasks', '发送任务', 'Messaging', 'campaigns'],
+      ['sms/records', '发送记录', 'Messaging', 'records'],
+      ['sms/analytics', '效果分析', 'Messaging', 'interactions'],
     ],
   },
-  // Marketing domain: each module owns its pages (see MARKETING-ARCHITECTURE.md).
   {
-    group: 'navMarketing',
+    group: '营销中台',
     items: [
+      ['contacts', '客户名单', 'ContactsWorkspace'],
       ['marketing/datasets', '数据包与撞库', 'MarketingDatasets'],
       ['marketing/segments', '人群圈选', 'MarketingSegments'],
+      ['marketing/journeys', '活动编排', 'MarketingJourneys'],
+      ['marketing/outcomes', '触达结果规则', 'MarketingOutcomes'],
+      ['marketing/profiles', '客户触达档案', 'MarketingProfiles'],
       ['marketing/links', '短链与域名', 'MarketingLinks'],
-      ['marketing/outcomes', '触达结果判定', 'MarketingOutcomes'],
-      ['marketing/journeys', '营销活动编排', 'MarketingJourneys'],
-      ['marketing/profiles', '用户触达档案', 'MarketingProfiles'],
-      ['marketing/dashboard', '营销漏斗看板', 'MarketingDashboard'],
+      ['marketing/dashboard', '营销漏斗', 'MarketingDashboard'],
     ],
   },
   {
-    group: 'navScripts',
+    group: '系统',
     items: [
-      ['scripts', 'scripts', 'Scripts'],
-      ['knowledge', 'knowledge', 'Knowledge'],
-      ['product', '业务交付策略', 'Product'],
-      ['voice-ai', '语音方案对比', 'VoiceAi'],
-      ['bailian-trial', '百炼业务试聊', 'BailianTrial'],
-    ],
-  },
-  {
-    group: 'navDialing',
-    items: [
-      ['campaigns', 'campaigns', 'Campaigns'],
-      ['calls', 'calls', 'Calls'],
-      ['operations/calls', '话单查询', 'OperationsCalls'],
-      ['messaging', '消息营销', 'Messaging'],
-    ],
-  },
-  {
-    group: 'navQuality',
-    items: [
-      ['quality', 'qualityReview', 'Quality'],
-      ['operations/leads', '线索与跟进', 'OperationsLeads'],
-    ],
-  },
-  { group: 'navClients', items: [['clients', 'clientTenants', 'Clients']] },
-  {
-    group: 'navAnalysis',
-    items: [
-      ['reports', 'reports', 'Reports'],
-      ['operations/reports', '运营分析', 'OperationsReports'],
-      ['group-monitor', 'groupMonitor', 'Groups'],
-      ['billing', 'billing', 'Billing'],
-    ],
-  },
-  {
-    group: 'navOrganization',
-    items: [
-      ['users', 'users', 'Users'],
-      ['operations/teams', '团队与权限', 'OperationsTeams'],
-      ['operations/workspace', '坐席个人配置', 'OperationsWorkspace'],
-    ],
-  },
-  {
-    group: 'navPlatform',
-    items: [
-      ['lines', 'lines', 'Lines'],
-      ['settings', 'settings', 'Settings'],
+      ['users', '账号与角色', 'Users'],
+      ['operations/teams', '团队与坐席', 'OperationsTeams'],
+      ['clients', '企业租户', 'Clients'],
+      ['lines', '线路与号码', 'Lines'],
+      ['system/voice-ai', '模型与语音服务', 'VoiceAi'],
+      ['system/messaging', '短信通道与接入', 'Messaging', 'developers'],
+      ['billing', '用量与费用', 'Billing'],
+      ['settings', '平台配置', 'Settings'],
       ['operations/configs', '表单标签与连接', 'OperationsConfigs'],
-      ['system', 'system', 'System'],
+      ['system', '监控与审计', 'System'],
     ],
   },
 ];
 export const adminNavigation = adminMenu.flatMap((section) => section.items);
+const hiddenAdmin = [
+  ['contacts-operations', 'ContactOperations'],
+  ['operations/calls', 'OperationsCalls'],
+  ['operations/reports', 'OperationsReports'],
+  ['group-monitor', 'Groups'],
+  ['product', 'Product'],
+  ['bailian-trial', 'BailianTrial'],
+  ['messaging', 'Messaging'],
+  ['operations/notices', 'OperationsNotices'],
+  ['operations/workspace', 'OperationsWorkspace'],
+];
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -102,12 +82,24 @@ export const router = createRouter({
       component: () => import('./Shell.vue'),
       props: { role: 'admin' },
       meta: { role: 'admin' },
-      children: adminNavigation.map(([path, label, name]) => ({
-        path,
-        component: page(name),
-        props: { role: 'admin' },
-        meta: { label },
-      })),
+      children: [
+        ...adminNavigation.map(([path, label, name, messagingSection]) => ({
+          path,
+          component: page(name),
+          props: { role: 'admin' },
+          meta: { label, messagingSection },
+        })),
+        ...hiddenAdmin.map(([path, name]) => ({
+          path,
+          component: page(name),
+          props: { role: 'admin' },
+          meta: { label: '业务工作区' },
+        })),
+        {
+          path: 'voice-ai',
+          redirect: (to) => ({ path: '/admin/system/voice-ai', query: to.query }),
+        },
+      ],
     },
     {
       path: '/agent',

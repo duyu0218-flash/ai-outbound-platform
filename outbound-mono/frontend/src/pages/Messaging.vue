@@ -5,17 +5,19 @@ import { request } from '../session';
 const route = useRoute(),
   router = useRouter();
 const sections = [
-  ['overview', '消息概览'],
-  ['content', '内容与主体'],
-  ['campaigns', '人群与活动'],
+  ['overview', '短信概览'],
+  ['content', '签名与模板'],
+  ['campaigns', '发送任务'],
   ['send', '发送消息'],
   ['records', '发送记录'],
-  ['interactions', '互动与成效'],
+  ['interactions', '效果分析'],
   ['developers', '应用接入'],
   ['billing', '账户与账本'],
 ];
 const section = computed(() =>
-  sections.some(([k]) => k === route.query.section) ? route.query.section : 'overview',
+  sections.some(([k]) => k === route.query.section)
+    ? route.query.section
+    : route.meta.messagingSection || 'overview',
 );
 const error = ref(''),
   success = ref(''),
@@ -40,7 +42,7 @@ const resources = reactive({
 const model = reactive({
   kind: 'template',
   name: '',
-  form: 'rcs',
+  form: route.path.startsWith('/admin/sms/') ? 'sms' : 'rcs',
   body: '',
   brand: '',
   unit_price: 1000,
@@ -235,7 +237,9 @@ async function refreshBatch() {
 onMounted(() => run(async () => {}));
 </script>
 <template>
-  <PageHeader title="消息营销" description="独立管理内容、人群、活动与下游应用"
+  <PageHeader
+    :title="route.path === '/admin/system/messaging' ? '短信通道与接入' : '短信营销'"
+    description="管理签名模板、发送任务、回执与营销效果"
     ><el-button :loading="busy" @click="run(async () => {})">刷新</el-button></PageHeader
   >
   <el-alert
@@ -252,10 +256,21 @@ onMounted(() => run(async () => {}));
   <el-alert v-if="error" :title="error" type="error" show-icon />
   <el-alert v-if="success" :title="success" type="success" show-icon />
   <el-tabs :model-value="section" @tab-change="(name) => router.push({ query: { section: name } })">
-    <el-tab-pane v-for="[name, label] in sections" :key="name" :name="name" :label="label" />
+    <el-tab-pane
+      v-for="[name, label] in sections.filter(([k]) =>
+        route.path.startsWith('/admin/sms/')
+          ? !['developers', 'billing'].includes(k)
+          : route.path === '/admin/system/messaging'
+            ? ['developers', 'billing'].includes(k)
+            : true,
+      )"
+      :key="name"
+      :name="name"
+      :label="label"
+    />
   </el-tabs>
   <el-card v-if="section === 'overview'">
-    <h2>消息业务工作台</h2>
+    <h2>短信业务概览</h2>
     <p>
       先建立产品、发送主体与模板，批准后可直接发送，也可组织人群活动。下游应用只能使用明确授权的资源。
     </p>

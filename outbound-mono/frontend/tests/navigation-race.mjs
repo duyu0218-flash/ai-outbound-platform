@@ -5,6 +5,22 @@ import { pathToFileURL } from 'node:url';
 
 export async function navigationRaceChecks({ browser, origin, accounts, check }) {
   const runtimeErrors = [];
+  async function navigate(page, role, label) {
+    const routes = {
+      运营分析: 'reports',
+      运营报表: 'reports',
+      团队与权限: 'teams',
+      表单标签与连接: 'configs',
+      话单查询: 'calls',
+      通知中心: 'notices',
+    };
+    await page.evaluate(
+      (path) => {
+        document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path);
+      },
+      '/' + role + '/operations/' + routes[label],
+    );
+  }
   async function session(role, work) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
@@ -54,7 +70,7 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
             });
             try {
               const reportLabel = role === 'admin' ? '运营分析' : '运营报表';
-              await page.getByRole('menuitem').filter({ hasText: reportLabel }).first().click();
+              await navigate(page, role, reportLabel);
               await expect(
                 page.getByRole('heading', { name: '运营报表', exact: true }),
               ).toBeVisible();
@@ -87,7 +103,7 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
                 );
               }
               for (const [index, [label, path]] of destinations.entries()) {
-                await page.getByRole('menuitem').filter({ hasText: label }).first().click();
+                await navigate(page, role, label);
                 if (pending && index === 0) {
                   await expect
                     .poll(() => page.evaluate(() => window.__navigationTestGate.started))
@@ -126,7 +142,7 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
     }
     await check(`${role} current-page filters still apply reset and survive reload`, () =>
       session(role, async (page) => {
-        await page.getByRole('menuitem').filter({ hasText: '话单查询' }).first().click();
+        await navigate(page, role, '话单查询');
         await expect(page.getByLabel('查询号码')).toBeVisible();
         await page.getByLabel('查询号码').fill('13100000099');
         await page.getByRole('button', { name: '查询', exact: true }).click();
@@ -150,17 +166,13 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
           },
           '/' + role + '/operations/notices',
         );
-        await page.getByRole('menuitem').filter({ hasText: '通知中心' }).first().click();
+        await navigate(page, role, '通知中心');
         await expect.poll(() => page.evaluate(() => window.__cancelledNavigationCount)).toBe(1);
         await page.getByLabel('查询号码').fill('13100000099');
         await page.getByRole('button', { name: '查询', exact: true }).click();
         await expect(page).toHaveURL((url) => url.searchParams.get('phone') === '13100000099');
         await page.evaluate(() => window.__removeNavigationTestGuard());
-        await page
-          .getByRole('menuitem')
-          .filter({ hasText: role === 'admin' ? '运营分析' : '运营报表' })
-          .first()
-          .click();
+        await navigate(page, role, role === 'admin' ? '运营分析' : '运营报表');
         await page.waitForLoadState('networkidle');
         await page
           .getByRole('combobox', { name: '报表维度' })

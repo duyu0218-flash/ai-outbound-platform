@@ -4,8 +4,8 @@ import SettingSection from '../components/SettingSection.vue';
 </script>
 <template>
   <PageHeader title="settings" description="settingsHint"
-    ><el-button @click="$router.push('/admin/voice-ai')"
-      >供应商与技术路线对比</el-button
+    ><el-button @click="$router.push('/admin/system/voice-ai')"
+      >模型与语音服务</el-button
     ></PageHeader
   ><el-card
     ><el-tabs

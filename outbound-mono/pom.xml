@@ -32,6 +32,11 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>6.0.0</version>
+        </dependency>
         <!-- Boot 4 compatibility bridge for the existing Jackson 2 business contracts. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

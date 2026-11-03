@@ -24,21 +24,34 @@ try {
     await page.getByLabel('用户名', { exact: true }).fill(process.env.BAILIAN_TEST_USER);
     await page.getByLabel('密码', { exact: true }).fill('SyntheticTrialPass123!');
     await page.getByRole('button', { name: '登录', exact: true }).click();
-    await page.getByRole('menuitem').filter({ hasText: '百炼业务试聊' }).click();
-    await expect(page.getByRole('heading', { name: '百炼业务试聊' })).toBeVisible();
+    await expect(page).toHaveURL(origin + '/admin');
+    await page.goto(origin + '/admin/bailian-trial');
+    await expect(page.getByRole('heading', { name: '话术语音调试' })).toBeVisible();
   });
   await check('configuration encrypted save and reload', async () => {
-    await page.getByText('百炼账号与应用配置', { exact: true }).click();
-    await page.getByLabel('已发布应用版本标记', { exact: true }).fill('browser-v1');
+    await page.getByRole('button', { name: '模型与语音服务', exact: true }).click();
     await page
-      .getByLabel('业务透传目标 ID（插件或 Agent）', { exact: true })
-      .fill('plugin-fixture');
-    await page.getByRole('button', { name: '加密保存百炼配置' }).click();
-    await expect(page.getByText('配置已加密保存', { exact: true })).toBeVisible();
+      .getByRole('combobox', { name: '凭据配置方案', exact: true })
+      .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')
+      .click();
+    await page.getByRole('option', { name: '百炼语音应用', exact: true }).click();
+    await page.getByLabel('VOICE_AI_BAILIAN_APP_REVISION', { exact: true }).fill('browser-v1');
+    await page.getByLabel('VOICE_AI_BAILIAN_TOOL_TARGET', { exact: true }).fill('plugin-fixture');
+    await page.getByRole('button', { name: '加密保存供应商配置', exact: true }).click();
+    await expect(
+      page.getByText('供应商配置已加密保存，仅后续新测试和新通话使用。', { exact: true }),
+    ).toBeVisible();
     await page.reload();
-    await page.getByText('百炼账号与应用配置', { exact: true }).click();
-    await expect(page.getByLabel('已发布应用版本标记', { exact: true })).toHaveValue('browser-v1');
-    await expect(page.getByLabel('百炼 API Key', { exact: true })).toHaveValue('');
+    await page
+      .getByRole('combobox', { name: '凭据配置方案', exact: true })
+      .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')
+      .click();
+    await page.getByRole('option', { name: '百炼语音应用', exact: true }).click();
+    await expect(page.getByLabel('VOICE_AI_BAILIAN_APP_REVISION', { exact: true })).toHaveValue(
+      'browser-v1',
+    );
+    await expect(page.getByLabel('DASHSCOPE_API_KEY', { exact: true })).toHaveValue('');
+    await page.goto(origin + '/admin/bailian-trial');
   });
   await check('create browser-only trial with default native mode and frozen price', async () => {
     await expect(page.getByRole('radio', { name: '百炼原生（默认）', exact: true })).toBeChecked();
@@ -108,10 +121,10 @@ try {
   });
   await check('return route and source entry', async () => {
     await page.goto(origin + '/admin/bailian-trial');
-    await page.getByRole('button', { name: '返回语音方案对比' }).click();
-    await expect(page).toHaveURL(origin + '/admin/voice-ai');
-    await page.getByRole('button', { name: '百炼多模态套件业务试聊' }).click();
-    await expect(page).toHaveURL(origin + '/admin/bailian-trial');
+    await page.getByRole('button', { name: '返回话术管理', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/admin/scripts');
+    await page.goto(origin + '/admin/bailian-trial');
+    await expect(page.getByRole('heading', { name: '话术语音调试' })).toBeVisible();
   });
   await check('optional review mode, separate costs and persistent history filters', async () => {
     await page.getByText('独立 ASR + 二次审核（对照）', { exact: true }).click();

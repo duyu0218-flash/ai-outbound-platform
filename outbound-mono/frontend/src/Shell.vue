@@ -10,7 +10,9 @@ const props = defineProps({ role: String }),
   router = useRouter(),
   collapsed = ref(false),
   healthy = ref(null);
-const opsProfile = ref(null);
+const opsProfile = ref(null),
+  groupOpen = ref({}),
+  helpOpen = ref(false);
 onMounted(() =>
   request('/api/v1/ops/me')
     .then((v) => (opsProfile.value = v))
@@ -88,9 +90,20 @@ async function leave() {
         active-text-color="#fff"
         ><el-menu-item-group v-for="section in navigation" :key="section.group"
           ><template #title
-            ><span v-if="!collapsed" class="nav-group">{{ t(section.group) }}</span
+            ><button
+              v-if="!collapsed"
+              class="nav-group nav-toggle"
+              :aria-label="'展开或收起' + t(section.group)"
+              :aria-expanded="groupOpen[section.group] !== false"
+              @click="groupOpen[section.group] = groupOpen[section.group] === false"
+            >
+              {{ t(section.group) }}</button
             ><span v-else class="nav-group-rule"></span></template
-          ><el-menu-item v-for="item in section.items" :key="item.path" :index="item.path"
+          ><el-menu-item
+            v-for="item in section.items"
+            :key="item.path"
+            :index="item.path"
+            v-show="collapsed || groupOpen[section.group] !== false"
             ><el-icon><span class="nav-dot"></span></el-icon
             ><template #title>{{ t(item.label) }}</template></el-menu-item
           ></el-menu-item-group
@@ -117,9 +130,55 @@ async function leave() {
             ><el-option label="中文" value="zh-CN" /><el-option
               label="English"
               value="en-US" /></el-select
-          ><span>{{ session.user?.full_name || session.user?.username }}</span
+          ><el-button link @click="router.push('/' + role + '/operations/notices')">通知</el-button>
+          <el-button link @click="router.push('/' + role + '/operations/workspace')"
+            >个人配置</el-button
+          >
+          <el-button link @click="helpOpen = true">帮助</el-button>
+          <span>{{ session.user?.full_name || session.user?.username }}</span
           ><el-button @click="leave">{{ t('logout') }}</el-button>
         </div></el-header
       ><el-main><router-view :key="route.path + ':' + session.epoch" /></el-main></el-container
   ></el-container>
+  <el-drawer v-if="helpOpen" v-model="helpOpen" title="操作帮助" size="420px">
+    <template v-if="role === 'admin'">
+      <h3>创建一次外呼任务</h3>
+      <ol>
+        <li>在客户名单下载模板，填写号码并上传，核对预览与错误结果。</li>
+        <li>维护并发布业务知识，配置话术目标、采集字段和转人工策略。</li>
+        <li>发布话术版本，创建外呼任务，选择名单批次并核对拨打策略。</li>
+        <li>保存任务后另行启动。任务使用保存时的话术与知识快照。</li>
+        <li>查看通话证据、复核质检结果，在线索与跟进中处理后续工作。</li>
+      </ol>
+      <h3>短信营销</h3>
+      <p>
+        先配置签名和模板，内部批准后供任务使用。真实发送还需通道接入和供应商审核，模拟状态会在页面标明。
+      </p>
+      <h3>系统配置</h3>
+      <p>线路、模型凭据和通道由管理员维护；启用不等于已完成真实服务联调。</p>
+    </template>
+    <p v-else>
+      在工作台设置接听状态，处理分配给您的通话和线索。通话证据、跟进与个人配置按账号权限显示。
+    </p>
+  </el-drawer>
 </template>
+<style scoped>
+.nav-toggle {
+  display: block;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+.nav-toggle:after {
+  content: '⌄';
+  float: right;
+}
+.nav-toggle[aria-expanded='false']:after {
+  content: '›';
+}
+</style>

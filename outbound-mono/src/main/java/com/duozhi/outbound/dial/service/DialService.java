@@ -273,6 +273,11 @@ public class DialService {
                                 0, CallLifecycle.tenant(call), call.get("campaign_id")));
         if (version == null) return true;
         Map<String, Object> value = json.object(version.get("policy_json").toString());
+        if (!com.duozhi.outbound.workspace.service.TaskSchedule.isOpen(
+                value,
+                DialBatchScope.current() == null
+                        ? Instant.now()
+                        : DialBatchScope.current().instant)) return false;
         ZonedDateTime local =
                 (DialBatchScope.current() == null
                                 ? Instant.now()
