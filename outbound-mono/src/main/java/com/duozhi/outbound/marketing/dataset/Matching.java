@@ -7,6 +7,8 @@ import com.duozhi.outbound.marketing.common.*;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.*;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -369,6 +371,20 @@ public class Matching {
     }
 
     private void finish(long tenant, String id) {
+        try {
+            finishDatabaseState(tenant, id);
+        } catch (CannotAcquireLockException e) {
+            // Completion is database-only, with no permission to send a supplier request.
+            // A concurrent claim may deadlock this scan; leave the job for the next poll.
+            LoggerFactory.getLogger(Matching.class)
+                    .debug(
+                            "matching completion deferred after lock contention tenant={} job={}",
+                            tenant,
+                            id);
+        }
+    }
+
+    private void finishDatabaseState(long tenant, String id) {
         // A pending request whose send never reported back stays unresolved: never resent.
         db.write(
                 "UPDATE mk_match_request SET state='uncertain',code='PENDING_REVIEW',message='原调用结果待核对，未重复发送。' WHERE tenant_id=? AND job_id=? AND state='pending' AND sent_at < NOW(6) - INTERVAL 5 MINUTE",
