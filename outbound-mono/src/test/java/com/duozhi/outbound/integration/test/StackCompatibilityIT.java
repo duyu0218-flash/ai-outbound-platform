@@ -7,8 +7,12 @@ import ch.qos.logback.classic.spi.LogbackServiceProvider;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy;
 import com.alibaba.druid.pool.DruidDataSource;
+import com.duozhi.outbound.common.service.JvmPlatformLock;
+import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.voice.controller.VoiceController;
 import com.github.pagehelper.PageInterceptor;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -31,6 +35,7 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.*;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -73,6 +78,7 @@ class StackCompatibilityIT {
         properties.add("spring.ai.openai.base-url", () -> "http://127.0.0.1:9");
         properties.add("spring.ai.openai.api-key", () -> "compatibility-test-not-a-real-key");
         properties.add("spring.ai.openai.chat.options.model", () -> "compatibility-probe");
+        properties.add("METRICS_TOKEN", () -> "compatibility-synthetic-metrics-token");
     }
 
     @Autowired
@@ -91,6 +97,61 @@ class StackCompatibilityIT {
     Flyway flyway;
     @Autowired
     DefaultWebSecurityManager securityManager;
+
+    @Test
+    void authenticatedHttpScrapeExportsBusinessAndBoundedLockHistograms() {
+        assertThat(context.getBean(PrometheusMeterRegistry.class).getPrometheusRegistry())
+                .isSameAs(context.getBean(PrometheusRegistry.class));
+        var locks = context.getBean(JvmPlatformLock.class);
+        try (var platform = locks.lock(Transactions.PLATFORM_KEY);
+                var identity = locks.lock(42);
+                var partition = locks.tryLock(1, 99)) {
+            assertThat(partition).isNotNull();
+        }
+        var headers = new HttpHeaders();
+        headers.setBearerAuth("compatibility-synthetic-metrics-token");
+        var scrape =
+                http.exchange(
+                        "/actuator/prometheus",
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        String.class);
+        assertThat(scrape.getStatusCode().value()).isEqualTo(200);
+        assertThat(scrape.getBody()).contains("ai_outbound_process_id", "ai_outbound_up");
+        for (String phase : List.of("wait", "hold"))
+            for (String scope : List.of("platform", "identity", "partition")) {
+                String name = "outbound_lock_" + phase + "_seconds";
+                assertThat(scrape.getBody())
+                        .contains(name + "_count{scope=\"" + scope + "\"}")
+                        .containsPattern(name + "_count\\{scope=\"" + scope + "\"} [1-9][0-9]*\\n")
+                        .contains(name + "_sum{scope=\"" + scope + "\"}")
+                        .contains(name + "_bucket{scope=\"" + scope + "\",le=");
+            }
+        for (String path : List.of("/actuator/prometheus", "/metrics", "/metrics/runtime")) {
+            assertThat(http.getForEntity(path, String.class).getStatusCode().value())
+                    .isEqualTo(401);
+            var invalid = new HttpHeaders();
+            invalid.setBearerAuth("incorrect-synthetic-token");
+            assertThat(
+                            http.exchange(
+                                            path,
+                                            HttpMethod.GET,
+                                            new HttpEntity<>(invalid),
+                                            String.class)
+                                    .getStatusCode()
+                                    .value())
+                    .isEqualTo(401);
+            assertThat(
+                            http.exchange(
+                                            path,
+                                            HttpMethod.GET,
+                                            new HttpEntity<>(headers),
+                                            String.class)
+                                    .getStatusCode()
+                                    .value())
+                    .isEqualTo(200);
+        }
+    }
 
     @Test
     void realHttpLivenessAndProtectedInfrastructure() {
