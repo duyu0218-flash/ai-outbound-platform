@@ -79,4 +79,9 @@
         </set>
         WHERE `id` = #{id} AND `tenant_id` = #{tenantId}
     </update>
+    <insert id="sampleSeat">
+        INSERT INTO ops_seat_state_sample(tenant_id,user_id,state,event_at)
+        SELECT tenant_id,id,IF(enabled AND role='agent',agent_status,'offline'),UTC_TIMESTAMP(3)
+        FROM sys_user WHERE tenant_id=#{tenantId} AND id=#{id} AND role='agent'
+    </insert>
 </mapper>

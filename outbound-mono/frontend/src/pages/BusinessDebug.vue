@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../session';
 import { useData } from '../data';
+import DebugVoice from '../components/DebugVoice.vue';
+const debugMode = ref('text');
 const route = useRoute(),
   router = useRouter(),
   scripts = useData('/api/v1/workspace/scripts?size=200');
@@ -94,6 +96,15 @@ async function open(id) {
   variables.value = JSON.parse(JSON.stringify(active.value.snapshot.variables || {}));
   await router.replace({ query: { session_id: id } });
 }
+async function reset() {
+  if (busy.value) return;
+  active.value = null;
+  variables.value = {};
+  text.value = '';
+  turnKey = '';
+  error.value = '';
+  await router.replace({ query: selected.value ? { script_id: selected.value } : {} });
+}
 async function create() {
   await run(async () => {
     const v = await request('/api/v1/workspace/debug-sessions', 'POST', {
@@ -150,6 +161,21 @@ onMounted(() =>
     type="info"
     :closable="false"
   />
+  <el-radio-group v-model="debugMode"
+    ><el-radio-button value="text">文字调试</el-radio-button
+    ><el-radio-button value="voice">语音调试</el-radio-button></el-radio-group
+  ><DebugVoice
+    v-if="debugMode === 'voice'"
+    :script-id="selected"
+    :opening="active?.snapshot.opening || publication?.opening"
+    :reply="latest?.reply"
+    @transcript="
+      (v) => {
+        text = v;
+        turnKey = '';
+      }
+    "
+  />
   <div class="debug-grid">
     <el-card header="配置与快照"
       ><el-form label-position="top"
@@ -171,6 +197,7 @@ onMounted(() =>
             v-model="variables[f.key]"
             :aria-label="'调试变量' + f.key" /></el-form-item></el-form
       ><el-button type="primary" :loading="busy" @click="create">新建调试会话</el-button
+      ><el-button @click="reset">重置调试</el-button
       ><template v-if="active"
         ><p>
           会话 {{ active.name }} · v{{ active.script_version }} ·

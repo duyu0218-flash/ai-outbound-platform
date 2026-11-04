@@ -17,4 +17,5 @@ fi
 # Remove only derived main output, so deleted classes and obsolete hashed assets cannot enter the next jar.
 rm -rf -- "$mono_dir/target/classes"
 cd "$mono_dir/frontend"
-exec "$node_bin" node_modules/vite/bin/vite.js build
+"$node_bin" node_modules/vite/bin/vite.js build
+jar --create --no-manifest --file "$mono_dir/src/main/resources/static/assets/script-recorder.zip" -C "$mono_dir/miniapp/recorder" .

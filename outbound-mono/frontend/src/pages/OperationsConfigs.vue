@@ -1,4 +1,5 @@
 <script setup>
+import { useRoute } from 'vue-router';
 import { ref, reactive, onMounted } from 'vue';
 import { ops, perform, parse } from '../operations';
 import SettingSection from '../components/SettingSection.vue';
@@ -13,7 +14,7 @@ const forms = ref([]),
   open = ref(false),
   model = reactive({ name: '', fields: [], expected_revision: 0 }),
   tag = reactive({ name: '', target: 'contact' }),
-  tab = ref('form');
+  tab = ref(useRoute().query.tab === 'tag' ? 'tag' : 'form');
 async function load() {
   try {
     forms.value = await ops('/configs?kind=form');

@@ -54,7 +54,7 @@ try {
     );
     await page.goto(origin + '/admin/marketing/datasets');
     await expect(page).toHaveURL(origin + '/agent');
-    await expect(page.getByRole('menuitem').filter({ hasText: '数据包与撞库' })).toHaveCount(0);
+    await expect(page.getByRole('menuitem').filter({ hasText: '数据集与撞库' })).toHaveCount(0);
   });
   expect(errors).toEqual([]);
   await writeFile(

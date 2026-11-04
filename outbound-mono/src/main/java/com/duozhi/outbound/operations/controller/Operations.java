@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/ops")
 public class Operations {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.common.config.Config config;
+
     private final OperationsStore db;
     private final OperationsAccess access;
     private final Store store;
@@ -107,9 +110,36 @@ public class Operations {
     private Map<String, Object> filters(Identity i, Map<String, String> q) {
         var p = paged(i, q);
         for (String k :
-                List.of("contact_id", "campaign_id", "agent_id", "owner_id", "line_id", "team_id"))
+                List.of(
+                        "contact_id",
+                        "campaign_id",
+                        "agent_id",
+                        "owner_id",
+                        "line_id",
+                        "team_id",
+                        "script_id"))
             if (q.containsKey(k) && !q.get(k).isBlank())
                 p.put(k, number(q.get(k), 1, Integer.MAX_VALUE));
+        for (String key : List.of("actor_id", "stat_team_id"))
+            if (!q.getOrDefault(key, "").isBlank())
+                p.put(key, number(q.get(key), 0, Integer.MAX_VALUE));
+        for (String key : List.of("city", "line_group"))
+            if (!q.getOrDefault(key, "").isBlank()) p.put(key, text(q.get(key), 100));
+        if (!q.getOrDefault("task_status", "").isBlank())
+            p.put(
+                    "task_status",
+                    choice(
+                            q.get("task_status"),
+                            Set.of(
+                                    "draft",
+                                    "running",
+                                    "completed",
+                                    "paused",
+                                    "stopped",
+                                    "failed",
+                                    "prepared")));
+        if (q.containsKey("flow_version_id") && !q.get("flow_version_id").isBlank())
+            p.put("flow_version_id", number(q.get("flow_version_id"), 0, Integer.MAX_VALUE));
         for (String k : List.of("phone", "intent", "review_state", "stage", "tag"))
             if (q.containsKey(k) && !q.get(k).isBlank()) p.put(k, text(q.get(k), 120));
         if (q.containsKey("status") && !q.get("status").isBlank())
@@ -126,6 +156,20 @@ public class Operations {
                 && p.get("max_seconds") != null
                 && (Long) p.get("min_seconds") > (Long) p.get("max_seconds"))
             throw new ApiError(422, "通话时长范围无效");
+        for (String key : List.of("total_ranges", "ai_ranges", "human_ranges")) {
+            String raw = q.getOrDefault(key, "");
+            if (raw.isBlank()) continue;
+            String[] parts = raw.split(",", -1);
+            if (parts.length > 8) throw new ApiError(422, "每种时长最多 8 个区间");
+            List<Map<String, Object>> ranges = new ArrayList<>();
+            for (String part : parts) {
+                String[] bounds = part.split("-", -1);
+                if (bounds.length != 2) throw new ApiError(422, "时长区间需要起止秒数");
+                long min = number(bounds[0], 0, 86400), max = number(bounds[1], min, 86400);
+                ranges.add(Map.of("min", min, "max", max));
+            }
+            p.put(key, ranges);
+        }
         if (q.containsKey("handoff") && !q.get("handoff").isBlank())
             p.put(
                     "handoff",
@@ -259,6 +303,39 @@ public class Operations {
                 });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.call.service.CallLifecycle callEvents;
+
+    @PostMapping("/handoffs/{id}/screen")
+    public Object screenShown(@PathVariable
+    long id, HttpServletRequest request) {
+        var i = actor(request);
+        if (!"agent".equals(i.user().get("role"))) throw new ApiError(403, "仅坐席可上报弹屏");
+        return tx.serialized(
+                () -> {
+                    var offer = store.require("handoffrequest", i.tenant(), id);
+                    if (!Objects.equals(
+                            Objects.toString(offer.get("assigned_agent_id"), ""),
+                            i.userId().toString())) throw new ApiError(403, "不属于本坐席");
+                    if (!"waiting".equals(offer.get("state"))) throw new ApiError(409, "转接已结束");
+                    var call =
+                            store.require("callsession", i.tenant(), offer.get("call_session_id"));
+                    boolean duplicate =
+                            callEvents.event(
+                                    call,
+                                    "agent_screen_shown",
+                                    "agent_browser",
+                                    JsonSupport.map(
+                                            "event_id",
+                                            "shown:" + id + ":" + i.userId(),
+                                            "handoff_id",
+                                            id,
+                                            "agent_id",
+                                            i.userId()));
+                    return Map.of("received", true, "duplicate", duplicate);
+                });
+    }
+
     @GetMapping("/calls")
     public Map<String, Object> calls(@RequestParam
     Map<String, String> q, HttpServletRequest r) {
@@ -334,22 +411,76 @@ public class Operations {
     Map<String, String> q, HttpServletRequest r) {
         Identity i = actor(r);
         var p = filters(i, q);
+        p.put("statement_mode", config.production() ? "statement" : "simulation");
         p.put(
                 "dimension",
                 choice(
                         q.getOrDefault("dimension", "campaign"),
-                        Set.of("campaign", "agent", "line", "owner")));
+                        Set.of(
+                                "all",
+                                "script",
+                                "account",
+                                "group",
+                                "line_group",
+                                "city",
+                                "campaign",
+                                "agent",
+                                "line",
+                                "owner",
+                                "flow_version")));
         p.put(
                 "granularity",
-                choice(q.getOrDefault("granularity", "all"), Set.of("all", "day", "hour")));
+                choice(
+                        q.getOrDefault("granularity", "all"),
+                        Set.of("all", "day", "hour", "minute")));
+        for (String key : List.of("min_intent_rate", "max_intent_rate")) {
+            if (q.getOrDefault(key, "").isBlank()) continue;
+            try {
+                var rate = new java.math.BigDecimal(q.get(key));
+                if (rate.signum() < 0 || rate.compareTo(java.math.BigDecimal.valueOf(100)) > 0)
+                    throw new NumberFormatException();
+                p.put(key, rate);
+            } catch (NumberFormatException e) {
+                throw new ApiError(422, "意向率范围只能为 0 到 100");
+            }
+        }
+        if (p.containsKey("min_intent_rate")
+                && p.containsKey("max_intent_rate")
+                && ((java.math.BigDecimal) p.get("min_intent_rate"))
+                                .compareTo((java.math.BigDecimal) p.get("max_intent_rate"))
+                        > 0) throw new ApiError(422, "意向率下限不能大于上限");
         if (!p.containsKey("from")) p.put("from", Store.now().minusDays(30));
         return JsonSupport.map(
                 "rows",
                 db.rows("report", p),
                 "definition",
-                "会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。接收为已接收转接记录，不代表真实线路媒体验收。",
+                "首呼、复呼按会话内拨打序号及接通回执统计，归入会话创建时段；时长只累计有记录的秒数。会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。进线按产生转接请求的会话去重，接管按已接受或完成的转接统计。接通率按接通回执次数除以拨打次数。进线率、接通成功率和意向率以接通会话为分母，接管成功率以接管会话为分母。成功为合格线索，意向含表达兴趣、合格线索和确认回拨。分母为零显示空值。",
                 "filters",
                 p);
+    }
+
+    @GetMapping("/reports/daily")
+    public Object dailyBreakdown(@RequestParam
+    Map<String, String> q, HttpServletRequest request) {
+        var p = filters(actor(request), q);
+        var until = (LocalDateTime) p.getOrDefault("until", Store.now());
+        var from = (LocalDateTime) p.getOrDefault("from", until.minusDays(30));
+        if (java.time.Duration.between(from, until).toDays() > 366)
+            throw new ApiError(422, "单次最多统计366天");
+        p.put("from", from);
+        p.put("until", until);
+        return db.rows("dailyBreakdown", p);
+    }
+
+    @GetMapping("/reports/durations")
+    public Object durations(@RequestParam
+    Map<String, String> q, HttpServletRequest request) {
+        var p = filters(actor(request), q);
+        p.put(
+                "durationKind",
+                choice(q.getOrDefault("kind", "total"), Set.of("ai", "human", "total")));
+        p.putIfAbsent("from", Store.now().minusDays(30));
+        return db.rows("durations", p);
     }
 
     @GetMapping("/reports/export")
@@ -374,7 +505,21 @@ public class Operations {
                         "handoff_requests",
                         "handoff_received",
                         "qualified_phones",
-                        "failed_sessions");
+                        "failed_sessions",
+                        "first_answered_attempts",
+                        "repeat_answered_attempts",
+                        "answered_attempts",
+                        "telephony_seconds",
+                        "ai_seconds",
+                        "answer_rate",
+                        "entry_rate",
+                        "takeover_rate",
+                        "not_taken",
+                        "successful_calls",
+                        "successful_takeovers",
+                        "success_per_answer",
+                        "success_per_takeover",
+                        "intent_rate");
         csv.printRecord(fields);
         for (Object raw : list(data.get("rows"))) {
             var row = object(raw);
@@ -401,6 +546,147 @@ public class Operations {
         var p = base(i);
         p.put("campaign_id", campaign_id);
         return db.rows("campaignProgress", p);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.dial.service.TenantDialPolicy tenantDial;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private VoiceStatements statements;
+
+    @GetMapping("/reports/business-counters")
+    public Object businessCounters(
+            @RequestParam
+            String from, @RequestParam
+            String until, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        var a = time(from);
+        var b = time(until);
+        if (a.isAfter(b) || Duration.between(a, b).toDays() > 366)
+            throw new ApiError(422, "请选择一年内的有效时间段");
+        return db.rows("businessCounters", Map.of("tenantId", i.tenant(), "from", a, "until", b));
+    }
+
+    @GetMapping("/dial-control")
+    public Object dialControl(HttpServletRequest request) {
+        var i = actor(request);
+        if (!i.isOperator()) access.admin(i);
+        var state = new LinkedHashMap<>(tenantDial.read(i));
+        state.put("voice_balance", statements.balance(i.tenant()));
+        return state;
+    }
+
+    @PutMapping("/dial-control")
+    public Object changeDialControl(
+            @RequestBody
+            Map<String, Object> b, HttpServletRequest request) {
+        var i = actor(request);
+        access.admin(i);
+        if (!(b.get("enabled") instanceof Boolean enabled)) throw new ApiError(422, "呼叫状态无效");
+        return tenantDial.update(i, enabled, (int) number(b.get("revision"), 0, Integer.MAX_VALUE));
+    }
+
+    @GetMapping("/lines/groups")
+    public Object lineGroups(HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return db.rows("lineGroups", base(i));
+    }
+
+    @PutMapping("/lines/{id}/group")
+    @Transactional
+    public Object saveLineGroup(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        store.require("telephonyline", i.tenant(), id);
+        var p = base(i);
+        p.put("line", id);
+        p.put("group", text(body.get("group_name"), 100));
+        db.write("setLineGroup", p);
+        audit.record(i, "group", "telephonyline", id, "更新线路组");
+        return Map.of("group_name", p.get("group"));
+    }
+
+    @GetMapping("/users/{id}/dial-limit")
+    public Object dialLimit(@PathVariable
+    long id, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return tenantDial.limit(i, id);
+    }
+
+    @PutMapping("/users/{id}/dial-limit")
+    public Object setDialLimit(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        int limit = (int) number(b.get("limit"), 0, 100000);
+        return tenantDial.saveLimit(
+                i, id, limit, (int) number(b.get("revision"), 0, Integer.MAX_VALUE));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AuthService staffAuth;
+
+    @PostMapping("/seats/offline")
+    public Object offlineSeats(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        if (!Boolean.TRUE.equals(b.get("confirmed"))) throw new ApiError(422, "请先确认下线范围");
+        return tx.serialized(
+                () -> {
+                    tx.platform();
+                    tx.tenant(i.tenant());
+                    var ids = db.rows("offlineCandidates", Map.of("tenantId", i.tenant()));
+                    int count = 0;
+                    for (var u : ids) {
+                        if (((Number) u.get("active")).longValue() > 0) continue;
+                        staffAuth.patch(
+                                ((Number) u.get("id")).longValue(),
+                                (int) i.tenant(),
+                                JsonSupport.map(
+                                        "agent_status",
+                                        "offline",
+                                        "last_seen_at",
+                                        Store.now(),
+                                        "token_version",
+                                        ((Number) u.get("token_version")).intValue() + 1));
+                        count++;
+                    }
+                    audit.record(
+                            i,
+                            "offline",
+                            "tenant_seats",
+                            i.tenant(),
+                            "offline=" + count + ", skipped=" + (ids.size() - count));
+                    return Map.of("offline", count, "skipped", ids.size() - count);
+                });
+    }
+
+    @GetMapping("/seats/monitor")
+    public Object seatMonitor(HttpServletRequest request) {
+        var i = actor(request);
+        access.admin(i);
+        return db.rows(
+                "seatMonitor",
+                JsonSupport.map(
+                        "tenantId",
+                        i.tenant(),
+                        "ttl",
+                        Math.max(30, config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90)),
+                        "since",
+                        Store.now()
+                                .minusSeconds(
+                                        Math.max(
+                                                30,
+                                                config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90)))));
     }
 
     @GetMapping("/teams")
@@ -489,6 +775,38 @@ public class Operations {
         return Map.of("saved", true);
     }
 
+    @PostMapping("/calls/{id}/lead")
+    public Object convertCall(@PathVariable
+    String id, HttpServletRequest request) {
+        Identity i = actor(request);
+        return tx.serialized(
+                () -> {
+                    access.call(i, id);
+                    var call = store.require("callsession", i.tenant(), id);
+                    if (!"completed".equals(call.get("status")) || call.get("contact_id") == null)
+                        throw new ApiError(409, "只能从已完成且关联联系人的通话生成线索");
+                    long contact = ((Number) call.get("contact_id")).longValue();
+                    var params = base(i);
+                    params.put("contact_id", contact);
+                    db.write("leadSeed", params);
+                    var lead = db.one("leadLock", params);
+                    if (lead.get("owner_id") == null)
+                        changeLead(
+                                i,
+                                contact,
+                                JsonSupport.map(
+                                        "action",
+                                        "claim",
+                                        "event_key",
+                                        "call-lead:" + id,
+                                        "revision",
+                                        lead.get("revision"),
+                                        "note",
+                                        "来源通话 " + id));
+                    return leadDetail(contact, request);
+                });
+    }
+
     @GetMapping("/leads")
     public Map<String, Object> leads(@RequestParam
     Map<String, String> q, HttpServletRequest r) {
@@ -562,7 +880,9 @@ public class Operations {
     private Map<String, Object> changeLead(Identity i, long id, Map<String, Object> b) {
         store.require("contact", i.tenant(), id);
         String action =
-                choice(b.get("action"), Set.of("claim", "assign", "follow", "form", "tags"));
+                choice(
+                        b.get("action"),
+                        Set.of("claim", "assign", "follow", "form", "tags", "wecom"));
         String key = text(b.get("event_key"), 80);
         if (key.isBlank()) throw new ApiError(422, "需要操作唯一标识");
         var p = base(i);
@@ -599,6 +919,11 @@ public class Operations {
             }
         }
         String note = text(b.get("note"), 2000);
+        String wecomStatus = null;
+        if (action.equals("wecom")) {
+            if (current.get("owner_id") == null) throw new ApiError(409, "请先领取线索");
+            wecomStatus = choice(b.get("wecom_status"), Set.of("pending", "added", "declined"));
+        }
         if (action.equals("follow")) {
             if (current.get("owner_id") == null) throw new ApiError(409, "请先领取或分配线索");
             current.put(
@@ -658,6 +983,8 @@ public class Operations {
                                 action,
                                 "owner_id",
                                 current.get("owner_id"),
+                                "wecom_status",
+                                wecomStatus,
                                 "previous_owner",
                                 previousOwner,
                                 "stage",
@@ -693,6 +1020,11 @@ public class Operations {
         db.write("noticeAppointment", p);
         db.write("noticeDelivery", p);
         return db.rows("notices", p);
+    }
+
+    @GetMapping("/notices/unread")
+    public Map<String, Object> unread(HttpServletRequest r) {
+        return Map.of("count", db.count("unreadNotices", base(actor(r))));
     }
 
     @PostMapping("/notices/{id}/read")

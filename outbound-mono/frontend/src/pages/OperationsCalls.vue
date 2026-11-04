@@ -34,6 +34,14 @@ const allColumns = [
 const visible = ref(allColumns.map((c) => c.key)),
   columns = computed(() => allColumns.filter((c) => visible.value.includes(c.key))),
   page = computed(() => Number(route.query.page || 1));
+async function convert(row) {
+  const lead = await perform(() => ops('/calls/' + row.id + '/lead', 'POST'));
+  if (lead)
+    await router.push({
+      path: prefix() + '/operations/leads',
+      query: { contact_id: lead.contact_id },
+    });
+}
 function localTime(value) {
   if (!value || Number.isNaN(new Date(value).getTime())) return '';
   return new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000)
@@ -268,6 +276,11 @@ onMounted(async () => {
       :loading="busy"
       ><template #actions="{ row }"
         ><el-button link @click="selected = row">查看通话证据</el-button
+        ><el-button
+          v-if="row.contact_id && !row.owner_id && row.status === 'completed'"
+          link
+          @click="convert(row)"
+          >生成线索</el-button
         ><el-button
           v-if="row.contact_id"
           link

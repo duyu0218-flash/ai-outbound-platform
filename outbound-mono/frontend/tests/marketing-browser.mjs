@@ -29,7 +29,7 @@ export async function marketingChecks({ page, origin, check, go }) {
   await mkdir('target/marketing-browser', { recursive: true });
 
   await check('marketing datasets create upload deduplicate masked detail and reload', async () => {
-    await go('/admin/marketing/datasets', '数据包与撞库');
+    await go('/admin/marketing/datasets', '数据集与撞库');
     await page.getByRole('button', { name: '新建数据包', exact: true }).click();
     await dialog().getByLabel('名称', { exact: true }).fill('浏览器营销数据包');
     await dialog().getByLabel('说明', { exact: true }).fill('本地合成数据');

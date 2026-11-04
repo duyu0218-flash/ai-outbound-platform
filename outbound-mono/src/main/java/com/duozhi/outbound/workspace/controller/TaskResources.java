@@ -29,6 +29,13 @@ public class TaskResources {
         return i.tenant();
     }
 
+    @GetMapping("/selectable-lines")
+    public Object selectableLines(HttpServletRequest request) {
+        return docs.jdbc.queryForList(
+                "SELECT id,name,enabled,caller_id FROM telephonyline WHERE tenant_id=? AND enabled=1 ORDER BY id",
+                tenant(request));
+    }
+
     @GetMapping("/line/{id}/impact")
     public Object impact(@PathVariable
     long id, HttpServletRequest r) {

@@ -1,9 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { request } from '../session';
+import { request, session } from '../session';
+import { ElMessageBox } from 'element-plus';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
+import ReachReport from '../components/ReachReport.vue';
+import OutcomeEditor from '../components/OutcomeEditor.vue';
+import IntentEditor from '../components/IntentEditor.vue';
+import HangupMessageRule from '../components/HangupMessageRule.vue';
+import ScriptResources from '../components/ScriptResources.vue';
+import TimingSimulation from '../components/TimingSimulation.vue';
+import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
+import ScriptAudio from '../components/ScriptAudio.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const route = useRoute(),
@@ -13,9 +22,9 @@ const route = useRoute(),
     () =>
       `/api/v1/workspace/scripts?page=${page.value}&size=30&keyword=${encodeURIComponent(keyword.value)}`,
   ),
-  libraries = useData('/api/v1/workspace/libraries'),
+  libraries = useData(session.user?.role === 'admin' ? '/api/v1/workspace/libraries' : ''),
   teams = useData('/api/v1/ops/teams');
-const skills = useData('/api/v1/workspace/catalog/skill');
+const skills = useData(session.user?.role === 'admin' ? '/api/v1/workspace/catalog/skill' : '');
 const selected = ref(null),
   model = ref({}),
   tab = ref('dialogue'),
@@ -27,7 +36,7 @@ const selected = ref(null),
   sample = ref('我想了解办理条件'),
   createOpen = ref(false),
   newScript = ref({ name: '', category: '业务话术' });
-const users = useData('/api/v1/admin/users?page=1&size=200');
+const users = useData(session.user?.role === 'admin' ? '/api/v1/admin/users?page=1&size=200' : '');
 const rows = computed(() => query.data.value?.rows || []);
 const labels = { draft: '草稿', published: '已发布', review: '待审核', disabled: '已停用' };
 const intents = {
@@ -49,6 +58,81 @@ const intents = {
   affirm: '肯定回应',
   deny: '否定回应',
 };
+const optionalColumns = [
+  'ID',
+  '创建时间',
+  '分类',
+  '状态',
+  '负责人',
+  '更新时间',
+  '发布版本',
+  '引用任务',
+];
+const visibleColumns = ref([...optionalColumns]),
+  density = ref('default');
+const shareOpen = ref(false),
+  shareNames = ref(''),
+  shareRevision = ref(0);
+async function sharing() {
+  await run(async () => {
+    const doc = await request('/api/v1/workspace/scripts/' + selected.value.id + '/share');
+    shareNames.value = (doc.draft.usernames || []).join('，');
+    shareRevision.value = doc.revision;
+    shareOpen.value = true;
+  });
+}
+async function saveSharing() {
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + selected.value.id + '/share', 'PUT', {
+      revision: shareRevision.value,
+      usernames: shareNames.value
+        .split(/[,，\n]+/)
+        .map((v) => v.trim())
+        .filter(Boolean),
+    });
+    shareOpen.value = false;
+  });
+}
+const ruleText = ref(''),
+  ruleResult = ref(null);
+async function previewRules() {
+  await run(async () => {
+    ruleResult.value = await request(
+      '/api/v1/workspace/scripts/' + selected.value.id + '/rule-preview',
+      'POST',
+      {
+        draft: model.value,
+        turns: ruleText.value
+          .split('\n')
+          .map((v) => v.trim())
+          .filter(Boolean),
+      },
+    );
+  });
+}
+const miniOpen = ref(false),
+  resourceTab = ref('手拨线路');
+const resourceTabs = ['手拨线路', '黑名单', '语音合成', '语音识别', '接口配置', '多开场白设置'];
+const assistantOpen = ref(false);
+const suggestions = computed(() => {
+  const script = model.value || {};
+  const suggestions = [];
+  const recommend = (key, label, text) => suggestions.push({ key, label, text });
+  if (!script.opening?.trim())
+    recommend('opening', '补充开场白', '您好，现在方便听我简单说明来意吗？');
+  if (!script.ending?.trim()) recommend('ending', '补充结束语', '感谢您的时间，再见。');
+  if (!script.limits?.trim())
+    recommend('limits', '补充停止联系约定', '客户要求停止联系时，确认意愿并结束通话。');
+  if (!script.steps?.trim() && script.goal?.trim())
+    recommend(
+      'steps',
+      '按业务目标生成沟通步骤',
+      '先确认客户是否方便沟通。围绕“' +
+        script.goal.trim() +
+        '”一次询问一个问题。确认下一步安排后结束。',
+    );
+  return suggestions;
+});
 const basic = computed(() => [
   { key: 'name', label: '话术名称', required: true },
   { key: 'category', label: '业务分类', required: true },
@@ -177,15 +261,52 @@ async function run(fn) {
     busy.value = false;
   }
 }
-async function open(row) {
+async function open(row, targetTab = 'dialogue') {
   await run(async () => {
     selected.value = await request('/api/v1/workspace/scripts/' + row.id);
     model.value = clone(selected.value.draft);
-    tab.value = 'dialogue';
+    if (resourceTabs.includes(targetTab)) {
+      resourceTab.value = targetTab;
+      tab.value = 'resources';
+    } else tab.value = targetTab;
     probe.value = null;
     history.value = selected.value.revision
       ? await request(`/api/v1/workspace/scripts/${row.id}/history`)
       : [];
+  });
+}
+async function rename(row) {
+  let value;
+  try {
+    ({ value } = await ElMessageBox.prompt('请输入新的话术名称', '改名', {
+      inputValue: row.draft.name,
+      inputValidator: (v) => !!v?.trim() && v.trim().length <= 160,
+    }));
+  } catch {
+    return;
+  }
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + row.id + '/draft', 'PUT', {
+      draft: { ...row.draft, name: value.trim() },
+      expected_revision: row.revision,
+    });
+    await query.load();
+  });
+}
+async function archive(row) {
+  try {
+    await ElMessageBox.confirm(
+      '删除后话术将从列表和选项中移除。已有任务引用时须先解除引用。',
+      '删除话术',
+    );
+  } catch {
+    return;
+  }
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + row.id + '/archive', 'POST', {
+      expected_revision: row.revision,
+    });
+    await query.load();
   });
 }
 async function create() {
@@ -306,31 +427,80 @@ onMounted(async () => {
         clearable
         style="max-width: 360px"
         @input="page = 1" />
-      <el-table :data="rows" v-loading="query.loading.value"
+      <el-button @click="query.load()">刷新话术</el-button>
+      <el-select v-model="density" aria-label="话术表格密度" style="width: 100px">
+        <el-option value="small" label="紧凑" /><el-option value="default" label="标准" /><el-option
+          value="large"
+          label="宽松"
+        />
+      </el-select>
+      <el-popover trigger="click" width="240"
+        ><template #reference><el-button>列设置</el-button></template>
+        <el-checkbox-group v-model="visibleColumns"
+          ><el-checkbox v-for="c in optionalColumns" :key="c" :value="c">{{
+            c
+          }}</el-checkbox></el-checkbox-group
+        >
+      </el-popover>
+      <el-table :size="density" :data="rows" v-loading="query.loading.value"
+        ><el-table-column
+          v-if="visibleColumns.includes('ID')"
+          prop="id"
+          label="ID"
+          width="90"
+        /><el-table-column v-if="visibleColumns.includes('创建时间')" label="创建时间"
+          ><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column
         ><el-table-column label="话术名称"
-          ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
-        ><el-table-column label="分类"
+          ><template #default="{ row }"
+            >{{ row.draft.name }} <el-button link @click="rename(row)">改名</el-button
+            ><el-button link @click="open(row, 'reach')">到达统计</el-button></template
+          ></el-table-column
+        ><el-table-column v-if="visibleColumns.includes('分类')" label="分类"
           ><template #default="{ row }">{{ row.draft.category }}</template></el-table-column
-        ><el-table-column label="状态"
+        ><el-table-column v-if="visibleColumns.includes('状态')" label="状态"
           ><template #default="{ row }"
             ><el-tag>{{ labels[row.state] }}</el-tag
             ><small v-if="row.published_version && row.state === 'draft'"
               >已发布版本仍可被引用</small
             ></template
           ></el-table-column
-        ><el-table-column prop="owner_name" label="负责人" /><el-table-column label="更新时间"
+        ><el-table-column
+          v-if="visibleColumns.includes('负责人')"
+          prop="owner_name"
+          label="负责人"
+        /><el-table-column v-if="visibleColumns.includes('更新时间')" label="更新时间"
           ><template #default="{ row }">{{ formatDate(row.updated_at) }}</template></el-table-column
-        ><el-table-column prop="published_version" label="发布版本" /><el-table-column
+        ><el-table-column
+          v-if="visibleColumns.includes('发布版本')"
+          prop="published_version"
+          label="发布版本"
+        /><el-table-column
+          v-if="visibleColumns.includes('引用任务')"
           prop="references"
           label="引用任务"
         /><el-table-column label="操作"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="open(row)">配置话术</el-button
-            ><el-button link @click="copy(row)">复制</el-button></template
+            ><el-button link @click="open(row, 'audio')">个性录音</el-button
+            ><el-button link @click="open(row, '手拨线路')">手拨线路</el-button
+            ><el-button link @click="open(row, '黑名单')">黑名单</el-button
+            ><el-button
+              v-if="session.user?.role === 'admin'"
+              link
+              @click="$router.push('/admin/operations/configs?tab=tag')"
+              >标签管理</el-button
+            ><el-button v-if="session.user?.role === 'admin'" link @click="open(row, 'sms')"
+              >挂机短信</el-button
+            ><el-button v-if="session.user?.role === 'admin'" link @click="open(row, 'sms')"
+              >通知短信</el-button
+            ><el-button link @click="copy(row)">复制</el-button
+            ><el-button link @click="open(row, 'slots')">查看表单</el-button
+            ><el-button link @click="open(row, 'intents')">关键词库</el-button
+            ><el-button link type="danger" @click="archive(row)">删除话术</el-button></template
           ></el-table-column
         ></el-table
       >
-      <Pager :page="page" :count="rows.length" @change="page = $event" /></el-card
+      <Pager :size="30" :page="page" :count="rows.length" @change="page = $event" /></el-card
   ></template>
   <template v-else>
     <div class="actions">
@@ -345,6 +515,9 @@ onMounted(async () => {
       ><el-tag>{{ labels[selected.state] }}</el-tag
       ><span
         >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
+      ><el-button :disabled="busy" @click="sharing">分享设置</el-button
+      ><el-button @click="miniOpen = true">小程序录音</el-button
+      ><el-button @click="assistantOpen = true">AI助理</el-button
       ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
       ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
       ><el-button type="primary" :loading="busy" @click="publish">发布版本</el-button
@@ -352,8 +525,57 @@ onMounted(async () => {
         >停用话术</el-button
       >
     </div>
+    <el-dialog v-model="shareOpen" title="分享设置" width="560px"
+      ><p>
+        填写本租户接收账号，用逗号分隔。接收人可在“收到的话术”查看本次分享的发布版本；移除账号后立即收回访问。
+      </p>
+      <el-input aria-label="话术分享接收账号" v-model="shareNames" type="textarea" /><el-button
+        type="primary"
+        :loading="busy"
+        @click="saveSharing"
+        >保存分享设置</el-button
+      ></el-dialog
+    >
+    <el-dialog v-model="miniOpen" title="小程序录音"
+      ><p>
+        在本企业发布的录音小程序登录运营账号，输入话术 ID
+        {{ selected.id }}，选择片段后录音并回传。保存后可在“个性录音”查看覆盖率和试听。
+      </p>
+      <p>
+        首次接入由管理员在微信开发者工具导入录音工程，填写本企业 AppID，将 config.js 的 origin
+        设为已备案并加入 request、uploadFile 白名单的 HTTPS 服务域名。
+      </p>
+      <a href="/assets/script-recorder.zip" download>下载小程序工程</a
+      ><el-button
+        @click="
+          miniOpen = false;
+          tab = 'audio';
+        "
+        >查看回传录音</el-button
+      ></el-dialog
+    >
+    <el-dialog v-model="assistantOpen" title="AI助理" width="560px">
+      <p>根据当前草稿和业务目标生成本地规则建议。采用后可继续编辑，保存草稿后生效。</p>
+      <el-card v-for="item in suggestions" :key="item.key"
+        ><strong>{{ item.label }}</strong>
+        <p>{{ item.text }}</p>
+        <el-button @click="model[item.key] = item.text">采用建议</el-button></el-card
+      >
+      <el-empty
+        v-if="!suggestions.length"
+        description="已覆盖开场、沟通步骤、结束语和停止联系约定"
+      />
+    </el-dialog>
     <el-tabs v-model="tab"
-      ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
+      ><el-tab-pane v-if="session.user?.role === 'admin'" name="sms" label="短信配置" /><el-tab-pane
+        name="resources"
+        label="话术资源" /><el-tab-pane name="settings" label="流程设置" /><el-tab-pane
+        name="audio"
+        label="个性录音" /><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
+        name="dialogue"
+        label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
+        name="hangup"
+        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
         name="flow"
         label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
         name="knowledge"
@@ -361,6 +583,54 @@ onMounted(async () => {
         name="history"
         label="版本记录"
     /></el-tabs>
+    <HangupMessageRule
+      v-if="tab === 'sms' && session.user?.role === 'admin'"
+      :draft="model.sms_defaults"
+      @defaults="model.sms_defaults = $event"
+    />
+    <template v-if="tab === 'resources'"
+      ><el-radio-group v-model="resourceTab"
+        ><el-radio-button v-for="n in resourceTabs" :value="n" :key="n">{{
+          n
+        }}</el-radio-button></el-radio-group
+      ><ScriptResources :script-id="selected.id" v-model="model.policy" :section="resourceTab"
+    /></template>
+    <TimingSimulation v-if="tab === 'settings'" :script-id="selected.id" />
+    <GeneralFlowSettings
+      v-if="tab === 'settings'"
+      v-model="model.policy"
+      @section="
+        (k) => {
+          if (resourceTabs.includes(k)) {
+            resourceTab = k;
+            tab = 'resources';
+          } else tab = k;
+        }
+      "
+    /><ScriptAudio v-if="tab === 'audio'" :script-id="selected.id" /><ReachReport
+      v-if="tab === 'reach'"
+      :script-id="selected.id"
+    />
+    <OutcomeEditor v-if="tab === 'hangup'" v-model="model.policy.hangup_rules" />
+    <OutcomeEditor v-if="tab === 'events'" event v-model="model.policy.events" />
+    <el-card v-if="['events', 'hangup'].includes(tab)" header="规则试算">
+      <p>每行输入一句客户回答，按顺序运行事件并计算挂机评级。</p>
+      <el-input v-model="ruleText" aria-label="规则试算对话" type="textarea" /><el-button
+        :loading="busy"
+        @click="previewRules"
+        >运行规则试算</el-button
+      >
+      <div v-if="ruleResult" aria-label="规则试算结果">
+        <p>
+          评级 {{ ruleResult.result.grade || '未命中' }} · 标签
+          {{ ruleResult.result.tags.join('、') || '无' }}
+        </p>
+        <p v-for="(turn, i) in ruleResult.trace" :key="i">
+          第{{ i + 1 }}轮 · {{ turn.intent }} · {{ turn.tags.join('、') }}
+        </p>
+      </div>
+    </el-card>
+    <IntentEditor v-if="tab === 'intents'" v-model="model.policy.intent_rules" />
     <el-card v-if="tab === 'dialogue'"
       ><FieldForm :disabled="busy" :model="model" :fields="basic" hide-submit /><FieldForm
         :disabled="busy"

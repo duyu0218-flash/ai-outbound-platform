@@ -129,6 +129,24 @@ public class ProductOperations {
                 throw new ApiError(400, "invalid retry policy");
         Map<String, Object> result = contract.output("ScenarioPolicy", policy);
         result.putAll(HumanRouting.options(raw));
+        if (raw.containsKey("bindings"))
+            result.put(
+                    "bindings",
+                    com.duozhi.outbound.ai.service.ScriptBindings.normalize(raw.get("bindings")));
+        if (raw.containsKey("flow_settings"))
+            result.put(
+                    "flow_settings",
+                    com.duozhi.outbound.ai.service.FlowSettings.normalize(
+                            raw.get("flow_settings")));
+        result.put(
+                "intent_rules",
+                com.duozhi.outbound.ai.service.ScriptIntents.normalize(
+                        raw.getOrDefault("intent_rules", List.of())));
+        for (String key : List.of("events", "hangup_rules"))
+            result.put(
+                    key,
+                    com.duozhi.outbound.ai.service.OutcomeRules.normalize(
+                            raw.getOrDefault(key, List.of())));
         return result;
     }
 

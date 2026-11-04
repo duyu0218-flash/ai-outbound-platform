@@ -5,18 +5,24 @@ import static com.duozhi.outbound.workspace.service.WorkspaceDocuments.*;
 import com.duozhi.outbound.agent.service.HumanRouting;
 import com.duozhi.outbound.ai.service.AiRuntime;
 import com.duozhi.outbound.ai.service.ConversationPolicy;
-import com.duozhi.outbound.ai.service.DialogueRules;
 import com.duozhi.outbound.auth.domain.*;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
+import com.duozhi.outbound.customer.controller.ContactFiles;
 import com.duozhi.outbound.operations.controller.ProductOperations;
 import com.duozhi.outbound.script.controller.Templates;
 import com.duozhi.outbound.workspace.service.WorkspaceDocuments;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
+import org.apache.commons.csv.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/workspace")
@@ -69,6 +75,7 @@ public class WorkspaceController {
         return map(doc.get("published"));
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts")
     public Object scripts(
             @RequestParam(defaultValue = "")
@@ -77,13 +84,23 @@ public class WorkspaceController {
             int page,
             @RequestParam(defaultValue = "50")
             int size,
+            @RequestParam(defaultValue = "false")
+            boolean publishedOnly,
             HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         int offset = com.duozhi.outbound.common.web.Contract.page(page, size);
         String search = "%" + keyword + "%";
+        String scope =
+                " FROM scripttemplate t LEFT JOIN platform_document sd ON sd.tenant_id=t.tenant_id AND sd.kind='script' AND sd.object_id=CAST(t.id AS CHAR) WHERE t.tenant_id=? AND COALESCE(sd.state,'draft')<>'archived' AND (COALESCE(sd.name,t.name) LIKE ? OR t.category LIKE ?)";
+        if (publishedOnly)
+            scope +=
+                    " AND EXISTS (SELECT 1 FROM platform_document d WHERE d.tenant_id=t.tenant_id AND d.kind='script' AND d.object_id=CAST(t.id AS CHAR) AND d.published_json IS NOT NULL AND d.state<>'disabled')";
         var rows =
                 docs.jdbc.queryForList(
-                        "SELECT id FROM scripttemplate WHERE tenant_id=? AND (name LIKE ? OR category LIKE ?) ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?",
+                        "SELECT t.id"
+                                + scope
+                                + " ORDER BY t.updated_at DESC,t.id DESC LIMIT ? OFFSET ?",
                         i.tenant(),
                         search,
                         search,
@@ -91,11 +108,7 @@ public class WorkspaceController {
                         offset);
         long total =
                 docs.jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM scripttemplate WHERE tenant_id=? AND (name LIKE ? OR category LIKE ?)",
-                        Long.class,
-                        i.tenant(),
-                        search,
-                        search);
+                        "SELECT COUNT(*)" + scope, Long.class, i.tenant(), search, search);
         return JsonSupport.map(
                 "rows",
                 rows.stream().map(v -> script(v.get("id").toString(), r)).toList(),
@@ -103,13 +116,16 @@ public class WorkspaceController {
                 total);
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts/{id}")
     public Map<String, Object> script(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         if (!id.matches("[1-9][0-9]{0,9}")) throw new ApiError(404, "话术不存在");
         var raw = store.require("scripttemplate", i.tenant(), Long.parseLong(id));
         var doc = docs.find(i.tenant(), "script", id);
+        if (doc != null && "archived".equals(doc.get("state"))) throw new ApiError(404, "话术已删除");
         if (doc == null)
             doc =
                     JsonSupport.map(
@@ -141,6 +157,7 @@ public class WorkspaceController {
                             null);
         var result = new LinkedHashMap<>(doc);
         result.put("id", raw.get("id"));
+        result.put("created_at", raw.get("created_at"));
         result.put("is_active", raw.get("is_active"));
         result.put(
                 "references",
@@ -154,10 +171,12 @@ public class WorkspaceController {
         return result;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts")
     public Object createScript(@RequestBody
     Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         String name = text(body, "name", 160, true);
         return docs.tx.serialized(
                 () -> {
@@ -201,10 +220,46 @@ public class WorkspaceController {
         return user == null ? "已移除账号" : user.get("full_name").toString();
     }
 
+    @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/archive")
+    public Object archive(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        return docs.tx.serialized(
+                () -> {
+                    docs.tx.platform();
+                    docs.tx.tenant(i.tenant());
+                    var doc = script(id, r);
+                    if (number(doc.get("references")) > 0)
+                        throw new ApiError(409, "话术仍有关联任务，请先解除引用");
+                    int rev = number(body.get("expected_revision"));
+                    if (rev != number(doc.get("revision"))) throw new ApiError(409, "话术已修改，请刷新");
+                    if (rev == 0)
+                        rev = number(docs.save(i, "script", id, "", draft(doc), 0).get("revision"));
+                    templates.update(Long.parseLong(id), Map.of("is_active", false), r);
+                    int changed =
+                            docs.jdbc.update(
+                                    "UPDATE platform_document SET state='archived',published_json=NULL,revision=revision+1,updated_at=?,updated_by=? WHERE tenant_id=? AND kind='script' AND object_id=? AND revision=?",
+                                    Store.now(),
+                                    i.userId(),
+                                    i.tenant(),
+                                    id,
+                                    rev);
+                    if (changed != 1) throw new ApiError(409, "话术已修改，请刷新");
+                    docs.recordTransition(i, "script", id, "archived");
+                    return Map.of("archived", true);
+                });
+    }
+
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/copy")
     public Object copyScript(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         return docs.tx.serialized(
                 () -> {
                     var source = script(id, r);
@@ -249,8 +304,13 @@ public class WorkspaceController {
                 });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ScriptMessageDefaults messageDefaults;
+
     private Map<String, Object> scriptDraft(Map<String, Object> body, long tenant) {
         var value = new LinkedHashMap<String, Object>();
+        if (body.containsKey("sms_defaults"))
+            value.put("sms_defaults", messageDefaults.validate(tenant, body.get("sms_defaults")));
         value.put("owner_id", owner(body, tenant));
         for (String key :
                 List.of(
@@ -301,12 +361,14 @@ public class WorkspaceController {
         return value;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PutMapping("/scripts/{id}/draft")
     public Object saveScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         script(id, r);
         docs.save(
                 i,
@@ -359,10 +421,12 @@ public class WorkspaceController {
         return items;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts/{id}/publish-check")
     public Object publishCheck(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         var doc = docs.require(i.tenant(), "script", id);
         var value = draft(doc);
         var errors = new ArrayList<String>();
@@ -427,12 +491,14 @@ public class WorkspaceController {
                 "发布仅供新建或重新保存的任务选用；运行中的任务使用已冻结版本");
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/publish")
     public Object publishScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         return docs.tx.serialized(
                 () -> {
                     var doc = docs.require(i.tenant(), "script", id);
@@ -462,12 +528,14 @@ public class WorkspaceController {
                 });
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/probe")
     public Object probeScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         var doc = script(id, r);
         var value =
                 body.get("draft") instanceof Map<?, ?>
@@ -479,7 +547,8 @@ public class WorkspaceController {
                 "scope",
                 "本地意图规则与已发布知识检索；未调用模型或执行业务动作",
                 "intent",
-                DialogueRules.classify(query),
+                com.duozhi.outbound.ai.service.ScriptIntents.classify(
+                        query, map(value.get("policy"))),
                 "knowledge",
                 runtime.knowledge(
                         JsonSupport.map("tenant_id", i.tenant()),
@@ -487,6 +556,69 @@ public class WorkspaceController {
                         query),
                 "slots",
                 map(value.get("policy")).get("slots"));
+    }
+
+    @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/simulate-timing")
+    public Object simulateTiming(
+            @PathVariable
+            String id,
+            @RequestBody
+            Map<String, Object> sample,
+            HttpServletRequest r) {
+        var cfg =
+                com.duozhi.outbound.ai.service.FlowSettings.from(
+                        map(published(script(id, r)).get("policy")));
+        if (cfg.isEmpty()) throw new ApiError(409, "请先发布一般设置");
+        return com.duozhi.outbound.ai.service.FlowSettings.simulate(cfg, sample);
+    }
+
+    @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/rule-preview")
+    public Object previewOutcome(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        var doc = script(id, r);
+        var value =
+                body.get("draft") instanceof Map<?, ?>
+                        ? scriptDraft(map(body.get("draft")), i.tenant())
+                        : draft(doc);
+        var policy = map(value.get("policy"));
+        if (!(body.get("turns") instanceof List<?> turns) || turns.size() > 50)
+            throw new ApiError(422, "最多试算50轮");
+        var state = new LinkedHashMap<String, Object>();
+        var knowledge = scriptKnowledge(i.tenant(), value);
+        var trace = new ArrayList<Map<String, Object>>();
+        for (Object turn : turns) {
+            if (!(turn instanceof String text) || text.length() > 2000)
+                throw new ApiError(422, "单轮文本最多2000字");
+            String intent = com.duozhi.outbound.ai.service.ScriptIntents.classify(text, policy);
+            boolean hit =
+                    "question".equals(intent)
+                            && !runtime.knowledge(
+                                            JsonSupport.map("tenant_id", i.tenant()),
+                                            JsonSupport.map("_knowledge", knowledge),
+                                            text)
+                                    .isEmpty();
+            com.duozhi.outbound.ai.service.OutcomeRules.turn(
+                    policy, state, intent, hit, "machine_candidate".equals(intent));
+            trace.add(
+                    JsonSupport.map(
+                            "intent",
+                            intent,
+                            "tags",
+                            state.getOrDefault("rule_tags", List.of()),
+                            "once",
+                            state.getOrDefault("rule_events_done", List.of())));
+        }
+        return JsonSupport.map(
+                "trace",
+                trace,
+                "result",
+                com.duozhi.outbound.ai.service.OutcomeRules.finish(policy, state));
     }
 
     @GetMapping("/libraries")
@@ -586,9 +718,36 @@ public class WorkspaceController {
         var i = actor(r);
         var doc = docs.require(i.tenant(), "library", id);
         var result = new LinkedHashMap<>(doc);
-        result.put("items", docs.list(i.tenant(), "knowledge", id));
+        var ordered = faqOrder.entries(i.tenant(), id);
+        var measured =
+                docs.jdbc.queryForList(
+                        "SELECT target_id,COUNT(DISTINCT call_id) AS hits FROM script_reach WHERE tenant_id=? AND kind='knowledge' GROUP BY target_id",
+                        i.tenant());
+        var counts = new HashMap<Object, Object>();
+        for (var m : measured) counts.put(m.get("target_id"), m.get("hits"));
+        long total =
+                docs.jdbc.queryForObject(
+                        "SELECT COUNT(DISTINCT call_id) FROM script_reach WHERE tenant_id=? AND kind='sample'",
+                        Long.class,
+                        i.tenant());
+        for (var e : ordered) {
+            e.put("hit_calls", counts.getOrDefault(e.get("object_id"), 0));
+            e.put("sample_calls", total);
+        }
+        result.put("items", ordered);
         result.put("categories", knowledgeDirectories.list(i.tenant(), id));
         return result;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.KnowledgeOrder faqOrder;
+
+    @PostMapping("/libraries/{id}/batch")
+    public Object batchFaq(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        return faqOrder.change(actor(r), id, b);
     }
 
     @PutMapping("/libraries/{id}")
@@ -634,9 +793,115 @@ public class WorkspaceController {
                 number(body.get("expected_revision")));
     }
 
+    private static final List<String> FAQ_HEADERS =
+            List.of("序号", "标题", "关键词", "回答内容", "类型", "相似问法", "分类");
+
+    @GetMapping("/libraries/{library}/faq-file")
+    public ResponseEntity<byte[]> exportFaq(@PathVariable
+    String library, HttpServletRequest r)
+            throws IOException {
+        var i = actor(r);
+        docs.require(i.tenant(), "library", library);
+        var output = new StringWriter();
+        output.write(0xfeff);
+        try (var csv = new CSVPrinter(output, CSVFormat.DEFAULT)) {
+            csv.printRecord(FAQ_HEADERS);
+            for (var entry : faqOrder.entries(i.tenant(), library)) {
+                var value = draft(entry);
+                if ("document".equals(value.get("kind"))) continue;
+                for (String key :
+                        List.of(
+                                "display_code",
+                                "name",
+                                "keywords",
+                                "content",
+                                "answer_type",
+                                "similar_questions",
+                                "category"))
+                    csv.print(
+                            ContactFiles.safe(
+                                    Objects.toString(
+                                            value.get(key),
+                                            key.equals("answer_type") ? "normal" : "")));
+                csv.println();
+            }
+        }
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=faq.csv")
+                .body(output.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    @PostMapping(value = "/libraries/{library}/faq-file", consumes = "multipart/form-data")
+    public Object importFaq(
+            @PathVariable
+            String library,
+            @RequestParam
+            int expected_revision,
+            @RequestPart
+            MultipartFile file,
+            HttpServletRequest r)
+            throws IOException {
+        var i = actor(r);
+        if (file.getSize() > 2 * 1024 * 1024) throw new ApiError(422, "问答文件超过2MB");
+        var items = new ArrayList<Map<String, Object>>();
+        try {
+            String text =
+                    StandardCharsets.UTF_8
+                            .newDecoder()
+                            .decode(ByteBuffer.wrap(file.getBytes()))
+                            .toString();
+            try (var csv =
+                    CSVFormat.DEFAULT.parse(
+                            new StringReader(
+                                    text.startsWith("\ufeff") ? text.substring(1) : text))) {
+                var it = csv.iterator();
+                if (!it.hasNext() || !FAQ_HEADERS.equals(it.next().toList()))
+                    throw new ApiError(422, "表头不符，请使用本库导出的CSV表头");
+                while (it.hasNext()) {
+                    var row = it.next();
+                    if (items.size() == 500 || row.size() != FAQ_HEADERS.size())
+                        throw new ApiError(422, "问答超过500条或列数不符");
+                    items.add(
+                            knowledgeDrafts.normalize(
+                                    JsonSupport.map(
+                                            "display_code",
+                                            row.get(0),
+                                            "name",
+                                            row.get(1),
+                                            "keywords",
+                                            row.get(2),
+                                            "content",
+                                            row.get(3),
+                                            "answer_type",
+                                            row.get(4).isBlank() ? "normal" : row.get(4),
+                                            "similar_questions",
+                                            row.get(5),
+                                            "category",
+                                            row.get(6))));
+                }
+            }
+        } catch (IOException | UncheckedIOException ex) {
+            throw new ApiError(422, "请上传有效的UTF-8 CSV文件");
+        }
+        if (items.isEmpty()) throw new ApiError(422, "文件中没有问答");
+        return docs.tx.serialized(
+                () -> {
+                    var lib = docs.require(i.tenant(), "library", library);
+                    if (number(lib.get("revision")) != expected_revision)
+                        throw new ApiError(409, "知识库已变更，请刷新核对后再导入");
+                    if (docs.list(i.tenant(), "knowledge", library).size() + items.size() > 500)
+                        throw new ApiError(422, "单库最多500条知识");
+                    for (var item : items)
+                        docs.save(i, "knowledge", UUID.randomUUID().toString(), library, item, 0);
+                    docs.save(i, "library", library, "", draft(lib), expected_revision);
+                    return Map.of("imported", items.size());
+                });
+    }
+
     List<Map<String, Object>> knowledgeItems(long tenant, String library, int version) {
         var items = new ArrayList<Map<String, Object>>();
-        for (var entry : docs.list(tenant, "knowledge", library)) {
+        for (var entry : faqOrder.entries(tenant, library)) {
             var value = draft(entry);
             if (Boolean.FALSE.equals(value.get("enabled"))) continue;
             var normalized =
@@ -656,7 +921,14 @@ public class WorkspaceController {
                             "version",
                             version);
             for (String key :
-                    List.of("valid_from", "valid_until", "kind", "document_id", "segment_index"))
+                    List.of(
+                            "valid_from",
+                            "valid_until",
+                            "kind",
+                            "document_id",
+                            "segment_index",
+                            "display_code",
+                            "answer_type"))
                 if (!Objects.toString(value.get(key), "").isBlank())
                     normalized.put(key, value.get(key));
             items.add(normalized);
@@ -709,6 +981,15 @@ public class WorkspaceController {
                         JsonSupport.map("tenant_id", i.tenant()),
                         JsonSupport.map("_knowledge", items),
                         text(body, "query", 2000, true)));
+    }
+
+    @GetMapping("/scripts/{id}/history")
+    @AdminPermission(value = "product:write", operator = true)
+    public Object scriptHistory(@PathVariable
+    String id, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        return docs.history(i.tenant(), "script", id);
     }
 
     @GetMapping("/{kind}/{id}/history")

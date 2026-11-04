@@ -7,5 +7,7 @@ import java.lang.annotation.*;
 public @interface AdminPermission {
     String value();
 
+    boolean operator() default false;
+
     boolean supervisor() default false;
 }

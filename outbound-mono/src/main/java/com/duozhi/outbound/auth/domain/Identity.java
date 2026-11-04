@@ -34,9 +34,19 @@ public final class Identity {
         throw new ApiError(401, "authentication required");
     }
 
+    private static final Set<String> OPERATOR_PERMISSIONS =
+            Set.of("campaigns:write", "contacts:write", "script-templates:write");
+
+    public boolean isOperator() {
+        return user != null && "operator".equals(user.get("role"));
+    }
+
     public void admin(String permission) {
         if (user != null) {
-            if (!"admin".equals(user.get("role")))
+            if (!"admin".equals(user.get("role"))
+                    && !(isOperator()
+                            && permission != null
+                            && OPERATOR_PERMISSIONS.contains(permission)))
                 throw new ApiError(403, "admin permission required");
         } else if (permission == null
                 || permission.isBlank()

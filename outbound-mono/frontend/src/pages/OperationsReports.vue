@@ -20,6 +20,14 @@ const router = useRouter(),
   name = ref('');
 const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }),
   visible = ref([
+    'answer_rate',
+    'entry_rate',
+    'takeover_rate',
+    'not_taken',
+    'successful_calls',
+    'success_per_answer',
+    'success_per_takeover',
+    'intent_rate',
     'sessions',
     'attempts',
     'phones',
@@ -29,9 +37,55 @@ const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }
     'handoff_received',
     'qualified_phones',
     'failed_sessions',
+    'first_answered_attempts',
+    'repeat_answered_attempts',
+    'answered_attempts',
+    'telephony_seconds',
+    'ai_seconds',
   ]);
+const rangeKinds = { total_ranges: '通话', ai_ranges: 'AI通话', human_ranges: '人工通话' };
+function rangesFor(key) {
+  return q[key]
+    ? String(q[key])
+        .split(',')
+        .map((r) => r.split('-'))
+    : [];
+}
+function setRange(key, index, side, value) {
+  const ranges = rangesFor(key);
+  ranges[index][side] = value;
+  q[key] = ranges.map((r) => r.join('-')).join(',');
+}
+function addRange(key) {
+  const ranges = rangesFor(key);
+  if (ranges.length < 8) q[key] = [...ranges.map((r) => r.join('-')), '0-999'].join(',');
+}
+function removeRange(key, index) {
+  q[key] = rangesFor(key)
+    .filter((_, i) => i !== index)
+    .map((r) => r.join('-'))
+    .join(',');
+}
 const labels = {
+  answer_rate: '接通率（%）',
+  entry_rate: '进线率（%）',
+  takeover_rate: '接管率（%）',
+  not_taken: '已结束未接管数',
+  successful_calls: '合格成功数',
+  successful_takeovers: '接管后成功数',
+  success_per_answer: '接通成功率（%）',
+  success_per_takeover: '接管成功率（%）',
+  intent_rate: '意向率（%）',
+  statement_cost: '账单话费（元）',
+  bill_seconds: '账单计费时长（秒）',
+  settled_attempts: '已对账拨打次数',
   sessions: '会话数',
+  first_answered_attempts: '首呼接通数',
+  repeat_answered_attempts: '复呼接通数',
+  answered_attempts: '有接通回执的拨打次数',
+  telephony_seconds: '有记录的通话时长（秒）',
+  ai_seconds: '有记录的AI时长（秒）',
+
   attempts: '累计尝试',
   phones: '组内唯一号码',
   reached_sessions: '接通会话',
@@ -47,6 +101,38 @@ const columns = computed(() => [
     ...visible.value.map((k) => ({ key: k, label: labels[k], sortable: true })),
   ]),
   max = computed(() => Math.max(1, ...rows.value.map((r) => r.sessions || 0)));
+const durationKind = ref('total'),
+  durations = ref([]),
+  durationError = ref('');
+const durationTotal = computed(() => durations.value.reduce((n, r) => n + Number(r.calls), 0));
+const durationLabels = {
+  short: '1–10秒',
+  medium: '10–30秒',
+  long: '30–60秒',
+  extended: '60秒以上',
+  unknown: '无有效时长',
+};
+let durationRequest = 0;
+async function loadDurations() {
+  const requestId = ++durationRequest;
+  try {
+    const result = await ops(
+      '/reports/durations?' + query({ ...params(), kind: durationKind.value }),
+    );
+    if (requestId === durationRequest) {
+      durations.value = result;
+      durationError.value = '';
+    }
+  } catch (e) {
+    if (requestId === durationRequest) {
+      durations.value = [];
+      durationError.value = e.message;
+    }
+  }
+}
+function durationCount(bucket) {
+  return Number(durations.value.find((r) => r.duration_bucket === bucket)?.calls || 0);
+}
 function params() {
   const f = { ...q };
   for (const k of ['from', 'until']) if (f[k]) f[k] = new Date(f[k]).toISOString();
@@ -66,6 +152,7 @@ async function load() {
     if (!isCurrent()) return;
     rows.value = data.rows;
     definition.value = data.definition;
+    await loadDurations();
     if (profile.value.administrator) tasks.value = await ops('/campaigns');
   } catch (e) {
     if (isCurrent()) error.value = e.message;
@@ -95,18 +182,34 @@ function choose() {
 }
 function drill(row) {
   const f = params();
-  const field = { campaign: 'campaign_id', agent: 'agent_id', line: 'line_id', owner: 'owner_id' }[
-    q.dimension
-  ];
-  if (Number(row.dimension_key) > 0) f[field] = row.dimension_key;
+  const field = {
+    account: 'actor_id',
+    group: 'stat_team_id',
+    line_group: 'line_group',
+    city: 'city',
+    script: 'script_id',
+    campaign: 'campaign_id',
+    agent: 'agent_id',
+    line: 'line_id',
+    owner: 'owner_id',
+    flow_version: 'flow_version_id',
+  }[q.dimension];
+  if (
+    field &&
+    (Number(row.dimension_key) > 0 ||
+      ['actor_id', 'stat_team_id', 'line_group', 'city', 'flow_version_id'].includes(field))
+  )
+    f[field] = row.dimension_key;
   if (row.bucket !== '全部') {
     const date = new Date(
       row.bucket.replace(' ', 'T') + (row.bucket.length === 10 ? 'T00:00:00' : '') + 'Z',
     );
-    f.from = date.toISOString();
-    f.until = new Date(
-      date.getTime() + (q.granularity === 'hour' ? 3600000 : 86400000) - 1,
+    const bucketMs = { minute: 60000, hour: 3600000, day: 86400000 }[q.granularity];
+    const end = date.getTime() + bucketMs - 1;
+    f.from = new Date(
+      Math.max(date.getTime(), f.from ? Date.parse(f.from) : -Infinity),
     ).toISOString();
+    f.until = new Date(Math.min(end, f.until ? Date.parse(f.until) : Infinity)).toISOString();
   }
   delete f.dimension;
   delete f.granularity;
@@ -140,19 +243,27 @@ onMounted(async () => {
             ><el-select v-model="q.dimension" aria-label="报表维度"
               ><el-option
                 v-for="[value, label] in [
+                  ['account', '子账号'],
+                  ['group', '组'],
+                  ['line_group', '线路组'],
+                  ['city', '城市'],
+                  ['script', '话术'],
                   ['campaign', '任务'],
                   ['agent', '坐席'],
                   ['line', '线路'],
                   ['owner', '负责人'],
+                  ['flow_version', '话术流程版本'],
                 ]"
                 :key="value"
                 :value="value"
                 :label="label" /></el-select></el-form-item
           ><el-form-item label="时间粒度"
             ><el-select v-model="q.granularity" aria-label="报表粒度"
-              ><el-option label="汇总" value="all" /><el-option
-                label="每天"
-                value="day" /><el-option label="每小时" value="hour" /></el-select></el-form-item
+              ><el-option label="每分钟" value="minute" /><el-option
+                label="汇总"
+                value="all" /><el-option label="每天" value="day" /><el-option
+                label="每小时"
+                value="hour" /></el-select></el-form-item
           ><el-form-item label="开始"
             ><el-input
               v-model="q.from"
@@ -165,10 +276,60 @@ onMounted(async () => {
               placeholder="2026-10-31T23:59:59+08:00" /></el-form-item
           ><el-form-item label="任务"
             ><el-input v-model="q.campaign_id" aria-label="报表任务" /></el-form-item
+          ><el-form-item label="话术流程版本编号"
+            ><el-input
+              v-model="q.flow_version_id"
+              aria-label="报表话术流程版本编号" /></el-form-item
+          ><el-form-item label="最小通话秒数"
+            ><el-input v-model="q.min_seconds" aria-label="报表最小通话秒数" /></el-form-item
+          ><el-form-item label="最大通话秒数"
+            ><el-input v-model="q.max_seconds" aria-label="报表最大通话秒数" /></el-form-item
           ><el-form-item label="坐席组"
             ><el-input v-model="q.team_id" aria-label="报表坐席组"
           /></el-form-item>
         </div>
+        <div class="toolbar">
+          <el-input
+            v-model="q.min_intent_rate"
+            aria-label="意向率下限"
+            placeholder="最低意向率（%）"
+            style="width: 170px"
+          /><el-input
+            v-model="q.max_intent_rate"
+            aria-label="意向率上限"
+            placeholder="最高意向率（%）"
+            style="width: 170px"
+          />
+        </div>
+        <div v-for="(label, key) in rangeKinds" :key="key" class="toolbar">
+          <el-button @click="addRange(key)" :disabled="rangesFor(key).length >= 8"
+            >增加{{ label }}时长区间</el-button
+          >
+          <span v-for="(range, index) in rangesFor(key)" :key="index">
+            <el-input-number
+              :model-value="Number(range[0])"
+              :aria-label="label + '最小秒数' + (index + 1)"
+              :min="0"
+              :max="86400"
+              :precision="0"
+              @update:model-value="(v) => setRange(key, index, 0, v ?? 0)"
+            />
+            至
+            <el-input-number
+              :model-value="Number(range[1])"
+              :aria-label="label + '最大秒数' + (index + 1)"
+              :min="0"
+              :max="86400"
+              :precision="0"
+              @update:model-value="(v) => setRange(key, index, 1, v ?? 0)"
+            />
+            秒
+            <el-button link @click="removeRange(key, index)"
+              >移除{{ label }}区间{{ index + 1 }}</el-button
+            >
+          </span>
+        </div>
+        <p>同类区间满足任一即可，不同时长类型同时生效。未记录时长的会话不命中区间。</p>
         <el-button type="primary" :loading="busy" @click="load">生成报表</el-button>
         <div class="toolbar">
           <el-select v-model="viewId" aria-label="报表常用视图" @change="choose"
@@ -188,7 +349,24 @@ onMounted(async () => {
             label
           }}</el-checkbox></el-checkbox-group
         ></el-card
-      ><el-card header="会话分布"
+      ><el-card header="通话时长分布">
+        <el-radio-group v-model="durationKind" @change="loadDurations" aria-label="通话时长类型">
+          <el-radio-button value="ai">AI</el-radio-button
+          ><el-radio-button value="human">人工</el-radio-button
+          ><el-radio-button value="total">总时长</el-radio-button>
+        </el-radio-group>
+        <el-alert v-if="durationError" type="error" :title="durationError" />
+        <p>
+          接通总数 {{ durationTotal }}。每通按会话累计，分段含右端点。无对应时长的接通也计入分母。
+        </p>
+        <p v-for="(label, bucket) in durationLabels" :key="bucket">
+          {{ label }} · {{ durationCount(bucket) }} 通 ·
+          {{
+            durationTotal ? ((durationCount(bucket) * 100) / durationTotal).toFixed(2) + '%' : '—'
+          }}
+        </p>
+      </el-card>
+      <el-card header="会话分布"
         ><p>{{ definition }}</p>
         <div
           v-for="row in rows.slice(0, 20)"
@@ -252,7 +430,25 @@ onMounted(async () => {
             name: '任务',
             concurrency: '配置并发',
             contacts: '导入人数',
+            answer_rate: '接通率（%）',
+            entry_rate: '进线率（%）',
+            takeover_rate: '接管率（%）',
+            not_taken: '已结束未接管数',
+            successful_calls: '合格成功数',
+            successful_takeovers: '接管后成功数',
+            success_per_answer: '接通成功率（%）',
+            success_per_takeover: '接管成功率（%）',
+            intent_rate: '意向率（%）',
+            statement_cost: '账单话费（元）',
+            bill_seconds: '账单计费时长（秒）',
+            settled_attempts: '已对账拨打次数',
             sessions: '会话数',
+            first_answered_attempts: '首呼接通数',
+            repeat_answered_attempts: '复呼接通数',
+            answered_attempts: '有接通回执的拨打次数',
+            telephony_seconds: '有记录的通话时长（秒）',
+            ai_seconds: '有记录的AI时长（秒）',
+
             attempts: '累计尝试',
             dialed_phones: '已拨号码',
             queued: '排队',

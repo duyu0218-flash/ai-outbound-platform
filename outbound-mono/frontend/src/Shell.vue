@@ -1,18 +1,43 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { adminMenu } from './router';
+import SupportDesk from './components/SupportDesk.vue';
+import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
+import { useData, action } from './data';
 import { t, language, setLanguage } from './i18n';
 const props = defineProps({ role: String }),
   route = useRoute(),
   router = useRouter(),
   collapsed = ref(false),
   healthy = ref(null);
+const dial = useData(
+  () => (['admin', 'operator'].includes(session.user?.role) ? '/api/v1/ops/dial-control' : ''),
+  15000,
+);
+async function switchCalls() {
+  if (!dial.data.value) return;
+  await action(
+    () =>
+      request('/api/v1/ops/dial-control', 'PUT', {
+        enabled: !dial.data.value.enabled,
+        revision: dial.data.value.revision,
+      }),
+    {
+      confirm: dial.data.value.enabled
+        ? '停止本租户新派发？已获得资源的通话可继续。'
+        : '恢复本租户新派发？',
+      refresh: dial.load,
+    },
+  );
+}
+const unread = useData('/api/v1/ops/notices/unread', 60000);
+watch(() => route.path, unread.load);
 const opsProfile = ref(null),
   groupOpen = ref({}),
-  helpOpen = ref(false);
+  helpOpen = ref(false),
+  supportOpen = ref(false);
 onMounted(() =>
   request('/api/v1/ops/me')
     .then((v) => (opsProfile.value = v))
@@ -31,14 +56,14 @@ const navigation = computed(() =>
     : [
         {
           group: 'navWorkbench',
-          items: [
-            { path: '/agent', label: 'workspace' },
-            { path: agentPath('notices'), label: '通知中心' },
-          ],
+          items: [{ path: '/agent', label: 'workspace' }],
         },
         {
           group: 'navDialing',
           items: [
+            ...(session.user?.role === 'operator'
+              ? operatorNavigation.map(([path, label]) => ({ path: '/agent/' + path, label }))
+              : []),
             { path: '/agent/calls', label: 'calls' },
             { path: agentPath('calls'), label: '话单查询' },
           ],
@@ -50,9 +75,18 @@ const navigation = computed(() =>
               ? [{ path: '/agent/quality', label: 'qualityReview' }]
               : []),
             { path: agentPath('leads'), label: '线索与跟进' },
+            { path: agentPath('shared-scripts'), label: '收到的话术' },
+            { path: agentPath('wecom'), label: '企微添加' },
           ],
         },
-        { group: 'navAnalysis', items: [{ path: agentPath('reports'), label: '运营报表' }] },
+        {
+          group: 'navAnalysis',
+          items: [
+            { path: agentPath('performance'), label: '快捷面板' },
+            { path: agentPath('overview'), label: '数据统计' },
+            { path: agentPath('reports'), label: '运营报表' },
+          ],
+        },
         { group: 'navPersonal', items: [{ path: agentPath('workspace'), label: '坐席个人配置' }] },
       ],
 );
@@ -64,6 +98,31 @@ watch(
       .catch(() => (healthy.value = false)),
   { immediate: true },
 );
+const openPages = ref([]),
+  refreshIndex = ref(0);
+watch(
+  () => route.fullPath,
+  () => {
+    const existing = openPages.value.find((item) => item.path === route.path);
+    if (existing) existing.url = route.fullPath;
+    else
+      openPages.value.push({
+        path: route.path,
+        url: route.fullPath,
+        label: route.meta.label || 'dashboard',
+      });
+  },
+  { immediate: true },
+);
+async function closePage(item) {
+  const index = openPages.value.indexOf(item);
+  if (index < 0 || openPages.value.length === 1) return;
+  if (item.path === route.path) {
+    const next = openPages.value[index - 1] || openPages.value[index + 1];
+    if (await router.push(next.url)) return;
+  }
+  openPages.value = openPages.value.filter((page) => page.path !== item.path);
+}
 async function leave() {
   try {
     await logout();
@@ -119,6 +178,19 @@ async function leave() {
           ><strong>{{ t(route.meta.label || 'dashboard') }}</strong>
         </div>
         <div class="actions">
+          <template v-if="dial.data.value"
+            ><el-button link :disabled="session.user?.role !== 'admin'" @click="switchCalls"
+              >呼叫开关 {{ dial.data.value.enabled ? '开' : '关' }}</el-button
+            ><span :title="dial.data.value.updated_at">实时并发 {{ dial.data.value.active }}</span
+            ><span v-if="dial.data.value.voice_balance" aria-label="语音余额"
+              >{{ dial.data.value.voice_balance.mode === 'simulation' ? '模拟余额' : '语音余额' }}
+              {{
+                dial.data.value.voice_balance.available
+                  ? dial.data.value.voice_balance.amount + '元'
+                  : '未接入'
+              }}</span
+            ></template
+          >
           <el-tag :type="healthy === false ? 'danger' : 'success'">{{
             t(healthy === false ? 'offline' : 'online')
           }}</el-tag
@@ -130,17 +202,50 @@ async function leave() {
             ><el-option label="中文" value="zh-CN" /><el-option
               label="English"
               value="en-US" /></el-select
-          ><el-button link @click="router.push('/' + role + '/operations/notices')">通知</el-button>
+          ><el-badge :value="unread.data.value?.count" :hidden="!unread.data.value?.count" :max="99"
+            ><el-button
+              link
+              aria-label="通知中心"
+              @click="router.push('/' + role + '/operations/notices')"
+              >🔔</el-button
+            ></el-badge
+          >
           <el-button link @click="router.push('/' + role + '/operations/workspace')"
             >个人配置</el-button
           >
-          <el-button link @click="helpOpen = true">帮助</el-button>
+          <el-button link @click="supportOpen = true">客服</el-button
+          ><el-button link @click="helpOpen = true">帮助</el-button>
           <span>{{ session.user?.full_name || session.user?.username }}</span
           ><el-button @click="leave">{{ t('logout') }}</el-button>
         </div></el-header
-      ><el-main><router-view :key="route.path + ':' + session.epoch" /></el-main></el-container
+      ><el-main>
+        <nav class="workspace-pages" aria-label="已打开页面">
+          <span v-for="item in openPages" :key="item.path">
+            <el-button
+              link
+              :type="item.path === route.path ? 'primary' : 'default'"
+              @click="router.push(item.url)"
+              >{{ t(item.label) }}</el-button
+            >
+            <el-button
+              v-if="openPages.length > 1"
+              link
+              :aria-label="'关闭' + t(item.label)"
+              @click="closePage(item)"
+              >×</el-button
+            >
+          </span>
+          <el-button link aria-label="刷新当前页面" @click="refreshIndex++">刷新</el-button>
+        </nav>
+        <router-view
+          :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
-  <el-drawer v-if="helpOpen" v-model="helpOpen" title="操作帮助" size="420px">
+  <SupportDesk v-if="supportOpen" @close="supportOpen = false" /><el-drawer
+    v-if="helpOpen"
+    v-model="helpOpen"
+    title="操作帮助"
+    size="420px"
+  >
     <template v-if="role === 'admin'">
       <h3>创建一次外呼任务</h3>
       <ol>
@@ -163,6 +268,18 @@ async function leave() {
   </el-drawer>
 </template>
 <style scoped>
+.workspace-pages {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.workspace-pages > span {
+  display: inline-flex;
+  gap: 2px;
+}
+
 .nav-toggle {
   display: block;
   border: 0;

@@ -64,7 +64,8 @@ class LedgerMySqlTest {
                                         "voice_mock_schedule",
                                         "voice_dial_authorization",
                                         "voice_dial_authorization_history",
-                                        "voice_scope_counter"),
+                                        "voice_scope_counter",
+                                        "voice_statement_entry"),
                                 tables);
                         return null;
                     });

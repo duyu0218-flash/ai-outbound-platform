@@ -93,7 +93,8 @@ public class AdminUsers {
 
     private void protect(Identity actor, SysUser user, Map<String, Object> data) {
         boolean removes =
-                Boolean.FALSE.equals(data.get("enabled")) || "agent".equals(data.get("role"));
+                Boolean.FALSE.equals(data.get("enabled"))
+                        || (data.containsKey("role") && !"admin".equals(data.get("role")));
         if (removes
                 && actor.userId() != null
                 && ((Number) actor.userId()).longValue() == user.getId().longValue())

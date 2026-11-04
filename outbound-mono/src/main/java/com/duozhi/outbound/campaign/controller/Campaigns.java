@@ -384,7 +384,7 @@ public class Campaigns {
         if (!Values.set("draft", "failed", "stopped", "prepared").contains(campaign.get("status")))
             throw new ApiError(
                     409, "campaign cannot be started from status " + campaign.get("status"));
-        if (auto_dial) dial.available();
+        if (auto_dial) dial.available(tenant);
         java.time.Instant preflightInstant = java.time.Instant.now();
         var taskSnapshot = workspace.campaignSnapshot(tenant, id);
         if (taskSnapshot != null && !Objects.toString(taskSnapshot.get("start_at"), "").isBlank()) {

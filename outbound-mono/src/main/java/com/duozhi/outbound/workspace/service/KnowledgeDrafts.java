@@ -39,6 +39,13 @@ public class KnowledgeDrafts {
         String kind = Objects.toString(raw.get("kind"), "faq");
         if (!Set.of("faq", "document").contains(kind)) throw new ApiError(422, "知识类型不正确");
         value.put("kind", kind);
+        if ("faq".equals(kind)) {
+            value.put("display_code", text(raw, "display_code", 80, false));
+            String type = Objects.toString(raw.get("answer_type"), "normal");
+            if ("bussiness".equals(type)) type = "business";
+            if (!Set.of("business", "normal").contains(type)) throw new ApiError(422, "回答类型无效");
+            value.put("answer_type", type);
+        }
         value.put("enabled", !Boolean.FALSE.equals(raw.get("enabled")));
         if (raw.get("document_id") != null) {
             String id = text(raw, "document_id", 64, true);

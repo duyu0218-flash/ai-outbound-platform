@@ -53,3 +53,16 @@ export const stageOptions = [
   ['completed', '已完成'],
   ['invalid', '无效'],
 ];
+
+// Some task actions return a successful HTTP response with an unsuccessful preflight.
+export async function campaignCommand(id, command) {
+  const result = await request(
+    '/api/v1/campaigns/' + id + '/' + (command === 'start' ? 'start?async_dial=true' : command),
+    'POST',
+  );
+  if (command === 'start' && (result.campaign_status === 'failed' || result.status === 'failed')) {
+    const reasons = (result.skip_reasons || []).map((r) => r.message).filter(Boolean);
+    throw Error([result.result_message || '任务未启动', ...new Set(reasons)].join(' · '));
+  }
+  return result;
+}

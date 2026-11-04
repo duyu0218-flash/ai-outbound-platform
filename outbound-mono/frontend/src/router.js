@@ -8,11 +8,15 @@ export const adminMenu = [
     items: [
       ['', '外呼工作台', 'Dashboard'],
       ['scripts', '话术管理', 'Scripts'],
+      ['operations/shared-scripts', '收到的话术', 'SharedScripts'],
       ['knowledge', '知识库', 'Knowledge'],
       ['campaigns', '外呼任务', 'Campaigns'],
       ['calls', '通话记录', 'CallsWorkspace'],
       ['quality', '质检复核', 'Quality'],
       ['operations/leads', '线索与跟进', 'OperationsLeads'],
+      ['operations/wecom', '企微添加', 'WecomTracking'],
+      ['operations/overview', '数据统计', 'DailyAnalytics'],
+      ['operations/performance', '快捷面板', 'CallPerformance'],
       ['reports', '外呼报表', 'ReportsWorkspace'],
     ],
   },
@@ -30,7 +34,7 @@ export const adminMenu = [
     group: '营销中台',
     items: [
       ['contacts', '客户名单', 'ContactsWorkspace'],
-      ['marketing/datasets', '数据包与撞库', 'MarketingDatasets'],
+      ['marketing/datasets', '数据集与撞库', 'MarketingDatasets'],
       ['marketing/segments', '人群圈选', 'MarketingSegments'],
       ['marketing/journeys', '活动编排', 'MarketingJourneys'],
       ['marketing/outcomes', '触达结果规则', 'MarketingOutcomes'],
@@ -49,6 +53,7 @@ export const adminMenu = [
       ['system/voice-ai', '模型与语音服务', 'VoiceAi'],
       ['system/messaging', '短信通道与接入', 'Messaging', 'developers'],
       ['billing', '用量与费用', 'Billing'],
+      ['voice-statements', '语音结算账单', 'VoiceStatements'],
       ['settings', '平台配置', 'Settings'],
       ['operations/configs', '表单标签与连接', 'OperationsConfigs'],
       ['system', '监控与审计', 'System'],
@@ -67,6 +72,11 @@ const hiddenAdmin = [
   ['messaging', 'Messaging'],
   ['operations/notices', 'OperationsNotices'],
   ['operations/workspace', 'OperationsWorkspace'],
+];
+export const operatorNavigation = [
+  ['contacts', '客户名单', 'ContactsWorkspace'],
+  ['scripts', '话术管理', 'Scripts'],
+  ['campaigns', '外呼任务', 'Campaigns'],
 ];
 export const router = createRouter({
   history: createWebHistory(),
@@ -108,9 +118,18 @@ export const router = createRouter({
       props: { role: 'agent' },
       meta: { role: 'agent' },
       children: [
+        ...operatorNavigation.map(([path, label, name]) => ({
+          path,
+          component: page(name),
+          meta: { label, operatorOnly: true },
+        })),
         ...[
+          ['operations/shared-scripts', '收到的话术', 'SharedScripts'],
+          ['operations/wecom', '企微添加', 'WecomTracking'],
           ['operations/calls', '话单查询', 'OperationsCalls'],
           ['operations/leads', '线索与跟进', 'OperationsLeads'],
+          ['operations/overview', '数据统计', 'DailyAnalytics'],
+          ['operations/performance', '快捷面板', 'CallPerformance'],
           ['operations/reports', '运营分析', 'OperationsReports'],
           ['operations/notices', '通知中心', 'OperationsNotices'],
           ['operations/workspace', '坐席个人配置', 'OperationsWorkspace'],
@@ -173,6 +192,8 @@ router.beforeEach(async (to) => {
     return true;
   }
   if (!session.user) return '/' + (to.meta.role || 'admin') + '/login';
+  if (session.user.role === 'operator' && to.path === '/agent') return '/agent/campaigns';
+  if (to.meta.operatorOnly && session.user.role !== 'operator') return '/agent';
   if (to.meta.role === 'admin' && session.user.role !== 'admin') return '/agent';
   return true;
 });

@@ -222,7 +222,10 @@ public class BusinessDebug {
                     var state = map(session.get("data"));
                     var values = map(state.getOrDefault("variables", snapshot.get("variables")));
                     var policy = map(snapshot.get("policy"));
-                    String intent = DialogueRules.classify(input),
+                    String
+                            intent =
+                                    com.duozhi.outbound.ai.service.ScriptIntents.classify(
+                                            input, policy),
                             action = "speak",
                             reply = "",
                             node = Objects.toString(state.get("node"), "opening");
@@ -298,6 +301,12 @@ public class BusinessDebug {
                         trace.add("未命中问题已进入人工整理队列");
                     }
                     reply = ContactVariables.render(reply, values);
+                    com.duozhi.outbound.ai.service.OutcomeRules.turn(
+                            policy,
+                            state,
+                            intent,
+                            "question".equals(intent) && !hits.isEmpty(),
+                            "machine_candidate".equals(intent));
                     state.put("variables", values);
                     state.put("node", node);
                     var result =
@@ -320,6 +329,9 @@ public class BusinessDebug {
                                     reply,
                                     "trace",
                                     trace,
+                                    "rule_result",
+                                    com.duozhi.outbound.ai.service.OutcomeRules.finish(
+                                            policy, state),
                                     "execution",
                                     "local-rules; no provider, phone, SMS or lead writes");
                     docs.jdbc.update(

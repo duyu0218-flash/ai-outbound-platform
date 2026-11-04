@@ -46,6 +46,9 @@ public class AiRuntime {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.KnowledgeGaps knowledgeGaps;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ScriptReach reach;
+
     public AiRuntime(
             Store store,
             Transactions tx,
@@ -143,8 +146,13 @@ public class AiRuntime {
         Map<Object, Map<String, Object>> nodes = new HashMap<>();
         for (Map<String, Object> n : (List<Map<String, Object>>) graph.get("nodes"))
             nodes.put(n.get("id"), n);
+        Map<String, String> visitedNodes = new LinkedHashMap<>();
         Map<String, Object> source = nodes.get(d.get("current_node_id")),
                 target = nodes.get(d.get("next_node_id"));
+        if (source != null)
+            visitedNodes.put(source.get("id").toString(), source.get("label").toString());
+        if (target != null)
+            visitedNodes.put(target.get("id").toString(), target.get("label").toString());
         if (!transcript.trim().isEmpty()
                 && source != null
                 && Values.set("start", "message").contains(source.get("type"))
@@ -159,8 +167,11 @@ public class AiRuntime {
                             (Map<String, Object>) d.get("variables"));
         Set<Object> visited = new HashSet<>();
         while (d.get("next_node_id") != null
-                && Values.set("set", "branch")
+                && Values.set("set", "branch", "jump")
                         .contains(nodes.get(d.get("next_node_id")).get("type"))) {
+            visitedNodes.put(
+                    d.get("next_node_id").toString(),
+                    nodes.get(d.get("next_node_id")).get("label").toString());
             if (!visited.add(d.get("next_node_id")))
                 throw new ApiError(409, "automatic flow cycle");
             d =
@@ -174,6 +185,15 @@ public class AiRuntime {
         data.put("flow_variables", d.get("variables"));
         Object node =
                 d.get("next_node_id") == null ? d.get("current_node_id") : d.get("next_node_id");
+        visitedNodes.put(node.toString(), nodes.get(node).get("label").toString());
+        if (reach != null) {
+            Map<String, String> scenes = new LinkedHashMap<>();
+            for (String key : visitedNodes.keySet()) {
+                String scene = Objects.toString(nodes.get(key).get("scene"), "主流程");
+                scenes.put(scene, scene);
+            }
+            reach.recordFlow(call, version.get("script_template_id"), visitedNodes, scenes);
+        }
         call.put("flow_node_key", node);
         String action = d.get("action").toString();
         if (Values.set("wait", "listen", "continue").contains(action)) action = "continue";
@@ -291,7 +311,10 @@ public class AiRuntime {
                                                                             .get("status"))
                                             ? ConversationPolicy.reply(
                                                     "刚才没有听清，请您再说一遍需要办理的事项。", "continue")
-                                            : "machine".equals(payload.get("answer_class"))
+                                            : ("machine".equals(payload.get("answer_class"))
+                                                            && FlowSettings.machineBlocked(
+                                                                    FlowSettings.from(
+                                                                            product.policy(state))))
                                                     ? ConversationPolicy.reply("", "hangup")
                                                     : product.prepare(call, transcript, state),
                             policy = product.policy(state);
@@ -348,6 +371,14 @@ public class AiRuntime {
                                                 ? "handoff"
                                                 : strategy.equals("end") ? "hangup" : "continue");
                     }
+                    if (result == null
+                            && transcript.isEmpty()
+                            && call.get("flow_node_key") == null
+                            && ScriptBindings.from(policy).get("openings")
+                                    instanceof List<?> openings
+                            && !openings.isEmpty()
+                            && policy.get("opening_prompt") instanceof String opening)
+                        result = ConversationPolicy.reply(opening, "continue");
                     if (result == null) result = flow(call, state, transcript);
                     if (result == null && Boolean.TRUE.equals(payload.get("native_response")))
                         result = ConversationPolicy.reply("", "continue");
@@ -560,6 +591,12 @@ public class AiRuntime {
                         : store.require(
                                 "campaign", CallLifecycle.tenant(call), call.get("campaign_id"));
         var matchedKnowledge = knowledge(call, policy, transcript);
+        if (reach != null && campaign.get("script_template_id") != null) {
+            var hits = new LinkedHashMap<String, String>();
+            for (var hit : matchedKnowledge)
+                hits.put(hit.get("id").toString(), hit.get("title").toString());
+            reach.record(call, campaign.get("script_template_id"), "knowledge", hits);
+        }
         Map<String, Object> context =
                 JsonSupport.map(
                         "campaign_id",
@@ -1141,7 +1178,10 @@ public class AiRuntime {
                         int count = JsonSupport.integer(data.get("silence_count"), 0) + 1;
                         data.put("silence_count", count);
                         boolean exhausted =
-                                count > JsonSupport.integer(policy.get("max_clarifications"), 2);
+                                FlowSettings.timedOut(
+                                        FlowSettings.from(policy),
+                                        count,
+                                        JsonSupport.integer(policy.get("max_clarifications"), 2));
                         result =
                                 ConversationPolicy.reply(
                                         exhausted

@@ -19,6 +19,11 @@ public class OperationsBoundary implements WebMvcConfigurer {
         this.access = access;
     }
 
+    private static boolean operatorWorkspace(String path) {
+        return path.matches(
+                "/api/v1/(?:workspace/(?:scripts|tasks|task-resources|audiences|contact-batches)|campaigns|contacts|script-templates)(?:/.*)?");
+    }
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(
@@ -40,12 +45,19 @@ public class OperationsBoundary implements WebMvcConfigurer {
                                         throw new ApiError(403, "没有录音访问权限");
                                 }
                                 if (access.managed(i)
+                                        && !(i.isOperator() && operatorWorkspace(path))
                                         && path.startsWith("/api/v1/")
                                         && !path.startsWith("/api/v1/ops/")
                                         && !path.startsWith("/api/v1/auth/")
                                         && !path.startsWith("/api/v1/calls")
                                         && !path.startsWith("/api/v1/handoffs")
                                         && !path.startsWith("/api/v1/webrtc/")
+                                        && !("agent".equals(i.user().get("role"))
+                                                && Set.of(
+                                                                "/api/v1/agent/events/stream",
+                                                                "/api/v1/agent/media/status",
+                                                                "/api/v1/agent/webrtc/session")
+                                                        .contains(path))
                                         && !(r.getMethod().equals("GET")
                                                 && path.startsWith("/api/v1/knowledge")))
                                     throw new ApiError(403, "请使用具有团队数据范围的运营工作台");

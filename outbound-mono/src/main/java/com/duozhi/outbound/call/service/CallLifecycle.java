@@ -478,6 +478,24 @@ public class CallLifecycle {
                                         + "\n"
                                         + payload.get("summary"));
                     if (applied && TERMINAL.contains(target)) {
+                        if (Values.set("waiting_human", "handoff_transferring").contains(current))
+                            event(
+                                    call,
+                                    "handoff_lost",
+                                    "call_lifecycle",
+                                    JsonSupport.map(
+                                            "event_id",
+                                            "handoff_loss:"
+                                                    + call.get("id")
+                                                    + ":"
+                                                    + number(call, "attempts"),
+                                            "from",
+                                            current,
+                                            "to",
+                                            target,
+                                            "reason",
+                                            Objects.toString(
+                                                    payload.get("hangup_reason"), "unknown")));
                         changes.put("finished_at", Store.now());
                         releaseAgent(call);
                         for (Map<String, Object> handoff :

@@ -199,6 +199,113 @@ class WorkspaceWorkflowIT {
                 JsonNode.class);
     }
 
+    @Test
+    void reachCollectionIsScopedDeduplicatedAndDisabledByDefault() {
+        var script = api(HttpMethod.POST, "/scripts", Map.of("name", "采集测试"));
+        long scriptId = script.path("id").asLong();
+        var reach = new com.duozhi.outbound.workspace.service.ScriptReach(docs);
+        var now = java.time.LocalDateTime.of(2026, 11, 4, 9, 30);
+        Map<String, Object> call =
+                Map.of(
+                        "id",
+                        UUID.randomUUID().toString(),
+                        "tenant_id",
+                        1,
+                        "created_at",
+                        now,
+                        "script_flow_version_id",
+                        1);
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白"));
+        assertThat(reach.period(1, scriptId, "node", now.minusHours(1), now.plusHours(1)))
+                .containsEntry("total", 0L);
+        api(
+                HttpMethod.PUT,
+                "/scripts/" + scriptId + "/reach/settings",
+                Map.of("enabled", true, "revision", 0));
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白"));
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白", "end", "结束"));
+        reach.record(call, scriptId, "knowledge", Map.of("faq1", "地点"));
+        var v = reach.period(1, scriptId, "node", now.minusHours(1), now.plusHours(1));
+        assertThat(v).containsEntry("total", 1L);
+        assertThat((List<?>) v.get("rows")).hasSize(2);
+        assertThat(reach.period(2, scriptId, "node", now.minusHours(1), now.plusHours(1)))
+                .containsEntry("total", 0L);
+        api(
+                HttpMethod.PUT,
+                "/scripts/" + scriptId + "/reach/settings",
+                Map.of("enabled", false, "revision", 1));
+        reach.record(call, scriptId, "node", Map.of("other", "禁采"));
+        assertThat(
+                        (List<?>)
+                                reach.period(
+                                                1,
+                                                scriptId,
+                                                "node",
+                                                now.minusHours(1),
+                                                now.plusHours(1))
+                                        .get("rows"))
+                .hasSize(2);
+    }
+
+    @Test
+    void operatorCanPrepareTaskButCannotAdministerOtherWorkspaces() {
+        String operator = crypto.token(UserRecords.map(account(1, "operator")));
+        String agent = crypto.token(UserRecords.map(account(1, "agent")));
+        for (String path :
+                List.of(
+                        "/scripts",
+                        "/tasks",
+                        "/contact-batches",
+                        "/task-resources/selectable-lines")) {
+            ok(raw(operator, HttpMethod.GET, path, null));
+            assertThat(raw(agent, HttpMethod.GET, path, null).getStatusCode().value())
+                    .isEqualTo(403);
+        }
+        ok(raw(operator, HttpMethod.POST, "/scripts", Map.of("name", "运营验收")));
+        assertThat(
+                        raw(operator, HttpMethod.POST, "/libraries", Map.of("name", "受限"))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void faqCsvRoundTripPreservesBusinessFieldsAndRejectsStaleAppend() {
+        var created = library();
+        var libraryId = id(created);
+        String path = "/api/v1/workspace/libraries/" + libraryId + "/faq-file";
+        var body = new LinkedMultiValueMap<String, Object>();
+        String csv = "\ufeff序号,标题,关键词,回答内容,类型,相似问法,分类\r\n01,办理条件,办理,请预约,bussiness,,服务\r\n";
+        body.add(
+                "file",
+                new ByteArrayResource(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+                    public String getFilename() {
+                        return "faq.csv";
+                    }
+                });
+        body.add("expected_revision", created.path("revision").asText());
+        var headers = auth(token);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        var upload = new HttpEntity<>(body, headers);
+        assertThat(
+                        ok(http.exchange(path, HttpMethod.POST, upload, JsonNode.class))
+                                .path("imported")
+                                .asInt())
+                .isEqualTo(1);
+        assertThat(
+                        http.exchange(path, HttpMethod.POST, upload, JsonNode.class)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        var item = lib(libraryId).path("items").get(0).path("draft");
+        assertThat(item.path("answer_type").asText()).isEqualTo("business");
+        assertThat(item.path("display_code").asText()).isEqualTo("01");
+        var download =
+                http.exchange(path, HttpMethod.GET, new HttpEntity<>(auth(token)), byte[].class);
+        assertThat(new String(download.getBody(), java.nio.charset.StandardCharsets.UTF_8))
+                .contains("01,办理条件,办理,请预约,business,,服务");
+    }
+
     JsonNode waitDocument(String library, String key, String state) throws Exception {
         long end = System.nanoTime() + 15_000_000_000L;
         JsonNode value = null;

@@ -127,6 +127,16 @@ public class ConversationPolicy {
         long tenant = CallLifecycle.tenant(call);
         var initial = new LinkedHashMap<>(initialStatePolicy(call));
         Map<String, Object> initialData = new LinkedHashMap<>();
+        var original = json.object(initial.get("json").toString());
+        if (ScriptBindings.from(original).get("openings") instanceof List<?> openings
+                && !openings.isEmpty()) {
+            int index =
+                    Math.floorMod(
+                            Objects.hash(call.get("id"), call.get("attempts")), openings.size());
+            original.put("opening_prompt", openings.get(index));
+            initialData.put("opening_index", index);
+            initial.put("json", json.json(original));
+        }
         if (workspace != null
                 && call.get("campaign_id") != null
                 && call.get("contact_id") instanceof Number cid) {
@@ -684,11 +694,14 @@ public class ConversationPolicy {
                                 store.encode("speechturn", "call_session_id", call.get("id")),
                                 call.get("attempts"),
                                 true));
-        String intent = DialogueRules.classify(transcript);
+        String intent = ScriptIntents.classify(transcript, policy);
+        if ("machine_candidate".equals(intent)
+                && !FlowSettings.machineBlocked(FlowSettings.from(policy))) intent = "unclear";
         Map<String, Object> pending =
                 data.get("pending") instanceof Map
                         ? (Map<String, Object>) data.get("pending")
                         : Collections.emptyMap();
+        boolean businessFaq = false;
         if ("callback_time_request".equals(pending.get("kind"))
                 && !Values.set("stop_contact", "wrong_person", "cancel_callback", "end")
                         .contains(intent)) intent = "callback";
@@ -851,6 +864,7 @@ public class ConversationPolicy {
                     break;
                 }
             if (faq != null) {
+                businessFaq = true;
                 String question = "";
                 for (Map<String, Object> slot : slots(policy))
                     if (Objects.equals(slot.get("key"), data.get("active_slot")))
@@ -892,6 +906,8 @@ public class ConversationPolicy {
         if (Values.set("interested", "permission_to_listen", "question", "affirm").contains(intent)
                 && !"machine".equals(data.get("answer_kind"))
                 && !low) data.put("answer_kind", "human");
+        OutcomeRules.turn(
+                policy, data, intent, businessFaq, "machine".equals(data.get("answer_kind")));
         data.putAll(
                 JsonSupport.map(
                         "sequence",
@@ -925,6 +941,8 @@ public class ConversationPolicy {
                 && (Boolean.TRUE.equals(data.get("model_pending"))
                         || Boolean.TRUE.equals(data.get("media_failure")))) return;
         if (state.get("deadline") != null && kind.equals(state.get("timer_kind"))) return;
+        boolean ordinarySilence =
+                "silence".equals(kind) && !Boolean.TRUE.equals(data.get("extended_wait"));
         int seconds =
                 JsonSupport.integer(
                         policy.get(
@@ -938,6 +956,13 @@ public class ConversationPolicy {
         if ("handoff".equals(kind)) seconds = workforce.timeout(call, seconds);
         if ("failure".equals(kind)) seconds = 0;
         LocalDateTime deadline = Store.now().plusSeconds(seconds);
+        if (ordinarySilence)
+            deadline =
+                    Store.now()
+                            .plusNanos(
+                                    FlowSettings.responseMillis(
+                                                    FlowSettings.from(policy), seconds * 1000L)
+                                            * 1000000L);
         state.putAll(
                 JsonSupport.map(
                         "generation", generation, "timer_kind", kind, "deadline", deadline));

@@ -54,7 +54,7 @@ export async function workspaceChecks({ page, origin, check, go }) {
       await go('/admin/scripts', '话术管理');
       const source = page
         .getByRole('row')
-        .filter({ has: page.getByRole('cell', { name: 'Vue浏览器话术', exact: true }) });
+        .filter({ has: page.getByRole('cell', { name: /^Vue浏览器话术\s+改名/ }) });
       await source.getByRole('button', { name: '配置话术', exact: true }).click();
       await expect(page.locator('.el-main .actions .el-tag')).toHaveText('已发布');
       await page.getByRole('tab', { name: '知识与动作', exact: true }).click();
@@ -460,7 +460,7 @@ export async function workspaceChecks({ page, origin, check, go }) {
       await go('/admin/scripts', '话术管理');
       const target = page
         .getByRole('row')
-        .filter({ has: page.getByRole('cell', { name: 'Vue浏览器话术（副本）', exact: true }) });
+        .filter({ has: page.getByRole('cell', { name: /^Vue浏览器话术（副本）\s+改名/ }) });
       await target.getByRole('button', { name: '配置话术', exact: true }).click();
       await page.getByRole('tab', { name: '信息采集与合格条件', exact: true }).click();
       await page.getByRole('button', { name: '添加采集字段', exact: true }).click();

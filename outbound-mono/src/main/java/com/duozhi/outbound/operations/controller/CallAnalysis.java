@@ -1,6 +1,5 @@
 package com.duozhi.outbound.operations.controller;
 
-import com.duozhi.outbound.ai.service.DialogueRules;
 import com.duozhi.outbound.auth.domain.AdminPermission;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.call.service.CallLifecycle;
@@ -163,7 +162,8 @@ public class CallAnalysis {
                     lowConfidence = true;
                     continue;
                 }
-                String decision = DialogueRules.classify(text);
+                String decision =
+                        com.duozhi.outbound.ai.service.ScriptIntents.classify(text, policy);
                 if (Values.set(
                                 "interested",
                                 "rejected",
@@ -255,6 +255,25 @@ public class CallAnalysis {
                         call.get("recording_url") == null
                                 ? "recording_pending"
                                 : flags.isEmpty() ? "ready" : "review_pending");
+        if (com.duozhi.outbound.ai.service.FlowSettings.from(policy).get("min_seconds")
+                instanceof Number min) {
+            var usage =
+                    store.one(
+                            "callusage",
+                            "scopedCallLifecycle80",
+                            Store.scopedParameters(
+                                    CallLifecycle.tenant(call),
+                                    store.encode("callusage", "call_session_id", call.get("id")),
+                                    attempt));
+            structured.put("minimum_talk_seconds", min.intValue());
+            structured.put(
+                    "meets_minimum_talk",
+                    usage != null && usage.get("telephony_seconds") instanceof Number measured
+                            ? measured.doubleValue() >= min.doubleValue()
+                            : null);
+        }
+        structured.put(
+                "rule_result", com.duozhi.outbound.ai.service.OutcomeRules.finish(policy, product));
         int score = Math.max(0, 100 - flags.size() * 20);
         String automatic =
                 json.canonical(

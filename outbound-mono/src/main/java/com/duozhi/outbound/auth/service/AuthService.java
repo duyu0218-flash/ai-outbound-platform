@@ -80,12 +80,16 @@ public class AuthService {
         return patch(user.getId(), user.getTenantId(), changes);
     }
 
+    @Transactional
     public Map<String, Object> patch(long id, int tenant, Map<String, Object> changes) {
         if (id < Integer.MIN_VALUE
                 || id > Integer.MAX_VALUE
                 || users.findById((int) id, tenant) == null)
             throw new ApiError(404, "user not found");
         identities.updateUser(id, tenant, changes, now());
+        if (!Collections.disjoint(
+                changes.keySet(), Set.of("agent_status", "last_seen_at", "role", "enabled")))
+            identities.sampleSeat(tenant, id);
         if (changes.keySet().stream()
                 .anyMatch(Set.of("token_version", "enabled", "role", "password_hash")::contains))
             changed(tenant, id);
@@ -97,6 +101,7 @@ public class AuthService {
         Map<String, Object> user = identity.requireUser();
         media.delete("ai-outbound:agent-media:" + identity.tenant() + ":" + user.get("id"));
         identities.revoke(((Number) user.get("id")).longValue(), (int) identity.tenant(), now());
+        identities.sampleSeat(identity.tenant(), ((Number) user.get("id")).longValue());
         changed(identity.tenant(), ((Number) user.get("id")).longValue());
     }
 

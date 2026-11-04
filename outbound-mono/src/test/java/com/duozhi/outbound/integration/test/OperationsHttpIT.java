@@ -482,7 +482,48 @@ class OperationsHttpIT {
     @Test
     void reportsViewsAndForeignTenantBoundaries() {
         Object a = contact("报表").get("id");
-        call(a, agent.getId());
+        var session = call(a, agent.getId());
+        for (int attempt = 1; attempt <= 2; attempt++)
+            store.insert(
+                    "callusage",
+                    JsonSupport.map(
+                            "tenant_id",
+                            tenant,
+                            "call_session_id",
+                            session.get("id"),
+                            "attempt",
+                            attempt,
+                            "answered_at",
+                            Store.now(),
+                            "telephony_seconds",
+                            12.0,
+                            "ai_seconds",
+                            6.0,
+                            "duration_source",
+                            "provider"));
+        assertThat(get("/reports?ai_ranges=1-3,12-12&total_ranges=24-24").path("rows")).hasSize(1);
+        assertThat(get("/reports?human_ranges=0-86400").path("rows")).isEmpty();
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/reports?ai_ranges=24-12", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
+        var totalBucket = get("/reports/durations?kind=total").get(0);
+        assertThat(totalBucket.path("duration_bucket").asText()).isEqualTo("medium");
+        assertThat(totalBucket.path("calls").asInt()).isEqualTo(1);
+        assertThat(get("/reports/durations?kind=ai").get(0).path("duration_bucket").asText())
+                .isEqualTo("medium");
+        assertThat(get("/reports/durations?kind=human").get(0).path("duration_bucket").asText())
+                .isEqualTo("unknown");
+        var usage =
+                get("/reports?dimension=flow_version&granularity=minute&flow_version_id=0")
+                        .path("rows")
+                        .get(0);
+        assertThat(usage.path("first_answered_attempts").asInt()).isEqualTo(1);
+        assertThat(usage.path("repeat_answered_attempts").asInt()).isEqualTo(1);
+        assertThat(usage.path("answered_attempts").asInt()).isEqualTo(2);
+        assertThat(usage.path("telephony_seconds").asDouble()).isEqualTo(24.0);
+        assertThat(usage.path("ai_seconds").asDouble()).isEqualTo(12.0);
         assertThat(
                         get("/reports?dimension=agent&granularity=all")
                                 .path("rows")

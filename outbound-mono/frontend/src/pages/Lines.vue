@@ -2,6 +2,27 @@
 import { ref } from 'vue';
 import { request } from '../session';
 import { useData } from '../data';
+import { ops, perform } from '../operations';
+import { ElMessageBox } from 'element-plus';
+const groups = useData('/api/v1/ops/lines/groups');
+function groupName(id) {
+  return groups.data.value?.find((g) => g.line_id === id)?.group_name || '';
+}
+async function groupLine(row) {
+  let value;
+  try {
+    ({ value } = await ElMessageBox.prompt('仅对后续呼叫生效，清空可移出分组', '设置线路组', {
+      inputValue: groupName(row.id),
+      inputValidator: (v) => !v || v.trim().length <= 100,
+    }));
+  } catch {
+    return;
+  }
+  await perform(
+    () => ops('/lines/' + row.id + '/group', 'PUT', { group_name: (value || '').trim() }),
+    groups.load,
+  );
+}
 const impact = ref(null);
 async function showImpact(row) {
   try {
@@ -138,6 +159,12 @@ async function save() {
               ? 'HTTP语音网关'
               : row.provider + '网关'
         }}</template></el-table-column
+      ><el-table-column label="线路组"
+        ><template #default="{ row }"
+          ><el-button link @click="groupLine(row)">{{
+            groupName(row.id) || '设置线路组'
+          }}</el-button></template
+        ></el-table-column
       ><el-table-column prop="caller_id" label="主叫号码" /><el-table-column
         prop="max_concurrency"
         label="同时通话上限"

@@ -50,7 +50,9 @@ async function go(path, title) {
     '/admin/billing': '用量与费用',
   };
   const item = page.getByRole('menuitem').filter({ hasText: labels[path] || title });
-  if (await item.count()) await item.first().click();
+  if (path.endsWith('/operations/notices'))
+    await page.getByRole('button', { name: '通知中心', exact: true }).click();
+  else if (await item.count()) await item.first().click();
   else
     await page.evaluate((path) => {
       document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path);

@@ -30,7 +30,8 @@ public class PermissionConfiguration implements WebMvcConfigurer {
                                                 method.getBeanType(), AdminPermission.class);
                             if (permission != null) {
                                 Identity identity = Identity.from(request);
-                                if (!permission.supervisor() || identity.user() == null)
+                                if (!(permission.operator() && identity.isOperator())
+                                        && (!permission.supervisor() || identity.user() == null))
                                     identity.admin(permission.value());
                             }
                         }

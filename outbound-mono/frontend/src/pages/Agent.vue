@@ -84,6 +84,39 @@ async function handover(call) {
   });
   await savePresence('busy');
 }
+const vScreenReceipt = {
+  mounted(el, binding) {
+    const offer = binding.value;
+    if (String(offer.assigned_agent_id) !== String(session.user?.id)) return;
+    let visible = false,
+      sending = false,
+      done = false;
+    async function seen() {
+      if (!visible || sending || done || document.visibilityState !== 'visible') return;
+      sending = true;
+      try {
+        await request('/api/v1/ops/handoffs/' + offer.id + '/screen', 'POST');
+        done = true;
+      } catch {
+      } finally {
+        sending = false;
+      }
+    }
+    const observer = new IntersectionObserver((entries) => {
+      visible = entries.some((e) => e.isIntersecting);
+      seen();
+    });
+    observer.observe(el);
+    document.addEventListener('visibilitychange', seen);
+    el.stopReceipt = () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', seen);
+    };
+  },
+  unmounted(el) {
+    el.stopReceipt?.();
+  },
+};
 onMounted(() => {
   if (session.user?.role === 'agent') {
     heartbeat = setInterval(() => savePresence(presence.value, false), 30000);
@@ -173,7 +206,12 @@ onUnmounted(() => {
       <el-card :header="t('handoffQueue')"
         ><el-button @click="queue.load">{{ t('refresh') }}</el-button
         ><el-alert v-if="queue.error.value" type="error" :title="queue.error.value" />
-        <div v-for="item in queue.data.value || []" :key="item.id" class="record-card">
+        <div
+          v-for="item in queue.data.value || []"
+          :key="item.id + ':' + item.assigned_agent_id"
+          v-screen-receipt="item"
+          class="record-card"
+        >
           <div class="actions">
             <strong>{{ item.contact_name || t('unknownCustomer') }}</strong
             ><span>{{ item.phone || item.call_session_id }}</span

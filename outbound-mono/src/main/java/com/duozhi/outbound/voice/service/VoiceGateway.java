@@ -480,7 +480,14 @@ public final class VoiceGateway implements AutoCloseable {
         ledger.transaction(
                 db -> {
                     double now = LocalLedger.now(),
-                            duration = settings.number("VOICE_MOCK_OCCUPANCY_SEC", 3, 2, 3600);
+                            duration =
+                                    com.duozhi.outbound.ai.service.FlowSettings.cap(
+                                            Support.map(
+                                                    Support.map(payload.get("metadata"))
+                                                            .get("flow_settings")),
+                                            "max_seconds",
+                                            settings.number(
+                                                    "VOICE_MOCK_OCCUPANCY_SEC", 3, 2, 3600));
                     String encoded = new String(Support.canonical(result), StandardCharsets.UTF_8);
                     LocalLedger.execute(
                             db, "CALL voice_mock_accept(?,?,?,?)", uuid, encoded, now, duration);
@@ -643,12 +650,20 @@ public final class VoiceGateway implements AutoCloseable {
             bindings.put(binding.uuid, binding);
             Map<String, String> vars = new LinkedHashMap<>();
             vars.put("origination_uuid", binding.uuid);
-            vars.put("originate_timeout", settings.get("FREESWITCH_ORIGINATE_TIMEOUT_SEC", "45"));
+            var flow = Support.map(binding.metadata.get("flow_settings"));
+            long ringCap = settings.number("FREESWITCH_ORIGINATE_TIMEOUT_SEC", 45, 1, 300);
+            vars.put(
+                    "originate_timeout",
+                    String.valueOf(
+                            com.duozhi.outbound.ai.service.FlowSettings.cap(
+                                    flow, "ring_seconds", ringCap)));
             vars.put("ignore_early_media", "true");
             long duration =
                     Math.min(
                             Support.integer(route, "max_duration_sec", 300),
                             settings.number("VOICE_MAX_DURATION_SEC", 300, 1, 3600));
+            duration =
+                    com.duozhi.outbound.ai.service.FlowSettings.cap(flow, "max_seconds", duration);
             vars.put("execute_on_answer", "'sched_hangup +" + duration + " ALLOTTED_TIMEOUT'");
             vars.put("hangup_after_bridge", "true");
             vars.put("platform_call_id_b64", b64(binding.call));
@@ -1491,6 +1506,17 @@ public final class VoiceGateway implements AutoCloseable {
         afterNotice(binding, completion);
     }
 
+    private void startRecording(Binding binding) throws Exception {
+        String filename =
+                binding.call.replaceAll("[^A-Za-z0-9_.-]", "_") + "-" + binding.uuid + ".wav";
+        String path =
+                Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings"))
+                        .resolve(filename)
+                        .toString();
+        esl.command("uuid_record " + binding.uuid + " start " + quote(path), false);
+        binding.recordingPath = path;
+    }
+
     private void afterNotice(Binding binding, CompletableFuture<Void> completion) throws Exception {
         // Serialise commands which can create resources with the stop fence; never wait for an
         // event under this monitor.
@@ -1498,17 +1524,24 @@ public final class VoiceGateway implements AutoCloseable {
             if (binding.stopped) return;
             if (!Boolean.FALSE.equals(binding.metadata.get("recording_enabled"))
                     && binding.recordingPath.isEmpty()) {
-                String filename =
-                        binding.call.replaceAll("[^A-Za-z0-9_.-]", "_")
-                                + "-"
-                                + binding.uuid
-                                + ".wav";
-                String path =
-                        Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings"))
-                                .resolve(filename)
-                                .toString();
-                esl.command("uuid_record " + binding.uuid + " start " + quote(path), false);
-                binding.recordingPath = path;
+                int delay =
+                        com.duozhi.outbound.ai.service.FlowSettings.delay(
+                                Support.map(binding.metadata.get("flow_settings")));
+                if (delay <= 0) startRecording(binding);
+                else
+                    CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS)
+                            .execute(
+                                    () -> {
+                                        synchronized (binding) {
+                                            if (binding.stopped || !binding.recordingPath.isEmpty())
+                                                return;
+                                            try {
+                                                startRecording(binding);
+                                            } catch (Exception e) {
+                                                startupFailed(binding);
+                                            }
+                                        }
+                                    });
             }
             if (binding.human) {
                 completion.complete(null);

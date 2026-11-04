@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessageBox } from 'element-plus';
-import { request, session } from '../session';
+import { request, session, download } from '../session';
 import { formatDate } from '../api';
 import { useData } from '../data';
 import KnowledgeDocumentImport from '../components/KnowledgeDocumentImport.vue';
@@ -53,7 +53,18 @@ const fields = computed(() => [
   },
   ...(entry.value.kind === 'document'
     ? []
-    : [{ key: 'similar_questions', label: '相似问法', type: 'textarea', rows: 2 }]),
+    : [
+        { key: 'display_code', label: '问答序号' },
+        {
+          key: 'answer_type',
+          label: '回答类型',
+          options: [
+            { value: 'normal', label: '普通问答' },
+            { value: 'business', label: '业务问答' },
+          ],
+        },
+        { key: 'similar_questions', label: '相似问法', type: 'textarea', rows: 2 },
+      ]),
   {
     key: 'content',
     label: entry.value.kind === 'document' ? '文档分段正文' : '标准答案',
@@ -145,11 +156,12 @@ async function create() {
 function edit(row) {
   editing.value = row;
   entry.value = row
-    ? clone(row.draft)
+    ? { answer_type: 'normal', ...clone(row.draft) }
     : {
         name: '',
         category: category.value && category.value !== '__uncategorized__' ? category.value : '',
         kind: 'faq',
+        answer_type: 'normal',
         similar_questions: '',
         content: '',
         source: '',
@@ -159,6 +171,23 @@ function edit(row) {
         enabled: true,
       };
   entryOpen.value = true;
+}
+async function importFaq(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  const lib = selected.value;
+  await run(async () => {
+    await ElMessageBox.confirm(
+      '将文件中的问答追加到当前知识库草稿，发布后生效。继续导入？',
+      '导入问答',
+    );
+    const body = new FormData();
+    body.append('file', file);
+    body.append('expected_revision', String(lib.revision));
+    await request('/api/v1/workspace/libraries/' + lib.object_id + '/faq-file', 'POST', body);
+    if (valid() && selected.value?.object_id === lib.object_id) await reload();
+  });
 }
 async function saveEntry() {
   await run(async () => {
@@ -197,6 +226,32 @@ async function state(value) {
     });
     if (valid()) await reload();
   });
+}
+const picked = ref([]),
+  drag = ref(''),
+  syncTarget = ref('');
+async function batch(action, ids, target) {
+  if (!ids.length) return;
+  await run(async () => {
+    if (action === 'delete')
+      await ElMessageBox.confirm('从本库草稿删除选中的问答？有关发布版本仍可追溯。', '删除问答');
+    await request('/api/v1/workspace/libraries/' + selected.value.object_id + '/batch', 'POST', {
+      action,
+      ids,
+      target,
+      revision: selected.value.revision,
+    });
+    picked.value = [];
+    await reload();
+  });
+}
+function dropFaq(target) {
+  const list = selected.value.items.map((e) => e.object_id);
+  const i = list.indexOf(drag.value),
+    j = list.indexOf(target);
+  if (i < 0 || j < 0 || i === j) return;
+  list.splice(j, 0, list.splice(i, 1)[0]);
+  batch('order', list);
 }
 function directory(mode) {
   directoryMode.value = mode;
@@ -349,6 +404,27 @@ onBeforeUnmount(() => {
     /></el-tabs>
     <el-card v-if="tab === 'entries'">
       <div class="actions">
+        <el-button
+          :disabled="busy"
+          @click="
+            run(() =>
+              download(
+                '/api/v1/workspace/libraries/' + selected.object_id + '/faq-file',
+                '问答.csv',
+              ),
+            )
+          "
+          >导出问答 CSV</el-button
+        >
+        <label
+          >批量导入问答 CSV
+          <input
+            type="file"
+            accept=".csv"
+            :disabled="busy"
+            aria-label="批量导入问答 CSV"
+            @change="importFaq"
+        /></label>
         <el-button type="primary" @click="edit()">添加问答</el-button
         ><el-button @click="tab = 'documents'">导入知识文档</el-button
         ><el-input
@@ -393,35 +469,98 @@ onBeforeUnmount(() => {
           </div>
           <small>数量包含子分类条目。分类变更只影响草稿，正式检索需重新发布。</small>
         </aside>
-        <el-table :data="entries"
-          ><el-table-column label="标准问题 / 标题" min-width="190"
-            ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
-          ><el-table-column label="类型"
-            ><template #default="{ row }">{{
-              row.draft.kind === 'document' ? '文档分段' : '问答'
-            }}</template></el-table-column
-          ><el-table-column label="分类"
-            ><template #default="{ row }">{{
-              row.draft.category || '未分类'
-            }}</template></el-table-column
-          ><el-table-column label="参与发布"
-            ><template #default="{ row }">{{
-              row.draft.enabled ? '是' : '否'
-            }}</template></el-table-column
-          ><el-table-column label="来源"
-            ><template #default="{ row }">{{
-              row.draft.source || '人工录入'
-            }}</template></el-table-column
-          ><el-table-column label="更新时间"
-            ><template #default="{ row }">{{
-              formatDate(row.updated_at)
-            }}</template></el-table-column
-          ><el-table-column label="操作"
-            ><template #default="{ row }"
-              ><el-button link @click="edit(row)">编辑知识</el-button></template
-            ></el-table-column
-          ></el-table
-        >
+        <div>
+          <el-select v-model="syncTarget" aria-label="同步目标知识库" style="width: 200px"
+            ><el-option
+              v-for="v in (query.data.value?.rows || []).filter(
+                (x) => x.object_id !== selected.object_id,
+              )"
+              :key="v.object_id"
+              :value="v.object_id"
+              :label="v.name" /></el-select
+          ><el-button
+            :disabled="!picked.length || !syncTarget"
+            @click="
+              batch(
+                'sync',
+                picked.map((r) => r.object_id),
+                syncTarget,
+              )
+            "
+            >同步选中问答</el-button
+          ><el-button
+            :disabled="!picked.length"
+            @click="
+              batch(
+                'delete',
+                picked.map((r) => r.object_id),
+              )
+            "
+            >删除选中问答</el-button
+          >
+          <p>命中率按本租户开启采集的通话计算，同一通话命中同一问题只计一次。</p>
+          <el-table :data="entries" row-key="object_id" @selection-change="picked = $event"
+            ><el-table-column type="selection" /><el-table-column label="顺序"
+              ><template #default="{ row }"
+                ><span
+                  draggable="true"
+                  :aria-label="'移动问答' + row.draft.name"
+                  @dragstart="drag = row.object_id"
+                  @dragover.prevent
+                  @drop.prevent="dropFaq(row.object_id)"
+                  >↕</span
+                ></template
+              ></el-table-column
+            >
+            <el-table-column label="命中通话数" prop="hit_calls" /><el-table-column label="命中率"
+              ><template #default="{ row }">{{
+                row.sample_calls ? ((row.hit_calls * 100) / row.sample_calls).toFixed(2) + '%' : '—'
+              }}</template></el-table-column
+            ><el-table-column label="序号" prop="draft.display_code" /><el-table-column
+              label="关键词"
+              prop="draft.keywords"
+              show-overflow-tooltip
+            /><el-table-column
+              label="回答内容"
+              prop="draft.content"
+              show-overflow-tooltip
+            /><el-table-column label="回答类型"
+              ><template #default="{ row }">{{
+                row.draft.kind === 'document'
+                  ? '—'
+                  : row.draft.answer_type === 'business'
+                    ? '业务问答'
+                    : '普通问答'
+              }}</template></el-table-column
+            ><el-table-column label="标准问题 / 标题" min-width="190"
+              ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
+            ><el-table-column label="类型"
+              ><template #default="{ row }">{{
+                row.draft.kind === 'document' ? '文档分段' : '问答'
+              }}</template></el-table-column
+            ><el-table-column label="分类"
+              ><template #default="{ row }">{{
+                row.draft.category || '未分类'
+              }}</template></el-table-column
+            ><el-table-column label="参与发布"
+              ><template #default="{ row }">{{
+                row.draft.enabled ? '是' : '否'
+              }}</template></el-table-column
+            ><el-table-column label="来源"
+              ><template #default="{ row }">{{
+                row.draft.source || '人工录入'
+              }}</template></el-table-column
+            ><el-table-column label="更新时间"
+              ><template #default="{ row }">{{
+                formatDate(row.updated_at)
+              }}</template></el-table-column
+            ><el-table-column label="操作"
+              ><template #default="{ row }"
+                ><el-button link @click="edit(row)">编辑知识</el-button></template
+              ></el-table-column
+            ></el-table
+          >
+        </div>
       </div>
       <p>目录、问答与文档草稿在发布前不会改变已有任务。停用知识条目后需重新发布知识库。</p>
     </el-card>

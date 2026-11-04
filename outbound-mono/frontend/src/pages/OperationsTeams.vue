@@ -1,8 +1,27 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import { ops, perform, parse } from '../operations';
-import { request } from '../session';
+import { session, request } from '../session';
+import SeatMonitor from '../components/SeatMonitor.vue';
 import ResourceCatalog from '../components/ResourceCatalog.vue';
+const orderKey =
+  'seat-panel-order:' +
+  JSON.stringify([location.pathname, session.user?.tenant_id, session.user?.id]);
+const below = ref(localStorage.getItem(orderKey) === 'below'),
+  dragging = ref(false);
+function startDrag(e) {
+  e.dataTransfer.setData('text/plain', 'seat-monitor');
+  e.dataTransfer.effectAllowed = 'move';
+  dragging.value = true;
+}
+function drop(e, after) {
+  if (e.dataTransfer.getData('text/plain') === 'seat-monitor') place(after);
+}
+function place(after) {
+  below.value = after;
+  localStorage.setItem(orderKey, after ? 'below' : 'above');
+  dragging.value = false;
+}
 const skills = ref([]),
   teamStatus = ref([]);
 async function catalog() {
@@ -67,7 +86,27 @@ onMounted(load);
 <template>
   <PageHeader title="团队与数据权限" description="组长查看本组，坐席查看本人；服务端同步校验"
     ><el-button type="primary" @click="edit()">新增坐席组</el-button></PageHeader
-  ><el-alert v-if="error" :title="error" type="error" /><el-card
+  >
+  <div
+    @dragover.prevent
+    @drop.prevent="drop($event, false)"
+    style="min-height: 32px"
+    aria-label="移至团队列表上方"
+  >
+    <span v-if="dragging">放在团队列表上方</span>
+    <div v-if="!below">
+      <button
+        draggable="true"
+        @dragstart="startDrag"
+        @dragend="dragging = false"
+        @click="place(true)"
+        aria-label="调整坐席面板位置"
+      >
+        ↕ 调整坐席面板位置</button
+      ><SeatMonitor />
+    </div>
+  </div>
+  <el-alert v-if="error" :title="error" type="error" /><el-card
     ><DataGrid
       :rows="rows"
       :columns="[
@@ -85,7 +124,27 @@ onMounted(load);
         ><el-button link @click="edit(row)">编辑坐席组</el-button></template
       ></DataGrid
     ></el-card
-  ><el-card header="用户操作权限"
+  >
+  <div
+    @dragover.prevent
+    @drop.prevent="drop($event, true)"
+    style="min-height: 32px"
+    aria-label="移至团队列表下方"
+  >
+    <span v-if="dragging">放在团队列表下方</span>
+    <div v-if="below">
+      <button
+        draggable="true"
+        @dragstart="startDrag"
+        @dragend="dragging = false"
+        @click="place(false)"
+        aria-label="调整坐席面板位置"
+      >
+        ↕ 调整坐席面板位置</button
+      ><SeatMonitor />
+    </div>
+  </div>
+  <el-card header="用户操作权限"
     ><el-select v-model="policyUser" aria-label="权限用户" @change="loadPolicy"
       ><el-option
         v-for="u in profile.users || []"

@@ -1303,6 +1303,7 @@ public class Messaging {
                     if (c == null || ((Number) c.get("attempts")).intValue() != attempt)
                         return null;
                     String rule = null;
+                    boolean notify = false;
                     long campaign =
                             c.get("campaign_id") == null
                                     ? 0
@@ -1316,6 +1317,10 @@ public class Messaging {
                                                 Integer.MAX_VALUE)
                                         == campaign) {
                             rule = candidate.get("id").toString();
+                            notify =
+                                    object(candidate.get("payload")).get("notify")
+                                                    instanceof Map<?, ?> n
+                                            && !n.isEmpty();
                             break;
                         }
                     db.jdbc()
@@ -1328,6 +1333,15 @@ public class Messaging {
                                     rule,
                                     rule == null ? "BLOCKED" : "WAITING_CALL",
                                     rule == null ? "缺少已批准联动规则" : "");
+                    if (notify)
+                        db.jdbc()
+                                .update(
+                                        "INSERT IGNORE INTO msg_call_intent(id,tenant_id,call_id,attempt,rule_id,state,reason,recipient_kind) VALUES(?,?,?,?,?,'WAITING_CALL','','notice')",
+                                        id("intent"),
+                                        tenant,
+                                        call,
+                                        attempt,
+                                        rule);
                     return null;
                 });
     }
@@ -1337,6 +1351,60 @@ public class Messaging {
         var intent =
                 db.one(
                         "SELECT i.* FROM msg_call_intent i JOIN callsession c ON c.id=i.call_id AND c.tenant_id=i.tenant_id WHERE i.state='WAITING_CALL' AND (c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL') OR c.attempts<>i.attempt OR i.created_at<CURRENT_TIMESTAMP(6)-INTERVAL 1 DAY) ORDER BY i.created_at LIMIT 1");
+        return processIntent(intent);
+    }
+
+    public Object verifyFreeCallRule(long tenant, long task, String callId) {
+        sandbox();
+        if (!"internal-test".equals(config.get("ENV", ""))
+                || !"mock".equals(config.get("TELEPHONY_PROVIDER", ""))
+                || config.flag("MESSAGING_WORKERS_ENABLED", false))
+            throw new ApiError(409, "仅限关闭消息发送进程的内部模拟环境");
+        var call =
+                db.one(
+                        "SELECT attempts FROM callsession WHERE tenant_id=? AND campaign_id=? AND id=? AND status='COMPLETED'",
+                        tenant,
+                        task,
+                        callId);
+        if (call == null) throw new ApiError(409, "需要此任务的已完成模拟通话");
+        var snap =
+                db.one(
+                        "SELECT snapshot_json FROM platform_campaign_snapshot WHERE tenant_id=? AND campaign_id=?",
+                        tenant,
+                        task);
+        if (snap == null) throw new ApiError(409, "缺少任务快照");
+        var rule = object(object(snap.get("snapshot_json")).get("sms_rule"));
+        var product =
+                object(
+                        resource(
+                                        tenant,
+                                        Objects.toString(rule.get("product_id"), ""),
+                                        "product",
+                                        true)
+                                .get("payload"));
+        if (!"mock".equals(product.get("adapter"))
+                || number(product, "unit_price", 1000, 1000000000) != 0)
+            throw new ApiError(409, "只允许单价为零的模拟产品");
+        int attempt = ((Number) call.get("attempts")).intValue();
+        deferCall(tenant, callId, attempt);
+        for (var intent :
+                db.jdbc()
+                        .queryForList(
+                                "SELECT * FROM msg_call_intent WHERE tenant_id=? AND call_id=? AND attempt=? AND rule_id=? AND state='WAITING_CALL'",
+                                tenant,
+                                callId,
+                                attempt,
+                                rule.get("id"))) processIntent(intent);
+        return db.jdbc()
+                .queryForList(
+                        "SELECT recipient_kind,state,reason,message_id FROM msg_call_intent WHERE tenant_id=? AND call_id=? AND attempt=? AND rule_id=? ORDER BY recipient_kind",
+                        tenant,
+                        callId,
+                        attempt,
+                        rule.get("id"));
+    }
+
+    private boolean processIntent(Map<String, Object> intent) {
         if (intent == null) return false;
         long tenant = ((Number) intent.get("tenant_id")).longValue();
         String id = intent.get("id").toString();
@@ -1369,7 +1437,23 @@ public class Messaging {
                                                         "call_rule",
                                                         true)
                                                 .get("payload"));
-                        if (call.get("contact_id") == null) throw new ApiError(409, "缺少授权联系人");
+                        Object recipientId = call.get("contact_id"),
+                                recipientPhone = call.get("phone");
+                        boolean notifying = "notice".equals(intent.get("recipient_kind"));
+                        if (notifying) {
+                            var n = object(rule.get("notify"));
+                            recipientId = n.get("contact_id");
+                            rule = new LinkedHashMap<>(rule);
+                            rule.put("template_id", n.get("template_id"));
+                            var contact =
+                                    db.one(
+                                            "SELECT phone FROM contact WHERE tenant_id=? AND id=?",
+                                            tenant,
+                                            recipientId);
+                            if (contact == null) throw new ApiError(409, "通知联系人已移除");
+                            recipientPhone = contact.get("phone");
+                        }
+                        if (recipientId == null) throw new ApiError(409, "缺少授权联系人");
                         if (Boolean.TRUE.equals(rule.get("workspace"))
                                 && "qualified_lead".equals(rule.get("condition"))) {
                             var conversation =
@@ -1426,12 +1510,8 @@ public class Messaging {
                         body.put("template_version_id", rule.get("template_id"));
                         body.put(
                                 "recipient",
-                                Map.of(
-                                        "type",
-                                        "phone",
-                                        "value",
-                                        phone(call.get("phone").toString())));
-                        body.put("consent_reference", call.get("contact_id").toString());
+                                Map.of("type", "phone", "value", phone(recipientPhone.toString())));
+                        body.put("consent_reference", recipientId.toString());
                         var selectedVariables =
                                 new LinkedHashMap<>(
                                         object(rule.getOrDefault("variables", Map.of())));
@@ -1510,7 +1590,7 @@ public class Messaging {
     public Object callIntents(long tenant) {
         return db.jdbc()
                 .queryForList(
-                        "SELECT id,call_id,attempt,rule_id,message_id,state,reason,created_at FROM msg_call_intent WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
+                        "SELECT id,call_id,attempt,recipient_kind,rule_id,message_id,state,reason,created_at FROM msg_call_intent WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
                         tenant);
     }
 
