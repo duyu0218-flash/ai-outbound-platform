@@ -110,9 +110,29 @@ public class Operations {
     private Map<String, Object> filters(Identity i, Map<String, String> q) {
         var p = paged(i, q);
         for (String k :
-                List.of("contact_id", "campaign_id", "agent_id", "owner_id", "line_id", "team_id"))
+                List.of(
+                        "contact_id",
+                        "campaign_id",
+                        "agent_id",
+                        "owner_id",
+                        "line_id",
+                        "team_id",
+                        "script_id"))
             if (q.containsKey(k) && !q.get(k).isBlank())
                 p.put(k, number(q.get(k), 1, Integer.MAX_VALUE));
+        if (!q.getOrDefault("task_status", "").isBlank())
+            p.put(
+                    "task_status",
+                    choice(
+                            q.get("task_status"),
+                            Set.of(
+                                    "draft",
+                                    "running",
+                                    "completed",
+                                    "paused",
+                                    "stopped",
+                                    "failed",
+                                    "prepared")));
         if (q.containsKey("flow_version_id") && !q.get("flow_version_id").isBlank())
             p.put("flow_version_id", number(q.get("flow_version_id"), 0, Integer.MAX_VALUE));
         for (String k : List.of("phone", "intent", "review_state", "stage", "tag"))
@@ -278,6 +298,39 @@ public class Operations {
                 });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.call.service.CallLifecycle callEvents;
+
+    @PostMapping("/handoffs/{id}/screen")
+    public Object screenShown(@PathVariable
+    long id, HttpServletRequest request) {
+        var i = actor(request);
+        if (!"agent".equals(i.user().get("role"))) throw new ApiError(403, "仅坐席可上报弹屏");
+        return tx.serialized(
+                () -> {
+                    var offer = store.require("handoffrequest", i.tenant(), id);
+                    if (!Objects.equals(
+                            Objects.toString(offer.get("assigned_agent_id"), ""),
+                            i.userId().toString())) throw new ApiError(403, "不属于本坐席");
+                    if (!"waiting".equals(offer.get("state"))) throw new ApiError(409, "转接已结束");
+                    var call =
+                            store.require("callsession", i.tenant(), offer.get("call_session_id"));
+                    boolean duplicate =
+                            callEvents.event(
+                                    call,
+                                    "agent_screen_shown",
+                                    "agent_browser",
+                                    JsonSupport.map(
+                                            "event_id",
+                                            "shown:" + id + ":" + i.userId(),
+                                            "handoff_id",
+                                            id,
+                                            "agent_id",
+                                            i.userId()));
+                    return Map.of("received", true, "duplicate", duplicate);
+                });
+    }
+
     @GetMapping("/calls")
     public Map<String, Object> calls(@RequestParam
     Map<String, String> q, HttpServletRequest r) {
@@ -357,7 +410,14 @@ public class Operations {
                 "dimension",
                 choice(
                         q.getOrDefault("dimension", "campaign"),
-                        Set.of("campaign", "agent", "line", "owner", "flow_version")));
+                        Set.of(
+                                "all",
+                                "script",
+                                "campaign",
+                                "agent",
+                                "line",
+                                "owner",
+                                "flow_version")));
         p.put(
                 "granularity",
                 choice(

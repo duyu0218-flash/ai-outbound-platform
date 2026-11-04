@@ -60,6 +60,7 @@ const navigation = computed(() =>
         {
           group: 'navAnalysis',
           items: [
+            { path: agentPath('performance'), label: '快捷面板' },
             { path: agentPath('overview'), label: '数据统计' },
             { path: agentPath('reports'), label: '运营报表' },
           ],

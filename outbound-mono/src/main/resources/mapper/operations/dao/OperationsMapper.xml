@@ -26,6 +26,8 @@
         <if test="phone != null">
             AND c.phone LIKE CONCAT('%',#{phone},'%')
         </if>
+        <if test="script_id != null">AND g.script_template_id=#{script_id}</if>
+        <if test="task_status != null">AND g.status=#{task_status}</if>
         <if test="flow_version_id != null">
             AND COALESCE(c.script_flow_version_id,0)=#{flow_version_id}
         </if>
@@ -134,7 +136,7 @@
                ROUND(100*successful_calls/NULLIF(reached_sessions,0),2) AS success_per_answer,
                ROUND(100*successful_takeovers/NULLIF(handoff_received,0),2) AS success_per_takeover,
                ROUND(100*interested_sessions/NULLIF(reached_sessions,0),2) AS intent_rate
-        FROM (SELECT CASE #{dimension} WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
+        FROM (SELECT CASE #{dimension} WHEN 'all' THEN 0 WHEN 'script' THEN COALESCE(g.script_template_id,0) WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
         'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
         COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE
         COALESCE(c.campaign_id,0) END AS dimension_key,
@@ -146,6 +148,13 @@
         SUM(usage_totals.first_answers + usage_totals.repeat_answers) AS answered_attempts,
         SUM(usage_totals.telephony_seconds) AS telephony_seconds,
         SUM(usage_totals.ai_seconds) AS ai_seconds,
+        MAX(g.name) AS campaign_name,MAX(g.status) AS campaign_status,
+        SUM(EXISTS(SELECT 1 FROM callevent ev WHERE ev.call_session_id=c.id AND ev.event_type='agent_screen_shown')) AS screen_count,
+        SUM(EXISTS(SELECT 1 FROM callevent ev WHERE ev.call_session_id=c.id AND ev.event_type='handoff_lost')) AS loss_count,
+        SUM(usage_totals.short_answers) AS short_answers,SUM(usage_totals.measured) AS measured_answers,
+        SUM(hf.short_taken) AS short_taken,SUM(hf.measured_taken) AS measured_taken,
+        SUM(hf.wait_total) AS wait_total,SUM(hf.wait_samples) AS wait_samples,
+        SUM(hf.recent_total) AS recent_wait_total,SUM(hf.recent_samples) AS recent_wait_samples,
         COUNT(*) AS sessions,COALESCE(SUM(c.attempts),0) AS attempts,COUNT(DISTINCT c.phone) AS
         phones,
         SUM(c.status IN
@@ -154,6 +163,7 @@
         COUNT(DISTINCT CASE WHEN c.status IN
         ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED') THEN
         c.phone END) AS reached_phones,
+        SUM(CASE WHEN LEFT(UPPER(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN a.structured_json ELSE '{}' END,'$.rule_result.grade')),'')),1) IN ('A','B') AND usage_totals.first_answers+usage_totals.repeat_answers&gt;0 THEN 1 ELSE 0 END) AS ab_intents,
         SUM(hf.entered) AS
         handoff_requests,SUM(hf.taken) AS handoff_received,
         SUM(hf.entered AND NOT hf.taken AND c.finished_at IS NOT NULL) AS not_taken,
@@ -165,12 +175,20 @@
         SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed_sessions
         <include refid="callJoin"/>
         JOIN LATERAL (SELECT COUNT(*)&gt;0 AS entered,
-            COALESCE(MAX(h.state IN ('ACCEPTED','COMPLETED')),0) AS taken
+            COALESCE(MAX(h.state IN ('ACCEPTED','COMPLETED')),0) AS taken,
+            COUNT(CASE WHEN h.state='COMPLETED' AND TIMESTAMPDIFF(MICROSECOND,h.responded_at,h.completed_at) BETWEEN 0 AND 5000000 THEN 1 END) AS short_taken,
+            COUNT(CASE WHEN h.state='COMPLETED' AND h.completed_at &gt;= h.responded_at THEN 1 END) AS measured_taken,
+            COALESCE(SUM(CASE WHEN h.responded_at&gt;=h.requested_at AND h.state IN ('ACCEPTED','COMPLETED') THEN TIMESTAMPDIFF(MICROSECOND,h.requested_at,h.responded_at)/1000000 END),0) AS wait_total,
+            COUNT(CASE WHEN h.responded_at&gt;=h.requested_at AND h.state IN ('ACCEPTED','COMPLETED') THEN 1 END) AS wait_samples,
+            COALESCE(SUM(CASE WHEN h.responded_at&gt;=h.requested_at AND h.responded_at&gt;=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE AND h.state IN ('ACCEPTED','COMPLETED') THEN TIMESTAMPDIFF(MICROSECOND,h.requested_at,h.responded_at)/1000000 END),0) AS recent_total,
+            COUNT(CASE WHEN h.responded_at&gt;=h.requested_at AND h.responded_at&gt;=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE AND h.state IN ('ACCEPTED','COMPLETED') THEN 1 END) AS recent_samples
             FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id) hf ON TRUE
         JOIN LATERAL (
         SELECT COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.attempt=1 THEN 1 END) AS
         first_answers,
         COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.attempt&gt;1 THEN 1 END) AS repeat_answers,
+        COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.telephony_seconds BETWEEN 0 AND 15 THEN 1 END) AS short_answers,
+        COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.telephony_seconds &gt;= 0 THEN 1 END) AS measured,
         SUM(u.telephony_seconds) AS telephony_seconds, SUM(u.ai_seconds) AS ai_seconds
         FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id
         ) usage_totals ON TRUE
