@@ -76,6 +76,7 @@ public class WorkspaceController {
         return map(doc.get("published"));
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts")
     public Object scripts(
             @RequestParam(defaultValue = "")
@@ -87,7 +88,8 @@ public class WorkspaceController {
             @RequestParam(defaultValue = "false")
             boolean publishedOnly,
             HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         int offset = com.duozhi.outbound.common.web.Contract.page(page, size);
         String search = "%" + keyword + "%";
         String scope =
@@ -115,10 +117,12 @@ public class WorkspaceController {
                 total);
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts/{id}")
     public Map<String, Object> script(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         if (!id.matches("[1-9][0-9]{0,9}")) throw new ApiError(404, "话术不存在");
         var raw = store.require("scripttemplate", i.tenant(), Long.parseLong(id));
         var doc = docs.find(i.tenant(), "script", id);
@@ -167,10 +171,12 @@ public class WorkspaceController {
         return result;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts")
     public Object createScript(@RequestBody
     Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         String name = text(body, "name", 160, true);
         return docs.tx.serialized(
                 () -> {
@@ -214,10 +220,12 @@ public class WorkspaceController {
         return user == null ? "已移除账号" : user.get("full_name").toString();
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/copy")
     public Object copyScript(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         return docs.tx.serialized(
                 () -> {
                     var source = script(id, r);
@@ -314,12 +322,14 @@ public class WorkspaceController {
         return value;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PutMapping("/scripts/{id}/draft")
     public Object saveScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         script(id, r);
         docs.save(
                 i,
@@ -372,10 +382,12 @@ public class WorkspaceController {
         return items;
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @GetMapping("/scripts/{id}/publish-check")
     public Object publishCheck(@PathVariable
     String id, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         var doc = docs.require(i.tenant(), "script", id);
         var value = draft(doc);
         var errors = new ArrayList<String>();
@@ -440,12 +452,14 @@ public class WorkspaceController {
                 "发布仅供新建或重新保存的任务选用；运行中的任务使用已冻结版本");
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/publish")
     public Object publishScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         return docs.tx.serialized(
                 () -> {
                     var doc = docs.require(i.tenant(), "script", id);
@@ -475,12 +489,14 @@ public class WorkspaceController {
                 });
     }
 
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/probe")
     public Object probeScript(
             @PathVariable
             String id, @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
-        var i = actor(r);
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
         var doc = script(id, r);
         var value =
                 body.get("draft") instanceof Map<?, ?>
@@ -835,6 +851,14 @@ public class WorkspaceController {
                         JsonSupport.map("tenant_id", i.tenant()),
                         JsonSupport.map("_knowledge", items),
                         text(body, "query", 2000, true)));
+    }
+
+    @GetMapping("/scripts/{id}/history")
+    @AdminPermission(value = "product:write", operator = true)
+    public Object scriptHistory(@PathVariable String id, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        return docs.history(i.tenant(), "script", id);
     }
 
     @GetMapping("/{kind}/{id}/history")

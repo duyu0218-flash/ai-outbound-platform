@@ -200,6 +200,18 @@ class WorkspaceWorkflowIT {
     }
 
     @Test
+    void operatorCanPrepareTaskButCannotAdministerOtherWorkspaces() {
+        String operator = crypto.token(UserRecords.map(account(1, "operator")));
+        String agent = crypto.token(UserRecords.map(account(1, "agent")));
+        for (String path : List.of("/scripts", "/tasks", "/contact-batches", "/task-resources/selectable-lines")) {
+            ok(raw(operator, HttpMethod.GET, path, null));
+            assertThat(raw(agent, HttpMethod.GET, path, null).getStatusCode().value()).isEqualTo(403);
+        }
+        ok(raw(operator, HttpMethod.POST, "/scripts", Map.of("name", "运营验收")));
+        assertThat(raw(operator, HttpMethod.POST, "/libraries", Map.of("name", "受限")).getStatusCode().value()).isEqualTo(403);
+    }
+
+    @Test
     void faqCsvRoundTripPreservesBusinessFieldsAndRejectsStaleAppend() {
         var created = library();
         var libraryId = id(created);

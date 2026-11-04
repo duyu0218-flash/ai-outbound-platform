@@ -22,6 +22,7 @@ const fields = (editing) => [
     options: [
       { value: 'admin', label: 'administrator' },
       { value: 'agent', label: 'agent' },
+      { value: 'operator', label: '外呼运营' },
     ],
   },
   { key: 'is_supervisor', label: 'supervisor', type: 'boolean' },

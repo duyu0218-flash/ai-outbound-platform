@@ -68,6 +68,11 @@ const hiddenAdmin = [
   ['operations/notices', 'OperationsNotices'],
   ['operations/workspace', 'OperationsWorkspace'],
 ];
+export const operatorNavigation = [
+  ['contacts', '客户名单', 'ContactsWorkspace'],
+  ['scripts', '话术管理', 'Scripts'],
+  ['campaigns', '外呼任务', 'Campaigns'],
+];
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -108,6 +113,9 @@ export const router = createRouter({
       props: { role: 'agent' },
       meta: { role: 'agent' },
       children: [
+        ...operatorNavigation.map(([path, label, name]) => ({
+          path, component: page(name), meta: { label, operatorOnly: true },
+        })),
         ...[
           ['operations/calls', '话单查询', 'OperationsCalls'],
           ['operations/leads', '线索与跟进', 'OperationsLeads'],
@@ -173,6 +181,7 @@ router.beforeEach(async (to) => {
     return true;
   }
   if (!session.user) return '/' + (to.meta.role || 'admin') + '/login';
+  if (to.meta.operatorOnly && session.user.role !== 'operator') return '/agent';
   if (to.meta.role === 'admin' && session.user.role !== 'admin') return '/agent';
   return true;
 });

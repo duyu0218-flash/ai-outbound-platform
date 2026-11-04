@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { adminMenu } from './router';
+import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
 import { useData } from './data';
@@ -39,6 +39,9 @@ const navigation = computed(() =>
         {
           group: 'navDialing',
           items: [
+            ...(session.user?.role === 'operator'
+              ? operatorNavigation.map(([path, label]) => ({ path: '/agent/' + path, label }))
+              : []),
             { path: '/agent/calls', label: 'calls' },
             { path: agentPath('calls'), label: '话单查询' },
           ],

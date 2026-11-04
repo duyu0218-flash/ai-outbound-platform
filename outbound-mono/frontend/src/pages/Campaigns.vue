@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { request, download } from '../session';
+import { request, download, session } from '../session';
 const recipientPage = ref(1),
   recipientView = ref(null);
 async function loadRecipients() {
@@ -19,7 +19,7 @@ import ContactImport from '../components/ContactImport.vue';
 import ContactSelect from '../components/ContactSelect.vue';
 import AudiencePicker from '../components/AudiencePicker.vue';
 import HangupMessageRule from '../components/HangupMessageRule.vue';
-const lines = useData('/api/v1/admin/lines'),
+const lines = useData(session.user?.role === 'operator' ? '/api/v1/workspace/task-resources/selectable-lines' : '/api/v1/admin/lines'),
   combos = useData('/api/v1/admin/voice-ai/profiles');
 const filter = ref('');
 const route = useRoute(),
@@ -578,7 +578,7 @@ onMounted(() => {
         ><el-table-column prop="phone" label="号码" /><el-table-column
           prop="name"
           label="姓名" /><el-table-column prop="dnc" label="禁呼" /></el-table
-      ><el-button @click="$router.push({ path: '/admin/calls', query: { campaign_id: detail.id } })"
+      ><el-button @click="$router.push({ path: session.user?.role === 'operator' ? '/agent/operations/calls' : '/admin/calls', query: { campaign_id: detail.id } })"
         >查看通话记录</el-button
       >
       <p v-if="detail.snapshot">
