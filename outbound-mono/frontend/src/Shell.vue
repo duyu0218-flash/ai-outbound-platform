@@ -67,6 +67,31 @@ watch(
       .catch(() => (healthy.value = false)),
   { immediate: true },
 );
+const openPages = ref([]),
+  refreshIndex = ref(0);
+watch(
+  () => route.fullPath,
+  () => {
+    const existing = openPages.value.find((item) => item.path === route.path);
+    if (existing) existing.url = route.fullPath;
+    else
+      openPages.value.push({
+        path: route.path,
+        url: route.fullPath,
+        label: route.meta.label || 'dashboard',
+      });
+  },
+  { immediate: true },
+);
+async function closePage(item) {
+  const index = openPages.value.indexOf(item);
+  if (index < 0 || openPages.value.length === 1) return;
+  if (item.path === route.path) {
+    const next = openPages.value[index - 1] || openPages.value[index + 1];
+    if (await router.push(next.url)) return;
+  }
+  openPages.value = openPages.value.filter((page) => page.path !== item.path);
+}
 async function leave() {
   try {
     await logout();
@@ -148,7 +173,27 @@ async function leave() {
           <span>{{ session.user?.full_name || session.user?.username }}</span
           ><el-button @click="leave">{{ t('logout') }}</el-button>
         </div></el-header
-      ><el-main><router-view :key="route.path + ':' + session.epoch" /></el-main></el-container
+      ><el-main>
+        <nav class="workspace-pages" aria-label="已打开页面">
+          <span v-for="item in openPages" :key="item.path">
+            <el-button
+              link
+              :type="item.path === route.path ? 'primary' : 'default'"
+              @click="router.push(item.url)"
+              >{{ t(item.label) }}</el-button
+            >
+            <el-button
+              v-if="openPages.length > 1"
+              link
+              :aria-label="'关闭' + t(item.label)"
+              @click="closePage(item)"
+              >×</el-button
+            >
+          </span>
+          <el-button link aria-label="刷新当前页面" @click="refreshIndex++">刷新</el-button>
+        </nav>
+        <router-view
+          :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
   <el-drawer v-if="helpOpen" v-model="helpOpen" title="操作帮助" size="420px">
     <template v-if="role === 'admin'">
@@ -173,6 +218,18 @@ async function leave() {
   </el-drawer>
 </template>
 <style scoped>
+.workspace-pages {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.workspace-pages > span {
+  display: inline-flex;
+  gap: 2px;
+}
+
 .nav-toggle {
   display: block;
   border: 0;

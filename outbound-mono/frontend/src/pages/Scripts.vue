@@ -49,6 +49,18 @@ const intents = {
   affirm: '肯定回应',
   deny: '否定回应',
 };
+const optionalColumns = [
+  'ID',
+  '创建时间',
+  '分类',
+  '状态',
+  '负责人',
+  '更新时间',
+  '发布版本',
+  '引用任务',
+];
+const visibleColumns = ref([...optionalColumns]),
+  density = ref('default');
 const basic = computed(() => [
   { key: 'name', label: '话术名称', required: true },
   { key: 'category', label: '业务分类', required: true },
@@ -306,23 +318,52 @@ onMounted(async () => {
         clearable
         style="max-width: 360px"
         @input="page = 1" />
-      <el-table :data="rows" v-loading="query.loading.value"
-        ><el-table-column prop="id" label="ID" width="90" /><el-table-column label="创建时间"
+      <el-button @click="query.load()">刷新话术</el-button>
+      <el-select v-model="density" aria-label="话术表格密度" style="width: 100px">
+        <el-option value="small" label="紧凑" /><el-option value="default" label="标准" /><el-option
+          value="large"
+          label="宽松"
+        />
+      </el-select>
+      <el-popover trigger="click" width="240"
+        ><template #reference><el-button>列设置</el-button></template>
+        <el-checkbox-group v-model="visibleColumns"
+          ><el-checkbox v-for="c in optionalColumns" :key="c" :value="c">{{
+            c
+          }}</el-checkbox></el-checkbox-group
+        >
+      </el-popover>
+      <el-table :size="density" :data="rows" v-loading="query.loading.value"
+        ><el-table-column
+          v-if="visibleColumns.includes('ID')"
+          prop="id"
+          label="ID"
+          width="90"
+        /><el-table-column v-if="visibleColumns.includes('创建时间')" label="创建时间"
           ><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column
         ><el-table-column label="话术名称"
           ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
-        ><el-table-column label="分类"
+        ><el-table-column v-if="visibleColumns.includes('分类')" label="分类"
           ><template #default="{ row }">{{ row.draft.category }}</template></el-table-column
-        ><el-table-column label="状态"
+        ><el-table-column v-if="visibleColumns.includes('状态')" label="状态"
           ><template #default="{ row }"
             ><el-tag>{{ labels[row.state] }}</el-tag
             ><small v-if="row.published_version && row.state === 'draft'"
               >已发布版本仍可被引用</small
             ></template
           ></el-table-column
-        ><el-table-column prop="owner_name" label="负责人" /><el-table-column label="更新时间"
+        ><el-table-column
+          v-if="visibleColumns.includes('负责人')"
+          prop="owner_name"
+          label="负责人"
+        /><el-table-column v-if="visibleColumns.includes('更新时间')" label="更新时间"
           ><template #default="{ row }">{{ formatDate(row.updated_at) }}</template></el-table-column
-        ><el-table-column prop="published_version" label="发布版本" /><el-table-column
+        ><el-table-column
+          v-if="visibleColumns.includes('发布版本')"
+          prop="published_version"
+          label="发布版本"
+        /><el-table-column
+          v-if="visibleColumns.includes('引用任务')"
           prop="references"
           label="引用任务"
         /><el-table-column label="操作"
