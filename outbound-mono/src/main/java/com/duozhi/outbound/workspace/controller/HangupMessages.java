@@ -19,6 +19,8 @@ public class HangupMessages {
     private final WorkspaceDocuments docs;
     private final Messaging messaging;
     private final Store store;
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScriptMessageDefaults defaults;
 
     public HangupMessages(WorkspaceDocuments docs, Messaging messaging, Store store) {
         this.docs = docs;
@@ -38,7 +40,9 @@ public class HangupMessages {
         var i = actor(r);
         store.require("campaign", i.tenant(), task);
         var snap = docs.campaignSnapshot(i.tenant(), task);
-        return snap == null ? Map.of() : map(snap.getOrDefault("sms_rule", Map.of()));
+        return snap == null
+                ? Map.of()
+                : map(snap.getOrDefault("sms_rule", snap.getOrDefault("sms_defaults", Map.of())));
     }
 
     @PostMapping
@@ -57,48 +61,12 @@ public class HangupMessages {
                         throw new ApiError(422, "请确认短信模板、签名、触发条件和预算");
                     var snapshot = docs.campaignSnapshot(i.tenant(), task);
                     if (snapshot == null) throw new ApiError(409, "历史任务请先在任务工作区另建版本");
-                    String condition = text(body, "condition", 32, true);
-                    if (!Set.of("completed", "qualified_lead").contains(condition))
-                        throw new ApiError(422, "不支持的触发条件");
-                    long budget;
-                    try {
-                        budget =
-                                new java.math.BigDecimal(body.get("budget").toString())
-                                        .longValueExact();
-                    } catch (Exception e) {
-                        throw new ApiError(422, "预算须为整数微元");
-                    }
-                    if (budget < 1 || budget > 1_000_000_000_000L)
-                        throw new ApiError(422, "预算超出范围");
                     var payload =
-                            JsonSupport.<String, Object>map(
-                                    "call_campaign_id",
-                                    task,
-                                    "workspace",
-                                    true,
-                                    "condition",
-                                    condition,
-                                    "budget",
-                                    budget,
-                                    "variables",
-                                    Map.of());
-                    for (String k : List.of("product_id", "template_id", "sender_id"))
-                        payload.put(k, text(body, k, 64, true));
-                    for (String kind : List.of("product", "template")) {
-                        var asset =
-                                docs.one(
-                                        "SELECT payload FROM msg_resource WHERE tenant_id=? AND id=? AND kind=? AND state='APPROVED'",
-                                        i.tenant(),
-                                        payload.get(kind + "_id"),
-                                        kind);
-                        if (asset == null
-                                || !"sms"
-                                        .equals(
-                                                docs.json
-                                                        .object(asset.get("payload").toString())
-                                                        .get("form")))
-                            throw new ApiError(422, "请选择已审核的普通短信资源");
-                    }
+                            new LinkedHashMap<String, Object>(defaults.validate(i.tenant(), body));
+                    if (payload.isEmpty()) throw new ApiError(422, "请配置短信资源");
+                    payload.put("call_campaign_id", task);
+                    payload.put("workspace", true);
+                    payload.put("variables", Map.of());
                     var old = map(snapshot.getOrDefault("sms_rule", Map.of()));
                     if (old.get("id") != null)
                         messaging.resourceState(i.tenant(), old.get("id").toString(), "DISABLED");

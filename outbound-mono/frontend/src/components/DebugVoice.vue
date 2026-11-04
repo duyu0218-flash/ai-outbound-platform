@@ -158,7 +158,8 @@ onBeforeUnmount(() => {
     <p v-for="r in (clips.data.value || []).filter((r) => !r.revision)" :key="r.key">
       缺少录音 · {{ r.text }}
     </p>
-    <el-button @click="speak" :disabled="!phrase">播放当前回复</el-button
+    <el-button @click="speak" :disabled="!phrase || (mode === 'record' && clips.loading.value)"
+      >播放当前回复</el-button
     ><el-button @click="stop" :disabled="!playing">停止播放</el-button
     ><audio ref="player" @ended="playing = false" />
     <p>{{ message }}</p>

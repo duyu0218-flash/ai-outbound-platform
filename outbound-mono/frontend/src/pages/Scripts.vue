@@ -8,6 +8,7 @@ import { action, useData } from '../data';
 import ReachReport from '../components/ReachReport.vue';
 import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
+import HangupMessageRule from '../components/HangupMessageRule.vue';
 import ScriptResources from '../components/ScriptResources.vue';
 import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
 import ScriptAudio from '../components/ScriptAudio.vue';
@@ -487,6 +488,10 @@ onMounted(async () => {
               link
               @click="$router.push('/admin/operations/configs?tab=tag')"
               >标签管理</el-button
+            ><el-button v-if="session.user?.role === 'admin'" link @click="open(row, 'sms')"
+              >挂机短信</el-button
+            ><el-button v-if="session.user?.role === 'admin'" link @click="open(row, 'sms')"
+              >通知短信</el-button
             ><el-button link @click="copy(row)">复制</el-button
             ><el-button link @click="open(row, 'slots')">查看表单</el-button
             ><el-button link @click="open(row, 'intents')">关键词库</el-button
@@ -561,20 +566,27 @@ onMounted(async () => {
       />
     </el-dialog>
     <el-tabs v-model="tab"
-      ><el-tab-pane name="resources" label="话术资源" /><el-tab-pane
-        name="settings"
-        label="流程设置" /><el-tab-pane name="audio" label="个性录音" /><el-tab-pane
-        name="reach"
-        label="节点到达率" /><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
-        name="events"
-        label="事件" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
-        name="intents"
-        label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
-        name="slots"
-        label="信息采集与合格条件" /><el-tab-pane name="knowledge" label="知识与动作" /><el-tab-pane
-        name="debug"
-        label="调试" /><el-tab-pane name="history" label="版本记录"
+      ><el-tab-pane v-if="session.user?.role === 'admin'" name="sms" label="短信配置" /><el-tab-pane
+        name="resources"
+        label="话术资源" /><el-tab-pane name="settings" label="流程设置" /><el-tab-pane
+        name="audio"
+        label="个性录音" /><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
+        name="dialogue"
+        label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
+        name="hangup"
+        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
+        name="flow"
+        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
+        name="knowledge"
+        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
+        name="history"
+        label="版本记录"
     /></el-tabs>
+    <HangupMessageRule
+      v-if="tab === 'sms' && session.user?.role === 'admin'"
+      :draft="model.sms_defaults"
+      @defaults="model.sms_defaults = $event"
+    />
     <template v-if="tab === 'resources'"
       ><el-radio-group v-model="resourceTab"
         ><el-radio-button v-for="n in resourceTabs" :value="n" :key="n">{{

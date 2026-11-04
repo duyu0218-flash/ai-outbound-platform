@@ -291,6 +291,8 @@ public class WorkspaceTasks {
                                     selected.size(),
                                     "saved_at",
                                     Store.now().toString());
+                    if (publication.containsKey("sms_defaults"))
+                        snapshot.put("sms_defaults", publication.get("sms_defaults"));
                     if (id != null) {
                         var previous = docs.campaignSnapshot(tenant, id);
                         if (previous != null && previous.containsKey("sms_rule"))

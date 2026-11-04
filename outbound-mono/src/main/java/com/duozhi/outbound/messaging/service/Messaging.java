@@ -1303,6 +1303,7 @@ public class Messaging {
                     if (c == null || ((Number) c.get("attempts")).intValue() != attempt)
                         return null;
                     String rule = null;
+                    boolean notify = false;
                     long campaign =
                             c.get("campaign_id") == null
                                     ? 0
@@ -1316,6 +1317,10 @@ public class Messaging {
                                                 Integer.MAX_VALUE)
                                         == campaign) {
                             rule = candidate.get("id").toString();
+                            notify =
+                                    object(candidate.get("payload")).get("notify")
+                                                    instanceof Map<?, ?> n
+                                            && !n.isEmpty();
                             break;
                         }
                     db.jdbc()
@@ -1328,6 +1333,15 @@ public class Messaging {
                                     rule,
                                     rule == null ? "BLOCKED" : "WAITING_CALL",
                                     rule == null ? "缺少已批准联动规则" : "");
+                    if (notify)
+                        db.jdbc()
+                                .update(
+                                        "INSERT IGNORE INTO msg_call_intent(id,tenant_id,call_id,attempt,rule_id,state,reason,recipient_kind) VALUES(?,?,?,?,?,'WAITING_CALL','','notice')",
+                                        id("intent"),
+                                        tenant,
+                                        call,
+                                        attempt,
+                                        rule);
                     return null;
                 });
     }
@@ -1369,7 +1383,23 @@ public class Messaging {
                                                         "call_rule",
                                                         true)
                                                 .get("payload"));
-                        if (call.get("contact_id") == null) throw new ApiError(409, "缺少授权联系人");
+                        Object recipientId = call.get("contact_id"),
+                                recipientPhone = call.get("phone");
+                        boolean notifying = "notice".equals(intent.get("recipient_kind"));
+                        if (notifying) {
+                            var n = object(rule.get("notify"));
+                            recipientId = n.get("contact_id");
+                            rule = new LinkedHashMap<>(rule);
+                            rule.put("template_id", n.get("template_id"));
+                            var contact =
+                                    db.one(
+                                            "SELECT phone FROM contact WHERE tenant_id=? AND id=?",
+                                            tenant,
+                                            recipientId);
+                            if (contact == null) throw new ApiError(409, "通知联系人已移除");
+                            recipientPhone = contact.get("phone");
+                        }
+                        if (recipientId == null) throw new ApiError(409, "缺少授权联系人");
                         if (Boolean.TRUE.equals(rule.get("workspace"))
                                 && "qualified_lead".equals(rule.get("condition"))) {
                             var conversation =
@@ -1426,12 +1456,8 @@ public class Messaging {
                         body.put("template_version_id", rule.get("template_id"));
                         body.put(
                                 "recipient",
-                                Map.of(
-                                        "type",
-                                        "phone",
-                                        "value",
-                                        phone(call.get("phone").toString())));
-                        body.put("consent_reference", call.get("contact_id").toString());
+                                Map.of("type", "phone", "value", phone(recipientPhone.toString())));
+                        body.put("consent_reference", recipientId.toString());
                         var selectedVariables =
                                 new LinkedHashMap<>(
                                         object(rule.getOrDefault("variables", Map.of())));
@@ -1510,7 +1536,7 @@ public class Messaging {
     public Object callIntents(long tenant) {
         return db.jdbc()
                 .queryForList(
-                        "SELECT id,call_id,attempt,rule_id,message_id,state,reason,created_at FROM msg_call_intent WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
+                        "SELECT id,call_id,attempt,recipient_kind,rule_id,message_id,state,reason,created_at FROM msg_call_intent WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
                         tenant);
     }
 

@@ -304,8 +304,13 @@ public class WorkspaceController {
                 });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ScriptMessageDefaults messageDefaults;
+
     private Map<String, Object> scriptDraft(Map<String, Object> body, long tenant) {
         var value = new LinkedHashMap<String, Object>();
+        if (body.containsKey("sms_defaults"))
+            value.put("sms_defaults", messageDefaults.validate(tenant, body.get("sms_defaults")));
         value.put("owner_id", owner(body, tenant));
         for (String key :
                 List.of(

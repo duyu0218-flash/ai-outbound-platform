@@ -1,4 +1,5 @@
 <script setup>
+import { session } from '../session';
 import { ref } from 'vue';
 const policy = defineModel({ required: true }),
   emit = defineEmits(['section']),
@@ -65,7 +66,9 @@ const fields = [
         {{ seconds >= policy.flow_settings.min_seconds ? '达到最小时长' : '未达到最小时长' }}
       </p></template
     >
-    <el-button @click="emit('section', 'knowledge')">转接配置</el-button
+    <el-button v-if="session.user?.role === 'admin'" @click="emit('section', 'sms')"
+      >短信配置</el-button
+    ><el-button @click="emit('section', 'knowledge')">转接配置</el-button
     ><el-button @click="emit('section', 'slots')">自定义变量</el-button
     ><el-button @click="emit('section', 'hangup')">自定义评级</el-button
     ><el-button
