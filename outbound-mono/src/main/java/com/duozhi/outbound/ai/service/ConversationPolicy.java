@@ -684,7 +684,7 @@ public class ConversationPolicy {
                                 store.encode("speechturn", "call_session_id", call.get("id")),
                                 call.get("attempts"),
                                 true));
-        String intent = DialogueRules.classify(transcript);
+        String intent = ScriptIntents.classify(transcript, policy);
         Map<String, Object> pending =
                 data.get("pending") instanceof Map
                         ? (Map<String, Object>) data.get("pending")

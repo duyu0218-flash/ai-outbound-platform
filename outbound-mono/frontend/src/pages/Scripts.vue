@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { request, session } from '../session';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
+import IntentEditor from '../components/IntentEditor.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const route = useRoute(),
@@ -431,7 +432,7 @@ onMounted(async () => {
       ><el-tag>{{ labels[selected.state] }}</el-tag
       ><span
         >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
-      ><el-button @click="sharing">分享设置</el-button
+      ><el-button :disabled="busy" @click="sharing">分享设置</el-button
       ><el-button @click="assistantOpen = true">AI助理</el-button
       ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
       ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
@@ -465,13 +466,14 @@ onMounted(async () => {
     </el-dialog>
     <el-tabs v-model="tab"
       ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
-        name="flow"
-        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
-        name="knowledge"
-        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
-        name="history"
-        label="版本记录"
+        name="intents"
+        label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
+        name="slots"
+        label="信息采集与合格条件" /><el-tab-pane name="knowledge" label="知识与动作" /><el-tab-pane
+        name="debug"
+        label="调试" /><el-tab-pane name="history" label="版本记录"
     /></el-tabs>
+    <IntentEditor v-if="tab === 'intents'" v-model="model.policy.intent_rules" />
     <el-card v-if="tab === 'dialogue'"
       ><FieldForm :disabled="busy" :model="model" :fields="basic" hide-submit /><FieldForm
         :disabled="busy"

@@ -222,7 +222,10 @@ public class BusinessDebug {
                     var state = map(session.get("data"));
                     var values = map(state.getOrDefault("variables", snapshot.get("variables")));
                     var policy = map(snapshot.get("policy"));
-                    String intent = DialogueRules.classify(input),
+                    String
+                            intent =
+                                    com.duozhi.outbound.ai.service.ScriptIntents.classify(
+                                            input, policy),
                             action = "speak",
                             reply = "",
                             node = Objects.toString(state.get("node"), "opening");

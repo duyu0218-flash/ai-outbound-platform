@@ -5,7 +5,6 @@ import static com.duozhi.outbound.workspace.service.WorkspaceDocuments.*;
 import com.duozhi.outbound.agent.service.HumanRouting;
 import com.duozhi.outbound.ai.service.AiRuntime;
 import com.duozhi.outbound.ai.service.ConversationPolicy;
-import com.duozhi.outbound.ai.service.DialogueRules;
 import com.duozhi.outbound.auth.domain.*;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
@@ -508,7 +507,8 @@ public class WorkspaceController {
                 "scope",
                 "本地意图规则与已发布知识检索；未调用模型或执行业务动作",
                 "intent",
-                DialogueRules.classify(query),
+                com.duozhi.outbound.ai.service.ScriptIntents.classify(
+                        query, map(value.get("policy"))),
                 "knowledge",
                 runtime.knowledge(
                         JsonSupport.map("tenant_id", i.tenant()),

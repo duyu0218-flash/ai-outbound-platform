@@ -8,6 +8,8 @@ const props = defineProps({ template: Object }),
   versions = useData(() => `/api/v1/script-templates/${props.template.id}/flows`),
   selectedId = ref(),
   selectedNodeId = ref(),
+  flowName = ref(''),
+  creating = ref(false),
   graph = ref({ nodes: [], edges: [] }),
   edge = ref({
     source: '',
@@ -33,7 +35,10 @@ const selected = computed(() => versions.data.value?.find((v) => v.id === select
 function select(id) {
   selectedId.value = id;
   const item = versions.data.value?.find((v) => v.id === id);
-  if (item) graph.value = JSON.parse(JSON.stringify(item.graph));
+  if (item) {
+    graph.value = JSON.parse(JSON.stringify(item.graph));
+    flowName.value = item.name;
+  }
   selectedNodeId.value = null;
 }
 watch(
@@ -44,19 +49,25 @@ watch(
   },
 );
 async function create() {
-  const item = await action(() =>
-    request(`/api/v1/script-templates/${props.template.id}/flows`, 'POST', {
-      clone_version_id: selected.value?.id,
-    }),
-  );
-  await versions.load();
-  if (item) select(item.id);
+  if (creating.value || versions.loading.value) return;
+  creating.value = true;
+  try {
+    const item = await action(() =>
+      request(`/api/v1/script-templates/${props.template.id}/flows`, 'POST', {
+        clone_version_id: selected.value?.id,
+      }),
+    );
+    await versions.load();
+    if (item) select(item.id);
+  } finally {
+    creating.value = false;
+  }
 }
 async function save() {
   await action(
     () =>
       request(`/api/v1/script-templates/${props.template.id}/flows/${selected.value.id}`, 'PUT', {
-        name: selected.value.name,
+        name: flowName.value,
         description: selected.value.description,
         graph: graph.value,
       }),
@@ -197,10 +208,12 @@ const edgeFields = computed(() => [
           :key="item.id"
           :value="item.id"
           :label="`v${item.version} · ${item.status === 'draft' ? '草稿' : '已发布'}`" /></el-select
-      ><el-button @click="create">{{ selected ? '复制为新草稿' : '创建画布' }}</el-button
+      ><el-button :disabled="creating || versions.loading.value" @click="create">{{
+        selected ? '复制为新草稿' : '创建画布'
+      }}</el-button
       ><el-input
         v-if="selected"
-        v-model="selected.name"
+        v-model="flowName"
         aria-label="流程名称"
         :disabled="!draft"
         style="max-width: 200px"
