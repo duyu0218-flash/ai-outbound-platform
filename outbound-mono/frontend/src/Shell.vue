@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import SupportDesk from './components/SupportDesk.vue';
 import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
@@ -35,7 +36,8 @@ const unread = useData('/api/v1/ops/notices/unread', 60000);
 watch(() => route.path, unread.load);
 const opsProfile = ref(null),
   groupOpen = ref({}),
-  helpOpen = ref(false);
+  helpOpen = ref(false),
+  supportOpen = ref(false);
 onMounted(() =>
   request('/api/v1/ops/me')
     .then((v) => (opsProfile.value = v))
@@ -211,7 +213,8 @@ async function leave() {
           <el-button link @click="router.push('/' + role + '/operations/workspace')"
             >个人配置</el-button
           >
-          <el-button link @click="helpOpen = true">帮助</el-button>
+          <el-button link @click="supportOpen = true">客服</el-button
+          ><el-button link @click="helpOpen = true">帮助</el-button>
           <span>{{ session.user?.full_name || session.user?.username }}</span
           ><el-button @click="leave">{{ t('logout') }}</el-button>
         </div></el-header
@@ -237,7 +240,12 @@ async function leave() {
         <router-view
           :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
-  <el-drawer v-if="helpOpen" v-model="helpOpen" title="操作帮助" size="420px">
+  <SupportDesk v-if="supportOpen" @close="supportOpen = false" /><el-drawer
+    v-if="helpOpen"
+    v-model="helpOpen"
+    title="操作帮助"
+    size="420px"
+  >
     <template v-if="role === 'admin'">
       <h3>创建一次外呼任务</h3>
       <ol>

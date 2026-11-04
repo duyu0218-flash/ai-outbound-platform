@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useData } from '../data';
+import { useRouter } from 'vue-router';
+import { session } from '../session';
 import { query } from '../operations';
 const dayAt = (offset) =>
   new Date(Date.now() + 8 * 3600000 + offset * 86400000).toISOString().slice(0, 10);
@@ -20,6 +22,61 @@ function path(a, b, user) {
 }
 const daily = useData(() => path(day.value, day.value, account.value));
 const range = useData(() => path(from.value, until.value, account.value));
+const router = useRouter(),
+  section = ref('意向统计');
+const categories = [
+  '呼叫统计',
+  '账号统计',
+  '拦截统计',
+  '意向统计',
+  '跟进统计',
+  '短信统计',
+  '数据分析',
+];
+const dateQuery = computed(() => ({
+  from: from.value + 'T00:00:00+08:00',
+  until: until.value + 'T23:59:59.999+08:00',
+}));
+const counters = useData(() =>
+  session.user?.role === 'admin' && from.value && until.value && from.value <= until.value
+    ? '/api/v1/ops/reports/business-counters?' + query(dateQuery.value)
+    : '',
+);
+const costs = useData(() =>
+  from.value && until.value && from.value <= until.value
+    ? '/api/v1/ops/reports?' +
+      query({ ...dateQuery.value, dimension: 'all', granularity: 'all', agent_id: account.value })
+    : '',
+);
+const bill = computed(() => costs.data.value?.rows?.[0]);
+const settled = computed(
+  () =>
+    bill.value &&
+    Number(bill.value.attempts) > 0 &&
+    Number(bill.value.attempts) === Number(bill.value.settled_attempts),
+);
+function selectSection(k) {
+  section.value = k;
+  if (['呼叫统计', '账号统计', '数据分析'].includes(k))
+    router.push({
+      path: '/admin/operations/reports',
+      query: {
+        ...dateQuery.value,
+        dimension: k === '账号统计' ? 'account' : k === '呼叫统计' ? 'campaign' : 'script',
+        granularity: 'day',
+      },
+    });
+}
+const outcomeLabel = (v) =>
+  ({
+    contact_dnc: '禁呼名单',
+    not_consented: '未授权',
+    consent_revoked: '授权已撤回',
+    follow: '保存跟进',
+    claim: '领取线索',
+    DELIVERED: '已送达',
+    FAILED: '失败',
+  })[v] || v;
 const opts = computed(() => [...new Set((range.data.value || []).map((r) => r.intent_key))]);
 watch(opts, (values) => {
   if (!values.includes(intent.value)) intent.value = '';
@@ -55,7 +112,31 @@ const ceiling = computed(() => Math.max(1, ...trends.value.map((r) => r.attempts
 </script>
 <template>
   <PageHeader title="数据统计" description="按北京时间统计，以拨打尝试和接通回执核对外呼表现。" />
-  <el-card header="每日统计"
+  <el-card v-if="session.user?.role === 'admin'" header="数据管理">
+    <el-button v-for="k in categories" :key="k" @click="selectSection(k)">{{ k }}</el-button>
+    <p>统计区间 {{ from }} 至 {{ until }}。以下分类按租户汇总。</p>
+    <template v-if="['拦截统计', '跟进统计', '短信统计'].includes(section)">
+      <el-alert v-if="counters.error.value" :title="counters.error.value" type="error" />
+      <el-table
+        :data="(counters.data.value || []).filter((r) => r.category === section)"
+        empty-text="区间内无记录"
+        ><el-table-column :label="section + '分类'"
+          ><template #default="{ row }">{{ outcomeLabel(row.label) }}</template></el-table-column
+        ><el-table-column prop="amount" label="记录数"
+      /></el-table> </template
+    ><template v-else-if="section === '意向统计'"
+      ><p v-for="v in opts" :key="v">
+        {{ v }} ·
+        {{
+          sum(
+            (range.data.value || []).filter((r) => r.intent_key === v),
+            'answered_sessions',
+          )
+        }}
+        通
+      </p></template
+    > </el-card
+  ><el-card header="每日统计"
     ><div class="toolbar">
       <label>日期筛选 <input type="date" v-model="day" aria-label="每日统计日期" /></label>
       <el-select
@@ -122,6 +203,16 @@ const ceiling = computed(() => Math.max(1, ...trends.value.map((r) => r.attempts
     <p>
       区间外呼 {{ sum(trends, 'attempts') }} · 区间接通 {{ sum(trends, 'answers') }} · 接通率
       {{ pct(sum(trends, 'answers'), sum(trends, 'attempts')) }}
+    </p>
+    <p>
+      区间话费 {{ settled ? Number(bill.statement_cost).toFixed(2) + ' 元' : '尚未完整对账' }} ·
+      意向成本
+      {{
+        settled && Number(bill.ab_intents) > 0
+          ? (Number(bill.statement_cost) / Number(bill.ab_intents)).toFixed(2) + ' 元'
+          : '—'
+      }}
+      · 已对账 {{ bill?.settled_attempts || 0 }} / {{ bill?.attempts || 0 }} 次
     </p>
     <el-table :data="trends" row-key="day"
       ><el-table-column prop="day" label="日期" /><el-table-column label="呼出趋势"

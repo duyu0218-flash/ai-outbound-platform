@@ -589,4 +589,11 @@
         INSERT INTO ops_line_group_assignment(tenant_id,line_id,group_name) VALUES(#{tenantId},#{line},#{group})
         ON DUPLICATE KEY UPDATE group_name=#{group}
     </insert>
+    <select id="businessCounters" resultType="java.util.LinkedHashMap">
+      SELECT category,label,COUNT(*) AS amount FROM (
+        SELECT '拦截统计' AS category,SUBSTRING(last_error,18) AS label FROM callsession WHERE tenant_id=#{tenantId} AND last_error LIKE 'precheck failed: %' AND updated_at BETWEEN #{from} AND #{until}
+        UNION ALL SELECT '跟进统计',action FROM ops_history WHERE tenant_id=#{tenantId} AND created_at BETWEEN #{from} AND #{until}
+        UNION ALL SELECT '短信统计',state FROM msg_message WHERE tenant_id=#{tenantId} AND created_at BETWEEN #{from} AND #{until}
+      ) facts GROUP BY category,label ORDER BY category,amount DESC,label
+    </select>
 </mapper>

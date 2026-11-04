@@ -554,6 +554,20 @@ public class Operations {
     @org.springframework.beans.factory.annotation.Autowired
     private VoiceStatements statements;
 
+    @GetMapping("/reports/business-counters")
+    public Object businessCounters(
+            @RequestParam
+            String from, @RequestParam
+            String until, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        var a = time(from);
+        var b = time(until);
+        if (a.isAfter(b) || Duration.between(a, b).toDays() > 366)
+            throw new ApiError(422, "请选择一年内的有效时间段");
+        return db.rows("businessCounters", Map.of("tenantId", i.tenant(), "from", a, "until", b));
+    }
+
     @GetMapping("/dial-control")
     public Object dialControl(HttpServletRequest request) {
         var i = actor(request);
