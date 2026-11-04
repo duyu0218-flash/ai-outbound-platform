@@ -79,7 +79,12 @@ onMounted(load);
   <PageHeader title="团队与数据权限" description="组长查看本组，坐席查看本人；服务端同步校验"
     ><el-button type="primary" @click="edit()">新增坐席组</el-button></PageHeader
   >
-  <div @dragover.prevent @drop.prevent="dragging && place(false)" aria-label="移至团队列表上方">
+  <div
+    @dragover.prevent
+    @drop.prevent="dragging && place(false)"
+    style="min-height: 32px"
+    aria-label="移至团队列表上方"
+  >
     <span v-if="dragging">放在团队列表上方</span>
     <div v-if="!below">
       <button
@@ -112,7 +117,12 @@ onMounted(load);
       ></DataGrid
     ></el-card
   >
-  <div @dragover.prevent @drop.prevent="dragging && place(true)" aria-label="移至团队列表下方">
+  <div
+    @dragover.prevent
+    @drop.prevent="dragging && place(true)"
+    style="min-height: 32px"
+    aria-label="移至团队列表下方"
+  >
     <span v-if="dragging">放在团队列表下方</span>
     <div v-if="below">
       <button

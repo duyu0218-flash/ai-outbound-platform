@@ -10,6 +10,8 @@ const route = useRoute(),
 const date = (offset = 0) =>
   new Date(Date.now() + 8 * 3600000 + offset * 86400000).toISOString().slice(0, 10);
 const q = reactive({
+  startTime: '00:00:00',
+  endTime: '23:59:59',
   from: date(),
   until: date(),
   campaign_id: '',
@@ -21,7 +23,14 @@ const q = reactive({
 const applied = ref({ ...q }),
   error = ref('');
 function search() {
-  if (!q.from || !q.until || q.from > q.until) {
+  if (
+    !q.from ||
+    !q.until ||
+    !q.startTime ||
+    !q.endTime ||
+    q.from > q.until ||
+    (q.from === q.until && q.startTime > q.endTime)
+  ) {
     error.value = '请选择正确的起止日期';
     return;
   }
@@ -37,8 +46,10 @@ function path(dim, grain) {
     '/api/v1/ops/reports?' +
     query({
       ...a,
-      from: a.from + 'T00:00:00+08:00',
-      until: a.until + 'T23:59:59.999+08:00',
+      from:
+        a.from + 'T' + (a.startTime.length === 5 ? a.startTime + ':00' : a.startTime) + '+08:00',
+      until:
+        a.until + 'T' + (a.endTime.length === 5 ? a.endTime + ':00' : a.endTime) + '.999+08:00',
       dimension: dim,
       granularity: grain,
     })
@@ -127,8 +138,10 @@ function drill(r) {
     query: {
       ...Object.fromEntries(Object.entries(a).filter(([, v]) => v)),
       campaign_id: r.dimension_key,
-      from: a.from + 'T00:00:00+08:00',
-      until: a.until + 'T23:59:59.999+08:00',
+      from:
+        a.from + 'T' + (a.startTime.length === 5 ? a.startTime + ':00' : a.startTime) + '+08:00',
+      until:
+        a.until + 'T' + (a.endTime.length === 5 ? a.endTime + ':00' : a.endTime) + '.999+08:00',
     },
   });
 }
@@ -265,7 +278,13 @@ function downloadChart() {
     ><div class="toolbar">
       <label>开始日期 <input aria-label="面板开始日期" type="date" v-model="q.from" /></label
       ><label>结束日期 <input aria-label="面板结束日期" type="date" v-model="q.until" /></label>
-      <el-select
+      <label
+        >开始时间
+        <input type="time" step="1" aria-label="面板开始时间" v-model="q.startTime" /></label
+      ><label
+        >结束时间
+        <input type="time" step="1" aria-label="面板结束时间" v-model="q.endTime" /></label
+      ><el-select
         v-model="q.campaign_id"
         clearable
         aria-label="选择任务"

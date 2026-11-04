@@ -94,6 +94,15 @@ async function open(id) {
   variables.value = JSON.parse(JSON.stringify(active.value.snapshot.variables || {}));
   await router.replace({ query: { session_id: id } });
 }
+async function reset() {
+  if (busy.value) return;
+  active.value = null;
+  variables.value = {};
+  text.value = '';
+  turnKey = '';
+  error.value = '';
+  await router.replace({ query: selected.value ? { script_id: selected.value } : {} });
+}
 async function create() {
   await run(async () => {
     const v = await request('/api/v1/workspace/debug-sessions', 'POST', {
@@ -171,6 +180,7 @@ onMounted(() =>
             v-model="variables[f.key]"
             :aria-label="'调试变量' + f.key" /></el-form-item></el-form
       ><el-button type="primary" :loading="busy" @click="create">新建调试会话</el-button
+      ><el-button @click="reset">重置调试</el-button
       ><template v-if="active"
         ><p>
           会话 {{ active.name }} · v{{ active.script_version }} ·
