@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../session';
 import { useData } from '../data';
+import DebugVoice from '../components/DebugVoice.vue';
+const debugMode = ref('text');
 const route = useRoute(),
   router = useRouter(),
   scripts = useData('/api/v1/workspace/scripts?size=200');
@@ -158,6 +160,21 @@ onMounted(() =>
     title="当前文本调试使用实际本地意图、知识排序和流程画布规则；不调用模型，不拨号、不发送短信、不创建正式线索。语音试聊需单独确认费用和麦克风授权。"
     type="info"
     :closable="false"
+  />
+  <el-radio-group v-model="debugMode"
+    ><el-radio-button value="text">文字调试</el-radio-button
+    ><el-radio-button value="voice">语音调试</el-radio-button></el-radio-group
+  ><DebugVoice
+    v-if="debugMode === 'voice'"
+    :script-id="selected"
+    :opening="active?.snapshot.opening || publication?.opening"
+    :reply="latest?.reply"
+    @transcript="
+      (v) => {
+        text = v;
+        turnKey = '';
+      }
+    "
   />
   <div class="debug-grid">
     <el-card header="配置与快照"

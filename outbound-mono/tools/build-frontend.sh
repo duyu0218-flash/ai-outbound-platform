@@ -18,4 +18,4 @@ fi
 rm -rf -- "$mono_dir/target/classes"
 cd "$mono_dir/frontend"
 "$node_bin" node_modules/vite/bin/vite.js build
-jar --create --no-manifest --file "$mono_dir/src/main/resources/static/script-recorder.zip" -C "$mono_dir/miniapp/recorder" .
+jar --create --no-manifest --file "$mono_dir/src/main/resources/static/assets/script-recorder.zip" -C "$mono_dir/miniapp/recorder" .

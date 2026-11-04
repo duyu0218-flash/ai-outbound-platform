@@ -539,7 +539,7 @@ onMounted(async () => {
         首次接入由管理员在微信开发者工具导入录音工程，填写本企业 AppID，将 config.js 的 origin
         设为已备案并加入 request、uploadFile 白名单的 HTTPS 服务域名。
       </p>
-      <a href="/script-recorder.zip" download>下载小程序工程</a
+      <a href="/assets/script-recorder.zip" download>下载小程序工程</a
       ><el-button
         @click="
           miniOpen = false;
