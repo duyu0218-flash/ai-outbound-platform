@@ -417,6 +417,12 @@ public class Store {
             sql.update(
                     namespace(table) + ".patchFields",
                     Map.of("id", encode(table, "id", id), "tenantId", tenant, "changes", changes));
+        if (table.equals("user")
+                && !Collections.disjoint(
+                        input.keySet(), Set.of("agent_status", "last_seen_at", "enabled", "role")))
+            sql.insert(
+                    "com.duozhi.outbound.auth.dao.AuthIdentityMapper.sampleSeat",
+                    Map.of("tenantId", tenant, "id", id));
         return require(table, tenant, id);
     }
 

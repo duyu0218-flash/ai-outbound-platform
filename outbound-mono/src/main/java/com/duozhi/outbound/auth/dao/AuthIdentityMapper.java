@@ -48,6 +48,10 @@ public interface AuthIdentityMapper {
             @Param("now")
             LocalDateTime now);
 
+    int sampleSeat(@Param("tenantId")
+    long tenant, @Param("id")
+    long id);
+
     int revoke(
             @Param("id")
             long id, @Param("tenantId")
