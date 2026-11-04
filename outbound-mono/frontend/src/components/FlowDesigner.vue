@@ -266,8 +266,14 @@ const edgeFields = computed(() => [
     <div v-else class="flow-workspace">
       <div class="flow-palette">
         <el-button :disabled="!draft" @click="addScene">增加流程</el-button>
-        <el-select aria-label="当前场景流程" v-model="scene" @change="selectedNodeId = null"
-          ><el-option v-for="s in scenes" :key="s" :label="s" :value="s" /></el-select
+        <label
+          >当前场景流程<select
+            aria-label="当前场景流程"
+            v-model="scene"
+            @change="selectedNodeId = null"
+          >
+            <option v-for="s in scenes" :key="s" :value="s">{{ s }}</option>
+          </select></label
         ><small>流程到达率 {{ rate('scene', scene) }}（今日 UTC）</small
         ><el-button @click="reach.load()">刷新到达率</el-button><strong>节点</strong
         ><el-button
@@ -320,13 +326,16 @@ const edgeFields = computed(() => [
       <aside class="flow-inspector">
         <template v-if="selectedNode"
           ><h4>节点配置</h4>
-          <el-select
-            v-model="selectedNode.scene"
-            aria-label="节点所属流程"
-            :disabled="!draft"
-            placeholder="主流程"
-            ><el-option v-for="s in scenes" :key="s" :label="s" :value="s"
-          /></el-select>
+          <label
+            >节点所属流程<select
+              :value="selectedNode.scene || '主流程'"
+              @change="selectedNode.scene = $event.target.value"
+              aria-label="节点所属流程"
+              :disabled="!draft"
+            >
+              <option v-for="s in scenes" :key="s" :value="s">{{ s }}</option>
+            </select></label
+          >
           <el-input
             v-model="selectedNode.label"
             :disabled="!draft"
