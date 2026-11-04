@@ -92,7 +92,7 @@ public class WorkspaceController {
         int offset = com.duozhi.outbound.common.web.Contract.page(page, size);
         String search = "%" + keyword + "%";
         String scope =
-                " FROM scripttemplate t WHERE t.tenant_id=? AND (t.name LIKE ? OR t.category LIKE ?)";
+                " FROM scripttemplate t LEFT JOIN platform_document sd ON sd.tenant_id=t.tenant_id AND sd.kind='script' AND sd.object_id=CAST(t.id AS CHAR) WHERE t.tenant_id=? AND COALESCE(sd.state,'draft')<>'archived' AND (COALESCE(sd.name,t.name) LIKE ? OR t.category LIKE ?)";
         if (publishedOnly)
             scope +=
                     " AND EXISTS (SELECT 1 FROM platform_document d WHERE d.tenant_id=t.tenant_id AND d.kind='script' AND d.object_id=CAST(t.id AS CHAR) AND d.published_json IS NOT NULL AND d.state<>'disabled')";
@@ -125,6 +125,7 @@ public class WorkspaceController {
         if (!id.matches("[1-9][0-9]{0,9}")) throw new ApiError(404, "话术不存在");
         var raw = store.require("scripttemplate", i.tenant(), Long.parseLong(id));
         var doc = docs.find(i.tenant(), "script", id);
+        if (doc != null && "archived".equals(doc.get("state"))) throw new ApiError(404, "话术已删除");
         if (doc == null)
             doc =
                     JsonSupport.map(
@@ -217,6 +218,40 @@ public class WorkspaceController {
         var user =
                 docs.one("SELECT full_name FROM sys_user WHERE tenant_id=? AND id=?", tenant, id);
         return user == null ? "已移除账号" : user.get("full_name").toString();
+    }
+
+    @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/archive")
+    public Object archive(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        return docs.tx.serialized(
+                () -> {
+                    docs.tx.platform();
+                    docs.tx.tenant(i.tenant());
+                    var doc = script(id, r);
+                    if (number(doc.get("references")) > 0)
+                        throw new ApiError(409, "话术仍有关联任务，请先解除引用");
+                    int rev = number(body.get("expected_revision"));
+                    if (rev != number(doc.get("revision"))) throw new ApiError(409, "话术已修改，请刷新");
+                    if (rev == 0)
+                        rev = number(docs.save(i, "script", id, "", draft(doc), 0).get("revision"));
+                    templates.update(Long.parseLong(id), Map.of("is_active", false), r);
+                    int changed =
+                            docs.jdbc.update(
+                                    "UPDATE platform_document SET state='archived',published_json=NULL,revision=revision+1,updated_at=?,updated_by=? WHERE tenant_id=? AND kind='script' AND object_id=? AND revision=?",
+                                    Store.now(),
+                                    i.userId(),
+                                    i.tenant(),
+                                    id,
+                                    rev);
+                    if (changed != 1) throw new ApiError(409, "话术已修改，请刷新");
+                    docs.recordTransition(i, "script", id, "archived");
+                    return Map.of("archived", true);
+                });
     }
 
     @AdminPermission(value = "product:write", operator = true)

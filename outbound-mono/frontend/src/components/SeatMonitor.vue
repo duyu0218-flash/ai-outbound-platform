@@ -131,6 +131,7 @@ function ratio(n, d) {
         并发数量
         <el-input-number
           v-model="cap"
+          :disabled="!info"
           aria-label="并发数量"
           :min="0"
           :max="100000"

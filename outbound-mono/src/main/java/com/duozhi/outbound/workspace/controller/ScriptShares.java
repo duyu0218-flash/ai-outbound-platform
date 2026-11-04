@@ -82,7 +82,7 @@ public class ScriptShares {
         var i = Identity.from(request);
         i.requireUser();
         return docs.jdbc.queryForList(
-                "SELECT s.object_id,s.name,p.version,JSON_UNQUOTE(JSON_EXTRACT(p.content_json,'$.compiled_content')) AS content FROM platform_document s JOIN platform_document d ON d.tenant_id=s.tenant_id AND d.kind='script' AND d.object_id=s.object_id AND d.state<>'disabled' JOIN platform_publication p ON p.tenant_id=s.tenant_id AND p.kind='script' AND p.object_id=s.object_id AND p.version=CAST(s.draft_json->>'$.version' AS UNSIGNED) WHERE s.kind='script_share' AND s.tenant_id=? AND JSON_CONTAINS(s.draft_json,CAST(? AS JSON),'$.ids') ORDER BY s.updated_at DESC,s.object_id",
+                "SELECT s.object_id,s.name,p.version,JSON_UNQUOTE(JSON_EXTRACT(p.content_json,'$.compiled_content')) AS content FROM platform_document s JOIN platform_document d ON d.tenant_id=s.tenant_id AND d.kind='script' AND d.object_id=s.object_id AND d.state NOT IN ('disabled','archived') JOIN platform_publication p ON p.tenant_id=s.tenant_id AND p.kind='script' AND p.object_id=s.object_id AND p.version=CAST(s.draft_json->>'$.version' AS UNSIGNED) WHERE s.kind='script_share' AND s.tenant_id=? AND JSON_CONTAINS(s.draft_json,CAST(? AS JSON),'$.ids') ORDER BY s.updated_at DESC,s.object_id",
                 i.tenant(),
                 i.userId().toString());
     }

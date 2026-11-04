@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { request, session } from '../session';
+import { ElMessageBox } from 'element-plus';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
 import ReachReport from '../components/ReachReport.vue';
@@ -252,15 +253,49 @@ async function run(fn) {
     busy.value = false;
   }
 }
-async function open(row) {
+async function open(row, targetTab = 'dialogue') {
   await run(async () => {
     selected.value = await request('/api/v1/workspace/scripts/' + row.id);
     model.value = clone(selected.value.draft);
-    tab.value = 'dialogue';
+    tab.value = targetTab;
     probe.value = null;
     history.value = selected.value.revision
       ? await request(`/api/v1/workspace/scripts/${row.id}/history`)
       : [];
+  });
+}
+async function rename(row) {
+  let value;
+  try {
+    ({ value } = await ElMessageBox.prompt('请输入新的话术名称', '改名', {
+      inputValue: row.draft.name,
+      inputValidator: (v) => !!v?.trim() && v.trim().length <= 160,
+    }));
+  } catch {
+    return;
+  }
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + row.id + '/draft', 'PUT', {
+      draft: { ...row.draft, name: value.trim() },
+      expected_revision: row.revision,
+    });
+    await query.load();
+  });
+}
+async function archive(row) {
+  try {
+    await ElMessageBox.confirm(
+      '删除后话术将从列表和选项中移除。已有任务引用时须先解除引用。',
+      '删除话术',
+    );
+  } catch {
+    return;
+  }
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + row.id + '/archive', 'POST', {
+      expected_revision: row.revision,
+    });
+    await query.load();
   });
 }
 async function create() {
@@ -405,7 +440,10 @@ onMounted(async () => {
         /><el-table-column v-if="visibleColumns.includes('创建时间')" label="创建时间"
           ><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column
         ><el-table-column label="话术名称"
-          ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
+          ><template #default="{ row }"
+            >{{ row.draft.name }} <el-button link @click="rename(row)">改名</el-button
+            ><el-button link @click="open(row, 'reach')">到达统计</el-button></template
+          ></el-table-column
         ><el-table-column v-if="visibleColumns.includes('分类')" label="分类"
           ><template #default="{ row }">{{ row.draft.category }}</template></el-table-column
         ><el-table-column v-if="visibleColumns.includes('状态')" label="状态"
@@ -432,7 +470,10 @@ onMounted(async () => {
         /><el-table-column label="操作"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="open(row)">配置话术</el-button
-            ><el-button link @click="copy(row)">复制</el-button></template
+            ><el-button link @click="copy(row)">复制</el-button
+            ><el-button link @click="open(row, 'slots')">查看表单</el-button
+            ><el-button link @click="open(row, 'intents')">关键词库</el-button
+            ><el-button link type="danger" @click="archive(row)">删除话术</el-button></template
           ></el-table-column
         ></el-table
       >
