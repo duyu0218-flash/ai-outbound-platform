@@ -498,6 +498,38 @@ public class Operations {
         return Map.of("saved", true);
     }
 
+    @PostMapping("/calls/{id}/lead")
+    public Object convertCall(@PathVariable
+    String id, HttpServletRequest request) {
+        Identity i = actor(request);
+        return tx.serialized(
+                () -> {
+                    access.call(i, id);
+                    var call = store.require("callsession", i.tenant(), id);
+                    if (!"completed".equals(call.get("status")) || call.get("contact_id") == null)
+                        throw new ApiError(409, "只能从已完成且关联联系人的通话生成线索");
+                    long contact = ((Number) call.get("contact_id")).longValue();
+                    var params = base(i);
+                    params.put("contact_id", contact);
+                    db.write("leadSeed", params);
+                    var lead = db.one("leadLock", params);
+                    if (lead.get("owner_id") == null)
+                        changeLead(
+                                i,
+                                contact,
+                                JsonSupport.map(
+                                        "action",
+                                        "claim",
+                                        "event_key",
+                                        "call-lead:" + id,
+                                        "revision",
+                                        lead.get("revision"),
+                                        "note",
+                                        "来源通话 " + id));
+                    return leadDetail(contact, request);
+                });
+    }
+
     @GetMapping("/leads")
     public Map<String, Object> leads(@RequestParam
     Map<String, String> q, HttpServletRequest r) {

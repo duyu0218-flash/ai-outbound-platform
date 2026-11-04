@@ -34,6 +34,14 @@ const allColumns = [
 const visible = ref(allColumns.map((c) => c.key)),
   columns = computed(() => allColumns.filter((c) => visible.value.includes(c.key))),
   page = computed(() => Number(route.query.page || 1));
+async function convert(row) {
+  const lead = await perform(() => ops('/calls/' + row.id + '/lead', 'POST'));
+  if (lead)
+    await router.push({
+      path: prefix() + '/operations/leads',
+      query: { contact_id: lead.contact_id },
+    });
+}
 function localTime(value) {
   if (!value || Number.isNaN(new Date(value).getTime())) return '';
   return new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000)

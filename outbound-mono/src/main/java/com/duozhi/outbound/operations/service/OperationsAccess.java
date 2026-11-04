@@ -27,6 +27,7 @@ public class OperationsAccess {
                                 && db.rows("teams", p).isEmpty()
                                 && db.one("permissions", p) == null;
         p.put("allScope", all);
+        p.put("operator", i.isOperator());
         return p;
     }
 

@@ -8,7 +8,12 @@
         g.id=c.campaign_id
     </sql>
     <sql id="callWhere">
-        AND (#{allScope}=TRUE OR c.human_agent_id=#{userId} OR l.owner_id=#{userId} OR EXISTS(SELECT
+        AND (#{allScope}=TRUE OR c.human_agent_id=#{userId}
+        <if test="operator == true">
+            OR EXISTS (SELECT 1 FROM scenarioversion sv WHERE sv.tenant_id=c.tenant_id
+            AND sv.campaign_id=c.campaign_id AND sv.published_by=#{userId})
+        </if>
+        OR l.owner_id=#{userId} OR EXISTS(SELECT
         1 FROM handoffrequest own_h WHERE own_h.tenant_id=c.tenant_id AND own_h.call_session_id=c.id
         AND own_h.assigned_agent_id=#{userId} AND own_h.state IN ('WAITING','ACCEPTING','ACCEPTED'))
         OR EXISTS(SELECT 1 FROM ops_member m JOIN ops_member me ON me.tenant_id=m.tenant_id AND

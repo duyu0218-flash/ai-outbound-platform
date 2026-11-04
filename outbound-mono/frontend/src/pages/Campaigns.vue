@@ -24,7 +24,7 @@ const lines = useData(
       ? '/api/v1/workspace/task-resources/selectable-lines'
       : '/api/v1/admin/lines',
   ),
-  combos = useData('/api/v1/admin/voice-ai/profiles');
+  combos = useData(session.user?.role === 'admin' ? '/api/v1/admin/voice-ai/profiles' : '');
 const filter = ref('');
 const route = useRoute(),
   page = ref(1),
@@ -40,7 +40,7 @@ const route = useRoute(),
   ),
   batches = useData('/api/v1/workspace/contact-batches'),
   clients = useData('/api/v1/ops/clients?status=active&size=200'),
-  system = useData('/api/v1/admin/system-overview');
+  system = useData(session.user?.role === 'admin' ? '/api/v1/admin/system-overview' : '');
 const teams = useData('/api/v1/ops/teams');
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const open = ref(false),
@@ -599,7 +599,7 @@ onMounted(() => {
         {{ detail.snapshot.start_at || '立即' }}；结束 {{ detail.snapshot.end_at || '未设置' }}
       </p>
       <HangupMessageRule
-        v-if="detail.snapshot"
+        v-if="detail.snapshot && session.user?.role === 'admin'"
         :key="detail.id"
         :task-id="detail.id" /></template></el-drawer
   ><el-dialog

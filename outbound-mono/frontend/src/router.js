@@ -183,6 +183,7 @@ router.beforeEach(async (to) => {
     return true;
   }
   if (!session.user) return '/' + (to.meta.role || 'admin') + '/login';
+  if (session.user.role === 'operator' && to.path === '/agent') return '/agent/campaigns';
   if (to.meta.operatorOnly && session.user.role !== 'operator') return '/agent';
   if (to.meta.role === 'admin' && session.user.role !== 'admin') return '/agent';
   return true;

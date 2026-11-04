@@ -21,7 +21,7 @@ public class OperationsBoundary implements WebMvcConfigurer {
 
     private static boolean operatorWorkspace(String path) {
         return path.matches(
-                "/api/v1/(?:workspace/(?:scripts|tasks|task-resources|contact-batches)|campaigns|contacts|script-templates)(?:/.*)?");
+                "/api/v1/(?:workspace/(?:scripts|tasks|task-resources|audiences|contact-batches)|campaigns|contacts|script-templates)(?:/.*)?");
     }
 
     @Override

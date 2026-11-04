@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { request } from '../session';
+import { request, session } from '../session';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
 import FlowDesigner from '../components/FlowDesigner.vue';
@@ -13,9 +13,9 @@ const route = useRoute(),
     () =>
       `/api/v1/workspace/scripts?page=${page.value}&size=30&keyword=${encodeURIComponent(keyword.value)}`,
   ),
-  libraries = useData('/api/v1/workspace/libraries'),
+  libraries = useData(session.user?.role === 'admin' ? '/api/v1/workspace/libraries' : ''),
   teams = useData('/api/v1/ops/teams');
-const skills = useData('/api/v1/workspace/catalog/skill');
+const skills = useData(session.user?.role === 'admin' ? '/api/v1/workspace/catalog/skill' : '');
 const selected = ref(null),
   model = ref({}),
   tab = ref('dialogue'),
@@ -27,7 +27,7 @@ const selected = ref(null),
   sample = ref('我想了解办理条件'),
   createOpen = ref(false),
   newScript = ref({ name: '', category: '业务话术' });
-const users = useData('/api/v1/admin/users?page=1&size=200');
+const users = useData(session.user?.role === 'admin' ? '/api/v1/admin/users?page=1&size=200' : '');
 const rows = computed(() => query.data.value?.rows || []);
 const labels = { draft: '草稿', published: '已发布', review: '待审核', disabled: '已停用' };
 const intents = {
