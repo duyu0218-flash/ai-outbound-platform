@@ -2,7 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { request } from '../session';
 import { useData, action } from '../data';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 const props = defineProps({ template: Object }),
   emit = defineEmits(['close']),
   versions = useData(() => `/api/v1/script-templates/${props.template.id}/flows`),
@@ -32,12 +32,50 @@ const selected = computed(() => versions.data.value?.find((v) => v.id === select
     handoff: '转人工',
     hangup: '结束通话',
   };
+const scene = ref('主流程');
+const scenes = computed(() => graph.value.scenes || ['主流程']);
+const nodesInScene = computed(() =>
+  graph.value.nodes.filter((n) => (n.scene || '主流程') === scene.value),
+);
+const reach = useData(() =>
+  selectedId.value
+    ? '/api/v1/script-templates/' +
+      props.template.id +
+      '/flows/' +
+      selectedId.value +
+      '/reach-today'
+    : '',
+);
+function rate(kind, id) {
+  const v = reach.data.value;
+  if (!v?.total) return '无采集样本';
+  const hit = Number(v.rows.find((r) => r.kind === kind && r.target_id === id)?.n || 0);
+  return hit + '/' + v.total + ' · ' + ((100 * hit) / v.total).toFixed(2) + '%';
+}
+async function addScene() {
+  let value;
+  try {
+    ({ value } = await ElMessageBox.prompt('输入新流程名称', '增加流程', {
+      inputValidator: (v) =>
+        !!v?.trim() &&
+        v.trim().length <= 80 &&
+        !scenes.value.includes(v.trim()) &&
+        scenes.value.length < 64,
+    }));
+  } catch {
+    return;
+  }
+  graph.value.scenes = [...scenes.value, value.trim()];
+  scene.value = value.trim();
+  selectedNodeId.value = null;
+}
 function select(id) {
   selectedId.value = id;
   const item = versions.data.value?.find((v) => v.id === id);
   if (item) {
     graph.value = JSON.parse(JSON.stringify(item.graph));
     flowName.value = item.name;
+    if (!scenes.value.includes(scene.value)) scene.value = '主流程';
   }
   selectedNodeId.value = null;
 }
@@ -90,6 +128,7 @@ function addNode(type) {
     id,
     type,
     label: nodeTypes[type],
+    scene: scene.value,
     prompt: '',
     position: {
       x: 260 + graph.value.nodes.length * 34,
@@ -226,7 +265,11 @@ const edgeFields = computed(() => [
     />
     <div v-else class="flow-workspace">
       <div class="flow-palette">
-        <strong>节点</strong
+        <el-button :disabled="!draft" @click="addScene">增加流程</el-button>
+        <el-select aria-label="当前场景流程" v-model="scene" @change="selectedNodeId = null"
+          ><el-option v-for="s in scenes" :key="s" :label="s" :value="s" /></el-select
+        ><small>流程到达率 {{ rate('scene', scene) }}（今日 UTC）</small
+        ><el-button @click="reach.load()">刷新到达率</el-button><strong>节点</strong
         ><el-button
           v-for="(label, type) in nodeTypes"
           :key="type"
@@ -238,7 +281,11 @@ const edgeFields = computed(() => [
       <div class="flow-canvas">
         <svg class="flow-lines">
           <g
-            v-for="line in graph.edges.filter((e) => node(e.source) && node(e.target))"
+            v-for="line in graph.edges.filter(
+              (e) =>
+                nodesInScene.some((n) => n.id === e.source) &&
+                nodesInScene.some((n) => n.id === e.target),
+            )"
             :key="line.id"
           >
             <line
@@ -258,7 +305,7 @@ const edgeFields = computed(() => [
             </text>
           </g></svg
         ><button
-          v-for="item in graph.nodes"
+          v-for="item in nodesInScene"
           :key="item.id"
           type="button"
           class="flow-node"
@@ -267,12 +314,19 @@ const edgeFields = computed(() => [
           @mousedown="drag($event, item)"
         >
           <strong>{{ item.label }}</strong
-          ><span>{{ item.type }}</span>
+          ><span>{{ item.type }} · 到达率 {{ rate('node', item.id) }}</span>
         </button>
       </div>
       <aside class="flow-inspector">
         <template v-if="selectedNode"
           ><h4>节点配置</h4>
+          <el-select
+            v-model="selectedNode.scene"
+            aria-label="节点所属流程"
+            :disabled="!draft"
+            placeholder="主流程"
+            ><el-option v-for="s in scenes" :key="s" :label="s" :value="s"
+          /></el-select>
           <el-input
             v-model="selectedNode.label"
             :disabled="!draft"
@@ -319,13 +373,17 @@ const edgeFields = computed(() => [
         <label class="node-link-select"
           >起点<select v-model="edge.source" :disabled="!draft" aria-label="起点">
             <option value="">选择起点</option>
-            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">{{ n.label }}</option>
+            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">
+              {{ n.scene && n.scene !== '主流程' ? n.scene + ' · ' : '' }}{{ n.label }}
+            </option>
           </select></label
         >
         <label class="node-link-select"
           >终点<select v-model="edge.target" :disabled="!draft" aria-label="终点">
             <option value="">选择终点</option>
-            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">{{ n.label }}</option>
+            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">
+              {{ n.scene && n.scene !== '主流程' ? n.scene + ' · ' : '' }}{{ n.label }}
+            </option>
           </select></label
         >
         <FieldForm

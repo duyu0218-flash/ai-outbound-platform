@@ -10360,6 +10360,7 @@
       },
       "FlowNode": {
         "properties": {
+          "scene": {"type": "string", "minLength": 1, "maxLength": 80},
           "id": {
             "type": "string",
             "maxLength": 128,
@@ -11900,6 +11901,7 @@
       },
       "ScriptFlowGraph": {
         "properties": {
+          "scenes": {"type": "array", "items": {"type":"string","minLength":1,"maxLength":80}, "maxItems":64},
           "nodes": {
             "items": {
               "$ref": "#/components/schemas/FlowNode"

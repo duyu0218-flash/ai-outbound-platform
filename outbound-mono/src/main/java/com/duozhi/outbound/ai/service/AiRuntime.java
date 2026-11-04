@@ -186,8 +186,14 @@ public class AiRuntime {
         Object node =
                 d.get("next_node_id") == null ? d.get("current_node_id") : d.get("next_node_id");
         visitedNodes.put(node.toString(), nodes.get(node).get("label").toString());
-        if (reach != null)
-            reach.record(call, version.get("script_template_id"), "node", visitedNodes);
+        if (reach != null) {
+            Map<String, String> scenes = new LinkedHashMap<>();
+            for (String key : visitedNodes.keySet()) {
+                String scene = Objects.toString(nodes.get(key).get("scene"), "主流程");
+                scenes.put(scene, scene);
+            }
+            reach.recordFlow(call, version.get("script_template_id"), visitedNodes, scenes);
+        }
         call.put("flow_node_key", node);
         String action = d.get("action").toString();
         if (Values.set("wait", "listen", "continue").contains(action)) action = "continue";

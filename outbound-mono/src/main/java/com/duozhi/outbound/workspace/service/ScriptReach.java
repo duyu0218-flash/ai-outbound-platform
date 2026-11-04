@@ -21,6 +21,19 @@ public class ScriptReach {
 
     public void record(
             Map<String, Object> call, Object script, String kind, Map<String, String> targets) {
+        recordTargets(call, script, Map.of(kind, targets));
+    }
+
+    public void recordFlow(
+            Map<String, Object> call,
+            Object script,
+            Map<String, String> nodes,
+            Map<String, String> scenes) {
+        recordTargets(call, script, Map.of("node", nodes, "scene", scenes));
+    }
+
+    private void recordTargets(
+            Map<String, Object> call, Object script, Map<String, Map<String, String>> targets) {
         if (!(script instanceof Number n)
                 || call.get("id") == null
                 || call.get("created_at") == null) return;
@@ -28,7 +41,8 @@ public class ScriptReach {
         if (!collecting(tenant, id)) return;
         var batch = new ArrayList<Object[]>();
         add(batch, tenant, id, call, "sample", "call", "已采集通话");
-        targets.forEach((k, v) -> add(batch, tenant, id, call, kind, k, v));
+        targets.forEach(
+                (kind, group) -> group.forEach((k, v) -> add(batch, tenant, id, call, kind, k, v)));
         docs.jdbc.batchUpdate(
                 "INSERT INTO script_reach(tenant_id,script_id,flow_id,call_id,kind,target_id,target_label,cohort_at) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE target_id=script_reach.target_id",
                 batch);

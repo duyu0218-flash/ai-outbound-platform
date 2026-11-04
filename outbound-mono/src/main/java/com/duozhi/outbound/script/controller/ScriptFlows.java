@@ -57,6 +57,13 @@ public class ScriptFlows {
             }
             g.put(name, clean);
         }
+        List<?> sceneList = (List<?>) g.getOrDefault("scenes", List.of("主流程"));
+        Set<Object> scenes = new HashSet<>(sceneList);
+        if (!scenes.contains("主流程") || scenes.size() != sceneList.size())
+            throw new ApiError(422, "流程名称重复或缺少主流程");
+        for (var node : list(g, "nodes"))
+            if (!scenes.contains(node.getOrDefault("scene", "主流程")))
+                throw new ApiError(422, "请选择节点所属流程");
         Map<String, Map<String, Object>> nodes = new LinkedHashMap<>();
         Set<String> edges = new HashSet<>();
         String start = null;
@@ -295,6 +302,35 @@ public class ScriptFlows {
             long version_id,
             HttpServletRequest request) {
         return output(version(tenant(request), template_id, version_id));
+    }
+
+    @GetMapping("/{version_id}/reach-today")
+    public Object canvasReach(
+            @PathVariable
+            long template_id, @PathVariable
+            long version_id, HttpServletRequest r) {
+        long tenant = tenant(r);
+        version(tenant, template_id, version_id);
+        String scope =
+                " FROM script_reach WHERE tenant_id=? AND script_id=? AND flow_id=? AND cohort_at>=UTC_DATE() AND cohort_at<UTC_DATE()+INTERVAL 1 DAY";
+        long total =
+                workspace.jdbc.queryForObject(
+                        "SELECT COUNT(*)" + scope + " AND kind='sample'",
+                        Long.class,
+                        tenant,
+                        template_id,
+                        version_id);
+        return Map.of(
+                "total",
+                total,
+                "rows",
+                workspace.jdbc.queryForList(
+                        "SELECT kind,target_id,COUNT(*) AS n"
+                                + scope
+                                + " AND kind IN ('scene','node') GROUP BY kind,target_id",
+                        tenant,
+                        template_id,
+                        version_id));
     }
 
     @PostMapping
