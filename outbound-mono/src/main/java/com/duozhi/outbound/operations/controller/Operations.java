@@ -110,6 +110,8 @@ public class Operations {
                 List.of("contact_id", "campaign_id", "agent_id", "owner_id", "line_id", "team_id"))
             if (q.containsKey(k) && !q.get(k).isBlank())
                 p.put(k, number(q.get(k), 1, Integer.MAX_VALUE));
+        if (q.containsKey("flow_version_id") && !q.get("flow_version_id").isBlank())
+            p.put("flow_version_id", number(q.get("flow_version_id"), 0, Integer.MAX_VALUE));
         for (String k : List.of("phone", "intent", "review_state", "stage", "tag"))
             if (q.containsKey(k) && !q.get(k).isBlank()) p.put(k, text(q.get(k), 120));
         if (q.containsKey("status") && !q.get("status").isBlank())
@@ -338,16 +340,18 @@ public class Operations {
                 "dimension",
                 choice(
                         q.getOrDefault("dimension", "campaign"),
-                        Set.of("campaign", "agent", "line", "owner")));
+                        Set.of("campaign", "agent", "line", "owner", "flow_version")));
         p.put(
                 "granularity",
-                choice(q.getOrDefault("granularity", "all"), Set.of("all", "day", "hour")));
+                choice(
+                        q.getOrDefault("granularity", "all"),
+                        Set.of("all", "day", "hour", "minute")));
         if (!p.containsKey("from")) p.put("from", Store.now().minusDays(30));
         return JsonSupport.map(
                 "rows",
                 db.rows("report", p),
                 "definition",
-                "会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。接收为已接收转接记录，不代表真实线路媒体验收。",
+                "首呼、复呼按会话内拨打序号及接通回执统计，归入会话创建时段；时长只累计有记录的秒数。会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。接收为已接收转接记录，不代表真实线路媒体验收。",
                 "filters",
                 p);
     }
@@ -374,7 +378,12 @@ public class Operations {
                         "handoff_requests",
                         "handoff_received",
                         "qualified_phones",
-                        "failed_sessions");
+                        "failed_sessions",
+                        "first_answered_attempts",
+                        "repeat_answered_attempts",
+                        "answered_attempts",
+                        "telephony_seconds",
+                        "ai_seconds");
         csv.printRecord(fields);
         for (Object raw : list(data.get("rows"))) {
             var row = object(raw);
@@ -693,6 +702,11 @@ public class Operations {
         db.write("noticeAppointment", p);
         db.write("noticeDelivery", p);
         return db.rows("notices", p);
+    }
+
+    @GetMapping("/notices/unread")
+    public Map<String, Object> unread(HttpServletRequest r) {
+        return Map.of("count", db.count("unreadNotices", base(actor(r))));
     }
 
     @PostMapping("/notices/{id}/read")

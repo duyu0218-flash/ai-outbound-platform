@@ -21,6 +21,9 @@
         <if test="phone != null">
             AND c.phone LIKE CONCAT('%',#{phone},'%')
         </if>
+        <if test="flow_version_id != null">
+            AND COALESCE(c.script_flow_version_id,0)=#{flow_version_id}
+        </if>
         <if test="campaign_id != null">
             AND c.campaign_id=#{campaign_id}
         </if>
@@ -91,11 +94,18 @@
         <include refid="callWhere"/>
     </select>
     <select id="report" resultType="java.util.LinkedHashMap">
-        SELECT CASE #{dimension} WHEN 'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
+        SELECT CASE #{dimension} WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
+        'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
         COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE
         COALESCE(c.campaign_id,0) END AS dimension_key,
-        CASE #{granularity} WHEN 'hour' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:00') WHEN 'day'
+        CASE #{granularity} WHEN 'minute' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:%i') WHEN
+        'hour' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:00') WHEN 'day'
         THEN DATE_FORMAT(c.created_at,'%Y-%m-%d') ELSE '全部' END AS bucket,
+        SUM(usage_totals.first_answers) AS first_answered_attempts,
+        SUM(usage_totals.repeat_answers) AS repeat_answered_attempts,
+        SUM(usage_totals.first_answers + usage_totals.repeat_answers) AS answered_attempts,
+        SUM(usage_totals.telephony_seconds) AS telephony_seconds,
+        SUM(usage_totals.ai_seconds) AS ai_seconds,
         COUNT(*) AS sessions,COALESCE(SUM(c.attempts),0) AS attempts,COUNT(DISTINCT c.phone) AS
         phones,
         SUM(c.status IN
@@ -112,6 +122,13 @@
         qualified_phones,
         SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed_sessions
         <include refid="callJoin"/>
+        JOIN LATERAL (
+        SELECT COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.attempt=1 THEN 1 END) AS
+        first_answers,
+        COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.attempt&gt;1 THEN 1 END) AS repeat_answers,
+        SUM(u.telephony_seconds) AS telephony_seconds, SUM(u.ai_seconds) AS ai_seconds
+        FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id
+        ) usage_totals ON TRUE
         WHERE c.tenant_id=#{tenantId}
         <include refid="callWhere"/>
         GROUP BY dimension_key,bucket ORDER BY bucket DESC,dimension_key
@@ -312,6 +329,10 @@
     <select id="notices" resultType="java.util.LinkedHashMap">
         SELECT * FROM ops_notice WHERE tenant_id=#{tenantId} AND user_id=#{userId} ORDER BY id DESC
         LIMIT 200
+    </select>
+    <select id="unreadNotices" resultType="long">
+        SELECT COUNT(*) FROM ops_notice WHERE tenant_id=#{tenantId} AND user_id=#{userId} AND
+        read_at IS NULL
     </select>
     <update id="noticeRead">
         UPDATE ops_notice SET read_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND

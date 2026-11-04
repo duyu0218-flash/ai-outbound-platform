@@ -4,12 +4,15 @@ import { useRoute, useRouter } from 'vue-router';
 import { adminMenu } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
+import { useData } from './data';
 import { t, language, setLanguage } from './i18n';
 const props = defineProps({ role: String }),
   route = useRoute(),
   router = useRouter(),
   collapsed = ref(false),
   healthy = ref(null);
+const unread = useData('/api/v1/ops/notices/unread', 60000);
+watch(() => route.path, unread.load);
 const opsProfile = ref(null),
   groupOpen = ref({}),
   helpOpen = ref(false);
@@ -31,10 +34,7 @@ const navigation = computed(() =>
     : [
         {
           group: 'navWorkbench',
-          items: [
-            { path: '/agent', label: 'workspace' },
-            { path: agentPath('notices'), label: '通知中心' },
-          ],
+          items: [{ path: '/agent', label: 'workspace' }],
         },
         {
           group: 'navDialing',
@@ -130,7 +130,14 @@ async function leave() {
             ><el-option label="中文" value="zh-CN" /><el-option
               label="English"
               value="en-US" /></el-select
-          ><el-button link @click="router.push('/' + role + '/operations/notices')">通知</el-button>
+          ><el-badge :value="unread.data.value?.count" :hidden="!unread.data.value?.count" :max="99"
+            ><el-button
+              link
+              aria-label="通知中心"
+              @click="router.push('/' + role + '/operations/notices')"
+              >🔔</el-button
+            ></el-badge
+          >
           <el-button link @click="router.push('/' + role + '/operations/workspace')"
             >个人配置</el-button
           >

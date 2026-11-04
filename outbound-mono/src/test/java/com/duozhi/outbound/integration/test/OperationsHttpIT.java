@@ -482,7 +482,34 @@ class OperationsHttpIT {
     @Test
     void reportsViewsAndForeignTenantBoundaries() {
         Object a = contact("报表").get("id");
-        call(a, agent.getId());
+        var session = call(a, agent.getId());
+        for (int attempt = 1; attempt <= 2; attempt++)
+            store.insert(
+                    "callusage",
+                    JsonSupport.map(
+                            "tenant_id",
+                            tenant,
+                            "call_session_id",
+                            session.get("id"),
+                            "attempt",
+                            attempt,
+                            "answered_at",
+                            Store.now(),
+                            "telephony_seconds",
+                            12.0,
+                            "ai_seconds",
+                            6.0,
+                            "duration_source",
+                            "provider"));
+        var usage =
+                get("/reports?dimension=flow_version&granularity=minute&flow_version_id=0")
+                        .path("rows")
+                        .get(0);
+        assertThat(usage.path("first_answered_attempts").asInt()).isEqualTo(1);
+        assertThat(usage.path("repeat_answered_attempts").asInt()).isEqualTo(1);
+        assertThat(usage.path("answered_attempts").asInt()).isEqualTo(2);
+        assertThat(usage.path("telephony_seconds").asDouble()).isEqualTo(24.0);
+        assertThat(usage.path("ai_seconds").asDouble()).isEqualTo(12.0);
         assertThat(
                         get("/reports?dimension=agent&granularity=all")
                                 .path("rows")

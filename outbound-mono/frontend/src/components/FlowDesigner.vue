@@ -86,6 +86,15 @@ function addNode(type) {
   });
   selectedNodeId.value = id;
 }
+function copyNode() {
+  if (!draft.value || !selectedNode.value || selectedNode.value.type === 'start') return;
+  const copy = JSON.parse(JSON.stringify(selectedNode.value));
+  copy.id = copy.type + '-' + Date.now();
+  copy.label = copy.label + ' 副本';
+  copy.position = { x: copy.position.x + 40, y: copy.position.y + 40 };
+  graph.value.nodes.push(copy);
+  selectedNodeId.value = copy.id;
+}
 function removeNode() {
   graph.value.nodes = graph.value.nodes.filter((n) => n.id !== selectedNodeId.value);
   graph.value.edges = graph.value.edges.filter(
@@ -249,7 +258,9 @@ const edgeFields = computed(() => [
             v-model="selectedNode.value"
             :disabled="!draft"
             aria-label="变量值"
-          /><el-button
+          /><el-button v-if="selectedNode.type !== 'start'" :disabled="!draft" @click="copyNode"
+            >复制节点</el-button
+          ><el-button
             v-if="selectedNode.type !== 'start'"
             type="danger"
             :disabled="!draft"

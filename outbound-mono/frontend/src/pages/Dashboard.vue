@@ -5,7 +5,7 @@ import { t } from '../i18n';
 import MetricCards from '../components/MetricCards.vue';
 const days = ref(30),
   dashboard = useData(() => '/api/v1/admin/dashboard?days=' + days.value),
-  calls = useData('/api/v1/calls?page=1&size=200');
+  tasks = useData('/api/v1/workspace/tasks?page=1&size=6');
 </script>
 <template>
   <PageHeader title="overview" description="overviewHint"
@@ -21,22 +21,29 @@ const days = ref(30),
       { key: 'calls', label: 'periodCalls' },
       { key: 'reached', label: 'reachedCalls' },
       { key: 'interested', label: 'interestedLeads' },
-      { key: 'average_qa_score', label: 'averageQaScore', suffix: '/ 100' },
+      { key: 'reach_rate', label: 'reachRate', suffix: '%' },
     ]"
   />
   <div class="split">
-    <el-card :header="t('recentCalls')"
-      ><DataGrid
-        :rows="(calls.data.value || []).slice(0, 6)"
+    <el-card header="最近外呼任务"
+      ><el-alert v-if="tasks.error.value" :title="tasks.error.value" type="error" /><DataGrid
+        :rows="tasks.data.value?.rows || []"
+        :loading="tasks.loading.value"
         :columns="[
-          { key: 'phone', label: 'phone' },
-          { key: 'mode', label: 'mode', translate: true },
-          { key: 'status', label: 'status', translate: true, tag: true },
-          { key: 'created_at', label: 'createdAt', date: true },
+          { key: 'name', label: '任务名称' },
+          { key: 'contact_count', label: '名单人数' },
+          { key: 'status', label: '任务状态', translate: true, tag: true },
+          { key: 'concurrency', label: '同时通话上限' },
         ]"
-      /><router-link to="/admin/calls"
-        ><el-button link>{{ t('details') }}</el-button></router-link
-      ></el-card
+        ><template #actions="{ row }"
+          ><router-link :to="{ path: '/admin/operations/calls', query: { campaign_id: row.id } }"
+            >查看任务话单</router-link
+          ></template
+        ></DataGrid
+      >
+      <router-link to="/admin/campaigns"
+        ><el-button link>管理外呼任务</el-button></router-link
+      > </el-card
     ><el-card :header="t('quickActions')"
       ><div class="flow-palette">
         <router-link

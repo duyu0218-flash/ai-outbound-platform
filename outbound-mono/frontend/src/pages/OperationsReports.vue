@@ -29,9 +29,20 @@ const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }
     'handoff_received',
     'qualified_phones',
     'failed_sessions',
+    'first_answered_attempts',
+    'repeat_answered_attempts',
+    'answered_attempts',
+    'telephony_seconds',
+    'ai_seconds',
   ]);
 const labels = {
   sessions: '会话数',
+  first_answered_attempts: '首呼接通数',
+  repeat_answered_attempts: '复呼接通数',
+  answered_attempts: '有接通回执的拨打次数',
+  telephony_seconds: '有记录的通话时长（秒）',
+  ai_seconds: '有记录的AI时长（秒）',
+
   attempts: '累计尝试',
   phones: '组内唯一号码',
   reached_sessions: '接通会话',
@@ -95,18 +106,24 @@ function choose() {
 }
 function drill(row) {
   const f = params();
-  const field = { campaign: 'campaign_id', agent: 'agent_id', line: 'line_id', owner: 'owner_id' }[
-    q.dimension
-  ];
-  if (Number(row.dimension_key) > 0) f[field] = row.dimension_key;
+  const field = {
+    campaign: 'campaign_id',
+    agent: 'agent_id',
+    line: 'line_id',
+    owner: 'owner_id',
+    flow_version: 'flow_version_id',
+  }[q.dimension];
+  if (Number(row.dimension_key) > 0 || field === 'flow_version_id') f[field] = row.dimension_key;
   if (row.bucket !== '全部') {
     const date = new Date(
       row.bucket.replace(' ', 'T') + (row.bucket.length === 10 ? 'T00:00:00' : '') + 'Z',
     );
-    f.from = date.toISOString();
-    f.until = new Date(
-      date.getTime() + (q.granularity === 'hour' ? 3600000 : 86400000) - 1,
+    const bucketMs = { minute: 60000, hour: 3600000, day: 86400000 }[q.granularity];
+    const end = date.getTime() + bucketMs - 1;
+    f.from = new Date(
+      Math.max(date.getTime(), f.from ? Date.parse(f.from) : -Infinity),
     ).toISOString();
+    f.until = new Date(Math.min(end, f.until ? Date.parse(f.until) : Infinity)).toISOString();
   }
   delete f.dimension;
   delete f.granularity;
@@ -144,15 +161,18 @@ onMounted(async () => {
                   ['agent', '坐席'],
                   ['line', '线路'],
                   ['owner', '负责人'],
+                  ['flow_version', '话术流程版本'],
                 ]"
                 :key="value"
                 :value="value"
                 :label="label" /></el-select></el-form-item
           ><el-form-item label="时间粒度"
             ><el-select v-model="q.granularity" aria-label="报表粒度"
-              ><el-option label="汇总" value="all" /><el-option
-                label="每天"
-                value="day" /><el-option label="每小时" value="hour" /></el-select></el-form-item
+              ><el-option label="每分钟" value="minute" /><el-option
+                label="汇总"
+                value="all" /><el-option label="每天" value="day" /><el-option
+                label="每小时"
+                value="hour" /></el-select></el-form-item
           ><el-form-item label="开始"
             ><el-input
               v-model="q.from"
@@ -165,6 +185,14 @@ onMounted(async () => {
               placeholder="2026-10-31T23:59:59+08:00" /></el-form-item
           ><el-form-item label="任务"
             ><el-input v-model="q.campaign_id" aria-label="报表任务" /></el-form-item
+          ><el-form-item label="话术流程版本编号"
+            ><el-input
+              v-model="q.flow_version_id"
+              aria-label="报表话术流程版本编号" /></el-form-item
+          ><el-form-item label="最小通话秒数"
+            ><el-input v-model="q.min_seconds" aria-label="报表最小通话秒数" /></el-form-item
+          ><el-form-item label="最大通话秒数"
+            ><el-input v-model="q.max_seconds" aria-label="报表最大通话秒数" /></el-form-item
           ><el-form-item label="坐席组"
             ><el-input v-model="q.team_id" aria-label="报表坐席组"
           /></el-form-item>
@@ -253,6 +281,12 @@ onMounted(async () => {
             concurrency: '配置并发',
             contacts: '导入人数',
             sessions: '会话数',
+            first_answered_attempts: '首呼接通数',
+            repeat_answered_attempts: '复呼接通数',
+            answered_attempts: '有接通回执的拨打次数',
+            telephony_seconds: '有记录的通话时长（秒）',
+            ai_seconds: '有记录的AI时长（秒）',
+
             attempts: '累计尝试',
             dialed_phones: '已拨号码',
             queued: '排队',

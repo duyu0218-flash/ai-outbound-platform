@@ -10,13 +10,20 @@ import com.duozhi.outbound.auth.domain.*;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.support.JsonSupport;
+import com.duozhi.outbound.customer.controller.ContactFiles;
 import com.duozhi.outbound.operations.controller.ProductOperations;
 import com.duozhi.outbound.script.controller.Templates;
 import com.duozhi.outbound.workspace.service.WorkspaceDocuments;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
+import org.apache.commons.csv.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/workspace")
@@ -77,13 +84,22 @@ public class WorkspaceController {
             int page,
             @RequestParam(defaultValue = "50")
             int size,
+            @RequestParam(defaultValue = "false")
+            boolean publishedOnly,
             HttpServletRequest r) {
         var i = actor(r);
         int offset = com.duozhi.outbound.common.web.Contract.page(page, size);
         String search = "%" + keyword + "%";
+        String scope =
+                " FROM scripttemplate t WHERE t.tenant_id=? AND (t.name LIKE ? OR t.category LIKE ?)";
+        if (publishedOnly)
+            scope +=
+                    " AND EXISTS (SELECT 1 FROM platform_document d WHERE d.tenant_id=t.tenant_id AND d.kind='script' AND d.object_id=CAST(t.id AS CHAR) AND d.published_json IS NOT NULL AND d.state<>'disabled')";
         var rows =
                 docs.jdbc.queryForList(
-                        "SELECT id FROM scripttemplate WHERE tenant_id=? AND (name LIKE ? OR category LIKE ?) ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?",
+                        "SELECT t.id"
+                                + scope
+                                + " ORDER BY t.updated_at DESC,t.id DESC LIMIT ? OFFSET ?",
                         i.tenant(),
                         search,
                         search,
@@ -91,11 +107,7 @@ public class WorkspaceController {
                         offset);
         long total =
                 docs.jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM scripttemplate WHERE tenant_id=? AND (name LIKE ? OR category LIKE ?)",
-                        Long.class,
-                        i.tenant(),
-                        search,
-                        search);
+                        "SELECT COUNT(*)" + scope, Long.class, i.tenant(), search, search);
         return JsonSupport.map(
                 "rows",
                 rows.stream().map(v -> script(v.get("id").toString(), r)).toList(),
@@ -141,6 +153,7 @@ public class WorkspaceController {
                             null);
         var result = new LinkedHashMap<>(doc);
         result.put("id", raw.get("id"));
+        result.put("created_at", raw.get("created_at"));
         result.put("is_active", raw.get("is_active"));
         result.put(
                 "references",
@@ -634,6 +647,112 @@ public class WorkspaceController {
                 number(body.get("expected_revision")));
     }
 
+    private static final List<String> FAQ_HEADERS =
+            List.of("序号", "标题", "关键词", "回答内容", "类型", "相似问法", "分类");
+
+    @GetMapping("/libraries/{library}/faq-file")
+    public ResponseEntity<byte[]> exportFaq(@PathVariable
+    String library, HttpServletRequest r)
+            throws IOException {
+        var i = actor(r);
+        docs.require(i.tenant(), "library", library);
+        var output = new StringWriter();
+        output.write(0xfeff);
+        try (var csv = new CSVPrinter(output, CSVFormat.DEFAULT)) {
+            csv.printRecord(FAQ_HEADERS);
+            for (var entry : docs.list(i.tenant(), "knowledge", library)) {
+                var value = draft(entry);
+                if ("document".equals(value.get("kind"))) continue;
+                for (String key :
+                        List.of(
+                                "display_code",
+                                "name",
+                                "keywords",
+                                "content",
+                                "answer_type",
+                                "similar_questions",
+                                "category"))
+                    csv.print(
+                            ContactFiles.safe(
+                                    Objects.toString(
+                                            value.get(key),
+                                            key.equals("answer_type") ? "normal" : "")));
+                csv.println();
+            }
+        }
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=faq.csv")
+                .body(output.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    @PostMapping(value = "/libraries/{library}/faq-file", consumes = "multipart/form-data")
+    public Object importFaq(
+            @PathVariable
+            String library,
+            @RequestParam
+            int expected_revision,
+            @RequestPart
+            MultipartFile file,
+            HttpServletRequest r)
+            throws IOException {
+        var i = actor(r);
+        if (file.getSize() > 2 * 1024 * 1024) throw new ApiError(422, "问答文件超过2MB");
+        var items = new ArrayList<Map<String, Object>>();
+        try {
+            String text =
+                    StandardCharsets.UTF_8
+                            .newDecoder()
+                            .decode(ByteBuffer.wrap(file.getBytes()))
+                            .toString();
+            try (var csv =
+                    CSVFormat.DEFAULT.parse(
+                            new StringReader(
+                                    text.startsWith("\ufeff") ? text.substring(1) : text))) {
+                var it = csv.iterator();
+                if (!it.hasNext() || !FAQ_HEADERS.equals(it.next().toList()))
+                    throw new ApiError(422, "表头不符，请使用本库导出的CSV表头");
+                while (it.hasNext()) {
+                    var row = it.next();
+                    if (items.size() == 500 || row.size() != FAQ_HEADERS.size())
+                        throw new ApiError(422, "问答超过500条或列数不符");
+                    items.add(
+                            knowledgeDrafts.normalize(
+                                    JsonSupport.map(
+                                            "display_code",
+                                            row.get(0),
+                                            "name",
+                                            row.get(1),
+                                            "keywords",
+                                            row.get(2),
+                                            "content",
+                                            row.get(3),
+                                            "answer_type",
+                                            row.get(4).isBlank() ? "normal" : row.get(4),
+                                            "similar_questions",
+                                            row.get(5),
+                                            "category",
+                                            row.get(6))));
+                }
+            }
+        } catch (IOException | UncheckedIOException ex) {
+            throw new ApiError(422, "请上传有效的UTF-8 CSV文件");
+        }
+        if (items.isEmpty()) throw new ApiError(422, "文件中没有问答");
+        return docs.tx.serialized(
+                () -> {
+                    var lib = docs.require(i.tenant(), "library", library);
+                    if (number(lib.get("revision")) != expected_revision)
+                        throw new ApiError(409, "知识库已变更，请刷新核对后再导入");
+                    if (docs.list(i.tenant(), "knowledge", library).size() + items.size() > 500)
+                        throw new ApiError(422, "单库最多500条知识");
+                    for (var item : items)
+                        docs.save(i, "knowledge", UUID.randomUUID().toString(), library, item, 0);
+                    docs.save(i, "library", library, "", draft(lib), expected_revision);
+                    return Map.of("imported", items.size());
+                });
+    }
+
     List<Map<String, Object>> knowledgeItems(long tenant, String library, int version) {
         var items = new ArrayList<Map<String, Object>>();
         for (var entry : docs.list(tenant, "knowledge", library)) {
@@ -656,7 +775,14 @@ public class WorkspaceController {
                             "version",
                             version);
             for (String key :
-                    List.of("valid_from", "valid_until", "kind", "document_id", "segment_index"))
+                    List.of(
+                            "valid_from",
+                            "valid_until",
+                            "kind",
+                            "document_id",
+                            "segment_index",
+                            "display_code",
+                            "answer_type"))
                 if (!Objects.toString(value.get(key), "").isBlank())
                     normalized.put(key, value.get(key));
             items.add(normalized);

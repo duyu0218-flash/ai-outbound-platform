@@ -307,6 +307,8 @@ onMounted(async () => {
         style="max-width: 360px"
         @input="page = 1" />
       <el-table :data="rows" v-loading="query.loading.value"
+        ><el-table-column prop="id" label="ID" width="90" /><el-table-column label="创建时间"
+          ><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column
         ><el-table-column label="话术名称"
           ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
         ><el-table-column label="分类"
@@ -330,7 +332,7 @@ onMounted(async () => {
           ></el-table-column
         ></el-table
       >
-      <Pager :page="page" :count="rows.length" @change="page = $event" /></el-card
+      <Pager :size="30" :page="page" :count="rows.length" @change="page = $event" /></el-card
   ></template>
   <template v-else>
     <div class="actions">

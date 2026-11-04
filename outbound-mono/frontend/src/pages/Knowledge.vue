@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessageBox } from 'element-plus';
-import { request, session } from '../session';
+import { request, session, download } from '../session';
 import { formatDate } from '../api';
 import { useData } from '../data';
 import KnowledgeDocumentImport from '../components/KnowledgeDocumentImport.vue';
@@ -53,7 +53,18 @@ const fields = computed(() => [
   },
   ...(entry.value.kind === 'document'
     ? []
-    : [{ key: 'similar_questions', label: '相似问法', type: 'textarea', rows: 2 }]),
+    : [
+        { key: 'display_code', label: '问答序号' },
+        {
+          key: 'answer_type',
+          label: '回答类型',
+          options: [
+            { value: 'normal', label: '普通问答' },
+            { value: 'business', label: '业务问答' },
+          ],
+        },
+        { key: 'similar_questions', label: '相似问法', type: 'textarea', rows: 2 },
+      ]),
   {
     key: 'content',
     label: entry.value.kind === 'document' ? '文档分段正文' : '标准答案',
@@ -145,11 +156,12 @@ async function create() {
 function edit(row) {
   editing.value = row;
   entry.value = row
-    ? clone(row.draft)
+    ? { answer_type: 'normal', ...clone(row.draft) }
     : {
         name: '',
         category: category.value && category.value !== '__uncategorized__' ? category.value : '',
         kind: 'faq',
+        answer_type: 'normal',
         similar_questions: '',
         content: '',
         source: '',
@@ -159,6 +171,23 @@ function edit(row) {
         enabled: true,
       };
   entryOpen.value = true;
+}
+async function importFaq(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  const lib = selected.value;
+  await run(async () => {
+    await ElMessageBox.confirm(
+      '将文件中的问答追加到当前知识库草稿，发布后生效。继续导入？',
+      '导入问答',
+    );
+    const body = new FormData();
+    body.append('file', file);
+    body.append('expected_revision', String(lib.revision));
+    await request('/api/v1/workspace/libraries/' + lib.object_id + '/faq-file', 'POST', body);
+    if (valid() && selected.value?.object_id === lib.object_id) await reload();
+  });
 }
 async function saveEntry() {
   await run(async () => {
@@ -349,6 +378,27 @@ onBeforeUnmount(() => {
     /></el-tabs>
     <el-card v-if="tab === 'entries'">
       <div class="actions">
+        <el-button
+          :disabled="busy"
+          @click="
+            run(() =>
+              download(
+                '/api/v1/workspace/libraries/' + selected.object_id + '/faq-file',
+                '问答.csv',
+              ),
+            )
+          "
+          >导出问答 CSV</el-button
+        >
+        <label
+          >批量导入问答 CSV
+          <input
+            type="file"
+            accept=".csv"
+            :disabled="busy"
+            aria-label="批量导入问答 CSV"
+            @change="importFaq"
+        /></label>
         <el-button type="primary" @click="edit()">添加问答</el-button
         ><el-button @click="tab = 'documents'">导入知识文档</el-button
         ><el-input
@@ -394,6 +444,22 @@ onBeforeUnmount(() => {
           <small>数量包含子分类条目。分类变更只影响草稿，正式检索需重新发布。</small>
         </aside>
         <el-table :data="entries"
+          ><el-table-column label="序号" prop="draft.display_code" /><el-table-column
+            label="关键词"
+            prop="draft.keywords"
+            show-overflow-tooltip
+          /><el-table-column
+            label="回答内容"
+            prop="draft.content"
+            show-overflow-tooltip
+          /><el-table-column label="回答类型"
+            ><template #default="{ row }">{{
+              row.draft.kind === 'document'
+                ? '—'
+                : row.draft.answer_type === 'business'
+                  ? '业务问答'
+                  : '普通问答'
+            }}</template></el-table-column
           ><el-table-column label="标准问题 / 标题" min-width="190"
             ><template #default="{ row }">{{ row.draft.name }}</template></el-table-column
           ><el-table-column label="类型"

@@ -30,7 +30,9 @@ const route = useRoute(),
   ),
   scriptKeyword = ref(''),
   scripts = useData(
-    () => '/api/v1/workspace/scripts?size=200&keyword=' + encodeURIComponent(scriptKeyword.value),
+    () =>
+      '/api/v1/workspace/scripts?publishedOnly=true&size=200&keyword=' +
+      encodeURIComponent(scriptKeyword.value),
   ),
   batches = useData('/api/v1/workspace/contact-batches'),
   clients = useData('/api/v1/ops/clients?status=active&size=200'),

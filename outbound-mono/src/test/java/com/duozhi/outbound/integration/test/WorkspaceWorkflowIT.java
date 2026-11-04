@@ -199,6 +199,43 @@ class WorkspaceWorkflowIT {
                 JsonNode.class);
     }
 
+    @Test
+    void faqCsvRoundTripPreservesBusinessFieldsAndRejectsStaleAppend() {
+        var created = library();
+        var libraryId = id(created);
+        String path = "/api/v1/workspace/libraries/" + libraryId + "/faq-file";
+        var body = new LinkedMultiValueMap<String, Object>();
+        String csv = "\ufeff序号,标题,关键词,回答内容,类型,相似问法,分类\r\n01,办理条件,办理,请预约,bussiness,,服务\r\n";
+        body.add(
+                "file",
+                new ByteArrayResource(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+                    public String getFilename() {
+                        return "faq.csv";
+                    }
+                });
+        body.add("expected_revision", created.path("revision").asText());
+        var headers = auth(token);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        var upload = new HttpEntity<>(body, headers);
+        assertThat(
+                        ok(http.exchange(path, HttpMethod.POST, upload, JsonNode.class))
+                                .path("imported")
+                                .asInt())
+                .isEqualTo(1);
+        assertThat(
+                        http.exchange(path, HttpMethod.POST, upload, JsonNode.class)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        var item = lib(libraryId).path("items").get(0).path("draft");
+        assertThat(item.path("answer_type").asText()).isEqualTo("business");
+        assertThat(item.path("display_code").asText()).isEqualTo("01");
+        var download =
+                http.exchange(path, HttpMethod.GET, new HttpEntity<>(auth(token)), byte[].class);
+        assertThat(new String(download.getBody(), java.nio.charset.StandardCharsets.UTF_8))
+                .contains("01,办理条件,办理,请预约,business,,服务");
+    }
+
     JsonNode waitDocument(String library, String key, String state) throws Exception {
         long end = System.nanoTime() + 15_000_000_000L;
         JsonNode value = null;
