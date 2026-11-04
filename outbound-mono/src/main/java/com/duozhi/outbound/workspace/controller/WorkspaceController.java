@@ -663,9 +663,36 @@ public class WorkspaceController {
         var i = actor(r);
         var doc = docs.require(i.tenant(), "library", id);
         var result = new LinkedHashMap<>(doc);
-        result.put("items", docs.list(i.tenant(), "knowledge", id));
+        var ordered = faqOrder.entries(i.tenant(), id);
+        var measured =
+                docs.jdbc.queryForList(
+                        "SELECT target_id,COUNT(DISTINCT call_id) AS hits FROM script_reach WHERE tenant_id=? AND kind='knowledge' GROUP BY target_id",
+                        i.tenant());
+        var counts = new HashMap<Object, Object>();
+        for (var m : measured) counts.put(m.get("target_id"), m.get("hits"));
+        long total =
+                docs.jdbc.queryForObject(
+                        "SELECT COUNT(DISTINCT call_id) FROM script_reach WHERE tenant_id=? AND kind='sample'",
+                        Long.class,
+                        i.tenant());
+        for (var e : ordered) {
+            e.put("hit_calls", counts.getOrDefault(e.get("object_id"), 0));
+            e.put("sample_calls", total);
+        }
+        result.put("items", ordered);
         result.put("categories", knowledgeDirectories.list(i.tenant(), id));
         return result;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.KnowledgeOrder faqOrder;
+
+    @PostMapping("/libraries/{id}/batch")
+    public Object batchFaq(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        return faqOrder.change(actor(r), id, b);
     }
 
     @PutMapping("/libraries/{id}")
@@ -724,7 +751,7 @@ public class WorkspaceController {
         output.write(0xfeff);
         try (var csv = new CSVPrinter(output, CSVFormat.DEFAULT)) {
             csv.printRecord(FAQ_HEADERS);
-            for (var entry : docs.list(i.tenant(), "knowledge", library)) {
+            for (var entry : faqOrder.entries(i.tenant(), library)) {
                 var value = draft(entry);
                 if ("document".equals(value.get("kind"))) continue;
                 for (String key :
@@ -819,7 +846,7 @@ public class WorkspaceController {
 
     List<Map<String, Object>> knowledgeItems(long tenant, String library, int version) {
         var items = new ArrayList<Map<String, Object>>();
-        for (var entry : docs.list(tenant, "knowledge", library)) {
+        for (var entry : faqOrder.entries(tenant, library)) {
             var value = draft(entry);
             if (Boolean.FALSE.equals(value.get("enabled"))) continue;
             var normalized =
