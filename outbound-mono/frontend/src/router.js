@@ -8,6 +8,7 @@ export const adminMenu = [
     items: [
       ['', '外呼工作台', 'Dashboard'],
       ['scripts', '话术管理', 'Scripts'],
+      ['operations/shared-scripts', '收到的话术', 'SharedScripts'],
       ['knowledge', '知识库', 'Knowledge'],
       ['campaigns', '外呼任务', 'Campaigns'],
       ['calls', '通话记录', 'CallsWorkspace'],
@@ -120,6 +121,7 @@ export const router = createRouter({
           meta: { label, operatorOnly: true },
         })),
         ...[
+          ['operations/shared-scripts', '收到的话术', 'SharedScripts'],
           ['operations/wecom', '企微添加', 'WecomTracking'],
           ['operations/calls', '话单查询', 'OperationsCalls'],
           ['operations/leads', '线索与跟进', 'OperationsLeads'],

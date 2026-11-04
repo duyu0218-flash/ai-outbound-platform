@@ -174,18 +174,6 @@ function node(id) {
 const edgeFields = computed(() => [
   { key: 'label', label: '分支名称' },
   {
-    key: 'source',
-    label: '起点',
-    required: true,
-    options: graph.value.nodes.map((n) => ({ value: n.id, label: n.label })),
-  },
-  {
-    key: 'target',
-    label: '终点',
-    required: true,
-    options: graph.value.nodes.map((n) => ({ value: n.id, label: n.label })),
-  },
-  {
     key: 'condition',
     label: '条件',
     options: ['always', 'keyword', 'silence', 'intent', 'equals', 'not_equals'],
@@ -315,6 +303,18 @@ const edgeFields = computed(() => [
           @click="setPreset(label)"
           >{{ label }}</el-button
         >
+        <label class="node-link-select"
+          >起点<select v-model="edge.source" :disabled="!draft" aria-label="起点">
+            <option value="">选择起点</option>
+            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">{{ n.label }}</option>
+          </select></label
+        >
+        <label class="node-link-select"
+          >终点<select v-model="edge.target" :disabled="!draft" aria-label="终点">
+            <option value="">选择终点</option>
+            <option v-for="n in graph.nodes" :key="n.id" :value="n.id">{{ n.label }}</option>
+          </select></label
+        >
         <FieldForm
           :model="edge"
           :fields="edgeFields"
@@ -338,3 +338,17 @@ const edgeFields = computed(() => [
     </div></el-dialog
   >
 </template>
+
+<style scoped>
+.node-link-select {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+.node-link-select select {
+  height: 32px;
+  border: 1px solid #c7ced8;
+  border-radius: 4px;
+  background: white;
+}
+</style>

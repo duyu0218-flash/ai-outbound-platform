@@ -61,6 +61,29 @@ const optionalColumns = [
 ];
 const visibleColumns = ref([...optionalColumns]),
   density = ref('default');
+const shareOpen = ref(false),
+  shareNames = ref(''),
+  shareRevision = ref(0);
+async function sharing() {
+  await run(async () => {
+    const doc = await request('/api/v1/workspace/scripts/' + selected.value.id + '/share');
+    shareNames.value = (doc.draft.usernames || []).join('，');
+    shareRevision.value = doc.revision;
+    shareOpen.value = true;
+  });
+}
+async function saveSharing() {
+  await run(async () => {
+    await request('/api/v1/workspace/scripts/' + selected.value.id + '/share', 'PUT', {
+      revision: shareRevision.value,
+      usernames: shareNames.value
+        .split(/[,，\n]+/)
+        .map((v) => v.trim())
+        .filter(Boolean),
+    });
+    shareOpen.value = false;
+  });
+}
 const assistantOpen = ref(false);
 const suggestions = computed(() => {
   const script = model.value || {};
@@ -408,6 +431,7 @@ onMounted(async () => {
       ><el-tag>{{ labels[selected.state] }}</el-tag
       ><span
         >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
+      ><el-button @click="sharing">分享设置</el-button
       ><el-button @click="assistantOpen = true">AI助理</el-button
       ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
       ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
@@ -416,6 +440,17 @@ onMounted(async () => {
         >停用话术</el-button
       >
     </div>
+    <el-dialog v-model="shareOpen" title="分享设置" width="560px"
+      ><p>
+        填写本租户接收账号，用逗号分隔。接收人可在“收到的话术”查看本次分享的发布版本；移除账号后立即收回访问。
+      </p>
+      <el-input aria-label="话术分享接收账号" v-model="shareNames" type="textarea" /><el-button
+        type="primary"
+        :loading="busy"
+        @click="saveSharing"
+        >保存分享设置</el-button
+      ></el-dialog
+    >
     <el-dialog v-model="assistantOpen" title="AI助理" width="560px">
       <p>根据当前草稿和业务目标生成本地规则建议。采用后可继续编辑，保存草稿后生效。</p>
       <el-card v-for="item in suggestions" :key="item.key"
