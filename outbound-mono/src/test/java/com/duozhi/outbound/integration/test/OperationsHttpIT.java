@@ -501,6 +501,13 @@ class OperationsHttpIT {
                             6.0,
                             "duration_source",
                             "provider"));
+        assertThat(get("/reports?ai_ranges=1-3,12-12&total_ranges=24-24").path("rows")).hasSize(1);
+        assertThat(get("/reports?human_ranges=0-86400").path("rows")).isEmpty();
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/reports?ai_ranges=24-12", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
         var totalBucket = get("/reports/durations?kind=total").get(0);
         assertThat(totalBucket.path("duration_bucket").asText()).isEqualTo("medium");
         assertThat(totalBucket.path("calls").asInt()).isEqualTo(1);

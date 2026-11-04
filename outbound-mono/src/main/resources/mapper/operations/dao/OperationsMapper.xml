@@ -62,6 +62,22 @@
         <if test="max_seconds != null">
             AND TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at)&lt;=#{max_seconds}
         </if>
+        <if test="total_ranges != null">
+            AND EXISTS (SELECT SUM(u.telephony_seconds) AS span FROM callusage u WHERE
+            u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL HAVING
+            <foreach collection="total_ranges" item="r" separator=" OR ">span BETWEEN #{r.min} AND #{r.max}</foreach>)
+        </if>
+        <if test="ai_ranges != null">
+            AND EXISTS (SELECT SUM(u.ai_seconds) AS span FROM callusage u WHERE
+            u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL HAVING
+            <foreach collection="ai_ranges" item="r" separator=" OR ">span BETWEEN #{r.min} AND #{r.max}</foreach>)
+        </if>
+        <if test="human_ranges != null">
+            AND EXISTS (SELECT CASE WHEN c.mode='HUMAN_ONLY' THEN
+              (SELECT SUM(u.telephony_seconds) FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL)
+              ELSE (SELECT SUM(TIMESTAMPDIFF(MICROSECOND,h.responded_at,h.completed_at))/1000000 FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id AND h.state='COMPLETED' AND h.completed_at &gt;= h.responded_at) END AS span HAVING
+              <foreach collection="human_ranges" item="r" separator=" OR ">span BETWEEN #{r.min} AND #{r.max}</foreach>)
+        </if>
         <if test="handoff != null">
             AND (c.handoff_reason IS NOT NULL AND c.handoff_reason&lt;&gt;'')=#{handoff}
         </if>
@@ -99,7 +115,14 @@
         <include refid="callWhere"/>
     </select>
     <select id="report" resultType="java.util.LinkedHashMap">
-        SELECT CASE #{dimension} WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
+        SELECT stats.*,
+               ROUND(100*answered_attempts/NULLIF(attempts,0),2) AS answer_rate,
+               ROUND(100*handoff_requests/NULLIF(reached_sessions,0),2) AS entry_rate,
+               ROUND(100*handoff_received/NULLIF(handoff_requests,0),2) AS takeover_rate,
+               ROUND(100*successful_calls/NULLIF(reached_sessions,0),2) AS success_per_answer,
+               ROUND(100*successful_takeovers/NULLIF(handoff_received,0),2) AS success_per_takeover,
+               ROUND(100*interested_sessions/NULLIF(reached_sessions,0),2) AS intent_rate
+        FROM (SELECT CASE #{dimension} WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
         'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
         COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE
         COALESCE(c.campaign_id,0) END AS dimension_key,
@@ -119,14 +142,19 @@
         COUNT(DISTINCT CASE WHEN c.status IN
         ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED') THEN
         c.phone END) AS reached_phones,
-        SUM(c.handoff_reason IS NOT NULL AND c.handoff_reason&lt;&gt;'') AS
-        handoff_requests,SUM(c.status='IN_HUMAN' OR EXISTS(SELECT 1 FROM handoffrequest hr WHERE
-        hr.tenant_id=c.tenant_id AND hr.call_session_id=c.id AND hr.state IN
-        ('ACCEPTED','COMPLETED'))) AS handoff_received,
+        SUM(hf.entered) AS
+        handoff_requests,SUM(hf.taken) AS handoff_received,
+        SUM(hf.entered AND NOT hf.taken AND c.finished_at IS NOT NULL) AS not_taken,
+        SUM(a.result_code &lt;=> 'qualified_lead') AS successful_calls,
+        SUM(hf.taken AND (a.result_code &lt;=> 'qualified_lead')) AS successful_takeovers,
+        SUM(COALESCE(a.result_code IN ('interested','qualified_lead','callback_confirmed'),0) AND usage_totals.first_answers+usage_totals.repeat_answers&gt;0) AS interested_sessions,
         COUNT(DISTINCT CASE WHEN a.result_code='qualified_lead' THEN c.phone END) AS
         qualified_phones,
         SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed_sessions
         <include refid="callJoin"/>
+        JOIN LATERAL (SELECT COUNT(*)&gt;0 AS entered,
+            COALESCE(MAX(h.state IN ('ACCEPTED','COMPLETED')),0) AS taken
+            FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id) hf ON TRUE
         JOIN LATERAL (
         SELECT COUNT(CASE WHEN u.answered_at IS NOT NULL AND u.attempt=1 THEN 1 END) AS
         first_answers,
@@ -136,7 +164,11 @@
         ) usage_totals ON TRUE
         WHERE c.tenant_id=#{tenantId}
         <include refid="callWhere"/>
-        GROUP BY dimension_key,bucket ORDER BY bucket DESC,dimension_key
+        GROUP BY dimension_key,bucket) stats
+        WHERE 1=1
+        <if test="min_intent_rate != null">AND 100*interested_sessions/NULLIF(reached_sessions,0) &gt;= #{min_intent_rate}</if>
+        <if test="max_intent_rate != null">AND 100*interested_sessions/NULLIF(reached_sessions,0) &lt;= #{max_intent_rate}</if>
+        ORDER BY bucket DESC,dimension_key
     </select>
     <select id="durations" resultType="java.util.LinkedHashMap">
         SELECT CASE WHEN seconds IS NULL OR seconds &lt;= 0 THEN 'unknown'

@@ -20,6 +20,14 @@ const router = useRouter(),
   name = ref('');
 const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }),
   visible = ref([
+    'answer_rate',
+    'entry_rate',
+    'takeover_rate',
+    'not_taken',
+    'successful_calls',
+    'success_per_answer',
+    'success_per_takeover',
+    'intent_rate',
     'sessions',
     'attempts',
     'phones',
@@ -35,7 +43,39 @@ const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }
     'telephony_seconds',
     'ai_seconds',
   ]);
+const rangeKinds = { total_ranges: '通话', ai_ranges: 'AI通话', human_ranges: '人工通话' };
+function rangesFor(key) {
+  return q[key]
+    ? String(q[key])
+        .split(',')
+        .map((r) => r.split('-'))
+    : [];
+}
+function setRange(key, index, side, value) {
+  const ranges = rangesFor(key);
+  ranges[index][side] = value;
+  q[key] = ranges.map((r) => r.join('-')).join(',');
+}
+function addRange(key) {
+  const ranges = rangesFor(key);
+  if (ranges.length < 8) q[key] = [...ranges.map((r) => r.join('-')), '0-999'].join(',');
+}
+function removeRange(key, index) {
+  q[key] = rangesFor(key)
+    .filter((_, i) => i !== index)
+    .map((r) => r.join('-'))
+    .join(',');
+}
 const labels = {
+  answer_rate: '接通率（%）',
+  entry_rate: '进线率（%）',
+  takeover_rate: '接管率（%）',
+  not_taken: '已结束未接管数',
+  successful_calls: '合格成功数',
+  successful_takeovers: '接管后成功数',
+  success_per_answer: '接通成功率（%）',
+  success_per_takeover: '接管成功率（%）',
+  intent_rate: '意向率（%）',
   sessions: '会话数',
   first_answered_attempts: '首呼接通数',
   repeat_answered_attempts: '复呼接通数',
@@ -230,6 +270,48 @@ onMounted(async () => {
             ><el-input v-model="q.team_id" aria-label="报表坐席组"
           /></el-form-item>
         </div>
+        <div class="toolbar">
+          <el-input
+            v-model="q.min_intent_rate"
+            aria-label="意向率下限"
+            placeholder="最低意向率（%）"
+            style="width: 170px"
+          /><el-input
+            v-model="q.max_intent_rate"
+            aria-label="意向率上限"
+            placeholder="最高意向率（%）"
+            style="width: 170px"
+          />
+        </div>
+        <div v-for="(label, key) in rangeKinds" :key="key" class="toolbar">
+          <el-button @click="addRange(key)" :disabled="rangesFor(key).length >= 8"
+            >增加{{ label }}时长区间</el-button
+          >
+          <span v-for="(range, index) in rangesFor(key)" :key="index">
+            <el-input-number
+              :model-value="Number(range[0])"
+              :aria-label="label + '最小秒数' + (index + 1)"
+              :min="0"
+              :max="86400"
+              :precision="0"
+              @update:model-value="(v) => setRange(key, index, 0, v ?? 0)"
+            />
+            至
+            <el-input-number
+              :model-value="Number(range[1])"
+              :aria-label="label + '最大秒数' + (index + 1)"
+              :min="0"
+              :max="86400"
+              :precision="0"
+              @update:model-value="(v) => setRange(key, index, 1, v ?? 0)"
+            />
+            秒
+            <el-button link @click="removeRange(key, index)"
+              >移除{{ label }}区间{{ index + 1 }}</el-button
+            >
+          </span>
+        </div>
+        <p>同类区间满足任一即可，不同时长类型同时生效。未记录时长的会话不命中区间。</p>
         <el-button type="primary" :loading="busy" @click="load">生成报表</el-button>
         <div class="toolbar">
           <el-select v-model="viewId" aria-label="报表常用视图" @change="choose"
@@ -330,6 +412,15 @@ onMounted(async () => {
             name: '任务',
             concurrency: '配置并发',
             contacts: '导入人数',
+            answer_rate: '接通率（%）',
+            entry_rate: '进线率（%）',
+            takeover_rate: '接管率（%）',
+            not_taken: '已结束未接管数',
+            successful_calls: '合格成功数',
+            successful_takeovers: '接管后成功数',
+            success_per_answer: '接通成功率（%）',
+            success_per_takeover: '接管成功率（%）',
+            intent_rate: '意向率（%）',
             sessions: '会话数',
             first_answered_attempts: '首呼接通数',
             repeat_answered_attempts: '复呼接通数',

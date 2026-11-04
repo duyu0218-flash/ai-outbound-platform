@@ -131,6 +131,20 @@ public class Operations {
                 && p.get("max_seconds") != null
                 && (Long) p.get("min_seconds") > (Long) p.get("max_seconds"))
             throw new ApiError(422, "通话时长范围无效");
+        for (String key : List.of("total_ranges", "ai_ranges", "human_ranges")) {
+            String raw = q.getOrDefault(key, "");
+            if (raw.isBlank()) continue;
+            String[] parts = raw.split(",", -1);
+            if (parts.length > 8) throw new ApiError(422, "每种时长最多 8 个区间");
+            List<Map<String, Object>> ranges = new ArrayList<>();
+            for (String part : parts) {
+                String[] bounds = part.split("-", -1);
+                if (bounds.length != 2) throw new ApiError(422, "时长区间需要起止秒数");
+                long min = number(bounds[0], 0, 86400), max = number(bounds[1], min, 86400);
+                ranges.add(Map.of("min", min, "max", max));
+            }
+            p.put(key, ranges);
+        }
         if (q.containsKey("handoff") && !q.get("handoff").isBlank())
             p.put(
                     "handoff",
@@ -349,12 +363,28 @@ public class Operations {
                 choice(
                         q.getOrDefault("granularity", "all"),
                         Set.of("all", "day", "hour", "minute")));
+        for (String key : List.of("min_intent_rate", "max_intent_rate")) {
+            if (q.getOrDefault(key, "").isBlank()) continue;
+            try {
+                var rate = new java.math.BigDecimal(q.get(key));
+                if (rate.signum() < 0 || rate.compareTo(java.math.BigDecimal.valueOf(100)) > 0)
+                    throw new NumberFormatException();
+                p.put(key, rate);
+            } catch (NumberFormatException e) {
+                throw new ApiError(422, "意向率范围只能为 0 到 100");
+            }
+        }
+        if (p.containsKey("min_intent_rate")
+                && p.containsKey("max_intent_rate")
+                && ((java.math.BigDecimal) p.get("min_intent_rate"))
+                                .compareTo((java.math.BigDecimal) p.get("max_intent_rate"))
+                        > 0) throw new ApiError(422, "意向率下限不能大于上限");
         if (!p.containsKey("from")) p.put("from", Store.now().minusDays(30));
         return JsonSupport.map(
                 "rows",
                 db.rows("report", p),
                 "definition",
-                "首呼、复呼按会话内拨打序号及接通回执统计，归入会话创建时段；时长只累计有记录的秒数。会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。接收为已接收转接记录，不代表真实线路媒体验收。",
+                "首呼、复呼按会话内拨打序号及接通回执统计，归入会话创建时段；时长只累计有记录的秒数。会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。进线按产生转接请求的会话去重，接管按已接受或完成的转接统计。接通率按接通回执次数除以拨打次数。进线率、接通成功率和意向率以接通会话为分母，接管成功率以接管会话为分母。成功为合格线索，意向含表达兴趣、合格线索和确认回拨。分母为零显示空值。",
                 "filters",
                 p);
     }
@@ -397,7 +427,16 @@ public class Operations {
                         "repeat_answered_attempts",
                         "answered_attempts",
                         "telephony_seconds",
-                        "ai_seconds");
+                        "ai_seconds",
+                        "answer_rate",
+                        "entry_rate",
+                        "takeover_rate",
+                        "not_taken",
+                        "successful_calls",
+                        "successful_takeovers",
+                        "success_per_answer",
+                        "success_per_takeover",
+                        "intent_rate");
         csv.printRecord(fields);
         for (Object raw : list(data.get("rows"))) {
             var row = object(raw);
