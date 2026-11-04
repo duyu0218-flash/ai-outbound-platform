@@ -568,6 +568,12 @@ public class DialService {
                                                 1, CallLifecycle.number(campaign, "concurrency")))
                             return null;
                     }
+                    Object taskOwner =
+                            campaign == null
+                                    ? call.get("human_agent_id")
+                                    : campaign.get("created_by");
+                    if (tenantDial != null && !tenantDial.ownerAvailable(tenant, taskOwner))
+                        return null;
                     Map<String, Object> changes =
                             JsonSupport.map(
                                     "status",
@@ -682,6 +688,7 @@ public class DialService {
                                     ? store.update("callsession", tenant, id, changes)
                                     : store.patchLoaded("callsession", call, changes);
                     call.put("_dial_route", probe.get("_dial_route"));
+                    if (tenantDial != null) tenantDial.captured(tenant, call, taskOwner);
                     conversation.state(call);
                     store.insert(
                             "callevent",

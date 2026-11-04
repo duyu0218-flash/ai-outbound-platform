@@ -5,7 +5,7 @@
         FROM callsession c LEFT JOIN callanalysis a ON a.tenant_id=c.tenant_id AND
         a.call_session_id=c.id LEFT JOIN ops_lead l ON l.tenant_id=c.tenant_id AND
         l.contact_id=c.contact_id LEFT JOIN campaign g ON g.tenant_id=c.tenant_id AND
-        g.id=c.campaign_id
+        g.id=c.campaign_id LEFT JOIN ops_call_dimension dim ON dim.tenant_id=c.tenant_id AND dim.call_id=c.id
     </sql>
     <sql id="callWhere">
         AND (#{allScope}=TRUE OR c.human_agent_id=#{userId}
@@ -26,6 +26,10 @@
         <if test="phone != null">
             AND c.phone LIKE CONCAT('%',#{phone},'%')
         </if>
+        <if test="actor_id != null">AND COALESCE(dim.actor_id,g.created_by,0)=#{actor_id}</if>
+        <if test="stat_team_id != null">AND COALESCE(dim.team_id,0)=#{stat_team_id}</if>
+        <if test="city != null">AND COALESCE(NULLIF(dim.city,''),'未采集')=#{city}</if>
+        <if test="line_group != null">AND COALESCE(NULLIF(dim.line_group,''),'未分组')=#{line_group}</if>
         <if test="script_id != null">AND g.script_template_id=#{script_id}</if>
         <if test="task_status != null">AND g.status=#{task_status}</if>
         <if test="flow_version_id != null">
@@ -136,7 +140,8 @@
                ROUND(100*successful_calls/NULLIF(reached_sessions,0),2) AS success_per_answer,
                ROUND(100*successful_takeovers/NULLIF(handoff_received,0),2) AS success_per_takeover,
                ROUND(100*interested_sessions/NULLIF(reached_sessions,0),2) AS intent_rate
-        FROM (SELECT CASE #{dimension} WHEN 'all' THEN 0 WHEN 'script' THEN COALESCE(g.script_template_id,0) WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
+        FROM (SELECT CASE #{dimension} WHEN 'all' THEN 0 WHEN 'account' THEN COALESCE(dim.actor_id,g.created_by,0) WHEN 'group' THEN COALESCE(dim.team_id,0)
+        WHEN 'city' THEN COALESCE(NULLIF(dim.city,''),'未采集') WHEN 'line_group' THEN COALESCE(NULLIF(dim.line_group,''),'未分组') WHEN 'script' THEN COALESCE(g.script_template_id,0) WHEN 'flow_version' THEN COALESCE(c.script_flow_version_id,0) WHEN
         'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
         COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE
         COALESCE(c.campaign_id,0) END AS dimension_key,
@@ -241,8 +246,18 @@
         SELECT * FROM ops_team WHERE tenant_id=#{tenantId} AND (#{allScope}=TRUE OR id IN(SELECT
         team_id FROM ops_member WHERE tenant_id=#{tenantId} AND user_id=#{userId})) ORDER BY id
     </select>
+    <select id="offlineCandidates" resultType="java.util.LinkedHashMap">
+        SELECT u.id,u.token_version,(SELECT COUNT(*) FROM callsession c WHERE c.tenant_id=u.tenant_id AND c.human_agent_id=u.id
+        AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')) AS active
+        FROM sys_user u WHERE u.tenant_id=#{tenantId} AND u.enabled AND u.role='agent' AND u.agent_status&lt;&gt;'offline' ORDER BY u.id FOR UPDATE
+    </select>
     <select id="seatMonitor" resultType="java.util.LinkedHashMap">
-        SELECT u.id,u.username,u.full_name,u.agent_status,u.last_seen_at,
+        WITH intervals AS (SELECT user_id,state,event_at,LEAD(event_at) OVER(PARTITION BY user_id ORDER BY event_at,id) AS next_at
+          FROM ops_seat_state_sample WHERE tenant_id=#{tenantId} AND event_at &gt;= UTC_DATE()-INTERVAL 1 DAY),
+        idle AS (SELECT user_id,FLOOR(SUM(GREATEST(0,TIMESTAMPDIFF(MICROSECOND,GREATEST(event_at,UTC_DATE()),
+          LEAST(COALESCE(next_at,UTC_TIMESTAMP(3)),TIMESTAMPADD(SECOND,#{ttl},event_at),UTC_TIMESTAMP(3)))))/1000000) AS seconds
+          FROM intervals WHERE state='ready' GROUP BY user_id)
+        SELECT u.id,u.username,u.full_name,u.agent_status,u.last_seen_at,COALESCE(idle.seconds,0) AS idle_seconds,
                u.agent_status IN ('ready','busy') AND u.last_seen_at &gt;= #{since} AS online,
                EXISTS(SELECT 1 FROM callsession c WHERE c.tenant_id=u.tenant_id
                       AND c.human_agent_id=u.id AND c.status='IN_HUMAN') AS taking_call,
@@ -257,7 +272,7 @@
                 WHERE h.tenant_id=u.tenant_id AND h.assigned_agent_id=u.id
                 AND h.state IN ('ACCEPTED','COMPLETED') AND h.responded_at IS NOT NULL
                 AND COALESCE(h.completed_at,UTC_TIMESTAMP(3)) &gt;= UTC_DATE()) AS handling_seconds
-        FROM sys_user u LEFT JOIN ops_presence p ON p.tenant_id=u.tenant_id AND p.user_id=u.id
+        FROM sys_user u LEFT JOIN idle ON idle.user_id=u.id LEFT JOIN ops_presence p ON p.tenant_id=u.tenant_id AND p.user_id=u.id
         WHERE u.tenant_id=#{tenantId} AND u.role='agent' AND u.enabled=TRUE ORDER BY u.username,u.id
     </select>
     <select id="team" resultType="java.util.LinkedHashMap">
@@ -567,4 +582,11 @@
         </if>
         ORDER BY (u.id=#{preferred}) DESC,(u.id=l.owner_id) DESC,u.id LIMIT 1
     </select>
+    <select id="lineGroups" resultType="java.util.LinkedHashMap">
+        SELECT line_id,group_name FROM ops_line_group_assignment WHERE tenant_id=#{tenantId}
+    </select>
+    <insert id="setLineGroup">
+        INSERT INTO ops_line_group_assignment(tenant_id,line_id,group_name) VALUES(#{tenantId},#{line},#{group})
+        ON DUPLICATE KEY UPDATE group_name=#{group}
+    </insert>
 </mapper>

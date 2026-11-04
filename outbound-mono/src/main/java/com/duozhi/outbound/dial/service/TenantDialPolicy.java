@@ -32,6 +32,94 @@ public class TenantDialPolicy {
         return enabled;
     }
 
+    public boolean ownerAvailable(long tenant, Object owner) {
+        if (owner == null) return true;
+        var batch = DialBatchScope.current();
+        String k = "owner-limit:" + tenant + ":" + owner;
+        long cap;
+        if (batch != null && batch.counts.containsKey(k)) cap = batch.counts.get(k);
+        else {
+            var doc = docs.find(tenant, "owner_dial_limit", owner.toString());
+            cap =
+                    doc == null
+                            ? -1
+                            : WorkspaceDocuments.number(
+                                    WorkspaceDocuments.map(doc.get("draft")).get("limit"));
+            if (batch != null) batch.counts.put(k, cap);
+        }
+        if (cap < 0) return true;
+        String countKey = "owner-count:" + tenant + ":" + owner;
+        long active;
+        if (batch != null && batch.counts.containsKey(countKey))
+            active = batch.counts.get(countKey);
+        else {
+            active =
+                    docs.jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM callsession c LEFT JOIN campaign g ON g.tenant_id=c.tenant_id AND g.id=c.campaign_id WHERE c.tenant_id=? AND COALESCE(g.created_by,c.human_agent_id)=? AND c.status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')",
+                            Long.class,
+                            tenant,
+                            owner);
+            if (batch != null) batch.counts.put(countKey, active);
+        }
+        return active < cap;
+    }
+
+    public void captured(long tenant, Map<String, Object> call, Object owner) {
+        var batch = DialBatchScope.current();
+        String key = "owner-count:" + tenant + ":" + owner;
+        if (batch != null && batch.counts.containsKey(key)) batch.counts.merge(key, 1L, Long::sum);
+        docs.jdbc.update(
+                "INSERT INTO ops_call_dimension(tenant_id,call_id,actor_id,team_id,city,line_group,captured_at) SELECT ?,?,?,(SELECT MIN(m.team_id) FROM ops_member m JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id AND t.enabled=1 WHERE m.tenant_id=? AND m.user_id=?),(SELECT LEFT(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(m.variables_json,'$.city')),JSON_UNQUOTE(JSON_EXTRACT(m.variables_json,'$.\"城市\"'))),100) FROM platform_audience_member m WHERE m.tenant_id=? AND m.snapshot_id=CONCAT('call:',?) AND m.contact_id=?),(SELECT group_name FROM ops_line_group_assignment WHERE tenant_id=? AND line_id=?),UTC_TIMESTAMP(3) ON DUPLICATE KEY UPDATE call_id=ops_call_dimension.call_id",
+                tenant,
+                call.get("id"),
+                owner,
+                tenant,
+                owner,
+                tenant,
+                call.get("campaign_id"),
+                call.get("contact_id"),
+                tenant,
+                call.get("telephony_line_id"));
+    }
+
+    public Object limit(Identity i, long owner) {
+        if (docs.one("SELECT id FROM sys_user WHERE tenant_id=? AND id=?", i.tenant(), owner)
+                == null) throw new ApiError(404, "账号不存在");
+        var doc = docs.find(i.tenant(), "owner_dial_limit", "" + owner);
+        return Map.of(
+                "limit",
+                doc == null
+                        ? 0
+                        : WorkspaceDocuments.number(
+                                WorkspaceDocuments.map(doc.get("draft")).get("limit")),
+                "inherited",
+                doc == null,
+                "revision",
+                doc == null ? 0 : doc.get("revision"));
+    }
+
+    public Object saveLimit(Identity i, long owner, int limit, int revision) {
+        return docs.tx.serialized(
+                () -> {
+                    docs.tx.platform();
+                    docs.jdbc.queryForObject(
+                            "SELECT id FROM tenant WHERE id=? FOR UPDATE", Long.class, i.tenant());
+                    if (docs.one(
+                                    "SELECT id FROM sys_user WHERE tenant_id=? AND id=? AND enabled=1",
+                                    i.tenant(),
+                                    owner)
+                            == null) throw new ApiError(404, "账号不可用");
+                    docs.save(
+                            i,
+                            "owner_dial_limit",
+                            "" + owner,
+                            "",
+                            Map.of("name", "账号外呼并发", "limit", limit),
+                            revision);
+                    return limit(i, owner);
+                });
+    }
+
     public void requireOpen(long tenant) {
         if (!open(tenant)) throw new ApiError(409, "本租户呼叫开关已关闭");
     }

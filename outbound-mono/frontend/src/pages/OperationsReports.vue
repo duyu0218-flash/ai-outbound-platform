@@ -183,13 +183,23 @@ function choose() {
 function drill(row) {
   const f = params();
   const field = {
+    account: 'actor_id',
+    group: 'stat_team_id',
+    line_group: 'line_group',
+    city: 'city',
+    script: 'script_id',
     campaign: 'campaign_id',
     agent: 'agent_id',
     line: 'line_id',
     owner: 'owner_id',
     flow_version: 'flow_version_id',
   }[q.dimension];
-  if (Number(row.dimension_key) > 0 || field === 'flow_version_id') f[field] = row.dimension_key;
+  if (
+    field &&
+    (Number(row.dimension_key) > 0 ||
+      ['actor_id', 'stat_team_id', 'line_group', 'city', 'flow_version_id'].includes(field))
+  )
+    f[field] = row.dimension_key;
   if (row.bucket !== '全部') {
     const date = new Date(
       row.bucket.replace(' ', 'T') + (row.bucket.length === 10 ? 'T00:00:00' : '') + 'Z',
@@ -233,6 +243,11 @@ onMounted(async () => {
             ><el-select v-model="q.dimension" aria-label="报表维度"
               ><el-option
                 v-for="[value, label] in [
+                  ['account', '子账号'],
+                  ['group', '组'],
+                  ['line_group', '线路组'],
+                  ['city', '城市'],
+                  ['script', '话术'],
                   ['campaign', '任务'],
                   ['agent', '坐席'],
                   ['line', '线路'],

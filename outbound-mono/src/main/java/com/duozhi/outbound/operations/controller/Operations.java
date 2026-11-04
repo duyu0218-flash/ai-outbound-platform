@@ -120,6 +120,11 @@ public class Operations {
                         "script_id"))
             if (q.containsKey(k) && !q.get(k).isBlank())
                 p.put(k, number(q.get(k), 1, Integer.MAX_VALUE));
+        for (String key : List.of("actor_id", "stat_team_id"))
+            if (!q.getOrDefault(key, "").isBlank())
+                p.put(key, number(q.get(key), 0, Integer.MAX_VALUE));
+        for (String key : List.of("city", "line_group"))
+            if (!q.getOrDefault(key, "").isBlank()) p.put(key, text(q.get(key), 100));
         if (!q.getOrDefault("task_status", "").isBlank())
             p.put(
                     "task_status",
@@ -414,6 +419,10 @@ public class Operations {
                         Set.of(
                                 "all",
                                 "script",
+                                "account",
+                                "group",
+                                "line_group",
+                                "city",
                                 "campaign",
                                 "agent",
                                 "line",
@@ -564,6 +573,89 @@ public class Operations {
         return tenantDial.update(i, enabled, (int) number(b.get("revision"), 0, Integer.MAX_VALUE));
     }
 
+    @GetMapping("/lines/groups")
+    public Object lineGroups(HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return db.rows("lineGroups", base(i));
+    }
+
+    @PutMapping("/lines/{id}/group")
+    @Transactional
+    public Object saveLineGroup(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        store.require("telephonyline", i.tenant(), id);
+        var p = base(i);
+        p.put("line", id);
+        p.put("group", text(body.get("group_name"), 100));
+        db.write("setLineGroup", p);
+        audit.record(i, "group", "telephonyline", id, "更新线路组");
+        return Map.of("group_name", p.get("group"));
+    }
+
+    @GetMapping("/users/{id}/dial-limit")
+    public Object dialLimit(@PathVariable
+    long id, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return tenantDial.limit(i, id);
+    }
+
+    @PutMapping("/users/{id}/dial-limit")
+    public Object setDialLimit(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        int limit = (int) number(b.get("limit"), 0, 100000);
+        return tenantDial.saveLimit(
+                i, id, limit, (int) number(b.get("revision"), 0, Integer.MAX_VALUE));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AuthService staffAuth;
+
+    @PostMapping("/seats/offline")
+    public Object offlineSeats(@RequestBody
+    Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        if (!Boolean.TRUE.equals(b.get("confirmed"))) throw new ApiError(422, "请先确认下线范围");
+        return tx.serialized(
+                () -> {
+                    tx.platform();
+                    tx.tenant(i.tenant());
+                    var ids = db.rows("offlineCandidates", Map.of("tenantId", i.tenant()));
+                    int count = 0;
+                    for (var u : ids) {
+                        if (((Number) u.get("active")).longValue() > 0) continue;
+                        staffAuth.patch(
+                                ((Number) u.get("id")).longValue(),
+                                (int) i.tenant(),
+                                JsonSupport.map(
+                                        "agent_status",
+                                        "offline",
+                                        "last_seen_at",
+                                        Store.now(),
+                                        "token_version",
+                                        ((Number) u.get("token_version")).intValue() + 1));
+                        count++;
+                    }
+                    audit.record(
+                            i,
+                            "offline",
+                            "tenant_seats",
+                            i.tenant(),
+                            "offline=" + count + ", skipped=" + (ids.size() - count));
+                    return Map.of("offline", count, "skipped", ids.size() - count);
+                });
+    }
+
     @GetMapping("/seats/monitor")
     public Object seatMonitor(HttpServletRequest request) {
         var i = actor(request);
@@ -573,6 +665,8 @@ public class Operations {
                 JsonSupport.map(
                         "tenantId",
                         i.tenant(),
+                        "ttl",
+                        Math.max(30, config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90)),
                         "since",
                         Store.now()
                                 .minusSeconds(
