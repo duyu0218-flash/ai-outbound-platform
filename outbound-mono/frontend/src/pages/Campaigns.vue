@@ -14,6 +14,7 @@ async function loadRecipients() {
 }
 import { t } from '../i18n';
 import { useData, action } from '../data';
+import Scripts from './Scripts.vue';
 import ContactImport from '../components/ContactImport.vue';
 import ContactSelect from '../components/ContactSelect.vue';
 import AudiencePicker from '../components/AudiencePicker.vue';
@@ -27,7 +28,10 @@ const route = useRoute(),
     () =>
       `/api/v1/workspace/tasks?page=${page.value}&size=50&keyword=${encodeURIComponent(filter.value)}`,
   ),
-  scripts = useData('/api/v1/workspace/scripts?size=200'),
+  scriptKeyword = ref(''),
+  scripts = useData(
+    () => '/api/v1/workspace/scripts?size=200&keyword=' + encodeURIComponent(scriptKeyword.value),
+  ),
   batches = useData('/api/v1/workspace/contact-batches'),
   clients = useData('/api/v1/ops/clients?status=active&size=200'),
   system = useData('/api/v1/admin/system-overview');
@@ -37,6 +41,8 @@ const open = ref(false),
   model = ref({}),
   editing = ref(null),
   step = ref(0),
+  configuringScript = ref(false),
+  scriptSearch = ref(''),
   importing = ref(false),
   busy = ref(false),
   error = ref(''),
@@ -324,6 +330,22 @@ onMounted(() => {
       ><el-step title="基本信息" /><el-step title="选择名单" /><el-step title="拨打策略" /><el-step
         title="核对保存" /></el-steps
     ><el-alert v-if="error" :title="error" type="error" style="margin: 16px 0" />
+    <div v-if="step === 0" class="actions">
+      <el-button @click="importing = true">先导入名单</el-button>
+      <el-button @click="configuringScript = true">配置并发布话术</el-button>
+      <el-input
+        v-model="scriptSearch"
+        placeholder="按名称查找已发布话术"
+        style="max-width: 240px"
+        @keyup.enter="scriptKeyword = scriptSearch.trim()"
+      />
+      <el-button @click="scriptKeyword = scriptSearch.trim()">查找话术</el-button>
+      <small v-if="model.batch_ids?.length">已选 {{ model.batch_ids.length }} 个名单批次</small>
+      <small v-if="scripts.error.value">{{ scripts.error.value }}</small>
+      <small v-else-if="!scripts.loading.value && !templates.length"
+        >没有匹配的已发布话术，可在此配置并发布后继续。</small
+      >
+    </div>
     <FieldForm
       v-if="step === 0"
       :model="model"
@@ -343,7 +365,11 @@ onMounted(() => {
         <el-button type="primary" @click="importing = true">上传号码 / 下载模板</el-button
         ><el-button @click="batches.load()">刷新批次</el-button>
       </div>
-      <AudiencePicker :model="model" :script-id="model.script_template_id" />
+      <AudiencePicker
+        :key="model.batch_ids?.join(',')"
+        :model="model"
+        :script-id="model.script_template_id"
+      />
       <el-form label-position="top"
         ><el-form-item label="补充选择联系人"
           ><ContactSelect v-model="model.contact_ids" /></el-form-item
@@ -452,13 +478,31 @@ onMounted(() => {
         :closable="false"
       />
     </template>
+    <el-alert
+      v-if="
+        step === 2 &&
+        (lines.error.value || !(lines.data.value || []).some((l) => l.enabled && l.caller_id))
+      "
+      type="warning"
+      :closable="false"
+      :title="lines.error.value || '尚无已启用且配置主叫的线路，请联系线路管理员配置后刷新。'"
+    />
+    <el-button v-if="step === 2" @click="lines.load()">刷新线路</el-button>
     <el-descriptions v-if="step === 3" title="任务核对" :column="2" border
       ><el-descriptions-item label="任务名称">{{ model.name }}</el-descriptions-item
       ><el-descriptions-item label="话术发布版本"
         >{{ selectedScript?.draft.name }} · v{{
           selectedScript?.published_version
         }}</el-descriptions-item
-      ><el-descriptions-item label="预选名单">{{ contactCount }}（保存时去重）</el-descriptions-item
+      ><el-descriptions-item label="线路与主叫">{{
+        model.line_ids?.length
+          ? (lines.data.value || [])
+              .filter((l) => model.line_ids.includes(l.id))
+              .map((l) => l.name + ' / ' + (l.caller_id || '未配置主叫'))
+              .join('、')
+          : '继承租户路由，实际线路在派发时确定'
+      }}</el-descriptions-item>
+      <el-descriptions-item label="预选名单">{{ contactCount }}（保存时去重）</el-descriptions-item
       ><el-descriptions-item label="同时通话上限">{{ model.concurrency }}</el-descriptions-item
       ><el-descriptions-item label="执行状态">仅保存草稿，需在列表手动启动</el-descriptions-item
       ><el-descriptions-item label="交付企业">{{
@@ -546,6 +590,14 @@ onMounted(() => {
         v-if="detail.snapshot"
         :key="detail.id"
         :task-id="detail.id" /></template></el-drawer
+  ><el-dialog
+    v-model="configuringScript"
+    append-to-body
+    destroy-on-close
+    title="配置任务话术"
+    width="90%"
+    @closed="scripts.load()"
+    ><Scripts /></el-dialog
   ><ContactImport
     :script-id="model.script_template_id"
     v-model="importing"
