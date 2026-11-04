@@ -52,7 +52,7 @@ public class ScriptMessageDefaults {
             String template = Objects.toString(n.get("template_id"), "");
             if (target <= 0
                     || docs.one(
-                                    "SELECT id FROM contact WHERE tenant_id=? AND id=? AND dnc=0 AND consent_state='consented'",
+                                    "SELECT id FROM contact WHERE tenant_id=? AND id=? AND dnc=0 AND consent_state='CONSENTED'",
                                     tenant,
                                     target)
                             == null) throw new ApiError(422, "请选择本企业已授权的通知联系人");

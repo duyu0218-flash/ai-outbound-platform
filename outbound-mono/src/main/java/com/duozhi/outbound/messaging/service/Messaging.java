@@ -1351,6 +1351,60 @@ public class Messaging {
         var intent =
                 db.one(
                         "SELECT i.* FROM msg_call_intent i JOIN callsession c ON c.id=i.call_id AND c.tenant_id=i.tenant_id WHERE i.state='WAITING_CALL' AND (c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL') OR c.attempts<>i.attempt OR i.created_at<CURRENT_TIMESTAMP(6)-INTERVAL 1 DAY) ORDER BY i.created_at LIMIT 1");
+        return processIntent(intent);
+    }
+
+    public Object verifyFreeCallRule(long tenant, long task, String callId) {
+        sandbox();
+        if (!"internal-test".equals(config.get("ENV", ""))
+                || !"mock".equals(config.get("TELEPHONY_PROVIDER", ""))
+                || config.flag("MESSAGING_WORKERS_ENABLED", false))
+            throw new ApiError(409, "仅限关闭消息发送进程的内部模拟环境");
+        var call =
+                db.one(
+                        "SELECT attempts FROM callsession WHERE tenant_id=? AND campaign_id=? AND id=? AND status='COMPLETED'",
+                        tenant,
+                        task,
+                        callId);
+        if (call == null) throw new ApiError(409, "需要此任务的已完成模拟通话");
+        var snap =
+                db.one(
+                        "SELECT snapshot_json FROM platform_campaign_snapshot WHERE tenant_id=? AND campaign_id=?",
+                        tenant,
+                        task);
+        if (snap == null) throw new ApiError(409, "缺少任务快照");
+        var rule = object(object(snap.get("snapshot_json")).get("sms_rule"));
+        var product =
+                object(
+                        resource(
+                                        tenant,
+                                        Objects.toString(rule.get("product_id"), ""),
+                                        "product",
+                                        true)
+                                .get("payload"));
+        if (!"mock".equals(product.get("adapter"))
+                || number(product, "unit_price", 1000, 1000000000) != 0)
+            throw new ApiError(409, "只允许单价为零的模拟产品");
+        int attempt = ((Number) call.get("attempts")).intValue();
+        deferCall(tenant, callId, attempt);
+        for (var intent :
+                db.jdbc()
+                        .queryForList(
+                                "SELECT * FROM msg_call_intent WHERE tenant_id=? AND call_id=? AND attempt=? AND rule_id=? AND state='WAITING_CALL'",
+                                tenant,
+                                callId,
+                                attempt,
+                                rule.get("id"))) processIntent(intent);
+        return db.jdbc()
+                .queryForList(
+                        "SELECT recipient_kind,state,reason,message_id FROM msg_call_intent WHERE tenant_id=? AND call_id=? AND attempt=? AND rule_id=? ORDER BY recipient_kind",
+                        tenant,
+                        callId,
+                        attempt,
+                        rule.get("id"));
+    }
+
+    private boolean processIntent(Map<String, Object> intent) {
         if (intent == null) return false;
         long tenant = ((Number) intent.get("tenant_id")).longValue();
         String id = intent.get("id").toString();

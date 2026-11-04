@@ -16,6 +16,19 @@ const model = ref({
   }),
   error = ref(''),
   busy = ref(false);
+const simulated = ref(null),
+  sampleCall = ref('');
+async function simulate() {
+  try {
+    simulated.value = await request(
+      '/api/v1/workspace/tasks/' + props.taskId + '/sms-rule/simulate',
+      'POST',
+      { call_id: sampleCall.value },
+    );
+  } catch (e) {
+    error.value = e.message;
+  }
+}
 const approved = (ref) =>
   ref.value?.filter(
     (r) => r.state === 'APPROVED' && (!r.payload.form || r.payload.form === 'sms'),
@@ -115,6 +128,21 @@ onMounted(load);
       taskId ? '确认保存挂机短信规则' : '应用到话术草稿'
     }}</el-button>
     <p v-if="model.id">当前规则 {{ model.id }}</p>
+    <details v-if="taskId && model.id">
+      <summary>内部零价模拟核对</summary>
+      <p>
+        核对本任务已完成模拟通话的消息流水，接收人分别去重。此入口仅在关闭消息工作进程的内部测试环境可用。
+      </p>
+      <el-input v-model="sampleCall" aria-label="模拟通话ID" /><el-button @click="simulate"
+        >核对零价模拟短信</el-button
+      ><el-table v-if="simulated" :data="simulated"
+        ><el-table-column prop="recipient_kind" label="接收类型" /><el-table-column
+          prop="state"
+          label="模拟状态" /><el-table-column
+          prop="message_id"
+          label="模拟消息编号" /><el-table-column prop="reason" label="处理说明"
+      /></el-table>
+    </details>
     <el-button link @click="$router.push('/admin/sms/records')"
       >查看短信提交与发送记录</el-button
     ></el-card

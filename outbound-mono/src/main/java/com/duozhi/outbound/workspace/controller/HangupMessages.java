@@ -45,6 +45,15 @@ public class HangupMessages {
                 : map(snap.getOrDefault("sms_rule", snap.getOrDefault("sms_defaults", Map.of())));
     }
 
+    @PostMapping("/simulate")
+    public Object simulate(
+            @PathVariable
+            long task, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = actor(r);
+        return messaging.verifyFreeCallRule(i.tenant(), task, text(body, "call_id", 36, true));
+    }
+
     @PostMapping
     public Object save(
             @PathVariable
