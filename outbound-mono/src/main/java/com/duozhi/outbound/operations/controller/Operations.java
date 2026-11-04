@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/ops")
 public class Operations {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.common.config.Config config;
+
     private final OperationsStore db;
     private final OperationsAccess access;
     private final Store store;
@@ -421,6 +424,23 @@ public class Operations {
         var p = base(i);
         p.put("campaign_id", campaign_id);
         return db.rows("campaignProgress", p);
+    }
+
+    @GetMapping("/seats/monitor")
+    public Object seatMonitor(HttpServletRequest request) {
+        var i = actor(request);
+        access.admin(i);
+        return db.rows(
+                "seatMonitor",
+                JsonSupport.map(
+                        "tenantId",
+                        i.tenant(),
+                        "since",
+                        Store.now()
+                                .minusSeconds(
+                                        Math.max(
+                                                30,
+                                                config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90)))));
     }
 
     @GetMapping("/teams")

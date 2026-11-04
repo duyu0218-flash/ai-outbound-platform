@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive } from 'vue';
 import { ops, perform, parse } from '../operations';
 import { request } from '../session';
+import SeatMonitor from '../components/SeatMonitor.vue';
 import ResourceCatalog from '../components/ResourceCatalog.vue';
 const skills = ref([]),
   teamStatus = ref([]);
@@ -67,7 +68,7 @@ onMounted(load);
 <template>
   <PageHeader title="团队与数据权限" description="组长查看本组，坐席查看本人；服务端同步校验"
     ><el-button type="primary" @click="edit()">新增坐席组</el-button></PageHeader
-  ><el-alert v-if="error" :title="error" type="error" /><el-card
+  ><SeatMonitor /><el-alert v-if="error" :title="error" type="error" /><el-card
     ><DataGrid
       :rows="rows"
       :columns="[
