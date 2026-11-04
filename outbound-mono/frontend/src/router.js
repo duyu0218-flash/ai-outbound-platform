@@ -114,7 +114,9 @@ export const router = createRouter({
       meta: { role: 'agent' },
       children: [
         ...operatorNavigation.map(([path, label, name]) => ({
-          path, component: page(name), meta: { label, operatorOnly: true },
+          path,
+          component: page(name),
+          meta: { label, operatorOnly: true },
         })),
         ...[
           ['operations/calls', '话单查询', 'OperationsCalls'],

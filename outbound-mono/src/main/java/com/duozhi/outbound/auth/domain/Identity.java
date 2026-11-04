@@ -43,7 +43,10 @@ public final class Identity {
 
     public void admin(String permission) {
         if (user != null) {
-            if (!"admin".equals(user.get("role")) && !(isOperator() && permission != null && OPERATOR_PERMISSIONS.contains(permission)))
+            if (!"admin".equals(user.get("role"))
+                    && !(isOperator()
+                            && permission != null
+                            && OPERATOR_PERMISSIONS.contains(permission)))
                 throw new ApiError(403, "admin permission required");
         } else if (permission == null
                 || permission.isBlank()

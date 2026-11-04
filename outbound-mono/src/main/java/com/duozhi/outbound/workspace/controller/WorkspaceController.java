@@ -855,7 +855,8 @@ public class WorkspaceController {
 
     @GetMapping("/scripts/{id}/history")
     @AdminPermission(value = "product:write", operator = true)
-    public Object scriptHistory(@PathVariable String id, HttpServletRequest r) {
+    public Object scriptHistory(@PathVariable
+    String id, HttpServletRequest r) {
         var i = Identity.from(r);
         if (!i.isOperator()) i.admin("product:write");
         return docs.history(i.tenant(), "script", id);

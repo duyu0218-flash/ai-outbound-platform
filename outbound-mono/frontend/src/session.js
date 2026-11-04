@@ -34,7 +34,10 @@ export async function login(username, password, role) {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
-  if (response.role !== role && !(role === 'agent' && ['admin', 'operator'].includes(response.role)))
+  if (
+    response.role !== role &&
+    !(role === 'agent' && ['admin', 'operator'].includes(response.role))
+  )
     throw new Error(
       role === 'admin'
         ? 'This account is not an administrator'

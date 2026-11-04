@@ -19,6 +19,11 @@ public class OperationsBoundary implements WebMvcConfigurer {
         this.access = access;
     }
 
+    private static boolean operatorWorkspace(String path) {
+        return path.matches(
+                "/api/v1/(?:workspace/(?:scripts|tasks|task-resources|contact-batches)|campaigns|contacts|script-templates)(?:/.*)?");
+    }
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(
@@ -40,6 +45,7 @@ public class OperationsBoundary implements WebMvcConfigurer {
                                         throw new ApiError(403, "没有录音访问权限");
                                 }
                                 if (access.managed(i)
+                                        && !(i.isOperator() && operatorWorkspace(path))
                                         && path.startsWith("/api/v1/")
                                         && !path.startsWith("/api/v1/ops/")
                                         && !path.startsWith("/api/v1/auth/")
