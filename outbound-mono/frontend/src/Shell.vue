@@ -53,6 +53,7 @@ const navigation = computed(() =>
               ? [{ path: '/agent/quality', label: 'qualityReview' }]
               : []),
             { path: agentPath('leads'), label: '线索与跟进' },
+            { path: agentPath('wecom'), label: '企微添加' },
           ],
         },
         { group: 'navAnalysis', items: [{ path: agentPath('reports'), label: '运营报表' }] },

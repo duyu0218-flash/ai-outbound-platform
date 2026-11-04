@@ -284,7 +284,10 @@
     </sql>
     <select id="leads" resultType="java.util.LinkedHashMap">
         SELECT c.id AS contact_id,c.phone,c.name,c.dnc,c.consent_state,COALESCE(l.revision,0) AS
-        revision,COALESCE(l.stage,'open') AS stage,l.owner_id,u.full_name AS
+        revision,COALESCE((SELECT JSON_UNQUOTE(JSON_EXTRACT(wh.detail_json,'$.wecom_status'))
+        FROM ops_history wh WHERE wh.tenant_id=c.tenant_id AND wh.contact_id=c.id AND wh.action='wecom'
+        ORDER BY wh.id DESC LIMIT 1),'pending') AS wecom_status,
+        COALESCE(l.stage,'open') AS stage,l.owner_id,u.full_name AS
         owner_name,l.next_at,l.fields_json,l.tags_json,l.form_id,l.form_revision
         <include refid="leadJoin"/>
         WHERE c.tenant_id=#{tenantId}

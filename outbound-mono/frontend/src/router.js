@@ -13,6 +13,7 @@ export const adminMenu = [
       ['calls', '通话记录', 'CallsWorkspace'],
       ['quality', '质检复核', 'Quality'],
       ['operations/leads', '线索与跟进', 'OperationsLeads'],
+      ['operations/wecom', '企微添加', 'WecomTracking'],
       ['reports', '外呼报表', 'ReportsWorkspace'],
     ],
   },
@@ -30,7 +31,7 @@ export const adminMenu = [
     group: '营销中台',
     items: [
       ['contacts', '客户名单', 'ContactsWorkspace'],
-      ['marketing/datasets', '数据包与撞库', 'MarketingDatasets'],
+      ['marketing/datasets', '数据集与撞库', 'MarketingDatasets'],
       ['marketing/segments', '人群圈选', 'MarketingSegments'],
       ['marketing/journeys', '活动编排', 'MarketingJourneys'],
       ['marketing/outcomes', '触达结果规则', 'MarketingOutcomes'],
@@ -119,6 +120,7 @@ export const router = createRouter({
           meta: { label, operatorOnly: true },
         })),
         ...[
+          ['operations/wecom', '企微添加', 'WecomTracking'],
           ['operations/calls', '话单查询', 'OperationsCalls'],
           ['operations/leads', '线索与跟进', 'OperationsLeads'],
           ['operations/reports', '运营分析', 'OperationsReports'],

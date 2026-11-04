@@ -634,7 +634,9 @@ public class Operations {
     private Map<String, Object> changeLead(Identity i, long id, Map<String, Object> b) {
         store.require("contact", i.tenant(), id);
         String action =
-                choice(b.get("action"), Set.of("claim", "assign", "follow", "form", "tags"));
+                choice(
+                        b.get("action"),
+                        Set.of("claim", "assign", "follow", "form", "tags", "wecom"));
         String key = text(b.get("event_key"), 80);
         if (key.isBlank()) throw new ApiError(422, "需要操作唯一标识");
         var p = base(i);
@@ -671,6 +673,11 @@ public class Operations {
             }
         }
         String note = text(b.get("note"), 2000);
+        String wecomStatus = null;
+        if (action.equals("wecom")) {
+            if (current.get("owner_id") == null) throw new ApiError(409, "请先领取线索");
+            wecomStatus = choice(b.get("wecom_status"), Set.of("pending", "added", "declined"));
+        }
         if (action.equals("follow")) {
             if (current.get("owner_id") == null) throw new ApiError(409, "请先领取或分配线索");
             current.put(
@@ -730,6 +737,8 @@ public class Operations {
                                 action,
                                 "owner_id",
                                 current.get("owner_id"),
+                                "wecom_status",
+                                wecomStatus,
                                 "previous_owner",
                                 previousOwner,
                                 "stage",

@@ -61,6 +61,26 @@ const optionalColumns = [
 ];
 const visibleColumns = ref([...optionalColumns]),
   density = ref('default');
+const assistantOpen = ref(false);
+const suggestions = computed(() => {
+  const script = model.value || {};
+  const suggestions = [];
+  const recommend = (key, label, text) => suggestions.push({ key, label, text });
+  if (!script.opening?.trim())
+    recommend('opening', '补充开场白', '您好，现在方便听我简单说明来意吗？');
+  if (!script.ending?.trim()) recommend('ending', '补充结束语', '感谢您的时间，再见。');
+  if (!script.limits?.trim())
+    recommend('limits', '补充停止联系约定', '客户要求停止联系时，确认意愿并结束通话。');
+  if (!script.steps?.trim() && script.goal?.trim())
+    recommend(
+      'steps',
+      '按业务目标生成沟通步骤',
+      '先确认客户是否方便沟通。围绕“' +
+        script.goal.trim() +
+        '”一次询问一个问题。确认下一步安排后结束。',
+    );
+  return suggestions;
+});
 const basic = computed(() => [
   { key: 'name', label: '话术名称', required: true },
   { key: 'category', label: '业务分类', required: true },
@@ -388,6 +408,7 @@ onMounted(async () => {
       ><el-tag>{{ labels[selected.state] }}</el-tag
       ><span
         >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
+      ><el-button @click="assistantOpen = true">AI助理</el-button
       ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
       ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
       ><el-button type="primary" :loading="busy" @click="publish">发布版本</el-button
@@ -395,6 +416,18 @@ onMounted(async () => {
         >停用话术</el-button
       >
     </div>
+    <el-dialog v-model="assistantOpen" title="AI助理" width="560px">
+      <p>根据当前草稿和业务目标生成本地规则建议。采用后可继续编辑，保存草稿后生效。</p>
+      <el-card v-for="item in suggestions" :key="item.key"
+        ><strong>{{ item.label }}</strong>
+        <p>{{ item.text }}</p>
+        <el-button @click="model[item.key] = item.text">采用建议</el-button></el-card
+      >
+      <el-empty
+        v-if="!suggestions.length"
+        description="已覆盖开场、沟通步骤、结束语和停止联系约定"
+      />
+    </el-dialog>
     <el-tabs v-model="tab"
       ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
         name="flow"
