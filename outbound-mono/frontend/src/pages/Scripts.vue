@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { request, session } from '../session';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
+import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -83,6 +84,23 @@ async function saveSharing() {
         .filter(Boolean),
     });
     shareOpen.value = false;
+  });
+}
+const ruleText = ref(''),
+  ruleResult = ref(null);
+async function previewRules() {
+  await run(async () => {
+    ruleResult.value = await request(
+      '/api/v1/workspace/scripts/' + selected.value.id + '/rule-preview',
+      'POST',
+      {
+        draft: model.value,
+        turns: ruleText.value
+          .split('\n')
+          .map((v) => v.trim())
+          .filter(Boolean),
+      },
+    );
   });
 }
 const assistantOpen = ref(false);
@@ -466,6 +484,8 @@ onMounted(async () => {
     </el-dialog>
     <el-tabs v-model="tab"
       ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
+        name="events"
+        label="事件" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
         name="intents"
         label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
         name="slots"
@@ -473,6 +493,25 @@ onMounted(async () => {
         name="debug"
         label="调试" /><el-tab-pane name="history" label="版本记录"
     /></el-tabs>
+    <OutcomeEditor v-if="tab === 'hangup'" v-model="model.policy.hangup_rules" />
+    <OutcomeEditor v-if="tab === 'events'" event v-model="model.policy.events" />
+    <el-card v-if="['events', 'hangup'].includes(tab)" header="规则试算">
+      <p>每行输入一句客户回答，按顺序运行事件并计算挂机评级。</p>
+      <el-input v-model="ruleText" aria-label="规则试算对话" type="textarea" /><el-button
+        :loading="busy"
+        @click="previewRules"
+        >运行规则试算</el-button
+      >
+      <div v-if="ruleResult" aria-label="规则试算结果">
+        <p>
+          评级 {{ ruleResult.result.grade || '未命中' }} · 标签
+          {{ ruleResult.result.tags.join('、') || '无' }}
+        </p>
+        <p v-for="(turn, i) in ruleResult.trace" :key="i">
+          第{{ i + 1 }}轮 · {{ turn.intent }} · {{ turn.tags.join('、') }}
+        </p>
+      </div>
+    </el-card>
     <IntentEditor v-if="tab === 'intents'" v-model="model.policy.intent_rules" />
     <el-card v-if="tab === 'dialogue'"
       ><FieldForm :disabled="busy" :model="model" :fields="basic" hide-submit /><FieldForm

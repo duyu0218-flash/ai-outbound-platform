@@ -1,6 +1,5 @@
 package com.duozhi.outbound.operations.controller;
 
-import com.duozhi.outbound.ai.service.DialogueRules;
 import com.duozhi.outbound.auth.domain.AdminPermission;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.call.service.CallLifecycle;
@@ -163,7 +162,8 @@ public class CallAnalysis {
                     lowConfidence = true;
                     continue;
                 }
-                String decision = DialogueRules.classify(text);
+                String decision =
+                        com.duozhi.outbound.ai.service.ScriptIntents.classify(text, policy);
                 if (Values.set(
                                 "interested",
                                 "rejected",
@@ -255,6 +255,8 @@ public class CallAnalysis {
                         call.get("recording_url") == null
                                 ? "recording_pending"
                                 : flags.isEmpty() ? "ready" : "review_pending");
+        structured.put(
+                "rule_result", com.duozhi.outbound.ai.service.OutcomeRules.finish(policy, product));
         int score = Math.max(0, 100 - flags.size() * 20);
         String automatic =
                 json.canonical(

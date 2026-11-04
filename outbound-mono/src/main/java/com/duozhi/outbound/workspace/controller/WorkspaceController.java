@@ -518,6 +518,54 @@ public class WorkspaceController {
                 map(value.get("policy")).get("slots"));
     }
 
+    @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/rule-preview")
+    public Object previewOutcome(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = Identity.from(r);
+        if (!i.isOperator()) i.admin("product:write");
+        var doc = script(id, r);
+        var value =
+                body.get("draft") instanceof Map<?, ?>
+                        ? scriptDraft(map(body.get("draft")), i.tenant())
+                        : draft(doc);
+        var policy = map(value.get("policy"));
+        if (!(body.get("turns") instanceof List<?> turns) || turns.size() > 50)
+            throw new ApiError(422, "最多试算50轮");
+        var state = new LinkedHashMap<String, Object>();
+        var knowledge = scriptKnowledge(i.tenant(), value);
+        var trace = new ArrayList<Map<String, Object>>();
+        for (Object turn : turns) {
+            if (!(turn instanceof String text) || text.length() > 2000)
+                throw new ApiError(422, "单轮文本最多2000字");
+            String intent = com.duozhi.outbound.ai.service.ScriptIntents.classify(text, policy);
+            boolean hit =
+                    "question".equals(intent)
+                            && !runtime.knowledge(
+                                            JsonSupport.map("tenant_id", i.tenant()),
+                                            JsonSupport.map("_knowledge", knowledge),
+                                            text)
+                                    .isEmpty();
+            com.duozhi.outbound.ai.service.OutcomeRules.turn(
+                    policy, state, intent, hit, "machine_candidate".equals(intent));
+            trace.add(
+                    JsonSupport.map(
+                            "intent",
+                            intent,
+                            "tags",
+                            state.getOrDefault("rule_tags", List.of()),
+                            "once",
+                            state.getOrDefault("rule_events_done", List.of())));
+        }
+        return JsonSupport.map(
+                "trace",
+                trace,
+                "result",
+                com.duozhi.outbound.ai.service.OutcomeRules.finish(policy, state));
+    }
+
     @GetMapping("/libraries")
     public Object libraries(HttpServletRequest r) {
         var i = actor(r);

@@ -689,6 +689,7 @@ public class ConversationPolicy {
                 data.get("pending") instanceof Map
                         ? (Map<String, Object>) data.get("pending")
                         : Collections.emptyMap();
+        boolean businessFaq = false;
         if ("callback_time_request".equals(pending.get("kind"))
                 && !Values.set("stop_contact", "wrong_person", "cancel_callback", "end")
                         .contains(intent)) intent = "callback";
@@ -851,6 +852,7 @@ public class ConversationPolicy {
                     break;
                 }
             if (faq != null) {
+                businessFaq = true;
                 String question = "";
                 for (Map<String, Object> slot : slots(policy))
                     if (Objects.equals(slot.get("key"), data.get("active_slot")))
@@ -892,6 +894,8 @@ public class ConversationPolicy {
         if (Values.set("interested", "permission_to_listen", "question", "affirm").contains(intent)
                 && !"machine".equals(data.get("answer_kind"))
                 && !low) data.put("answer_kind", "human");
+        OutcomeRules.turn(
+                policy, data, intent, businessFaq, "machine".equals(data.get("answer_kind")));
         data.putAll(
                 JsonSupport.map(
                         "sequence",

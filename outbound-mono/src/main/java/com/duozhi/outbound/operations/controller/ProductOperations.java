@@ -133,6 +133,11 @@ public class ProductOperations {
                 "intent_rules",
                 com.duozhi.outbound.ai.service.ScriptIntents.normalize(
                         raw.getOrDefault("intent_rules", List.of())));
+        for (String key : List.of("events", "hangup_rules"))
+            result.put(
+                    key,
+                    com.duozhi.outbound.ai.service.OutcomeRules.normalize(
+                            raw.getOrDefault(key, List.of())));
         return result;
     }
 
