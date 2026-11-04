@@ -29,7 +29,7 @@ try {
     await expect(page.getByRole('heading', { name: '话术语音调试' })).toBeVisible();
   });
   await check('configuration encrypted save and reload', async () => {
-    await page.getByRole('button', { name: '模型与语音服务', exact: true }).click();
+    await page.locator('p').getByRole('button', { name: '模型与语音服务', exact: true }).click();
     await page
       .getByRole('combobox', { name: '凭据配置方案', exact: true })
       .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')

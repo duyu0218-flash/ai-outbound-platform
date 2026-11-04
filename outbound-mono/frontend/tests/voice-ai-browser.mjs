@@ -259,7 +259,10 @@ try {
     await expect(page.getByTestId('active-voice-profile')).toHaveText('原有链路');
     await page.getByRole('button', { name: '返回系统设置', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/settings');
-    await page.getByRole('button', { name: '模型与语音服务', exact: true }).click();
+    await page
+      .locator('.page-header')
+      .getByRole('button', { name: '模型与语音服务', exact: true })
+      .click();
     await expect(page).toHaveURL(origin + '/admin/system/voice-ai');
   });
   await check('call details show frozen supplier and script fingerprint', async () => {

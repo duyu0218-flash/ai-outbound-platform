@@ -305,7 +305,9 @@ class ContactAdmissionIT extends MarketingTestBase {
                                 .dataSource(url, "root", MYSQL.getPassword())
                                 .locations("classpath:db/migration")
                                 .load();
-                assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+                int pending = flyway.info().pending().length;
+                assertThat(pending).isGreaterThanOrEqualTo(3);
+                assertThat(flyway.migrate().migrationsExecuted).isEqualTo(pending);
                 assertThat(flyway.migrate().migrationsExecuted).isZero();
                 try (var upgraded =
                                 java.sql.DriverManager.getConnection(
