@@ -1,0 +1,15 @@
+<view class="page">
+  <text>{{message}}</text>
+  <block wx:if="{{!logged}}">
+    <input placeholder="运营账号" bindinput="userInput" /><input placeholder="密码" password value="{{password}}" bindinput="passwordInput"/>
+    <button bindtap="login" disabled="{{busy}}">登录</button>
+  </block>
+  <block wx:else>
+    <input placeholder="话术 ID" type="number" value="{{script}}" bindinput="scriptInput" disabled="{{busy||recording}}"/>
+    <button bindtap="load" disabled="{{busy||recording}}">选择话术</button>
+    <picker range="{{rows}}" range-key="text" value="{{index}}" bindchange="choose" disabled="{{busy||recording}}"><view>{{rows[index].text||'请选择话术片段'}}</view></picker>
+    <button bindtap="start" disabled="{{busy||recording||!rows.length}}">开始录音</button><button bindtap="stop" disabled="{{!recording}}">停止录音</button>
+    <button bindtap="listen" disabled="{{!file||recording}}">试听</button><button bindtap="upload" disabled="{{!file||recording||busy}}">保存并回传</button>
+    <button bindtap="logout">退出</button>
+  </block>
+</view>

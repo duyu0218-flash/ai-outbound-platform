@@ -52,6 +52,12 @@ public class OperationsBoundary implements WebMvcConfigurer {
                                         && !path.startsWith("/api/v1/calls")
                                         && !path.startsWith("/api/v1/handoffs")
                                         && !path.startsWith("/api/v1/webrtc/")
+                                        && !("agent".equals(i.user().get("role"))
+                                                && Set.of(
+                                                                "/api/v1/agent/events/stream",
+                                                                "/api/v1/agent/media/status",
+                                                                "/api/v1/agent/webrtc/session")
+                                                        .contains(path))
                                         && !(r.getMethod().equals("GET")
                                                 && path.startsWith("/api/v1/knowledge")))
                                     throw new ApiError(403, "请使用具有团队数据范围的运营工作台");

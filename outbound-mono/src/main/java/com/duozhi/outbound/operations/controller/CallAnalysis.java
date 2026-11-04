@@ -255,6 +255,23 @@ public class CallAnalysis {
                         call.get("recording_url") == null
                                 ? "recording_pending"
                                 : flags.isEmpty() ? "ready" : "review_pending");
+        if (com.duozhi.outbound.ai.service.FlowSettings.from(policy).get("min_seconds")
+                instanceof Number min) {
+            var usage =
+                    store.one(
+                            "callusage",
+                            "scopedCallLifecycle80",
+                            Store.scopedParameters(
+                                    CallLifecycle.tenant(call),
+                                    store.encode("callusage", "call_session_id", call.get("id")),
+                                    attempt));
+            structured.put("minimum_talk_seconds", min.intValue());
+            structured.put(
+                    "meets_minimum_talk",
+                    usage != null && usage.get("telephony_seconds") instanceof Number measured
+                            ? measured.doubleValue() >= min.doubleValue()
+                            : null);
+        }
         structured.put(
                 "rule_result", com.duozhi.outbound.ai.service.OutcomeRules.finish(policy, product));
         int score = Math.max(0, 100 - flags.size() * 20);

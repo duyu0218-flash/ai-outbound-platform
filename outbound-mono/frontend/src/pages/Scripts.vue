@@ -8,6 +8,7 @@ import { action, useData } from '../data';
 import ReachReport from '../components/ReachReport.vue';
 import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
+import ScriptResources from '../components/ScriptResources.vue';
 import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
 import ScriptAudio from '../components/ScriptAudio.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
@@ -107,6 +108,9 @@ async function previewRules() {
     );
   });
 }
+const miniOpen = ref(false),
+  resourceTab = ref('手拨线路');
+const resourceTabs = ['手拨线路', '黑名单', '语音合成', '语音识别', '接口配置', '多开场白设置'];
 const assistantOpen = ref(false);
 const suggestions = computed(() => {
   const script = model.value || {};
@@ -259,7 +263,10 @@ async function open(row, targetTab = 'dialogue') {
   await run(async () => {
     selected.value = await request('/api/v1/workspace/scripts/' + row.id);
     model.value = clone(selected.value.draft);
-    tab.value = targetTab;
+    if (resourceTabs.includes(targetTab)) {
+      resourceTab.value = targetTab;
+      tab.value = 'resources';
+    } else tab.value = targetTab;
     probe.value = null;
     history.value = selected.value.revision
       ? await request(`/api/v1/workspace/scripts/${row.id}/history`)
@@ -473,6 +480,13 @@ onMounted(async () => {
           ><template #default="{ row }"
             ><el-button link type="primary" @click="open(row)">配置话术</el-button
             ><el-button link @click="open(row, 'audio')">个性录音</el-button
+            ><el-button link @click="open(row, '手拨线路')">手拨线路</el-button
+            ><el-button link @click="open(row, '黑名单')">黑名单</el-button
+            ><el-button
+              v-if="session.user?.role === 'admin'"
+              link
+              @click="$router.push('/admin/operations/configs?tab=tag')"
+              >标签管理</el-button
             ><el-button link @click="copy(row)">复制</el-button
             ><el-button link @click="open(row, 'slots')">查看表单</el-button
             ><el-button link @click="open(row, 'intents')">关键词库</el-button
@@ -496,6 +510,7 @@ onMounted(async () => {
       ><span
         >发布 v{{ selected.published_version }} · 引用 {{ selected.references || 0 }} 个任务</span
       ><el-button :disabled="busy" @click="sharing">分享设置</el-button
+      ><el-button @click="miniOpen = true">小程序录音</el-button
       ><el-button @click="assistantOpen = true">AI助理</el-button
       ><el-button :loading="busy" @click="run(save)">保存草稿</el-button
       ><el-button :disabled="busy" @click="state('review')">提交审核</el-button
@@ -515,6 +530,24 @@ onMounted(async () => {
         >保存分享设置</el-button
       ></el-dialog
     >
+    <el-dialog v-model="miniOpen" title="小程序录音"
+      ><p>
+        在本企业发布的录音小程序登录运营账号，输入话术 ID
+        {{ selected.id }}，选择片段后录音并回传。保存后可在“个性录音”查看覆盖率和试听。
+      </p>
+      <p>
+        首次接入由管理员在微信开发者工具导入录音工程，填写本企业 AppID，将 config.js 的 origin
+        设为已备案并加入 request、uploadFile 白名单的 HTTPS 服务域名。
+      </p>
+      <a href="/script-recorder.zip" download>下载小程序工程</a
+      ><el-button
+        @click="
+          miniOpen = false;
+          tab = 'audio';
+        "
+        >查看回传录音</el-button
+      ></el-dialog
+    >
     <el-dialog v-model="assistantOpen" title="AI助理" width="560px">
       <p>根据当前草稿和业务目标生成本地规则建议。采用后可继续编辑，保存草稿后生效。</p>
       <el-card v-for="item in suggestions" :key="item.key"
@@ -528,24 +561,38 @@ onMounted(async () => {
       />
     </el-dialog>
     <el-tabs v-model="tab"
-      ><el-tab-pane name="settings" label="流程设置" /><el-tab-pane
-        name="audio"
-        label="个性录音" /><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
-        name="dialogue"
-        label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
-        name="hangup"
-        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
-        name="flow"
-        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
-        name="knowledge"
-        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
-        name="history"
-        label="版本记录"
+      ><el-tab-pane name="resources" label="话术资源" /><el-tab-pane
+        name="settings"
+        label="流程设置" /><el-tab-pane name="audio" label="个性录音" /><el-tab-pane
+        name="reach"
+        label="节点到达率" /><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
+        name="events"
+        label="事件" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
+        name="intents"
+        label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
+        name="slots"
+        label="信息采集与合格条件" /><el-tab-pane name="knowledge" label="知识与动作" /><el-tab-pane
+        name="debug"
+        label="调试" /><el-tab-pane name="history" label="版本记录"
     /></el-tabs>
+    <template v-if="tab === 'resources'"
+      ><el-radio-group v-model="resourceTab"
+        ><el-radio-button v-for="n in resourceTabs" :value="n" :key="n">{{
+          n
+        }}</el-radio-button></el-radio-group
+      ><ScriptResources v-model="model.policy" :section="resourceTab"
+    /></template>
     <GeneralFlowSettings
       v-if="tab === 'settings'"
       v-model="model.policy"
-      @section="tab = $event"
+      @section="
+        (k) => {
+          if (resourceTabs.includes(k)) {
+            resourceTab = k;
+            tab = 'resources';
+          } else tab = k;
+        }
+      "
     /><ScriptAudio v-if="tab === 'audio'" :script-id="selected.id" /><ReachReport
       v-if="tab === 'reach'"
       :script-id="selected.id"

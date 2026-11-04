@@ -127,6 +127,16 @@ public class ConversationPolicy {
         long tenant = CallLifecycle.tenant(call);
         var initial = new LinkedHashMap<>(initialStatePolicy(call));
         Map<String, Object> initialData = new LinkedHashMap<>();
+        var original = json.object(initial.get("json").toString());
+        if (ScriptBindings.from(original).get("openings") instanceof List<?> openings
+                && !openings.isEmpty()) {
+            int index =
+                    Math.floorMod(
+                            Objects.hash(call.get("id"), call.get("attempts")), openings.size());
+            original.put("opening_prompt", openings.get(index));
+            initialData.put("opening_index", index);
+            initial.put("json", json.json(original));
+        }
         if (workspace != null
                 && call.get("campaign_id") != null
                 && call.get("contact_id") instanceof Number cid) {

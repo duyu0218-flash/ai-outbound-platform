@@ -112,7 +112,8 @@ public class ScriptAudio {
             type = "audio/wav";
         else if (b.length > 12 && new String(b, 4, 4, StandardCharsets.US_ASCII).equals("ftyp"))
             type = "audio/mp4";
-        else throw new ApiError(422, "支持 WAV、WebM 或 M4A 音频");
+        else if (b.length > 7 && (b[0] & 255) == 255 && (b[1] & 246) == 240) type = "audio/aac";
+        else throw new ApiError(422, "支持 WAV、WebM、AAC 或 M4A 音频");
         docs.tx.tenant(i.tenant());
         String text = prompts(id, r).get(segment);
         if (text == null) throw new ApiError(409, "话术文本已变更，请重新检测");

@@ -122,12 +122,26 @@ public class Outbox {
                 });
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
+
     public void callback(
             Map<String, Object> call, String event, Map<String, Object> data, String key) {
         long tenant = ((Number) call.get("tenant_id")).longValue();
         Map<String, Object> config = settings.get(tenant, "integration");
         if (!Boolean.TRUE.equals(config.get("callback_enabled"))
                 || Objects.toString(config.get("webhook_base_url"), "").trim().isEmpty()) return;
+        if (workspace != null && call.get("campaign_id") != null) {
+            var snap = workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+            if (snap != null
+                    && "off"
+                            .equals(
+                                    com.duozhi.outbound.ai.service.ScriptBindings.from(
+                                                    com.duozhi.outbound.workspace.service
+                                                            .WorkspaceDocuments.map(
+                                                            snap.getOrDefault("policy", Map.of())))
+                                            .get("callback_mode"))) return;
+        }
         enqueue(
                 tenant,
                 "business_callback",

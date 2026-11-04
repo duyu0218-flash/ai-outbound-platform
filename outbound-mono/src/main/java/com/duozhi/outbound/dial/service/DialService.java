@@ -434,11 +434,19 @@ public class DialService {
                                 }
                         }
                     }
+                    if (reason.isEmpty()
+                            && workspaceTask != null
+                            && com.duozhi.outbound.ai.service.ScriptBindings.blocked(
+                                    com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                            workspaceTask.getOrDefault("policy", Map.of())),
+                                    call.get("phone"))) reason = "script_dnc";
                     if (reason.isEmpty() && workspaceTask != null) {
                         var options =
                                 com.duozhi.outbound.ai.service.FlowSettings.from(
                                         com.duozhi.outbound.workspace.service.WorkspaceDocuments
-                                                .map(workspaceTask.get("policy")));
+                                                .map(
+                                                        workspaceTask.getOrDefault(
+                                                                "policy", Map.of())));
                         if (options.get("frequency_hours") instanceof Number h
                                 && h.intValue() > 0) {
                             long prior =

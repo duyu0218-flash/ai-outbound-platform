@@ -368,6 +368,14 @@ public class AiRuntime {
                                                 ? "handoff"
                                                 : strategy.equals("end") ? "hangup" : "continue");
                     }
+                    if (result == null
+                            && transcript.isEmpty()
+                            && call.get("flow_node_key") == null
+                            && ScriptBindings.from(policy).get("openings")
+                                    instanceof List<?> openings
+                            && !openings.isEmpty()
+                            && policy.get("opening_prompt") instanceof String opening)
+                        result = ConversationPolicy.reply(opening, "continue");
                     if (result == null) result = flow(call, state, transcript);
                     if (result == null && Boolean.TRUE.equals(payload.get("native_response")))
                         result = ConversationPolicy.reply("", "continue");

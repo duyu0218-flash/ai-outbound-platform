@@ -362,6 +362,9 @@ onMounted(() => {
           if (key === 'script_template_id') {
             model.script_flow_version_id = null;
             model.execution_policy = clone(selectedScript?.published?.policy || {});
+            const b = model.execution_policy.bindings || {};
+            model.line_ids = b.line_id ? [b.line_id] : [];
+            model.service_combo = b.service_combo || 'inherit';
           }
         }
       "

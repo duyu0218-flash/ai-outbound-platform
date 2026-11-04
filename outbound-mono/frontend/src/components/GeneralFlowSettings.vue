@@ -67,6 +67,12 @@ const fields = [
     >
     <el-button @click="emit('section', 'knowledge')">转接配置</el-button
     ><el-button @click="emit('section', 'slots')">自定义变量</el-button
-    ><el-button @click="emit('section', 'hangup')">自定义评级</el-button></el-card
+    ><el-button @click="emit('section', 'hangup')">自定义评级</el-button
+    ><el-button
+      v-for="n in ['语音合成', '语音识别', '接口配置', '多开场白设置']"
+      :key="n"
+      @click="emit('section', n)"
+      >{{ n }}</el-button
+    ></el-card
   >
 </template>

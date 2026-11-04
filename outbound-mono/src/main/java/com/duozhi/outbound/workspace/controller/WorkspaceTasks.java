@@ -140,8 +140,21 @@ public class WorkspaceTasks {
                     var batches = rawBatches == null ? List.of() : rawBatches;
                     Object segmentIds = data.remove("segment_snapshot_ids"),
                             excludedIds = data.remove("excluded_contact_ids");
+                    Object scriptId = data.get("script_template_id");
+                    if (scriptId == null) throw new ApiError(422, "请选择已发布话术");
+                    var doc = docs.require(tenant, "script", scriptId.toString());
+                    if (doc.get("published") == null || "disabled".equals(doc.get("state")))
+                        throw new ApiError(409, "话术尚未发布或已停用");
+                    var publication = map(doc.get("published"));
+                    var executionPolicy = map(publication.get("policy"));
+                    var bindings =
+                            com.duozhi.outbound.ai.service.ScriptBindings.from(executionPolicy);
                     Object lineIds = data.remove("line_ids");
-                    if (lineIds == null) lineIds = List.of();
+                    if (lineIds == null)
+                        lineIds =
+                                bindings.containsKey("line_id")
+                                        ? List.of(bindings.get("line_id"))
+                                        : List.of();
                     if (!(lineIds instanceof List<?> lines) || lines.size() > 100)
                         throw new ApiError(422, "线路选择格式不正确");
                     var lineSnapshot = new ArrayList<Map<String, Object>>();
@@ -159,7 +172,10 @@ public class WorkspaceTasks {
                                         "caller_id",
                                         l.get("caller_id")));
                     }
-                    String backend = Objects.toString(data.remove("service_combo"), "inherit");
+                    String backend =
+                            Objects.toString(
+                                    data.remove("service_combo"),
+                                    Objects.toString(bindings.get("service_combo"), "inherit"));
                     if (!backend.equals("inherit") && !backend.equals("legacy"))
                         try {
                             com.duozhi.outbound.voiceai.service.VoiceAiProfiles.profile(backend);
@@ -169,13 +185,6 @@ public class WorkspaceTasks {
                     if (backend.equals("legacy")) data.put("voice_ai_pipeline", "legacy");
                     else if (!backend.equals("inherit")) data.put("voice_ai_pipeline", "inherit");
                     if (selected.isEmpty()) throw new ApiError(422, "排除及去重后没有可触达客户");
-                    Object scriptId = data.get("script_template_id");
-                    if (scriptId == null) throw new ApiError(422, "请选择已发布话术");
-                    var doc = docs.require(tenant, "script", scriptId.toString());
-                    if (doc.get("published") == null || "disabled".equals(doc.get("state")))
-                        throw new ApiError(409, "话术尚未发布或已停用");
-                    var publication = map(doc.get("published"));
-                    var executionPolicy = map(publication.get("policy"));
                     if (execution != null) {
                         var overrides = map(execution);
                         for (String field :
