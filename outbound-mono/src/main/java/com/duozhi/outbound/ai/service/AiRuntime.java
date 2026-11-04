@@ -46,6 +46,9 @@ public class AiRuntime {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.KnowledgeGaps knowledgeGaps;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ScriptReach reach;
+
     public AiRuntime(
             Store store,
             Transactions tx,
@@ -143,8 +146,13 @@ public class AiRuntime {
         Map<Object, Map<String, Object>> nodes = new HashMap<>();
         for (Map<String, Object> n : (List<Map<String, Object>>) graph.get("nodes"))
             nodes.put(n.get("id"), n);
+        Map<String, String> visitedNodes = new LinkedHashMap<>();
         Map<String, Object> source = nodes.get(d.get("current_node_id")),
                 target = nodes.get(d.get("next_node_id"));
+        if (source != null)
+            visitedNodes.put(source.get("id").toString(), source.get("label").toString());
+        if (target != null)
+            visitedNodes.put(target.get("id").toString(), target.get("label").toString());
         if (!transcript.trim().isEmpty()
                 && source != null
                 && Values.set("start", "message").contains(source.get("type"))
@@ -161,6 +169,9 @@ public class AiRuntime {
         while (d.get("next_node_id") != null
                 && Values.set("set", "branch", "jump")
                         .contains(nodes.get(d.get("next_node_id")).get("type"))) {
+            visitedNodes.put(
+                    d.get("next_node_id").toString(),
+                    nodes.get(d.get("next_node_id")).get("label").toString());
             if (!visited.add(d.get("next_node_id")))
                 throw new ApiError(409, "automatic flow cycle");
             d =
@@ -174,6 +185,9 @@ public class AiRuntime {
         data.put("flow_variables", d.get("variables"));
         Object node =
                 d.get("next_node_id") == null ? d.get("current_node_id") : d.get("next_node_id");
+        visitedNodes.put(node.toString(), nodes.get(node).get("label").toString());
+        if (reach != null)
+            reach.record(call, version.get("script_template_id"), "node", visitedNodes);
         call.put("flow_node_key", node);
         String action = d.get("action").toString();
         if (Values.set("wait", "listen", "continue").contains(action)) action = "continue";
@@ -560,6 +574,12 @@ public class AiRuntime {
                         : store.require(
                                 "campaign", CallLifecycle.tenant(call), call.get("campaign_id"));
         var matchedKnowledge = knowledge(call, policy, transcript);
+        if (reach != null && campaign.get("script_template_id") != null) {
+            var hits = new LinkedHashMap<String, String>();
+            for (var hit : matchedKnowledge)
+                hits.put(hit.get("id").toString(), hit.get("title").toString());
+            reach.record(call, campaign.get("script_template_id"), "knowledge", hits);
+        }
         Map<String, Object> context =
                 JsonSupport.map(
                         "campaign_id",

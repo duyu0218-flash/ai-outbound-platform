@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { request, session } from '../session';
 import { formatDate } from '../api';
 import { action, useData } from '../data';
+import ReachReport from '../components/ReachReport.vue';
 import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
@@ -483,16 +484,19 @@ onMounted(async () => {
       />
     </el-dialog>
     <el-tabs v-model="tab"
-      ><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
-        name="events"
-        label="事件" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
-        name="intents"
-        label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
-        name="slots"
-        label="信息采集与合格条件" /><el-tab-pane name="knowledge" label="知识与动作" /><el-tab-pane
-        name="debug"
-        label="调试" /><el-tab-pane name="history" label="版本记录"
+      ><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
+        name="dialogue"
+        label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
+        name="hangup"
+        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
+        name="flow"
+        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
+        name="knowledge"
+        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
+        name="history"
+        label="版本记录"
     /></el-tabs>
+    <ReachReport v-if="tab === 'reach'" :script-id="selected.id" />
     <OutcomeEditor v-if="tab === 'hangup'" v-model="model.policy.hangup_rules" />
     <OutcomeEditor v-if="tab === 'events'" event v-model="model.policy.events" />
     <el-card v-if="['events', 'hangup'].includes(tab)" header="规则试算">

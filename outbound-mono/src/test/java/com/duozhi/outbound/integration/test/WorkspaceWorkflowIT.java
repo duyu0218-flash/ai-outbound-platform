@@ -200,6 +200,54 @@ class WorkspaceWorkflowIT {
     }
 
     @Test
+    void reachCollectionIsScopedDeduplicatedAndDisabledByDefault() {
+        var script = api(HttpMethod.POST, "/scripts", Map.of("name", "采集测试"));
+        long scriptId = script.path("id").asLong();
+        var reach = new com.duozhi.outbound.workspace.service.ScriptReach(docs);
+        var now = java.time.LocalDateTime.of(2026, 11, 4, 9, 30);
+        Map<String, Object> call =
+                Map.of(
+                        "id",
+                        UUID.randomUUID().toString(),
+                        "tenant_id",
+                        1,
+                        "created_at",
+                        now,
+                        "script_flow_version_id",
+                        1);
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白"));
+        assertThat(reach.period(1, scriptId, "node", now.minusHours(1), now.plusHours(1)))
+                .containsEntry("total", 0L);
+        api(
+                HttpMethod.PUT,
+                "/scripts/" + scriptId + "/reach/settings",
+                Map.of("enabled", true, "revision", 0));
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白"));
+        reach.record(call, scriptId, "node", Map.of("opening", "开场白", "end", "结束"));
+        reach.record(call, scriptId, "knowledge", Map.of("faq1", "地点"));
+        var v = reach.period(1, scriptId, "node", now.minusHours(1), now.plusHours(1));
+        assertThat(v).containsEntry("total", 1L);
+        assertThat((List<?>) v.get("rows")).hasSize(2);
+        assertThat(reach.period(2, scriptId, "node", now.minusHours(1), now.plusHours(1)))
+                .containsEntry("total", 0L);
+        api(
+                HttpMethod.PUT,
+                "/scripts/" + scriptId + "/reach/settings",
+                Map.of("enabled", false, "revision", 1));
+        reach.record(call, scriptId, "node", Map.of("other", "禁采"));
+        assertThat(
+                        (List<?>)
+                                reach.period(
+                                                1,
+                                                scriptId,
+                                                "node",
+                                                now.minusHours(1),
+                                                now.plusHours(1))
+                                        .get("rows"))
+                .hasSize(2);
+    }
+
+    @Test
     void operatorCanPrepareTaskButCannotAdministerOtherWorkspaces() {
         String operator = crypto.token(UserRecords.map(account(1, "operator")));
         String agent = crypto.token(UserRecords.map(account(1, "agent")));
