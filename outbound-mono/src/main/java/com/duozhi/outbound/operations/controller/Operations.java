@@ -406,6 +406,7 @@ public class Operations {
     Map<String, String> q, HttpServletRequest r) {
         Identity i = actor(r);
         var p = filters(i, q);
+        p.put("statement_mode", config.production() ? "statement" : "simulation");
         p.put(
                 "dimension",
                 choice(
@@ -536,6 +537,31 @@ public class Operations {
         var p = base(i);
         p.put("campaign_id", campaign_id);
         return db.rows("campaignProgress", p);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.dial.service.TenantDialPolicy tenantDial;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private VoiceStatements statements;
+
+    @GetMapping("/dial-control")
+    public Object dialControl(HttpServletRequest request) {
+        var i = actor(request);
+        if (!i.isOperator()) access.admin(i);
+        var state = new LinkedHashMap<>(tenantDial.read(i));
+        state.put("voice_balance", statements.balance(i.tenant()));
+        return state;
+    }
+
+    @PutMapping("/dial-control")
+    public Object changeDialControl(
+            @RequestBody
+            Map<String, Object> b, HttpServletRequest request) {
+        var i = actor(request);
+        access.admin(i);
+        if (!(b.get("enabled") instanceof Boolean enabled)) throw new ApiError(422, "呼叫状态无效");
+        return tenantDial.update(i, enabled, (int) number(b.get("revision"), 0, Integer.MAX_VALUE));
     }
 
     @GetMapping("/seats/monitor")

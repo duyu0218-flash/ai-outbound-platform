@@ -148,6 +148,8 @@
         SUM(usage_totals.first_answers + usage_totals.repeat_answers) AS answered_attempts,
         SUM(usage_totals.telephony_seconds) AS telephony_seconds,
         SUM(usage_totals.ai_seconds) AS ai_seconds,
+        SUM(settled.amount) AS statement_cost,SUM(settled.seconds) AS bill_seconds,
+        SUM(settled.covered) AS settled_attempts,
         MAX(g.name) AS campaign_name,MAX(g.status) AS campaign_status,
         SUM(EXISTS(SELECT 1 FROM callevent ev WHERE ev.call_session_id=c.id AND ev.event_type='agent_screen_shown')) AS screen_count,
         SUM(EXISTS(SELECT 1 FROM callevent ev WHERE ev.call_session_id=c.id AND ev.event_type='handoff_lost')) AS loss_count,
@@ -174,6 +176,8 @@
         qualified_phones,
         SUM(c.status IN ('FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS failed_sessions
         <include refid="callJoin"/>
+        JOIN LATERAL (SELECT SUM(-v.signed_amount) AS amount,SUM(v.bill_seconds) AS seconds,COUNT(DISTINCT v.attempt) AS covered
+            FROM voice_statement_entry v WHERE v.tenant_id=c.tenant_id AND v.call_id=c.id AND v.kind='charge' AND v.source_mode=#{statement_mode}) settled ON TRUE
         JOIN LATERAL (SELECT COUNT(*)&gt;0 AS entered,
             COALESCE(MAX(h.state IN ('ACCEPTED','COMPLETED')),0) AS taken,
             COUNT(CASE WHEN h.state='COMPLETED' AND TIMESTAMPDIFF(MICROSECOND,h.responded_at,h.completed_at) BETWEEN 0 AND 5000000 THEN 1 END) AS short_taken,

@@ -10,6 +10,7 @@ const day = ref(dayAt(0)),
   account = ref(''),
   intent = ref('');
 const users = useData('/api/v1/ops/me');
+const queue = useData('/api/v1/ops/dial-control');
 function path(a, b, user) {
   if (!a || !b || a > b) return '';
   return (
@@ -81,6 +82,12 @@ const ceiling = computed(() => Math.max(1, ...trends.value.map((r) => r.attempts
     <p>
       外呼数量 {{ stats.attempts }} · 接通数量 {{ stats.answers }} · 接通率
       {{ pct(stats.answers, stats.attempts) }} · 通话时长 {{ stats.seconds.toFixed(2) }} 秒
+    </p>
+    <p v-if="queue.data.value">
+      当前剩余外呼量
+      {{ Number(queue.data.value.first_pending) + Number(queue.data.value.repeat_pending) }} ·
+      待首拨 {{ queue.data.value.first_pending }} · 待复拨
+      {{ queue.data.value.repeat_pending }}（租户当前队列）
     </p>
     <h3>接通会话意向分布</h3>
     <p

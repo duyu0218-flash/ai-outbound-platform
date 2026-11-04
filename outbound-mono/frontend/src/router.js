@@ -53,6 +53,7 @@ export const adminMenu = [
       ['system/voice-ai', '模型与语音服务', 'VoiceAi'],
       ['system/messaging', '短信通道与接入', 'Messaging', 'developers'],
       ['billing', '用量与费用', 'Billing'],
+      ['voice-statements', '语音结算账单', 'VoiceStatements'],
       ['settings', '平台配置', 'Settings'],
       ['operations/configs', '表单标签与连接', 'OperationsConfigs'],
       ['system', '监控与审计', 'System'],

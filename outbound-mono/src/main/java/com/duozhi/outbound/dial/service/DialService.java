@@ -125,6 +125,14 @@ public class DialService {
         this.routing = routing;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private TenantDialPolicy tenantDial;
+
+    public void available(long tenant) {
+        available();
+        if (tenantDial != null) tenantDial.requireOpen(tenant);
+    }
+
     public void available() {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false))
             throw new ApiError(503, "Java dispatch is not enabled");
@@ -137,7 +145,7 @@ public class DialService {
     }
 
     void preflightQueued(Identity identity, Map<String, Object> input) {
-        available();
+        available(identity.tenant());
         if (input.get("campaign_id") != null)
             store.require("campaign", identity.tenant(), input.get("campaign_id"));
         var contact =
@@ -163,7 +171,7 @@ public class DialService {
     }
 
     Map<String, Object> createQueued(Identity identity, Map<String, Object> input) {
-        available();
+        available(identity.tenant());
         Map<String, Object> call =
                 tx.serialized(
                         () -> {
@@ -332,7 +340,8 @@ public class DialService {
                                                     "" + tenant, k -> tx.tenant(tenant))
                                             : tx.tenant(tenant),
                             call = batch != null ? initial : tx.call(id);
-                    if (!Boolean.TRUE.equals(tenantRow.get("enabled"))
+                    if ((tenantDial != null && !tenantDial.open(tenant))
+                            || !Boolean.TRUE.equals(tenantRow.get("enabled"))
                             || !Values.set("created", "queued").contains(call.get("status")))
                         return null;
                     if (call.get("next_attempt_at") != null

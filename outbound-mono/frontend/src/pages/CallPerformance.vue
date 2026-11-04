@@ -63,6 +63,7 @@ const row = computed(() => summary.data.value?.rows?.[0] || {}),
     wait: ['坐席平均等待', 'wait_total', 'wait_samples'],
     recent: ['近5分钟等待', 'recent_wait_total', 'recent_wait_samples'],
   };
+const live = useData('/api/v1/ops/dial-control', 15000);
 const pref = 'outbound-metrics:' + session.user?.tenant_id + ':' + session.user?.id;
 let saved;
 try {
@@ -331,6 +332,30 @@ function downloadChart() {
       ></el-popover
     >
     <div class="cards">
+      <el-card
+        v-for="[label, den] in [
+          ['单个意向花费', 'ab_intents'],
+          ['单个有效进线费用', 'handoff_requests'],
+        ]"
+        :key="den"
+        ><strong>{{ label }}</strong>
+        <h2>
+          {{
+            row[den] && row.statement_cost != null && row.settled_attempts === row.attempts
+              ? (Number(row.statement_cost) / row[den]).toFixed(2) + ' 元'
+              : '—'
+          }}
+        </h2>
+        <small
+          >账单金额 {{ row.statement_cost ?? '未接入' }} / {{ row[den] ?? 0 }} · 已对账
+          {{ row.settled_attempts ?? 0 }} / {{ row.attempts ?? 0 }} 次</small
+        ></el-card
+      >
+      <el-card v-if="live.data.value"
+        ><strong>实时并发</strong>
+        <h2>{{ live.data.value.active }}</h2>
+        <small>当前租户</small></el-card
+      >
       <el-card v-for="k in shown" :key="k"
         ><strong>{{ metrics[k][0] }}</strong>
         <h2>{{ shownValue(k) }}</h2>

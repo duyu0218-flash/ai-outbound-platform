@@ -4,13 +4,33 @@ import { useRoute, useRouter } from 'vue-router';
 import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
-import { useData } from './data';
+import { useData, action } from './data';
 import { t, language, setLanguage } from './i18n';
 const props = defineProps({ role: String }),
   route = useRoute(),
   router = useRouter(),
   collapsed = ref(false),
   healthy = ref(null);
+const dial = useData(
+  () => (['admin', 'operator'].includes(session.user?.role) ? '/api/v1/ops/dial-control' : ''),
+  15000,
+);
+async function switchCalls() {
+  if (!dial.data.value) return;
+  await action(
+    () =>
+      request('/api/v1/ops/dial-control', 'PUT', {
+        enabled: !dial.data.value.enabled,
+        revision: dial.data.value.revision,
+      }),
+    {
+      confirm: dial.data.value.enabled
+        ? '停止本租户新派发？已获得资源的通话可继续。'
+        : '恢复本租户新派发？',
+      refresh: dial.load,
+    },
+  );
+}
 const unread = useData('/api/v1/ops/notices/unread', 60000);
 watch(() => route.path, unread.load);
 const opsProfile = ref(null),
@@ -156,6 +176,19 @@ async function leave() {
           ><strong>{{ t(route.meta.label || 'dashboard') }}</strong>
         </div>
         <div class="actions">
+          <template v-if="dial.data.value"
+            ><el-button link :disabled="session.user?.role !== 'admin'" @click="switchCalls"
+              >呼叫开关 {{ dial.data.value.enabled ? '开' : '关' }}</el-button
+            ><span :title="dial.data.value.updated_at">实时并发 {{ dial.data.value.active }}</span
+            ><span v-if="dial.data.value.voice_balance" aria-label="语音余额"
+              >{{ dial.data.value.voice_balance.mode === 'simulation' ? '模拟余额' : '语音余额' }}
+              {{
+                dial.data.value.voice_balance.available
+                  ? dial.data.value.voice_balance.amount + '元'
+                  : '未接入'
+              }}</span
+            ></template
+          >
           <el-tag :type="healthy === false ? 'danger' : 'success'">{{
             t(healthy === false ? 'offline' : 'online')
           }}</el-tag
