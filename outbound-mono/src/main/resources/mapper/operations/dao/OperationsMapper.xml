@@ -138,6 +138,29 @@
         <include refid="callWhere"/>
         GROUP BY dimension_key,bucket ORDER BY bucket DESC,dimension_key
     </select>
+    <select id="durations" resultType="java.util.LinkedHashMap">
+        SELECT CASE WHEN seconds IS NULL OR seconds &lt;= 0 THEN 'unknown'
+                    WHEN seconds &lt;= 10 THEN 'short' WHEN seconds &lt;= 30 THEN 'medium'
+                    WHEN seconds &lt;= 60 THEN 'long' ELSE 'extended' END AS duration_bucket,
+               COUNT(*) AS calls
+        FROM (
+            SELECT CASE #{durationKind}
+                WHEN 'total' THEN usage_data.total_seconds
+                WHEN 'ai' THEN usage_data.ai_seconds
+                WHEN 'human' THEN CASE WHEN c.mode='HUMAN_ONLY' THEN usage_data.total_seconds
+                    ELSE (SELECT SUM(TIMESTAMPDIFF(MICROSECOND,h.responded_at,h.completed_at))/1000000
+                    FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id
+                    AND h.state='COMPLETED' AND h.completed_at &gt;= h.responded_at) END
+                END AS seconds
+            <include refid="callJoin"/>
+            JOIN LATERAL (SELECT SUM(u.telephony_seconds) AS total_seconds,
+                SUM(u.ai_seconds) AS ai_seconds,COUNT(*) AS answered
+                FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id
+                AND u.answered_at IS NOT NULL) usage_data ON usage_data.answered &gt; 0
+            WHERE c.tenant_id=#{tenantId}
+            <include refid="callWhere"/>
+        ) measured GROUP BY duration_bucket
+    </select>
     <select id="campaignProgress" resultType="java.util.LinkedHashMap">
         SELECT g.id,g.name,g.status,g.concurrency,(SELECT COUNT(*) FROM campaigncontact cc WHERE
         cc.campaign_id=g.id) AS contacts,COUNT(c.id) AS sessions,COUNT(DISTINCT c.phone) AS

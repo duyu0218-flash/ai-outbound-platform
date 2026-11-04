@@ -501,6 +501,13 @@ class OperationsHttpIT {
                             6.0,
                             "duration_source",
                             "provider"));
+        var totalBucket = get("/reports/durations?kind=total").get(0);
+        assertThat(totalBucket.path("duration_bucket").asText()).isEqualTo("medium");
+        assertThat(totalBucket.path("calls").asInt()).isEqualTo(1);
+        assertThat(get("/reports/durations?kind=ai").get(0).path("duration_bucket").asText())
+                .isEqualTo("medium");
+        assertThat(get("/reports/durations?kind=human").get(0).path("duration_bucket").asText())
+                .isEqualTo("unknown");
         var usage =
                 get("/reports?dimension=flow_version&granularity=minute&flow_version_id=0")
                         .path("rows")

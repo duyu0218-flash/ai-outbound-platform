@@ -277,6 +277,11 @@ onMounted(async () => {
       ><template #actions="{ row }"
         ><el-button link @click="selected = row">查看通话证据</el-button
         ><el-button
+          v-if="row.contact_id && !row.owner_id && row.status === 'completed'"
+          link
+          @click="convert(row)"
+          >生成线索</el-button
+        ><el-button
           v-if="row.contact_id"
           link
           @click="

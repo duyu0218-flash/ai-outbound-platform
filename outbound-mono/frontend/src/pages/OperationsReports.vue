@@ -58,6 +58,38 @@ const columns = computed(() => [
     ...visible.value.map((k) => ({ key: k, label: labels[k], sortable: true })),
   ]),
   max = computed(() => Math.max(1, ...rows.value.map((r) => r.sessions || 0)));
+const durationKind = ref('total'),
+  durations = ref([]),
+  durationError = ref('');
+const durationTotal = computed(() => durations.value.reduce((n, r) => n + Number(r.calls), 0));
+const durationLabels = {
+  short: '1–10秒',
+  medium: '10–30秒',
+  long: '30–60秒',
+  extended: '60秒以上',
+  unknown: '无有效时长',
+};
+let durationRequest = 0;
+async function loadDurations() {
+  const requestId = ++durationRequest;
+  try {
+    const result = await ops(
+      '/reports/durations?' + query({ ...params(), kind: durationKind.value }),
+    );
+    if (requestId === durationRequest) {
+      durations.value = result;
+      durationError.value = '';
+    }
+  } catch (e) {
+    if (requestId === durationRequest) {
+      durations.value = [];
+      durationError.value = e.message;
+    }
+  }
+}
+function durationCount(bucket) {
+  return Number(durations.value.find((r) => r.duration_bucket === bucket)?.calls || 0);
+}
 function params() {
   const f = { ...q };
   for (const k of ['from', 'until']) if (f[k]) f[k] = new Date(f[k]).toISOString();
@@ -77,6 +109,7 @@ async function load() {
     if (!isCurrent()) return;
     rows.value = data.rows;
     definition.value = data.definition;
+    await loadDurations();
     if (profile.value.administrator) tasks.value = await ops('/campaigns');
   } catch (e) {
     if (isCurrent()) error.value = e.message;
@@ -216,7 +249,24 @@ onMounted(async () => {
             label
           }}</el-checkbox></el-checkbox-group
         ></el-card
-      ><el-card header="会话分布"
+      ><el-card header="通话时长分布">
+        <el-radio-group v-model="durationKind" @change="loadDurations" aria-label="通话时长类型">
+          <el-radio-button value="ai">AI</el-radio-button
+          ><el-radio-button value="human">人工</el-radio-button
+          ><el-radio-button value="total">总时长</el-radio-button>
+        </el-radio-group>
+        <el-alert v-if="durationError" type="error" :title="durationError" />
+        <p>
+          接通总数 {{ durationTotal }}。每通按会话累计，分段含右端点。无对应时长的接通也计入分母。
+        </p>
+        <p v-for="(label, bucket) in durationLabels" :key="bucket">
+          {{ label }} · {{ durationCount(bucket) }} 通 ·
+          {{
+            durationTotal ? ((durationCount(bucket) * 100) / durationTotal).toFixed(2) + '%' : '—'
+          }}
+        </p>
+      </el-card>
+      <el-card header="会话分布"
         ><p>{{ definition }}</p>
         <div
           v-for="row in rows.slice(0, 20)"

@@ -356,6 +356,17 @@ public class Operations {
                 p);
     }
 
+    @GetMapping("/reports/durations")
+    public Object durations(@RequestParam
+    Map<String, String> q, HttpServletRequest request) {
+        var p = filters(actor(request), q);
+        p.put(
+                "durationKind",
+                choice(q.getOrDefault("kind", "total"), Set.of("ai", "human", "total")));
+        p.putIfAbsent("from", Store.now().minusDays(30));
+        return db.rows("durations", p);
+    }
+
     @GetMapping("/reports/export")
     public ResponseEntity<byte[]> reportExport(
             @RequestParam
