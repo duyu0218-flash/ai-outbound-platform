@@ -8,6 +8,7 @@ import { action, useData } from '../data';
 import ReachReport from '../components/ReachReport.vue';
 import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
+import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
 import ScriptAudio from '../components/ScriptAudio.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -527,19 +528,25 @@ onMounted(async () => {
       />
     </el-dialog>
     <el-tabs v-model="tab"
-      ><el-tab-pane name="audio" label="个性录音" /><el-tab-pane
-        name="reach"
-        label="节点到达率" /><el-tab-pane name="dialogue" label="基本信息与对话" /><el-tab-pane
-        name="events"
-        label="事件" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
-        name="intents"
-        label="意图管理" /><el-tab-pane name="flow" label="流程画布" /><el-tab-pane
-        name="slots"
-        label="信息采集与合格条件" /><el-tab-pane name="knowledge" label="知识与动作" /><el-tab-pane
-        name="debug"
-        label="调试" /><el-tab-pane name="history" label="版本记录"
+      ><el-tab-pane name="settings" label="流程设置" /><el-tab-pane
+        name="audio"
+        label="个性录音" /><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
+        name="dialogue"
+        label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
+        name="hangup"
+        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
+        name="flow"
+        label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
+        name="knowledge"
+        label="知识与动作" /><el-tab-pane name="debug" label="调试" /><el-tab-pane
+        name="history"
+        label="版本记录"
     /></el-tabs>
-    <ScriptAudio v-if="tab === 'audio'" :script-id="selected.id" /><ReachReport
+    <GeneralFlowSettings
+      v-if="tab === 'settings'"
+      v-model="model.policy"
+      @section="tab = $event"
+    /><ScriptAudio v-if="tab === 'audio'" :script-id="selected.id" /><ReachReport
       v-if="tab === 'reach'"
       :script-id="selected.id"
     />

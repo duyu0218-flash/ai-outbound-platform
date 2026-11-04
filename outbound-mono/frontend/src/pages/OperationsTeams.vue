@@ -9,6 +9,14 @@ const orderKey =
   JSON.stringify([location.pathname, session.user?.tenant_id, session.user?.id]);
 const below = ref(localStorage.getItem(orderKey) === 'below'),
   dragging = ref(false);
+function startDrag(e) {
+  e.dataTransfer.setData('text/plain', 'seat-monitor');
+  e.dataTransfer.effectAllowed = 'move';
+  dragging.value = true;
+}
+function drop(e, after) {
+  if (e.dataTransfer.getData('text/plain') === 'seat-monitor') place(after);
+}
 function place(after) {
   below.value = after;
   localStorage.setItem(orderKey, after ? 'below' : 'above');
@@ -81,7 +89,7 @@ onMounted(load);
   >
   <div
     @dragover.prevent
-    @drop.prevent="dragging && place(false)"
+    @drop.prevent="drop($event, false)"
     style="min-height: 32px"
     aria-label="移至团队列表上方"
   >
@@ -89,7 +97,7 @@ onMounted(load);
     <div v-if="!below">
       <button
         draggable="true"
-        @dragstart="dragging = true"
+        @dragstart="startDrag"
         @dragend="dragging = false"
         @click="place(true)"
         aria-label="调整坐席面板位置"
@@ -119,7 +127,7 @@ onMounted(load);
   >
   <div
     @dragover.prevent
-    @drop.prevent="dragging && place(true)"
+    @drop.prevent="drop($event, true)"
     style="min-height: 32px"
     aria-label="移至团队列表下方"
   >
@@ -127,7 +135,7 @@ onMounted(load);
     <div v-if="below">
       <button
         draggable="true"
-        @dragstart="dragging = true"
+        @dragstart="startDrag"
         @dragend="dragging = false"
         @click="place(false)"
         aria-label="调整坐席面板位置"

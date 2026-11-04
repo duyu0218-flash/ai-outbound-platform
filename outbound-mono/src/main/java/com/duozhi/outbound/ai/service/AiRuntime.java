@@ -1167,7 +1167,11 @@ public class AiRuntime {
                         int count = JsonSupport.integer(data.get("silence_count"), 0) + 1;
                         data.put("silence_count", count);
                         boolean exhausted =
-                                count > JsonSupport.integer(policy.get("max_clarifications"), 2);
+                                FlowSettings.from(policy).get("timeout_count") instanceof Number cap
+                                        ? count >= cap.intValue()
+                                        : count
+                                                > JsonSupport.integer(
+                                                        policy.get("max_clarifications"), 2);
                         result =
                                 ConversationPolicy.reply(
                                         exhausted

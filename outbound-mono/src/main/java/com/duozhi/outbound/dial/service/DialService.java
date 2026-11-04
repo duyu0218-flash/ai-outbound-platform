@@ -434,6 +434,24 @@ public class DialService {
                                 }
                         }
                     }
+                    if (reason.isEmpty() && workspaceTask != null) {
+                        var options =
+                                com.duozhi.outbound.ai.service.FlowSettings.from(
+                                        com.duozhi.outbound.workspace.service.WorkspaceDocuments
+                                                .map(workspaceTask.get("policy")));
+                        if (options.get("frequency_hours") instanceof Number h
+                                && h.intValue() > 0) {
+                            long prior =
+                                    workspace.jdbc.queryForObject(
+                                            "SELECT COUNT(*) FROM callsession c JOIN callevent e ON e.call_session_id=c.id AND e.event_type='dial_attempt_claimed' WHERE c.tenant_id=? AND c.phone=? AND e.created_at>=?",
+                                            Long.class,
+                                            tenant,
+                                            call.get("phone"),
+                                            Store.now().minusHours(h.intValue()));
+                            if (prior >= ((Number) options.get("frequency_count")).intValue())
+                                reason = "script_frequency_limit";
+                        }
+                    }
                     Map<String, Object> compliance = settings.get(tenant, "compliance");
                     ZonedDateTime local =
                             (batch == null ? Instant.now() : batch.instant)
@@ -892,7 +910,13 @@ public class DialService {
                     batch == null
                             ? store.require("campaign", tenant, call.get("campaign_id"))
                             : batch.campaigns.get(tenant + ":" + call.get("campaign_id"));
-            metadata.put("recording_enabled", campaign.get("recording_enabled"));
+            var opts = com.duozhi.outbound.ai.service.FlowSettings.from(scenario);
+            metadata.put(
+                    "recording_enabled",
+                    "disabled".equals(opts.get("record_at"))
+                            ? false
+                            : campaign.get("recording_enabled"));
+            if (!opts.isEmpty()) metadata.put("flow_settings", opts);
             metadata.put("hangup_sms_enabled", campaign.get("hangup_sms_enabled"));
         }
         return metadata;

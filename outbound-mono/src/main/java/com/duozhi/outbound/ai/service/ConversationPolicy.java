@@ -685,6 +685,9 @@ public class ConversationPolicy {
                                 call.get("attempts"),
                                 true));
         String intent = ScriptIntents.classify(transcript, policy);
+        if ("machine_candidate".equals(intent)
+                && Boolean.FALSE.equals(FlowSettings.from(policy).get("block_machine")))
+            intent = "unclear";
         Map<String, Object> pending =
                 data.get("pending") instanceof Map
                         ? (Map<String, Object>) data.get("pending")
@@ -929,6 +932,8 @@ public class ConversationPolicy {
                 && (Boolean.TRUE.equals(data.get("model_pending"))
                         || Boolean.TRUE.equals(data.get("media_failure")))) return;
         if (state.get("deadline") != null && kind.equals(state.get("timer_kind"))) return;
+        boolean ordinarySilence =
+                "silence".equals(kind) && !Boolean.TRUE.equals(data.get("extended_wait"));
         int seconds =
                 JsonSupport.integer(
                         policy.get(
@@ -942,6 +947,8 @@ public class ConversationPolicy {
         if ("handoff".equals(kind)) seconds = workforce.timeout(call, seconds);
         if ("failure".equals(kind)) seconds = 0;
         LocalDateTime deadline = Store.now().plusSeconds(seconds);
+        if (ordinarySilence && FlowSettings.from(policy).get("response_ms") instanceof Number ms)
+            deadline = Store.now().plusNanos(ms.longValue() * 1000000);
         state.putAll(
                 JsonSupport.map(
                         "generation", generation, "timer_kind", kind, "deadline", deadline));

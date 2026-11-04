@@ -643,12 +643,20 @@ public final class VoiceGateway implements AutoCloseable {
             bindings.put(binding.uuid, binding);
             Map<String, String> vars = new LinkedHashMap<>();
             vars.put("origination_uuid", binding.uuid);
-            vars.put("originate_timeout", settings.get("FREESWITCH_ORIGINATE_TIMEOUT_SEC", "45"));
+            var flow = Support.map(binding.metadata.get("flow_settings"));
+            long ringCap = settings.number("FREESWITCH_ORIGINATE_TIMEOUT_SEC", 45, 1, 300);
+            vars.put(
+                    "originate_timeout",
+                    String.valueOf(
+                            Math.min(
+                                    ringCap,
+                                    Support.integer(flow, "ring_seconds", (int) ringCap))));
             vars.put("ignore_early_media", "true");
             long duration =
                     Math.min(
                             Support.integer(route, "max_duration_sec", 300),
                             settings.number("VOICE_MAX_DURATION_SEC", 300, 1, 3600));
+            duration = Math.min(duration, Support.integer(flow, "max_seconds", (int) duration));
             vars.put("execute_on_answer", "'sched_hangup +" + duration + " ALLOTTED_TIMEOUT'");
             vars.put("hangup_after_bridge", "true");
             vars.put("platform_call_id_b64", b64(binding.call));
@@ -1491,6 +1499,17 @@ public final class VoiceGateway implements AutoCloseable {
         afterNotice(binding, completion);
     }
 
+    private void startRecording(Binding binding) throws Exception {
+        String filename =
+                binding.call.replaceAll("[^A-Za-z0-9_.-]", "_") + "-" + binding.uuid + ".wav";
+        String path =
+                Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings"))
+                        .resolve(filename)
+                        .toString();
+        esl.command("uuid_record " + binding.uuid + " start " + quote(path), false);
+        binding.recordingPath = path;
+    }
+
     private void afterNotice(Binding binding, CompletableFuture<Void> completion) throws Exception {
         // Serialise commands which can create resources with the stop fence; never wait for an
         // event under this monitor.
@@ -1498,17 +1517,27 @@ public final class VoiceGateway implements AutoCloseable {
             if (binding.stopped) return;
             if (!Boolean.FALSE.equals(binding.metadata.get("recording_enabled"))
                     && binding.recordingPath.isEmpty()) {
-                String filename =
-                        binding.call.replaceAll("[^A-Za-z0-9_.-]", "_")
-                                + "-"
-                                + binding.uuid
-                                + ".wav";
-                String path =
-                        Path.of(settings.get("FREESWITCH_RECORDING_DIR", "/recordings"))
-                                .resolve(filename)
-                                .toString();
-                esl.command("uuid_record " + binding.uuid + " start " + quote(path), false);
-                binding.recordingPath = path;
+                int delay =
+                        (int)
+                                Support.integer(
+                                        Support.map(binding.metadata.get("flow_settings")),
+                                        "record_delay",
+                                        0);
+                if (delay <= 0) startRecording(binding);
+                else
+                    CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS)
+                            .execute(
+                                    () -> {
+                                        synchronized (binding) {
+                                            if (binding.stopped || !binding.recordingPath.isEmpty())
+                                                return;
+                                            try {
+                                                startRecording(binding);
+                                            } catch (Exception e) {
+                                                startupFailed(binding);
+                                            }
+                                        }
+                                    });
             }
             if (binding.human) {
                 completion.complete(null);
