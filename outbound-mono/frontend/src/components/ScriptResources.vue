@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useData } from '../data';
+import { ElMessageBox } from 'element-plus';
+import { campaignCommand } from '../operations';
+import { request } from '../session';
 import { session } from '../session';
-const props = defineProps({ section: String }),
+const props = defineProps({ section: String, scriptId: [String, Number] }),
   policy = defineModel({ required: true }),
   emit = defineEmits(['section']);
 const lines = useData('/api/v1/workspace/task-resources/selectable-lines'),
@@ -41,6 +44,52 @@ async function block(remove) {
     error.value = e.message;
   }
 }
+const contact = ref(null),
+  prepared = ref(null),
+  dialing = ref(false),
+  sent = ref(false);
+async function prepareManual() {
+  if (dialing.value || !contact.value || !b.value.line_id) return;
+  dialing.value = true;
+  error.value = '';
+  msg.value = '';
+  try {
+    prepared.value = await request('/api/v1/workspace/tasks', 'POST', {
+      name: '话术手拨 ' + new Date().toISOString(),
+      mode: 'ai_only',
+      script_template_id: Number(props.scriptId),
+      contact_ids: [contact.value],
+      line_ids: [b.value.line_id],
+      concurrency: 1,
+      retry_limit: 0,
+      hangup_sms_enabled: false,
+    });
+    sent.value = false;
+    msg.value = '已准备单号手拨任务 #' + prepared.value.id;
+  } catch (e) {
+    error.value = e.message;
+  } finally {
+    dialing.value = false;
+  }
+}
+async function dialManual() {
+  if (dialing.value || sent.value || !prepared.value) return;
+  try {
+    await ElMessageBox.confirm('通过当前选定线路呼叫此联系人？', '确认手拨');
+  } catch {
+    return;
+  }
+  dialing.value = true;
+  try {
+    await campaignCommand(prepared.value.id, 'start');
+    sent.value = true;
+    msg.value = '已启动单号手拨任务 #' + prepared.value.id;
+  } catch (e) {
+    error.value = e.message;
+  } finally {
+    dialing.value = false;
+  }
+}
 function addOpening() {
   if (
     op.value.trim() &&
@@ -59,7 +108,11 @@ function addOpening() {
         >话术默认线路<select
           aria-label="话术默认线路"
           :value="b.line_id || 0"
-          @change="update('line_id', Number($event.target.value))"
+          @change="
+            update('line_id', Number($event.target.value));
+            prepared = null;
+            sent = false;
+          "
         >
           <option :value="0">由任务选择</option>
           <option v-for="r in lines.data.value || []" :key="r.id" :value="r.id">
@@ -67,8 +120,24 @@ function addOpening() {
           </option>
         </select></label
       >
-      <p>建任务时带入默认线路，运营可以改选。</p></template
-    >
+      <p>建任务时带入默认线路，运营可以改选。单号手拨使用已发布话术并执行同一套禁呼和授权检查。</p>
+      <label
+        >手拨联系人编号
+        <el-input-number
+          v-model="contact"
+          :min="1"
+          :precision="0"
+          aria-label="手拨联系人编号"
+          @change="
+            prepared = null;
+            sent = false;
+          " /></label
+      ><el-button :disabled="dialing || !b.line_id || !contact" @click="prepareManual"
+        >准备单号手拨</el-button
+      ><el-button :disabled="!prepared || dialing || sent" @click="dialManual">确认手拨</el-button>
+      <p>{{ msg }}</p>
+      <el-alert v-if="error" type="error" :title="error"
+    /></template>
     <template v-else-if="section === '黑名单'"
       ><el-input
         v-model="n"

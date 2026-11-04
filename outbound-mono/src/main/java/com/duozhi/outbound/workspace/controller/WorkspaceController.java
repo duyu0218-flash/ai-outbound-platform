@@ -559,6 +559,21 @@ public class WorkspaceController {
     }
 
     @AdminPermission(value = "product:write", operator = true)
+    @PostMapping("/scripts/{id}/simulate-timing")
+    public Object simulateTiming(
+            @PathVariable
+            String id,
+            @RequestBody
+            Map<String, Object> sample,
+            HttpServletRequest r) {
+        var cfg =
+                com.duozhi.outbound.ai.service.FlowSettings.from(
+                        map(published(script(id, r)).get("policy")));
+        if (cfg.isEmpty()) throw new ApiError(409, "请先发布一般设置");
+        return com.duozhi.outbound.ai.service.FlowSettings.simulate(cfg, sample);
+    }
+
+    @AdminPermission(value = "product:write", operator = true)
     @PostMapping("/scripts/{id}/rule-preview")
     public Object previewOutcome(
             @PathVariable

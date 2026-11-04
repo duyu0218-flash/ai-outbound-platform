@@ -311,7 +311,10 @@ public class AiRuntime {
                                                                             .get("status"))
                                             ? ConversationPolicy.reply(
                                                     "刚才没有听清，请您再说一遍需要办理的事项。", "continue")
-                                            : "machine".equals(payload.get("answer_class"))
+                                            : ("machine".equals(payload.get("answer_class"))
+                                                            && FlowSettings.machineBlocked(
+                                                                    FlowSettings.from(
+                                                                            product.policy(state))))
                                                     ? ConversationPolicy.reply("", "hangup")
                                                     : product.prepare(call, transcript, state),
                             policy = product.policy(state);
@@ -1175,11 +1178,10 @@ public class AiRuntime {
                         int count = JsonSupport.integer(data.get("silence_count"), 0) + 1;
                         data.put("silence_count", count);
                         boolean exhausted =
-                                FlowSettings.from(policy).get("timeout_count") instanceof Number cap
-                                        ? count >= cap.intValue()
-                                        : count
-                                                > JsonSupport.integer(
-                                                        policy.get("max_clarifications"), 2);
+                                FlowSettings.timedOut(
+                                        FlowSettings.from(policy),
+                                        count,
+                                        JsonSupport.integer(policy.get("max_clarifications"), 2));
                         result =
                                 ConversationPolicy.reply(
                                         exhausted

@@ -3,7 +3,7 @@ import { computed, ref, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useData, action } from '../data';
 import { session, request } from '../session';
-import { query, prefix } from '../operations';
+import { campaignCommand, query, prefix } from '../operations';
 const route = useRoute(),
   router = useRouter(),
   tab = ref('quick');
@@ -146,7 +146,7 @@ function drill(r) {
   });
 }
 async function command(r, cmd) {
-  await action(() => request('/api/v1/campaigns/' + r.dimension_key + '/' + cmd, 'POST'), {
+  await action(() => campaignCommand(r.dimension_key, cmd), {
     confirm: cmd === 'stop' ? '终止这个任务并停止后续拨打？' : '启动任务并使用其已配置线路？',
     refresh: search,
   });

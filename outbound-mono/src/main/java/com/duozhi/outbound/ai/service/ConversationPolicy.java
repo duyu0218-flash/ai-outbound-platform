@@ -696,8 +696,7 @@ public class ConversationPolicy {
                                 true));
         String intent = ScriptIntents.classify(transcript, policy);
         if ("machine_candidate".equals(intent)
-                && Boolean.FALSE.equals(FlowSettings.from(policy).get("block_machine")))
-            intent = "unclear";
+                && !FlowSettings.machineBlocked(FlowSettings.from(policy))) intent = "unclear";
         Map<String, Object> pending =
                 data.get("pending") instanceof Map
                         ? (Map<String, Object>) data.get("pending")
@@ -957,8 +956,13 @@ public class ConversationPolicy {
         if ("handoff".equals(kind)) seconds = workforce.timeout(call, seconds);
         if ("failure".equals(kind)) seconds = 0;
         LocalDateTime deadline = Store.now().plusSeconds(seconds);
-        if (ordinarySilence && FlowSettings.from(policy).get("response_ms") instanceof Number ms)
-            deadline = Store.now().plusNanos(ms.longValue() * 1000000);
+        if (ordinarySilence)
+            deadline =
+                    Store.now()
+                            .plusNanos(
+                                    FlowSettings.responseMillis(
+                                                    FlowSettings.from(policy), seconds * 1000L)
+                                            * 1000000L);
         state.putAll(
                 JsonSupport.map(
                         "generation", generation, "timer_kind", kind, "deadline", deadline));

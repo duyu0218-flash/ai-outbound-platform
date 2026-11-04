@@ -480,7 +480,14 @@ public final class VoiceGateway implements AutoCloseable {
         ledger.transaction(
                 db -> {
                     double now = LocalLedger.now(),
-                            duration = settings.number("VOICE_MOCK_OCCUPANCY_SEC", 3, 2, 3600);
+                            duration =
+                                    com.duozhi.outbound.ai.service.FlowSettings.cap(
+                                            Support.map(
+                                                    Support.map(payload.get("metadata"))
+                                                            .get("flow_settings")),
+                                            "max_seconds",
+                                            settings.number(
+                                                    "VOICE_MOCK_OCCUPANCY_SEC", 3, 2, 3600));
                     String encoded = new String(Support.canonical(result), StandardCharsets.UTF_8);
                     LocalLedger.execute(
                             db, "CALL voice_mock_accept(?,?,?,?)", uuid, encoded, now, duration);
@@ -648,15 +655,15 @@ public final class VoiceGateway implements AutoCloseable {
             vars.put(
                     "originate_timeout",
                     String.valueOf(
-                            Math.min(
-                                    ringCap,
-                                    Support.integer(flow, "ring_seconds", (int) ringCap))));
+                            com.duozhi.outbound.ai.service.FlowSettings.cap(
+                                    flow, "ring_seconds", ringCap)));
             vars.put("ignore_early_media", "true");
             long duration =
                     Math.min(
                             Support.integer(route, "max_duration_sec", 300),
                             settings.number("VOICE_MAX_DURATION_SEC", 300, 1, 3600));
-            duration = Math.min(duration, Support.integer(flow, "max_seconds", (int) duration));
+            duration =
+                    com.duozhi.outbound.ai.service.FlowSettings.cap(flow, "max_seconds", duration);
             vars.put("execute_on_answer", "'sched_hangup +" + duration + " ALLOTTED_TIMEOUT'");
             vars.put("hangup_after_bridge", "true");
             vars.put("platform_call_id_b64", b64(binding.call));
@@ -1518,11 +1525,8 @@ public final class VoiceGateway implements AutoCloseable {
             if (!Boolean.FALSE.equals(binding.metadata.get("recording_enabled"))
                     && binding.recordingPath.isEmpty()) {
                 int delay =
-                        (int)
-                                Support.integer(
-                                        Support.map(binding.metadata.get("flow_settings")),
-                                        "record_delay",
-                                        0);
+                        com.duozhi.outbound.ai.service.FlowSettings.delay(
+                                Support.map(binding.metadata.get("flow_settings")));
                 if (delay <= 0) startRecording(binding);
                 else
                     CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS)

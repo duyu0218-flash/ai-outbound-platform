@@ -10,6 +10,7 @@ import OutcomeEditor from '../components/OutcomeEditor.vue';
 import IntentEditor from '../components/IntentEditor.vue';
 import HangupMessageRule from '../components/HangupMessageRule.vue';
 import ScriptResources from '../components/ScriptResources.vue';
+import TimingSimulation from '../components/TimingSimulation.vue';
 import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
 import ScriptAudio from '../components/ScriptAudio.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
@@ -592,8 +593,9 @@ onMounted(async () => {
         ><el-radio-button v-for="n in resourceTabs" :value="n" :key="n">{{
           n
         }}</el-radio-button></el-radio-group
-      ><ScriptResources v-model="model.policy" :section="resourceTab"
+      ><ScriptResources :script-id="selected.id" v-model="model.policy" :section="resourceTab"
     /></template>
+    <TimingSimulation v-if="tab === 'settings'" :script-id="selected.id" />
     <GeneralFlowSettings
       v-if="tab === 'settings'"
       v-model="model.policy"

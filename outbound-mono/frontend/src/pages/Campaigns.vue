@@ -1,4 +1,5 @@
 <script setup>
+import { campaignCommand } from '../operations';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { request, download, session } from '../session';
@@ -260,21 +261,19 @@ async function imported(value) {
   model.value.batch_ids = [...new Set([...(model.value.batch_ids || []), value.batch_id])];
 }
 function command(row, kind) {
-  return action(
-    () =>
-      request(
-        `/api/v1/campaigns/${row.id}/${kind === 'start' ? 'start?async_dial=true' : kind}`,
-        'POST',
-      ),
-    {
-      confirm: ['start', 'stop'].includes(kind)
-        ? kind === 'start'
-          ? '启动后将按当前线路和通道配置执行，可能产生真实话费及模型费用。确认启动该任务？'
-          : '确认停止任务？'
-        : undefined,
-      refresh: query.load,
-    },
-  );
+  return action(() => campaignCommand(row.id, kind), {
+    confirm: ['start', 'stop'].includes(kind)
+      ? kind === 'start'
+        ? '启动后将按当前线路和通道配置执行，可能产生真实话费及模型费用。确认启动该任务？'
+        : '确认停止任务？'
+      : undefined,
+    refresh: query.load,
+  }).catch(async (e) => {
+    if (e !== 'cancel' && e !== 'close') {
+      error.value = e.message;
+      await query.load();
+    }
+  });
 }
 onMounted(() => {
   if (route.query.batch_id) edit();

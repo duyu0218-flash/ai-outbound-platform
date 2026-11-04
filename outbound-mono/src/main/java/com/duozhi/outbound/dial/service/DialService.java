@@ -456,8 +456,8 @@ public class DialService {
                                             tenant,
                                             call.get("phone"),
                                             Store.now().minusHours(h.intValue()));
-                            if (prior >= ((Number) options.get("frequency_count")).intValue())
-                                reason = "script_frequency_limit";
+                            if (com.duozhi.outbound.ai.service.FlowSettings.overFrequency(
+                                    options, prior)) reason = "script_frequency_limit";
                         }
                     }
                     Map<String, Object> compliance = settings.get(tenant, "compliance");
@@ -921,9 +921,8 @@ public class DialService {
             var opts = com.duozhi.outbound.ai.service.FlowSettings.from(scenario);
             metadata.put(
                     "recording_enabled",
-                    "disabled".equals(opts.get("record_at"))
-                            ? false
-                            : campaign.get("recording_enabled"));
+                    com.duozhi.outbound.ai.service.FlowSettings.recording(
+                            opts, !Boolean.FALSE.equals(campaign.get("recording_enabled"))));
             if (!opts.isEmpty()) metadata.put("flow_settings", opts);
             metadata.put("hangup_sms_enabled", campaign.get("hangup_sms_enabled"));
         }

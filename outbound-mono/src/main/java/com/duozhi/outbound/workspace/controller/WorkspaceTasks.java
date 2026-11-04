@@ -205,10 +205,9 @@ public class WorkspaceTasks {
                     }
                     executionPolicy = product.normalize(executionPolicy);
                     routing.validate(tenant, executionPolicy);
-                    if (Boolean.FALSE.equals(
+                    if (!com.duozhi.outbound.ai.service.FlowSettings.humanAllowed(
                                     com.duozhi.outbound.ai.service.FlowSettings.from(
-                                                    executionPolicy)
-                                            .get("human_enabled"))
+                                            executionPolicy))
                             && Set.of("ai_handoff", "mixed_human_first")
                                     .contains(Objects.toString(data.get("mode"), "")))
                         throw new ApiError(422, "此话术已关闭人机协同，请使用纯 AI 任务");
