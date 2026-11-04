@@ -159,7 +159,7 @@ public class AiRuntime {
                             (Map<String, Object>) d.get("variables"));
         Set<Object> visited = new HashSet<>();
         while (d.get("next_node_id") != null
-                && Values.set("set", "branch")
+                && Values.set("set", "branch", "jump")
                         .contains(nodes.get(d.get("next_node_id")).get("type"))) {
             if (!visited.add(d.get("next_node_id")))
                 throw new ApiError(409, "automatic flow cycle");

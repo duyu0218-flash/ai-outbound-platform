@@ -105,8 +105,14 @@ public class ScriptFlows {
             if (!Values.set("handoff", "hangup").contains(n.get("type"))
                     && !outgoing.containsKey(n.get("id")))
                 throw new ApiError(400, "non-terminal node requires an outgoing edge");
+        for (Map<String, Object> n : nodes.values()) {
+            if ("jump".equals(n.get("type"))
+                    && (outgoing.get(n.get("id")).size() != 1
+                            || !special.contains(n.get("id") + ":always")))
+                throw new ApiError(400, "跳转节点需要一条无条件连线");
+        }
         for (Map<String, Object> n : nodes.values())
-            if (Values.set("set", "branch").contains(n.get("type"))) {
+            if (Values.set("set", "branch", "jump").contains(n.get("type"))) {
                 Set<String> visited = new HashSet<>();
                 Deque<String> stack =
                         new ArrayDeque<>(
@@ -115,7 +121,7 @@ public class ScriptFlows {
                     String target = stack.pop();
                     if (target.equals(n.get("id")))
                         throw new ApiError(400, "automatic nodes contain a cycle");
-                    if (Values.set("set", "branch").contains(nodes.get(target).get("type"))
+                    if (Values.set("set", "branch", "jump").contains(nodes.get(target).get("type"))
                             && visited.add(target))
                         stack.addAll(outgoing.getOrDefault(target, Collections.emptyList()));
                 }
@@ -234,6 +240,8 @@ public class ScriptFlows {
                         "set",
                         "continue",
                         "branch",
+                        "continue",
+                        "jump",
                         "continue");
         return JsonSupport.map(
                 "current_node_id",

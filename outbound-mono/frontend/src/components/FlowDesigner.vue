@@ -26,6 +26,7 @@ const selected = computed(() => versions.data.value?.find((v) => v.id === select
     collect: '采集信息',
     set: '设置变量',
     branch: '条件分支',
+    jump: '跳转节点',
     handoff: '转人工',
     hangup: '结束通话',
   };
@@ -49,7 +50,7 @@ async function create() {
     }),
   );
   await versions.load();
-  select(item.id);
+  if (item) select(item.id);
 }
 async function save() {
   await action(
@@ -124,6 +125,29 @@ function drag(event, node) {
   document.addEventListener('mouseup', up);
 }
 onUnmounted(clearDrag);
+const branchPresets = {
+  助手: ['intent', 'machine_candidate'],
+  全部: ['always', ''],
+  未匹配: ['always', ''],
+  肯定: ['intent', 'affirm'],
+  否定: ['intent', 'deny,rejected'],
+  在忙: ['keyword', '在忙,开会,开车,没空'],
+};
+function setPreset(label) {
+  const [condition, keywords] = branchPresets[label];
+  Object.assign(edge.value, { label, condition, keywords });
+}
+function setStart() {
+  const start = graph.value.nodes.find((n) => n.type === 'start');
+  graph.value.edges = graph.value.edges.filter((e) => e.source !== start.id);
+  graph.value.edges.push({
+    id: 'edge-' + crypto.randomUUID(),
+    source: start.id,
+    target: selectedNodeId.value,
+    condition: 'always',
+    keywords: [],
+  });
+}
 function addEdge() {
   if (!edge.value.source || !edge.value.target) return;
   if (edge.value.source === edge.value.target) return ElMessage.error('起点和终点不能相同');
@@ -148,6 +172,7 @@ function node(id) {
   return graph.value.nodes.find((n) => n.id === id);
 }
 const edgeFields = computed(() => [
+  { key: 'label', label: '分支名称' },
   {
     key: 'source',
     label: '起点',
@@ -185,7 +210,13 @@ const edgeFields = computed(() => [
           :value="item.id"
           :label="`v${item.version} · ${item.status === 'draft' ? '草稿' : '已发布'}`" /></el-select
       ><el-button @click="create">{{ selected ? '复制为新草稿' : '创建画布' }}</el-button
-      ><el-button type="primary" :disabled="!draft" @click="save">保存</el-button
+      ><el-input
+        v-if="selected"
+        v-model="selected.name"
+        aria-label="流程名称"
+        :disabled="!draft"
+        style="max-width: 200px"
+      /><el-button type="primary" :disabled="!draft" @click="save">保存</el-button
       ><el-button :disabled="!draft" @click="publish">发布版本</el-button>
     </div>
     <el-alert v-if="versions.error.value" :title="versions.error.value" type="error" /><el-empty
@@ -219,7 +250,10 @@ const edgeFields = computed(() => [
               :x="(node(line.source).position.x + node(line.target).position.x) / 2 + 76"
               :y="(node(line.source).position.y + node(line.target).position.y) / 2 + 22"
             >
-              {{ line.condition === 'keyword' ? line.keywords.join('/') : line.condition }}
+              {{
+                line.label ||
+                (line.condition === 'keyword' ? line.keywords.join('/') : line.condition)
+              }}
             </text>
           </g></svg
         ><button
@@ -269,7 +303,18 @@ const edgeFields = computed(() => [
           ></template
         >
         <p v-else>点击节点进行配置</p>
+        <el-button v-if="draft && selectedNode && selectedNode.type !== 'start'" @click="setStart"
+          >设为开始</el-button
+        >
         <h4>添加连线</h4>
+        <p>选择分支预设可填入匹配条件。每个节点最多一条无条件出口，用于无其他匹配时继续。</p>
+        <el-button
+          v-for="(_, label) in branchPresets"
+          :key="label"
+          :disabled="!draft"
+          @click="setPreset(label)"
+          >{{ label }}</el-button
+        >
         <FieldForm
           :model="edge"
           :fields="edgeFields"
@@ -280,7 +325,7 @@ const edgeFields = computed(() => [
         <h4>现有连线</h4>
         <div v-for="line in graph.edges" :key="line.id" class="record-card">
           {{ line.source }} → {{ line.target
-          }}<small>{{ line.condition }} {{ line.keywords?.join('/') }}</small
+          }}<small>{{ line.label }} {{ line.condition }} {{ line.keywords?.join('/') }}</small
           ><el-button
             link
             type="danger"

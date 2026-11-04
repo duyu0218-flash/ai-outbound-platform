@@ -10316,6 +10316,12 @@
             "minLength": 1,
             "title": "Target"
           },
+          "label": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Branch label",
+            "default": ""
+          },
           "condition": {
             "type": "string",
             "pattern": "^(always|keyword|silence|intent|equals|not_equals)$",
@@ -10363,7 +10369,7 @@
           },
           "type": {
             "type": "string",
-            "pattern": "^(start|message|listen|handoff|hangup|collect|set|branch)$",
+            "pattern": "^(start|message|listen|handoff|hangup|collect|set|branch|jump)$",
             "title": "Type"
           },
           "label": {
