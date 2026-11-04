@@ -57,7 +57,13 @@ const navigation = computed(() =>
             { path: agentPath('wecom'), label: '企微添加' },
           ],
         },
-        { group: 'navAnalysis', items: [{ path: agentPath('reports'), label: '运营报表' }] },
+        {
+          group: 'navAnalysis',
+          items: [
+            { path: agentPath('overview'), label: '数据统计' },
+            { path: agentPath('reports'), label: '运营报表' },
+          ],
+        },
         { group: 'navPersonal', items: [{ path: agentPath('workspace'), label: '坐席个人配置' }] },
       ],
 );

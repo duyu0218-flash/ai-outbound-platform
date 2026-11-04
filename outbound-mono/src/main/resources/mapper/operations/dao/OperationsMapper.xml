@@ -114,6 +114,18 @@
         WHERE c.tenant_id=#{tenantId}
         <include refid="callWhere"/>
     </select>
+    <select id="dailyBreakdown" resultType="java.util.LinkedHashMap">
+        SELECT DATE_FORMAT(TIMESTAMPADD(HOUR,8,c.created_at),'%Y-%m-%d') AS day_key,
+          COALESCE(NULLIF(a.intent,''),'unclassified') AS intent_key,
+          COUNT(*) AS sessions, SUM(c.attempts) AS attempts, SUM(usage_data.answers) AS answers,
+          SUM(usage_data.answers &gt; 0) AS answered_sessions, SUM(COALESCE(usage_data.seconds,0)) AS seconds
+        <include refid="callJoin"/>
+        JOIN LATERAL (SELECT COUNT(u.answered_at) AS answers,SUM(u.telephony_seconds) AS seconds
+            FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id) usage_data ON TRUE
+        WHERE c.tenant_id=#{tenantId}
+        <include refid="callWhere"/>
+        GROUP BY day_key,intent_key ORDER BY day_key,intent_key
+    </select>
     <select id="report" resultType="java.util.LinkedHashMap">
         SELECT stats.*,
                ROUND(100*answered_attempts/NULLIF(attempts,0),2) AS answer_rate,

@@ -389,6 +389,19 @@ public class Operations {
                 p);
     }
 
+    @GetMapping("/reports/daily")
+    public Object dailyBreakdown(@RequestParam
+    Map<String, String> q, HttpServletRequest request) {
+        var p = filters(actor(request), q);
+        var until = (LocalDateTime) p.getOrDefault("until", Store.now());
+        var from = (LocalDateTime) p.getOrDefault("from", until.minusDays(30));
+        if (java.time.Duration.between(from, until).toDays() > 366)
+            throw new ApiError(422, "单次最多统计366天");
+        p.put("from", from);
+        p.put("until", until);
+        return db.rows("dailyBreakdown", p);
+    }
+
     @GetMapping("/reports/durations")
     public Object durations(@RequestParam
     Map<String, String> q, HttpServletRequest request) {
