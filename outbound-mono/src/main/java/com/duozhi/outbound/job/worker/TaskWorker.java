@@ -7,6 +7,7 @@ import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import com.duozhi.outbound.common.runtime.ScheduledWork;
+import com.duozhi.outbound.common.service.PlatformLock;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -968,9 +969,12 @@ public class TaskWorker {
                 }
             } else throw new IllegalStateException("unsupported durable task type");
             permitted();
-        } catch (Deferred e) {
+        } catch (Deferred | PlatformLock.Unavailable e) {
             state = "pending";
-            error = "waiting for dial admission";
+            error =
+                    e instanceof PlatformLock.Unavailable
+                            ? e.getMessage()
+                            : "waiting for dial admission";
             deferred = true;
         } catch (RuntimeException e) {
             state =

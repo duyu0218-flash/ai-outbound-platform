@@ -5,6 +5,7 @@ import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.capacity.service.CapacityCommitEvidence;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.service.PlatformLock;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -380,11 +381,16 @@ public class DialBatchWorker {
                                                     ? completed.get(i)
                                                     : null;
                                     boolean deferred =
-                                            entry != null
-                                                    && (Boolean.TRUE.equals(entry.get("deferred"))
-                                                            || Boolean.TRUE.equals(
-                                                                    entry.get(
-                                                                            "pending_confirmation")));
+                                            thrown instanceof PlatformLock.Unavailable
+                                                    || entry != null
+                                                            && (entry.get("error")
+                                                                            instanceof
+                                                                            PlatformLock.Unavailable
+                                                                    || Boolean.TRUE.equals(
+                                                                            entry.get("deferred"))
+                                                                    || Boolean.TRUE.equals(
+                                                                            entry.get(
+                                                                                    "pending_confirmation")));
                                     Object error =
                                             thrown != null
                                                     ? thrown

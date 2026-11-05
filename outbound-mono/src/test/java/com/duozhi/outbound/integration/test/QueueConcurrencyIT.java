@@ -524,13 +524,17 @@ class QueueConcurrencyIT {
                                         return tx.serialized(() -> store.require("tenant", 0, 1));
                                     }));
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadline
-                        && !waiting.stream().allMatch(t -> t.getState() == Thread.State.WAITING))
+                        && !waiting.stream()
+                                .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
                     Thread.sleep(10);
                 assertThat(waiting)
                         .hasSize(4)
-                        .allSatisfy(t -> assertThat(t.getState()).isEqualTo(Thread.State.WAITING));
+                        .allSatisfy(
+                                t ->
+                                        assertThat(t.getState())
+                                                .isEqualTo(Thread.State.TIMED_WAITING));
                 assertThat(((DruidDataSource) dataSource).getActiveCount())
                         .as("Mutex waiters must leave every JDBC connection available")
                         .isZero();
@@ -1650,17 +1654,18 @@ class QueueConcurrencyIT {
                                                 () -> store.require("tenant", 0, 1));
                                     }));
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadline
                         && !waiting.stream()
-                                .allMatch(thread -> thread.getState() == Thread.State.WAITING))
+                                .allMatch(
+                                        thread -> thread.getState() == Thread.State.TIMED_WAITING))
                     Thread.sleep(10);
                 assertThat(waiting)
                         .hasSize(4)
                         .allSatisfy(
                                 thread ->
                                         assertThat(thread.getState())
-                                                .isEqualTo(Thread.State.WAITING));
+                                                .isEqualTo(Thread.State.TIMED_WAITING));
                 assertThat(((DruidDataSource) dataSource).getActiveCount()).isZero();
             }
             for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
@@ -2489,5 +2494,55 @@ class QueueConcurrencyIT {
         assertThat(RealtimeTaskPressure.fraction(taskPressure.snapshot(tid))).isZero();
         store.update("taskoutbox", tid, timer.get("id"), Values.map("state", "dead"));
         assertThat(taskPressure.snapshot(tid).get("dead")).isEqualTo(1d);
+    }
+
+    @Test
+    void lockContentionDefersTheDurableTaskWithoutConsumingItsLastBusinessAttempt() {
+        long tenant = 9981;
+        store.insert(
+                "tenant",
+                Values.map(
+                        "id",
+                        tenant,
+                        "code",
+                        "runtime-lock-deferral",
+                        "name",
+                        "Lock deferral fixture"));
+        var call =
+                store.insert(
+                        "callsession",
+                        Values.map(
+                                "tenant_id",
+                                tenant,
+                                "phone",
+                                "15500009981",
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "completed",
+                                "attempts",
+                                1,
+                                "max_attempts",
+                                1));
+        var task =
+                outbox.enqueue(
+                        tenant,
+                        "call_analysis",
+                        call.get("id"),
+                        key(),
+                        Values.map("call_id", call.get("id"), "attempt", 1));
+        store.update("taskoutbox", tenant, task.get("id"), Values.map("max_attempts", 1));
+        Mockito.doThrow(new PlatformLock.Unavailable(false))
+                .when(analysis)
+                .analyze(Mockito.any(), Mockito.eq(1));
+        try {
+            assertThat(worker.processOne(tenant)).isTrue();
+            assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                    .containsEntry("state", "pending")
+                    .containsEntry("attempts", 0)
+                    .containsEntry("last_error", "PLATFORM_LOCK_TIMEOUT");
+        } finally {
+            Mockito.reset(analysis);
+        }
     }
 }

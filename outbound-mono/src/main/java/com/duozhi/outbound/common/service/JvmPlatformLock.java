@@ -1,7 +1,6 @@
 package com.duozhi.outbound.common.service;
 
 import com.duozhi.outbound.common.config.Config;
-import com.duozhi.outbound.common.exception.ApiError;
 import com.duozhi.outbound.common.runtime.RuntimeOwnership;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -126,13 +125,13 @@ public final class JvmPlatformLock implements PlatformLock {
             releaseReference(key, entry);
             interruptions.increment();
             Thread.currentThread().interrupt();
-            throw new ApiError(503, "PLATFORM_LOCK_INTERRUPTED");
+            throw new PlatformLock.Unavailable(true);
         }
         if (!acquiredLock) {
             releaseReference(key, entry);
             if (immediate) return null;
             timeouts.increment();
-            throw new ApiError(503, "PLATFORM_LOCK_TIMEOUT");
+            throw new PlatformLock.Unavailable(false);
         }
         try {
             if (ownership != null) ownership.requireRunning();
