@@ -1,10 +1,12 @@
 <script setup>
+const crypto = globalThis.crypto;
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ops, perform, parse, query, prefix } from '../operations';
 import Billing from './Billing.vue';
 import { download } from '../session';
 import { usePageQuery } from '../page-query';
+import { reportLabels } from '../benchmark';
 const { isCurrent, replaceQuery } = usePageQuery();
 const router = useRouter(),
   route = useRoute(),
@@ -18,7 +20,14 @@ const router = useRouter(),
   views = ref([]),
   viewId = ref(''),
   name = ref('');
-const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }),
+const section = route.path.split('/').at(-1);
+const heading =
+  { seating: '账号统计', dataAnalysis: '数据分析', intent: '意向统计' }[section] || '运营报表';
+const q = reactive({
+    dimension: section === 'seating' ? 'account' : section === 'intent' ? 'agent' : 'campaign',
+    granularity: 'day',
+    ...route.query,
+  }),
   visible = ref([
     'answer_rate',
     'entry_rate',
@@ -42,6 +51,26 @@ const q = reactive({ dimension: 'campaign', granularity: 'day', ...route.query }
     'answered_attempts',
     'telephony_seconds',
     'ai_seconds',
+    ...[
+      'online_seconds',
+      'online_people',
+      'gender_ratio',
+      'human_seconds',
+      'followed',
+      'average_intervention',
+      'loss_count',
+      'loss_rate',
+      'intent_cost',
+      'success_cost',
+      'statement_cost',
+      'reference_cost',
+      'reference_intent_cost',
+      'reference_success_cost',
+      'active_agents',
+      'per_agent_takeover',
+      'per_agent_cost',
+      'weekday',
+    ].filter((k) => reportLabels[k]),
   ]);
 const rangeKinds = { total_ranges: '通话', ai_ranges: 'AI通话', human_ranges: '人工通话' };
 function rangesFor(key) {
@@ -67,6 +96,7 @@ function removeRange(key, index) {
     .join(',');
 }
 const labels = {
+  ...reportLabels,
   answer_rate: '接通率（%）',
   entry_rate: '进线率（%）',
   takeover_rate: '接管率（%）',
@@ -202,10 +232,17 @@ function drill(row) {
     f[field] = row.dimension_key;
   if (row.bucket !== '全部') {
     const date = new Date(
-      row.bucket.replace(' ', 'T') + (row.bucket.length === 10 ? 'T00:00:00' : '') + 'Z',
+      row.bucket.replace(' ', 'T') +
+        (row.bucket.length === 7 ? '-01T00:00:00' : row.bucket.length === 10 ? 'T00:00:00' : '') +
+        '+08:00',
     );
     const bucketMs = { minute: 60000, hour: 3600000, day: 86400000 }[q.granularity];
-    const end = date.getTime() + bucketMs - 1;
+    const end =
+      q.granularity === 'month'
+        ? Date.UTC(Number(row.bucket.slice(0, 4)), Number(row.bucket.slice(5, 7)), 1) -
+          8 * 3600000 -
+          1
+        : date.getTime() + bucketMs - 1;
     f.from = new Date(
       Math.max(date.getTime(), f.from ? Date.parse(f.from) : -Infinity),
     ).toISOString();
@@ -227,11 +264,17 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <PageHeader title="运营报表" description="按任务、坐席、线路和负责人分析并下钻话单"
+  <PageHeader :title="heading" description="按任务、坐席、线路和负责人分析并下钻话单"
     ><el-button
       v-if="profile.can_export"
       @click="
-        download('/api/v1/ops/reports/export?' + query(params())).catch((e) => (error = e.message))
+        perform(() =>
+          ops('/exports', 'POST', {
+            kind: 'reports',
+            query: params(),
+            request_key: crypto.randomUUID(),
+          }),
+        ).catch((e) => (error = e.message))
       "
       >导出运营报表</el-button
     ></PageHeader
@@ -263,7 +306,7 @@ onMounted(async () => {
                 label="汇总"
                 value="all" /><el-option label="每天" value="day" /><el-option
                 label="每小时"
-                value="hour" /></el-select></el-form-item
+                value="hour" /><el-option label="每月" value="month" /></el-select></el-form-item
           ><el-form-item label="开始"
             ><el-input
               v-model="q.from"

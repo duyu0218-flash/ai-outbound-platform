@@ -37,6 +37,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class TaskWorker {
+    @Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
     @org.springframework.beans.factory.annotation.Autowired
     private ScheduledWork scheduledWork;
 
@@ -348,6 +350,7 @@ public class TaskWorker {
                                     List.of("updated_at:ASC"),
                                     100);
                     for (Map<String, Object> call : candidates) {
+                        if (!outboundRules.automatic(CallLifecycle.tenant(call))) continue;
                         if (call.get("campaign_id") != null) {
                             Map<String, Object> campaign =
                                     store.require(

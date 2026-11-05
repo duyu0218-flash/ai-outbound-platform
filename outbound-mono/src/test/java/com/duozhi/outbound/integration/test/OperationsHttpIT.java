@@ -740,4 +740,551 @@ class OperationsHttpIT {
                         Map.of("state", "completed")));
         assertThat(get("/work-items").get(0).path("state").asText()).isEqualTo("completed");
     }
+
+    @Autowired
+    com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+    @Autowired
+    com.duozhi.outbound.operations.controller.ExportCenter exportCenter;
+    @Autowired
+    com.duozhi.outbound.workspace.service.WorkspaceDocuments documents;
+
+    @Test
+    void competitiveCalendarPauseWindowsRevisionAndTenantIsolation() {
+        var conf = com.duozhi.outbound.operations.service.OutboundRules.defaults();
+        conf.put("windows", List.of(Map.of("start", "09:00", "end", "18:00")));
+        conf.put("pauses", List.of(Map.of("start", "12:00", "end", "13:00")));
+        var saved =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/benchmark/task-settings",
+                                Map.of("revision", 0, "config", conf)));
+        assertThat(saved.path("published").path("pauses")).hasSize(1);
+        assertThat(outboundRules.open(tenant, java.time.Instant.parse("2026-11-05T03:59:59Z")))
+                .isTrue();
+        assertThat(outboundRules.open(tenant, java.time.Instant.parse("2026-11-05T04:00:00Z")))
+                .isFalse();
+        assertThat(outboundRules.open(tenant, java.time.Instant.parse("2026-11-05T05:00:00Z")))
+                .isTrue();
+        assertThat(
+                        req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/ops/benchmark/task-settings",
+                                        Map.of("revision", 0, "config", conf))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        assertThat(outboundRules.open(tenant + 1, java.time.Instant.parse("2026-11-05T04:00:00Z")))
+                .isTrue();
+        conf.put("windows", List.of(Map.of("start", "18:00", "end", "09:00")));
+        assertThat(
+                        req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/ops/benchmark/task-settings",
+                                        Map.of("revision", 1, "config", conf))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(
+                        req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/ops/benchmark/task-settings",
+                                        Map.of("revision", 1, "config", conf))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void filterGroupsActuallyBlockAndDisableWithoutDeletingAndTagGroupsFeedDictionary() {
+        var body =
+                Map.of(
+                        "name",
+                        "前缀策略",
+                        "enabled",
+                        true,
+                        "rules",
+                        List.of(Map.of("type", "prefix", "value", "139")));
+        var d =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/benchmark/catalog/filters/test",
+                                Map.of("revision", 0, "config", body)));
+        assertThat(outboundRules.check(tenant, "13900000001", java.time.Instant.now()))
+                .contains("filter_group:test:prefix");
+        assertThat(outboundRules.check(tenant + 1, "13900000001", java.time.Instant.now()))
+                .isEmpty();
+        var disabled = new LinkedHashMap<String, Object>(body);
+        disabled.put("enabled", false);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/catalog/filters/test",
+                        Map.of("revision", d.path("revision").asInt(), "config", disabled)));
+        assertThat(outboundRules.check(tenant, "13900000001", java.time.Instant.now())).isEmpty();
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/catalog/tags/test",
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of("name", "重点客户", "tags", List.of("对标测试标签")))));
+        assertThat(get("/configs?kind=tag").toString()).contains("对标测试标签");
+    }
+
+    @Test
+    void exportQueueMatchesFilterAndDownloadIsPrivateAndRechecksPermission() {
+        var c = contact("异步导出");
+        call(c.get("id"), agent.getId());
+        var job =
+                post(
+                        "/exports",
+                        Map.of(
+                                "kind",
+                                "calls",
+                                "query",
+                                Map.of("phone", c.get("phone")),
+                                "request_key",
+                                UUID.randomUUID().toString()));
+        String id = job.path("id").asText();
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () -> {
+                            exportCenter.processNext();
+                            assertThat(
+                                            documents
+                                                    .one(
+                                                            "SELECT state FROM ops_export_job WHERE id=?",
+                                                            id)
+                                                    .get("state"))
+                                    .isEqualTo("ready");
+                        });
+        var h = new HttpHeaders();
+        h.setBearerAuth(token);
+        var file =
+                http.exchange(
+                        "/api/v1/ops/exports/" + id + "/download",
+                        HttpMethod.GET,
+                        new HttpEntity<>(h),
+                        byte[].class);
+        assertThat(file.getStatusCode().value()).isEqualTo(200);
+        assertThat(new String(file.getBody(), java.nio.charset.StandardCharsets.UTF_8))
+                .contains(c.get("phone").toString());
+        token = crypto.token(UserRecords.map(other));
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/exports/" + id + "/download", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+        assertThat(get("/exports")).isEmpty();
+        token = adminToken;
+        assertThat(get("/reports?dimension=account&granularity=month").path("rows")).isNotEmpty();
+        assertThat(get("/benchmark/dataset?phone=" + c.get("phone")).path("total").asInt())
+                .isEqualTo(1);
+        for (String kind : List.of("intercept", "follow", "sms", "routes", "recharge"))
+            assertThat(get("/benchmark/reports/" + kind).isArray()).isTrue();
+        assertThat(get("/benchmark/tasks?history=true").path("rows").isArray()).isTrue();
+    }
+
+    @Test
+    void formAssignmentRestrictsAvailableVersionsAndDirectSubmission() {
+        post(
+                "/configs",
+                Map.of(
+                        "kind",
+                        "form",
+                        "name",
+                        "账号专用表单",
+                        "expected_revision",
+                        0,
+                        "config",
+                        Map.of(
+                                "fields",
+                                List.of(
+                                        Map.of(
+                                                "key",
+                                                "note",
+                                                "label",
+                                                "记录",
+                                                "type",
+                                                "text",
+                                                "required",
+                                                false,
+                                                "choices",
+                                                List.of())))));
+        var form = get("/configs?kind=form").get(0);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/catalog/forms/test",
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of(
+                                        "name",
+                                        "专用分配",
+                                        "form_id",
+                                        form.path("id").asInt(),
+                                        "user_ids",
+                                        List.of(agent.getId())))));
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(get("/configs?kind=form")).hasSize(1);
+        token = crypto.token(UserRecords.map(other));
+        assertThat(get("/configs?kind=form")).isEmpty();
+        token = adminToken;
+        assertThat(get("/configs?kind=form")).hasSize(1);
+    }
+
+    @Autowired
+    com.duozhi.outbound.operations.service.AccountResources accountResources;
+
+    @Test
+    void accountExpiryBlocksAdmissionAndResourceChangesStayInTenant() {
+        var past =
+                Map.of(
+                        "name",
+                        "账号资源",
+                        "expires_at",
+                        "2020-01-01T00:00:00Z",
+                        "balance_enabled",
+                        false);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/accounts/" + agent.getId(),
+                        Map.of("revision", 0, "config", past)));
+        assertThat(accountResources.available(tenant, agent.getId())).isFalse();
+        assertThat(get("/benchmark/accounts").toString()).contains("2020-01-01");
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/ops/benchmark/accounts/"
+                                                + agent.getId()
+                                                + "/allocate",
+                                        Map.of(
+                                                "request_key",
+                                                UUID.randomUUID().toString(),
+                                                "amount",
+                                                10,
+                                                "note",
+                                                "测试分配"))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        token = crypto.token(UserRecords.map(other));
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/benchmark/accounts", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void inspectionEvidenceAndKeywordsAdoptionStayDraftUntilPublished() {
+        var c = contact("巡检客户");
+        var call = call(c.get("id"), agent.getId());
+        String gap = UUID.randomUUID().toString();
+        documents.jdbc.update(
+                "INSERT INTO platform_knowledge_gap(tenant_id,id,source_type,source_id,question_sha,question,context_json,created_at,updated_at) VALUES(?,?,'call',?,?,?, ?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))",
+                tenant,
+                gap,
+                call.get("id").toString(),
+                "0".repeat(64),
+                "怎么收费？",
+                "{\"node_id\":\"opening\"}");
+        var result = get("/benchmark/inspection?phone=" + c.get("phone") + "&node=opening");
+        assertThat(result.path("total").asInt()).isEqualTo(1);
+        assertThat(result.path("rows").get(0).path("regex").asText()).isEqualTo("\\Q怎么收费？\\E");
+        var adopted = post("/benchmark/inspection/" + gap + "/adopt", Map.of("revision", 1));
+        assertThat(adopted.path("kind").asText()).isEqualTo("keyword_scene");
+        assertThat(
+                        post("/benchmark/inspection/" + gap + "/adopt", Map.of("revision", 1))
+                                .path("object_id")
+                                .asText())
+                .isEqualTo(adopted.path("object_id").asText());
+        assertThat(get("/benchmark/inspection?state=adopted").path("total").asInt()).isEqualTo(1);
+        var script =
+                ok(req(HttpMethod.POST, "/api/v1/workspace/scripts", Map.of("name", "巡检目标话术")));
+        var rule = Map.of("name", "费用问题", "target", "question", "keywords", "收费", "regex", "");
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/catalog/keywords/test",
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of("name", "费用场景", "rules", List.of(rule)))));
+        var draft =
+                post(
+                        "/benchmark/keywords/test/apply/" + script.path("id").asText(),
+                        Map.of("revision", script.path("revision").asInt()));
+        assertThat(draft.path("draft").path("policy").path("intent_rules")).hasSize(1);
+        assertThat(draft.path("published").isNull()).isTrue();
+        var user2 = new SysUser();
+        user2.setTenantId(tenant + 1);
+        user2.setUsername("other-" + UUID.randomUUID());
+        user2.setFullName("其他租户");
+        user2.setRole("admin");
+        users.insert(user2);
+        token = crypto.token(UserRecords.map(user2));
+        assertThat(get("/benchmark/inspection").path("total").asInt()).isZero();
+    }
+
+    @Test
+    void wecomProfilesArePrivateAndPasswordChangeRevokesExistingToken() {
+        String path = "/api/v1/ops/wecom/profiles/" + agent.getId();
+        token = crypto.token(UserRecords.map(agent));
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        path,
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of(
+                                        "corp_id",
+                                        "test-corp",
+                                        "member_id",
+                                        "test-member",
+                                        "contact_url",
+                                        "https://work.weixin.qq.com/example"))));
+        assertThat(ok(req(HttpMethod.GET, path, null)).path("draft").path("member_id").asText())
+                .isEqualTo("test-member");
+        token = crypto.token(UserRecords.map(other));
+        assertThat(req(HttpMethod.GET, path, null).getStatusCode().value()).isEqualTo(403);
+        token = adminToken;
+        assertThat(ok(req(HttpMethod.GET, "/api/v1/ops/wecom/statistics", null)).isArray())
+                .isTrue();
+        var changes =
+                Map.<String, Object>of("password_hash", crypto.password("SyntheticOldPass123!"));
+        documents.tx.run(
+                () -> {
+                    store.update("user", tenant, admin.getId(), changes);
+                    return null;
+                });
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/password",
+                                        Map.of(
+                                                "old_password",
+                                                "wrong",
+                                                "new_password",
+                                                "SyntheticNewPass123!",
+                                                "confirm_password",
+                                                "SyntheticNewPass123!"))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
+        ok(
+                req(
+                        HttpMethod.POST,
+                        "/api/v1/auth/password",
+                        Map.of(
+                                "old_password",
+                                "SyntheticOldPass123!",
+                                "new_password",
+                                "SyntheticNewPass123!",
+                                "confirm_password",
+                                "SyntheticNewPass123!")));
+        assertThat(req(HttpMethod.GET, "/api/v1/ops/me", null).getStatusCode().value())
+                .isEqualTo(401);
+    }
+
+    @Test
+    void accountAllocationIsIdempotentAndImportedChargesReduceItsSpendableBalance() {
+        documents.jdbc.update(
+                "INSERT INTO voice_statement_entry(tenant_id,source_mode,reference_no,kind,currency,signed_amount,settlement_source,posted_at,created_by,row_hash) VALUES(?,'simulation','synthetic-opening','opening','CNY',100,'synthetic',UTC_TIMESTAMP(3),?,?)",
+                tenant,
+                admin.getId(),
+                "0".repeat(64));
+        String path = "/benchmark/accounts/" + agent.getId() + "/allocate";
+        String key = UUID.randomUUID().toString();
+        var first = post(path, Map.of("request_key", key, "amount", 40, "note", "分配测试额度"));
+        assertThat(first.path("balance").decimalValue()).isEqualByComparingTo("40");
+        assertThat(
+                        post(path, Map.of("request_key", key, "amount", 40, "note", "分配测试额度"))
+                                .path("replayed")
+                                .asBoolean())
+                .isTrue();
+        assertThat(
+                        post(
+                                        path,
+                                        Map.of(
+                                                "request_key",
+                                                UUID.randomUUID().toString(),
+                                                "amount",
+                                                -10,
+                                                "note",
+                                                "回收额度"))
+                                .path("balance")
+                                .decimalValue())
+                .isEqualByComparingTo("30");
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/ops" + path,
+                                        Map.of(
+                                                "request_key",
+                                                UUID.randomUUID().toString(),
+                                                "amount",
+                                                80,
+                                                "note",
+                                                "超过可分配金额"))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/accounts/" + agent.getId(),
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of("expires_at", "", "balance_enabled", true))));
+        assertThat(accountResources.available(tenant, agent.getId())).isTrue();
+        var c = call(contact("额度客户").get("id"), agent.getId());
+        documents.jdbc.update(
+                "INSERT INTO voice_statement_entry(tenant_id,source_mode,reference_no,kind,currency,signed_amount,settlement_source,call_id,attempt,posted_at,created_by,row_hash) VALUES(?,'simulation','synthetic-charge','charge','CNY',-35,'synthetic',?,1,UTC_TIMESTAMP(3),?,?)",
+                tenant,
+                c.get("id").toString(),
+                admin.getId(),
+                "1".repeat(64));
+        assertThat(accountResources.available(tenant, agent.getId())).isFalse();
+        assertThat(accountResources.balance(tenant, agent.getId())).isEqualByComparingTo("-5");
+    }
+
+    @Test
+    void archivedTaskWithNoCallsKeepsUnknownRatesAndCanBeFilteredAndExported() {
+        var task =
+                store.insert(
+                        "campaign",
+                        Map.of(
+                                "tenant_id",
+                                tenant,
+                                "name",
+                                "无拨打归档任务",
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "stopped",
+                                "created_by",
+                                admin.getId()));
+        var result = get("/benchmark/tasks?history=true&name=无拨打归档任务&operation_type=stopped");
+        assertThat(result.path("total").asInt()).isEqualTo(1);
+        assertThat(result.path("rows").get(0).path("answer_rate").isNull()).isTrue();
+        assertThat(result.path("rows").get(0).path("evaluation_result").asText()).isEqualTo("数据不足");
+        assertThat(
+                        get("/benchmark/tasks?history=true&name=无拨打归档任务&suggestion=insufficient")
+                                .path("total")
+                                .asInt())
+                .isEqualTo(1);
+        assertThat(
+                        get("/benchmark/tasks?history=true&name=无拨打归档任务&suggestion=improve")
+                                .path("total")
+                                .asInt())
+                .isZero();
+        assertThat(
+                        get("/benchmark/tasks?history=true&evaluation_rule=不存在的规则")
+                                .path("total")
+                                .asInt())
+                .isZero();
+        post(
+                "/exports",
+                Map.of(
+                        "kind",
+                        "tasks",
+                        "query",
+                        Map.of("history", true),
+                        "request_key",
+                        UUID.randomUUID().toString()));
+        assertThat(get("/reports/intents?dimension=agent").isArray()).isTrue();
+        for (String path :
+                List.of("/dashBoard/home", "/tasks/current", "/scene/intent", "/account/center"))
+            assertThat(http.getForEntity(path, String.class).getStatusCode().value())
+                    .isEqualTo(200);
+    }
+
+    @Test
+    void generatedCallFileCannotOutliveRevokedLeadOwnership() {
+        var contact = contact("撤销归属导出");
+        call(contact.get("id"), null);
+        assign(contact.get("id"), agent.getId());
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/permissions/" + agent.getId(),
+                        Map.of("can_export", true, "can_unmask", true, "can_record", true)));
+        token = crypto.token(UserRecords.map(agent));
+        var job =
+                post(
+                        "/exports",
+                        Map.of(
+                                "kind",
+                                "calls",
+                                "query",
+                                Map.of("contact_id", contact.get("id")),
+                                "request_key",
+                                UUID.randomUUID().toString()));
+        String id = job.path("id").asText();
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () -> {
+                            exportCenter.processNext();
+                            assertThat(
+                                            documents
+                                                    .one(
+                                                            "SELECT state FROM ops_export_job WHERE id=?",
+                                                            id)
+                                                    .get("state"))
+                                    .isEqualTo("ready");
+                        });
+        token = adminToken;
+        var body = change("assign", 1);
+        body.put("owner_id", other.getId());
+        patch(contact.get("id"), body);
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/exports/" + id + "/download", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void dailyAndMonthlyReportBucketsUseShanghaiCalendarAtUtcDayBoundary() {
+        store.insert(
+                "callsession",
+                Map.of(
+                        "tenant_id",
+                        tenant,
+                        "phone",
+                        "13100009999",
+                        "mode",
+                        "ai_only",
+                        "status",
+                        "completed",
+                        "created_at",
+                        LocalDateTime.of(2026, 11, 5, 16, 30)));
+        String query = "?dimension=all&from=2026-11-05T16:00:00Z&until=2026-11-06T15:59:59Z";
+        var daily = get("/reports" + query + "&granularity=day");
+        assertThat(daily.path("rows").get(0).path("bucket").asText()).isEqualTo("2026-11-06");
+        assertThat(
+                        get("/reports" + query + "&granularity=month")
+                                .path("rows")
+                                .get(0)
+                                .path("bucket")
+                                .asText())
+                .isEqualTo("2026-11");
+    }
 }

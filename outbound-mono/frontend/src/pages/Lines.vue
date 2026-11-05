@@ -1,10 +1,54 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { request } from '../session';
 import { useData } from '../data';
 import { ops, perform } from '../operations';
 import { ElMessageBox } from 'element-plus';
 const groups = useData('/api/v1/ops/lines/groups');
+const lineView = ref('list'),
+  profiles = useData('/api/v1/ops/benchmark/line-profiles'),
+  routes = useData(() =>
+    lineView.value === 'routes' ? '/api/v1/ops/benchmark/reports/routes' : '',
+  ),
+  profileOpen = ref(null),
+  profileModel = ref({}),
+  lineSearch = ref('');
+const groupRows = computed(() => {
+  const m = new Map();
+  for (const r of groups.data.value || []) {
+    if (!r.group_name) continue;
+    const a = m.get(r.group_name) || [];
+    a.push(r.line_id);
+    m.set(r.group_name, a);
+  }
+  return [...m.entries()].map(([name, ids]) => ({ name, ids: ids.join('、') }));
+});
+function lineProfile(row) {
+  return profiles.data.value?.find((p) => String(p.object_id) === String(row.id));
+}
+function editProfile(row) {
+  profileOpen.value = row;
+  profileModel.value = {
+    physical_id: '',
+    source: '',
+    reference_price: null,
+    unit_price: null,
+    ...lineProfile(row)?.draft,
+  };
+}
+async function saveProfile() {
+  const r = profileOpen.value;
+  const v = await perform(
+    () =>
+      ops('/benchmark/line-profiles/' + r.id, 'PUT', {
+        revision: lineProfile(r)?.revision || 0,
+        config: profileModel.value,
+      }),
+    profiles.load,
+  );
+  if (v) profileOpen.value = null;
+}
+
 function groupName(id) {
   return groups.data.value?.find((g) => g.line_id === id)?.group_name || '';
 }
@@ -149,9 +193,40 @@ async function save() {
 <template>
   <PageHeader title="线路与号码" description="由技术管理员接入语音网关，管理主叫号码、容量与路由"
     ><el-button type="primary" @click="edit()">新增线路</el-button></PageHeader
+  ><el-tabs v-model="lineView"
+    ><el-tab-pane label="线路列表" name="list" /><el-tab-pane
+      label="线路组"
+      name="groups" /><el-tab-pane label="多路由话单查询" name="routes" /></el-tabs
   ><el-alert v-if="query.error.value" :title="query.error.value" type="error" /><el-card
-    ><el-table :data="query.data.value || []" v-loading="query.loading.value"
-      ><el-table-column prop="name" label="线路名称" /><el-table-column label="接入方式"
+    v-if="lineView === 'list'"
+    ><el-input
+      v-model="lineSearch"
+      aria-label="线路搜索"
+      placeholder="线路名称、线路ID、物理ID"
+      clearable /><el-table
+      :data="
+        (query.data.value || []).filter((r) =>
+          [r.name, r.id, lineProfile(r)?.draft.physical_id].join(' ').includes(lineSearch),
+        )
+      "
+      v-loading="query.loading.value"
+      ><el-table-column prop="id" label="ID" /><el-table-column label="物理ID"
+        ><template #default="{ row }">{{
+          lineProfile(row)?.draft.physical_id || '—'
+        }}</template></el-table-column
+      ><el-table-column prop="name" label="线路名称" /><el-table-column label="参考价格（元/分钟）"
+        ><template #default="{ row }">{{
+          lineProfile(row)?.draft.reference_price ?? '—'
+        }}</template></el-table-column
+      ><el-table-column label="单价（元/分钟）"
+        ><template #default="{ row }">{{
+          lineProfile(row)?.draft.unit_price ?? '—'
+        }}</template></el-table-column
+      ><el-table-column label="线路来源"
+        ><template #default="{ row }">{{
+          lineProfile(row)?.draft.source || '—'
+        }}</template></el-table-column
+      ><el-table-column label="接入方式"
         ><template #default="{ row }">{{
           row.provider === 'mock'
             ? '模拟线路'
@@ -177,12 +252,50 @@ async function save() {
       ><el-table-column label="操作"
         ><template #default="{ row }"
           ><el-button link @click="edit(row)">配置线路</el-button
-          ><el-button link @click="showImpact(row)">使用影响</el-button></template
+          ><el-button link @click="showImpact(row)">使用影响</el-button
+          ><el-button link @click="editProfile(row)">价格与物理ID</el-button></template
         ></el-table-column
       ></el-table
     ><el-empty
       v-if="!query.loading.value && !query.data.value?.length"
       description="添加已采购的语音网关线路，填写主叫和开通容量" /></el-card
+  ><el-card v-if="lineView === 'groups'"
+    ><el-table :data="groupRows"
+      ><el-table-column prop="name" label="线路组" /><el-table-column
+        prop="ids"
+        label="线路ID" /></el-table></el-card
+  ><el-card v-if="lineView === 'routes'"
+    ><el-alert v-if="routes.error.value" :title="routes.error.value" type="error" /><el-button
+      @click="routes.load"
+      >刷新话单</el-button
+    ><DataGrid
+      :rows="routes.data.value || []"
+      :pagination="20"
+      :columns="
+        [
+          ['id', '通话ID'],
+          ['phone', '电话'],
+          ['line_id', '线路ID'],
+          ['attempt', '拨打轮次'],
+          ['route_state', '路由状态'],
+          ['created_at', '时间'],
+          ['last_error', '失败原因'],
+        ].map(([key, label]) => ({ key, label }))
+      " /></el-card
+  ><el-dialog :model-value="!!profileOpen" title="线路价格与物理信息" @close="profileOpen = null"
+    ><el-form label-position="top"
+      ><el-form-item
+        v-for="[key, label] in [
+          ['physical_id', '物理ID'],
+          ['source', '线路来源'],
+          ['reference_price', '参考价格（元/分钟）'],
+          ['unit_price', '单价（元/分钟）'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-input v-model="profileModel[key]" :aria-label="label" /></el-form-item
+      ><el-button type="primary" @click="saveProfile">保存线路资料</el-button></el-form
+    ></el-dialog
   ><el-dialog :model-value="!!impact" title="线路使用影响" @close="impact = null"
     ><template v-if="impact"
       ><p>{{ impact.effect }}</p>

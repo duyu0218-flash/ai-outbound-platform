@@ -47,6 +47,10 @@ java -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -jar target/outbound-mono.jar
 
 P0—P2新增话单查询、线索跟进、运营分析、团队权限、表单标签、通知和坐席配置，详见 [功能对照与验收](OPERATIONS-ACCEPTANCE.md) 和 `operations-validation.json`。管理员入口 `/admin/operations/calls`，坐席入口 `/agent/operations/leads`。测试、真机及发布状态分别记录，GitHub源码更新不等于部署。
 
+## 竞品功能对齐
+
+按2026-11-05竞品分析核对29个界面，新增五组运营导航、任务主从监控、AI巡检、任务日历与过滤策略、号码池建任务、表单分配、账号额度/有效期及异步下载中心。逐页入口、业务口径、V45迁移和测试证据见 [功能对照与验收](COMPETITOR-PARITY.md)。
+
 ## 企业租户线索门户
 
 平台在 `/admin/clients` 开通 B 端企业租户与账号，并把外呼任务绑定到企业；人工复核通过的线索自动交付到企业门户 `/client`，企业可跟进、分配、申诉和导出。企业账号与员工账号完全隔离。管理端左侧导航同时按业务链路重新分组。范围、测试与未实现项见 [企业门户验收](CLIENT-PORTAL-ACCEPTANCE.md)。

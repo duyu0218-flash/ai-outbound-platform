@@ -30,6 +30,9 @@ import org.springframework.transaction.support.*;
  */
 @Service
 public class DialBatchWorker {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+
     @Autowired
     private CapacityCommitEvidence timing;
     @Autowired
@@ -71,6 +74,8 @@ public class DialBatchWorker {
                 () -> {
                     int total = 0;
                     for (var tenant : store.query("tenant", "allForMaintenance", Map.of())) {
+                        if (!outboundRules.automatic(((Number) tenant.get("id")).longValue()))
+                            continue;
                         if (db.count(
                                         "readyTaskCount",
                                         JsonSupport.map(

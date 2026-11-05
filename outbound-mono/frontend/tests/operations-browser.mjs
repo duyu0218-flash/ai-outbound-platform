@@ -17,9 +17,19 @@ export async function operationsChecks({ page, context, origin, check, go }) {
       await page.getByRole('button', { name: '查询', exact: true }).click();
       await expect(row('13100000001')).toBeVisible();
       await expect(page).toHaveURL(/phone=13100000001/);
-      const download = page.waitForEvent('download');
       await page.getByRole('button', { name: '导出当前结果', exact: true }).click();
+      await expect(page.getByRole('tab', { name: '下载', exact: true })).toBeVisible();
+      const file = page
+        .getByRole('row')
+        .filter({ hasText: '话单导出' })
+        .first()
+        .getByRole('button', { name: '下载文件', exact: true });
+      await expect(file).toBeEnabled({ timeout: 20000 });
+      const download = page.waitForEvent('download');
+      await file.click();
       expect((await download).suggestedFilename()).toBe('filtered-calls.csv');
+      await page.goBack();
+      await expect(page).toHaveURL(/phone=13100000001/);
       await row('13100000001').getByRole('button', { name: '查看通话证据', exact: true }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await page.getByRole('dialog').locator('button.el-drawer__close-btn').click();
@@ -167,9 +177,24 @@ export async function operationsChecks({ page, context, origin, check, go }) {
       await go('/admin/operations/reports', '运营分析');
       await expect(page.getByRole('heading', { name: '运营报表', exact: true })).toBeVisible();
       await page.getByRole('button', { name: '生成报表', exact: true }).click();
-      const reportDownload = page.waitForEvent('download');
       await page.getByRole('button', { name: '导出运营报表', exact: true }).click();
+      await page.evaluate(() =>
+        document
+          .querySelector('#app')
+          .__vue_app__.config.globalProperties.$router.push(
+            '/admin/operations/notices?tab=downloads',
+          ),
+      );
+      const file = page
+        .getByRole('row')
+        .filter({ hasText: '运营报表' })
+        .first()
+        .getByRole('button', { name: '下载文件', exact: true });
+      await expect(file).toBeEnabled({ timeout: 20000 });
+      const reportDownload = page.waitForEvent('download');
+      await file.click();
       expect((await reportDownload).suggestedFilename()).toBe('operations-report.csv');
+      await page.goBack();
       await expect(
         page.getByRole('button', { name: '下钻话单', exact: true }).first(),
       ).toBeVisible();
@@ -190,7 +215,12 @@ export async function operationsChecks({ page, context, origin, check, go }) {
   await check('P2 notifications read navigate and personal configuration echo', async () => {
     await go('/admin/operations/notices', '通知中心');
     await expect(page.getByRole('button', { name: '查看事项', exact: true }).first()).toBeVisible();
-    await page.getByRole('button', { name: '查看事项', exact: true }).first().click();
+    await page
+      .getByRole('row')
+      .filter({ hasText: '有新的线索待跟进' })
+      .first()
+      .getByRole('button', { name: '查看事项', exact: true })
+      .click();
     await expect(page).toHaveURL(/operations\/(leads|calls)/);
     await go('/admin/operations/workspace', '坐席个人配置');
     await page.getByLabel('个人整理秒数', { exact: true }).fill('12');

@@ -26,6 +26,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/ops")
 public class Operations {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.CompetitiveMetrics competitiveMetrics;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.common.config.Config config;
 
     private final OperationsStore db;
@@ -140,8 +146,28 @@ public class Operations {
                                     "prepared")));
         if (q.containsKey("flow_version_id") && !q.get("flow_version_id").isBlank())
             p.put("flow_version_id", number(q.get("flow_version_id"), 0, Integer.MAX_VALUE));
-        for (String k : List.of("phone", "intent", "review_state", "stage", "tag"))
+        for (String k :
+                List.of(
+                        "phone",
+                        "intent",
+                        "review_state",
+                        "stage",
+                        "tag",
+                        "id",
+                        "node",
+                        "grade",
+                        "hangup_reason",
+                        "remark",
+                        "gender",
+                        "batch_id"))
             if (q.containsKey(k) && !q.get(k).isBlank()) p.put(k, text(q.get(k), 120));
+        if (!q.getOrDefault("reviewer_id", "").isBlank())
+            p.put("reviewer_id", number(q.get("reviewer_id"), 1, Integer.MAX_VALUE));
+        if (!q.getOrDefault("pool", "").isBlank())
+            p.put("pool", choice(q.get("pool"), Set.of("public", "assigned")));
+        for (String key : List.of("entered", "taken", "successful", "lost", "manual", "answered"))
+            if (!q.getOrDefault(key, "").isBlank())
+                p.put(key, Boolean.parseBoolean(choice(q.get(key), Set.of("true", "false"))));
         if (q.containsKey("status") && !q.get("status").isBlank())
             p.put("status", store.encode("callsession", "status", q.get("status")));
         for (String k : List.of("from", "until"))
@@ -339,7 +365,10 @@ public class Operations {
     @GetMapping("/calls")
     public Map<String, Object> calls(@RequestParam
     Map<String, String> q, HttpServletRequest r) {
-        Identity i = actor(r);
+        return callsFor(q, actor(r));
+    }
+
+    public Map<String, Object> callsFor(Map<String, String> q, Identity i) {
         var p = filters(i, q);
         return JsonSupport.map(
                 "total",
@@ -353,7 +382,10 @@ public class Operations {
     public ResponseEntity<byte[]> export(@RequestParam
     Map<String, String> q, HttpServletRequest r)
             throws IOException {
-        Identity i = actor(r);
+        return exportFor(q, actor(r));
+    }
+
+    public ResponseEntity<byte[]> exportFor(Map<String, String> q, Identity i) throws IOException {
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
         var p = filters(i, q);
         long total = db.count("callCount", p);
@@ -374,7 +406,16 @@ public class Operations {
                         "duration_seconds",
                         "owner_id",
                         "stage",
-                        "created_at");
+                        "created_at",
+                        "call_cost",
+                        "follow_at",
+                        "remark",
+                        "assigned_at",
+                        "last_error",
+                        "gender",
+                        "grade",
+                        "result_code",
+                        "reviewed_by");
         csv.printRecord(keys);
         p.put("limit", 250);
         for (int offset = 0; offset < total; offset += 250) {
@@ -406,10 +447,25 @@ public class Operations {
         return s.matches("^[=+@\\-\\t\\r].*") ? "'" + s : s;
     }
 
+    public void authorizeExportCalls(Identity i, List<String> ids) {
+        if (access.all(i)) return;
+        var distinct = new ArrayList<>(new LinkedHashSet<>(ids));
+        for (int at = 0; at < distinct.size(); at += 250) {
+            var p = base(i);
+            var chunk = distinct.subList(at, Math.min(at + 250, distinct.size()));
+            p.put("ids", chunk);
+            if (db.count("exportVisibleCount", p) != chunk.size())
+                throw new ApiError(403, "部分话单已不在当前数据范围，请重新导出");
+        }
+    }
+
     @GetMapping("/reports")
     public Map<String, Object> reports(@RequestParam
     Map<String, String> q, HttpServletRequest r) {
-        Identity i = actor(r);
+        return reportsFor(q, actor(r));
+    }
+
+    public Map<String, Object> reportsFor(Map<String, String> q, Identity i) {
         var p = filters(i, q);
         p.put("statement_mode", config.production() ? "statement" : "simulation");
         p.put(
@@ -432,7 +488,7 @@ public class Operations {
                 "granularity",
                 choice(
                         q.getOrDefault("granularity", "all"),
-                        Set.of("all", "day", "hour", "minute")));
+                        Set.of("all", "day", "hour", "minute", "month")));
         for (String key : List.of("min_intent_rate", "max_intent_rate")) {
             if (q.getOrDefault(key, "").isBlank()) continue;
             try {
@@ -452,7 +508,7 @@ public class Operations {
         if (!p.containsKey("from")) p.put("from", Store.now().minusDays(30));
         return JsonSupport.map(
                 "rows",
-                db.rows("report", p),
+                competitiveMetrics.enrich(i.tenant(), db.rows("report", p), p),
                 "definition",
                 "首呼、复呼按会话内拨打序号及接通回执统计，归入会话创建时段；时长只累计有记录的秒数。会话按当前状态；尝试为会话累计attempts；合格仅统计质检结果qualified_lead；组内号码去重，跨组不能相加。进线按产生转接请求的会话去重，接管按已接受或完成的转接统计。接通率按接通回执次数除以拨打次数。进线率、接通成功率和意向率以接通会话为分母，接管成功率以接管会话为分母。成功为合格线索，意向含表达兴趣、合格线索和确认回拨。分母为零显示空值。",
                 "filters",
@@ -472,6 +528,21 @@ public class Operations {
         return db.rows("dailyBreakdown", p);
     }
 
+    @GetMapping("/reports/intents")
+    public Object intents(@RequestParam
+    Map<String, String> q, HttpServletRequest r) {
+        return intentsFor(q, actor(r));
+    }
+
+    public Object intentsFor(Map<String, String> q, Identity i) {
+        var p = filters(i, q);
+        p.put(
+                "dimension",
+                choice(q.getOrDefault("dimension", "agent"), Set.of("agent", "campaign")));
+        p.putIfAbsent("from", Store.now().minusDays(30));
+        return db.rows("intentDistribution", p);
+    }
+
     @GetMapping("/reports/durations")
     public Object durations(@RequestParam
     Map<String, String> q, HttpServletRequest request) {
@@ -487,9 +558,13 @@ public class Operations {
     public ResponseEntity<byte[]> reportExport(
             @RequestParam
             Map<String, String> q, HttpServletRequest r) throws IOException {
-        Identity i = actor(r);
+        return reportExportFor(q, actor(r));
+    }
+
+    public ResponseEntity<byte[]> reportExportFor(Map<String, String> q, Identity i)
+            throws IOException {
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
-        var data = reports(q, r);
+        var data = reportsFor(q, i);
         var writer = new StringWriter();
         writer.write('\ufeff');
         var csv = new CSVPrinter(writer, CSVFormat.DEFAULT);
@@ -519,7 +594,27 @@ public class Operations {
                         "successful_takeovers",
                         "success_per_answer",
                         "success_per_takeover",
-                        "intent_rate");
+                        "intent_rate",
+                        "human_seconds",
+                        "followed",
+                        "online_seconds",
+                        "online_people",
+                        "gender_ratio",
+                        "loss_count",
+                        "loss_rate",
+                        "average_intervention",
+                        "interested_sessions",
+                        "intent_cost",
+                        "success_cost",
+                        "reference_cost",
+                        "reference_intent_cost",
+                        "reference_success_cost",
+                        "statement_cost",
+                        "bill_seconds",
+                        "active_agents",
+                        "per_agent_takeover",
+                        "per_agent_cost",
+                        "weekday");
         csv.printRecord(fields);
         for (Object raw : list(data.get("rows"))) {
             var row = object(raw);
@@ -952,6 +1047,9 @@ public class Operations {
                                     number(b.get("form_id"), 1, Long.MAX_VALUE)));
             if (config == null || !"form".equals(config.get("kind")))
                 throw new ApiError(404, "表单不存在");
+            if (!competitiveMetrics.formAllowed(
+                    i.tenant(), i.userId(), config.get("id"), "admin".equals(i.user().get("role"))))
+                throw new ApiError(403, "该表单未分配给当前账号");
             var fields = object(b.get("fields"));
             validateForm(json.object(config.get("config_json").toString()), fields);
             current.put("fields_json", json.json(fields));
@@ -1019,11 +1117,29 @@ public class Operations {
         db.write("noticeWork", p);
         db.write("noticeAppointment", p);
         db.write("noticeDelivery", p);
+        if ("admin".equals(i.user().get("role"))) {
+            var rule = outboundRules.read(i.tenant());
+            var value = object(rule.get("draft"));
+            int threshold = JsonSupport.integer(value.get("low_balance"), 0);
+            if (threshold > 0) {
+                var balance = statements.balance(i.tenant());
+                if (Boolean.TRUE.equals(balance.get("available"))
+                        && balance.get("amount") instanceof Number n
+                        && n.doubleValue() <= threshold)
+                    notice(
+                            i,
+                            i.userId(),
+                            "low-balance:" + Store.now().toLocalDate() + ":" + rule.get("revision"),
+                            "语音余额已低于提醒阈值",
+                            "/account/recharge");
+            }
+        }
         return db.rows("notices", p);
     }
 
     @GetMapping("/notices/unread")
     public Map<String, Object> unread(HttpServletRequest r) {
+        notices(r);
         return Map.of("count", db.count("unreadNotices", base(actor(r))));
     }
 
@@ -1071,7 +1187,16 @@ public class Operations {
         Identity i = actor(r);
         var p = base(i);
         p.put("kind", choice(kind, Set.of("form", "tag", "workspace")));
-        return db.rows("configs", p);
+        return db.rows("configs", p).stream()
+                .filter(
+                        c ->
+                                !kind.equals("form")
+                                        || competitiveMetrics.formAllowed(
+                                                i.tenant(),
+                                                i.userId(),
+                                                c.get("id"),
+                                                "admin".equals(i.user().get("role"))))
+                .toList();
     }
 
     @GetMapping("/tag-objects")

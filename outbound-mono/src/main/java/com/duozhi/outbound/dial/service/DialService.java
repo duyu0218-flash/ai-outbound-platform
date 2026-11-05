@@ -42,6 +42,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class DialService {
     @Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+    @Autowired
     private RuntimeOwnership ownership;
     @Autowired
     private DialAuthorizationService authorizations;
@@ -390,7 +392,8 @@ public class DialService {
                                                     "" + tenant, k -> tx.tenant(tenant))
                                             : tx.tenant(tenant),
                             call = batch != null ? initial : tx.call(id);
-                    if ((tenantDial != null && !tenantDial.open(tenant))
+                    if (!outboundRules.open(tenant, batch == null ? Instant.now() : batch.instant)
+                            || (tenantDial != null && !tenantDial.open(tenant))
                             || !Boolean.TRUE.equals(tenantRow.get("enabled"))
                             || !Values.set("created", "queued").contains(call.get("status")))
                         return null;
@@ -541,6 +544,7 @@ public class DialService {
                                                     compliance.get("max_calls_per_day"), 10000)));
                     if (dailyCount.effective() >= daily) reason = "tenant_daily_call_limit";
                     if (!reason.isEmpty()) {
+                        outboundRules.blocked(tenant, id, call.get("phone").toString(), reason);
                         store.update(
                                 "callsession",
                                 tenant,

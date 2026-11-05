@@ -1,7 +1,48 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import { session } from '../session';
 import { useData, action } from '../data';
-import { ops } from '../operations';
+import { ops, perform } from '../operations';
+const date = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+const statFrom = ref(date.slice(0, 7) + '-01'),
+  statUntil = ref(date),
+  statUser = ref(''),
+  statApplied = ref({}),
+  staff = useData('/api/v1/ops/me');
+function applyStats() {
+  if (statFrom.value && statUntil.value && statFrom.value <= statUntil.value)
+    statApplied.value = {
+      from: statFrom.value + 'T00:00:00+08:00',
+      until: statUntil.value + 'T23:59:59.999+08:00',
+      actor_id: statUser.value,
+    };
+}
+const tab = ref('statistics'),
+  statistics = useData(
+    () => '/api/v1/ops/wecom/statistics?' + new URLSearchParams(statApplied.value),
+  ),
+  profile = useData('/api/v1/ops/wecom/profiles/' + session.user.id),
+  config = ref({}),
+  revision = ref(0);
+watch(
+  () => profile.data.value,
+  (v) => {
+    if (v) {
+      config.value = JSON.parse(JSON.stringify(v.draft));
+      revision.value = v.revision;
+    }
+  },
+);
+async function saveProfile() {
+  await perform(
+    () =>
+      ops('/wecom/profiles/' + session.user.id, 'PUT', {
+        config: config.value,
+        revision: revision.value,
+      }),
+    profile.load,
+  );
+}
 const keyword = ref(''),
   page = ref(1),
   selected = ref(null),
@@ -42,7 +83,44 @@ async function save() {
     type="error"
     :title="rows.error.value"
   />
-  <el-card
+  <el-tabs v-model="tab"
+    ><el-tab-pane label="添加统计" name="statistics" /><el-tab-pane
+      label="企微配置"
+      name="config" /><el-tab-pane label="搜索企微" name="search"
+  /></el-tabs>
+  <el-card v-if="tab === 'statistics'"
+    ><el-button @click="statistics.load">刷新统计</el-button
+    ><el-alert
+      v-if="statistics.error.value"
+      :title="statistics.error.value"
+      type="error" /><el-table :data="statistics.data.value || []"
+      ><el-table-column prop="date" label="日期" /><el-table-column
+        prop="agent"
+        label="坐席" /><el-table-column prop="requested" label="已添加数量" /><el-table-column
+        prop="added"
+        label="通过数量" /><el-table-column prop="approval_rate" label="通过率（%）" /></el-table
+  ></el-card>
+  <el-card v-else-if="tab === 'config'"
+    ><el-alert v-if="profile.error.value" :title="profile.error.value" type="error" /><el-form
+      label-position="top"
+      ><el-form-item
+        v-for="[key, label] in [
+          ['corp_id', '企业ID'],
+          ['member_id', '企微成员账号'],
+          ['contact_url', '联系客户链接'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-input v-model="config[key]" :aria-label="label" /></el-form-item
+      ><el-button
+        type="primary"
+        :disabled="!config.corp_id || !config.member_id"
+        @click="saveProfile"
+        >保存企微配置</el-button
+      ></el-form
+    ></el-card
+  >
+  <el-card v-else
     ><el-input
       aria-label="查找企微线索"
       v-model="keyword"
@@ -51,10 +129,19 @@ async function save() {
       @input="page = 1"
     />
     <el-table :data="rows.data.value?.rows || []" row-key="contact_id"
-      ><el-table-column prop="name" label="客户" /><el-table-column label="添加结果"
+      ><el-table-column prop="name" label="客户" /><el-table-column
+        prop="phone"
+        label="电话"
+      /><el-table-column label="添加结果"
         ><template #default="{ row }">{{ labels[row.wecom_status] }}</template></el-table-column
       ><el-table-column label="操作"
         ><template #default="{ row }"
+          ><a
+            v-if="config.contact_url"
+            :href="config.contact_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            >在企业微信打开</a
           ><el-button @click="edit(row)">登记添加结果</el-button></template
         ></el-table-column
       ></el-table

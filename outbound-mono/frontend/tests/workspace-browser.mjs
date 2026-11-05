@@ -1,15 +1,20 @@
 import { expect } from '@playwright/test';
 export async function workspaceChecks({ page, origin, check, go }) {
-  await check('four navigation groups and all visible module entrances render', async () => {
+  await check('competitor navigation groups and all visible module entrances render', async () => {
     await expect(page.locator('.sidebar .nav-group')).toHaveText([
+      '数据管理',
+      '快捷面板',
+      '外呼任务',
+      '话术管理',
+      '账号中心',
       'AI 外呼',
       '短信营销',
       '营销中台',
       '系统',
     ]);
-    await page.getByRole('button', { name: '展开或收起AI 外呼', exact: true }).click();
-    await expect(page.getByRole('menuitem').filter({ hasText: '话术管理' })).toBeHidden();
-    await page.getByRole('button', { name: '展开或收起AI 外呼', exact: true }).click();
+    await page.getByRole('button', { name: '展开或收起话术管理', exact: true }).click();
+    await expect(page.getByRole('menuitem').filter({ hasText: '话术编辑' })).toBeHidden();
+    await page.getByRole('button', { name: '展开或收起话术管理', exact: true }).click();
     await page.getByRole('button', { name: '帮助', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: '创建一次外呼任务', exact: true }),
@@ -18,13 +23,13 @@ export async function workspaceChecks({ page, origin, check, go }) {
     const labels = await page.getByRole('menuitem').allTextContents();
     for (const label of labels) {
       await page.getByRole('menuitem').filter({ hasText: label.trim() }).first().click();
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);
     }
     await go('/admin/reports', '外呼报表');
     for (const label of ['运营分析', '分组统计', '运营报表']) {
       await page.getByRole('tab', { name: label, exact: true }).click();
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     }
   });
   await check('script copy keeps flow draft and owner change echoes', async () => {

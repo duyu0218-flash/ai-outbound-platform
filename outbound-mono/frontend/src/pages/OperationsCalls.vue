@@ -29,7 +29,18 @@ const allColumns = [
   { key: 'review_state', label: '复核状态' },
   { key: 'owner_id', label: '负责人编号' },
   { key: 'stage', label: '跟进状态' },
-  { key: 'created_at', label: '创建时间', date: true },
+  { key: 'created_at', label: '拨打时间', date: true },
+  ...[
+    ['call_cost', '通话费用（元）'],
+    ['follow_at', '跟进时间'],
+    ['remark', '备注'],
+    ['assigned_at', '分配时间'],
+    ['last_error', '挂机原因'],
+    ['gender', '性别（已采集）'],
+    ['grade', 'AI评级'],
+    ['result_code', '成功单结果'],
+    ['reviewed_by', '质检账号'],
+  ].map(([key, label]) => ({ key, label })),
 ];
 const visible = ref(allColumns.map((c) => c.key)),
   columns = computed(() => allColumns.filter((c) => visible.value.includes(c.key))),
@@ -101,7 +112,12 @@ function chooseView() {
 }
 async function exportRows() {
   try {
-    await download('/api/v1/ops/calls/export?' + query(route.query));
+    await ops('/exports', 'POST', {
+      kind: 'calls',
+      query: { ...route.query },
+      request_key: crypto.randomUUID(),
+    });
+    await router.push(prefix() + '/operations/notices?tab=downloads');
   } catch (e) {
     error.value = e.message;
   }
@@ -136,6 +152,20 @@ onMounted(async () => {
       >导出当前结果</el-button
     ></PageHeader
   >
+  <el-tabs
+    :model-value="route.query.pool || 'all'"
+    @update:model-value="
+      (v) =>
+        v === 'exports'
+          ? router.push(prefix() + '/operations/notices?tab=downloads')
+          : replaceQuery({ ...route.query, pool: v === 'all' ? undefined : v, page: 1 })
+    "
+    ><el-tab-pane name="all" label="全部话单" /><el-tab-pane
+      name="public"
+      label="公海数据" /><el-tab-pane name="assigned" label="已分配到数据" /><el-tab-pane
+      name="exports"
+      label="数据导出"
+  /></el-tabs>
   <el-card
     ><el-form label-position="top" class="form-grid ops-filters" @submit.prevent="apply"
       ><el-form-item label="号码"
@@ -230,10 +260,62 @@ onMounted(async () => {
             :key="u.id"
             :value="u.id"
             :label="u.full_name" /></el-select></el-form-item
+      ><el-form-item
+        v-for="[key, label] in [
+          ['id', '话单ID'],
+          ['node', '埋点名称'],
+          ['grade', 'AI评级'],
+          ['hangup_reason', '挂机原因'],
+          ['remark', '备注'],
+          ['gender', '性别'],
+          ['batch_id', '批次号'],
+          ['intent', '意向度'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-input v-model="filters[key]" :aria-label="'查询' + label" /></el-form-item
+      ><el-form-item label="跟进状态"
+        ><el-select v-model="filters.stage" clearable aria-label="查询跟进状态"
+          ><el-option
+            v-for="[v, l] in [
+              ['open', '待跟进'],
+              ['in_progress', '跟进中'],
+              ['completed', '成功'],
+              ['invalid', '放弃'],
+            ]"
+            :key="v"
+            :value="v"
+            :label="l" /></el-select></el-form-item
+      ><el-form-item label="话术"
+        ><el-input v-model="filters.script_id" aria-label="查询话术" /></el-form-item
+      ><el-form-item label="质检账号"
+        ><el-select v-model="filters.reviewer_id" clearable aria-label="查询质检账号"
+          ><el-option
+            v-for="u in profile.users || []"
+            :key="u.id"
+            :value="u.id"
+            :label="u.full_name" /></el-select></el-form-item
+      ><el-form-item
+        v-for="[key, label] in [
+          ['entered', '进线'],
+          ['taken', '接管'],
+          ['successful', '是否成功单'],
+          ['lost', '是否呼损'],
+          ['manual', '是否手拨'],
+          ['answered', '是否接通'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-select v-model="filters[key]" clearable :aria-label="'查询' + label"
+          ><el-option label="是" value="true" /><el-option
+            label="否"
+            value="false" /></el-select></el-form-item
     ></el-form>
     <div class="actions">
       <el-button type="primary" @click="apply">查询</el-button
-      ><el-button @click="reset">重置</el-button><span>共 {{ total }} 条</span>
+      ><el-button @click="reset">重置</el-button
+      ><el-button @click="router.push('/admin/tasks/inspection')">AI 巡检</el-button
+      ><span>共 {{ total }} 条</span>
     </div></el-card
   >
   <el-card

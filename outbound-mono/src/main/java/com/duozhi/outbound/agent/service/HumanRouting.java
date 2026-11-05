@@ -29,6 +29,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class HumanRouting {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.AccountResources accountResources;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private ScheduledWork scheduledWork;
 
     private final Store store;
@@ -161,6 +164,7 @@ public class HumanRouting {
     }
 
     private boolean usable(long tenant, Map<String, Object> agent) {
+        if (!accountResources.unexpired(tenant, agent.get("id"))) return false;
         if (OpeningAdmissionFacts.active())
             return !config.flag("WEBRTC_ENABLED", false)
                     || OpeningAdmissionFacts.registered(tenant, agent.get("id"));

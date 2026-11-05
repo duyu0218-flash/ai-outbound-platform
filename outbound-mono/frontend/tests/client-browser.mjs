@@ -21,6 +21,11 @@ export async function clientChecks({ page, origin, check }) {
   await check('admin sidebar is grouped along the business chain', async () => {
     await page.goto(origin + '/admin');
     await expect(page.locator('.sidebar .nav-group')).toHaveText([
+      '数据管理',
+      '快捷面板',
+      '外呼任务',
+      '话术管理',
+      '账号中心',
       'AI 外呼',
       '短信营销',
       '营销中台',

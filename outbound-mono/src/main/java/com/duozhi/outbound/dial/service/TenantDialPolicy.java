@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class TenantDialPolicy {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.AccountResources accountResources;
+
     private final WorkspaceDocuments docs;
 
     public TenantDialPolicy(WorkspaceDocuments docs) {
@@ -34,6 +37,7 @@ public class TenantDialPolicy {
 
     public boolean ownerAvailable(long tenant, Object owner) {
         if (owner == null) return true;
+        if (!accountResources.available(tenant, owner)) return false;
         var batch = DialBatchScope.current();
         String k = "owner-limit:" + tenant + ":" + owner;
         long cap;

@@ -33,7 +33,7 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
       await expect(page).toHaveURL(origin + '/' + role);
       // The agent workbench has an event stream; use a finite page for test setup.
       await page.goto(origin + '/' + role + '/operations/notices');
-      await expect(page.getByRole('heading', { name: '通知中心', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '消息中心', exact: true })).toBeVisible();
       await page.waitForLoadState('networkidle');
       await work(page);
     } finally {
@@ -128,7 +128,7 @@ export async function navigationRaceChecks({ browser, origin, accounts, check })
               await expect(page).toHaveURL(origin + '/' + role + '/operations/' + last);
               await expect(
                 page.getByRole('heading', {
-                  name: role === 'admin' ? '表单标签与业务连接' : '通知中心',
+                  name: role === 'admin' ? '表单标签与业务连接' : '消息中心',
                   exact: true,
                 }),
               ).toBeVisible();

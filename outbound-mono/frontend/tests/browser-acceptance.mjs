@@ -1,3 +1,4 @@
+import { competitiveChecks } from './competitive-browser.mjs';
 import { workspaceChecks } from './workspace-browser.mjs';
 import { messagingChecks } from './messaging-browser.mjs';
 import { clientChecks } from './client-browser.mjs';
@@ -61,7 +62,7 @@ async function go(path, title) {
       document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path);
     }, path);
   await expect(page).toHaveURL(origin + path);
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);
 }
 try {
@@ -294,6 +295,7 @@ try {
   });
   await workspaceChecks({ page, origin, check, go });
   await operationsChecks({ page, context, origin, check, go });
+  await competitiveChecks({ page, check, go });
   await messagingChecks({ page, origin, check });
   await clientChecks({ page, origin, check });
   await check('P0-P1 human admission policy form saves and echoes', async () => {
@@ -382,7 +384,7 @@ try {
       ['workspace', '坐席个人配置'],
     ]) {
       await go('/agent/operations/' + path, label);
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     }
     await page.getByRole('button', { name: '退出登录', exact: true }).click();
   });
