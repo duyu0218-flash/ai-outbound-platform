@@ -1455,13 +1455,17 @@ class OutboundReliabilityIT {
                                                         1));
                                     }));
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadline
-                        && !threads.stream().allMatch(t -> t.getState() == Thread.State.WAITING))
+                        && !threads.stream()
+                                .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
                     Thread.sleep(10);
                 assertThat(threads)
                         .hasSize(4)
-                        .allSatisfy(t -> assertThat(t.getState()).isEqualTo(Thread.State.WAITING));
+                        .allSatisfy(
+                                t ->
+                                        assertThat(t.getState())
+                                                .isEqualTo(Thread.State.TIMED_WAITING));
                 assertThat(((DruidDataSource) dataSource).getActiveCount())
                         .as(
                                 "Dial requests must not exhaust connections while waiting for"

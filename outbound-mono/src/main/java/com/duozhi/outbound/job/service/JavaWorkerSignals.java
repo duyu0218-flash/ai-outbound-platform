@@ -1,6 +1,7 @@
 package com.duozhi.outbound.job.service;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.ExpiringValues;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.job.worker.TaskWorker;
@@ -15,6 +16,9 @@ import org.springframework.stereotype.Service;
 /** Publishes only observed Java AI-lane progress; a stalled or stopped lane expires. */
 @Service
 public final class JavaWorkerSignals {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final TaskWorker worker;
     private final Config config;
     private final ExpiringValues redis;
@@ -46,7 +50,11 @@ public final class JavaWorkerSignals {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_WORKER_SIGNAL_POLL_MS:1000}")
-    void tick() {
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.WORKER_SIGNALS, this::tick);
+    }
+
+    public void tick() {
         if (!config.flag("JAVA_WORKERS_ENABLED", false)
                 || !config.flag("STABILITY_ADMISSION_ENABLED", false)
                 || !busy.compareAndSet(false, true)) return;

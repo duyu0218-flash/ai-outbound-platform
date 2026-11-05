@@ -1,6 +1,7 @@
 package com.duozhi.outbound.marketing.link;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.marketing.common.Attribution;
 import com.duozhi.outbound.marketing.common.MarketingStore;
@@ -23,6 +24,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class SmsReceipts {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private static final Logger log = LoggerFactory.getLogger(SmsReceipts.class);
     static final String CURSOR = "sms_receipts";
     static final Set<String> FINAL =
@@ -57,13 +61,18 @@ public class SmsReceipts {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_SMS_RECEIPT_MS:5000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.SMS_RECEIPTS, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MARKETING_WORKERS_ENABLED", false)) return;
         try {
             Duration settle =
                     Duration.ofSeconds(config.number("MARKETING_SMS_RECEIPT_SETTLE_SECONDS", 5));
-            while (scanOnce(settle, 1000) == 1000) {}
-            markUnknown(500);
+            for (int batch = 0; batch < 4 && ScheduledWork.withinBudget(); batch++)
+                if (scanOnce(settle, 1000) < 1000) break;
+            if (ScheduledWork.withinBudget()) markUnknown(500);
         } catch (RuntimeException e) {
             log.warn("sms receipt bridge failed: {}", e.getClass().getSimpleName());
         }

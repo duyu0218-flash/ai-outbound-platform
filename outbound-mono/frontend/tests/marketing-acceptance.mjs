@@ -5,7 +5,10 @@ import { marketingChecks } from './marketing-browser.mjs';
 const origin = process.env.MONO_BROWSER_URL;
 if (!origin || !process.env.MONO_BROWSER_ADMIN_TOKEN || !process.env.MONO_BROWSER_AGENT_TOKEN)
   throw new Error('Local marketing test URL and synthetic credentials are required');
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  headless: true,
+});
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage(),
   errors = [],

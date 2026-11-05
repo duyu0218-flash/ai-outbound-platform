@@ -24,6 +24,56 @@ class DataLayerReplayIT {
                             "--collation-server=utf8mb4_0900_ai_ci");
 
     @Test
+    void v43UpgradeAddsQuarantineWithoutReleasingLiveVoiceReservations() throws Exception {
+        String schema = "runtime_v43_upgrade";
+        try (var connection =
+                        DriverManager.getConnection(
+                                MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE DATABASE "
+                            + schema
+                            + " CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin");
+        }
+        String url =
+                "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + schema;
+        var old =
+                Flyway.configure()
+                        .dataSource(url, "root", MYSQL.getPassword())
+                        .locations("classpath:db/migration")
+                        .target("43")
+                        .load();
+        assertThat(old.migrate().migrationsExecuted).isEqualTo(43);
+        try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+                var statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "INSERT INTO voice_attempts(call_id,attempt,tenant,`line`,uuid,digest,payload,created,deadline,cost,rate,multiplier,state)"
+                            + " VALUES ('retained',1,1,'line','retained-uuid','digest','{}',0,9999999999,100,10,1,'pending')");
+        }
+        var upgrade =
+                Flyway.configure()
+                        .dataSource(url, "root", MYSQL.getPassword())
+                        .locations("classpath:db/migration")
+                        .load();
+        assertThat(upgrade.migrate().migrationsExecuted).isEqualTo(migrationsAbove(43));
+        upgrade.validate();
+        assertThat(upgrade.migrate().migrationsExecuted).isZero();
+        try (var connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+                var statement = connection.createStatement()) {
+            try (var rows =
+                    statement.executeQuery(
+                            "SELECT COUNT(*) FROM voice_attempts WHERE state='pending' AND cost=100")) {
+                rows.next();
+                assertThat(rows.getLong(1)).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM voice_event_quarantine")) {
+                rows.next();
+                assertThat(rows.getLong(1)).isZero();
+            }
+        }
+    }
+
+    @Test
     void v18UpgradePreservesLiveCompatibilityReservationsAndMode() throws Exception {
         String schema = "v3_upgrade";
         try (var connection =
@@ -276,7 +326,7 @@ class DataLayerReplayIT {
         }
         // Marketing tables (mk_*) are owned and verified by the marketing module tests.
         assertThat(tables.keySet().stream().filter(name -> !name.startsWith("mk_")).count())
-                .isEqualTo(125);
+                .isEqualTo(126);
         assertThat(tables)
                 .containsKeys(
                         "platform_document",

@@ -1,6 +1,7 @@
 package com.duozhi.outbound.marketing.dataset;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class DatasetWorker {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final DatasetImports imports;
     private final Matching matching;
     private final SendTasks sends;
@@ -40,6 +44,10 @@ public class DatasetWorker {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_POLL_MS:1000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.DATASET, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MARKETING_WORKERS_ENABLED", false) || !busy.compareAndSet(false, true))
             return;

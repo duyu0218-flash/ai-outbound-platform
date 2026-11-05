@@ -1,6 +1,7 @@
 package com.duozhi.outbound.messaging.service;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,6 +10,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MessageWorker {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final Messaging messaging;
     private final Config config;
     private final ExecutorService work =
@@ -22,6 +26,10 @@ public class MessageWorker {
     }
 
     @Scheduled(fixedDelayString = "${MESSAGING_POLL_MS:250}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.MESSAGES, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MESSAGING_WORKERS_ENABLED", false)
                 || !config.flag("MESSAGING_ENABLED", false)

@@ -11,6 +11,7 @@ import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.RuntimeOwnership;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -18,6 +19,7 @@ import com.duozhi.outbound.customer.controller.Contacts;
 import com.duozhi.outbound.dial.dao.DialBatchStore;
 import com.duozhi.outbound.dial.dao.DialCommandJournal;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.duozhi.outbound.dial.domain.OpeningAdmissionFacts;
 import com.duozhi.outbound.integration.config.UnifiedServiceSettings;
 import com.duozhi.outbound.integration.service.GatewayCluster;
 import com.duozhi.outbound.integration.service.TelephonyClient;
@@ -26,6 +28,7 @@ import com.duozhi.outbound.job.service.Outbox;
 import com.duozhi.outbound.job.worker.TaskWorker;
 import com.duozhi.outbound.system.service.Settings;
 import com.duozhi.outbound.voice.controller.VoiceController;
+import com.duozhi.outbound.voiceai.service.OpeningAudioCache;
 import com.duozhi.outbound.voiceai.service.VoiceAiCredentials;
 import com.duozhi.outbound.voiceai.service.VoiceAiProfiles;
 import java.nio.ByteBuffer;
@@ -38,6 +41,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class DialService {
+    @Autowired
+    private RuntimeOwnership ownership;
     @Autowired
     private DialAuthorizationService authorizations;
 
@@ -318,8 +323,53 @@ public class DialService {
                 && local.getHour() < JsonSupport.integer(value.get("end_hour"), 20);
     }
 
+    private OpeningAdmissionFacts prepareOpenings(Collection<?> ids) {
+        var receipts = new HashMap<String, OpeningAdmissionFacts.Receipt>();
+        var calls = new ArrayList<Map<String, Object>>();
+        if (config.production() || config.flag("WEBRTC_ENABLED", false)) {
+            if (org.springframework.transaction.support.TransactionSynchronizationManager
+                    .isActualTransactionActive())
+                throw new ApiError(409, "OPENING_PREFLIGHT_REQUIRES_NO_TRANSACTION");
+            for (Object id : ids) {
+                var call =
+                        store.locate("callsession", store.encode("callsession", "id", id), false);
+                if (call == null || !Values.set("created", "queued").contains(call.get("status")))
+                    continue;
+                calls.add(call);
+                if (!config.production()) continue;
+                long tenant = CallLifecycle.tenant(call);
+                var policy =
+                        json.object(conversation.initialStatePolicy(call).get("json").toString());
+                var ai = Support.map(policy.get("_ai"));
+                if (!VoiceAiProfiles.selected(ai)) continue;
+                var profile = Support.map(ai.get("_voice_profile"));
+                String text = Objects.toString(ai.get("ai_disclosure_text"), "");
+                String key = OpeningAudioCache.key(tenant, profile, text);
+                if (receipts.containsKey(key)) continue;
+                try {
+                    var runtime =
+                            credentials.runtime(
+                                    new UnifiedServiceSettings(config, "voice"), tenant, -1);
+                    byte[] pcm = new OpeningAudioCache(runtime).read(tenant, profile, text);
+                    if (pcm == null) throw new ApiError(409, "请先在语音方案页准备身份告知音频");
+                    receipts.put(key, OpeningAdmissionFacts.receipt(tenant, profile, text, pcm));
+                } catch (java.io.IOException unavailable) {
+                    throw new ApiError(409, "身份告知音频不可用");
+                }
+            }
+        }
+        return new OpeningAdmissionFacts(receipts, routing.preparePresence(calls));
+    }
+
     private Map<String, Object> claim(Object id) {
-        return tx.serialized(
+        if (OpeningAdmissionFacts.active()) return claimPrepared(id);
+        try (var facts = prepareOpenings(List.of(id))) {
+            return claimPrepared(id);
+        }
+    }
+
+    private Map<String, Object> claimPrepared(Object id) {
+        return tx.admission(
                 () -> {
                     tx.platform();
                     if (!drain.acceptingInTransaction()) return null;
@@ -859,20 +909,12 @@ public class DialService {
                     && call.get("script_flow_version_id") != null)
                 throw new ApiError(409, "流程画布通话必须由业务策略控制语音回复");
             if (config.production()) {
-                try {
-                    var voiceRuntime =
-                            credentials.runtime(
-                                    new UnifiedServiceSettings(config, "voice"), tenant, -1);
-                    if (new com.duozhi.outbound.voiceai.service.OpeningAudioCache(voiceRuntime)
-                                    .read(
-                                            tenant,
-                                            selectedProfile,
-                                            Objects.toString(
-                                                    frozenAi.get("ai_disclosure_text"), ""))
-                            == null) throw new ApiError(409, "请先在语音方案页准备身份告知音频");
-                } catch (java.io.IOException unavailable) {
-                    throw new ApiError(409, "身份告知音频不可用");
-                }
+                var opening =
+                        OpeningAdmissionFacts.require(
+                                tenant,
+                                selectedProfile,
+                                Objects.toString(frozenAi.get("ai_disclosure_text"), ""));
+                metadata.put("opening_audio", opening.metadata());
             }
             metadata.put("voice_ai_guard", new LinkedHashMap<>(frozenAi));
             for (String key : Arrays.asList("asr_provider", "tts_provider", "voice", "language"))
@@ -935,9 +977,17 @@ public class DialService {
      */
     public List<Map<String, Object>> prepareTasks(
             List<Map<String, Object>> tasks, DialBatchStore db) {
+        if (tasks.isEmpty()) return List.of();
+        try (var facts = prepareOpenings(tasks.stream().map(t -> t.get("aggregate_id")).toList())) {
+            return prepareTasksWithOpenings(tasks, db);
+        }
+    }
+
+    private List<Map<String, Object>> prepareTasksWithOpenings(
+            List<Map<String, Object>> tasks, DialBatchStore db) {
         available();
         long started = System.nanoTime();
-        return tx.serialized(
+        return tx.admission(
                 () -> {
                     long acquired = System.nanoTime();
                     TaskWorker.permitted();
@@ -1164,6 +1214,7 @@ public class DialService {
     }
 
     public boolean sendClaimed(Map<String, Object> call, Map<String, Object> metadata) {
+        if (ownership != null) ownership.requireRunning();
         return sendOrConfirm(call, metadata, false);
     }
 

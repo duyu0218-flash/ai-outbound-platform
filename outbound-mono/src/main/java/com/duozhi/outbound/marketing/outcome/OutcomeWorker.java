@@ -1,6 +1,7 @@
 package com.duozhi.outbound.marketing.outcome;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.marketing.common.MarketingStore;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -20,6 +21,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Component
 public class OutcomeWorker {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     static final String NAME = "call_outcome";
     private final MarketingStore db;
     private final OutcomeService outcomes;
@@ -39,6 +43,10 @@ public class OutcomeWorker {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_OUTCOME_POLL_MS:15000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.MARKETING_OUTCOME, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MARKETING_WORKERS_ENABLED", false) || !busy.compareAndSet(false, true))
             return;

@@ -1,6 +1,7 @@
 package com.duozhi.outbound.marketing.journey;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class JourneyWorkers {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private static final Logger log = LoggerFactory.getLogger(JourneyWorkers.class);
     private final Config config;
     private final JourneyEngine engine;
@@ -36,11 +40,17 @@ public class JourneyWorkers {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_JOURNEY_POLL_MS:5000}")
+    public void scheduledJourneys() {
+        scheduledWork.submit(ScheduledWork.Job.JOURNEYS, this::journeys);
+    }
+
     public void journeys() {
         if (!enabled() || !journeys.compareAndSet(false, true)) return;
         try {
             int batch = config.number("MARKETING_JOURNEY_BATCH", 200);
-            for (int i = 0; i < 20 && engine.step(batch) >= batch; i++) {}
+            for (int i = 0;
+                    i < 20 && ScheduledWork.withinBudget() && engine.step(batch) >= batch;
+                    i++) {}
         } catch (RuntimeException e) {
             log.warn("journey worker pass failed: {}", e.toString());
         } finally {
@@ -49,6 +59,10 @@ public class JourneyWorkers {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_PROFILE_CATCHUP_MS:60000}")
+    public void scheduledProfiles() {
+        scheduledWork.submit(ScheduledWork.Job.PROFILES, this::profiles);
+    }
+
     public void profiles() {
         if (!enabled() || !catchUp.compareAndSet(false, true)) return;
         try {
@@ -61,6 +75,10 @@ public class JourneyWorkers {
     }
 
     @Scheduled(fixedDelayString = "${MARKETING_STAT_POLL_MS:300000}")
+    public void scheduledStatistics() {
+        scheduledWork.submit(ScheduledWork.Job.STATISTICS, this::statistics);
+    }
+
     public void statistics() {
         if (!enabled() || !aggregate.compareAndSet(false, true)) return;
         try {

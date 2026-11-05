@@ -1,6 +1,7 @@
 package com.duozhi.outbound.marketing.link;
 
 import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.marketing.common.MarketingStore;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,6 +19,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class DomainProbe {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private static final Logger log = LoggerFactory.getLogger(DomainProbe.class);
     static final Duration CERT_WARNING = Duration.ofDays(15);
 
@@ -45,6 +49,10 @@ public class DomainProbe {
     @Scheduled(
             fixedDelayString = "${MARKETING_LINK_PROBE_MS:600000}",
             initialDelayString = "${MARKETING_LINK_PROBE_MS:600000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.DOMAIN_PROBE, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MARKETING_WORKERS_ENABLED", false)) return;
         try {
@@ -64,8 +72,10 @@ public class DomainProbe {
                         interval,
                         Math.max(1, limit));
         List<Outcome> out = new ArrayList<>();
-        for (var d : due)
+        for (var d : due) {
+            if (!ScheduledWork.withinBudget()) break;
             out.add(probe(((Number) d.get("tenant_id")).longValue(), d.get("id").toString()));
+        }
         return out;
     }
 

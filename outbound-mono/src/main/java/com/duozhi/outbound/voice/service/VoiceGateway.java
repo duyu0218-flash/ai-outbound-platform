@@ -40,6 +40,8 @@ public final class VoiceGateway implements AutoCloseable {
     private final List<ThreadPoolExecutor> eventWorkers = new ArrayList<>();
     private final ScheduledExecutorService maintenance;
     private final Semaphore eventSlots = new Semaphore(2048);
+    private final Semaphore ordinaryEventSlots = new Semaphore(1792);
+    private final EslEventProtection eventProtection;
     private final Queue<Long> pendingEvents = new ConcurrentLinkedQueue<>();
     private final AtomicInteger processingEvents = new AtomicInteger();
     private final LongAdder eventErrors = new LongAdder();
@@ -95,6 +97,7 @@ public final class VoiceGateway implements AutoCloseable {
                 && !settings.get("VOICE_AI_PIPELINE", "legacy").equals("legacy"))
             throw new IllegalArgumentException("realtime media requires FreeSWITCH driver");
         ledger = database == null ? new LocalLedger(settings) : new LocalLedger(database);
+        eventProtection = new EslEventProtection(ledger);
         try {
             security = new VoiceSecurity(settings, ledger);
         } catch (Exception error) {
@@ -200,7 +203,25 @@ public final class VoiceGateway implements AutoCloseable {
                 TimeUnit.SECONDS);
         if (real()) {
             listener.submit(this::listen);
-            maintenance.scheduleWithFixedDelay(this::reconcile, 2, 2, TimeUnit.SECONDS);
+            maintenance.scheduleWithFixedDelay(
+                    () -> {
+                        try {
+                            reconcile();
+                            eventProtection.healthy(
+                                    subscribed && !esl.command("status", false).isBlank(),
+                                    pendingEvents.size());
+                            if (eventProtection.state() == EslEventProtection.State.NORMAL)
+                                eventOverloaded = false;
+                        } catch (Exception unavailable) {
+                            try {
+                                eventProtection.pause();
+                            } catch (RuntimeException ignored) {
+                            }
+                        }
+                    },
+                    2,
+                    2,
+                    TimeUnit.SECONDS);
         } else {
             maintenance.scheduleWithFixedDelay(this::mockTick, 50, 50, TimeUnit.MILLISECONDS);
             maintenance.scheduleWithFixedDelay(
@@ -217,7 +238,9 @@ public final class VoiceGateway implements AutoCloseable {
     }
 
     public boolean ready() {
-        if (draining || !Boolean.TRUE.equals(recordings.disk().get("safe"))) return false;
+        if (draining
+                || eventProtection.state() == EslEventProtection.State.PAUSED
+                || !Boolean.TRUE.equals(recordings.disk().get("safe"))) return false;
         try {
             var state = ledger.summary();
             if (Boolean.TRUE.equals(state.get("stopped"))
@@ -259,6 +282,8 @@ public final class VoiceGateway implements AutoCloseable {
         }
         if (action.equals("dial") && draining)
             throw new Support.Failure(503, "voice gateway is draining");
+        if (action.equals("dial") && !eventProtection.allowAdmission())
+            throw new Support.Failure(503, "ESL_AUTOMATIC_PROTECTION");
         if (!real()) return mockPost(action, payload);
         try {
             return realPost(action, payload);
@@ -1100,15 +1125,16 @@ public final class VoiceGateway implements AutoCloseable {
                                 event,
                                 "Channel-Call-UUID",
                                 Support.str(event, "variable_origination_uuid", "")));
-        if (!eventSlots.tryAcquire()) {
+        boolean terminal =
+                Set.of("CHANNEL_HANGUP", "CHANNEL_HANGUP_COMPLETE", "BACKGROUND_JOB")
+                        .contains(Support.str(event, "Event-Name", ""));
+        boolean ordinary = !terminal && ordinaryEventSlots.tryAcquire();
+        if ((!terminal && !ordinary) || !eventSlots.tryAcquire()) {
+            if (ordinary) ordinaryEventSlots.release();
             eventOverloaded = true;
-            ledger.stopped(true, "ESL event capacity reached");
-            try {
-                eventSlots.acquire();
-            } catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("ESL stopped");
-            }
+            eventProtection.pause();
+            eventProtection.quarantine(event, "ESL_EVENT_OVERLOAD");
+            return;
         }
         long queued = System.nanoTime();
         pendingEvents.add(queued);
@@ -1119,19 +1145,33 @@ public final class VoiceGateway implements AutoCloseable {
                             () -> {
                                 processingEvents.incrementAndGet();
                                 try {
-                                    event(event);
+                                    if (!eventProtection.held(event)) {
+                                        event(event);
+                                        eventProtection.outcome(true);
+                                    }
                                 } catch (Exception error) {
                                     eventErrors.increment();
-                                    ledger.stopped(true, "ESL event processing failed");
+                                    try {
+                                        eventProtection.quarantine(
+                                                event, error.getClass().getSimpleName());
+                                        eventProtection.outcome(false);
+                                    } catch (RuntimeException persistenceFailed) {
+                                        try {
+                                            eventProtection.pause();
+                                        } catch (RuntimeException ignored) {
+                                        }
+                                    }
                                 } finally {
                                     processingEvents.decrementAndGet();
                                     pendingEvents.remove(queued);
                                     eventSlots.release();
+                                    if (ordinary) ordinaryEventSlots.release();
                                 }
                             });
         } catch (RejectedExecutionException stopped) {
             pendingEvents.remove(queued);
             eventSlots.release();
+            if (ordinary) ordinaryEventSlots.release();
             throw stopped;
         }
     }
@@ -1146,7 +1186,9 @@ public final class VoiceGateway implements AutoCloseable {
                 "overloaded",
                 eventOverloaded ? 1 : 0,
                 "errors_total",
-                eventErrors.sum());
+                eventErrors.sum(),
+                "protection_state",
+                eventProtection.state().ordinal());
     }
 
     void event(Map<String, Object> event) throws Exception {

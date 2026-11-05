@@ -2,6 +2,7 @@ package com.duozhi.outbound.call.service;
 
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.integration.service.TelephonyClient;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Service;
 /** A database timeout alone is never evidence that the PBX released a call. */
 @Service
 public class CallReconciliation {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -148,6 +152,10 @@ public class CallReconciliation {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_RECONCILE_POLL_MS:5000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.RECONCILIATION, this::tick);
+    }
+
     public void tick() {
         if (!ready
                 || !config.flag("JAVA_WORKERS_ENABLED", false)

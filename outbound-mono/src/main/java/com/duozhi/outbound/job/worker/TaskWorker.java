@@ -6,6 +6,8 @@ import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.dao.WorkloadDataSource;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
+import com.duozhi.outbound.common.service.PlatformLock;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -35,6 +37,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class TaskWorker {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     @Autowired
     private DialDrainControl dialControl;
     private static final ThreadLocal<Runnable> GUARD = new ThreadLocal<>();
@@ -964,9 +969,12 @@ public class TaskWorker {
                 }
             } else throw new IllegalStateException("unsupported durable task type");
             permitted();
-        } catch (Deferred e) {
+        } catch (Deferred | PlatformLock.Unavailable e) {
             state = "pending";
-            error = "waiting for dial admission";
+            error =
+                    e instanceof PlatformLock.Unavailable
+                            ? e.getMessage()
+                            : "waiting for dial admission";
             deferred = true;
         } catch (RuntimeException e) {
             state =
@@ -1081,6 +1089,10 @@ public class TaskWorker {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_WORKER_POLL_MS:250}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.TASKS, this::tick);
+    }
+
     public void tick() {
         if (!ready || !config.flag("JAVA_WORKERS_ENABLED", false) || dialControl.frozen()) return;
         for (int lane = 0; lane < laneTypes.length; lane++) {
@@ -1155,6 +1167,10 @@ public class TaskWorker {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_CALLBACK_POLL_MS:100}")
+    public void scheduledReceiveTick() {
+        scheduledWork.submit(ScheduledWork.Job.CALLBACKS, this::receiveTick);
+    }
+
     public void receiveTick() {
         if (!ready
                 || !config.flag("JAVA_WORKERS_ENABLED", false)

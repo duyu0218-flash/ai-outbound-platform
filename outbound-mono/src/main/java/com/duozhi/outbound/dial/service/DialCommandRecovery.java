@@ -3,6 +3,7 @@ package com.duozhi.outbound.dial.service;
 import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.job.worker.TaskWorker;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class DialCommandRecovery {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final JdbcTemplate jdbc;
     private final Transactions tx;
     private final Store store;
@@ -45,6 +49,10 @@ public class DialCommandRecovery {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_DIAL_RECOVERY_POLL_MS:1000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.DIAL_RECOVERY, this::tick);
+    }
+
     public void tick() {
         if (config.flag("JAVA_WORKERS_ENABLED", false)
                 && config.flag("JAVA_DIAL_RECOVERY_ENABLED", true)

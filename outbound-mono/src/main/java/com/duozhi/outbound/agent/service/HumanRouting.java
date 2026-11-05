@@ -6,10 +6,12 @@ import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
 import com.duozhi.outbound.dial.domain.DialBatchScope;
+import com.duozhi.outbound.dial.domain.OpeningAdmissionFacts;
 import com.duozhi.outbound.operations.controller.OperationsWorkforce;
 import com.duozhi.outbound.operations.dao.OperationsStore;
 import jakarta.annotation.PreDestroy;
@@ -26,6 +28,9 @@ import org.springframework.stereotype.Service;
 /** Single-instance human admission and FIFO reservation. Caller holds platform lock. */
 @Service
 public class HumanRouting {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final Store store;
     private final OperationsStore db;
     private final Transactions tx;
@@ -156,7 +161,34 @@ public class HumanRouting {
     }
 
     private boolean usable(long tenant, Map<String, Object> agent) {
+        if (OpeningAdmissionFacts.active())
+            return !config.flag("WEBRTC_ENABLED", false)
+                    || OpeningAdmissionFacts.registered(tenant, agent.get("id"));
         return !config.flag("WEBRTC_ENABLED", false) || media.registered(tenant, agent.get("id"));
+    }
+
+    public Map<String, OpeningAdmissionFacts.Presence> preparePresence(
+            Collection<Map<String, Object>> calls) {
+        var facts = new HashMap<String, OpeningAdmissionFacts.Presence>();
+        if (!config.flag("WEBRTC_ENABLED", false)) return facts;
+        for (var call : calls) {
+            if (!Values.set("human_only", "ai_handoff", "mixed_human_first")
+                    .contains(call.get("mode"))) continue;
+            long tenant = CallLifecycle.tenant(call);
+            var policy = json.object(conversation.initialStatePolicy(call).get("json").toString());
+            for (var agent : candidates(tenant, policy)) {
+                String key = tenant + ":" + agent.get("id");
+                if (facts.containsKey(key)) continue;
+                boolean registered;
+                try {
+                    registered = media.registered(tenant, agent.get("id"));
+                } catch (RuntimeException unknown) {
+                    registered = false;
+                }
+                facts.put(key, new OpeningAdmissionFacts.Presence(registered, System.nanoTime()));
+            }
+        }
+        return facts;
     }
 
     private boolean free(long tenant, Map<String, Object> agent) {
@@ -329,6 +361,10 @@ public class HumanRouting {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_HANDOFF_POLL_MS:500}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.HANDOFF, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("JAVA_WORKERS_ENABLED", false) || !running.compareAndSet(false, true))
             return;

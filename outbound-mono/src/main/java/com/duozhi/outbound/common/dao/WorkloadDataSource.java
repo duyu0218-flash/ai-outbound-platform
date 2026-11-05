@@ -18,6 +18,11 @@ public final class WorkloadDataSource extends DruidDataSource {
     private static final ThreadLocal<Lane> CURRENT = new ThreadLocal<>();
     private final DruidDataSource realtime, analysis;
 
+    public static Lane current() {
+        Lane lane = CURRENT.get();
+        return lane == null ? Lane.DEFAULT : lane;
+    }
+
     public WorkloadDataSource(DruidDataSource realtime, DruidDataSource analysis) {
         this.realtime = realtime;
         this.analysis = analysis;

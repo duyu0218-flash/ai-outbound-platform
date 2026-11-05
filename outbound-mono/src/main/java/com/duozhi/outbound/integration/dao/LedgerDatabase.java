@@ -41,13 +41,19 @@ public final class LedgerDatabase implements AutoCloseable {
         var pool = new DruidDataSource();
         // Each independent pool must own a distinct JMX identity.
         pool.setName("independentLedger-" + UUID.randomUUID());
-        pool.setUrl(settings.get("MYSQL_JDBC_URL", ""));
+        pool.setUrl(
+                com.duozhi.outbound.common.config.JdbcBudgets.boundedUrl(
+                        settings.get("MYSQL_JDBC_URL", "")));
         pool.setUsername(settings.get("MYSQL_USER", ""));
         pool.setPassword(settings.secret("MYSQL_PASSWORD"));
         pool.setInitialSize(0);
         pool.setMinIdle(0);
         pool.setMaxActive(4);
         pool.setMaxWait(5000);
+        pool.setConnectionInitSqls(
+                java.util.List.of(
+                        "SET SESSION innodb_lock_wait_timeout=5",
+                        "SET SESSION lock_wait_timeout=5"));
         pool.setDefaultTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         if (pool.getUrl().isBlank())
             throw new IllegalArgumentException(
