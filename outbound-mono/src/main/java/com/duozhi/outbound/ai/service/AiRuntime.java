@@ -338,6 +338,8 @@ public class AiRuntime {
                                 JsonSupport.map(
                                         "reason",
                                         "published_knowledge_miss",
+                                        "node_id",
+                                        call.get("flow_node_key"),
                                         "attempt",
                                         call.get("attempts"),
                                         "turn_sequence",

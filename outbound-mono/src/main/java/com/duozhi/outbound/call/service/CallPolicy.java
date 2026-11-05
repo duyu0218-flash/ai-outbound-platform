@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class CallPolicy {
     @Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+    @Autowired
     private DialDailyCounters daily;
     private final Store store;
     private final Settings settings;
@@ -164,7 +166,7 @@ public class CallPolicy {
                 }
             }
         }
-        return "";
+        return outboundRules == null ? "" : outboundRules.check(tenant, phone, instant);
     }
 
     public static String code(String reason) {

@@ -178,7 +178,12 @@ async function edit(row) {
         script_template_id: null,
         script_flow_version_id: null,
         batch_ids: route.query.batch_id ? [route.query.batch_id] : [],
-        contact_ids: [],
+        contact_ids: route.query.contact_ids
+          ? String(route.query.contact_ids)
+              .split(',')
+              .map(Number)
+              .filter((v) => Number.isSafeInteger(v) && v > 0)
+          : [],
         segment_snapshot_ids: [],
         excluded_contact_ids: [],
         line_ids: [],
@@ -276,7 +281,7 @@ function command(row, kind) {
   });
 }
 onMounted(() => {
-  if (route.query.batch_id) edit();
+  if (route.query.batch_id || route.query.contact_ids || route.query.create) edit();
 });
 </script>
 <template>

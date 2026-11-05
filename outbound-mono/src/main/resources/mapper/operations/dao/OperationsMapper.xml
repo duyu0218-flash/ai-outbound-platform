@@ -9,6 +9,61 @@
         dim.call_id=c.id
     </sql>
     <sql id="callWhere">
+        <if test="pool == 'public'">
+            AND l.owner_id IS NULL
+        </if>
+        <if test="pool == 'assigned'">
+            AND l.owner_id IS NOT NULL
+        </if>
+        <if test="reviewer_id != null">
+            AND a.reviewed_by=#{reviewer_id}
+        </if>
+        <if test="grade != null">
+            AND JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN
+            a.structured_json ELSE '{}' END,'$.rule_result.grade'))=#{grade}
+        </if>
+        <if test="gender != null">
+            AND JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN
+            a.structured_json ELSE '{}' END,'$.slots.gender.value'))=#{gender}
+        </if>
+        <if test="node != null">
+            AND EXISTS(SELECT 1 FROM script_reach sr WHERE sr.tenant_id=c.tenant_id AND
+            sr.call_id=c.id AND sr.kind='node' AND (sr.target_id=#{node} OR
+            sr.target_label=#{node}))
+        </if>
+        <if test="batch_id != null">
+            AND EXISTS(SELECT 1 FROM platform_contact_batch_member bm WHERE bm.tenant_id=c.tenant_id
+            AND bm.contact_id=c.contact_id AND bm.batch_id=#{batch_id})
+        </if>
+        <if test="hangup_reason != null">
+            AND c.last_error LIKE CONCAT('%',#{hangup_reason},'%')
+        </if>
+        <if test="remark != null">
+            AND EXISTS(SELECT 1 FROM ops_history oh WHERE oh.tenant_id=c.tenant_id AND
+            oh.contact_id=c.contact_id AND oh.detail_json LIKE CONCAT('%',#{remark},'%'))
+        </if>
+        <if test="successful != null">
+            AND COALESCE(a.result_code='qualified_lead',FALSE)=#{successful}
+        </if>
+        <if test="manual != null">
+            AND (c.mode='HUMAN_ONLY')=#{manual}
+        </if>
+        <if test="entered != null">
+            AND EXISTS(SELECT 1 FROM handoffrequest hh WHERE hh.tenant_id=c.tenant_id AND
+            hh.call_session_id=c.id)=#{entered}
+        </if>
+        <if test="taken != null">
+            AND EXISTS(SELECT 1 FROM handoffrequest hh WHERE hh.tenant_id=c.tenant_id AND
+            hh.call_session_id=c.id AND hh.state IN ('ACCEPTED','COMPLETED'))=#{taken}
+        </if>
+        <if test="lost != null">
+            AND EXISTS(SELECT 1 FROM callevent le WHERE le.call_session_id=c.id AND
+            le.event_type='handoff_lost')=#{lost}
+        </if>
+        <if test="answered != null">
+            AND EXISTS(SELECT 1 FROM callusage cu WHERE cu.tenant_id=c.tenant_id AND
+            cu.call_session_id=c.id AND cu.answered_at IS NOT NULL)=#{answered}
+        </if>
         AND (#{allScope}=TRUE OR c.human_agent_id=#{userId}
         <if test="operator == true">
             OR EXISTS (SELECT 1 FROM scenarioversion sv WHERE sv.tenant_id=c.tenant_id
@@ -131,8 +186,19 @@
         </if>
     </sql>
     <select id="calls" resultType="java.util.LinkedHashMap">
-        SELECT c.*,a.intent,a.qa_score,a.review_state,a.result_code,g.name AS
-        campaign_name,l.owner_id,l.stage,TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at) AS
+        SELECT c.*,a.intent,a.qa_score,a.review_state,a.reviewed_by,a.result_code,
+        JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN a.structured_json
+        ELSE '{}' END,'$.rule_result.grade')) AS grade,
+        JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN a.structured_json
+        ELSE '{}' END,'$.slots.gender.value')) AS gender,
+        g.name AS campaign_name,l.owner_id,l.stage,l.updated_at AS follow_at,
+        (SELECT MAX(oh.created_at) FROM ops_history oh WHERE oh.tenant_id=c.tenant_id AND
+        oh.contact_id=c.contact_id AND oh.action='assign') AS assigned_at,
+        (SELECT oh.detail_json FROM ops_history oh WHERE oh.tenant_id=c.tenant_id AND
+        oh.contact_id=c.contact_id ORDER BY oh.id DESC LIMIT 1) AS remark,
+        (SELECT SUM(-ve.signed_amount) FROM voice_statement_entry ve WHERE ve.tenant_id=c.tenant_id
+        AND ve.call_id=c.id AND ve.kind='charge') AS call_cost,
+        TIMESTAMPDIFF(SECOND,c.started_at,c.finished_at) AS
         duration_seconds
         <include refid="callJoin"/>
         WHERE c.tenant_id=#{tenantId}
@@ -143,6 +209,15 @@
         SELECT COUNT(*)
         <include refid="callJoin"/>
         WHERE c.tenant_id=#{tenantId}
+        <include refid="callWhere"/>
+    </select>
+    <select id="exportVisibleCount" resultType="long">
+        SELECT COUNT(*)
+        <include refid="callJoin"/>
+        WHERE c.tenant_id=#{tenantId} AND c.id IN
+        <foreach close=")" collection="ids" item="callId" open="(" separator=",">
+            #{callId}
+        </foreach>
         <include refid="callWhere"/>
     </select>
     <select id="dailyBreakdown" resultType="java.util.LinkedHashMap">
@@ -176,9 +251,11 @@
         'agent' THEN COALESCE(c.human_agent_id,0) WHEN 'line' THEN
         COALESCE(c.telephony_line_id,0) WHEN 'owner' THEN COALESCE(l.owner_id,0) ELSE
         COALESCE(c.campaign_id,0) END AS dimension_key,
-        CASE #{granularity} WHEN 'minute' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:%i') WHEN
-        'hour' THEN DATE_FORMAT(c.created_at,'%Y-%m-%d %H:00') WHEN 'day'
-        THEN DATE_FORMAT(c.created_at,'%Y-%m-%d') ELSE '全部' END AS bucket,
+        CASE #{granularity} WHEN 'month' THEN DATE_FORMAT(TIMESTAMPADD(HOUR,8,c.created_at),'%Y-%m')
+        WHEN 'minute' THEN
+        DATE_FORMAT(TIMESTAMPADD(HOUR,8,c.created_at),'%Y-%m-%d %H:%i') WHEN
+        'hour' THEN DATE_FORMAT(TIMESTAMPADD(HOUR,8,c.created_at),'%Y-%m-%d %H:00') WHEN 'day'
+        THEN DATE_FORMAT(TIMESTAMPADD(HOUR,8,c.created_at),'%Y-%m-%d') ELSE '全部' END AS bucket,
         SUM(usage_totals.first_answers) AS first_answered_attempts,
         SUM(usage_totals.repeat_answers) AS repeat_answered_attempts,
         SUM(usage_totals.first_answers + usage_totals.repeat_answers) AS answered_attempts,
@@ -195,9 +272,19 @@
         measured_answers,
         SUM(hf.short_taken) AS short_taken,SUM(hf.measured_taken) AS measured_taken,
         SUM(hf.wait_total) AS wait_total,SUM(hf.wait_samples) AS wait_samples,
+        SUM(hf.human_seconds) AS human_seconds,
+        SUM(l.stage IN ('in_progress','completed','invalid')) AS followed,
+        COUNT(DISTINCT c.human_agent_id) AS active_agents,
         SUM(hf.recent_total) AS recent_wait_total,SUM(hf.recent_samples) AS recent_wait_samples,
         COUNT(*) AS sessions,COALESCE(SUM(c.attempts),0) AS attempts,COUNT(DISTINCT c.phone) AS
         phones,
+        CASE WHEN SUM(JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN
+        a.structured_json ELSE '{}' END,'$.slots.gender.value')) IN ('male','female','男','女'))&gt;0
+        THEN CONCAT(SUM(JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN
+        a.structured_json ELSE '{}' END,'$.slots.gender.value')) IN
+        ('male','男')),':',SUM(JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(a.structured_json) THEN
+        a.structured_json ELSE '{}' END,'$.slots.gender.value')) IN ('female','女'))) END AS
+        gender_ratio,
         SUM(c.status IN
         ('ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN','COMPLETED')) AS
         reached_sessions,
@@ -230,6 +317,8 @@
         AS short_taken,
         COUNT(CASE WHEN h.state='COMPLETED' AND h.completed_at &gt;= h.responded_at THEN 1 END) AS
         measured_taken,
+        SUM(CASE WHEN h.state='COMPLETED' AND h.completed_at&gt;=h.responded_at THEN
+        TIMESTAMPDIFF(MICROSECOND,h.responded_at,h.completed_at)/1000000 END) AS human_seconds,
         COALESCE(SUM(CASE WHEN h.responded_at&gt;=h.requested_at AND h.state IN
         ('ACCEPTED','COMPLETED') THEN
         TIMESTAMPDIFF(MICROSECOND,h.requested_at,h.responded_at)/1000000 END),0) AS wait_total,
@@ -264,6 +353,21 @@
             AND 100*interested_sessions/NULLIF(reached_sessions,0) &lt;= #{max_intent_rate}
         </if>
         ORDER BY bucket DESC,dimension_key
+    </select>
+    <select id="intentDistribution" resultType="java.util.LinkedHashMap">
+        SELECT grouped.*,ROUND(100*total/NULLIF(SUM(total) OVER(PARTITION BY dimension_key),0),2) AS
+        rate FROM (
+        SELECT CASE #{dimension} WHEN 'campaign' THEN c.campaign_id ELSE c.human_agent_id END AS
+        dimension_key,
+        MAX(CASE #{dimension} WHEN 'campaign' THEN g.name ELSE (SELECT u.full_name FROM sys_user u
+        WHERE u.tenant_id=c.tenant_id AND u.id=c.human_agent_id) END) AS dimension_name,
+        COALESCE(a.intent,'未分类') AS intent,JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN
+        JSON_VALID(a.structured_json) THEN a.structured_json ELSE '{}' END,'$.rule_result.grade'))
+        AS grade,COUNT(*) AS total
+        <include refid="callJoin"/>
+        WHERE c.tenant_id=#{tenantId}
+        <include refid="callWhere"/>
+        GROUP BY dimension_key,intent,grade) grouped ORDER BY dimension_key,intent,grade
     </select>
     <select id="durations" resultType="java.util.LinkedHashMap">
         SELECT CASE WHEN seconds IS NULL OR seconds &lt;= 0 THEN 'unknown'
@@ -528,7 +632,7 @@
     </select>
     <select id="unreadNotices" resultType="long">
         SELECT COUNT(*) FROM ops_notice WHERE tenant_id=#{tenantId} AND user_id=#{userId} AND
-        read_at IS NULL
+        read_at IS NULL AND deleted_at IS NULL
     </select>
     <update id="noticeRead">
         UPDATE ops_notice SET read_at=CURRENT_TIMESTAMP(3) WHERE tenant_id=#{tenantId} AND

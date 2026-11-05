@@ -326,9 +326,12 @@ class DataLayerReplayIT {
         }
         // Marketing tables (mk_*) are owned and verified by the marketing module tests.
         assertThat(tables.keySet().stream().filter(name -> !name.startsWith("mk_")).count())
-                .isEqualTo(126);
+                .isEqualTo(129);
         assertThat(tables)
                 .containsKeys(
+                        "ops_interception",
+                        "ops_export_job",
+                        "ops_account_transfer",
                         "platform_document",
                         "platform_publication",
                         "platform_campaign_snapshot",

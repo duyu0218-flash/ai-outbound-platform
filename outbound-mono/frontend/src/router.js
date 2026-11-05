@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { benchmarkMenu } from './benchmark';
 import { initialize, session } from './session';
 import { initializeClient, clientSession } from './client/session';
 const page = (name) => () => import(`./pages/${name}.vue`);
-export const adminMenu = [
+const previousMenu = [
   {
     group: 'AI 外呼',
     items: [
@@ -60,6 +61,13 @@ export const adminMenu = [
     ],
   },
 ];
+const benchmarkPaths = new Set(benchmarkMenu.flatMap((s) => s.items.map((i) => i[0])));
+export const adminMenu = [
+  ...benchmarkMenu,
+  ...previousMenu
+    .map((s) => ({ ...s, items: s.items.filter((i) => !benchmarkPaths.has(i[0])) }))
+    .filter((s) => s.items.length),
+];
 export const adminNavigation = adminMenu.flatMap((section) => section.items);
 const hiddenAdmin = [
   ['contacts-operations', 'ContactOperations'],
@@ -82,6 +90,39 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/admin' },
+    ...[
+      ['dashBoard/home', 'operations/overview'],
+      ['dashBoard/call', 'dashBoard/call'],
+      ['dashBoard/seating', 'dashBoard/seating'],
+      ['dashBoard/intercept', 'dashBoard/intercept'],
+      ['dashBoard/intent', 'dashBoard/intent'],
+      ['dashBoard/followUp', 'dashBoard/followUp'],
+      ['dashBoard/textMsg', 'dashBoard/textMsg'],
+      ['dashBoard/dataAnalysis', 'dashBoard/dataAnalysis'],
+      ['dashBoard/wecom', 'operations/wecom'],
+      ['dashBoard/datacube', 'dashBoard/datacube'],
+      ['operation', 'operations/performance'],
+      ['tasks/current', 'tasks/current'],
+      ['tasks/history', 'tasks/history'],
+      ['tasks/record', 'tasks/record'],
+      ['tasks/aiRecordCustomer', 'tasks/inspection'],
+      ['tasks/setting', 'tasks/setting'],
+      ['tasks/form', 'tasks/form'],
+      ['scene/setting', 'scripts'],
+      ['scene/intent', 'scene/intent'],
+      ['scene/share', 'scene/share'],
+      ['scene/tag', 'scene/tag'],
+      ['account/center', 'account/center'],
+      ['account/seatingMon', 'account/seatingMon'],
+      ['account/line', 'lines'],
+      ['account/recharge', 'account/recharge'],
+      ['account/filterStrategy', 'account/filterStrategy'],
+      ['account/settings', 'account/settings'],
+      ['account/noticeIcon', 'operations/notices'],
+    ].map(([path, target]) => ({
+      path: '/' + path,
+      redirect: (to) => ({ path: '/admin/' + target, query: to.query }),
+    })),
     ...['admin', 'agent'].map((role) => ({
       path: `/${role}/login`,
       component: page('Login'),
@@ -100,12 +141,14 @@ export const router = createRouter({
           props: { role: 'admin' },
           meta: { label, messagingSection },
         })),
-        ...hiddenAdmin.map(([path, name]) => ({
-          path,
-          component: page(name),
-          props: { role: 'admin' },
-          meta: { label: '业务工作区' },
-        })),
+        ...hiddenAdmin
+          .filter(([path]) => !benchmarkPaths.has(path))
+          .map(([path, name]) => ({
+            path,
+            component: page(name),
+            props: { role: 'admin' },
+            meta: { label: '业务工作区' },
+          })),
         {
           path: 'voice-ai',
           redirect: (to) => ({ path: '/admin/system/voice-ai', query: to.query }),

@@ -15,7 +15,19 @@ public class Pages {
         this.config = config;
     }
 
-    @GetMapping({"/admin", "/admin/**", "/agent", "/agent/**", "/client", "/client/**"})
+    @GetMapping({
+        "/admin",
+        "/admin/**",
+        "/agent",
+        "/agent/**",
+        "/client",
+        "/client/**",
+        "/dashBoard/**",
+        "/tasks/**",
+        "/scene/**",
+        "/account/**",
+        "/operation"
+    })
     public ResponseEntity<?> index() {
         ClassPathResource file = new ClassPathResource("static/index.html");
         if (!file.exists())

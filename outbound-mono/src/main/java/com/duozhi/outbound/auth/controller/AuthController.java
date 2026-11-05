@@ -58,6 +58,29 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/password")
+    public Map<String, Object> password(
+            @RequestBody
+            Map<String, Object> body, HttpServletRequest r) {
+        var i = Identity.from(r);
+        i.requireUser();
+        String old = java.util.Objects.toString(body.get("old_password"), ""),
+                next = java.util.Objects.toString(body.get("new_password"), "");
+        if (next.length() < 8 || next.length() > 1024 || !next.equals(body.get("confirm_password")))
+            throw new ApiError(422, "新密码至少8位，且两次输入须一致");
+        if (!crypto.verifyPassword(i.user().get("password_hash").toString(), old))
+            throw new ApiError(422, "旧密码不正确");
+        service.patch(
+                ((Number) i.userId()).longValue(),
+                (int) i.tenant(),
+                Map.of(
+                        "password_hash",
+                        crypto.password(next),
+                        "token_version",
+                        ((Number) i.user().get("token_version")).intValue() + 1));
+        return Map.of("changed", true, "login_required", true);
+    }
+
     @PostMapping("/login")
     public Map<String, Object> login(@Valid
     @RequestBody

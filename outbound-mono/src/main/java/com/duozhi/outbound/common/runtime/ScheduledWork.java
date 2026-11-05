@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public final class ScheduledWork implements AutoCloseable {
     public enum Job {
         CONTACT_IMPORT,
+        REPORT_EXPORT,
         KNOWLEDGE_IMPORT,
         WORKSPACE_MESSAGES,
         MARKETING_OUTCOME,

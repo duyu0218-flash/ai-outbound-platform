@@ -301,6 +301,9 @@ class DataLayerIT {
                             "client_staff_scope"));
             expectedTables.addAll(
                     Set.of(
+                            "ops_interception",
+                            "ops_export_job",
+                            "ops_account_transfer",
                             "platform_document",
                             "platform_publication",
                             "platform_campaign_snapshot",
@@ -321,7 +324,7 @@ class DataLayerIT {
                             "ops_call_dimension",
                             "script_recording_asset",
                             "platform_message_job"));
-            assertThat(expectedTables).hasSize(126);
+            assertThat(expectedTables).hasSize(129);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);
