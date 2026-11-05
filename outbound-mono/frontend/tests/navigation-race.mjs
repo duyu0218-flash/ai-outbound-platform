@@ -205,7 +205,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         ]),
       );
   const checks = [];
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    headless: true,
+  });
   const file = process.env.MONO_NAVIGATION_RESULT || 'target/navigation-race-result.json';
   try {
     await navigationRaceChecks({

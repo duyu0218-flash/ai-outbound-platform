@@ -3,6 +3,7 @@ package com.duozhi.outbound.workspace.service;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.customer.controller.*;
 import jakarta.annotation.PreDestroy;
@@ -22,6 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 /** One durable upload worker; contact writes yield the platform lock between 100-row chunks. */
 @Service
 public class ContactImportJobs {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private static final int CHUNK = 100;
     private final WorkspaceDocuments docs;
     private final ContactFiles files;
@@ -59,6 +63,10 @@ public class ContactImportJobs {
     }
 
     @Scheduled(fixedDelay = 1500)
+    public void scheduledProcessNext() {
+        scheduledWork.submit(ScheduledWork.Job.CONTACT_IMPORT, this::processNext);
+    }
+
     public void processNext() {
         if (!ready || closing || !busy.compareAndSet(false, true)) return;
         try {

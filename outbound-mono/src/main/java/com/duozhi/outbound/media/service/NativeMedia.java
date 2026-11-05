@@ -902,6 +902,14 @@ public final class NativeMedia implements MediaManager {
                 long tenant = Support.integer(stream.session.metadata, "tenant_id", 0);
                 byte[] prepared =
                         new OpeningAudioCache(settings).read(tenant, stream.profile, disclosure);
+                var frozenOpening = Support.map(stream.session.metadata.get("opening_audio"));
+                if (!frozenOpening.isEmpty()
+                        && (prepared == null
+                                || !OpeningAudioCache.key(tenant, stream.profile, disclosure)
+                                        .equals(frozenOpening.get("key"))
+                                || !Support.hex(Support.sha(prepared))
+                                        .equals(frozenOpening.get("sha256"))))
+                    throw new IOException("prepared AI disclosure changed after admission");
                 if (prepared != null) player.accept(prepared, 24000);
                 else if (settings.production())
                     throw new IOException("prepared AI disclosure is missing");

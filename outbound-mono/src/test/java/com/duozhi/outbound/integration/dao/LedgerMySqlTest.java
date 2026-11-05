@@ -52,6 +52,7 @@ class LedgerMySqlTest {
                         assertEquals(
                                 Set.of(
                                         "voice_attempts",
+                                        "voice_event_quarantine",
                                         "voice_flags",
                                         "voice_nonces",
                                         "voice_outbox",

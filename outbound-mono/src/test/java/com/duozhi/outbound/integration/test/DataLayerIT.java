@@ -247,6 +247,7 @@ class DataLayerIT {
                             "ops_presence",
                             "ops_tag_link"));
             expectedTables.add("flyway_schema_history");
+            expectedTables.add("voice_event_quarantine");
             expectedTables.addAll(Set.of("dial_admission_control", "dial_drain_member"));
             expectedTables.addAll(
                     Set.of(
@@ -320,7 +321,7 @@ class DataLayerIT {
                             "ops_call_dimension",
                             "script_recording_asset",
                             "platform_message_job"));
-            assertThat(expectedTables).hasSize(125);
+            assertThat(expectedTables).hasSize(126);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);

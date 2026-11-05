@@ -15,6 +15,22 @@ import org.springframework.stereotype.Service;
 /** Redis-compatible media keys; development-only in-process fallback. */
 @Service
 public class ExpiringValues {
+    private static final java.util.concurrent.ScheduledThreadPoolExecutor DEADLINES = deadlines();
+    private final int connectTimeoutMs, commandTimeoutMs;
+
+    private static java.util.concurrent.ScheduledThreadPoolExecutor deadlines() {
+        var timer =
+                new java.util.concurrent.ScheduledThreadPoolExecutor(
+                        1,
+                        r -> {
+                            var thread = new Thread(r, "redis-command-deadline");
+                            thread.setDaemon(true);
+                            return thread;
+                        });
+        timer.setRemoveOnCancelPolicy(true);
+        return timer;
+    }
+
     private final Config config;
     private final SSLSocketFactory tlsFactory;
     private final Map<String, Entry> memory = new ConcurrentHashMap<>();
@@ -37,6 +53,13 @@ public class ExpiringValues {
     ExpiringValues(Config config, SSLSocketFactory tlsFactory) {
         this.config = config;
         this.tlsFactory = tlsFactory;
+        connectTimeoutMs = config.number("JAVA_REDIS_CONNECT_TIMEOUT_MS", 500);
+        commandTimeoutMs = config.number("JAVA_REDIS_COMMAND_TIMEOUT_MS", 500);
+        if (connectTimeoutMs < 1
+                || connectTimeoutMs > 3000
+                || commandTimeoutMs < 1
+                || commandTimeoutMs > 5000)
+            throw new IllegalArgumentException("invalid Redis timeout budget");
     }
 
     public String get(String key) {
@@ -111,10 +134,24 @@ public class ExpiringValues {
             throw new ApiError(503, "production Redis requires TLS");
         int port = uri.getPort() < 0 ? 6379 : uri.getPort();
         Socket socket = null;
+        java.util.concurrent.ScheduledFuture<?> deadline = null;
         try {
             socket = new Socket();
-            socket.connect(new InetSocketAddress(uri.getHost(), port), 500);
-            socket.setSoTimeout(500);
+            socket.connect(new InetSocketAddress(uri.getHost(), port), connectTimeoutMs);
+            // SO_TIMEOUT bounds idle reads only. Close this one-use socket at the total
+            // command deadline as well, including TLS, AUTH, SELECT and slow-drip replies.
+            Socket commandSocket = socket;
+            deadline =
+                    DEADLINES.schedule(
+                            () -> {
+                                try {
+                                    commandSocket.close();
+                                } catch (IOException ignored) {
+                                }
+                            },
+                            commandTimeoutMs,
+                            java.util.concurrent.TimeUnit.MILLISECONDS);
+            socket.setSoTimeout(commandTimeoutMs);
             if ("rediss".equals(uri.getScheme())) {
                 SSLSocket tls =
                         (SSLSocket) tlsFactory.createSocket(socket, uri.getHost(), port, true);
@@ -122,7 +159,7 @@ public class ExpiringValues {
                 SSLParameters p = tls.getSSLParameters();
                 p.setEndpointIdentificationAlgorithm("HTTPS");
                 tls.setSSLParameters(p);
-                tls.setSoTimeout(500);
+                tls.setSoTimeout(commandTimeoutMs);
                 tls.startHandshake();
             }
             InputStream in = new BufferedInputStream(socket.getInputStream());
@@ -152,6 +189,7 @@ public class ExpiringValues {
         } catch (IOException e) {
             throw new ApiError(503, "Redis is unavailable");
         } finally {
+            if (deadline != null) deadline.cancel(false);
             if (socket != null)
                 try {
                     socket.close();

@@ -6,6 +6,7 @@ import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.messaging.service.Messaging;
 import java.time.Instant;
@@ -16,6 +17,9 @@ import org.springframework.stereotype.Service;
 /** Draft and start are separate; chunks reuse the existing idempotent message ledger. */
 @Service
 public class WorkspaceMessages {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final WorkspaceDocuments docs;
     private final WorkspaceAudience audience;
     private final ContactVariables variables;
@@ -352,6 +356,10 @@ public class WorkspaceMessages {
     }
 
     @Scheduled(fixedDelay = 1500)
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.WORKSPACE_MESSAGES, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MESSAGING_WORKERS_ENABLED", false)
                 || !config.flag("MESSAGING_ENABLED", false)

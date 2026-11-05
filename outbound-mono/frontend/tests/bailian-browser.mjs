@@ -4,6 +4,7 @@ const origin = process.env.MONO_BROWSER_URL,
   checks = [],
   errors = [];
 const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
   headless: true,
   args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
 });

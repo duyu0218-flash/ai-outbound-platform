@@ -10,12 +10,15 @@ spring:
       initial-size: 0
       min-idle: 0
       max-active: 4
+      max-wait: 5000
       stat-view-servlet:
         enabled: true
         reset-enable: false
       # Preserve explicit callback partition zero under MySQL AUTO_INCREMENT.
       connection-init-sqls:
         - SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ",NO_AUTO_VALUE_ON_ZERO")
+        - SET SESSION innodb_lock_wait_timeout=5
+        - SET SESSION lock_wait_timeout=5
   flyway:
     enabled: true
     # Dedicated migration connection, separate from the business pool.
@@ -27,6 +30,10 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD:}
+      connect-timeout: 500ms
+      timeout: 500ms
+  transaction:
+    default-timeout: 15s
   ai:
     model:
       chat: ${AI_CHAT_MODEL:none}

@@ -37,6 +37,10 @@ public final class OpeningAudioCache {
     }
 
     public byte[] read(long tenant, Map<String, Object> profile, String text) throws IOException {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                        .isActualTransactionActive()
+                || com.duozhi.outbound.common.service.JvmPlatformLock.heldByCurrentThread())
+            throw new IllegalStateException("opening audio I/O inside a transaction is forbidden");
         Path file = directory.resolve(key(tenant, profile, text) + ".pcm");
         if (!Files.isRegularFile(file)) return null;
         if (Files.size(file) > 1440000) throw new IOException("opening audio too large");

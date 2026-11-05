@@ -1,11 +1,16 @@
 package com.duozhi.outbound.common.service;
 
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.RuntimeOwnership;
 import com.duozhi.outbound.common.support.JsonSupport;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.datasource.ConnectionHolder;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.*;
@@ -16,15 +21,49 @@ public class Transactions {
     private final Store store;
     private final TransactionTemplate template;
     private final PlatformLock locks;
+    private final TransactionTemplate realtime;
+    private final PlatformTransactionManager manager;
+    @Autowired
+    private RuntimeOwnership ownership;
 
     public Transactions(Store store, PlatformTransactionManager manager, PlatformLock locks) {
         this.store = store;
+        this.manager = manager;
         this.template = new TransactionTemplate(manager);
+        this.template.setTimeout(15);
+        this.realtime = new TransactionTemplate(manager);
+        this.realtime.setTimeout(5);
         this.locks = locks;
     }
 
     public <T> T run(Supplier<T> action) {
-        return template.execute(status -> action.get());
+        if (ownership != null) ownership.requireRunning();
+        var budget =
+                WorkloadDataSource.current() == WorkloadDataSource.Lane.REALTIME
+                        ? realtime
+                        : template;
+        return budget.execute(
+                status -> {
+                    // REQUIRED joins the outer transaction. Shorten its connection deadline instead
+                    // of silently ignoring the inner budget or granting a fresh timeout on reentry.
+                    if (manager instanceof DataSourceTransactionManager jdbcManager
+                            && TransactionSynchronizationManager.getResource(
+                                            jdbcManager.getDataSource())
+                                    instanceof ConnectionHolder holder) {
+                        long limit = budget.getTimeout() * 1000L;
+                        if (holder.hasTimeout())
+                            limit = Math.min(limit, holder.getTimeToLiveInMillis());
+                        holder.setTimeoutInMillis(limit);
+                    }
+                    T result = action.get();
+                    if (manager instanceof DataSourceTransactionManager jdbcManager
+                            && TransactionSynchronizationManager.getResource(
+                                            jdbcManager.getDataSource())
+                                    instanceof ConnectionHolder holder
+                            && holder.hasTimeout()) holder.getTimeToLiveInMillis();
+                    if (ownership != null) ownership.requireRunning();
+                    return result;
+                });
     }
 
     /**
@@ -33,6 +72,12 @@ public class Transactions {
      */
     public <T> T serialized(Supplier<T> action) {
         return serialized(PLATFORM_KEY, action);
+    }
+
+    public <T> T admission(Supplier<T> action) {
+        try (var lane = WorkloadDataSource.use(WorkloadDataSource.Lane.REALTIME)) {
+            return serialized(action);
+        }
     }
 
     public <T> T serializedIdentity(String key, Supplier<T> action) {
@@ -51,7 +96,14 @@ public class Transactions {
 
     public void lock(long key) {
         requireTransaction();
-        retainUntilCompletion(locks.lock(key));
+        try {
+            retainUntilCompletion(locks.lock(key));
+        } catch (RuntimeException failed) {
+            if (manager instanceof DataSourceTransactionManager jdbcManager
+                    && TransactionSynchronizationManager.getResource(jdbcManager.getDataSource())
+                            instanceof ConnectionHolder holder) holder.setRollbackOnly();
+            throw failed;
+        }
     }
 
     private void requireTransaction() {

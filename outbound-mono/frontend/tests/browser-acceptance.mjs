@@ -7,7 +7,10 @@ import { chromium, expect } from '@playwright/test';
 import { writeFile, mkdir } from 'node:fs/promises';
 const origin = process.env.MONO_BROWSER_URL;
 if (!origin) throw new Error('MONO_BROWSER_URL is required');
-const browser = await chromium.launch({ headless: true }),
+const browser = await chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    headless: true,
+  }),
   context = await browser.newContext({ viewport: { width: 1440, height: 1000 } }),
   page = await context.newPage(),
   errors = [],

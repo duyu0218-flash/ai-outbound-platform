@@ -65,6 +65,8 @@ jobs:
         run: |
           mvn -B verify
           mvn -B enforcer:enforce
+      - name: Package the verified monolith with its pinned JRE
+        run: docker build --file Dockerfile.runtime --build-arg VCS_REF="${{ github.sha }}" --tag outbound-mono-runtime:ci .
       - name: Preserve functional verification results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

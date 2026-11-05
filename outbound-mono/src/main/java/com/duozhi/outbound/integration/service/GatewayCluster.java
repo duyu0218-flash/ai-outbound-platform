@@ -4,6 +4,7 @@ import com.duozhi.outbound.ai.service.EmbeddedAgent;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.ConfigFiles;
 import com.duozhi.outbound.common.support.JsonSupport;
@@ -26,6 +27,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class GatewayCluster {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -288,6 +292,10 @@ public class GatewayCluster {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_GATEWAY_POLL_MS:5000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.GATEWAY_CLUSTER, this::tick);
+    }
+
     public void tick() {
         if (!ready
                 || !config.flag("JAVA_WORKERS_ENABLED", false)

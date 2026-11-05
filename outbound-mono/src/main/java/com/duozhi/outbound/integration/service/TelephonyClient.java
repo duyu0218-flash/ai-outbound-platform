@@ -4,6 +4,7 @@ import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.RuntimeOwnership;
 import com.duozhi.outbound.common.support.Ascii;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TelephonyClient {
+    @Autowired
+    private RuntimeOwnership ownership;
     @Autowired
     private DialAuthorizationService authorizations;
 
@@ -201,6 +204,7 @@ public class TelephonyClient {
 
     public Map<String, Object> command(
             Map<String, Object> call, String action, Map<String, Object> fields) {
+        if (ownership != null) ownership.requireRunning();
         TaskWorker.permitted();
         if ("dial".equals(action) && !drain.sending(call)) throw new TaskWorker.Deferred();
         Map<String, Object> route = route(call);
@@ -286,6 +290,7 @@ public class TelephonyClient {
     }
 
     public List<VoiceController.CommandResult> dialBatch(List<Map<String, Object>> entries) {
+        if (ownership != null) ownership.requireRunning();
         TaskWorker.permitted();
         if (drain.sendingClosed()) throw new TaskWorker.Deferred();
         var payloads = new ArrayList<Map<String, Object>>();

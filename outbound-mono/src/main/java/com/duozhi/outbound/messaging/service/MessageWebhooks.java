@@ -2,6 +2,7 @@ package com.duozhi.outbound.messaging.service;
 
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.integration.support.Support;
 import com.duozhi.outbound.messaging.dao.MessageStore;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class MessageWebhooks {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final MessageStore db;
     private final Transactions tx;
     private final MessageSecrets secrets;
@@ -336,6 +340,10 @@ public class MessageWebhooks {
     }
 
     @Scheduled(fixedDelayString = "${MESSAGING_WEBHOOK_POLL_MS:1000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.MESSAGE_WEBHOOKS, this::tick);
+    }
+
     public void tick() {
         if (!config.flag("MESSAGING_WEBHOOKS_ENABLED", false)
                 || !config.flag("MESSAGING_ENABLED", false)

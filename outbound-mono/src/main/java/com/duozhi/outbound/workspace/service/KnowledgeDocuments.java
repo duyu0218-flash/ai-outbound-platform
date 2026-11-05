@@ -5,6 +5,7 @@ import static com.duozhi.outbound.workspace.service.WorkspaceDocuments.*;
 import com.duozhi.outbound.auth.domain.Identity;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.support.JsonSupport;
 import jakarta.annotation.PreDestroy;
 import java.io.*;
@@ -28,6 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 /** Durable, bounded local document parsing followed by an explicit, atomic draft confirmation. */
 @Service
 public class KnowledgeDocuments {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private static final int MAX_BYTES = 2 * 1024 * 1024, MAX_CHARS = 100000;
     private final WorkspaceDocuments docs;
     private final KnowledgeDrafts entries;
@@ -172,6 +176,10 @@ public class KnowledgeDocuments {
     }
 
     @Scheduled(fixedDelay = 1200)
+    public void scheduledNext() {
+        scheduledWork.submit(ScheduledWork.Job.KNOWLEDGE_IMPORT, this::next);
+    }
+
     public void next() {
         if (!ready || closing || !busy.compareAndSet(false, true)) return;
         try {

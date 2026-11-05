@@ -1,7 +1,10 @@
 import { chromium, expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 const origin = process.env.MONO_BROWSER_URL;
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  headless: true,
+});
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
 const errors = [],
   checks = [];

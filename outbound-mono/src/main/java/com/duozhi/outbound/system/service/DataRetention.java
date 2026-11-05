@@ -3,6 +3,7 @@ package com.duozhi.outbound.system.service;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.common.runtime.ScheduledWork;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.common.support.Values;
@@ -22,6 +23,9 @@ import org.springframework.stereotype.Service;
 /** Bounded cleanup of expired text and confirmed recording deletion requests. */
 @Service
 public class DataRetention {
+    @org.springframework.beans.factory.annotation.Autowired
+    private ScheduledWork scheduledWork;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -393,6 +397,10 @@ public class DataRetention {
     }
 
     @Scheduled(fixedDelayString = "${JAVA_RETENTION_POLL_MS:60000}")
+    public void scheduledTick() {
+        scheduledWork.submit(ScheduledWork.Job.RETENTION, this::tick);
+    }
+
     public void tick() {
         if (!ready
                 || !config.flag("JAVA_WORKERS_ENABLED", false)

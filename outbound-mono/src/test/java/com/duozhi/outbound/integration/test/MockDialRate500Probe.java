@@ -112,7 +112,7 @@ class MockDialRate500Probe {
                 CapacityDatabaseProfile.apply(mysql, result);
                 mysql.start();
                 redis.start();
-                jdbc = mysql.getJdbcUrl() + "?connectTimeout=5000&socketTimeout=15000";
+                jdbc = mysql.getJdbcUrl() + "?connectTimeout=3000&socketTimeout=10000";
                 dbUser = mysql.getUsername();
                 dbPassword = mysql.getPassword();
                 result.put(

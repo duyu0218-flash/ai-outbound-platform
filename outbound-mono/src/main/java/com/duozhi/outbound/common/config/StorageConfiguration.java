@@ -12,6 +12,7 @@ import org.springframework.context.annotation.*;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(DataSourceProperties.class)
+@DependsOn("runtimeOwnership")
 public class StorageConfiguration {
     @Bean
     @Primary
@@ -57,12 +58,14 @@ public class StorageConfiguration {
         pool.setInitialSize(0);
         pool.setMinIdle(0);
         pool.setMaxActive(size);
-        pool.setMaxWait(5000);
+        pool.setMaxWait("realtimeDataSource".equals(name) ? 1000 : 5000);
         pool.setDefaultTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         pool.setConnectionInitSqls(
                 List.of(
                         "SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode,"
-                                + " ',NO_AUTO_VALUE_ON_ZERO')"));
+                                + " ',NO_AUTO_VALUE_ON_ZERO')",
+                        "SET SESSION innodb_lock_wait_timeout=5",
+                        "SET SESSION lock_wait_timeout=5"));
         configureDriver(pool);
         return pool;
     }
@@ -94,6 +97,14 @@ public class StorageConfiguration {
     }
 
     private static void configureDriver(DruidDataSource pool) {
+        pool.setUrl(JdbcBudgets.boundedUrl(pool.getUrl()));
+        pool.setMaxWait(5000);
+        if ("realtimeDataSource".equals(pool.getName())) pool.setMaxWait(1000);
+        pool.setConnectionInitSqls(
+                List.of(
+                        "SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',NO_AUTO_VALUE_ON_ZERO')",
+                        "SET SESSION innodb_lock_wait_timeout=5",
+                        "SET SESSION lock_wait_timeout=5"));
         pool.addConnectionProperty("useLocalSessionState", "true");
         pool.addConnectionProperty("rewriteBatchedStatements", "true");
         // Bounded per-connection cache for the fixed MyBatis statements. Reuse

@@ -50,3 +50,14 @@ C 类统一直接带 tenant_id；更新和删除同样直接绑定 tenantId。35
 |---|---|---|---|
 | com.duozhi.outbound.client.dao.ClientMapper.userByName | client_user | B | 全局 UNIQUE(username)；仅 ClientAccounts.login 在租户确定前定位企业账号，结果不直接作为业务响应。 |
 | com.duozhi.outbound.client.dao.ClientMapper.userById | client_user | B | client_user.id 主键全局唯一；仅 ClientAuthenticator 定位令牌主体，再从数据库行读取 tenant/client 并校验 enabled/sub/cid/tv。其余账号读写均带 tenant_id 条件（userGet 等）。 |
+
+
+## 2026-11-05 ESL 事件隔离的内部账本查询
+
+| 精确调用点 | 查询 | 边界 |
+| --- | --- | --- |
+| EslEventProtection 构造器 | voice_event_quarantine 中待对账 UUID 集合 | 仅网关启动恢复隔离状态，无租户业务 API 暴露，结果不能作为发送或释放证据。 |
+| EslEventProtection.quarantine | voice_attempts 按全局 UNIQUE uuid 定位 tenant/call/attempt | UUID 来自受控 PBX 事件，数据库行确定租户，禁止从客户端覆盖 tenant。后续隔离写入绑定该事实。 |
+| EslEventProtection 构造器与 transition | voice_flags 的 esl_protection 单一固定 key | 平台网关自动保护状态，不读取用户业务数据；不修改人工 stopped 标志。 |
+
+这些是原生独立语音账本的精确查询登记，不增加 Mapper 租户契约的通配豁免。事件隔离仅保留受限身份字段，不保存号码、转写、鉴权或原始供应商正文。
