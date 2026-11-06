@@ -107,6 +107,13 @@ public class MessageApi {
         return service.batchStatus(auth.verify(r, read(r)), id);
     }
 
+    @GetMapping("/messages/{id}/interactions")
+    public Object messageInteractions(@PathVariable
+    String id, HttpServletRequest r)
+            throws IOException {
+        return service.messageInteractions(auth.verify(r, read(r)), id);
+    }
+
     @PostMapping("/messages/{id}/interactions")
     public Object interaction(@PathVariable
     String id, HttpServletRequest r) throws IOException {
@@ -134,5 +141,32 @@ public class MessageApi {
     public Object disable(@PathVariable
     String id, HttpServletRequest r) throws IOException {
         return hooks.disable(auth.verify(r, read(r)), id);
+    }
+
+    @GetMapping("/resources/{kind}")
+    public Object resources(@PathVariable
+    String kind, HttpServletRequest r) throws IOException {
+        return service.apiResources(auth.verify(r, read(r)), kind);
+    }
+
+    @GetMapping("/usage")
+    public Object usage(HttpServletRequest r) throws IOException {
+        return service.usage(auth.verify(r, read(r)));
+    }
+
+    @GetMapping("/ledger")
+    public Object ledger(HttpServletRequest r) throws IOException {
+        return service.applicationLedger(auth.verify(r, read(r)));
+    }
+
+    @GetMapping("/webhook-deliveries")
+    public Object deliveries(HttpServletRequest r) throws IOException {
+        return hooks.deliveries(auth.verify(r, read(r)));
+    }
+
+    @PostMapping("/webhook-deliveries/{id}/retry")
+    public Object retry(@PathVariable
+    String id, HttpServletRequest r) throws IOException {
+        return hooks.retry(auth.verify(r, read(r)), id);
     }
 }

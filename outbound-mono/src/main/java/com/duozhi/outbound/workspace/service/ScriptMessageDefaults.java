@@ -1,6 +1,7 @@
 package com.duozhi.outbound.workspace.service;
 
 import com.duozhi.outbound.common.exception.ApiError;
+import com.duozhi.outbound.messaging.service.MessageContent;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ public class ScriptMessageDefaults {
         var m = WorkspaceDocuments.map(value);
         if (m.isEmpty()) return Map.of();
         var rule = new LinkedHashMap<String, Object>();
+        String form = null;
         for (String k : List.of("product", "template", "sender")) {
             String id = Objects.toString(m.get(k + "_id"), "");
             var r =
@@ -25,14 +27,16 @@ public class ScriptMessageDefaults {
                             tenant,
                             id,
                             k);
-            if (r == null
-                    || (!k.equals("sender")
-                            && !"sms"
-                                    .equals(
-                                            docs.json
-                                                    .object(r.get("payload").toString())
-                                                    .get("form"))))
-                throw new ApiError(422, "请选择本企业已审核的普通短信资源");
+            if (r == null) throw new ApiError(422, "请选择本企业已审核的消息资源");
+            if (!k.equals("sender")) {
+                String current =
+                        Objects.toString(
+                                docs.json.object(r.get("payload").toString()).get("form"), "");
+                if (!MessageContent.FORMS.contains(current)
+                        || form != null && !form.equals(current))
+                    throw new ApiError(422, "产品与模板的消息类型须一致");
+                form = current;
+            }
             rule.put(k + "_id", id);
         }
         String condition = Objects.toString(m.get("condition"), "completed");
@@ -62,7 +66,7 @@ public class ScriptMessageDefaults {
                             tenant,
                             template);
             if (tpl == null
-                    || !"sms".equals(docs.json.object(tpl.get("payload").toString()).get("form")))
+                    || !form.equals(docs.json.object(tpl.get("payload").toString()).get("form")))
                 throw new ApiError(422, "请选择已批准的通知短信模板");
             rule.put("notify", Map.of("contact_id", target, "template_id", template));
         }
@@ -87,8 +91,9 @@ public class ScriptMessageDefaults {
                             tenant,
                             template);
             if (tpl == null
-                    || !"sms".equals(docs.json.object(tpl.get("payload").toString()).get("form")))
-                throw new ApiError(422, "通知模板须为已审核普通短信");
+                    || !MessageContent.FORMS.contains(
+                            docs.json.object(tpl.get("payload").toString()).get("form")))
+                throw new ApiError(422, "通知模板须为已审核消息模板");
             if (owner > 0
                     && docs.one(
                                     "SELECT id FROM sys_user WHERE tenant_id=? AND id=? AND enabled=1",
@@ -110,7 +115,9 @@ public class ScriptMessageDefaults {
                                 asset);
                 if (resource == null
                         || asset.equals("product")
-                                && !"sms"
+                                && !docs.json
+                                        .object(tpl.get("payload").toString())
+                                        .get("form")
                                         .equals(
                                                 docs.json
                                                         .object(resource.get("payload").toString())

@@ -33,7 +33,9 @@ async function simulate() {
 }
 const approved = (ref) =>
   ref.value?.filter(
-    (r) => r.state === 'APPROVED' && (!r.payload.form || r.payload.form === 'sms'),
+    (r) =>
+      r.state === 'APPROVED' &&
+      (!r.payload.form || ['sms', 'rcs', 'yuexin', 'oem_ip'].includes(r.payload.form)),
   ) || [];
 async function load() {
   try {

@@ -11,4 +11,4 @@ USER 10001:10001
 ENV SERVER_ADDRESS=0.0.0.0 SERVER_PORT=8080
 EXPOSE 8080
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["java", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/outbound-mono.jar"]
+ENTRYPOINT ["java", "--add-opens=java.base/java.lang=ALL-UNNAMED", "--add-opens=java.base/java.math=ALL-UNNAMED", "--add-opens=java.base/java.util=ALL-UNNAMED", "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED", "--add-opens=java.base/java.net=ALL-UNNAMED", "--add-opens=java.base/java.text=ALL-UNNAMED", "--add-exports=java.base/sun.security.x509=ALL-UNNAMED", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/outbound-mono.jar"]

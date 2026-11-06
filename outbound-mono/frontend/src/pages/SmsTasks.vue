@@ -58,7 +58,9 @@ onUnmounted(() => {
 });
 const approved = (data) =>
   data.value?.filter(
-    (r) => r.state === 'APPROVED' && (!r.payload.form || r.payload.form === 'sms'),
+    (r) =>
+      r.state === 'APPROVED' &&
+      (!r.payload.form || ['sms', 'rcs', 'yuexin', 'oem_ip'].includes(r.payload.form)),
   ) || [];
 const states = {
   queued: '待提交',

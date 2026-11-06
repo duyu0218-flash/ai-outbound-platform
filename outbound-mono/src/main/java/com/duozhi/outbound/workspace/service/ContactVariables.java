@@ -53,7 +53,11 @@ public class ContactVariables {
             if (doc == null) throw new ApiError(404, "短信模板不存在");
             if (!"APPROVED".equals(doc.get("state"))) throw new ApiError(409, "请选择已通过审核的短信模板");
             var payload = docs.json.object(doc.get("payload").toString());
-            content = Objects.toString(payload.get("body"), "");
+            content =
+                    com.duozhi.outbound.messaging.service.MessageContent.variableNames(payload)
+                            .stream()
+                            .map(v -> "{{" + v + "}}")
+                            .collect(java.util.stream.Collectors.joining(" "));
             result.put("template_id", template);
             result.put("version", doc.get("revision"));
         }

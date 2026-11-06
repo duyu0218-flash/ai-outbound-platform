@@ -52,6 +52,7 @@ const previousMenu = [
       ['clients', '企业租户', 'Clients'],
       ['lines', '线路与号码', 'Lines'],
       ['system/voice-ai', '模型与语音服务', 'VoiceAi'],
+      ['system/message-channels', '消息通道与素材', 'MessageChannels'],
       ['system/messaging', '短信通道与接入', 'Messaging', 'developers'],
       ['billing', '用量与费用', 'Billing'],
       ['voice-statements', '语音结算账单', 'VoiceStatements'],

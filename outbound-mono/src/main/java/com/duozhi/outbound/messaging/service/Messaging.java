@@ -18,6 +18,12 @@ public class Messaging {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.ScriptMessageDefaults scriptDefaults;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private MessageChannels channels;
+    @org.springframework.beans.factory.annotation.Autowired
+    private MessageAssets assets;
+    @org.springframework.beans.factory.annotation.Autowired
+    private MessageDelivery delivery;
     private final MessageStore db;
     private final Transactions tx;
     private final MessageSecrets secrets;
@@ -126,9 +132,9 @@ public class Messaging {
                 "enabled",
                 config.flag("MESSAGING_ENABLED", false),
                 "environment",
-                "sandbox",
-                "live_supplier_connected",
-                false,
+                config.production() ? "production" : "test",
+                "transport_enabled",
+                config.flag("MESSAGING_TRANSPORT_ENABLED", false),
                 "forms",
                 FORMS.stream()
                         .sorted()
@@ -138,7 +144,9 @@ public class Messaging {
                                                 "form",
                                                 f,
                                                 "adapter",
-                                                "mock",
+                                                f.equals("sms")
+                                                        ? List.of("mock", "http", "cmpp")
+                                                        : List.of("mock", "http"),
                                                 "real_delivery_verified",
                                                 false))
                         .toList(),
@@ -184,17 +192,23 @@ public class Messaging {
     }
 
     public Object createResource(long tenant, String kind, Map<String, Object> input) {
-        sandbox();
+        enabled();
         String name = required(input, "name", 128);
         var payload = new LinkedHashMap<>(object(input.getOrDefault("payload", Map.of())));
         switch (kind) {
             case "product" -> {
                 if (!FORMS.contains(required(payload, "form", 16)))
                     throw new ApiError(422, "消息形态无效");
-                if (!"mock".equals(payload.getOrDefault("adapter", "mock")))
-                    throw new ApiError(409, "供应商未接入");
-                payload.put("adapter", "mock");
-                payload.put("simulated", true);
+                String adapter = Objects.toString(payload.getOrDefault("adapter", "mock"));
+                if (!Set.of("mock", "channel").contains(adapter))
+                    throw new ApiError(422, "消息通道类型无效");
+                if (adapter.equals("channel")) {
+                    var channel = channels.internal(tenant, required(payload, "channel_id", 64));
+                    if (!((List<?>) channel.get("forms")).contains(payload.get("form")))
+                        throw new ApiError(422, "通道不支持该消息形态");
+                }
+                payload.put("adapter", adapter);
+                payload.put("simulated", adapter.equals("mock"));
                 payload.put("unit_price", number(payload, "unit_price", 1000, 1_000_000_000));
                 payload.put(
                         "daily_recipient_limit", number(payload, "daily_recipient_limit", 3, 100));
@@ -203,9 +217,8 @@ public class Messaging {
                     throw new ApiError(422, "模拟结果无效");
             }
             case "template" -> {
-                required(payload, "body", 4000);
-                if (!FORMS.contains(required(payload, "form", 16)))
-                    throw new ApiError(422, "消息形态无效");
+                payload.putAll(MessageContent.validate(payload));
+                assets.validate(tenant, payload);
             }
             case "sender" -> required(payload, "brand", 128);
             case "audience" -> {
@@ -348,12 +361,12 @@ public class Messaging {
     public List<Map<String, Object>> applications(long tenant) {
         return db.jdbc()
                 .queryForList(
-                        "SELECT id,name,enabled,grants,created_at FROM msg_application WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
+                        "SELECT id,name,enabled,grants,rate_per_minute,daily_limit,daily_budget,previous_secret_until,created_at FROM msg_application WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
                         tenant);
     }
 
     public Object createApplication(long tenant, Map<String, Object> input) {
-        sandbox();
+        enabled();
         String name = required(input, "name", 128);
         Map<String, Object> grants = object(input.getOrDefault("grants", Map.of()));
         for (var entry :
@@ -382,7 +395,7 @@ public class Messaging {
                             "secret",
                             secret,
                             "environment",
-                            "sandbox",
+                            config.production() ? "production" : "test",
                             "notice",
                             "密钥只展示一次，请安全保存");
                 });
@@ -443,16 +456,11 @@ public class Messaging {
     }
 
     private String render(Map<String, Object> template, Map<String, Object> variables) {
-        String body = required(object(template.get("payload")), "body", 4000);
-        var pattern = java.util.regex.Pattern.compile("\\{\\{([A-Za-z][A-Za-z0-9_]{0,63})}}");
-        var matcher = pattern.matcher(body);
-        var names = new HashSet<String>();
-        while (matcher.find()) names.add(matcher.group(1));
-        if (!variables.keySet().equals(names)) throw new ApiError(422, "模板变量不匹配");
-        for (String key : names)
-            body = body.replace("{{" + key + "}}", required(variables, key, 512));
-        if (body.length() > 4000 || body.contains("{{")) throw new ApiError(422, "模板内容无效或过长");
-        return body;
+        String text =
+                MessageContent.render(object(template.get("payload")), variables, "预览")
+                        .get("text")
+                        .toString();
+        return text.substring("【预览】".length());
     }
 
     private Instant instant(Map<String, Object> body, String key, Instant fallback) {
@@ -461,6 +469,325 @@ public class Messaging {
         } catch (Exception e) {
             throw new ApiError(422, "时间格式无效: " + key);
         }
+    }
+
+    private void applicationBudget(Principal p, long amount) {
+        if (p.application().equals("console")) return;
+        var app =
+                db.one(
+                        "SELECT daily_limit,daily_budget FROM msg_application WHERE tenant_id=? AND id=? AND enabled=TRUE",
+                        p.tenant(),
+                        p.application());
+        if (app == null) throw new ApiError(403, "应用已撤销");
+        var usage =
+                db.one(
+                        "SELECT COUNT(*) AS messages,COALESCE(SUM(IF(billing_state IN ('HELD','SETTLED'),sales_amount,0)),0) AS amount FROM msg_message WHERE tenant_id=? AND application_id=? AND created_at>=UTC_DATE()",
+                        p.tenant(),
+                        p.application());
+        if (((Number) usage.get("messages")).longValue()
+                        >= ((Number) app.get("daily_limit")).longValue()
+                || ((Number) usage.get("amount")).longValue() + amount
+                        > ((Number) app.get("daily_budget")).longValue())
+            throw new ApiError(429, "应用当日消息数或费用限额不足");
+    }
+
+    /** Called under the tenant lock immediately before the durable external-submit boundary. */
+    MessageAdapter.Submission deliverySubmission(long tenant, String id) {
+        var row =
+                db.one(
+                        "SELECT * FROM msg_message WHERE tenant_id=? AND id=? FOR UPDATE",
+                        tenant,
+                        id);
+        if (row == null
+                || !"SUBMITTING".equals(row.get("state"))
+                || Boolean.TRUE.equals(row.get("simulated")))
+            throw new ApiError(409, "消息不处于通道提交状态");
+        String channel = row.get("channel_id").toString();
+        var template =
+                object(
+                        resource(tenant, row.get("template_id").toString(), "template", true)
+                                .get("payload"));
+        assets.validate(tenant, template);
+        var refs = new LinkedHashMap<String, String>();
+        for (String asset : MessageContent.assets(template))
+            refs.put(asset, channels.binding(tenant, channel, asset));
+        var content =
+                object(
+                        secrets.decrypt(
+                                "content:" + tenant + ":" + id,
+                                row.get("content_cipher").toString()));
+        return new MessageAdapter.Submission(
+                id,
+                row.get("requested_form").toString(),
+                secrets.decrypt(
+                        "recipient:" + tenant + ":" + id, row.get("recipient_cipher").toString()),
+                content.get("text").toString(),
+                Map.of(
+                        "channel_id",
+                        channel,
+                        "compiled_content",
+                        content,
+                        "sender_ref",
+                        channels.binding(tenant, channel, row.get("sender_id").toString()),
+                        "template_ref",
+                        channels.binding(tenant, channel, row.get("template_id").toString()),
+                        "asset_refs",
+                        refs));
+    }
+
+    void providerOutcome(long tenant, String id, String state) {
+        var row =
+                db.one(
+                        "SELECT * FROM msg_message WHERE tenant_id=? AND id=? FOR UPDATE",
+                        tenant,
+                        id);
+        if (row == null
+                || Boolean.TRUE.equals(row.get("simulated"))
+                || !Set.of("SUBMITTING", "ACCEPTED", "UNKNOWN").contains(row.get("state"))) return;
+        if (!Set.of("ACCEPTED", "DELIVERED", "FAILED", "REJECTED", "UNKNOWN").contains(state))
+            throw new ApiError(422, "通道状态无效");
+        db.jdbc()
+                .update(
+                        "UPDATE msg_attempt SET state=?,provider_id=COALESCE((SELECT provider_id FROM msg_delivery WHERE message_id=?),provider_id) WHERE tenant_id=? AND message_id=?",
+                        state,
+                        id,
+                        tenant,
+                        id);
+        complete(row, state);
+    }
+
+    void providerInteraction(
+            long tenant, String message, String key, String kind, Map<String, Object> input) {
+        var row = db.one("SELECT * FROM msg_message WHERE tenant_id=? AND id=?", tenant, message);
+        if (row == null) throw new ApiError(404, "消息不存在");
+        String id = id("interaction");
+        // Inbox uniqueness is the provider idempotency boundary; event_key cannot collide across
+        // channels.
+        String eventKey =
+                "provider:"
+                        + Support.hex(
+                                Support.sha(
+                                        (row.get("channel_id") + ":" + key)
+                                                .getBytes(StandardCharsets.UTF_8)));
+        db.jdbc()
+                .update(
+                        "INSERT INTO msg_interaction(id,tenant_id,application_id,message_id,contact_id,event_key,request_hash,kind,source,payload_cipher) VALUES(?,?,?,?,?,?,?,?, 'PROVIDER',?)",
+                        id,
+                        tenant,
+                        row.get("application_id"),
+                        message,
+                        row.get("contact_id"),
+                        eventKey,
+                        Support.hex(Support.sha(Support.canonical(input))),
+                        kind,
+                        secrets.encrypt("interaction:" + tenant + ":" + id, json(input)));
+        if (kind.equals("unsubscribe"))
+            db.jdbc()
+                    .update(
+                            "INSERT IGNORE INTO msg_suppression(tenant_id,recipient_hash,reason) VALUES(?,?,?)",
+                            tenant,
+                            row.get("recipient_hash"),
+                            "供应商退订");
+        if (kind.equals("reply") && row.get("contact_id") != null) {
+            db.jdbc()
+                    .update(
+                            "INSERT IGNORE INTO ops_lead(tenant_id,contact_id,fields_json,tags_json) VALUES(?,?,JSON_OBJECT(),JSON_ARRAY())",
+                            tenant,
+                            row.get("contact_id"));
+            db.jdbc()
+                    .update(
+                            "INSERT INTO ops_history(tenant_id,contact_id,actor_id,event_key,payload_hash,action,detail_json) VALUES(?,?,0,?,?,'message_interaction',?)",
+                            tenant,
+                            row.get("contact_id"),
+                            "msg:" + id,
+                            Support.hex(Support.sha(Support.canonical(input))),
+                            json(
+                                    Map.of(
+                                            "message_id",
+                                            message,
+                                            "kind",
+                                            kind,
+                                            "source",
+                                            "PROVIDER")));
+        }
+        event(
+                new Principal(tenant, row.get("application_id").toString()),
+                message,
+                "message.interaction",
+                Map.of("interaction_id", id, "kind", kind, "source", "PROVIDER"));
+    }
+
+    public long estimate(
+            long tenant,
+            String product,
+            String sender,
+            String template,
+            Map<String, Object> source) {
+        var pr = object(resource(tenant, product, "product", true).get("payload"));
+        var tp = object(resource(tenant, template, "template", true).get("payload"));
+        if (!pr.get("form").equals(tp.get("form"))) throw new ApiError(422, "产品和模板类型不匹配");
+        assets.validate(tenant, tp);
+        var content =
+                MessageContent.render(
+                        tp,
+                        MessageContent.selectVariables(tp, source),
+                        required(
+                                object(resource(tenant, sender, "sender", true).get("payload")),
+                                "brand",
+                                128));
+        int units = 1;
+        if ("channel".equals(pr.get("adapter"))) {
+            String channel = pr.get("channel_id").toString();
+            channels.usable(tenant, channel, pr.get("form").toString());
+            channels.binding(tenant, channel, sender);
+            channels.binding(tenant, channel, template);
+            for (String asset : MessageContent.assets(tp)) channels.binding(tenant, channel, asset);
+            if (pr.get("form").equals("sms"))
+                units = MessageContent.smsUnits(content.get("text").toString());
+        } else if (config.production()) throw new ApiError(409, "生产环境禁止模拟发送");
+        return Math.multiplyExact(number(pr, "unit_price", 1000, 1000000000), units);
+    }
+
+    public Object applicationSettings(long tenant, String id, Map<String, Object> input) {
+        long rate = number(input, "rate_per_minute", 120, 10000),
+                daily = number(input, "daily_limit", 10000, 10000000),
+                budget = number(input, "daily_budget", 1000000000, 1000000000000L);
+        if (rate < 1 || daily < 1) throw new ApiError(422, "应用限额必须为正整数");
+        return tx.run(
+                () -> {
+                    lock(tenant);
+                    if (db.jdbc()
+                                    .update(
+                                            "UPDATE msg_application SET rate_per_minute=?,daily_limit=?,daily_budget=? WHERE tenant_id=? AND id=?",
+                                            rate,
+                                            daily,
+                                            budget,
+                                            tenant,
+                                            id)
+                            != 1) throw new ApiError(404, "应用不存在");
+                    return Map.of(
+                            "id",
+                            id,
+                            "rate_per_minute",
+                            rate,
+                            "daily_limit",
+                            daily,
+                            "daily_budget",
+                            budget);
+                });
+    }
+
+    public Object rotateApplication(long tenant, String id, Map<String, Object> input) {
+        long grace = number(input, "grace_seconds", 300, 86400);
+        return tx.run(
+                () -> {
+                    lock(tenant);
+                    var app =
+                            db.one(
+                                    "SELECT secret_cipher FROM msg_application WHERE tenant_id=? AND id=? AND enabled=TRUE FOR UPDATE",
+                                    tenant,
+                                    id);
+                    if (app == null) throw new ApiError(404, "应用不存在或已撤销");
+                    String secret = MessageSecrets.random();
+                    db.jdbc()
+                            .update(
+                                    "UPDATE msg_application SET previous_secret_cipher=secret_cipher,previous_secret_until=?,secret_cipher=? WHERE tenant_id=? AND id=?",
+                                    time(Instant.now().plusSeconds(grace)),
+                                    secrets.encrypt("app:" + tenant + ":" + id, secret),
+                                    tenant,
+                                    id);
+                    return Map.of(
+                            "application_id",
+                            id,
+                            "secret",
+                            secret,
+                            "previous_secret_until",
+                            Instant.now().plusSeconds(grace).toString());
+                });
+    }
+
+    public Object apiResources(Principal p, String kind) {
+        String key =
+                Map.of("product", "products", "template", "templates", "sender", "senders")
+                        .get(kind);
+        if (key == null) throw new ApiError(404, "资源类别不存在");
+        var app =
+                db.one(
+                        "SELECT grants FROM msg_application WHERE tenant_id=? AND id=? AND enabled=TRUE",
+                        p.tenant(),
+                        p.application());
+        if (app == null) throw new ApiError(403, "应用已撤销");
+        var granted = (List<?>) object(app.get("grants")).get(key);
+        return resources(p.tenant(), kind).stream()
+                .filter(r -> granted.contains(r.get("id")))
+                .map(
+                        r -> {
+                            var result = new LinkedHashMap<>(r);
+                            var payload = new LinkedHashMap<>(object(r.get("payload")));
+                            payload.remove("channel_id");
+                            payload.remove("purchase_unit_price");
+                            result.put("payload", payload);
+                            return result;
+                        })
+                .toList();
+    }
+
+    public Object usage(Principal p) {
+        return db.jdbc()
+                .queryForList(
+                        "SELECT DATE(created_at) AS date,requested_form,simulated,state,billing_state,COUNT(*) AS messages,SUM(billable_units) AS units,SUM(sales_amount) AS sales_amount FROM msg_message WHERE tenant_id=? AND application_id=? AND created_at>=UTC_DATE()-INTERVAL 30 DAY GROUP BY DATE(created_at),requested_form,simulated,state,billing_state ORDER BY date DESC",
+                        p.tenant(),
+                        p.application());
+    }
+
+    public Object applicationLedger(Principal p) {
+        // Journal ids are opaque; use a stable timestamp/id cursor through the API's message
+        // events.
+        return db.jdbc()
+                .queryForList(
+                        "SELECT j.id,j.message_id,j.kind,j.available_delta,j.frozen_delta,j.spent_delta,j.created_at FROM msg_journal j JOIN msg_message m ON m.id=j.message_id WHERE j.tenant_id=? AND m.application_id=? ORDER BY j.created_at DESC,j.id DESC LIMIT 200",
+                        p.tenant(),
+                        p.application());
+    }
+
+    public Object fund(long tenant, String key, long amount, String reference) {
+        enabled();
+        if (!config.production()) throw new ApiError(409, "测试环境使用测试额度");
+        if (key == null
+                || !key.matches("[A-Za-z0-9_.:-]{8,128}")
+                || amount <= 0
+                || amount > 1000000000000L
+                || reference == null
+                || reference.isBlank()
+                || reference.length() > 128) throw new ApiError(422, "请提供有效金额、入账凭证和幂等键");
+        return tx.run(
+                () -> {
+                    lock(tenant);
+                    if (db.one(
+                                    "SELECT id FROM msg_journal WHERE tenant_id=? AND kind='SANDBOX_CREDIT' LIMIT 1",
+                                    tenant)
+                            != null) throw new ApiError(409, "测试账本禁止转为生产账本，请使用独立生产数据库");
+                    var old =
+                            db.one(
+                                    "SELECT available_delta,reason FROM msg_journal WHERE tenant_id=? AND operation_key=?",
+                                    tenant,
+                                    "fund:" + key);
+                    if (old == null)
+                        journal(
+                                tenant,
+                                "fund:" + key,
+                                null,
+                                "MANUAL_FUND",
+                                amount,
+                                0,
+                                0,
+                                -amount,
+                                reference);
+                    else if (((Number) old.get("available_delta")).longValue() != amount
+                            || !reference.equals(old.get("reason")))
+                        throw new ApiError(409, "幂等键对应不同入账记录");
+                    return balance(tenant);
+                });
     }
 
     private void journal(
@@ -534,7 +861,7 @@ public class Messaging {
                 db.one("SELECT available,frozen,spent FROM msg_account WHERE tenant_id=?", tenant);
         return Map.of(
                 "environment",
-                "sandbox",
+                config.production() ? "production" : "test",
                 "currency",
                 "CNY",
                 "amount_unit",
@@ -551,7 +878,7 @@ public class Messaging {
     }
 
     public Map<String, Object> create(Principal p, String key, Map<String, Object> body) {
-        sandbox();
+        enabled();
         if (key == null || !key.matches("[A-Za-z0-9_.:-]{8,128}"))
             throw new ApiError(422, "需要 8 至 128 字符幂等键");
         if (Support.json(body).length > 32768) throw new ApiError(413, "消息请求过大");
@@ -592,7 +919,10 @@ public class Messaging {
                     grants(p, product, sender, template);
                     var pr = resource(p.tenant(), product, "product", true);
                     var productConfig = object(pr.get("payload"));
-                    resource(p.tenant(), sender, "sender", true);
+                    boolean simulated = !"channel".equals(productConfig.get("adapter"));
+                    if (simulated && config.production()) throw new ApiError(409, "生产环境禁止模拟发送");
+                    String channelId = simulated ? null : required(productConfig, "channel_id", 64);
+                    var sendingIdentity = resource(p.tenant(), sender, "sender", true);
                     var t = resource(p.tenant(), template, "template", true);
                     String form = required(productConfig, "form", 16);
                     if (!form.equals(object(t.get("payload")).get("form")))
@@ -616,7 +946,30 @@ public class Messaging {
                         throw new ApiError(422, "目前仅接受已授权手机号");
                     String destination = phone(required(recipient, "value", 32));
                     consent(p.tenant(), required(body, "consent_reference", 64), destination);
-                    render(t, object(body.getOrDefault("variables", Map.of())));
+                    var templatePayload = object(t.get("payload"));
+                    assets.validate(p.tenant(), templatePayload);
+                    var compiled =
+                            MessageContent.render(
+                                    templatePayload,
+                                    object(body.getOrDefault("variables", Map.of())),
+                                    required(object(sendingIdentity.get("payload")), "brand", 128));
+                    Map<String, Object> channel = null;
+                    int units = 1;
+                    String billingBasis = "delivered";
+                    if (!simulated) {
+                        channel = channels.usable(p.tenant(), channelId, form);
+                        channels.binding(p.tenant(), channelId, sender);
+                        channels.binding(p.tenant(), channelId, template);
+                        for (String asset : MessageContent.assets(templatePayload))
+                            channels.binding(p.tenant(), channelId, asset);
+                        if (form.equals("sms"))
+                            units = MessageContent.smsUnits(compiled.get("text").toString());
+                        if ("cmpp".equals(channel.get("protocol"))
+                                && !destination.matches("\\+861[3-9][0-9]{9}"))
+                            throw new ApiError(422, "CMPP 通道仅支持中国大陆手机号");
+                        billingBasis =
+                                object(channel.get("config")).get("billing_basis").toString();
+                    }
                     Instant now = Instant.now(),
                             scheduled = instant(body, "scheduled_at", now),
                             expires = instant(body, "expires_at", now.plusSeconds(86400));
@@ -635,7 +988,11 @@ public class Messaging {
                                             time(now.minusSeconds(86400)));
                     if (count >= number(productConfig, "daily_recipient_limit", 3, 100))
                         throw new ApiError(429, "接收人日触达频次已达上限");
-                    long price = number(productConfig, "unit_price", 1000, 1_000_000_000);
+                    long price =
+                            Math.multiplyExact(
+                                    number(productConfig, "unit_price", 1000, 1_000_000_000),
+                                    units);
+                    applicationBudget(p, price);
                     if (body.containsKey("max_sales_amount")) {
                         try {
                             if (new java.math.BigDecimal(required(body, "max_sales_amount", 32))
@@ -666,6 +1023,11 @@ public class Messaging {
                         if (used + price > number(cp, "budget", 0, 1_000_000_000_000L))
                             throw new ApiError(409, "活动预算不足");
                     }
+                    if (config.production()
+                            && db.one(
+                                            "SELECT id FROM msg_journal WHERE tenant_id=? AND kind='SANDBOX_CREDIT' LIMIT 1",
+                                            p.tenant())
+                                    != null) throw new ApiError(409, "测试账本禁止生产发送，请使用独立生产数据库");
                     String id = id("msg");
                     var encrypted =
                             Map.of(
@@ -703,6 +1065,17 @@ public class Messaging {
                                     Long.parseLong(body.get("consent_reference").toString()),
                                     p.tenant(),
                                     id);
+                    db.jdbc()
+                            .update(
+                                    "UPDATE msg_message SET channel_id=?,simulated=?,content_cipher=?,billable_units=?,billing_basis=? WHERE tenant_id=? AND id=?",
+                                    channelId,
+                                    simulated,
+                                    secrets.encrypt(
+                                            "content:" + p.tenant() + ":" + id, json(compiled)),
+                                    units,
+                                    billingBasis,
+                                    p.tenant(),
+                                    id);
                     journal(p.tenant(), "hold:" + id, id, "HOLD", -price, price, 0, 0, "受理预占");
                     event(p, id, "message.queued", Map.of("status", "QUEUED"));
                     return message(p, id);
@@ -712,7 +1085,12 @@ public class Messaging {
     private void event(Principal p, String message, String type, Map<String, Object> data) {
         var payload = new LinkedHashMap<>(data);
         payload.put("message_id", message);
-        payload.put("simulated", true);
+        var origin =
+                db.one(
+                        "SELECT simulated FROM msg_message WHERE tenant_id=? AND id=?",
+                        p.tenant(),
+                        message);
+        payload.put("simulated", origin == null || Boolean.TRUE.equals(origin.get("simulated")));
         db.jdbc()
                 .update(
                         "INSERT INTO msg_event(id,tenant_id,application_id,message_id,type,payload) VALUES(?,?,?,?,?,?)",
@@ -735,6 +1113,7 @@ public class Messaging {
                         "actual_transport",
                         "billing_state",
                         "sales_amount",
+                        "settled_amount",
                         "created_at",
                         "scheduled_at",
                         "expires_at",
@@ -742,7 +1121,10 @@ public class Messaging {
                         "campaign_id")) result.put(key, row.get(key));
         result.put("message_id", row.get("id"));
         result.put("status", row.get("state"));
-        result.put("simulated", true);
+        result.put("simulated", row.get("simulated"));
+        result.put("channel_id", row.get("channel_id"));
+        result.put("billable_units", row.get("billable_units"));
+        result.put("billing_environment", config.production() ? "production" : "test");
         result.put("amount_unit", "micro_CNY");
         return publicDates(result);
     }
@@ -814,37 +1196,60 @@ public class Messaging {
     private void complete(Map<String, Object> row, String state) {
         long tenant = ((Number) row.get("tenant_id")).longValue(),
                 amount = ((Number) row.get("sales_amount")).longValue();
-        String id = row.get("id").toString();
-        if (!"HELD".equals(row.get("billing_state"))) return;
-        boolean delivered = state.equals("DELIVERED");
-        if (!state.equals("UNKNOWN"))
+        String id = row.get("id").toString(), current = row.get("state").toString();
+        if (Set.of("DELIVERED", "REJECTED", "FAILED", "BLOCKED", "CANCELLED", "EXPIRED")
+                .contains(current)) return;
+        boolean pending = Set.of("UNKNOWN", "ACCEPTED").contains(state),
+                delivered = state.equals("DELIVERED");
+        boolean acceptedBasis = "accepted".equals(row.get("billing_basis"));
+        boolean acceptedCharge = acceptedBasis && state.equals("ACCEPTED");
+        String billing = row.get("billing_state").toString();
+        long settled = ((Number) row.get("settled_amount")).longValue();
+        if (billing.equals("HELD") && (delivered || acceptedCharge || !pending)) {
+            settled = delivered || acceptedCharge ? amount : 0;
+            if (state.equals("FAILED")) {
+                var parts =
+                        db.jdbc()
+                                .queryForList(
+                                        "SELECT state FROM msg_delivery_part WHERE message_id=?",
+                                        String.class,
+                                        id);
+                long charged =
+                        parts.stream()
+                                .filter(
+                                        s ->
+                                                s.equals("DELIVERED")
+                                                        || acceptedBasis && s.equals("FAILED"))
+                                .count();
+                if (!parts.isEmpty()) settled = Math.multiplyExact(amount, charged) / parts.size();
+            }
             journal(
                     tenant,
                     "finish:" + id,
                     id,
-                    delivered ? "SETTLE" : "RELEASE",
-                    delivered ? 0 : amount,
+                    settled > 0 ? "SETTLE" : "RELEASE",
+                    amount - settled,
                     -amount,
-                    delivered ? amount : 0,
+                    settled,
                     0,
-                    delivered ? "模拟交付结算" : "明确未计费释放");
+                    settled > 0 ? "按分片和产品计费口径结算" : "明确未受理或未计费释放");
+            billing = settled > 0 ? "SETTLED" : "RELEASED";
+        }
         db.jdbc()
                 .update(
-                        "UPDATE msg_message SET state=?,billing_state=?,finished_at=? WHERE tenant_id=? AND id=?",
+                        "UPDATE msg_message SET state=?,billing_state=?,settled_amount=?,finished_at=? WHERE tenant_id=? AND id=?",
                         state,
-                        state.equals("UNKNOWN") ? "HELD" : delivered ? "SETTLED" : "RELEASED",
-                        state.equals("UNKNOWN") ? null : time(Instant.now()),
+                        billing,
+                        settled,
+                        pending ? null : time(Instant.now()),
                         tenant,
                         id);
-        event(
-                new Principal(tenant, row.get("application_id").toString()),
-                id,
-                "message." + state.toLowerCase(Locale.ROOT),
-                Map.of(
-                        "status",
-                        state,
-                        "billing_state",
-                        state.equals("UNKNOWN") ? "HELD" : delivered ? "SETTLED" : "RELEASED"));
+        if (!current.equals(state))
+            event(
+                    new Principal(tenant, row.get("application_id").toString()),
+                    id,
+                    "message." + state.toLowerCase(Locale.ROOT),
+                    Map.of("status", state, "billing_state", billing));
     }
 
     private boolean workerLock(long tenant) {
@@ -854,7 +1259,7 @@ public class Messaging {
     }
 
     public boolean processOne() {
-        if (!config.flag("MESSAGING_ENABLED", false) || config.production()) return false;
+        if (!config.flag("MESSAGING_ENABLED", false)) return false;
         var candidate =
                 db.one(
                         "SELECT id,tenant_id FROM msg_message WHERE state='QUEUED' AND scheduled_at<=CURRENT_TIMESTAMP(6) ORDER BY scheduled_at,id LIMIT 1");
@@ -911,17 +1316,67 @@ public class Messaging {
                                 complete(row, "BLOCKED");
                                 return null;
                             }
+                            String adapter =
+                                    Boolean.TRUE.equals(row.get("simulated")) ? "mock" : "channel";
+                            if (adapter.equals("mock") && config.production()) {
+                                complete(row, "BLOCKED");
+                                return null;
+                            }
+                            if (adapter.equals("channel")) {
+                                try {
+                                    var selected =
+                                            channels.usable(
+                                                    tenant,
+                                                    row.get("channel_id").toString(),
+                                                    row.get("requested_form").toString());
+                                    channels.binding(
+                                            tenant,
+                                            row.get("channel_id").toString(),
+                                            row.get("sender_id").toString());
+                                    channels.binding(
+                                            tenant,
+                                            row.get("channel_id").toString(),
+                                            row.get("template_id").toString());
+                                    var templatePayload =
+                                            object(
+                                                    resource(
+                                                                    tenant,
+                                                                    row.get("template_id")
+                                                                            .toString(),
+                                                                    "template",
+                                                                    true)
+                                                            .get("payload"));
+                                    assets.validate(tenant, templatePayload);
+                                    for (String asset : MessageContent.assets(templatePayload))
+                                        channels.binding(
+                                                tenant, row.get("channel_id").toString(), asset);
+                                    if (!channels.acquire(
+                                            selected,
+                                            ((Number) row.get("billable_units")).intValue())) {
+                                        db.jdbc()
+                                                .update(
+                                                        "UPDATE msg_message SET scheduled_at=CURRENT_TIMESTAMP(6)+INTERVAL 1 SECOND WHERE id=?",
+                                                        id);
+                                        return null;
+                                    }
+                                } catch (ApiError failure) {
+                                    complete(row, "BLOCKED");
+                                    return null;
+                                }
+                            }
                             db.jdbc()
                                     .update(
-                                            "UPDATE msg_message SET state='SUBMITTING',submitted_at=CURRENT_TIMESTAMP(6),actual_transport='mock' WHERE tenant_id=? AND id=?",
+                                            "UPDATE msg_message SET state='SUBMITTING',submitted_at=CURRENT_TIMESTAMP(6),actual_transport=? WHERE tenant_id=? AND id=?",
+                                            adapter,
                                             tenant,
                                             id);
                             db.jdbc()
                                     .update(
-                                            "INSERT INTO msg_attempt(id,tenant_id,message_id,attempt_no,state,adapter) VALUES(?,?,?,1,'SUBMITTING','mock')",
+                                            "INSERT INTO msg_attempt(id,tenant_id,message_id,attempt_no,state,adapter) VALUES(?,?,?,1,'SUBMITTING',?)",
                                             id("att"),
                                             tenant,
-                                            id);
+                                            id,
+                                            adapter);
                             event(p, id, "message.submitting", Map.of("status", "SUBMITTING"));
                             return row;
                         });
@@ -938,23 +1393,38 @@ public class Messaging {
                     secrets.decrypt(
                             "recipient:" + tenant + ":" + id,
                             claimed.get("recipient_cipher").toString());
+            product.put("tenant_id", tenant);
             result =
-                    adapters.get("mock")
+                    adapters.get(Boolean.TRUE.equals(claimed.get("simulated")) ? "mock" : "channel")
                             .submit(
                                     new MessageAdapter.Submission(
                                             id,
                                             claimed.get("requested_form").toString(),
                                             recipient,
-                                            render(
-                                                    template,
-                                                    object(
-                                                            body(claimed)
-                                                                    .getOrDefault(
-                                                                            "variables",
-                                                                            Map.of()))),
+                                            claimed.get("content_cipher") != null
+                                                    ? object(
+                                                                    secrets.decrypt(
+                                                                            "content:"
+                                                                                    + tenant
+                                                                                    + ":"
+                                                                                    + id,
+                                                                            claimed.get(
+                                                                                            "content_cipher")
+                                                                                    .toString()))
+                                                            .get("text")
+                                                            .toString()
+                                                    : render(
+                                                            template,
+                                                            object(
+                                                                    body(claimed)
+                                                                            .getOrDefault(
+                                                                                    "variables",
+                                                                                    Map.of()))),
                                             product));
         } catch (Exception error) {
-            result = new MessageAdapter.Result("UNKNOWN", "", 0, true);
+            result =
+                    new MessageAdapter.Result(
+                            "UNKNOWN", "", 0, Boolean.TRUE.equals(claimed.get("simulated")));
         }
         var outcome = result;
         tx.run(
@@ -973,12 +1443,13 @@ public class Messaging {
                                     outcome.providerId(),
                                     tenant,
                                     id);
-                    db.jdbc()
-                            .update(
-                                    "UPDATE msg_message SET purchase_amount=? WHERE tenant_id=? AND id=?",
-                                    outcome.purchaseAmount(),
-                                    tenant,
-                                    id);
+                    if (outcome.simulated())
+                        db.jdbc()
+                                .update(
+                                        "UPDATE msg_message SET purchase_amount=? WHERE tenant_id=? AND id=?",
+                                        outcome.purchaseAmount(),
+                                        tenant,
+                                        id);
                     complete(row, outcome.state());
                     return null;
                 });
@@ -996,7 +1467,7 @@ public class Messaging {
         for (var item :
                 db.jdbc()
                         .queryForList(
-                                "SELECT tenant_id,id FROM msg_message WHERE state='SUBMITTING' AND submitted_at<CURRENT_TIMESTAMP(6)-INTERVAL 2 MINUTE LIMIT 100"))
+                                "SELECT tenant_id,id FROM msg_message WHERE (state='SUBMITTING' AND submitted_at<CURRENT_TIMESTAMP(6)-INTERVAL 2 MINUTE) OR (state='ACCEPTED' AND expires_at<CURRENT_TIMESTAMP(6)) LIMIT 100"))
             tx.run(
                     () -> {
                         long tenant = ((Number) item.get("tenant_id")).longValue();
@@ -1006,7 +1477,7 @@ public class Messaging {
                                         "SELECT * FROM msg_message WHERE tenant_id=? AND id=? FOR UPDATE",
                                         tenant,
                                         item.get("id"));
-                        if ("SUBMITTING".equals(row.get("state"))) {
+                        if (Set.of("SUBMITTING", "ACCEPTED").contains(row.get("state"))) {
                             complete(row, "UNKNOWN");
                             db.jdbc()
                                     .update(
@@ -1016,6 +1487,9 @@ public class Messaging {
                         }
                         return null;
                     });
+        db.jdbc()
+                .update(
+                        "DELETE FROM msg_channel_window WHERE expires_at<CURRENT_TIMESTAMP(6) LIMIT 1000");
         db.jdbc().update("DELETE FROM msg_nonce WHERE expires_at<CURRENT_TIMESTAMP(6) LIMIT 1000");
         long now = System.currentTimeMillis(), next = nextRetention.get();
         if (config.flag("MESSAGING_RETENTION_ENABLED", true)
@@ -1043,6 +1517,8 @@ public class Messaging {
                                     tenant,
                                     id);
                     if (row == null) throw new ApiError(404, "消息不存在");
+                    if (!Boolean.TRUE.equals(row.get("simulated")))
+                        throw new ApiError(409, "模拟回执不能修改真实通道消息");
                     String digest = state + ":" + id;
                     var prior =
                             db.one(
@@ -1089,7 +1565,7 @@ public class Messaging {
     }
 
     public Object refund(long tenant, String id, String reason) {
-        sandbox();
+        enabled();
         return tx.run(
                 () -> {
                     lock(tenant);
@@ -1102,7 +1578,7 @@ public class Messaging {
                     if ("REFUNDED".equals(row.get("billing_state"))) return publicMessage(row);
                     if (!"SETTLED".equals(row.get("billing_state")))
                         throw new ApiError(409, "只有已结算消息可退款");
-                    long amount = ((Number) row.get("sales_amount")).longValue();
+                    long amount = ((Number) row.get("settled_amount")).longValue();
                     journal(tenant, "refund:" + id, id, "REFUND", amount, 0, -amount, 0, reason);
                     db.jdbc()
                             .update(
@@ -1119,7 +1595,7 @@ public class Messaging {
     }
 
     public Object batch(Principal p, String key, Map<String, Object> input) {
-        sandbox();
+        enabled();
         if (key == null || !key.matches("[A-Za-z0-9_.:-]{8,128}"))
             throw new ApiError(422, "批次需要幂等键");
         if (!(input.get("items") instanceof List<?> items) || items.isEmpty() || items.size() > 100)
@@ -1163,6 +1639,19 @@ public class Messaging {
                                                             "batch:" + p.tenant() + ":" + id,
                                                             json(input)))),
                                     "[]");
+                    boolean simulated = true;
+                    for (Object item : items) {
+                        var request = object(object(item).get("message"));
+                        var product =
+                                db.one(
+                                        "SELECT payload FROM msg_resource WHERE tenant_id=? AND id=? AND kind='product'",
+                                        p.tenant(),
+                                        Objects.toString(request.get("service_product_id"), ""));
+                        if (product != null
+                                && "channel".equals(object(product.get("payload")).get("adapter")))
+                            simulated = false;
+                    }
+                    db.jdbc().update("UPDATE msg_batch SET simulated=? WHERE id=?", simulated, id);
                     return batchStatus(p, id);
                 });
     }
@@ -1170,7 +1659,7 @@ public class Messaging {
     public Map<String, Object> batchStatus(Principal p, String id) {
         var row =
                 db.one(
-                        "SELECT id,application_id,state,results,created_at FROM msg_batch WHERE tenant_id=? AND id=?",
+                        "SELECT id,application_id,state,results,created_at,simulated FROM msg_batch WHERE tenant_id=? AND id=?",
                         p.tenant(),
                         id);
         if (row == null
@@ -1186,12 +1675,12 @@ public class Messaging {
             throw new IllegalStateException(e);
         }
         result.put("batch_id", id);
-        result.put("simulated", true);
+        result.put("simulated", row.get("simulated"));
         return publicDates(result);
     }
 
     public boolean processBatch() {
-        if (!config.flag("MESSAGING_ENABLED", false) || config.production()) return false;
+        if (!config.flag("MESSAGING_ENABLED", false)) return false;
         var row =
                 db.one(
                         "SELECT * FROM msg_batch WHERE state IN ('QUEUED','PROCESSING') ORDER BY created_at,id LIMIT 1");
@@ -1301,7 +1790,7 @@ public class Messaging {
     }
 
     public void deferCall(long tenant, String call, int attempt) {
-        sandbox();
+        enabled();
         tx.run(
                 () -> {
                     lock(tenant);
@@ -1373,7 +1862,7 @@ public class Messaging {
     }
 
     public boolean processCallIntent() {
-        if (!config.flag("MESSAGING_ENABLED", false) || config.production()) return false;
+        if (!config.flag("MESSAGING_ENABLED", false)) return false;
         var intent =
                 db.one(
                         "SELECT i.* FROM msg_call_intent i JOIN callsession c ON c.id=i.call_id AND c.tenant_id=i.tenant_id WHERE i.state='WAITING_CALL' AND (c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL') OR c.attempts<>i.attempt OR i.created_at<CURRENT_TIMESTAMP(6)-INTERVAL 1 DAY) ORDER BY i.created_at LIMIT 1");
@@ -1511,30 +2000,6 @@ public class Messaging {
                                                             .get("outcome")))
                                 throw new ApiError(409, "未达到已配置的合格线索触发条件");
                         }
-                        if (Boolean.TRUE.equals(rule.get("workspace"))) {
-                            long unit =
-                                    number(
-                                            object(
-                                                    resource(
-                                                                    tenant,
-                                                                    rule.get("product_id")
-                                                                            .toString(),
-                                                                    "product",
-                                                                    true)
-                                                            .get("payload")),
-                                            "unit_price",
-                                            0,
-                                            1_000_000_000);
-                            long used =
-                                    db.jdbc()
-                                            .queryForObject(
-                                                    "SELECT COALESCE(SUM(m.sales_amount),0) FROM msg_message m JOIN msg_call_intent i ON i.message_id=m.id AND i.tenant_id=m.tenant_id WHERE i.tenant_id=? AND i.rule_id=? AND m.billing_state IN ('HELD','SETTLED')",
-                                                    Long.class,
-                                                    tenant,
-                                                    intent.get("rule_id"));
-                            if (used + unit > number(rule, "budget", 0, 1_000_000_000_000L))
-                                throw new ApiError(409, "挂机短信规则预算不足");
-                        }
 
                         String form =
                                 object(
@@ -1566,28 +2031,37 @@ public class Messaging {
                                             call.get("contact_id"));
                             if (frozen == null) throw new ApiError(409, "挂机短信缺少任务变量快照");
                             var values = object(frozen.get("variables_json"));
-                            String templateBody =
-                                    required(
-                                            object(
-                                                    resource(
-                                                                    tenant,
-                                                                    rule.get("template_id")
-                                                                            .toString(),
-                                                                    "template",
-                                                                    true)
-                                                            .get("payload")),
-                                            "body",
-                                            4000);
-                            var matcher =
-                                    java.util.regex.Pattern.compile(
-                                                    "\\{\\{([A-Za-z][A-Za-z0-9_]{0,63})}}")
-                                            .matcher(templateBody);
+                            var templatePayload =
+                                    object(
+                                            resource(
+                                                            tenant,
+                                                            rule.get("template_id").toString(),
+                                                            "template",
+                                                            true)
+                                                    .get("payload"));
                             selectedVariables.clear();
-                            while (matcher.find())
-                                selectedVariables.put(
-                                        matcher.group(1),
-                                        values.getOrDefault(matcher.group(1), ""));
+                            selectedVariables.putAll(
+                                    MessageContent.selectVariables(templatePayload, values));
                         }
+                        if (Boolean.TRUE.equals(rule.get("workspace"))) {
+                            long unit =
+                                    estimate(
+                                            tenant,
+                                            rule.get("product_id").toString(),
+                                            rule.get("sender_id").toString(),
+                                            rule.get("template_id").toString(),
+                                            selectedVariables);
+                            long used =
+                                    db.jdbc()
+                                            .queryForObject(
+                                                    "SELECT COALESCE(SUM(m.sales_amount),0) FROM msg_message m JOIN msg_call_intent i ON i.message_id=m.id AND i.tenant_id=m.tenant_id WHERE i.tenant_id=? AND i.rule_id=? AND m.billing_state IN ('HELD','SETTLED')",
+                                                    Long.class,
+                                                    tenant,
+                                                    intent.get("rule_id"));
+                            if (used + unit > number(rule, "budget", 0, 1_000_000_000_000L))
+                                throw new ApiError(409, "挂机短信规则预算不足");
+                        }
+
                         body.put("variables", selectedVariables);
                         body.put("purpose", "marketing");
                         body.put(
@@ -1637,11 +2111,17 @@ public class Messaging {
     }
 
     public void retain() {
+        db.jdbc()
+                .update(
+                        "UPDATE msg_provider_event SET payload_cipher='' WHERE created_at<CURRENT_TIMESTAMP(6)-INTERVAL 90 DAY AND payload_cipher<>'' LIMIT 500");
+        db.jdbc()
+                .update(
+                        "UPDATE msg_application SET previous_secret_cipher=NULL WHERE previous_secret_until<CURRENT_TIMESTAMP(6) AND previous_secret_cipher IS NOT NULL LIMIT 500");
         // Financial facts and idempotency tombstones remain; unknown charges never expire by time
         // alone.
         db.jdbc()
                 .update(
-                        "UPDATE msg_message SET recipient_cipher='',recipient_mask='已脱敏',payload=JSON_OBJECT('redacted',TRUE) WHERE finished_at<CURRENT_TIMESTAMP(6)-INTERVAL 90 DAY AND billing_state IN ('SETTLED','RELEASED','REFUNDED') AND recipient_cipher<>'' LIMIT 500");
+                        "UPDATE msg_message SET content_cipher=NULL,recipient_cipher='',recipient_mask='已脱敏',payload=JSON_OBJECT('redacted',TRUE) WHERE finished_at<CURRENT_TIMESTAMP(6)-INTERVAL 90 DAY AND billing_state IN ('SETTLED','RELEASED','REFUNDED') AND recipient_cipher<>'' LIMIT 500");
         db.jdbc()
                 .update(
                         "UPDATE msg_batch SET payload=JSON_OBJECT('redacted',TRUE) WHERE state='COMPLETED' AND created_at<CURRENT_TIMESTAMP(6)-INTERVAL 90 DAY AND JSON_CONTAINS_PATH(payload,'one','$.cipher')=1 LIMIT 100");
@@ -1710,7 +2190,7 @@ public class Messaging {
                                     message);
                     if (row.get("contact_id") == null) throw new ApiError(409, "消息缺少联系人关联");
                     String id = id("interaction"),
-                            source = p.application().equals("console") ? "SANDBOX" : "REPORTED";
+                            source = p.application().equals("console") ? "CONSOLE" : "REPORTED";
                     db.jdbc()
                             .update(
                                     "INSERT INTO msg_interaction(id,tenant_id,application_id,message_id,contact_id,event_key,request_hash,kind,source,business_event_id,payload_cipher) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -1766,6 +2246,38 @@ public class Messaging {
                 });
     }
 
+    public Object messageInteractions(Principal p, String id) {
+        message(p, id);
+        return db
+                .jdbc()
+                .queryForList(
+                        "SELECT id,message_id,kind,source,payload_cipher,created_at FROM msg_interaction WHERE tenant_id=? AND message_id=? ORDER BY created_at,id LIMIT 200",
+                        p.tenant(),
+                        id)
+                .stream()
+                .map(
+                        row -> {
+                            String cipher = row.remove("payload_cipher").toString();
+                            if (cipher.isEmpty()) row.put("redacted", true);
+                            else {
+                                var payload =
+                                        object(
+                                                secrets.decrypt(
+                                                        "interaction:"
+                                                                + p.tenant()
+                                                                + ":"
+                                                                + row.get("id"),
+                                                        cipher));
+                                for (String field :
+                                        List.of("text", "business_event_id", "action_code"))
+                                    if (payload.containsKey(field))
+                                        row.put(field, payload.get(field));
+                            }
+                            return publicDates(row);
+                        })
+                .toList();
+    }
+
     public Object interactions(long tenant) {
         return db
                 .jdbc()
@@ -1799,11 +2311,18 @@ public class Messaging {
     public Object report(long tenant) {
         return Map.of(
                 "simulated",
-                true,
+                db.jdbc()
+                                .queryForObject(
+                                        "SELECT COUNT(*) FROM msg_message WHERE tenant_id=? AND simulated=FALSE",
+                                        Long.class,
+                                        tenant)
+                        == 0,
+                "billing_environment",
+                config.production() ? "production" : "test",
                 "messages",
                 db.jdbc()
                         .queryForList(
-                                "SELECT requested_form,state,billing_state,COUNT(*) AS messages,SUM(sales_amount) AS sales_amount_micro_cny FROM msg_message WHERE tenant_id=? GROUP BY requested_form,state,billing_state",
+                                "SELECT requested_form,simulated,state,billing_state,COUNT(*) AS messages,SUM(sales_amount) AS sales_amount_micro_cny,SUM(purchase_amount) AS purchase_amount_micro_cny,SUM(settled_amount) AS settled_amount_micro_cny,SUM(IF(simulated=FALSE AND NOT EXISTS(SELECT 1 FROM msg_cost_event c WHERE c.message_id=msg_message.id),1,0)) AS purchase_cost_pending FROM msg_message WHERE tenant_id=? GROUP BY requested_form,simulated,state,billing_state",
                                 tenant),
                 "interactions",
                 db.jdbc()

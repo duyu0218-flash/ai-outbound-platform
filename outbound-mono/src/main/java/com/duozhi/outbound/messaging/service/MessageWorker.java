@@ -13,6 +13,8 @@ public class MessageWorker {
     @org.springframework.beans.factory.annotation.Autowired
     private ScheduledWork scheduledWork;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private MessageDelivery delivery;
     private final Messaging messaging;
     private final Config config;
     private final ExecutorService work =
@@ -33,13 +35,13 @@ public class MessageWorker {
     public void tick() {
         if (!config.flag("MESSAGING_WORKERS_ENABLED", false)
                 || !config.flag("MESSAGING_ENABLED", false)
-                || config.production()
                 || !busy.compareAndSet(false, true)) return;
         try {
             work.submit(
                     () -> {
                         try {
                             messaging.recoverUnknown();
+                            delivery.queryOne();
                             messaging.processCallIntent();
                             messaging.processBatch();
                             for (int i = 0;

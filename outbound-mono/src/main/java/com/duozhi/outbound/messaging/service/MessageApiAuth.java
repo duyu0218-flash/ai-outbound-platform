@@ -108,10 +108,27 @@ public class MessageApiAuth {
                                 secrets.decrypt(
                                         "app:" + tenant + ":" + app,
                                         row.get("secret_cipher").toString());
-                        if (!Support.equals(
-                                signature,
-                                Support.hmac(secret, canonical.getBytes(StandardCharsets.UTF_8))))
-                            throw new ApiError(401, "应用签名无效");
+                        boolean valid =
+                                Support.equals(
+                                        signature,
+                                        Support.hmac(
+                                                secret,
+                                                canonical.getBytes(StandardCharsets.UTF_8)));
+                        if (!valid
+                                && row.get("previous_secret_cipher") != null
+                                && row.get("previous_secret_until") != null
+                                && Messaging.instant(row.get("previous_secret_until"))
+                                        .isAfter(Instant.now()))
+                            valid =
+                                    Support.equals(
+                                            signature,
+                                            Support.hmac(
+                                                    secrets.decrypt(
+                                                            "app:" + tenant + ":" + app,
+                                                            row.get("previous_secret_cipher")
+                                                                    .toString()),
+                                                    canonical.getBytes(StandardCharsets.UTF_8)));
+                        if (!valid) throw new ApiError(401, "应用签名无效");
                         var t = db.one("SELECT enabled FROM tenant WHERE id=?", tenant);
                         if (t == null || !Boolean.TRUE.equals(t.get("enabled")))
                             throw new ApiError(403, "企业已停用");
@@ -122,7 +139,8 @@ public class MessageApiAuth {
                                                 Long.class,
                                                 app,
                                                 Messaging.time(Instant.ofEpochSecond(now + 540)));
-                        if (count >= 120) throw new ApiError(429, "应用请求频率超限");
+                        if (count >= ((Number) row.get("rate_per_minute")).longValue())
+                            throw new ApiError(429, "应用请求频率超限");
                         db.jdbc()
                                 .update(
                                         "INSERT INTO msg_nonce(application_id,nonce,expires_at) VALUES(?,?,?)",

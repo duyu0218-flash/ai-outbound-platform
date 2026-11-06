@@ -16,9 +16,14 @@ export const billingState = (value) =>
   ({ HELD: '额度已冻结', SETTLED: '已结算', RELEASED: '额度已释放', REFUNDED: '已退款' })[value] ||
   '账务待核对';
 export const messageForm = (value) =>
-  ({ sms: '普通短信', rcs: '5G消息', yuexin: '阅信', ip: '手机厂商消息', push: '手机消息' })[
-    value
-  ] || '消息';
+  ({
+    sms: '普通短信',
+    rcs: '5G消息',
+    yuexin: '阅信',
+    oem_ip: '厂商 IP 消息',
+    ip: '手机厂商消息',
+    push: '手机消息',
+  })[value] || '消息';
 export function microAmount(value) {
   if (value == null || value === '' || !Number.isFinite(Number(value))) return '未计价';
   return (
@@ -33,6 +38,6 @@ export function messageEvent(value) {
   const state = String(value || '')
     .replace(/^message\./, '')
     .toUpperCase();
-  if (state === 'REFUNDED') return '模拟费用已退款';
+  if (state === 'REFUNDED') return '费用已退款';
   return messageState(state) === '状态待核对' ? '其他消息事件' : '消息' + messageState(state);
 }

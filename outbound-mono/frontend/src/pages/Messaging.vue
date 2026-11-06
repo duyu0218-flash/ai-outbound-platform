@@ -3,6 +3,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { request } from '../session';
 import { formatDate } from '../api';
+import RichMessageEditor from '../components/RichMessageEditor.vue';
+import RichMessagePreview from '../components/RichMessagePreview.vue';
 import {
   messageState,
   billingState,
@@ -38,7 +40,11 @@ const error = ref(''),
   detail = ref(null),
   events = ref([]),
   newKey = ref(null),
-  batch = ref(null);
+  batch = ref(null),
+  channels = ref([]),
+  delivery = ref(null),
+  selectedApp = ref(null);
+const appLimits = reactive({ rate_per_minute: 120, daily_limit: 10000, daily_budget: 1000000000 });
 const resources = reactive({
   product: [],
   sender: [],
@@ -52,6 +58,9 @@ const model = reactive({
   name: '',
   form: route.path.startsWith('/admin/sms/') ? 'sms' : 'rcs',
   body: '',
+  rich: {},
+  adapter: 'mock',
+  channel_id: '',
   brand: '',
   unit_price: 1000,
   daily_recipient_limit: 3,
@@ -89,8 +98,9 @@ async function recordInteraction() {
   await api('/messages/' + interaction.message_id + '/interactions', 'POST', payload, {
     headers: { 'Idempotency-Key': key() },
   });
-  success.value = '模拟互动已保存';
+  success.value = '互动已保存';
 }
+const fundingReference = ref('');
 const creditAmount = ref(1000000),
   suppression = reactive({ contact_id: '', reason: '' });
 const approved = (kind) => resources[kind].filter((r) => r.state === 'APPROVED');
@@ -122,6 +132,7 @@ async function load() {
   interactions.value = activity;
   callIntents.value = intents;
   webhookDeliveries.value = hooks;
+  channels.value = await api('/channels');
   Object.keys(resources).forEach((kind, i) => (resources[kind] = catalog[i]));
 }
 async function run(action) {
@@ -140,11 +151,18 @@ async function run(action) {
 }
 async function saveResource() {
   const payload = {};
-  if (model.kind === 'template') Object.assign(payload, { form: model.form, body: model.body });
+  if (model.kind === 'template')
+    Object.assign(payload, {
+      form: model.form,
+      body: model.body,
+      rich: model.form === 'sms' ? {} : model.rich,
+    });
   if (model.kind === 'sender') payload.brand = model.brand;
   if (model.kind === 'product')
     Object.assign(payload, {
       form: model.form,
+      adapter: model.adapter,
+      ...(model.adapter === 'channel' ? { channel_id: model.channel_id } : {}),
       unit_price: model.unit_price,
       daily_recipient_limit: model.daily_recipient_limit,
       simulation_outcome: model.simulation_outcome,
@@ -206,7 +224,7 @@ async function send() {
     headers: { 'Idempotency-Key': pendingSendKey.value },
   });
   pendingSendKey.value = '';
-  success.value = `已受理模拟消息 ${result.message_id}，当前状态${messageState(result.status)}。`;
+  success.value = `已受理${result.simulated ? '模拟' : '通道'}消息 ${result.message_id}，当前状态${messageState(result.status)}。`;
   detail.value = result;
 }
 watch(message, () => (pendingSendKey.value = ''));
@@ -222,15 +240,16 @@ watch(
 async function open(row) {
   detail.value = await api('/messages/' + row.id);
   events.value = await api('/messages/' + row.id + '/events');
+  delivery.value = await api('/messages/' + row.id + '/delivery');
 }
 async function commandMessage(row, command) {
   await run(async () => {
     await api(
       '/messages/' + row.id + '/' + command,
       'POST',
-      command === 'refund' ? { reason: '控制台模拟退款' } : undefined,
+      command === 'refund' ? { reason: '控制台审核退款' } : undefined,
     );
-    success.value = command === 'refund' ? '模拟退款已入账' : '已取消并释放预占额度';
+    success.value = command === 'refund' ? '退款已入账' : '已取消并释放预占额度';
     if ((detail.value?.id || detail.value?.message_id) === row.id) await open(row);
   });
 }
@@ -262,7 +281,7 @@ onMounted(() => run(async () => {}));
     ><el-button :loading="busy" @click="run(async () => {})">刷新</el-button></PageHeader
   >
   <el-alert
-    title="当前为模拟环境：尚未选择供应商，不会向手机发送消息，也不会产生真实费用。"
+    title="当前账本与通道分测试、生产环境；模拟消息明确标记。只有配置并启用通道后，才会调用外部网关。"
     type="warning"
     :closable="false"
   />
@@ -306,7 +325,7 @@ onMounted(() => run(async () => {}));
     <el-button type="primary" @click="router.push({ query: { section: 'content' } })"
       >开始配置内容</el-button
     >
-    <el-button @click="router.push({ query: { section: 'send' } })">发送一条模拟消息</el-button>
+    <el-button @click="router.push({ query: { section: 'send' } })">发送一条消息</el-button>
   </el-card>
   <template v-if="section === 'content' || section === 'campaigns'">
     <el-card
@@ -350,11 +369,29 @@ onMounted(() => run(async () => {}));
             maxlength="4000"
             placeholder="支持双花括号变量，如 name；批准后内容固定，修改请新建版本"
         /></el-form-item>
+        <RichMessageEditor
+          v-if="model.kind === 'template' && model.form !== 'sms'"
+          v-model="model.rich"
+        />
         <el-form-item v-if="model.kind === 'sender'" label="品牌主体"
           ><el-input v-model="model.brand" aria-label="品牌主体"
         /></el-form-item>
         <template v-if="model.kind === 'product'"
-          ><el-form-item label="模拟单价（微元）"
+          ><el-form-item label="发送方式"
+            ><el-select v-model="model.adapter" aria-label="产品发送方式"
+              ><el-option value="mock" label="本地模拟" /><el-option
+                value="channel"
+                label="接入通道" /></el-select></el-form-item
+          ><el-form-item v-if="model.adapter === 'channel'" label="发送通道"
+            ><el-select v-model="model.channel_id" aria-label="产品通道"
+              ><el-option
+                v-for="row in channels.filter((c) => c.forms.includes(model.form))"
+                :key="row.id"
+                :value="row.id"
+                :label="
+                  row.name + ' / ' + (row.environment === 'production' ? '生产' : '测试')
+                " /></el-select></el-form-item
+          ><el-form-item label="计费单价（微元）"
             ><el-input-number
               v-model="model.unit_price"
               :min="0"
@@ -366,7 +403,7 @@ onMounted(() => run(async () => {}));
               :min="1"
               :max="100"
               :precision="0" /></el-form-item
-          ><el-form-item label="模拟结果"
+          ><el-form-item v-if="model.adapter === 'mock'" label="模拟结果"
             ><el-select v-model="model.simulation_outcome"
               ><el-option label="送达" value="DELIVERED" /><el-option
                 label="明确拒绝"
@@ -404,7 +441,7 @@ onMounted(() => run(async () => {}));
                 :label="row.name"
                 :value="row.id" /></el-select
           ></el-form-item>
-          <el-form-item v-if="model.kind === 'campaign'" label="模拟预算（微元）"
+          <el-form-item v-if="model.kind === 'campaign'" label="预算（微元）"
             ><el-input-number v-model="model.budget" :min="1" :max="1000000000000" :precision="0"
           /></el-form-item>
           <el-form-item label="模板变量"
@@ -464,7 +501,7 @@ onMounted(() => run(async () => {}));
             v-if="kind === 'campaign' && row.state === 'APPROVED'"
             link
             @click="run(() => launch(row))"
-            >启动模拟活动</el-button
+            >启动活动</el-button
           ><el-popover width="420" trigger="click">
             <pre>{{ JSON.stringify(row.payload, null, 2) }}</pre>
             <template #reference><el-button link>查看内容</el-button></template></el-popover
@@ -487,7 +524,7 @@ onMounted(() => run(async () => {}));
     /></el-card>
   </template>
   <el-card v-if="section === 'send'"
-    ><h2>发送模拟消息</h2>
+    ><h2>发送消息</h2>
     <el-form label-width="130px" @submit.prevent="run(send)">
       <el-form-item
         v-for="[field, kind, label] in [
@@ -530,7 +567,7 @@ onMounted(() => run(async () => {}));
           type="datetime-local"
           aria-label="消息失效时间" /></el-form-item
       ><el-button type="primary" native-type="submit" :disabled="busy || !capability.enabled"
-        >提交模拟发送</el-button
+        >提交发送</el-button
       ></el-form
     >
   </el-card>
@@ -545,7 +582,8 @@ onMounted(() => run(async () => {}));
           { key: 'requested_form', label: '形态', render: messageForm },
           { key: 'status', label: '状态', render: messageState },
           { key: 'billing_state', label: '账务状态', render: billingState },
-          { key: 'sales_amount', label: '模拟费用', render: microAmount },
+          { key: 'simulated', label: '发送方式', render: (v) => (v ? '模拟' : '通道') },
+          { key: 'sales_amount', label: '预占费用', render: microAmount },
         ]"
         :pagination="20"
         ><template #actions="{ row }"
@@ -561,7 +599,7 @@ onMounted(() => run(async () => {}));
             link
             :disabled="busy"
             @click="commandMessage(row, 'refund')"
-            >模拟退款</el-button
+            >退款</el-button
           ></template
         ></DataGrid
       ></el-card
@@ -584,7 +622,7 @@ onMounted(() => run(async () => {}));
         <el-descriptions-item label="账务状态">{{
           billingState(detail.billing_state)
         }}</el-descriptions-item>
-        <el-descriptions-item label="模拟费用">{{
+        <el-descriptions-item label="预占费用">{{
           microAmount(detail.sales_amount)
         }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{
@@ -594,6 +632,35 @@ onMounted(() => run(async () => {}));
           detail.finished_at ? formatDate(detail.finished_at) : '尚未完成'
         }}</el-descriptions-item>
       </el-descriptions>
+      <p>
+        发送方式：{{ detail.simulated ? '模拟' : '真实协议通道' }}；计费单位：{{
+          detail.billable_units
+        }}；已结算：{{ microAmount(detail.settled_amount) }}
+      </p>
+      <template v-if="delivery?.message_id"
+        ><p>
+          供应商编号：{{ delivery.provider_id || '待核查' }}；查询次数：{{
+            delivery.query_count
+          }}；{{ delivery.last_error || '' }}
+        </p>
+        <DataGrid
+          :rows="delivery.parts || []"
+          :columns="[
+            { key: 'part_no', label: '分片' },
+            { key: 'provider_id', label: '供应商编号' },
+            { key: 'state', label: '状态', render: messageState },
+          ]"
+        /><el-button
+          :disabled="busy"
+          @click="
+            run(async () => {
+              await api('/messages/' + detail.id + '/query', 'POST');
+              await open(detail);
+            })
+          "
+          >查询通道结果</el-button
+        ></template
+      >
       <DataGrid
         :rows="events"
         :columns="[
@@ -630,7 +697,10 @@ onMounted(() => run(async () => {}));
   </template>
   <template v-if="section === 'developers'"
     ><el-card
-      ><h2>创建下游应用</h2>
+      ><el-button @click="router.push('/admin/system/message-channels')"
+        >管理发送通道与素材</el-button
+      >
+      <h2>创建下游应用</h2>
       <p>
         应用与当前企业绑定，按产品、模板和主体授权。密钥只在创建时展示一次；撤销后新请求与待发送任务都会被阻止。
       </p>
@@ -696,11 +766,82 @@ onMounted(() => run(async () => {}));
       </p></el-card
     ></template
   >
+  <el-card v-if="section === 'developers'"
+    ><h3>应用限额与密钥轮换</h3>
+    <el-table :data="applications"
+      ><el-table-column prop="name" label="应用" /><el-table-column
+        prop="rate_per_minute"
+        label="每分钟请求"
+      /><el-table-column prop="daily_limit" label="每日消息" /><el-table-column label="操作"
+        ><template #default="{ row }"
+          ><el-button
+            link
+            @click="
+              selectedApp = row;
+              Object.assign(appLimits, {
+                rate_per_minute: row.rate_per_minute,
+                daily_limit: row.daily_limit,
+                daily_budget: row.daily_budget,
+              });
+            "
+            >调整限额</el-button
+          ><el-button
+            link
+            :disabled="busy || !row.enabled"
+            @click="
+              run(
+                async () =>
+                  (newKey = await api('/applications/' + row.id + '/rotate-secret', 'POST', {
+                    grace_seconds: 300,
+                  })),
+              )
+            "
+            >轮换密钥（旧密钥保留5分钟）</el-button
+          ></template
+        ></el-table-column
+      ></el-table
+    ><el-form
+      v-if="selectedApp"
+      inline
+      @submit.prevent="
+        run(async () => {
+          await api('/applications/' + selectedApp.id + '/settings', 'POST', appLimits);
+          selectedApp = null;
+        })
+      "
+      ><el-form-item label="每分钟请求"
+        ><el-input-number v-model="appLimits.rate_per_minute" :min="1" :max="10000" /></el-form-item
+      ><el-form-item label="每日消息"
+        ><el-input-number v-model="appLimits.daily_limit" :min="1" :max="10000000" /></el-form-item
+      ><el-form-item label="每日预算微元"
+        ><el-input-number
+          v-model="appLimits.daily_budget"
+          :min="0"
+          :max="1000000000000" /></el-form-item
+      ><el-button native-type="submit" :disabled="busy">保存限额</el-button></el-form
+    >
+    <h3>失败回调补发</h3>
+    <el-table :data="webhookDeliveries"
+      ><el-table-column prop="event_id" label="事件" /><el-table-column
+        prop="state"
+        label="投递状态"
+      /><el-table-column prop="attempts" label="尝试次数" /><el-table-column label="操作"
+        ><template #default="{ row }"
+          ><el-button
+            link
+            :disabled="busy || !['DEAD', 'PENDING'].includes(row.state)"
+            @click="run(() => api('/webhook-deliveries/' + row.id + '/retry', 'POST'))"
+            >重新投递</el-button
+          ></template
+        ></el-table-column
+      ></el-table
+    ></el-card
+  >
   <template v-if="section === 'interactions'">
     <el-card
       ><h2>互动记录</h2>
       <p>
-        这里记录模拟互动和下游应用上报事件。上报转化不代表供应商或交易系统已核验；业务事件编号在同一应用内去重。
+        这里记录供应商回执、控制台登记和下游应用上报事件。上报转化不代表供应商或交易系统已核验；业务事件编号在同一应用内去重。
       </p>
       <el-form label-width="130px" @submit.prevent="run(recordInteraction)">
         <el-form-item label="消息编号"
@@ -732,7 +873,7 @@ onMounted(() => run(async () => {}));
           ><el-input v-model="interaction.business_event_id" aria-label="业务事件编号"
         /></el-form-item>
         <el-button native-type="submit" :disabled="busy || !capability.enabled"
-          >记录模拟互动</el-button
+          >记录互动</el-button
         > </el-form
       ><DataGrid
         :rows="interactions"
@@ -748,7 +889,7 @@ onMounted(() => run(async () => {}));
         :pagination="20"
     /></el-card>
     <el-card
-      ><h3>模拟发送与账务汇总</h3>
+      ><h3>发送与账务汇总</h3>
       <DataGrid
         :rows="report.messages || []"
         :columns="[
@@ -782,8 +923,11 @@ onMounted(() => run(async () => {}));
   </template>
   <template v-if="section === 'billing'"
     ><el-card
-      ><h2>模拟账户</h2>
-      <p>金额单位为微元，1 元 = 1,000,000 微元。以下记录不代表真实充值、采购成本或收入。</p>
+      ><h2>{{ capability.environment === 'production' ? '生产账户' : '测试账户' }}</h2>
+      <p>
+        金额单位为微元，1 元 = 1,000,000
+        微元。测试额度不代表真实充值；生产人工入账需提供已核实的支付凭证。
+      </p>
       <p>
         可用：{{ balance.account?.available ?? 0 }}；冻结：{{
           balance.account?.frozen ?? 0
@@ -794,22 +938,24 @@ onMounted(() => run(async () => {}));
         @submit.prevent="
           run(async () => {
             await api(
-              '/sandbox-credit',
+              capability.environment === 'production' ? '/funding' : '/sandbox-credit',
               'POST',
-              { amount: creditAmount },
+              { amount: creditAmount, reference: fundingReference },
               { headers: { 'Idempotency-Key': key() } },
             );
-            success = '模拟额度已入账';
+            success = '额度已入账';
           })
         "
-        ><el-form-item label="增加模拟额度"
+        ><el-form-item v-if="capability.environment === 'production'" label="支付凭证编号"
+          ><el-input v-model="fundingReference" /></el-form-item
+        ><el-form-item label="增加额度"
           ><el-input-number
             v-model="creditAmount"
             :min="1"
             :max="1000000000000"
             :precision="0" /></el-form-item
         ><el-button native-type="submit" :disabled="busy || !capability.enabled"
-          >添加模拟额度</el-button
+          >登记额度</el-button
         ></el-form
       ></el-card
     ><el-card

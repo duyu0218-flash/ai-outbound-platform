@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <configuration scan="false" debug="false">
+    <!-- Native SMS protocol traces include phone numbers and message bodies. -->
+    <logger name="com.zx.sms" level="OFF" />
+    <logger name="entity" level="OFF" />
     <contextName>logback</contextName>
     <!-- Based on the supplied logback-spring.xml; values come from application.yaml. -->
     <springProperty

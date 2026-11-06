@@ -152,7 +152,12 @@ public class SmsReceipts {
                     at);
             return;
         }
-        if (!Set.of("message.delivered", "message.rejected", "message.blocked", "message.expired")
+        if (!Set.of(
+                        "message.delivered",
+                        "message.failed",
+                        "message.rejected",
+                        "message.blocked",
+                        "message.expired")
                 .contains(type)) return;
         String state = type.substring("message.".length()).toUpperCase(Locale.ROOT);
         var message =
@@ -195,7 +200,7 @@ public class SmsReceipts {
         // Cross-tenant scan over open messages (msg_due index on state), marketing-sent only.
         var open =
                 db.rows(
-                        "SELECT m.tenant_id,m.id,m.state,m.submitted_at FROM msg_message m JOIN mk_dispatch d ON d.tenant_id=m.tenant_id AND d.target_type='msg_message' AND d.target_id=m.id WHERE m.state IN ('SUBMITTING','UNKNOWN') AND m.submitted_at<CURRENT_TIMESTAMP(6)-INTERVAL ? HOUR AND NOT EXISTS (SELECT 1 FROM mk_touch_event t WHERE t.tenant_id=m.tenant_id AND t.source_type='msg_message' AND t.source_id=m.id AND t.code IN ('"
+                        "SELECT m.tenant_id,m.id,m.state,m.submitted_at FROM msg_message m JOIN mk_dispatch d ON d.tenant_id=m.tenant_id AND d.target_type='msg_message' AND d.target_id=m.id WHERE m.state IN ('SUBMITTING','ACCEPTED','UNKNOWN') AND m.submitted_at<CURRENT_TIMESTAMP(6)-INTERVAL ? HOUR AND NOT EXISTS (SELECT 1 FROM mk_touch_event t WHERE t.tenant_id=m.tenant_id AND t.source_type='msg_message' AND t.source_id=m.id AND t.code IN ('"
                                 + String.join("','", FINAL.stream().sorted().toList())
                                 + "')) LIMIT ?",
                         hours,

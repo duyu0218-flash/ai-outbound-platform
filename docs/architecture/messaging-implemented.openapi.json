@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "消息开放平台——当前沙箱实现契约",
-    "version": "0.1.0",
-    "description": "以 MessageApi 控制器为准。全部通道为 mock，无真实发送。跨企业委托、终端探测、自动降级、真实资费与供应商适配未开放。每个下游企业必须建立独立租户；同租户应用共享余额。签名说明见 messaging-implementation.md。"
+    "title": "消息开放平台——当前实现契约",
+    "version": "0.2.0",
+    "description": "现有 AI 外呼平台消息模块：mock、HTTP 接入规范 v1、CMPP 3.0 普通短信；四形态内容通过能力匹配的 HTTP 通道发送。供应商未选定，实发终端验收待完成。不提供自动降级、终端能力探测或跨企业委托。应用共享本企业钱包。详见 message-channel-bridge-v1.md。"
   },
   "servers": [
     {
@@ -19,7 +19,7 @@
     "/messages": {
       "post": {
         "operationId": "createMessage",
-        "summary": "受理单条模拟消息",
+        "summary": "受理单条消息",
         "parameters": [
           {
             "$ref": "#/components/parameters/Timestamp"
@@ -319,7 +319,7 @@
     "/balance": {
       "get": {
         "operationId": "balance",
-        "summary": "查询企业共享模拟账户",
+        "summary": "查询企业共享消息账户",
         "parameters": [
           {
             "$ref": "#/components/parameters/Timestamp"
@@ -559,6 +559,43 @@
             }
           }
         }
+      },
+      "get": {
+        "summary": "读取本应用消息的回复及互动，最多200项",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已授权消息的互动",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/webhook-subscriptions": {
@@ -703,6 +740,182 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resources/{kind}": {
+      "get": {
+        "summary": "查询授权产品、主体或模板",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "product",
+                "sender",
+                "template"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usage": {
+      "get": {
+        "summary": "近30天应用用量",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ledger": {
+      "get": {
+        "summary": "最近200笔应用关联账务分录",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-deliveries": {
+      "get": {
+        "summary": "本应用回调投递记录",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook-deliveries/{id}/retry": {
+      "post": {
+        "summary": "补发失败或等待中的回调，不重新发送消息",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Timestamp"
+          },
+          {
+            "$ref": "#/components/parameters/Nonce"
+          },
+          {
+            "$ref": "#/components/parameters/Digest"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -889,7 +1102,9 @@
               "UNKNOWN",
               "BLOCKED",
               "CANCELLED",
-              "EXPIRED"
+              "EXPIRED",
+              "ACCEPTED",
+              "FAILED"
             ]
           },
           "state": {
@@ -957,6 +1172,26 @@
           "campaign_id": {
             "type": "string",
             "nullable": true
+          },
+          "channel_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "billable_units": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "settled_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "已实际结算微元；sales_amount 为冻结报价"
+          },
+          "billing_environment": {
+            "type": "string",
+            "enum": [
+              "test",
+              "production"
+            ]
           }
         },
         "required": [
@@ -1129,7 +1364,9 @@
             "type": "string",
             "enum": [
               "REPORTED",
-              "SANDBOX"
+              "SANDBOX",
+              "CONSOLE",
+              "PROVIDER"
             ]
           }
         },
@@ -1246,9 +1483,6 @@
           "environment": {
             "type": "string"
           },
-          "live_supplier_connected": {
-            "type": "boolean"
-          },
           "forms": {
             "type": "array",
             "items": {
@@ -1264,7 +1498,15 @@
                   ]
                 },
                 "adapter": {
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "mock",
+                      "http",
+                      "cmpp"
+                    ]
+                  }
                 },
                 "real_delivery_verified": {
                   "type": "boolean"
@@ -1280,6 +1522,9 @@
           },
           "amount_unit": {
             "type": "string"
+          },
+          "transport_enabled": {
+            "type": "boolean"
           }
         }
       },

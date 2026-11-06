@@ -65,6 +65,8 @@ public class MessageWebhooks {
                                 t ->
                                         !(t instanceof String s)
                                                 || !Set.of(
+                                                                "message.accepted",
+                                                                "message.failed",
                                                                 "message.queued",
                                                                 "message.submitting",
                                                                 "message.delivered",
@@ -337,6 +339,39 @@ public class MessageWebhooks {
                 .queryForList(
                         "SELECT id,subscription_id,event_id,state,attempts,last_status,next_run_at FROM msg_webhook_delivery WHERE tenant_id=? ORDER BY created_at DESC LIMIT 200",
                         tenant);
+    }
+
+    public Object retry(Messaging.Principal p, String id) {
+        return tx.run(
+                () -> {
+                    var row =
+                            db.one(
+                                    "SELECT d.state,d.subscription_id,w.application_id,w.state AS subscription_state FROM msg_webhook_delivery d JOIN msg_webhook w ON w.id=d.subscription_id WHERE d.tenant_id=? AND d.id=? FOR UPDATE",
+                                    p.tenant(),
+                                    id);
+                    if (row == null
+                            || !p.application().equals("console")
+                                    && !p.application().equals(row.get("application_id")))
+                        throw new ApiError(404, "回调投递不存在");
+                    if (!"ACTIVE".equals(row.get("subscription_state")))
+                        throw new ApiError(409, "回调订阅未激活");
+                    if (!Set.of("DEAD", "PENDING").contains(row.get("state")))
+                        throw new ApiError(409, "只能重试失败或等待中的回调");
+                    db.jdbc()
+                            .update(
+                                    "UPDATE msg_webhook_delivery SET state='PENDING',attempts=0,created_at=CURRENT_TIMESTAMP(6),next_run_at=CURRENT_TIMESTAMP(6),lease_token=NULL WHERE tenant_id=? AND id=?",
+                                    p.tenant(),
+                                    id);
+                    return Map.of("id", id, "state", "PENDING");
+                });
+    }
+
+    public Object deliveries(Messaging.Principal p) {
+        return db.jdbc()
+                .queryForList(
+                        "SELECT d.id,d.subscription_id,d.event_id,d.state,d.attempts,d.last_status,d.next_run_at FROM msg_webhook_delivery d JOIN msg_webhook w ON w.id=d.subscription_id WHERE d.tenant_id=? AND w.application_id=? ORDER BY d.created_at DESC LIMIT 200",
+                        p.tenant(),
+                        p.application());
     }
 
     @Scheduled(fixedDelayString = "${MESSAGING_WEBHOOK_POLL_MS:1000}")

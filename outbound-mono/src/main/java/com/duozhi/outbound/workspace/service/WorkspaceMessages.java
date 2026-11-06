@@ -148,9 +148,10 @@ public class WorkspaceMessages {
                     var template = asset(tenant, draft.get("template_id").toString(), "template");
                     asset(tenant, draft.get("sender_id").toString(), "sender");
                     String form = Objects.toString(map(product.get("payload")).get("form"), "");
-                    if (!form.equals("sms")
+                    if (!com.duozhi.outbound.messaging.service.MessageContent.FORMS.contains(form)
                             || !form.equals(map(template.get("payload")).get("form")))
-                        throw new ApiError(422, "短信任务只能使用普通短信产品与模板");
+                        throw new ApiError(422, "请选择同一消息类型的产品与模板");
+                    draft.put("form", form);
                     long budget;
                     try {
                         budget =
@@ -227,6 +228,7 @@ public class WorkspaceMessages {
         } catch (ApiError ignored) {
         }
         int total = 0, dnc = 0, noConsent = 0, missing = 0;
+        long estimated = 0;
         var schema = map(draft.get("variable_schema"));
         for (var row :
                 docs.jdbc.queryForList(
@@ -243,10 +245,18 @@ public class WorkspaceMessages {
             v.forEach((k, value) -> text.put(k, Objects.toString(value, "")));
             try {
                 variables.values(schema, text);
+                estimated +=
+                        messaging.estimate(
+                                tenant,
+                                draft.get("product_id").toString(),
+                                draft.get("sender_id").toString(),
+                                draft.get("template_id").toString(),
+                                v);
                 if (ContactVariables.render(templateBody, v).length() > 4000)
                     throw new ApiError(422, "变量替换后的短信超过4000字符");
             } catch (ApiError e) {
                 missing++;
+                if (!errors.contains(e.getMessage())) errors.add(e.getMessage());
             }
         }
         if (total != number(draft.get("recipient_count"))) errors.add("名单客户已变更，请重新保存任务");
@@ -262,10 +272,10 @@ public class WorkspaceMessages {
                             .longValue();
         } catch (Exception ignored) {
         }
-        long estimated = unit * total;
+
         var account = docs.one("SELECT available FROM msg_account WHERE tenant_id=?", tenant);
         long available = account == null ? 0 : ((Number) account.get("available")).longValue();
-        if (estimated > available) errors.add("模拟可用额度不足，需补充额度后启动");
+        if (estimated > available) errors.add("可用额度不足，需补充额度后启动");
         if (estimated > ((Number) draft.get("budget")).longValue()) errors.add("任务预算小于名单估算金额");
         return JsonSupport.map(
                 "total",
@@ -279,7 +289,7 @@ public class WorkspaceMessages {
                 "errors",
                 errors,
                 "unit",
-                "微元 CNY / 条（模拟价格）",
+                "微元 CNY / 计费单位",
                 "unit_price",
                 unit,
                 "available",
@@ -362,8 +372,7 @@ public class WorkspaceMessages {
 
     public void tick() {
         if (!config.flag("MESSAGING_WORKERS_ENABLED", false)
-                || !config.flag("MESSAGING_ENABLED", false)
-                || config.production()) return;
+                || !config.flag("MESSAGING_ENABLED", false)) return;
         try {
             processNext();
         } catch (RuntimeException e) {
@@ -409,21 +418,16 @@ public class WorkspaceMessages {
                         for (var member : members) {
                             var v = docs.json.object(member.get("variables_json").toString());
                             var values = new LinkedHashMap<String, Object>();
-                            String bodyText =
-                                    Objects.toString(
-                                            map(asset(
-                                                                    tenant,
-                                                                    draft.get("template_id")
-                                                                            .toString(),
-                                                                    "template")
-                                                            .get("payload"))
-                                                    .get("body"),
-                                            "");
-                            var m =
-                                    java.util.regex.Pattern.compile(
-                                                    "\\{\\{([A-Za-z][A-Za-z0-9_]{0,63})}}")
-                                            .matcher(bodyText);
-                            while (m.find()) values.put(m.group(1), v.getOrDefault(m.group(1), ""));
+                            var payload =
+                                    map(
+                                            asset(
+                                                            tenant,
+                                                            draft.get("template_id").toString(),
+                                                            "template")
+                                                    .get("payload"));
+                            values.putAll(
+                                    com.duozhi.outbound.messaging.service.MessageContent
+                                            .selectVariables(payload, v));
                             var body =
                                     JsonSupport.<String, Object>map(
                                             "service_product_id",
@@ -449,7 +453,7 @@ public class WorkspaceMessages {
                                                     "mode",
                                                     "fixed",
                                                     "allowed_forms",
-                                                    List.of("sms"),
+                                                    List.of(draft.getOrDefault("form", "sms")),
                                                     "allow_fallback",
                                                     false));
                             if (draft.containsKey("scheduled_at"))

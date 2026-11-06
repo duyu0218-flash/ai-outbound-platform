@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
+import RichMessageEditor from '../components/RichMessageEditor.vue';
+import RichMessagePreview from '../components/RichMessagePreview.vue';
 import { useData } from '../data';
 import { request } from '../session';
 const kind = ref('template'),
@@ -50,8 +52,12 @@ const fields = computed(() => [
 ]);
 function create(row) {
   model.value = row
-    ? { name: row.name + '（新版本）', ...row.payload }
-    : { name: '', form: 'sms', body: '', brand: '' };
+    ? {
+        name: row.name + '（新版本）',
+        ...JSON.parse(JSON.stringify(row.payload)),
+        rich: JSON.parse(JSON.stringify(row.payload.rich || {})),
+      }
+    : { name: '', form: 'sms', body: '', brand: '', rich: {} };
   open.value = true;
   error.value = '';
 }
@@ -73,7 +79,11 @@ async function save() {
       name: model.value.name,
       payload:
         kind.value === 'template'
-          ? { form: model.value.form, body: model.value.body }
+          ? {
+              form: model.value.form,
+              body: model.value.body,
+              rich: model.value.form === 'sms' ? {} : model.value.rich,
+            }
           : { brand: model.value.brand },
     });
     open.value = false;
@@ -93,7 +103,7 @@ async function state(row, value) {
       kind === 'template' ? '新建模板' : '新建签名'
     }}</el-button></PageHeader
   ><el-alert
-    title="当前为模拟通道。内部批准与供应商审核分别记录；真实通道审核尚未接入。"
+    title="内部批准后，请在通道管理中登记供应商的模板、签名及素材审核结果。"
     :closable="false"
   /><el-alert
     v-if="caps.error.value || caps.data.value?.enabled === false"
@@ -156,20 +166,26 @@ async function state(row, value) {
     v-model="open"
     :title="kind === 'template' ? '配置短信模板' : '配置短信签名'"
     width="min(800px,95vw)"
-    ><FieldForm :model="model" :fields="fields" :busy="busy" @submit="save" /><template
-      v-if="kind === 'template'"
+    ><RichMessageEditor
+      v-if="kind === 'template' && model.form !== 'sms'"
+      v-model="model.rich" /><FieldForm
+      :model="model"
+      :fields="fields"
+      :busy="busy"
+      @submit="save" /><template v-if="kind === 'template'"
       ><p>正文 {{ model.body?.length || 0 }} 字符；实际计费分段由供应商口径决定。</p>
       <p>模板变量：{{ variables.join('、') || '无' }}。发送时填写对应业务值。</p>
       <el-card header="内容预览"
-        ><p style="white-space: pre-wrap">{{ model.body || '填写正文后预览' }}</p></el-card
-      ></template
-    ></el-dialog
+        ><p style="white-space: pre-wrap">{{ model.body || '填写正文后预览' }}</p>
+        <RichMessagePreview :rich="model.rich || {}" /></el-card></template></el-dialog
   ><el-drawer :model-value="!!detail" title="消息内容" @close="detail = null"
     ><template v-if="detail"
       ><h3>{{ detail.name }}</h3>
       <p>{{ labels[detail.state] }}</p>
       <p style="white-space: pre-wrap">{{ detail.payload.body || detail.payload.brand }}</p>
-      <small>资源编号：{{ detail.id }}</small></template
+      <RichMessagePreview :rich="detail.payload.rich || {}" /><small
+        >资源编号：{{ detail.id }}</small
+      ></template
     ></el-drawer
   >
 </template>

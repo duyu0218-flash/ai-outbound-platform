@@ -274,6 +274,16 @@ class DataLayerIT {
             expectedTables.addAll(Set.of("aivoicetrial", "aivoicetrialaudio"));
             expectedTables.addAll(
                     Set.of(
+                            "msg_channel",
+                            "msg_channel_binding",
+                            "msg_asset",
+                            "msg_delivery",
+                            "msg_delivery_part",
+                            "msg_provider_event",
+                            "msg_channel_window",
+                            "msg_cost_event",
+                            "msg_reconcile_batch",
+                            "msg_reconcile_item",
                             "msg_account",
                             "msg_application",
                             "msg_attempt",
@@ -324,7 +334,7 @@ class DataLayerIT {
                             "ops_call_dimension",
                             "script_recording_asset",
                             "platform_message_job"));
-            assertThat(expectedTables).hasSize(129);
+            assertThat(expectedTables).hasSize(139);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);
