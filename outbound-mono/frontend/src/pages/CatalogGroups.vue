@@ -47,7 +47,7 @@ function edit(row) {
   revision.value = row?.revision || 0;
   model.value = row
     ? structuredClone(JSON.parse(JSON.stringify(row.draft)))
-    : { name: '', enabled: true, remark: '', rules: [], tags: [] };
+    : { name: '', enabled: true, action: 'intercept', remark: '', rules: [], tags: [] };
   open.value = true;
 }
 async function save() {
@@ -174,6 +174,11 @@ async function apply(row) {
         ><el-input v-model="model.name" aria-label="配置名称" maxlength="160"
       /></el-form-item>
       <template v-if="kind === 'filters'"
+        ><el-form-item label="类型"
+          ><el-radio-group v-model="model.action" aria-label="过滤策略类型"
+            ><el-radio value="blacklist">拉黑（满足条件自动拉黑）</el-radio
+            ><el-radio value="intercept">拦截（仅拦截命中号码）</el-radio></el-radio-group
+          ></el-form-item
         ><el-form-item label="备注"
           ><el-input v-model="model.remark" aria-label="策略备注" /></el-form-item
         ><el-form-item label="生效"><el-switch v-model="model.enabled" /></el-form-item>

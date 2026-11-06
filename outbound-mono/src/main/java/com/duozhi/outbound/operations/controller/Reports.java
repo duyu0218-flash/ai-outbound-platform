@@ -27,6 +27,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @AdminPermission("reports:write")
 @RequestMapping("/api/v1")
 public class Reports {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
     private static final Set<String> REACHED =
             Values.set(
                     "answered",
@@ -567,6 +570,8 @@ public class Reports {
             String status,
             HttpServletRequest request) {
         Identity identity = admin(request);
+        accountSecurity.export(
+                identity, Objects.toString(request.getHeader("X-Export-Verification"), ""));
         LocalDateTime since = since(days);
         Object encodedStatus = null;
         if (status != null) {

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 /** Published tenant rules are rechecked at admission, including explicitly restarted calls. */
 @Service
 public class OutboundRules {
+    @org.springframework.beans.factory.annotation.Autowired
+    private TaskStrategies strategies;
     private final WorkspaceDocuments docs;
 
     public OutboundRules(WorkspaceDocuments docs) {
@@ -31,6 +33,7 @@ public class OutboundRules {
         value.put("min_interval_seconds", 0);
         value.put("low_balance", 0);
         value.put("target_intent_rate", 0);
+        value.put("block_successful", false);
         return value;
     }
 
@@ -114,6 +117,7 @@ public class OutboundRules {
         v.put("min_interval_seconds", integer(v.get("min_interval_seconds"), 0, 604800));
         v.put("low_balance", integer(v.get("low_balance"), 0, 10000000));
         v.put("target_intent_rate", integer(v.get("target_intent_rate"), 0, 100));
+        if (!(v.get("block_successful") instanceof Boolean)) throw new ApiError(422, "成功单拦截选项无效");
         return v;
     }
 
@@ -162,6 +166,26 @@ public class OutboundRules {
     public String check(long tenant, String phone, Instant now) {
         var v = active(tenant);
         var groups = (List<?>) v.get("_filter_groups");
+        var batches =
+                docs.jdbc.queryForList(
+                        "SELECT b.result_json FROM platform_contact_batch b JOIN platform_contact_batch_member m ON m.tenant_id=b.tenant_id AND m.batch_id=b.id JOIN contact c ON c.tenant_id=m.tenant_id AND c.id=m.contact_id WHERE c.tenant_id=? AND c.phone=? AND b.request_key NOT LIKE 'workspace-chunk:%'",
+                        tenant, phone);
+        boolean usable = batches.isEmpty();
+        for (var b : batches) {
+            String expiry =
+                    Objects.toString(
+                            docs.json.object(b.get("result_json").toString()).get("expires_at"),
+                            "");
+            if (expiry.isBlank() || now.isBefore(Instant.parse(expiry))) {
+                usable = true;
+                break;
+            }
+        }
+        if (!usable) return "dataset_expired";
+        String frequency = strategies.frequency(tenant, phone, null, now);
+        if (!frequency.isEmpty()) return frequency;
+        if (Boolean.TRUE.equals(v.get("block_successful")) && strategies.successful(tenant, phone))
+            return "successful_order_intercept";
         if (!Boolean.TRUE.equals(v.get("_configured")) && groups.isEmpty()) return "";
         var local = now.atZone(ZoneId.of(v.get("timezone").toString()));
         var since =
@@ -209,10 +233,25 @@ public class OutboundRules {
                                     ((Number) stats.get("n")).intValue() >= integer(value, 1, 20);
                             default -> false;
                         };
-                if (blocked) return "filter_group:" + doc.get("object_id") + ":" + kind;
+                if (blocked) {
+                    if ("blacklist".equals(policy.get("action")))
+                        docs.jdbc.update(
+                                "INSERT INTO phonesuppression(tenant_id,phone,reason,created_at) VALUES(?,?,'过滤策略自动拉黑',UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE reason=VALUES(reason)",
+                                tenant,
+                                phone);
+                    return "filter_group:" + doc.get("object_id") + ":" + kind;
+                }
             }
         }
         return "";
+    }
+
+    public void blockedDuring(Map<String, Object> call, String reason) {
+        blocked(
+                ((Number) call.get("tenant_id")).longValue(),
+                call.get("id"),
+                call.get("phone").toString(),
+                "during:" + reason);
     }
 
     public void blocked(long tenant, Object call, String phone, String reason) {

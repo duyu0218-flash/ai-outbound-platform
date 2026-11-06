@@ -12,9 +12,19 @@ import HangupMessageRule from '../components/HangupMessageRule.vue';
 import ScriptResources from '../components/ScriptResources.vue';
 import TimingSimulation from '../components/TimingSimulation.vue';
 import GeneralFlowSettings from '../components/GeneralFlowSettings.vue';
+import FlowVariables from '../components/FlowVariables.vue';
+import GradeDefinitions from '../components/GradeDefinitions.vue';
 import ScriptAudio from '../components/ScriptAudio.vue';
 import FlowDesigner from '../components/FlowDesigner.vue';
-const clone = (v) => JSON.parse(JSON.stringify(v));
+const clone = (v) => {
+  const value = JSON.parse(JSON.stringify(v));
+  if (value.policy) {
+    value.policy.custom_variables ||= [];
+    value.policy.http_interfaces ||= [];
+    value.policy.grade_definitions ||= [];
+  }
+  return value;
+};
 const route = useRoute(),
   page = ref(1),
   keyword = ref(''),
@@ -574,8 +584,10 @@ onMounted(async () => {
         label="个性录音" /><el-tab-pane name="reach" label="节点到达率" /><el-tab-pane
         name="dialogue"
         label="基本信息与对话" /><el-tab-pane name="events" label="事件" /><el-tab-pane
-        name="hangup"
-        label="挂机处理" /><el-tab-pane name="intents" label="意图管理" /><el-tab-pane
+        name="grades"
+        label="自定义评级" /><el-tab-pane name="hangup" label="挂机处理" /><el-tab-pane
+        name="intents"
+        label="意图管理" /><el-tab-pane name="variables" label="自定义变量" /><el-tab-pane
         name="flow"
         label="流程画布" /><el-tab-pane name="slots" label="信息采集与合格条件" /><el-tab-pane
         name="knowledge"
@@ -585,6 +597,7 @@ onMounted(async () => {
     /></el-tabs>
     <HangupMessageRule
       v-if="tab === 'sms' && session.user?.role === 'admin'"
+      :script-id="selected.id"
       :draft="model.sms_defaults"
       @defaults="model.sms_defaults = $event"
     />
@@ -611,8 +624,19 @@ onMounted(async () => {
       v-if="tab === 'reach'"
       :script-id="selected.id"
     />
-    <OutcomeEditor v-if="tab === 'hangup'" v-model="model.policy.hangup_rules" />
-    <OutcomeEditor v-if="tab === 'events'" event v-model="model.policy.events" />
+    <OutcomeEditor
+      v-if="tab === 'hangup'"
+      v-model="model.policy.hangup_rules"
+      :variables="model.policy.custom_variables"
+    />
+    <OutcomeEditor
+      v-if="tab === 'events'"
+      event
+      v-model="model.policy.events"
+      :variables="model.policy.custom_variables"
+    />
+    <FlowVariables v-if="tab === 'variables'" v-model="model.policy.custom_variables" />
+    <GradeDefinitions v-if="tab === 'grades'" v-model="model.policy.grade_definitions" />
     <el-card v-if="['events', 'hangup'].includes(tab)" header="规则试算">
       <p>每行输入一句客户回答，按顺序运行事件并计算挂机评级。</p>
       <el-input v-model="ruleText" aria-label="规则试算对话" type="textarea" /><el-button
@@ -640,7 +664,10 @@ onMounted(async () => {
     /></el-card>
     <el-card v-if="tab === 'flow'"
       ><p>画布独立保存与发布。创建任务时选择具体画布版本，文字话术作为业务说明。</p>
-      <el-button @click="flow = { id: selected.id, name: model.name }"
+      <el-button
+        @click="
+          flow = { id: selected.id, name: model.name, interfaces: model.policy.http_interfaces }
+        "
         >打开话术画布</el-button
       ></el-card
     >

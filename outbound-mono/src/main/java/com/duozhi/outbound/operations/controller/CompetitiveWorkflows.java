@@ -154,6 +154,10 @@ public class CompetitiveWorkflows {
         text(v, "name", 160, true);
         switch (name) {
             case "filters" -> {
+                String action = Objects.toString(v.get("action"), "intercept");
+                if (!Set.of("blacklist", "intercept").contains(action))
+                    throw new ApiError(422, "策略类型无效");
+                v.put("action", action);
                 if (!(v.get("enabled") instanceof Boolean)) throw new ApiError(422, "请选择生效状态");
                 if (!(v.get("rules") instanceof List<?> list) || list.size() > 200)
                     throw new ApiError(422, "每组最多200条规则");
@@ -200,6 +204,19 @@ public class CompetitiveWorkflows {
                                     i.tenant(),
                                     number(user))
                             == null) throw new ApiError(422, "分配账号不存在或已冻结");
+                if (!(v.getOrDefault("reviewer_ids", List.of()) instanceof List<?> reviewers)
+                        || reviewers.size() > 2000) throw new ApiError(422, "质检人员列表无效");
+                for (var reviewer : (List<?>) v.getOrDefault("reviewer_ids", List.of()))
+                    if (docs.one(
+                                    "SELECT id FROM sys_user WHERE tenant_id=? AND id=? AND enabled=1",
+                                    i.tenant(),
+                                    number(reviewer))
+                            == null) throw new ApiError(422, "质检人员不存在或已冻结");
+                v.putIfAbsent("reviewer_ids", List.of());
+                if (!(v.getOrDefault("enabled", true) instanceof Boolean))
+                    throw new ApiError(422, "表单分配状态无效");
+                v.putIfAbsent("enabled", true);
+                v.put("review_mode", "round_robin");
             }
             default -> throw new ApiError(404, "配置类型不存在");
         }
@@ -422,6 +439,29 @@ public class CompetitiveWorkflows {
                         "SELECT COUNT(*) FROM contact c WHERE" + where, Long.class, args));
     }
 
+    @GetMapping("/reports/intercept/details")
+    public Object interceptionDetails(@RequestParam
+    Map<String, String> q, HttpServletRequest r) {
+        var i = admin(r);
+        var args = new ArrayList<Object>();
+        args.add(i.tenant());
+        String where = "x.tenant_id=?";
+        for (String key : List.of("from", "until"))
+            if (!q.getOrDefault(key, "").isBlank()) {
+                where += " AND x.created_at" + (key.equals("from") ? ">=?" : "<=?");
+                args.add(Operations.time(q.get(key)));
+            }
+        if (!q.getOrDefault("reason", "").isBlank()) {
+            where += " AND x.reason=?";
+            args.add(q.get("reason"));
+        }
+        return docs.jdbc.queryForList(
+                "SELECT x.*,c.campaign_id,IF(x.reason LIKE 'during:%','during','before') AS phase FROM ops_interception x LEFT JOIN callsession c ON c.tenant_id=x.tenant_id AND c.id=x.call_id WHERE "
+                        + where
+                        + " ORDER BY x.created_at DESC,x.id DESC LIMIT 1000",
+                args.toArray());
+    }
+
     @GetMapping("/reports/{kind}")
     public Object report(
             @PathVariable
@@ -431,6 +471,7 @@ public class CompetitiveWorkflows {
     }
 
     public Object reportFor(String kind, Map<String, String> q, Identity i) {
+        if (kind.equals("routes")) return routeReport(q, i);
         i.admin("operations:write");
         LocalDateTime
                 from =
@@ -446,12 +487,8 @@ public class CompetitiveWorkflows {
         return switch (kind) {
             case "intercept" ->
                     docs.jdbc.queryForList(
-                            "SELECT totals.*,ROUND(100*totals.blocked/NULLIF(totals.outbound,0),2) AS intercept_rate FROM (SELECT grouped.day_key AS date,grouped.blocked,grouped.reason,(SELECT COALESCE(SUM(c.attempts),0) FROM callsession c WHERE c.tenant_id=? AND DATE(TIMESTAMPADD(HOUR,8,c.created_at))=grouped.day_key)+(SELECT COUNT(*) FROM ops_interception y WHERE y.tenant_id=? AND DATE(TIMESTAMPADD(HOUR,8,y.created_at))=grouped.day_key) AS outbound FROM (SELECT DATE(TIMESTAMPADD(HOUR,8,created_at)) AS day_key,COUNT(*) AS blocked,reason FROM ops_interception WHERE tenant_id=? AND created_at BETWEEN ? AND ? GROUP BY day_key,reason) grouped) totals ORDER BY date DESC",
-                            i.tenant(),
-                            i.tenant(),
-                            i.tenant(),
-                            from,
-                            until);
+                            "SELECT totals.*,ROUND(100*totals.blocked/NULLIF(totals.outbound,0),2) AS intercept_rate FROM (SELECT grouped.day_key AS date,grouped.blocked,grouped.reason,IF(grouped.reason LIKE 'during:%','during','before') AS phase,(SELECT COALESCE(SUM(c.attempts),0) FROM callsession c WHERE c.tenant_id=? AND DATE(TIMESTAMPADD(HOUR,8,c.created_at))=grouped.day_key)+(SELECT COUNT(*) FROM ops_interception y WHERE y.tenant_id=? AND DATE(TIMESTAMPADD(HOUR,8,y.created_at))=grouped.day_key AND y.reason NOT LIKE 'during:%') AS outbound FROM (SELECT DATE(TIMESTAMPADD(HOUR,8,created_at)) AS day_key,COUNT(*) AS blocked,reason FROM ops_interception WHERE tenant_id=? AND created_at BETWEEN ? AND ? GROUP BY day_key,reason) grouped) totals ORDER BY date DESC",
+                            i.tenant(), i.tenant(), i.tenant(), from, until);
             case "follow" ->
                     docs.jdbc.queryForList(
                             "SELECT u.id,u.full_name AS agent,u.agent_status,COUNT(l.contact_id) AS total,SUM(l.stage='open') AS pending,SUM(l.stage='completed') AS successful,SUM(l.next_at IS NOT NULL AND l.stage NOT IN ('completed','invalid')) AS later,SUM(l.stage='invalid') AS abandoned FROM sys_user u LEFT JOIN ops_lead l ON l.tenant_id=u.tenant_id AND l.owner_id=u.id WHERE u.tenant_id=? GROUP BY u.id ORDER BY u.id",
@@ -476,6 +513,105 @@ public class CompetitiveWorkflows {
                             until);
             default -> throw new ApiError(404, "报表类型不存在");
         };
+    }
+
+    private Object routeReport(Map<String, String> q, Identity i) {
+        i.admin("operations:write");
+        String
+                from =
+                        q.getOrDefault(
+                                "from",
+                                java.time.Instant.now().minusSeconds(30 * 86400L).toString()),
+                until = q.getOrDefault("until", java.time.Instant.now().toString());
+        if (from.isBlank()) from = java.time.Instant.now().minusSeconds(30 * 86400L).toString();
+        if (until.isBlank()) until = java.time.Instant.now().toString();
+        com.duozhi.outbound.workspace.service.TaskSchedule.validate(from, until);
+        var args =
+                new ArrayList<Object>(
+                        List.of(
+                                i.tenant(),
+                                java.time.LocalDateTime.ofInstant(
+                                        java.time.Instant.parse(from), java.time.ZoneOffset.UTC),
+                                java.time.LocalDateTime.ofInstant(
+                                        java.time.Instant.parse(until), java.time.ZoneOffset.UTC)));
+        String where =
+                " WHERE c.tenant_id=? AND COALESCE(j.created_at,c.created_at) BETWEEN ? AND ?";
+        String base =
+                "SELECT c.id,c.phone,COALESCE(j.frozen_payload->>'$.call.telephony_line_id',c.telephony_line_id) AS line_id,c.campaign_id,COALESCE(j.attempt,c.attempts) AS attempt,j.state AS route_state,c.last_error,COALESCE(j.created_at,c.created_at) AS created_at,g.name AS task_name,script.name AS script_name,l.name AS line_name,COALESCE(dim.line_group,lg.group_name) AS line_group,EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.attempt=COALESCE(j.attempt,c.attempts) AND u.answered_at IS NOT NULL) AS connected,(SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.sip_code')),JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.payload.sip_code')),JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.signaling_code'))) FROM callevent e WHERE e.call_session_id=c.id AND COALESCE(JSON_EXTRACT(e.payload,'$.attempt'),JSON_EXTRACT(e.payload,'$.payload.attempt'),c.attempts)=COALESCE(j.attempt,c.attempts) AND JSON_VALID(e.payload) AND COALESCE(JSON_EXTRACT(e.payload,'$.sip_code'),JSON_EXTRACT(e.payload,'$.payload.sip_code'),JSON_EXTRACT(e.payload,'$.signaling_code')) IS NOT NULL ORDER BY e.id DESC LIMIT 1) AS signaling_code,(SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.ringing')),JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.payload.ringing'))) FROM callevent e WHERE e.call_session_id=c.id AND COALESCE(JSON_EXTRACT(e.payload,'$.attempt'),JSON_EXTRACT(e.payload,'$.payload.attempt'),c.attempts)=COALESCE(j.attempt,c.attempts) AND JSON_VALID(e.payload) AND COALESCE(JSON_EXTRACT(e.payload,'$.ringing'),JSON_EXTRACT(e.payload,'$.payload.ringing')) IS NOT NULL ORDER BY e.id DESC LIMIT 1) AS ringing FROM callsession c LEFT JOIN dial_command_journal j ON j.tenant_id=c.tenant_id AND j.call_id=c.id LEFT JOIN campaign g ON g.tenant_id=c.tenant_id AND g.id=c.campaign_id LEFT JOIN scripttemplate script ON script.tenant_id=g.tenant_id AND script.id=g.script_template_id LEFT JOIN telephonyline l ON l.tenant_id=c.tenant_id AND l.id=COALESCE(j.frozen_payload->>'$.call.telephony_line_id',c.telephony_line_id) LEFT JOIN ops_line_group_assignment lg ON lg.tenant_id=l.tenant_id AND lg.line_id=l.id LEFT JOIN ops_call_dimension dim ON dim.tenant_id=c.tenant_id AND dim.call_id=c.id";
+        for (String key : List.of("phone", "result_code", "connected", "ringing", "line_group")) {
+            String value = q.getOrDefault(key, "");
+            if (value.isBlank()) continue;
+            if (value.length() > 120) throw new ApiError(422, "线路筛选条件过长");
+            if (key.equals("phone")) {
+                where += " AND c.phone LIKE ?";
+                args.add("%" + value + "%");
+            }
+        }
+        String outer = "SELECT * FROM (" + base + where + ") routes WHERE 1=1";
+        for (String key : List.of("result_code", "connected", "ringing", "line_group")) {
+            String value = q.getOrDefault(key, "");
+            if (value.isBlank()) continue;
+            if (Set.of("connected", "ringing").contains(key)
+                    && !Set.of("true", "false").contains(value))
+                throw new ApiError(422, "线路状态筛选无效");
+            String column = key.equals("result_code") ? "signaling_code" : key;
+            outer += " AND " + column + "=?";
+            args.add(key.equals("connected") ? (value.equals("true") ? 1 : 0) : value);
+        }
+        return docs.jdbc.queryForList(
+                outer + " ORDER BY created_at DESC LIMIT 2000", args.toArray());
+    }
+
+    @GetMapping("/line-groups")
+    public Object lineGroups(HttpServletRequest r) {
+        return docs.list(admin(r).tenant(), "line_group_policy", null);
+    }
+
+    @PutMapping("/line-groups/{id}")
+    public Object saveLineGroup(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        var i = admin(r);
+        if (!id.matches("[A-Za-z0-9_-]{1,64}")) throw new ApiError(422, "线路组编号无效");
+        var v = map(b.get("config"));
+        String name = text(v, "name", 100, true);
+        if (!(v.get("line_ids") instanceof List<?> ids) || ids.isEmpty() || ids.size() > 100)
+            throw new ApiError(422, "请选择1至100条线路");
+        for (var line : (List<?>) v.get("line_ids"))
+            if (docs.one(
+                            "SELECT id FROM telephonyline WHERE tenant_id=? AND id=?",
+                            i.tenant(),
+                            number(line))
+                    == null) throw new ApiError(422, "线路不存在");
+        return docs.tx.serialized(
+                () -> {
+                    var old = docs.find(i.tenant(), "line_group_policy", id);
+                    if (old != null)
+                        docs.jdbc.update(
+                                "DELETE FROM ops_line_group_assignment WHERE tenant_id=? AND group_name=?",
+                                i.tenant(),
+                                old.get("name"));
+                    for (var line : (List<?>) v.get("line_ids"))
+                        docs.jdbc.update(
+                                "INSERT INTO ops_line_group_assignment(tenant_id,line_id,group_name) VALUES(?,?,?) ON DUPLICATE KEY UPDATE group_name=VALUES(group_name)",
+                                i.tenant(),
+                                number(line),
+                                name);
+                    return docs.save(
+                            i,
+                            "line_group_policy",
+                            id,
+                            "",
+                            Map.of(
+                                    "name",
+                                    name,
+                                    "line_ids",
+                                    v.get("line_ids"),
+                                    "strategy",
+                                    "priority_weighted_capacity"),
+                            number(b.get("revision")));
+                });
     }
 
     @GetMapping("/tasks")

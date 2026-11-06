@@ -748,6 +748,821 @@ class OperationsHttpIT {
     @Autowired
     com.duozhi.outbound.workspace.service.WorkspaceDocuments documents;
 
+    @Autowired
+    com.duozhi.outbound.operations.service.TaskStrategies taskStrategies;
+    @Autowired
+    com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+    @Autowired
+    com.duozhi.outbound.job.service.Outbox outbox;
+
+    @Test
+    void rollingFrequencyRulesEnforceFortyEightHoursAndDefaultSelectionIsUnique() {
+        var c = contact("滚动呼频");
+        var session = call(c.get("id"), null);
+        store.insert(
+                "callevent",
+                JsonSupport.map(
+                        "call_session_id",
+                        session.get("id"),
+                        "event_type",
+                        "dial_attempt_claimed",
+                        "source",
+                        "test",
+                        "payload",
+                        "{\"attempt\":1}",
+                        "created_at",
+                        Store.now().minusHours(25)));
+        var rule =
+                new LinkedHashMap<String, Object>(
+                        Map.of(
+                                "name",
+                                "48小时一次",
+                                "hours",
+                                48,
+                                "limit",
+                                1,
+                                "condition",
+                                "all",
+                                "enabled",
+                                true,
+                                "default_rule",
+                                true));
+        var saved =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/benchmark/strategies/frequency/rolling",
+                                Map.of("revision", 0, "config", rule)));
+        assertThat(
+                        taskStrategies.frequency(
+                                tenant, c.get("phone").toString(), null, java.time.Instant.now()))
+                .isEqualTo("frequency_rule_limit");
+        assertThat(
+                        taskStrategies.frequency(
+                                tenant + 1,
+                                c.get("phone").toString(),
+                                null,
+                                java.time.Instant.now()))
+                .isEmpty();
+        assertThat(
+                        taskStrategies.frequency(
+                                tenant,
+                                c.get("phone").toString(),
+                                null,
+                                java.time.Instant.now().plusSeconds(86400)))
+                .isEmpty();
+        rule.put("hours", 24);
+        rule.put("name", "24小时一次");
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/strategies/frequency/daily",
+                        Map.of("revision", 0, "config", rule)));
+        assertThat(get("/benchmark/strategies/frequency").toString()).contains("24小时一次");
+        assertThat(
+                        WorkspaceDocumentsMap(
+                                        documents
+                                                .require(tenant, "frequency_rule", "rolling")
+                                                .get("published"))
+                                .get("default_rule"))
+                .isEqualTo(false);
+        assertThat(
+                        taskStrategies.frequency(
+                                tenant, c.get("phone").toString(), null, java.time.Instant.now()))
+                .isEmpty();
+        assertThat(
+                        req(
+                                        HttpMethod.DELETE,
+                                        "/api/v1/ops/benchmark/strategies/frequency/rolling?revision="
+                                                + saved.path("revision").asInt(),
+                                        null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(409);
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/benchmark/strategies/frequency", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    private Map<String, Object> WorkspaceDocumentsMap(Object value) {
+        return com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(value);
+    }
+
+    @Test
+    void intentGuardPausesTaskWithoutDiscardingQueuedCallsAndExpiredBatchBlocksDial() {
+        var campaign =
+                store.insert(
+                        "campaign",
+                        Map.of(
+                                "tenant_id",
+                                tenant,
+                                "name",
+                                "止损任务",
+                                "status",
+                                "running",
+                                "created_by",
+                                admin.getId()));
+        var c = contact("低意向样本");
+        var prior = call(c.get("id"), null);
+        store.update(
+                "callsession", tenant, prior.get("id"), Map.of("campaign_id", campaign.get("id")));
+        store.insert(
+                "callusage",
+                JsonSupport.map(
+                        "tenant_id",
+                        tenant,
+                        "call_session_id",
+                        prior.get("id"),
+                        "attempt",
+                        1,
+                        "answered_at",
+                        Store.now(),
+                        "telephony_seconds",
+                        10.0,
+                        "duration_source",
+                        "provider"));
+        store.insert(
+                "callanalysis",
+                Map.of(
+                        "tenant_id",
+                        tenant,
+                        "call_session_id",
+                        prior.get("id"),
+                        "result_code",
+                        "completed"));
+        var queued =
+                store.insert(
+                        "callsession",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "phone",
+                                "13100000098",
+                                "mode",
+                                "ai_only",
+                                "campaign_id",
+                                campaign.get("id"),
+                                "status",
+                                "queued"));
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/strategies/achievement/stoploss",
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of(
+                                        "name",
+                                        "低于10%暂停",
+                                        "minimum_connected",
+                                        1,
+                                        "rate",
+                                        10,
+                                        "campaign_id",
+                                        campaign.get("id"),
+                                        "enabled",
+                                        true))));
+        documents.tx.serialized(
+                () -> {
+                    assertThat(taskStrategies.guard(queued)).isFalse();
+                    return null;
+                });
+        assertThat(store.require("campaign", tenant, campaign.get("id")).get("status"))
+                .isEqualTo("paused");
+        assertThat(store.require("callsession", tenant, queued.get("id")).get("status"))
+                .isEqualTo("queued");
+        String batch = UUID.randomUUID().toString();
+        documents.jdbc.update(
+                "INSERT INTO platform_contact_batch(tenant_id,id,request_key,name,file_sha,result_json,created_by,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                tenant,
+                batch,
+                "expiry:" + batch,
+                "过期批次",
+                "test-sha",
+                "{\"expires_at\":\"2020-01-01T00:00:00Z\"}",
+                admin.getId(),
+                Store.now());
+        documents.jdbc.update(
+                "INSERT INTO platform_contact_batch_member(tenant_id,batch_id,contact_id,variables_json) VALUES(?,?,?,'{}')",
+                tenant,
+                batch,
+                c.get("id"));
+        assertThat(outboundRules.check(tenant, c.get("phone").toString(), java.time.Instant.now()))
+                .isEqualTo("dataset_expired");
+    }
+
+    @Test
+    void customExportSplitsZipAndIncludesOnlyCustomerDialogue() throws Exception {
+        var c = contact("自定义导出");
+        var session = call(c.get("id"), null);
+        for (String speaker : List.of("customer", "assistant"))
+            store.insert(
+                    "speechturn",
+                    JsonSupport.map(
+                            "tenant_id",
+                            tenant,
+                            "call_session_id",
+                            session.get("id"),
+                            "provider_event_key",
+                            UUID.randomUUID().toString(),
+                            "turn_index",
+                            speaker.equals("customer") ? 1 : 2,
+                            "attempt",
+                            1,
+                            "speaker_role",
+                            speaker,
+                            "channel_id",
+                            speaker,
+                            "transcript",
+                            speaker.equals("customer") ? "客户导出证据" : "坐席不应被导出",
+                            "normalized_transcript",
+                            "test",
+                            "is_final",
+                            true,
+                            "asr_provider",
+                            "mock"));
+        var job =
+                post(
+                        "/exports",
+                        Map.of(
+                                "kind",
+                                "calls-custom",
+                                "query",
+                                Map.of(
+                                        "phone",
+                                        c.get("phone"),
+                                        "export_fields",
+                                        "calls",
+                                        "export_dialogue",
+                                        "customer",
+                                        "export_split",
+                                        "count",
+                                        "export_count",
+                                        1),
+                                "request_key",
+                                UUID.randomUUID().toString()));
+        String id = job.path("id").asText();
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
+                        () -> {
+                            exportCenter.processNext();
+                            assertThat(
+                                            documents.one(
+                                                    "SELECT state,error FROM ops_export_job WHERE id=?",
+                                                    id))
+                                    .containsEntry("state", "ready");
+                        });
+        var headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        var file =
+                http.exchange(
+                        "/api/v1/ops/exports/" + id + "/download",
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        byte[].class);
+        assertThat(file.getStatusCode().value()).isEqualTo(200);
+        var contents = new StringBuilder();
+        var names = new ArrayList<String>();
+        try (var zip =
+                new java.util.zip.ZipInputStream(
+                        new java.io.ByteArrayInputStream(file.getBody()))) {
+            for (java.util.zip.ZipEntry entry; (entry = zip.getNextEntry()) != null; ) {
+                names.add(entry.getName());
+                contents.append(
+                        new String(zip.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            }
+        }
+        assertThat(names).contains("manifest.csv", "part-001.csv");
+        assertThat(contents).contains("客户导出证据").doesNotContain("坐席不应被导出");
+        var campaign =
+                store.insert(
+                        "campaign",
+                        Map.of("tenant_id", tenant, "name", "导出隐藏变更", "status", "draft"));
+        documents.jdbc.update(
+                "INSERT INTO platform_campaign_snapshot(tenant_id,campaign_id,snapshot_json,created_at) VALUES(?,?,?,?)",
+                tenant,
+                campaign.get("id"),
+                "{\"task_options\":{\"mask_numbers\":true}}",
+                Store.now());
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/exports/" + id + "/download", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+        token = crypto.token(UserRecords.map(other));
+        assertThat(
+                        req(HttpMethod.GET, "/api/v1/ops/exports/" + id + "/download", null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void personalKeysRotateAndPasswordDisableAndIpWhitelistAreActuallyEnforced() {
+        String password = "SyntheticPass123!";
+        documents.tx.run(
+                () -> {
+                    store.update(
+                            "user",
+                            tenant,
+                            admin.getId(),
+                            Map.of("password_hash", crypto.password(password)));
+                    return null;
+                });
+        String key =
+                ok(req(
+                                HttpMethod.POST,
+                                "/api/v1/auth/security/key",
+                                Map.of("current_password", password)))
+                        .path("api_key")
+                        .asText();
+        var current = ok(req(HttpMethod.GET, "/api/v1/auth/security", null));
+        assertThat(current.toString()).doesNotContain(key).doesNotContain("key_hash");
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/auth/security",
+                        Map.of(
+                                "current_password",
+                                password,
+                                "revision",
+                                current.path("revision").asInt(),
+                                "config",
+                                Map.of(
+                                        "ips",
+                                        List.of("127.0.0.1"),
+                                        "export_verification",
+                                        false,
+                                        "password_disabled",
+                                        true))));
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login",
+                                        Map.of(
+                                                "username",
+                                                admin.getUsername(),
+                                                "password",
+                                                password))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(401);
+        token = key;
+        assertThat(get("/me").path("administrator").asBoolean()).isTrue();
+        String next =
+                ok(req(
+                                HttpMethod.POST,
+                                "/api/v1/auth/security/key",
+                                Map.of("current_password", password)))
+                        .path("api_key")
+                        .asText();
+        assertThat(req(HttpMethod.GET, "/api/v1/auth/me", null).getStatusCode().value())
+                .isEqualTo(401);
+        token = next;
+        assertThat(
+                        ok(req(HttpMethod.POST, "/api/v1/auth/key-session", Map.of()))
+                                .path("access_token")
+                                .asText())
+                .isNotEmpty();
+        current = ok(req(HttpMethod.GET, "/api/v1/auth/security", null));
+        assertThat(
+                        req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/auth/security",
+                                        Map.of(
+                                                "current_password",
+                                                password,
+                                                "revision",
+                                                current.path("revision").asInt(),
+                                                "config",
+                                                Map.of(
+                                                        "ips",
+                                                        List.of("192.0.2.1"),
+                                                        "export_verification",
+                                                        false,
+                                                        "password_disabled",
+                                                        true)))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(403);
+        ok(req(HttpMethod.POST, "/api/v1/auth/logout", Map.of()));
+        assertThat(get("/me").path("administrator").asBoolean()).isTrue();
+        ok(
+                req(
+                        HttpMethod.POST,
+                        "/api/v1/admin/users/" + admin.getId() + "/reset-password",
+                        Map.of("password", "ResetKeyPass123!")));
+        assertThat(req(HttpMethod.GET, "/api/v1/auth/me", null).getStatusCode().value())
+                .isEqualTo(401);
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login",
+                                        Map.of(
+                                                "username",
+                                                admin.getUsername(),
+                                                "password",
+                                                "ResetKeyPass123!"))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void encryptedPushConfigRedactsSecretsAndUsesSignedCiphertext() throws Exception {
+        String secret = "SyntheticPushKeyAtLeastThirtyTwoCharacters";
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/push/calls",
+                        Map.of(
+                                "revision",
+                                0,
+                                "secret_key",
+                                secret,
+                                "config",
+                                Map.of(
+                                        "enabled",
+                                        true,
+                                        "url",
+                                        "https://example.com/events",
+                                        "algorithm",
+                                        "aes_gcm",
+                                        "call_type",
+                                        "all",
+                                        "parameters",
+                                        Map.of("source", "crm")))));
+        assertThat(get("/benchmark/push/calls").toString())
+                .doesNotContain(secret)
+                .doesNotContain("secret_enc");
+        var bodies = new ArrayList<byte[]>();
+        var headers = new ArrayList<Map<String, String>>();
+        var push =
+                new com.duozhi.outbound.operations.service.OperationalPush(
+                        documents,
+                        accountSecurity,
+                        (uri, h, body) -> {
+                            headers.add(h);
+                            bodies.add(body);
+                            return new com.duozhi.outbound.messaging.service.WebhookTransport.Reply(
+                                    200, "");
+                        },
+                        outbox,
+                        null,
+                        null);
+        push.deliver(
+                Map.of("tenant_id", tenant, "id", "delivery-test"),
+                Map.of("push_type", "calls", "data", Map.of("phone", "13100001234")));
+        String body = new String(bodies.getFirst(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(body).contains("AES-256-GCM").doesNotContain("13100001234");
+        String stamp = headers.getFirst().get("X-Webhook-Timestamp");
+        byte[] prefix = (stamp + ".").getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                signed = Arrays.copyOf(prefix, prefix.length + bodies.getFirst().length);
+        System.arraycopy(bodies.getFirst(), 0, signed, prefix.length, bodies.getFirst().length);
+        assertThat(headers.getFirst().get("X-Webhook-Signature"))
+                .isEqualTo("sha256=" + JsonSupport.hmac(secret, signed));
+    }
+
+    @Test
+    void totpEnrollmentProtectsLoginAndExportsAndPreventsCodeReplay() {
+        String password = "SyntheticPass123!";
+        documents.tx.run(
+                () -> {
+                    store.update(
+                            "user",
+                            tenant,
+                            admin.getId(),
+                            Map.of("password_hash", crypto.password(password)));
+                    return null;
+                });
+        var enrollment =
+                ok(
+                        req(
+                                HttpMethod.POST,
+                                "/api/v1/auth/security/totp",
+                                Map.of("current_password", password)));
+        String secret = enrollment.path("secret").asText();
+        long at = java.time.Instant.now().getEpochSecond() / 30;
+        ok(
+                req(
+                        HttpMethod.POST,
+                        "/api/v1/auth/security/totp/confirm",
+                        Map.of(
+                                "code",
+                                com.duozhi.outbound.auth.service.AccountSecurity.totp(
+                                        secret, at - 1))));
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login",
+                                        Map.of(
+                                                "username",
+                                                admin.getUsername(),
+                                                "password",
+                                                password))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(401);
+        String code = com.duozhi.outbound.auth.service.AccountSecurity.totp(secret, at);
+        assertThat(
+                        ok(req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login",
+                                        Map.of(
+                                                "username",
+                                                admin.getUsername(),
+                                                "password",
+                                                password,
+                                                "code",
+                                                code)))
+                                .path("access_token")
+                                .asText())
+                .isNotEmpty();
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login",
+                                        Map.of(
+                                                "username",
+                                                admin.getUsername(),
+                                                "password",
+                                                password,
+                                                "code",
+                                                code))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(401);
+        var current = ok(req(HttpMethod.GET, "/api/v1/auth/security", null));
+        assertThat(current.toString()).doesNotContain(secret).doesNotContain("totp_secret");
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/auth/security",
+                        Map.of(
+                                "current_password",
+                                password,
+                                "code",
+                                com.duozhi.outbound.auth.service.AccountSecurity.totp(
+                                        secret, at + 1),
+                                "revision",
+                                current.path("revision").asInt(),
+                                "config",
+                                Map.of(
+                                        "ips",
+                                        List.of(),
+                                        "export_verification",
+                                        true,
+                                        "password_disabled",
+                                        false))));
+        assertThat(
+                        req(
+                                        HttpMethod.POST,
+                                        "/api/v1/ops/exports",
+                                        Map.of(
+                                                "kind",
+                                                "calls",
+                                                "query",
+                                                Map.of(),
+                                                "request_key",
+                                                UUID.randomUUID().toString()))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(401);
+        for (String path :
+                List.of(
+                        "/api/v1/contacts/export",
+                        "/api/v1/admin/calls/export",
+                        "/api/v1/ops/reports/export"))
+            assertThat(req(HttpMethod.GET, path, null).getStatusCode().value()).isEqualTo(401);
+        assertThat(
+                        req(HttpMethod.POST, "/api/v1/workspace/audiences/export", Map.of())
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(401);
+    }
+
+    @Test
+    void nodeInterfaceRunsOutsideWriterLockMapsResponseAndResumesOnlyLiveAttempt()
+            throws Exception {
+        var session =
+                store.insert(
+                        "callsession",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "phone",
+                                "13100002222",
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "in_ai",
+                                "attempts",
+                                1,
+                                "last_transcript",
+                                "继续"));
+        var def =
+                Map.<String, Object>of(
+                        "id",
+                        "crm",
+                        "name",
+                        "CRM查询",
+                        "url",
+                        "https://example.com/lookup",
+                        "method",
+                        "POST",
+                        "content_type",
+                        "application/json",
+                        "body",
+                        Map.of("value", "{counter}"),
+                        "response_variables",
+                        Map.of("counter", "data.value"));
+        var policy =
+                Map.<String, Object>of(
+                        "http_interfaces",
+                        com.duozhi.outbound.ai.service.BusinessInterfaces.normalize(List.of(def)),
+                        "custom_variables",
+                        List.of(
+                                Map.of(
+                                        "name", "counter", "type", "NUM", "initial", 0, "export",
+                                        true)));
+        var data = new LinkedHashMap<String, Object>();
+        data.put("flow_variables", Map.of("counter", 0));
+        var state =
+                store.insert(
+                        "conversationstate",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "call_id",
+                                session.get("id"),
+                                "attempt",
+                                1,
+                                "policy_json",
+                                documents.json.json(policy),
+                                "data_json",
+                                documents.json.json(data)));
+        var transport =
+                org.mockito.Mockito.mock(
+                        com.duozhi.outbound.messaging.service.PinnedWebhookTransport.class);
+        org.mockito.Mockito.when(
+                        transport.request(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.anyMap(),
+                                org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(
+                        invocation -> {
+                            assertThat(
+                                            com.duozhi.outbound.common.service.JvmPlatformLock
+                                                    .heldByCurrentThread())
+                                    .isFalse();
+                            assertThat(
+                                            new String(
+                                                    invocation.getArgument(2),
+                                                    java.nio.charset.StandardCharsets.UTF_8))
+                                    .contains("\"value\":0");
+                            return new com.duozhi.outbound.messaging.service.PinnedWebhookTransport
+                                    .Exchange(
+                                    200,
+                                    "",
+                                    "{\"data\":{\"value\":7}}"
+                                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        });
+        var interfaces =
+                new com.duozhi.outbound.ai.service.BusinessInterfaces(documents, outbox, transport);
+        documents.tx.serialized(
+                () -> {
+                    assertThat(
+                                    interfaces.pending(
+                                            session,
+                                            state,
+                                            data,
+                                            Map.of("id", "lookup", "interface_id", "crm")))
+                            .isTrue();
+                    return null;
+                });
+        var task =
+                documents.one(
+                        "SELECT * FROM taskoutbox WHERE tenant_id=? AND task_type='business_callback' AND aggregate_id=?",
+                        tenant,
+                        session.get("id"));
+        interfaces.execute(task, documents.json.object(task.get("payload_json").toString()));
+        var after =
+                documents.json.object(
+                        documents
+                                .one(
+                                        "SELECT data_json FROM conversationstate WHERE tenant_id=? AND id=?",
+                                        tenant,
+                                        state.get("id"))
+                                .get("data_json")
+                                .toString());
+        assertThat(WorkspaceDocumentsMap(after.get("flow_variables"))).containsEntry("counter", 7);
+        assertThat(after).doesNotContainKey("pending_interface");
+        assertThat(
+                        documents.jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM taskoutbox WHERE tenant_id=? AND task_type='ai_turn' AND aggregate_id=?",
+                                Long.class,
+                                tenant,
+                                session.get("id")))
+                .isEqualTo(1);
+        interfaces.execute(task, documents.json.object(task.get("payload_json").toString()));
+        org.mockito.Mockito.verify(transport, org.mockito.Mockito.times(1))
+                .request(
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyMap(),
+                        org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void seatUniformScopeOverridesPersonalAndFormSubmissionsRotateReviewers() {
+        var settings = com.duozhi.outbound.operations.controller.SeatBehavior.defaults();
+        var scopes = new LinkedHashMap<>(WorkspaceDocumentsMap(settings.get("scopes")));
+        scopes.put("success_invalid", "uniform");
+        settings.put("scopes", scopes);
+        settings.put("success_invalid", false);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/seat-behavior?global=true",
+                        Map.of("revision", 0, "config", settings)));
+        token = crypto.token(UserRecords.map(agent));
+        var effective = ok(req(HttpMethod.GET, "/api/v1/ops/seat-behavior", null));
+        assertThat(effective.path("config").path("success_invalid").asBoolean()).isFalse();
+        var personal =
+                json.convertValue(
+                        effective.path("config"),
+                        new com.fasterxml.jackson.core.type.TypeReference<
+                                Map<String, Object>>() {});
+        personal.put("success_invalid", true);
+        assertThat(
+                        ok(req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/ops/seat-behavior",
+                                        Map.of("revision", 0, "config", personal)))
+                                .path("config")
+                                .path("success_invalid")
+                                .asBoolean())
+                .isFalse();
+        token = adminToken;
+        var form =
+                post(
+                        "/configs",
+                        Map.of(
+                                "kind",
+                                "form",
+                                "name",
+                                "轮询质检表",
+                                "config",
+                                Map.of(
+                                        "fields",
+                                        List.of(
+                                                Map.of(
+                                                        "key",
+                                                        "note",
+                                                        "label",
+                                                        "备注",
+                                                        "type",
+                                                        "text",
+                                                        "required",
+                                                        false)))));
+        int formId = get("/configs?kind=form").get(0).path("id").asInt();
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/benchmark/catalog/forms/rotate",
+                        Map.of(
+                                "revision",
+                                0,
+                                "config",
+                                Map.of(
+                                        "name",
+                                        "质检轮询",
+                                        "form_id",
+                                        formId,
+                                        "user_ids",
+                                        List.of(admin.getId()),
+                                        "reviewer_ids",
+                                        List.of(agent.getId(), other.getId())))));
+        for (int index = 0; index < 2; index++) {
+            var c = contact("质检" + index);
+            assign(c.get("id"), admin.getId());
+            var body = change("form", 1);
+            body.put("form_id", formId);
+            body.put("fields", Map.of("note", "采集结果"));
+            patch(c.get("id"), body);
+        }
+        var assigned =
+                documents.jdbc.queryForList(
+                        "SELECT assigned_to FROM productworkitem WHERE tenant_id=? AND kind='form_review' ORDER BY created_at,id",
+                        Integer.class,
+                        tenant);
+        assertThat(assigned).containsExactlyInAnyOrder(agent.getId(), other.getId());
+    }
+
     @Test
     void competitiveCalendarPauseWindowsRevisionAndTenantIsolation() {
         var conf = com.duozhi.outbound.operations.service.OutboundRules.defaults();
@@ -1286,5 +2101,404 @@ class OperationsHttpIT {
                                 .path("bucket")
                                 .asText())
                 .isEqualTo("2026-11");
+    }
+
+    @Test
+    void wecomPoolUsesRedactedSecretsAndOneStableSignedRequest() throws Exception {
+        assertThat(
+                        req(
+                                        HttpMethod.PUT,
+                                        "/api/v1/ops/wecom/accounts/not-a-number",
+                                        Map.of("revision", 0, "config", Map.of("name", "非法账号")))
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(422);
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/wecom/accounts/13100008888",
+                        Map.of("revision", 0, "config", Map.of("name", "服务微信"))));
+        String secret = "SyntheticWecomSecret123456789";
+        var provider =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/wecom/providers/vendor",
+                                Map.of(
+                                        "revision",
+                                        0,
+                                        "app_secret",
+                                        secret,
+                                        "config",
+                                        Map.of(
+                                                "name",
+                                                "测试桥接",
+                                                "app_key",
+                                                "synthetic-key",
+                                                "rule_id",
+                                                "rule-1",
+                                                "version",
+                                                "1",
+                                                "enabled",
+                                                true,
+                                                "endpoint",
+                                                "https://example.com/wecom"))));
+        assertThat(provider.toString()).doesNotContain(secret).doesNotContain("secret_enc");
+        assertThat(get("/wecom/providers").toString())
+                .doesNotContain(secret)
+                .contains("secret_configured");
+        var campaign =
+                store.insert(
+                        "campaign", Map.of("tenant_id", tenant, "name", "企微任务", "status", "draft"));
+        documents.jdbc.update(
+                "INSERT INTO platform_campaign_snapshot(tenant_id,campaign_id,snapshot_json,created_at) VALUES(?,?,?,?)",
+                tenant,
+                campaign.get("id"),
+                "{\"task_options\":{\"auto_wecom\":true}}",
+                Store.now());
+        var c = contact("企微客户");
+        var session = call(c.get("id"), null);
+        store.update(
+                "callsession",
+                tenant,
+                session.get("id"),
+                Map.of("campaign_id", campaign.get("id"), "attempts", 1));
+        var transport =
+                org.mockito.Mockito.mock(
+                        com.duozhi.outbound.messaging.service.PinnedWebhookTransport.class);
+        org.mockito.Mockito.when(
+                        transport.request(
+                                org.mockito.ArgumentMatchers.any(),
+                                org.mockito.ArgumentMatchers.anyMap(),
+                                org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(
+                        invocation -> {
+                            assertThat(
+                                            com.duozhi.outbound.common.service.JvmPlatformLock
+                                                    .heldByCurrentThread())
+                                    .isFalse();
+                            Map<String, String> headers = invocation.getArgument(1);
+                            byte[] body = invocation.getArgument(2);
+                            assertThat(headers.get("Idempotency-Key")).startsWith("wecom:");
+                            assertThat(headers.get("X-Webhook-Signature"))
+                                    .isEqualTo(
+                                            "sha256="
+                                                    + JsonSupport.hmac(
+                                                            secret,
+                                                            (headers.get("X-Webhook-Timestamp")
+                                                                            + "."
+                                                                            + new String(
+                                                                                    body,
+                                                                                    java.nio.charset
+                                                                                            .StandardCharsets
+                                                                                            .UTF_8))
+                                                                    .getBytes(
+                                                                            java.nio.charset
+                                                                                    .StandardCharsets
+                                                                                    .UTF_8)));
+                            assertThat(new String(body, java.nio.charset.StandardCharsets.UTF_8))
+                                    .contains("13100008888")
+                                    .doesNotContain(secret);
+                            return new com.duozhi.outbound.messaging.service.PinnedWebhookTransport
+                                    .Exchange(202, "", new byte[0]);
+                        });
+        var automation =
+                new com.duozhi.outbound.operations.service.WecomAutomation(
+                        documents, accountSecurity, transport);
+        var event =
+                Map.<String, Object>of(
+                        "call_id",
+                        session.get("id"),
+                        "campaign_id",
+                        campaign.get("id"),
+                        "attempt",
+                        1);
+        automation.execute(Map.of("tenant_id", tenant), event);
+        automation.execute(Map.of("tenant_id", tenant), event);
+        org.mockito.Mockito.verify(transport, org.mockito.Mockito.times(1))
+                .request(
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyMap(),
+                        org.mockito.ArgumentMatchers.any());
+        assertThat(get("/wecom/requests").get(0).path("draft").path("state").asText())
+                .isEqualTo("accepted");
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(req(HttpMethod.GET, "/api/v1/ops/wecom/providers", null).getStatusCode().value())
+                .isEqualTo(403);
+    }
+
+    @Test
+    void phoneVerificationRequiresDeliveredCodeIsBoundToPhoneAndCannotBeReplayed() {
+        String password = "PhoneTestPass123!";
+        store.update(
+                "user",
+                tenant,
+                admin.getId(),
+                Map.of("phone", "13100006666", "password_hash", crypto.password(password)));
+        var identity =
+                new com.duozhi.outbound.auth.domain.Identity(
+                        tenant, store.require("user", tenant, admin.getId()), Set::of);
+        var sender =
+                org.mockito.Mockito.mock(com.duozhi.outbound.job.service.IntegrationTasks.class);
+        var codes = new ArrayList<String>();
+        org.mockito.Mockito.when(
+                        sender.send(
+                                org.mockito.ArgumentMatchers.anyLong(),
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(
+                        invocation -> {
+                            assertThat(
+                                            com.duozhi.outbound.common.service.JvmPlatformLock
+                                                    .heldByCurrentThread())
+                                    .isFalse();
+                            var match =
+                                    java.util.regex.Pattern.compile("[0-9]{6}")
+                                            .matcher(invocation.<String>getArgument(2));
+                            assertThat(match.find()).isTrue();
+                            codes.add(match.group());
+                            return Map.of("state", "accepted");
+                        });
+        var verification =
+                new com.duozhi.outbound.auth.service.PhoneVerification(
+                        documents, accountSecurity, sender);
+        assertThat(
+                        verification
+                                .send(identity, admin.getId(), Map.of("current_password", password))
+                                .toString())
+                .doesNotContain(codes.getFirst());
+        assertThatThrownBy(
+                        () ->
+                                verification.send(
+                                        identity,
+                                        admin.getId(),
+                                        Map.of("current_password", password)))
+                .isInstanceOf(com.duozhi.outbound.common.exception.ApiError.class);
+        store.update("user", tenant, admin.getId(), Map.of("phone", "13100007777"));
+        assertThatThrownBy(
+                        () ->
+                                verification.confirm(
+                                        identity, admin.getId(), Map.of("code", codes.getFirst())))
+                .isInstanceOf(com.duozhi.outbound.common.exception.ApiError.class);
+        store.update("user", tenant, admin.getId(), Map.of("phone", "13100006666"));
+        verification.confirm(identity, admin.getId(), Map.of("code", codes.getFirst()));
+        assertThat(verification.verified(tenant, admin.getId(), "13100006666")).isTrue();
+        assertThatThrownBy(
+                        () ->
+                                verification.confirm(
+                                        identity, admin.getId(), Map.of("code", codes.getFirst())))
+                .isInstanceOf(com.duozhi.outbound.common.exception.ApiError.class);
+        assertThat(verification.verified(tenant, admin.getId(), "13100007777")).isFalse();
+    }
+
+    @Autowired
+    com.duozhi.outbound.call.controller.VoiceCallbacks voiceCallbacks;
+
+    @Test
+    void transferPrivacyHidesAgentDialogueAndDiscardsDisabledRecognition() {
+        var c = contact("隐私客户");
+        assign(c.get("id"), agent.getId());
+        var session = call(c.get("id"), agent.getId());
+        store.update(
+                "callsession",
+                tenant,
+                session.get("id"),
+                Map.of("status", "in_human", "attempts", 1));
+        store.insert(
+                "conversationstate",
+                JsonSupport.map(
+                        "tenant_id",
+                        tenant,
+                        "call_id",
+                        session.get("id"),
+                        "attempt",
+                        1,
+                        "policy_json",
+                        documents.json.json(
+                                Map.of(
+                                        "flow_settings",
+                                        Map.of(
+                                                "handoff_hide_dialogue",
+                                                true,
+                                                "handoff_disable_agent_recognition",
+                                                true,
+                                                "handoff_disable_customer_recognition",
+                                                true))),
+                        "data_json",
+                        "{}"));
+        store.insert(
+                "speechturn",
+                Map.of(
+                        "tenant_id",
+                        tenant,
+                        "call_session_id",
+                        session.get("id"),
+                        "attempt",
+                        1,
+                        "provider_event_key",
+                        "before-transfer",
+                        "speaker_role",
+                        "customer",
+                        "transcript",
+                        "转接前隐私内容",
+                        "is_final",
+                        true));
+        for (String role : List.of("agent", "customer")) {
+            var result =
+                    voiceCallbacks.handle(
+                            "telephony_speech",
+                            JsonSupport.map(
+                                    "call_id",
+                                    session.get("id"),
+                                    "attempt",
+                                    1,
+                                    "event_id",
+                                    "disabled-" + role,
+                                    "speaker_role",
+                                    role,
+                                    "transcript",
+                                    "不应新增识别内容",
+                                    "is_final",
+                                    true));
+            assertThat(result.get("reason")).isEqualTo("handoff_recognition_disabled");
+        }
+        token = crypto.token(UserRecords.map(agent));
+        assertThat(
+                        ok(req(
+                                        HttpMethod.GET,
+                                        "/api/v1/calls/" + session.get("id") + "/speech-turns",
+                                        null))
+                                .toString())
+                .doesNotContain("转接前隐私内容");
+        token = adminToken;
+        assertThat(
+                        ok(req(
+                                        HttpMethod.GET,
+                                        "/api/v1/calls/" + session.get("id") + "/speech-turns",
+                                        null))
+                                .toString())
+                .contains("转接前隐私内容")
+                .doesNotContain("不应新增识别内容");
+    }
+
+    @Autowired
+    com.duozhi.outbound.operations.service.SeatPacing seatPacing;
+
+    @Test
+    void groupMultiplierUsesSignedInSeatsAndStopsAboveCapacityAndWaitLimit() {
+        var group = team();
+        long id = group.path("id").asLong();
+        for (var user : List.of(agent, lead))
+            store.update(
+                    "user",
+                    tenant,
+                    user.getId(),
+                    Map.of("agent_status", "ready", "last_seen_at", Store.now()));
+        var saved =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/seats/pacing/" + id,
+                                Map.of(
+                                        "revision",
+                                        0,
+                                        "config",
+                                        Map.of("multiplier", 0.5, "average_wait_seconds", 5))));
+        var report = get("/seats/pacing").get(0);
+        assertThat(report.path("signed_in").asInt()).isEqualTo(2);
+        assertThat(report.path("maximum_concurrency").asInt()).isEqualTo(1);
+        var policy = Map.<String, Object>of("handoff_team_ids", List.of(id));
+        assertThat(seatPacing.permits(tenant, policy)).isTrue();
+        var c = contact("倍速占用");
+        var session = call(c.get("id"), agent.getId());
+        store.update(
+                "callsession",
+                tenant,
+                session.get("id"),
+                Map.of("mode", "ai_handoff", "status", "in_ai"));
+        assertThat(seatPacing.permits(tenant, policy)).isFalse();
+        saved =
+                ok(
+                        req(
+                                HttpMethod.PUT,
+                                "/api/v1/ops/seats/pacing/" + id,
+                                Map.of(
+                                        "revision",
+                                        saved.path("revision").asInt(),
+                                        "config",
+                                        Map.of("multiplier", 2, "average_wait_seconds", 5))));
+        assertThat(seatPacing.permits(tenant, policy)).isTrue();
+        store.update("callsession", tenant, session.get("id"), Map.of("status", "waiting_human"));
+        store.insert(
+                "handoffrequest",
+                JsonSupport.map(
+                        "tenant_id",
+                        tenant,
+                        "call_session_id",
+                        session.get("id"),
+                        "state",
+                        "waiting",
+                        "requested_at",
+                        Store.now().minusSeconds(20)));
+        assertThat(seatPacing.permits(tenant, policy)).isFalse();
+        ok(
+                req(
+                        HttpMethod.PUT,
+                        "/api/v1/ops/seats/pacing/" + id,
+                        Map.of(
+                                "revision",
+                                saved.path("revision").asInt(),
+                                "config",
+                                Map.of("multiplier", 0, "average_wait_seconds", 5))));
+        assertThat(seatPacing.permits(tenant, policy)).isTrue();
+    }
+
+    @Test
+    void interceptionDetailSeparatesStagesAndRecordingLinksRespectCallOwnership() {
+        var c = contact("拦截明细");
+        var first = call(c.get("id"), agent.getId());
+        var second = call(c.get("id"), other.getId());
+        outboundRules.blocked(tenant, first.get("id"), c.get("phone").toString(), "contact_dnc");
+        outboundRules.blockedDuring(second, "customer_withdrew_consent");
+        var reports = get("/benchmark/reports/intercept");
+        assertThat(reports.findValuesAsText("phase")).containsExactlyInAnyOrder("before", "during");
+        assertThat(get("/benchmark/reports/intercept/details")).hasSize(2);
+        var asset =
+                store.insert(
+                        "recordingasset",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "call_session_id",
+                                first.get("id"),
+                                "state",
+                                "available",
+                                "provider_url",
+                                "https://example.com/synthetic-recording.wav"));
+        assertThat(
+                        ok(req(
+                                        HttpMethod.GET,
+                                        "/api/v1/calls/"
+                                                + first.get("id")
+                                                + "/recordings/"
+                                                + asset.get("id")
+                                                + "/link",
+                                        null))
+                                .path("url")
+                                .asText())
+                .isEqualTo("https://example.com/synthetic-recording.wav");
+        assertThat(
+                        req(
+                                        HttpMethod.GET,
+                                        "/api/v1/calls/"
+                                                + second.get("id")
+                                                + "/recordings/"
+                                                + asset.get("id")
+                                                + "/link",
+                                        null)
+                                .getStatusCode()
+                                .value())
+                .isEqualTo(404);
     }
 }

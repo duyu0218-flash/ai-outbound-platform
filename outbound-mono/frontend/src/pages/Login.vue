@@ -10,7 +10,8 @@ const props = defineProps({ role: String }),
   busy = ref(false),
   runtime = ref(null),
   error = ref(''),
-  model = ref({ username: '', password: '' });
+  method = ref('password'),
+  model = ref({ username: '', password: '', code: '', api_key: '' });
 onMounted(async () => {
   try {
     runtime.value = await apiRequest('/api/v1/runtime');
@@ -21,7 +22,13 @@ onMounted(async () => {
 async function submit() {
   busy.value = true;
   try {
-    const user = await login(model.value.username, model.value.password, props.role);
+    const user = await login(
+      model.value.username,
+      model.value.password,
+      props.role,
+      model.value.code,
+      method.value === 'key' ? model.value.api_key : '',
+    );
     router.replace(user.role === 'admin' && props.role === 'admin' ? '/admin' : '/agent');
   } catch (e) {
     ElMessage.error(e.message);
@@ -49,17 +56,26 @@ async function submit() {
       </div>
       <h2>{{ t('welcomeBack') }}</h2>
       <p>{{ t('loginHint') }}</p>
+      <el-radio-group v-model="method" aria-label="登录方式"
+        ><el-radio value="password">密码登录</el-radio
+        ><el-radio value="key">API密钥登录</el-radio></el-radio-group
+      >
       <el-alert v-if="error" type="error" :title="error" /><FieldForm
         :model="model"
         :fields="[
-          { key: 'username', label: 'username', required: true, autocomplete: 'username' },
-          {
-            key: 'password',
-            label: 'password',
-            type: 'password',
-            required: true,
-            autocomplete: 'current-password',
-          },
+          ...(method === 'key'
+            ? [{ key: 'api_key', label: 'API密钥', required: true, type: 'password' }]
+            : [
+                { key: 'username', label: 'username', required: true, autocomplete: 'username' },
+                {
+                  key: 'password',
+                  label: 'password',
+                  type: 'password',
+                  required: true,
+                  autocomplete: 'current-password',
+                },
+              ]),
+          { key: 'code', label: '双因子验证码（已开启时填写）', autocomplete: 'one-time-code' },
         ]"
         :busy="busy"
         submit-label="signIn"

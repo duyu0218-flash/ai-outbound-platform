@@ -43,6 +43,10 @@ import org.springframework.stereotype.Service;
 public class DialService {
     @Autowired
     private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.TaskStrategies taskStrategies;
+
     @Autowired
     private RuntimeOwnership ownership;
     @Autowired
@@ -416,6 +420,7 @@ public class DialService {
                         lifecycle.completeCampaign(call);
                         return null;
                     }
+                    if (!taskStrategies.guard(call)) return null;
                     if (!productHours(call)
                             || active(null, null, null)
                                     >= Math.max(
@@ -457,6 +462,22 @@ public class DialService {
                             workspace == null
                                     ? null
                                     : workspace.campaignSnapshot(tenant, call.get("campaign_id"));
+                    if (workspaceTask != null) {
+                        var taskOptions =
+                                com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                        workspaceTask.getOrDefault("task_options", Map.of()));
+                        if (reason.isEmpty())
+                            reason =
+                                    taskStrategies.frequency(
+                                            tenant,
+                                            call.get("phone").toString(),
+                                            taskOptions.get("frequency_rule_id"),
+                                            batch == null ? Instant.now() : batch.instant);
+                        if (reason.isEmpty()
+                                && Boolean.TRUE.equals(taskOptions.get("block_successful"))
+                                && taskStrategies.successful(tenant, call.get("phone").toString()))
+                            reason = "successful_order_intercept";
+                    }
                     if (workspaceTask != null && workspaceTask.containsKey("variable_schema")) {
                         var member =
                                 call.get("contact_id") == null

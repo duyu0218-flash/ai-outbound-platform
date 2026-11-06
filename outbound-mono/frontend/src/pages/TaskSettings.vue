@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ops, perform } from '../operations';
-import SettingSection from '../components/SettingSection.vue';
+import StrategyCatalog from '../components/StrategyCatalog.vue';
+import OperationalPush from '../components/OperationalPush.vue';
 const model = ref(null),
   revision = ref(0),
   error = ref(''),
@@ -101,39 +102,38 @@ onMounted(load);
           /></el-form-item> </el-form
       ></el-tab-pane>
       <el-tab-pane label="呼频规则"
-        ><el-form label-position="top"
-          ><el-form-item label="同号码每日最多拨打次数"
-            ><el-input-number
-              v-model="model.max_daily"
-              :min="1"
-              :max="20"
-              aria-label="每日拨打次数" /></el-form-item
-          ><el-form-item label="最小拨打间隔（秒）"
-            ><el-input-number
-              v-model="model.min_interval_seconds"
-              :min="0"
-              :max="604800"
-              aria-label="最小拨打间隔" /></el-form-item></el-form
+        ><StrategyCatalog type="frequency" /><el-collapse :model-value="['basic']"
+          ><el-collapse-item name="basic" title="基础频次限制"
+            ><el-form label-position="top"
+              ><el-form-item label="同号码每日最多拨打次数"
+                ><el-input-number
+                  v-model="model.max_daily"
+                  :min="1"
+                  :max="20"
+                  aria-label="每日拨打次数" /></el-form-item
+              ><el-form-item label="最小拨打间隔（秒）"
+                ><el-input-number
+                  v-model="model.min_interval_seconds"
+                  :min="0"
+                  :max="604800"
+                  aria-label="最小拨打间隔" /></el-form-item></el-form></el-collapse-item></el-collapse
       ></el-tab-pane>
-      <el-tab-pane label="话单推送" lazy><SettingSection section="integration" /></el-tab-pane>
+      <el-tab-pane label="话单推送" lazy><OperationalPush type="calls" /></el-tab-pane>
       <el-tab-pane label="欠费推送"
-        ><el-form-item label="余额低于此金额时通知（元）"
+        ><OperationalPush type="balance" /><el-form-item label="余额低于此金额时通知（元）"
           ><el-input-number v-model="model.low_balance" :min="0" aria-label="欠费提醒阈值"
         /></el-form-item>
         <p>余额提醒发送到消息中心；未导入有效账单余额时不生成余额判断。</p></el-tab-pane
       >
       <el-tab-pane label="意向达成率"
-        ><el-form-item label="目标意向率（%）"
+        ><StrategyCatalog type="achievement" /><el-form-item label="目标意向率（%）"
           ><el-input-number
             v-model="model.target_intent_rate"
             :min="0"
             :max="100"
             aria-label="目标意向率" /></el-form-item
       ></el-tab-pane>
-      <el-tab-pane label="智能评估"
-        ><p>按照已发布话术的意向规则、挂机评级和任务目标意向率评估任务，结果可在历史任务中查看。</p>
-        <el-button @click="$router.push('/admin/scripts')">配置话术评估规则</el-button></el-tab-pane
-      >
+      <el-tab-pane label="智能评估"><StrategyCatalog type="evaluation" /></el-tab-pane>
     </el-tabs>
     <div class="toolbar">
       <el-button @click="restore">恢复</el-button

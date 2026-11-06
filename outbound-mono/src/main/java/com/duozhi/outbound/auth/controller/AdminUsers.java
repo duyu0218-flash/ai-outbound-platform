@@ -29,6 +29,12 @@ public class AdminUsers {
     private final Contract contract;
     private final Crypto crypto;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.PhoneVerification phoneVerification;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
     public AdminUsers(
             AuthIdentityMapper identities,
             SysUserMapper users,
@@ -57,8 +63,37 @@ public class AdminUsers {
         int offset = Contract.page(page, size);
         if (keyword != null && keyword.length() > 200) throw new ApiError(422, "keyword too long");
         return identities.listUsers((int) actor.tenant(), keyword, offset, size).stream()
-                .map(u -> contract.output("AdminUserOut", UserRecords.map(u)))
+                .map(
+                        u -> {
+                            var output = contract.output("AdminUserOut", UserRecords.map(u));
+                            output.put(
+                                    "phone_verified",
+                                    phoneVerification.verified(
+                                            actor.tenant(), u.getId(), u.getPhone()));
+                            output.put(
+                                    "mfa_enabled",
+                                    accountSecurity
+                                            .settings(actor.tenant(), u.getId())
+                                            .containsKey("totp_secret"));
+                            return output;
+                        })
                 .toList();
+    }
+
+    @PostMapping("/{id}/phone/send")
+    public Object sendPhone(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        return phoneVerification.send(Identity.from(r), id, b);
+    }
+
+    @PostMapping("/{id}/phone/confirm")
+    public Object confirmPhone(
+            @PathVariable
+            long id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        return phoneVerification.confirm(Identity.from(r), id, b);
     }
 
     @PostMapping
@@ -68,7 +103,9 @@ public class AdminUsers {
             Map<String, Object> body, HttpServletRequest request) {
         Identity actor = Identity.from(request);
         var values = contract.input("AdminUserCreate", body, true);
-        String password = values.remove("password").toString();
+        String password =
+                com.duozhi.outbound.auth.service.PasswordPolicy.require(
+                        values.remove("password").toString());
         SysUser user = new SysUser();
         UserRecords.patch(user, values);
         user.setTenantId((int) actor.tenant());
@@ -147,9 +184,18 @@ public class AdminUsers {
         var input = contract.input("AdminPasswordReset", body, true);
         SysUser user = locked(actor, id);
         var data = clearLock(user);
-        data.put("password_hash", crypto.password(input.get("password").toString()));
+        data.put(
+                "password_hash",
+                crypto.password(
+                        com.duozhi.outbound.auth.service.PasswordPolicy.require(
+                                input.get("password").toString())));
         auth.patch(id, (int) actor.tenant(), data);
-        audit(actor, "reset_password", id, "password reset");
+        accountSecurity.passwordReset(actor, id);
+        audit(
+                actor,
+                "reset_password",
+                id,
+                "password reset; personal key revoked; password login enabled");
         return Map.of("result", "updated");
     }
 

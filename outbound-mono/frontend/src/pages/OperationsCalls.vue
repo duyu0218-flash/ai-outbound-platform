@@ -1,12 +1,35 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { download } from '../session';
+import { download, request } from '../session';
 import { ops, perform, parse, query, prefix } from '../operations';
 import CallDetails from '../components/CallDetails.vue';
 import { usePageQuery } from '../page-query';
+import { ElMessageBox } from 'element-plus';
 const { isCurrent, replaceQuery } = usePageQuery();
 const options = ref({ campaigns: [], lines: [], teams: [] });
+const exportMode = ref(false),
+  exportConfig = reactive({
+    export_fields: 'calls',
+    export_dialogue: 'both',
+    export_split: 'day',
+    export_count: 1000,
+    export_types: ['undialed', 'unanswered', 'answered'],
+    export_phones: '',
+  });
+async function uploadNumbers(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const body = new FormData();
+  body.append('file', file);
+  try {
+    const result = await request('/api/v1/ops/exports/phones', 'POST', body);
+    exportConfig.export_phones = result.phones.join(',');
+  } catch (e) {
+    error.value = e.message;
+  }
+  event.target.value = '';
+}
 const route = useRoute(),
   router = useRouter(),
   filters = reactive({}),
@@ -112,10 +135,29 @@ function chooseView() {
 }
 async function exportRows() {
   try {
+    const security = await request('/api/v1/auth/security');
+    let verification_code = '';
+    if (security.config.export_verification) {
+      try {
+        const reply = await ElMessageBox.prompt('请输入验证器中的六位验证码', '导出验证', {
+          inputPattern: /^[0-9]{6}$/,
+          inputErrorMessage: '请输入六位验证码',
+        });
+        verification_code = reply.value;
+      } catch {
+        return;
+      }
+    }
     await ops('/exports', 'POST', {
-      kind: 'calls',
-      query: { ...route.query },
+      kind: exportMode.value ? 'calls-custom' : 'calls',
+      query: {
+        ...route.query,
+        ...(exportMode.value
+          ? { ...exportConfig, export_types: exportConfig.export_types.join(',') }
+          : {}),
+      },
       request_key: crypto.randomUUID(),
+      verification_code,
     });
     await router.push(prefix() + '/operations/notices?tab=downloads');
   } catch (e) {
@@ -153,12 +195,13 @@ onMounted(async () => {
     ></PageHeader
   >
   <el-tabs
-    :model-value="route.query.pool || 'all'"
+    :model-value="exportMode ? 'exports' : route.query.pool || 'all'"
     @update:model-value="
       (v) =>
         v === 'exports'
-          ? router.push(prefix() + '/operations/notices?tab=downloads')
-          : replaceQuery({ ...route.query, pool: v === 'all' ? undefined : v, page: 1 })
+          ? (exportMode = true)
+          : ((exportMode = false),
+            replaceQuery({ ...route.query, pool: v === 'all' ? undefined : v, page: 1 }))
     "
     ><el-tab-pane name="all" label="全部话单" /><el-tab-pane
       name="public"
@@ -166,6 +209,58 @@ onMounted(async () => {
       name="exports"
       label="数据导出"
   /></el-tabs>
+  <el-card v-if="exportMode" header="自定义导出配置"
+    ><el-form label-position="top" class="form-grid">
+      <el-form-item label="查询类型"
+        ><el-checkbox-group v-model="exportConfig.export_types" aria-label="导出查询类型"
+          ><el-checkbox value="undialed">未拨打</el-checkbox
+          ><el-checkbox value="unanswered">未接通</el-checkbox
+          ><el-checkbox value="answered">已接通</el-checkbox></el-checkbox-group
+        >
+        ></el-form-item
+      >
+      <el-form-item label="查询字段"
+        ><el-radio-group v-model="exportConfig.export_fields" aria-label="导出查询字段"
+          ><el-radio value="calls">导出话单</el-radio
+          ><el-radio value="phones">只导出号码</el-radio></el-radio-group
+        ></el-form-item
+      >
+      <el-form-item label="导出对话内容范围"
+        ><el-select v-model="exportConfig.export_dialogue" aria-label="导出对话内容范围"
+          ><el-option label="主被叫双方完整对话" value="both" /><el-option
+            label="仅被叫方对话"
+            value="customer" /><el-option label="不导出对话" value="none" /></el-select
+      ></el-form-item>
+      <el-form-item label="导出方式"
+        ><el-radio-group v-model="exportConfig.export_split" aria-label="导出方式"
+          ><el-radio value="day">多个文件按日分</el-radio
+          ><el-radio value="count">多个文件按号码数量分</el-radio></el-radio-group
+        ></el-form-item
+      >
+      <el-form-item v-if="exportConfig.export_split === 'count'" label="每个文件号码数量"
+        ><el-input-number
+          v-model="exportConfig.export_count"
+          :min="1"
+          :max="10000"
+          aria-label="每个文件号码数量"
+      /></el-form-item>
+      <el-form-item label="上传批量号码文件"
+        ><input
+          type="file"
+          accept=".xlsx,.csv"
+          aria-label="导出批量号码文件"
+          @change="uploadNumbers" /><el-input
+          v-model="exportConfig.export_phones"
+          type="textarea"
+          aria-label="导出批量号码"
+          placeholder="逗号分隔，最多1000个号码"
+      /></el-form-item>
+    </el-form>
+    <p>使用下方筛选条件，生成 ZIP 后在消息中心下载。</p>
+    <el-button v-if="profile.can_export" type="primary" @click="exportRows"
+      >自定义导出</el-button
+    ></el-card
+  >
   <el-card
     ><el-form label-position="top" class="form-grid ops-filters" @submit.prevent="apply"
       ><el-form-item label="号码"
@@ -318,7 +413,7 @@ onMounted(async () => {
       ><span>共 {{ total }} 条</span>
     </div></el-card
   >
-  <el-card
+  <el-card v-if="!exportMode"
     ><div class="toolbar">
       <el-select
         v-model="viewId"

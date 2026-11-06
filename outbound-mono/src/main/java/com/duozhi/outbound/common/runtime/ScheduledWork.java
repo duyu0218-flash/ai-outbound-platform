@@ -28,6 +28,7 @@ public final class ScheduledWork implements AutoCloseable {
         SMS_RECEIPTS,
         MESSAGES,
         MESSAGE_WEBHOOKS,
+        OPERATIONS_PUSH,
         DIAL_RECOVERY,
         RECONCILIATION,
         RETENTION,

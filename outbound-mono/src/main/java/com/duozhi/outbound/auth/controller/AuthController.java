@@ -20,6 +20,10 @@ public class AuthController {
     private final AuthService service;
     private final Crypto crypto;
     private final Config config;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
     private final OperationsWorkforce workforce;
 
     public AuthController(
@@ -38,6 +42,9 @@ public class AuthController {
         @NotNull
         @Size(min = 1, max = 1024)
         public String password;
+
+        @Size(max = 6)
+        public String code;
 
         public String username() {
             return username;
@@ -59,6 +66,7 @@ public class AuthController {
     }
 
     @PostMapping("/password")
+    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> password(
             @RequestBody
             Map<String, Object> body, HttpServletRequest r) {
@@ -66,10 +74,17 @@ public class AuthController {
         i.requireUser();
         String old = java.util.Objects.toString(body.get("old_password"), ""),
                 next = java.util.Objects.toString(body.get("new_password"), "");
-        if (next.length() < 8 || next.length() > 1024 || !next.equals(body.get("confirm_password")))
-            throw new ApiError(422, "新密码至少8位，且两次输入须一致");
+        com.duozhi.outbound.auth.service.PasswordPolicy.require(next);
+        if (!next.equals(body.get("confirm_password"))) throw new ApiError(422, "两次密码输入须一致");
         if (!crypto.verifyPassword(i.user().get("password_hash").toString(), old))
             throw new ApiError(422, "旧密码不正确");
+        accountSecurity.verifyChange(
+                i,
+                Map.of(
+                        "current_password",
+                        old,
+                        "code",
+                        java.util.Objects.toString(body.get("code"), "")));
         service.patch(
                 ((Number) i.userId()).longValue(),
                 (int) i.tenant(),
@@ -78,14 +93,20 @@ public class AuthController {
                         crypto.password(next),
                         "token_version",
                         ((Number) i.user().get("token_version")).intValue() + 1));
+        accountSecurity.passwordReset(i, i.userId());
         return Map.of("changed", true, "login_required", true);
     }
 
     @PostMapping("/login")
     public Map<String, Object> login(@Valid
     @RequestBody
-    Login body) {
-        Map<String, Object> user = service.login(body.username(), body.password());
+    Login body, HttpServletRequest request) {
+        Map<String, Object> user =
+                service.login(
+                        body.username(),
+                        body.password(),
+                        java.util.Objects.toString(body.code, ""),
+                        request.getRemoteAddr());
         if (user == null) throw new ApiError(401, "invalid username or password");
         return Values.map(
                 "access_token",

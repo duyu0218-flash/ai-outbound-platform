@@ -19,6 +19,16 @@ public final class TaskSchedule {
     }
 
     public static boolean isOpen(Map<String, Object> policy, Instant now) {
+        var options = WorkspaceDocuments.map(policy.getOrDefault("_task_options", Map.of()));
+        if (options.get("windows") instanceof List<?> list) {
+            var calendar =
+                    new LinkedHashMap<>(
+                            com.duozhi.outbound.operations.service.OutboundRules.defaults());
+            calendar.put("timezone", policy.getOrDefault("timezone", "Asia/Shanghai"));
+            calendar.put("windows", list);
+            if (!com.duozhi.outbound.operations.service.OutboundRules.inWindow(calendar, now))
+                return false;
+        }
         String start = Objects.toString(policy.get("_task_start_at"), ""),
                 end = Objects.toString(policy.get("_task_end_at"), "");
         return (start.isBlank() || !now.isBefore(Instant.parse(start)))

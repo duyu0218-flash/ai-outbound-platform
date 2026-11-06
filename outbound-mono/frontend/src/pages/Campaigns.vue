@@ -20,6 +20,7 @@ import ContactImport from '../components/ContactImport.vue';
 import ContactSelect from '../components/ContactSelect.vue';
 import AudiencePicker from '../components/AudiencePicker.vue';
 import HangupMessageRule from '../components/HangupMessageRule.vue';
+import TaskOptions from '../components/TaskOptions.vue';
 const lines = useData(
     session.user?.role === 'operator'
       ? '/api/v1/workspace/task-resources/selectable-lines'
@@ -44,6 +45,16 @@ const route = useRoute(),
   system = useData(session.user?.role === 'admin' ? '/api/v1/admin/system-overview' : '');
 const teams = useData('/api/v1/ops/teams');
 const clone = (v) => JSON.parse(JSON.stringify(v));
+const compact = ref(true);
+const defaultOptions = () => ({
+  frequency_rule_id: '',
+  evaluation_rule_id: '',
+  filter_group_ids: [],
+  owner_id: 0,
+  call_order: 'sequential',
+  block_successful: false,
+  windows: [{ start: '00:00', end: '24:00' }],
+});
 const open = ref(false),
   model = ref({}),
   editing = ref(null),
@@ -164,6 +175,8 @@ async function edit(row) {
         execution_policy: clone(v.snapshot?.policy || {}),
         start_at: v.snapshot?.start_at || '',
         end_at: v.snapshot?.end_at || '',
+        task_options: clone(v.snapshot?.task_options || defaultOptions()),
+        split_size: 0,
       };
       if (!v.snapshot && v.contact_count > 50)
         throw Error(
@@ -199,6 +212,9 @@ async function edit(row) {
         execution_policy: {},
         start_at: '',
         end_at: '',
+        task_options: defaultOptions(),
+        request_key: crypto.randomUUID(),
+        split_size: 0,
       };
     open.value = true;
   });
@@ -217,8 +233,12 @@ function next() {
     model.value.execution_policy = clone(selectedScript.value?.published?.policy || {});
   step.value++;
 }
-async function save() {
+async function save(start = false) {
   await run(async () => {
+    if (!model.value.name?.trim() || !model.value.script_template_id)
+      throw Error('请填写任务名称并选择已发布话术。');
+    if (!contactCount.value && !model.value.segment_snapshot_ids?.length)
+      throw Error('请选择名单批次或联系人。');
     const keys = [
       'name',
       'mode',
@@ -241,6 +261,9 @@ async function save() {
       'execution_policy',
       'start_at',
       'end_at',
+      'task_options',
+      'split_size',
+      'request_key',
     ];
     if (!Object.keys(model.value.execution_policy || {}).length)
       model.value.execution_policy = clone(selectedScript.value?.published?.policy || {});
@@ -256,9 +279,19 @@ async function save() {
       editing.value ? 'PUT' : 'POST',
       data,
     );
+    const created = v.tasks || [v];
+    if (start) {
+      try {
+        for (const task of created)
+          if (task.status !== 'running') await campaignCommand(task.id, 'start');
+      } catch (e) {
+        await query.load();
+        throw Error('任务已创建，部分任务未能启动，请在列表核对状态：' + e.message);
+      }
+    }
     open.value = false;
     await query.load();
-    detail.value = await request('/api/v1/workspace/tasks/' + v.id);
+    detail.value = await request('/api/v1/workspace/tasks/' + created[0].id);
   });
 }
 async function imported(value) {
@@ -336,11 +369,16 @@ onMounted(() => {
     :title="editing ? '编辑任务' : '创建任务'"
     width="min(1000px,96vw)"
     :close-on-click-modal="false"
-    ><el-steps :active="step" simple
+    ><el-switch
+      v-model="compact"
+      aria-label="使用快捷创建"
+      active-text="快捷创建"
+      inactive-text="分步配置"
+    /><el-steps v-if="!compact" :active="step" simple
       ><el-step title="基本信息" /><el-step title="选择名单" /><el-step title="拨打策略" /><el-step
         title="核对保存" /></el-steps
     ><el-alert v-if="error" :title="error" type="error" style="margin: 16px 0" />
-    <div v-if="step === 0" class="actions">
+    <div v-if="compact || step === 0" class="actions">
       <el-button @click="importing = true">先导入名单</el-button>
       <el-button @click="configuringScript = true">配置并发布话术</el-button>
       <el-input
@@ -357,7 +395,7 @@ onMounted(() => {
       >
     </div>
     <FieldForm
-      v-if="step === 0"
+      v-if="compact || step === 0"
       :model="model"
       :fields="basic"
       hide-submit
@@ -373,7 +411,7 @@ onMounted(() => {
         }
       "
     />
-    <template v-if="step === 1"
+    <template v-if="compact || step === 1"
       ><div class="actions" style="margin: 20px 0">
         <el-button type="primary" @click="importing = true">上传号码 / 下载模板</el-button
         ><el-button @click="batches.load()">刷新批次</el-button>
@@ -391,7 +429,7 @@ onMounted(() => {
         预选 {{ contactCount }} 人，保存时按联系人去重。禁呼、授权与频控会在拨打前再次校验。
       </p></template
     >
-    <template v-if="step === 2">
+    <template v-if="compact || step === 2">
       <el-form label-position="top"
         ><el-form-item label="线路与主叫资源"
           ><el-select v-model="model.line_ids" multiple aria-label="任务线路资源"
@@ -486,21 +524,33 @@ onMounted(() => {
         ]"
         hide-submit
       />
-      <FieldForm :model="model" :fields="strategy" hide-submit /><el-alert
+      <FieldForm :model="model" :fields="strategy" hide-submit />
+      <TaskOptions
+        v-model="model.task_options"
+        :mask-locked="!!editing && !!model.snapshot?.task_options?.mask_numbers"
+      />
+      <el-form-item v-if="!editing" label="拆分多任务（每个任务号码数，0表示不拆分）"
+        ><el-input-number
+          v-model="model.split_size"
+          :min="0"
+          :max="200000"
+          aria-label="拆分多任务号码数"
+      /></el-form-item>
+      <el-alert
         title="任务时间仍受平台合规限制。结束后不再发起新呼叫，在途通话继续；待拨记录可手动终止。"
         :closable="false"
       />
     </template>
     <el-alert
       v-if="
-        step === 2 &&
+        (compact || step === 2) &&
         (lines.error.value || !(lines.data.value || []).some((l) => l.enabled && l.caller_id))
       "
       type="warning"
       :closable="false"
       :title="lines.error.value || '尚无已启用且配置主叫的线路，请联系线路管理员配置后刷新。'"
     />
-    <el-button v-if="step === 2" @click="lines.load()">刷新线路</el-button>
+    <el-button v-if="compact || step === 2" @click="lines.load()">刷新线路</el-button>
     <el-descriptions v-if="step === 3" title="任务核对" :column="2" border
       ><el-descriptions-item label="任务名称">{{ model.name }}</el-descriptions-item
       ><el-descriptions-item label="话术发布版本"
@@ -522,10 +572,22 @@ onMounted(() => {
         clients.data.value?.find((v) => v.id === model.client_id)?.name || '未绑定，线索保留平台'
       }}</el-descriptions-item></el-descriptions
     >
+    <p v-if="compact || step === 3">
+      我司使用系统及电信接入业务时，遵守国家有关法律、法规和各行政规章制度，不非法使用数据，不开展任何违法、违规业务。
+    </p>
     <template #footer
-      ><el-button v-if="step > 0" :disabled="busy" @click="step--">上一步</el-button
-      ><el-button v-if="step < 3" type="primary" @click="next">下一步</el-button
-      ><el-button v-else type="primary" :loading="busy" @click="save">保存任务</el-button></template
+      ><template v-if="compact"
+        ><el-button :loading="busy" @click="save(false)">只创建不外呼</el-button
+        ><el-button type="primary" :loading="busy" @click="save(true)"
+          >确认外呼</el-button
+        ></template
+      ><template v-else
+        ><el-button v-if="step > 0" :disabled="busy" @click="step--">上一步</el-button
+        ><el-button v-if="step < 3" type="primary" @click="next">下一步</el-button
+        ><el-button v-else type="primary" :loading="busy" @click="save(false)"
+          >保存任务</el-button
+        ></template
+      ></template
     ></el-dialog
   >
   <el-drawer :model-value="!!detail" title="任务详情" size="min(900px,95vw)" @close="detail = null"

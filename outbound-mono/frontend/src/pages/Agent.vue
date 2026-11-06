@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { session, request } from '../session';
 import { useData, action, modes, terminals } from '../data';
@@ -7,7 +7,9 @@ import { t } from '../i18n';
 import { formatDate } from '../api';
 import Softphone from '../components/Softphone.vue';
 const calls = useData('/api/v1/calls?page=1&size=20'),
-  queue = useData('/api/v1/handoffs?state=waiting'),
+  queue = useData('/api/v1/handoffs?state=waiting', 2000),
+  behavior = useData('/api/v1/ops/seat-behavior', 10000),
+  soundReady = ref(false),
   presence = ref(session.user?.agent_status || 'ready'),
   saving = ref(false),
   presenceError = ref(false),
@@ -16,16 +18,40 @@ const calls = useData('/api/v1/calls?page=1&size=20'),
   form = ref();
 let wrapHeartbeat;
 const wrapSeconds = ref(0);
-let heartbeat;
+const lastViewed = ref(null),
+  closedAt = ref(0),
+  clock = ref(Date.now());
+let closeTicker;
+let heartbeat, ringContext;
+async function enableSound() {
+  ringContext ||= new AudioContext();
+  await ringContext.resume();
+  soundReady.value = true;
+}
 const active = computed(() =>
     (calls.data.value || []).filter((v) => !terminals.includes(v.status)),
   ),
-  phoneCall = computed(
+  focusedCall = computed(
     () =>
       active.value.find((v) =>
         ['in_human', 'handoff_transferring', 'answered'].includes(v.status),
       ) || active.value[0],
   );
+const phoneCall = computed(
+  () =>
+    focusedCall.value ||
+    (lastViewed.value &&
+    (behavior.data.value?.config.auto_close === false ||
+      clock.value - closedAt.value < 1000 * (behavior.data.value?.config.close_seconds ?? 4))
+      ? lastViewed.value
+      : null),
+);
+watch(focusedCall, (value) => {
+  if (value) {
+    lastViewed.value = value;
+    closedAt.value = 0;
+  } else if (lastViewed.value) closedAt.value = Date.now();
+});
 async function savePresence(value, notify = true) {
   const previous = presence.value;
   presence.value = value;
@@ -68,10 +94,15 @@ function canAccept(item) {
       ))
   );
 }
-async function respond(item, kind) {
+async function respond(item, kind, automatic = false) {
   await action(
     () => request(`/api/v1/calls/${item.call_session_id}/handoffs/${item.id}/${kind}`, 'POST'),
-    { confirm: t(kind === 'accept' ? 'confirmAcceptHandoff' : 'confirmRejectHandoff'), refresh },
+    {
+      confirm: automatic
+        ? undefined
+        : t(kind === 'accept' ? 'confirmAcceptHandoff' : 'confirmRejectHandoff'),
+      refresh,
+    },
   );
   if (kind === 'accept') {
     presence.value = 'busy';
@@ -84,6 +115,51 @@ async function handover(call) {
   });
   await savePresence('busy');
 }
+const offered = new Set(),
+  acceptTimers = new Set();
+watch(
+  () => queue.data.value,
+  async (items) => {
+    const conf = behavior.data.value?.config;
+    if (!conf) return;
+    for (const item of items || []) {
+      if (
+        String(item.assigned_agent_id) !== String(session.user?.id) ||
+        offered.has(item.id) ||
+        !canAccept(item)
+      )
+        continue;
+      offered.add(item.id);
+      if (conf.ringtone && soundReady.value) {
+        if (conf.ring_audio) {
+          const audio = new Audio(conf.ring_audio);
+          audio.volume = conf.ring_volume / 100;
+          audio.play().catch(() => {});
+        } else {
+          const ctx = ringContext,
+            osc = ctx.createOscillator(),
+            gain = ctx.createGain();
+          gain.gain.value = conf.ring_volume / 100;
+          osc.connect(gain).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.15);
+        }
+      }
+      if (conf.auto_takeover || conf.seamless) {
+        const timer = setTimeout(
+          async () => {
+            acceptTimers.delete(timer);
+            const current = queue.data.value?.find((v) => v.id === item.id);
+            if (current && canAccept(current))
+              await respond(current, 'accept', true).catch(() => {});
+          },
+          1000 * (conf.seamless ? 0 : conf.takeover_seconds),
+        );
+        acceptTimers.add(timer);
+      }
+    }
+  },
+);
 const vScreenReceipt = {
   mounted(el, binding) {
     const offer = binding.value;
@@ -118,6 +194,7 @@ const vScreenReceipt = {
   },
 };
 onMounted(() => {
+  closeTicker = setInterval(() => (clock.value = Date.now()), 1000);
   if (session.user?.role === 'agent') {
     heartbeat = setInterval(() => savePresence(presence.value, false), 30000);
     wrapHeartbeat = setInterval(async () => {
@@ -134,6 +211,9 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(heartbeat);
   clearInterval(wrapHeartbeat);
+  clearInterval(closeTicker);
+  acceptTimers.forEach(clearTimeout);
+  ringContext?.close();
 });
 </script>
 <template>
@@ -154,7 +234,9 @@ onUnmounted(() => {
         :active-call="phoneCall"
         @registered="savePresence('ready', false)"
         @update="refresh"
-      /><el-card :header="t('callNow')"
+      /><el-button v-if="!focusedCall && phoneCall" @click="lastViewed = null"
+        >关闭已结束通话</el-button
+      ><el-card :header="t('callNow')"
         ><FieldForm
           ref="form"
           :model="model"
@@ -190,7 +272,7 @@ onUnmounted(() => {
             ><el-select
               :model-value="presence"
               :loading="saving"
-              :disabled="saving"
+              :disabled="saving || behavior.data.value?.config.manual_signin === false"
               aria-label="座席状态"
               @change="savePresence"
               ><el-option
@@ -205,6 +287,8 @@ onUnmounted(() => {
     <section>
       <el-card :header="t('handoffQueue')"
         ><el-button @click="queue.load">{{ t('refresh') }}</el-button
+        ><el-button v-if="behavior.data.value?.config.ringtone" @click="enableSound"
+          >启用进线提示音</el-button
         ><el-alert v-if="queue.error.value" type="error" :title="queue.error.value" />
         <div
           v-for="item in queue.data.value || []"

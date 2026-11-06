@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 public class Messaging {
     public record Principal(long tenant, String application) {}
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ScriptMessageDefaults scriptDefaults;
+
     private final MessageStore db;
     private final Transactions tx;
     private final MessageSecrets secrets;
@@ -257,6 +260,13 @@ public class Messaging {
                                 .entrySet())
                     resource(tenant, required(payload, entry.getKey(), 64), entry.getValue(), true);
                 payload.put("variables", object(payload.getOrDefault("variables", Map.of())));
+                if (payload.containsKey("notifications")) {
+                    var validated = new LinkedHashMap<String, Object>(payload);
+                    validated.putIfAbsent("budget", 1000000);
+                    payload.put(
+                            "notifications",
+                            scriptDefaults.validate(tenant, validated).get("notifications"));
+                }
             }
             case "campaign" -> {
                 for (var entry :
@@ -1304,6 +1314,7 @@ public class Messaging {
                         return null;
                     String rule = null;
                     boolean notify = false;
+                    List<?> notifications = List.of();
                     long campaign =
                             c.get("campaign_id") == null
                                     ? 0
@@ -1321,6 +1332,10 @@ public class Messaging {
                                     object(candidate.get("payload")).get("notify")
                                                     instanceof Map<?, ?> n
                                             && !n.isEmpty();
+                            notifications =
+                                    (List<?>)
+                                            object(candidate.get("payload"))
+                                                    .getOrDefault("notifications", List.of());
                             break;
                         }
                     db.jdbc()
@@ -1342,6 +1357,17 @@ public class Messaging {
                                         call,
                                         attempt,
                                         rule);
+                    for (int index = 0; index < notifications.size(); index++)
+                        if (Boolean.TRUE.equals(object(notifications.get(index)).get("auto_send")))
+                            db.jdbc()
+                                    .update(
+                                            "INSERT IGNORE INTO msg_call_intent(id,tenant_id,call_id,attempt,rule_id,state,reason,recipient_kind) VALUES(?,?,?,?,?,'WAITING_CALL','',?)",
+                                            id("intent"),
+                                            tenant,
+                                            call,
+                                            attempt,
+                                            rule,
+                                            "notice:" + index);
                     return null;
                 });
     }
@@ -1439,12 +1465,28 @@ public class Messaging {
                                                 .get("payload"));
                         Object recipientId = call.get("contact_id"),
                                 recipientPhone = call.get("phone");
-                        boolean notifying = "notice".equals(intent.get("recipient_kind"));
+                        boolean notifying =
+                                intent.get("recipient_kind").toString().startsWith("notice");
                         if (notifying) {
-                            var n = object(rule.get("notify"));
+                            var n =
+                                    "notice".equals(intent.get("recipient_kind"))
+                                            ? object(rule.get("notify"))
+                                            : object(
+                                                    ((List<?>) rule.get("notifications"))
+                                                            .get(
+                                                                    Integer.parseInt(
+                                                                            intent.get(
+                                                                                            "recipient_kind")
+                                                                                    .toString()
+                                                                                    .substring(
+                                                                                            7))));
                             recipientId = n.get("contact_id");
                             rule = new LinkedHashMap<>(rule);
                             rule.put("template_id", n.get("template_id"));
+                            if (n.containsKey("variables"))
+                                rule.put("variables", n.get("variables"));
+                            for (String asset : List.of("product_id", "sender_id"))
+                                if (n.containsKey(asset)) rule.put(asset, n.get(asset));
                             var contact =
                                     db.one(
                                             "SELECT phone FROM contact WHERE tenant_id=? AND id=?",

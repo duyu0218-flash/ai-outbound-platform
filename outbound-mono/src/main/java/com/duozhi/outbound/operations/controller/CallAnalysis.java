@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class CallAnalysis {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspaceDocuments;
+
     private final Store store;
     private final Transactions tx;
     private final JsonSupport json;
@@ -357,6 +360,57 @@ public class CallAnalysis {
         data.put("version", version);
         outbox.callback(call, "call.result", data, "result:" + call.get("id") + ":" + version);
         clients.sync(call, record);
+        var automationSnapshot =
+                workspaceDocuments == null
+                        ? null
+                        : workspaceDocuments.campaignSnapshot(
+                                CallLifecycle.tenant(call), call.get("campaign_id"));
+        boolean automated =
+                automationSnapshot != null
+                        && (Boolean.TRUE.equals(
+                                        com.duozhi.outbound.workspace.service.WorkspaceDocuments
+                                                .map(
+                                                        automationSnapshot.getOrDefault(
+                                                                "task_options", Map.of()))
+                                                .get("auto_wecom"))
+                                || !((List<?>)
+                                                com.duozhi.outbound.workspace.service
+                                                        .WorkspaceDocuments.map(
+                                                                automationSnapshot.getOrDefault(
+                                                                        "share_policy", Map.of()))
+                                                        .getOrDefault(
+                                                                "intention_groups", List.of()))
+                                        .isEmpty());
+        if (automated
+                && call.get("campaign_id") != null
+                && call.get("contact_id") != null
+                && Values.set("completed", "failed", "busy", "no_answer", "canceled")
+                        .contains(call.get("status"))) {
+            outbox.enqueue(
+                    CallLifecycle.tenant(call),
+                    "business_callback",
+                    call.get("id"),
+                    "share-assign:" + call.get("id") + ":" + call.get("attempts"),
+                    JsonSupport.map(
+                            "share_assignment",
+                            true,
+                            "call_id",
+                            call.get("id"),
+                            "campaign_id",
+                            call.get("campaign_id"),
+                            "contact_id",
+                            call.get("contact_id"),
+                            "attempt",
+                            call.get("attempts"),
+                            "result_code",
+                            record.get("result_code"),
+                            "intent",
+                            record.get("intent"),
+                            "grade",
+                            com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                            structured.getOrDefault("rule_result", Map.of()))
+                                    .get("grade")));
+        }
     }
 
     @GetMapping("/api/v1/calls/{id}/analysis")

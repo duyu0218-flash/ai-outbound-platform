@@ -117,6 +117,30 @@ public class ContactBatches {
         return row;
     }
 
+    @GetMapping("/{id}/receipt")
+    public Object receipt(@PathVariable
+    String id, HttpServletRequest r) {
+        var i = Identity.from(r);
+        i.requireUser();
+        var batch =
+                docs.one(
+                        "SELECT name,result_json,created_by FROM platform_contact_batch WHERE tenant_id=? AND id=? AND request_key NOT LIKE 'workspace-chunk:%'",
+                        i.tenant(), id);
+        if (batch == null) throw new ApiError(404, "导入回执不存在");
+        if (!i.userId().toString().equals(Objects.toString(batch.get("created_by"))))
+            i.admin("contacts:write");
+        return Map.of(
+                "name",
+                batch.get("name"),
+                "result",
+                docs.json.object(batch.get("result_json").toString()),
+                "numbers",
+                docs.jdbc.queryForList(
+                        "SELECT c.phone,c.dnc AS currently_blocked FROM platform_contact_batch_member m JOIN contact c ON c.tenant_id=m.tenant_id AND c.id=m.contact_id WHERE m.tenant_id=? AND m.batch_id=? ORDER BY c.id LIMIT 1000",
+                        i.tenant(),
+                        id));
+    }
+
     @GetMapping("/{id}/errors")
     public ResponseEntity<String> errors(@PathVariable
     String id, HttpServletRequest r) {
@@ -192,6 +216,10 @@ public class ContactBatches {
             String script_id,
             @RequestParam(defaultValue = "")
             String template_id,
+            @RequestParam(defaultValue = "")
+            String batch_name,
+            @RequestParam(defaultValue = "")
+            String expires_at,
             @RequestHeader("Idempotency-Key")
             String key,
             HttpServletRequest r)
@@ -208,6 +236,16 @@ public class ContactBatches {
         byte[] bytes = file.getBytes();
         var fields = mapping(mapping);
         var schema = variables.schema(i.tenant(), script_id, template_id);
+        if (batch_name.length() > 160) throw new ApiError(422, "批次号最多160个字符");
+        if (!expires_at.isBlank())
+            try {
+                if (!java.time.Instant.parse(expires_at).isAfter(java.time.Instant.now()))
+                    throw new ApiError(422, "过期时间须晚于当前时间");
+            } catch (java.time.DateTimeException e) {
+                throw new ApiError(422, "过期时间须包含时区");
+            }
+        schema.put("batch_name", batch_name.trim());
+        schema.put("expires_at", expires_at);
         String encoded = docs.json.json(fields), digest;
         try {
             digest =

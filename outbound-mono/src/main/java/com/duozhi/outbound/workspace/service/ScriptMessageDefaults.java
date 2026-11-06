@@ -66,6 +66,77 @@ public class ScriptMessageDefaults {
                 throw new ApiError(422, "请选择已批准的通知短信模板");
             rule.put("notify", Map.of("contact_id", target, "template_id", template));
         }
+        if (!(m.getOrDefault("notifications", List.of()) instanceof List<?> notifications)
+                || notifications.size() > 100) throw new ApiError(422, "通知短信最多100条");
+        var notices = new ArrayList<Map<String, Object>>();
+        for (var raw : (List<?>) m.getOrDefault("notifications", List.of())) {
+            var n = WorkspaceDocuments.map(raw);
+            String title = WorkspaceDocuments.text(n, "title", 160, true),
+                    template = WorkspaceDocuments.text(n, "template_id", 64, true);
+            long target = WorkspaceDocuments.number(n.get("contact_id")),
+                    owner = WorkspaceDocuments.number(n.getOrDefault("owner_id", 0));
+            if (!(n.get("auto_send") instanceof Boolean)) throw new ApiError(422, "通知自动发送标记无效");
+            if (docs.one(
+                            "SELECT id FROM contact WHERE tenant_id=? AND id=? AND dnc=0 AND consent_state='CONSENTED'",
+                            tenant,
+                            target)
+                    == null) throw new ApiError(422, "通知联系人不存在或未授权");
+            var tpl =
+                    docs.one(
+                            "SELECT payload FROM msg_resource WHERE tenant_id=? AND id=? AND kind='template' AND state='APPROVED'",
+                            tenant,
+                            template);
+            if (tpl == null
+                    || !"sms".equals(docs.json.object(tpl.get("payload").toString()).get("form")))
+                throw new ApiError(422, "通知模板须为已审核普通短信");
+            if (owner > 0
+                    && docs.one(
+                                    "SELECT id FROM sys_user WHERE tenant_id=? AND id=? AND enabled=1",
+                                    tenant,
+                                    owner)
+                            == null) throw new ApiError(422, "短信所属账号无效");
+            var parameters = WorkspaceDocuments.map(n.getOrDefault("variables", Map.of()));
+            if (parameters.size() > 32 || docs.json.json(parameters).length() > 8000)
+                throw new ApiError(422, "通知参数过多");
+            var assets = new LinkedHashMap<String, Object>();
+            for (String asset : List.of("product", "sender")) {
+                String selected = Objects.toString(n.get(asset + "_id"), "");
+                if (selected.isBlank()) selected = rule.get(asset + "_id").toString();
+                var resource =
+                        docs.one(
+                                "SELECT payload FROM msg_resource WHERE tenant_id=? AND id=? AND kind=? AND state='APPROVED'",
+                                tenant,
+                                selected,
+                                asset);
+                if (resource == null
+                        || asset.equals("product")
+                                && !"sms"
+                                        .equals(
+                                                docs.json
+                                                        .object(resource.get("payload").toString())
+                                                        .get("form")))
+                    throw new ApiError(422, "通知通道或签名未审核");
+                assets.put(asset + "_id", selected);
+            }
+            var notice =
+                    new LinkedHashMap<String, Object>(
+                            Map.of(
+                                    "title",
+                                    title,
+                                    "template_id",
+                                    template,
+                                    "contact_id",
+                                    target,
+                                    "owner_id",
+                                    owner,
+                                    "auto_send",
+                                    n.get("auto_send"),
+                                    "variables",
+                                    parameters));
+            notice.putAll(assets);
+            notices.add(notice);
+        }
+        rule.put("notifications", notices);
         return rule;
     }
 }

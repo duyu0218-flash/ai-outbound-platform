@@ -28,6 +28,11 @@ public final class FlowSettings {
         var m = new LinkedHashMap<String, Object>();
         m.put("human_enabled", bool(raw, "human_enabled", true));
         m.put("block_machine", bool(raw, "block_machine", true));
+        for (String key :
+                List.of(
+                        "handoff_hide_dialogue",
+                        "handoff_disable_agent_recognition",
+                        "handoff_disable_customer_recognition")) m.put(key, bool(raw, key, false));
         m.put("ring_seconds", integer(raw, "ring_seconds", 50, 1, 300));
         int max = integer(raw, "max_seconds", 2600, 1, 3600);
         m.put("max_seconds", max);
@@ -40,6 +45,17 @@ public final class FlowSettings {
         String at = Objects.toString(raw.get("record_at"), "answer");
         if (!Set.of("answer", "disabled").contains(at)) throw new ApiError(422, "录音时机无效");
         m.put("record_at", at);
+        m.put("input_gain", integer(raw, "input_gain", 0, -12, 12));
+        m.put("output_gain", integer(raw, "output_gain", 0, -12, 12));
+        m.put("noise_gate", bool(raw, "noise_gate", false));
+        m.put("filter_fillers", bool(raw, "filter_fillers", false));
+        m.put("intent_threshold", integer(raw, "intent_threshold", 0, 0, 100));
+        String prompt = Objects.toString(raw.get("timeout_prompt"), "您好，您还在听吗？"),
+                fillers = Objects.toString(raw.get("fillers"), "嗯,呃,啊");
+        if (prompt.length() > 1000 || fillers.length() > 1000)
+            throw new ApiError(422, "超时提示或语气词过长");
+        m.put("timeout_prompt", prompt);
+        m.put("fillers", fillers);
         return m;
     }
 

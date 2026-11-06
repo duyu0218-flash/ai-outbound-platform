@@ -29,6 +29,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ConversationPolicy {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspace;
 
     private final Store store;
@@ -52,7 +55,7 @@ public class ConversationPolicy {
         }
     }
 
-    private void sharedPreparation() {
+    public void sharedPreparation() {
         if (Boolean.TRUE.equals(localPreparation.get())) throw new SharedPreparationRequired();
     }
 
@@ -128,6 +131,7 @@ public class ConversationPolicy {
         var initial = new LinkedHashMap<>(initialStatePolicy(call));
         Map<String, Object> initialData = new LinkedHashMap<>();
         var original = json.object(initial.get("json").toString());
+        initialData.put("flow_variables", FlowVariables.initial(original));
         if (ScriptBindings.from(original).get("openings") instanceof List<?> openings
                 && !openings.isEmpty()) {
             int index =
@@ -257,6 +261,7 @@ public class ConversationPolicy {
             script = Objects.toString(snapshot.get("script"), "");
         }
         policy.put("_script", script);
+        FlowSpeech.apply(policy);
         var result = JsonSupport.map("version", current.get("version"), "json", json.json(policy));
         if (batch != null) batch.initialPolicies.put(key, result);
         return result;
@@ -379,6 +384,8 @@ public class ConversationPolicy {
 
     public void suppress(Map<String, Object> call, String reason) {
         sharedPreparation();
+        if (outboundRules != null && !Values.set("created", "queued").contains(call.get("status")))
+            outboundRules.blockedDuring(call, reason);
         long tenant = CallLifecycle.tenant(call);
         Object phone = call.get("phone");
         if (store.scalar(

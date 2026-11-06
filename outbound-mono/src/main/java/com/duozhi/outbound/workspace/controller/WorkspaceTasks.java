@@ -32,6 +32,9 @@ public class WorkspaceTasks {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.agent.service.HumanRouting routing;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.TaskStrategies strategies;
+
     private final com.duozhi.outbound.client.controller.ClientAdmin clients;
 
     public WorkspaceTasks(
@@ -111,6 +114,88 @@ public class WorkspaceTasks {
     @PostMapping
     public Object create(@RequestBody
     Map<String, Object> body, HttpServletRequest r) {
+        String request = Objects.toString(body.get("request_key"), "");
+        if (request.isBlank()) return createOnce(body, r);
+        long tenant = tenant(r);
+        if (!request.matches("[A-Za-z0-9-]{1,64}")) throw new ApiError(422, "创建请求编号无效");
+        String hash = JsonSupport.sha(docs.json.canonical(body, false));
+        return docs.tx.serialized(
+                () -> {
+                    var old = docs.find(tenant, "task_create_request", request);
+                    if (old != null) {
+                        var saved = map(old.get("draft"));
+                        if (!hash.equals(saved.get("hash")))
+                            throw new ApiError(409, "同一创建请求包含不同内容");
+                        var tasks =
+                                ((List<?>) saved.get("ids"))
+                                        .stream()
+                                                .map(id -> detail(((Number) id).longValue(), r))
+                                                .toList();
+                        return Boolean.TRUE.equals(saved.get("split"))
+                                ? Map.of("tasks", tasks)
+                                : tasks.getFirst();
+                    }
+                    Object result = createOnce(body, r);
+                    var output = map(result);
+                    boolean split = output.containsKey("tasks");
+                    var tasks = split ? (List<?>) output.get("tasks") : List.of(output);
+                    docs.save(
+                            Identity.from(r),
+                            "task_create_request",
+                            request,
+                            "",
+                            Map.of(
+                                    "name",
+                                    "任务创建请求",
+                                    "hash",
+                                    hash,
+                                    "split",
+                                    split,
+                                    "ids",
+                                    tasks.stream().map(task -> map(task).get("id")).toList()),
+                            0);
+                    return result;
+                });
+    }
+
+    private Object createOnce(Map<String, Object> body, HttpServletRequest r) {
+        int split =
+                com.duozhi.outbound.operations.service.OutboundRules.integer(
+                        body.getOrDefault("split_size", 0), 0, 200000);
+        if (split > 0) {
+            long tenant = tenant(r);
+            return docs.tx.serialized(
+                    () -> {
+                        var selection = audience.resolve(tenant, body);
+                        var ids = new ArrayList<>(selection.members().keySet());
+                        if (ids.isEmpty() || (ids.size() + split - 1) / split > 50)
+                            throw new ApiError(422, "拆分后任务数须为1至50个");
+                        var tasks = new ArrayList<Object>();
+                        for (int offset = 0; offset < ids.size(); offset += split) {
+                            var part = new LinkedHashMap<>(body);
+                            part.put(
+                                    "name",
+                                    Objects.toString(body.get("name"), "")
+                                            + " "
+                                            + (offset / split + 1));
+                            var include =
+                                    new HashSet<>(
+                                            ids.subList(
+                                                    offset, Math.min(offset + split, ids.size())));
+                            var excluded =
+                                    new ArrayList<Object>(
+                                            (List<?>)
+                                                    body.getOrDefault(
+                                                            "excluded_contact_ids", List.of()));
+                            ids.stream()
+                                    .filter(cid -> !include.contains(cid))
+                                    .forEach(excluded::add);
+                            part.put("excluded_contact_ids", excluded);
+                            tasks.add(save(null, part, r));
+                        }
+                        return Map.of("tasks", tasks);
+                    });
+        }
         return save(null, body, r);
     }
 
@@ -127,6 +212,17 @@ public class WorkspaceTasks {
         return docs.tx.serialized(
                 () -> {
                     var data = new LinkedHashMap<>(body);
+                    data.remove("split_size");
+                    data.remove("request_key");
+                    var taskOptions = strategies.options(tenant, data.remove("task_options"));
+                    if (id != null) {
+                        var previous = docs.campaignSnapshot(tenant, id);
+                        if (previous != null
+                                && Boolean.TRUE.equals(
+                                        map(previous.getOrDefault("task_options", Map.of()))
+                                                .get("mask_numbers")))
+                            taskOptions.put("mask_numbers", true);
+                    }
                     if (id == null) data.putIfAbsent("hangup_sms_enabled", false);
                     Object rawBatches = data.remove("batch_ids");
                     Object clientId = data.remove("client_id");
@@ -136,6 +232,11 @@ public class WorkspaceTasks {
                     com.duozhi.outbound.workspace.service.TaskSchedule.validate(startAt, endAt);
                     var selection = audience.resolve(tenant, body);
                     var selected = new LinkedHashSet<>(selection.members().keySet());
+                    var assessment =
+                            strategies.assessContacts(
+                                    tenant, taskOptions.get("evaluation_rule_id"), selected);
+                    if ("reject".equals(assessment.get("advice")))
+                        throw new ApiError(409, "智能评估：不建议外呼，请调整号码来源或规则后重试");
                     var ids = data.getOrDefault("contact_ids", List.of());
                     var batches = rawBatches == null ? List.of() : rawBatches;
                     Object segmentIds = data.remove("segment_snapshot_ids"),
@@ -147,6 +248,22 @@ public class WorkspaceTasks {
                         throw new ApiError(409, "话术尚未发布或已停用");
                     var publication = map(doc.get("published"));
                     var executionPolicy = map(publication.get("policy"));
+                    if (data.get("script_flow_version_id") != null) {
+                        var flow =
+                                store.require(
+                                        "scriptflowversion",
+                                        tenant,
+                                        data.get("script_flow_version_id"));
+                        var graph = docs.json.object(flow.get("graph_json").toString());
+                        for (var node : (List<?>) graph.getOrDefault("nodes", List.of())) {
+                            String api = Objects.toString(map(node).get("interface_id"), "");
+                            if (!api.isBlank()
+                                    && com.duozhi.outbound.ai.service.BusinessInterfaces.definition(
+                                                    executionPolicy, api)
+                                            .isEmpty())
+                                throw new ApiError(422, "流程引用的接口未包含在已发布话术中");
+                        }
+                    }
                     var bindings =
                             com.duozhi.outbound.ai.service.ScriptBindings.from(executionPolicy);
                     Object lineIds = data.remove("line_ids");
@@ -219,6 +336,13 @@ public class WorkspaceTasks {
                     executionPolicy.put("_task_service_combo", backend);
                     executionPolicy.put("_task_start_at", startAt);
                     executionPolicy.put("_task_end_at", endAt);
+                    executionPolicy.put("_task_options", taskOptions);
+                    if ("random".equals(taskOptions.get("call_order"))) {
+                        var shuffled = new ArrayList<>(selected);
+                        Collections.shuffle(shuffled, new java.security.SecureRandom());
+                        selected.clear();
+                        selected.addAll(shuffled);
+                    }
                     data.put("script", publication.get("compiled_content"));
                     data.put("contact_ids", new ArrayList<>(selected));
                     Map<String, Object> row;
@@ -234,6 +358,13 @@ public class WorkspaceTasks {
                         else r.setAttribute("workspaceTaskWrite", oldContext);
                     }
                     Object taskId = row.get("id");
+                    docs.jdbc.update(
+                            "UPDATE campaign SET created_by=? WHERE tenant_id=? AND id=?",
+                            number(taskOptions.get("owner_id")) > 0
+                                    ? taskOptions.get("owner_id")
+                                    : Identity.from(r).userId(),
+                            tenant,
+                            taskId);
                     audience.freeze(tenant, "call:" + taskId, selection);
                     var runtimePolicy = new LinkedHashMap<>(executionPolicy);
                     runtimePolicy.put("_knowledge", publication.get("knowledge"));
@@ -298,6 +429,14 @@ public class WorkspaceTasks {
                             snapshot.put("sms_rule", previous.get("sms_rule"));
                     }
                     snapshot.put("hangup_sms_enabled", row.get("hangup_sms_enabled"));
+                    var share = docs.find(tenant, "script_share", scriptId.toString());
+                    if (share != null) {
+                        var shared = new LinkedHashMap<>(map(share.get("draft")));
+                        shared.put("revision", share.get("revision"));
+                        snapshot.put("share_policy", shared);
+                    }
+                    snapshot.put("task_options", taskOptions);
+                    snapshot.put("assessment", assessment);
                     docs.jdbc.update(
                             "INSERT INTO platform_campaign_snapshot(tenant_id,campaign_id,snapshot_json,created_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE snapshot_json=VALUES(snapshot_json),created_at=VALUES(created_at)",
                             tenant,

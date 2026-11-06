@@ -50,8 +50,9 @@ public class JwtSecurityConfiguration {
             Crypto crypto,
             Config config,
             ObjectMapper json,
-            AuthStartupPolicy policy) {
-        return new JwtRealm(identities, crypto, config, json);
+            AuthStartupPolicy policy,
+            com.duozhi.outbound.auth.service.AccountSecurity security) {
+        return new JwtRealm(identities, crypto, config, json, security);
     }
 
     @Bean
@@ -84,14 +85,15 @@ public class JwtSecurityConfiguration {
             DefaultWebSecurityManager manager,
             AuthIdentityMapper identities,
             ObjectMapper json,
-            ClientAuthenticator clients) {
+            ClientAuthenticator clients,
+            com.duozhi.outbound.auth.service.AccountSecurity security) {
         var factory = new ShiroFilterFactoryBean();
         factory.setSecurityManager(manager);
         factory.setFilters(
                 new LinkedHashMap<>(
                         Map.of(
                                 "jwt",
-                                new JwtFilter(identities, json),
+                                new JwtFilter(identities, json, security),
                                 "clientJwt",
                                 new ClientJwtFilter(clients, json))));
         var chain = new LinkedHashMap<String, String>();

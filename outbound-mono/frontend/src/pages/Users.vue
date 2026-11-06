@@ -1,4 +1,5 @@
 <script setup>
+import PhoneVerification from '../components/PhoneVerification.vue';
 import { session, request } from '../session';
 import { action } from '../data';
 import { t } from '../i18n';
@@ -11,7 +12,8 @@ const fields = (editing) => [
     label: editing ? 'newPasswordOptional' : 'password',
     type: 'password',
     required: !editing,
-    pattern: /^.{8,}$/,
+    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9\s]).{8,20}$/,
+    message: '新密码须为8至20位，包含大写、小写字母、数字和特殊符号',
     autocomplete: 'new-password',
   },
   { key: 'phone', label: 'phone' },
@@ -58,6 +60,8 @@ function future(value) {
       { key: 'username', label: 'username' },
       { key: 'full_name', label: 'contactName' },
       { key: 'phone', label: 'phone' },
+      { key: 'phone_verified', label: '验证手机号' },
+      { key: 'mfa_enabled', label: '双因子验证' },
       { key: 'role', label: 'role', tag: true },
       { key: 'is_supervisor', label: 'supervisor' },
       { key: 'enabled', label: 'enabled' },
@@ -80,7 +84,7 @@ function future(value) {
         >{{ t('lockedUntil') }} {{ row.locked_until }}</el-tag
       ><span v-else>-</span></template
     ><template #rowActions="{ row, reload }"
-      ><el-button
+      ><PhoneVerification :user-id="row.id" @verified="reload" /><el-button
         v-if="future(row.locked_until)"
         link
         @click="

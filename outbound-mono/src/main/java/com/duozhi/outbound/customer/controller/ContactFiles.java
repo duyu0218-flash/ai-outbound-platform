@@ -26,7 +26,13 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 @AdminPermission("contacts:write")
 public class ContactFiles {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.ContactVariables variables;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.ImportReceipts receipts;
 
     private final Store store;
     private final Transactions tx;
@@ -550,6 +556,8 @@ public class ContactFiles {
                                 ps.setInt(3, ((Number) row.get("seq")).intValue());
                                 ps.setString(4, row.get("message").toString());
                             });
+                    if (receipts != null && (key == null || !key.startsWith("workspace-chunk:")))
+                        receipts.completed(i.tenant(), i.userId(), result);
                     audit.record(
                             i,
                             "import",
@@ -584,6 +592,7 @@ public class ContactFiles {
             String keyword,
             HttpServletRequest request) {
         Identity i = actor(request);
+        accountSecurity.export(i, Objects.toString(request.getHeader("X-Export-Verification"), ""));
         var filters = new LinkedHashMap<String, Object>();
         filters.put("tenantId", i.tenant());
         filters.put("keyword", keyword);

@@ -49,6 +49,8 @@ const file = ref(null),
   error = ref(''),
   busy = ref(false),
   upsert = ref(false);
+const batchName = ref(''),
+  expires = ref('');
 let key = '',
   disposed = false;
 const epoch = session.epoch;
@@ -68,6 +70,8 @@ watch(
       key = '';
       job.value = null;
       mapping.value = {};
+      batchName.value = '';
+      expires.value = '';
     }
   },
 );
@@ -112,6 +116,10 @@ async function submit(dryRun) {
         source.value +
         '&upsert=' +
         upsert.value +
+        '&batch_name=' +
+        encodeURIComponent(batchName.value) +
+        '&expires_at=' +
+        encodeURIComponent(expires.value ? new Date(expires.value).toISOString() : '') +
         '&mapping=' +
         encodeURIComponent(
           JSON.stringify(
@@ -190,6 +198,20 @@ async function submit(dryRun) {
     />
     <p v-if="file">已选择：{{ file.name }}</p>
     <el-form label-position="top"
+      ><el-form-item label="批次号"
+        ><el-input
+          v-model="batchName"
+          maxlength="160"
+          aria-label="导入批次号"
+          :disabled="busy"
+          @input="key = ''" /></el-form-item
+      ><el-form-item label="过期时间"
+        ><el-input
+          v-model="expires"
+          type="datetime-local"
+          aria-label="导入过期时间"
+          :disabled="busy"
+          @input="key = ''" /></el-form-item
       ><el-form-item label="平台已有号码的处理方式">
         <el-radio-group v-model="upsert" :disabled="busy || !!result"
           ><el-radio :value="false">跳过，保留原资料</el-radio

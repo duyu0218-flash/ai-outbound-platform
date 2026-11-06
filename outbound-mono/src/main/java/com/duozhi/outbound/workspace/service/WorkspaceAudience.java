@@ -44,11 +44,19 @@ public class WorkspaceAudience {
         }
         for (Object raw : list(body, "batch_ids", 50)) {
             String id = raw.toString();
-            if (docs.one(
-                            "SELECT id FROM platform_contact_batch WHERE tenant_id=? AND id=?",
+            var batch =
+                    docs.one(
+                            "SELECT id,result_json FROM platform_contact_batch WHERE tenant_id=? AND id=?",
                             tenant,
-                            id)
-                    == null) throw new ApiError(404, "名单批次不存在");
+                            id);
+            if (batch == null) throw new ApiError(404, "名单批次不存在");
+            String expiry =
+                    Objects.toString(
+                            docs.json.object(batch.get("result_json").toString()).get("expires_at"),
+                            "");
+            if (!expiry.isBlank()
+                    && !java.time.Instant.now().isBefore(java.time.Instant.parse(expiry)))
+                throw new ApiError(422, "名单批次已过期");
             for (var row :
                     docs.jdbc.queryForList(
                             "SELECT contact_id,variables_json FROM platform_contact_batch_member WHERE tenant_id=? AND batch_id=? ORDER BY contact_id",

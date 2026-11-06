@@ -49,6 +49,23 @@ public class AiRuntime {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.workspace.service.ScriptReach reach;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private BusinessInterfaces businessInterfaces;
+
+    private boolean interfacePending(
+            Map<String, Object> call,
+            Map<String, Object> state,
+            Map<String, Object> data,
+            Map<String, Object> node) {
+        if (node == null
+                || Objects.toString(node.get("interface_id"), "").isBlank()
+                || com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                data.getOrDefault("interface_results", Map.of()))
+                        .containsKey(node.get("id"))) return false;
+        product.sharedPreparation();
+        return businessInterfaces.pending(call, state, data, node);
+    }
+
     public AiRuntime(
             Store store,
             Transactions tx,
@@ -126,6 +143,19 @@ public class AiRuntime {
             throw new ApiError(409, "bound script flow version is unavailable");
         Map<String, Object> graph = json.object(version.get("graph_json").toString()),
                 data = json.object(state.get("data_json").toString());
+        if (data.containsKey("interface_error"))
+            return ConversationPolicy.reply(
+                    product.policy(state).get("failure_prompt").toString(), "hangup");
+        Map<Object, Map<String, Object>> nodes = new HashMap<>();
+        for (var n : (List<Map<String, Object>>) graph.get("nodes")) nodes.put(n.get("id"), n);
+        var current = nodes.get(call.get("flow_node_key"));
+        if (current == null)
+            current =
+                    nodes.values().stream()
+                            .filter(n -> "start".equals(n.get("type")))
+                            .findFirst()
+                            .orElse(null);
+        if (interfacePending(call, state, data, current)) return Map.of("_flow_pending", true);
         Map<String, Object> cached =
                 data.get("flow_turn") instanceof Map
                         ? (Map<String, Object>) data.get("flow_turn")
@@ -143,9 +173,6 @@ public class AiRuntime {
                         transcript,
                         transcript.trim().isEmpty(),
                         (Map<String, Object>) data.get("flow_variables"));
-        Map<Object, Map<String, Object>> nodes = new HashMap<>();
-        for (Map<String, Object> n : (List<Map<String, Object>>) graph.get("nodes"))
-            nodes.put(n.get("id"), n);
         Map<String, String> visitedNodes = new LinkedHashMap<>();
         Map<String, Object> source = nodes.get(d.get("current_node_id")),
                 target = nodes.get(d.get("next_node_id"));
@@ -169,6 +196,9 @@ public class AiRuntime {
         while (d.get("next_node_id") != null
                 && Values.set("set", "branch", "jump")
                         .contains(nodes.get(d.get("next_node_id")).get("type"))) {
+            data.put("flow_variables", d.get("variables"));
+            if (interfacePending(call, state, data, nodes.get(d.get("next_node_id"))))
+                return Map.of("_flow_pending", true);
             visitedNodes.put(
                     d.get("next_node_id").toString(),
                     nodes.get(d.get("next_node_id")).get("label").toString());
@@ -418,6 +448,7 @@ public class AiRuntime {
         if (snapshot == null) return;
         Map<String, Object> result = (Map<String, Object>) snapshot.get("result"),
                 ai = (Map<String, Object>) snapshot.get("ai");
+        if (result != null && Boolean.TRUE.equals(result.get("_flow_pending"))) return;
         if (result == null) {
             if (!Boolean.TRUE.equals(ai.getOrDefault("enabled", true)))
                 throw new ApiError(503, "AI service is disabled for tenant");

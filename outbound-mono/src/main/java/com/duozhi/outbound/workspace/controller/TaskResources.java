@@ -18,6 +18,31 @@ public class TaskResources {
     private final WorkspaceDocuments docs;
     private final Store store;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.TaskStrategies strategies;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.OperationsAccess access;
+
+    @GetMapping("/strategies")
+    public Object strategies(HttpServletRequest r) {
+        long tenant = tenant(r);
+        return Map.of(
+                "frequency",
+                strategies.list(tenant, "frequency"),
+                "evaluation",
+                strategies.list(tenant, "evaluation"),
+                "filters",
+                docs.list(tenant, "filter_group", null),
+                "users",
+                docs.jdbc.queryForList(
+                        "SELECT id,username,full_name FROM sys_user WHERE tenant_id=? AND enabled=1",
+                        tenant));
+    }
+
     public TaskResources(WorkspaceDocuments docs, Store store) {
         this.docs = docs;
         this.store = store;
@@ -109,6 +134,19 @@ public class TaskResources {
             export(@PathVariable
             long id, HttpServletRequest r) {
         long tenant = tenant(r);
+        var actor = Identity.from(r);
+        actor.requireUser();
+        if (!access.flag(actor, "can_export")) throw new ApiError(403, "没有导出权限");
+        accountSecurity.export(actor, Objects.toString(r.getHeader("X-Export-Verification"), ""));
+        var snapshot = docs.campaignSnapshot(tenant, id);
+        boolean masked =
+                !access.flag(actor, "can_unmask")
+                        || snapshot != null
+                                && Boolean.TRUE.equals(
+                                        WorkspaceDocuments.map(
+                                                        snapshot.getOrDefault(
+                                                                "task_options", Map.of()))
+                                                .get("mask_numbers"));
         store.require("campaign", tenant, id);
         org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody stream =
                 out -> {
@@ -131,6 +169,12 @@ public class TaskResources {
                         if (rows.isEmpty()) break;
                         for (var row : rows) {
                             var v = docs.json.object(row.get("variables_json").toString());
+                            if (masked && v.get("phone") != null)
+                                v.put(
+                                        "phone",
+                                        v.get("phone")
+                                                .toString()
+                                                .replaceAll("(?<=.{3}).(?=.{4})", "*"));
                             csv.printRecord(
                                     row.get("contact_id"),
                                     ContactFiles.safe(v.get("phone")),

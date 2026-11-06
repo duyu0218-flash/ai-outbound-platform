@@ -32,6 +32,18 @@ public class IntegrationTasks {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.messaging.service.Messaging messaging;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.OperationalPush operationalPush;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.ai.service.BusinessInterfaces businessInterfaces;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.SharedLeadAssignment sharedLeadAssignment;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.WecomAutomation wecomAutomation;
+
     private final Store store;
     private final Transactions tx;
     private final Config config;
@@ -62,6 +74,25 @@ public class IntegrationTasks {
     }
 
     public void execute(String type, Map<String, Object> task, Map<String, Object> payload) {
+        if ("business_callback".equals(type) && payload.containsKey("share_assignment")) {
+            sharedLeadAssignment.execute(task, payload);
+            wecomAutomation.execute(task, payload);
+            return;
+        }
+        if ("business_callback".equals(type) && payload.containsKey("interface_request")) {
+            businessInterfaces.execute(task, payload);
+            return;
+        }
+        if ("business_callback".equals(type) && payload.containsKey("push_type")) {
+            try {
+                operationalPush.deliver(task, payload);
+                return;
+            } catch (ApiError e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ApiError(502, "推送交付失败");
+            }
+        }
         if ("business_callback".equals(type)) callback(task, payload);
         else if ("send_sms".equals(type)) sms(task, payload);
         else recording(type, task, payload);

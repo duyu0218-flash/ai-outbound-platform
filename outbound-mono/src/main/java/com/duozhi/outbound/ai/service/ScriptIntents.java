@@ -73,6 +73,13 @@ public final class ScriptIntents {
     }
 
     public static String classify(String text, Map<String, Object> policy) {
+        var general = FlowSettings.from(policy);
+        if (Boolean.TRUE.equals(general.get("filter_fillers")))
+            for (String filler : Objects.toString(general.get("fillers"), "").split("[,，;；\\n]")) {
+                String f = filler.trim();
+                if (!f.isEmpty())
+                    while (text.startsWith(f)) text = text.substring(f.length()).stripLeading();
+            }
         String baseline = DialogueRules.classify(text);
         if (!Set.of("continue", "unclear").contains(baseline)
                 || text.isBlank()

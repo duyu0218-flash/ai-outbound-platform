@@ -5,6 +5,8 @@ import { ElMessageBox } from 'element-plus';
 import { campaignCommand } from '../operations';
 import { request } from '../session';
 import { session } from '../session';
+import BusinessInterfaces from './BusinessInterfaces.vue';
+import FlowSpeech from './FlowSpeech.vue';
 const props = defineProps({ section: String, scriptId: [String, Number] }),
   policy = defineModel({ required: true }),
   emit = defineEmits(['section']);
@@ -169,7 +171,8 @@ function addOpening() {
       <p>每次拨打按会话及尝试编号选定一句，同一尝试重试沿用该句。</p></template
     >
     <template v-else-if="section === '接口配置'"
-      ><label
+      ><BusinessInterfaces v-model="policy.http_interfaces" />
+      <label
         >业务回调<select
           aria-label="话术接口策略"
           :value="b.callback_mode"
@@ -181,7 +184,8 @@ function addOpening() {
       ></template
     >
     <template v-else
-      ><p>语音合成和识别使用同一服务组合。在任务编辑时可覆盖话术默认值。</p>
+      ><FlowSpeech v-model="policy" :section="section" />
+      <p>语音合成和识别使用同一服务组合。在任务编辑时可覆盖话术默认值。</p>
       <label
         >服务组合<select
           aria-label="话术语音组合"

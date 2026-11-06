@@ -4,13 +4,16 @@ import { session } from '../session';
 import { useData } from '../data';
 import { t } from '../i18n';
 import { formatDate } from '../api';
+import RecordingPlayer from './RecordingPlayer.vue';
 import AnalysisReview from './AnalysisReview.vue';
 const props = defineProps({ call: Object, role: { default: 'admin' } }),
   emit = defineEmits(['close']),
   review = ref(false),
+  nodeOpen = ref(null),
   base = () => '/api/v1/calls/' + props.call.id;
 const permits = useData(() => (props.role === 'admin' ? null : '/api/v1/ops/me')),
   canRecord = computed(() => props.role === 'admin' || !!permits.data.value?.can_record);
+const frozenFlow = useData(() => (nodeOpen.value ? base() + '/flow' : ''));
 const voiceAi = useData(() => base() + '/voice-ai'),
   speech = useData(() => base() + '/speech-turns'),
   analysis = useData(() => base() + '/analysis'),
@@ -33,6 +36,24 @@ const voiceAi = useData(() => base() + '/voice-ai'),
       title="当前账号没有录音访问权限"
       type="info" /><el-descriptions :column="1" border
       ><el-descriptions-item label="ID">{{ call.id }}</el-descriptions-item
+      ><el-descriptions-item
+        v-for="[key, label] in [
+          ['campaign_name', '任务名称'],
+          ['created_at', '拨打时间'],
+          ['phone', '被叫号码'],
+          ['city', '归属城市'],
+          ['script_name', '呼叫模板'],
+          ['line_name', '线路名称'],
+          ['telephony_seconds', '通话时长（秒）'],
+          ['grade', '意向评级'],
+          ['stage', '跟进状态'],
+          ['review_state', '质检状态'],
+        ]"
+        :key="key"
+        :label="label"
+        >{{
+          key === 'created_at' ? formatDate(call[key]) : (call[key] ?? '—')
+        }}</el-descriptions-item
       ><el-descriptions-item :label="t('status')">{{ t(call.status) }}</el-descriptions-item
       ><el-descriptions-item :label="t('mode')">{{
         t(call.mode)
@@ -70,8 +91,27 @@ const voiceAi = useData(() => base() + '/voice-ai'),
               置信度
               {{ item.confidence == null ? '-' : Math.round(item.confidence * 100) + '%' }}</span
             >
+            <span>{{
+              item.start_ms == null
+                ? formatDate(item.created_at)
+                : (item.start_ms / 1000).toFixed(2) + ' 秒'
+            }}</span
+            ><el-button v-if="item.node_id" link @click="nodeOpen = item.node_id"
+              >节点：{{ item.node_label || item.node_id }}</el-button
+            >
             <p>{{ item.transcript || '（空转写）' }}</p>
           </div>
+          <el-tag
+            v-for="event in (events.data.value || []).filter(
+              (e) =>
+                ['call_completed', 'hangup', 'status_completed'].includes(e.event_type) ||
+                JSON.stringify(e.payload).includes('hangup_reason'),
+            )"
+            :key="event.id"
+            >{{ formatDate(event.created_at) }} 挂机事件：{{
+              event.payload?.hangup_reason || event.event_type
+            }}</el-tag
+          >
           <el-empty
             v-if="!speech.data.value?.length"
             :description="t('empty')"
@@ -114,6 +154,7 @@ const voiceAi = useData(() => base() + '/voice-ai'),
             >
           </div>
           <p>{{ item.storage_uri || item.provider_url }}</p>
+          <RecordingPlayer :call-id="call.id" :asset="item" />
         </div>
         <el-empty v-if="!recordings.data.value?.length" :description="t('empty')" /></el-tab-pane
       ><el-tab-pane label="阶段指标"
@@ -133,6 +174,33 @@ const voiceAi = useData(() => base() + '/voice-ai'),
         <el-empty
           v-if="!events.data.value?.length"
           :description="t('empty')" /></el-tab-pane></el-tabs></el-drawer
+  ><el-dialog
+    :model-value="!!nodeOpen"
+    title="通话时冻结的话术流程"
+    width="760px"
+    @close="nodeOpen = null"
+    ><el-alert
+      v-if="frozenFlow.error.value"
+      :title="frozenFlow.error.value"
+      type="error" /><el-table :data="frozenFlow.data.value?.nodes || []"
+      ><el-table-column label="当前节点"
+        ><template #default="{ row }"
+          ><el-tag :type="row.id === nodeOpen ? 'success' : 'info'">{{
+            row.label
+          }}</el-tag></template
+        ></el-table-column
+      ><el-table-column prop="type" label="类型" /><el-table-column
+        prop="text"
+        label="话术内容" /></el-table
+    ><el-table
+      :data="
+        (frozenFlow.data.value?.edges || []).filter(
+          (e) => e.source === nodeOpen || e.target === nodeOpen,
+        )
+      "
+      ><el-table-column prop="source" label="起点" /><el-table-column
+        prop="condition"
+        label="分支条件" /><el-table-column prop="target" label="终点" /></el-table></el-dialog
   ><AnalysisReview
     v-if="review && analysis.data.value"
     :analysis="analysis.data.value"

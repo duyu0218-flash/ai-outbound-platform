@@ -17,6 +17,7 @@ const browser = await chromium.launch({
   errors = [],
   checks = [];
 page.on('pageerror', (error) => errors.push(error.message));
+
 page.on('response', (response) => {
   if (response.status() >= 400) console.log('HTTP', response.status(), response.url());
 });
@@ -139,6 +140,7 @@ try {
   await check('campaign form remote contacts save and start', async () => {
     await go('/admin/campaigns', '外呼任务');
     await page.getByRole('button', { name: '创建任务', exact: true }).click();
+    await page.getByRole('switch', { name: '使用快捷创建', exact: true }).locator('..').click();
     await page.getByLabel('任务名称', { exact: true }).fill('Vue浏览器活动');
     await select('已发布话术').click();
     await page.getByRole('option', { name: 'Vue浏览器话术 · v1', exact: true }).click();
@@ -232,7 +234,7 @@ try {
     await page.getByRole('button', { name: '新增用户', exact: true }).click();
     await page.getByLabel('用户名', { exact: true }).fill('browser-created-agent');
     await page.getByLabel('姓名', { exact: true }).fill('Vue新坐席');
-    await page.getByLabel('密码', { exact: true }).fill('SyntheticCreatedPass123!');
+    await page.getByLabel('密码', { exact: true }).fill('CreatedPass123!');
     await save();
     await expect(row('browser-created-agent')).toBeVisible();
   });

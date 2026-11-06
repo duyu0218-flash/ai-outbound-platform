@@ -291,6 +291,7 @@ public final class VoiceAiBackends {
 
     final class Synthesis implements TextSession {
         final String vendor, task = uuid(), voice;
+        final Map<String, Object> synthesisSpec;
         final VendorSocket socket;
         final CompletableFuture<Void> ready = new CompletableFuture<>(),
                 connected = new CompletableFuture<>(),
@@ -299,6 +300,7 @@ public final class VoiceAiBackends {
 
         Synthesis(Map<String, Object> spec, Audio output, ResponseScope scope) throws Exception {
             vendor = str(spec, "vendor");
+            synthesisSpec = spec;
             voice = str(spec, "voice");
             var headers = new LinkedHashMap<String, String>();
             URI target = profiles.endpoint(str(spec, "tts_url"), false);
@@ -306,7 +308,7 @@ public final class VoiceAiBackends {
                 headers.put("Authorization", "Bearer " + secret("DASHSCOPE_API_KEY"));
             else if (vendor.equals("volcengine"))
                 headers.putAll(volcHeaders(spec, "tts", str(spec, "tts_resource")));
-            else target = tencent(target, tencentTtsParams(task, voice));
+            else target = tencent(target, tencentTtsParams(task, voice, spec));
             socket =
                     new VendorSocket(
                             http,
@@ -367,15 +369,8 @@ public final class VoiceAiBackends {
                                             "model",
                                             str(spec, "tts_model"),
                                             "parameters",
-                                            Map.of(
-                                                    "text_type",
-                                                    "PlainText",
-                                                    "voice",
-                                                    voice,
-                                                    "format",
-                                                    "pcm",
-                                                    "sample_rate",
-                                                    24000),
+                                            com.duozhi.outbound.ai.service.FlowSpeech.aliyunTts(
+                                                    spec),
                                             "input",
                                             Map.of())));
                 else if (vendor.equals("volcengine")) {
@@ -398,11 +393,8 @@ public final class VoiceAiBackends {
                                                             "speaker",
                                                             voice,
                                                             "audio_params",
-                                                            Map.of(
-                                                                    "format",
-                                                                    "pcm",
-                                                                    "sample_rate",
-                                                                    24000)))),
+                                                            com.duozhi.outbound.ai.service
+                                                                    .FlowSpeech.volcAudio(spec)))),
                                     false));
                 }
                 await(ready, socket, 8);
@@ -436,11 +428,8 @@ public final class VoiceAiBackends {
                                                         "speaker",
                                                         voice,
                                                         "audio_params",
-                                                        Map.of(
-                                                                "format",
-                                                                "pcm",
-                                                                "sample_rate",
-                                                                24000)))),
+                                                        com.duozhi.outbound.ai.service.FlowSpeech
+                                                                .volcAudio(synthesisSpec)))),
                                 false));
             else
                 socket.json(
@@ -512,7 +501,8 @@ public final class VoiceAiBackends {
         return h;
     }
 
-    private Map<String, String> tencentTtsParams(String task, String voice) {
+    private Map<String, String> tencentTtsParams(
+            String task, String voice, Map<String, Object> spec) {
         var p = new TreeMap<String, String>();
         p.put("Action", "TextToStreamAudioWSv2");
         p.put("AppId", secret("VOICE_AI_TENCENT_APP_ID"));
@@ -524,6 +514,10 @@ public final class VoiceAiBackends {
         p.put("Codec", "pcm");
         p.put("SampleRate", "16000");
         p.put("EnableSubtitle", "True");
+        if (spec.get("tts_options") instanceof Map<?, ?> options) {
+            p.put("Speed", "" + ((((Number) options.get("speed")).doubleValue() - 50) / 25));
+            p.put("Volume", "" + (((Number) options.get("volume")).doubleValue() / 10));
+        }
         return p;
     }
 

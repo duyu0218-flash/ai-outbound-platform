@@ -56,7 +56,15 @@ const scripts = useData(() =>
   showRate = ref(true);
 const error = ref(''),
   density = ref('default'),
-  hidden = ref([]);
+  hidden = ref([]),
+  detail = ref(null),
+  detailRows = ref([]);
+async function interceptionDetail(row) {
+  detail.value = row;
+  detailRows.value = await ops(
+    '/benchmark/reports/intercept/details?' + query({ ...params(), reason: row.reason }),
+  );
+}
 const columns = computed(() => {
   if (kind.value === 'call')
     return [
@@ -85,7 +93,8 @@ const columns = computed(() => {
       outbound: '外呼数',
       blocked: '过滤拦截数',
       intercept_rate: '过滤拦截率（%）',
-      reason: '拦截原因',
+      phase: '过滤类型',
+      reason: '规则名称',
     },
     followUp: {
       agent: '坐席',
@@ -181,6 +190,16 @@ async function exportRows() {
           ></el-popover
         >
       </div>
+      <p v-if="kind === 'intercept'">
+        呼前拦截数
+        {{
+          rows.filter((r) => r.phase === 'before').reduce((sum, r) => sum + Number(r.blocked), 0)
+        }}
+        · 呼中拦截数
+        {{
+          rows.filter((r) => r.phase === 'during').reduce((sum, r) => sum + Number(r.blocked), 0)
+        }}
+      </p>
       <el-table :data="rows" :size="density" border
         ><el-table-column
           v-for="c in columns.filter((c) => !hidden.includes(c.key))"
@@ -189,25 +208,44 @@ async function exportRows() {
           :label="c.label"
           min-width="140"
           sortable
-          ><template #default="{ row }">{{ row[c.key] ?? '—' }}</template></el-table-column
+          ><template #default="{ row }">{{
+            c.key === 'phase'
+              ? row.phase === 'during'
+                ? '呼中过滤'
+                : '呼前过滤'
+              : (row[c.key] ?? '—')
+          }}</template></el-table-column
         ><el-table-column label="操作" width="120"
           ><template #default="{ row }"
             ><el-button
               link
               @click="
-                $router.push({
-                  path: kind === 'followUp' ? '/admin/operations/leads' : '/admin/tasks/record',
-                  query:
-                    kind === 'followUp'
-                      ? { owner_id: row.id }
-                      : { from: params().from, until: params().until },
-                })
+                kind === 'intercept'
+                  ? interceptionDetail(row)
+                  : $router.push({
+                      path: kind === 'followUp' ? '/admin/operations/leads' : '/admin/tasks/record',
+                      query:
+                        kind === 'followUp'
+                          ? { owner_id: row.id }
+                          : { from: params().from, until: params().until },
+                    })
               "
               >详情</el-button
             ></template
           ></el-table-column
         ></el-table
-      >
-    </el-card></template
+      > </el-card
+    ><el-dialog :model-value="!!detail" title="拦截统计详情" @close="detail = null"
+      ><el-table :data="detailRows"
+        ><el-table-column prop="created_at" label="日期" /><el-table-column label="过滤类型"
+          ><template #default="{ row }">{{
+            row.phase === 'during' ? '呼中过滤' : '呼前过滤'
+          }}</template></el-table-column
+        ><el-table-column prop="reason" label="规则名称" /><el-table-column
+          prop="phone"
+          label="被拦截号码"
+      /></el-table>
+      <p>最多显示1000条，请使用日期筛选缩小范围。</p></el-dialog
+    ></template
   >
 </template>

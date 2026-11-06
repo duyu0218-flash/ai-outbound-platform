@@ -158,6 +158,7 @@ export async function workspaceChecks({ page, origin, check, go }) {
         .click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await page.getByLabel('任务名称').fill('批次复用验收');
+      await page.getByRole('switch', { name: '使用快捷创建', exact: true }).locator('..').click();
       await page
         .getByRole('combobox', { name: '已发布话术', exact: true })
         .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')

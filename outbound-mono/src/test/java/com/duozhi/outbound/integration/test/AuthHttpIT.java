@@ -43,7 +43,7 @@ import org.testcontainers.mysql.MySQLContainer;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AuthHttpIT {
     static final String SECRET = "auth-http-original-jwt-secret-at-least-thirty-two-characters";
-    static final String PASSWORD = "pass-for-original-auth";
+    static final String PASSWORD = "AuthTestPass123!";
     @Container
     static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4");
 
@@ -502,11 +502,11 @@ class AuthHttpIT {
                         HttpMethod.POST,
                         "/api/v1/admin/users/" + id + "/reset-password",
                         bearer(adminToken),
-                        Map.of("password", "changed-password")),
+                        Map.of("password", "ChangedPass123!")),
                 200);
         status(get("/api/v1/auth/me", bearer(old)), 401);
         status(login(u, PASSWORD), 401);
-        status(login(u, "changed-password"), 200);
+        status(login(u, "ChangedPass123!"), 200);
         old = token(u);
         status(
                 request(

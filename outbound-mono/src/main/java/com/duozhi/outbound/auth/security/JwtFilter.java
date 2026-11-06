@@ -13,6 +13,15 @@ import org.apache.shiro.web.filter.AccessControlFilter;
 public final class JwtFilter extends AccessControlFilter {
     private final AuthIdentityMapper identities;
     private final ObjectMapper json;
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
+    public JwtFilter(
+            AuthIdentityMapper identities,
+            ObjectMapper json,
+            com.duozhi.outbound.auth.service.AccountSecurity security) {
+        this(identities, json);
+        accountSecurity = security;
+    }
 
     public JwtFilter(AuthIdentityMapper identities, ObjectMapper json) {
         this.identities = identities;
@@ -49,6 +58,7 @@ public final class JwtFilter extends AccessControlFilter {
             if (request.getRequestURI().startsWith("/api/v1/admin/") && identity.user() != null)
                 identity.admin("admin:users");
             request.setAttribute("identity", identity);
+            if (accountSecurity != null) accountSecurity.request(identity, request);
             if (token.expiresAt != null) request.setAttribute("token_expires_at", token.expiresAt);
             return true;
         } catch (ApiError error) {

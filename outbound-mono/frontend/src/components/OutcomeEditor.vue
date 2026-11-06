@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-const props = defineProps({ event: Boolean });
+const props = defineProps({ event: Boolean, variables: { type: Array, default: () => [] } });
 const rows = defineModel({ type: Array, default: () => [] });
 const index = ref(-1),
   editing = ref(null),
@@ -99,7 +99,12 @@ const absolute = (i) => (page.value - 1) * 10 + i;
       >
       <el-table-column label="动作"
         ><template #default="{ row }"
-          >{{ row.action === 'grade' ? '设置评级' : '添加标签' }} · {{ row.value }}</template
+          >{{
+            { grade: '设置评级', tag: '添加标签', increment: '累加变量', set: '设置变量' }[
+              row.action
+            ]
+          }}
+          · {{ row.value }}</template
         ></el-table-column
       >
       <el-table-column prop="label" label="标签" /><el-table-column v-if="event" label="只执行一次"
@@ -134,7 +139,11 @@ const absolute = (i) => (page.value - 1) * 10 + i;
               c.op = c.field === 'tags' ? 'any' : 'eq';
               c.value = c.field === 'tags' ? '' : '0';
             "
-            ><el-option v-for="(v, k) in fields" :key="k" :label="v" :value="k"
+            ><el-option v-for="(v, k) in fields" :key="k" :label="v" :value="k" /><el-option
+              v-for="v in variables.filter((v) => v.type === 'NUM')"
+              :key="v.name"
+              :label="'变量：' + v.name"
+              :value="'variable:' + v.name"
           /></el-select>
           <el-select v-model="c.op" :aria-label="'比较方式' + (i + 1)"
             ><el-option
@@ -161,7 +170,13 @@ const absolute = (i) => (page.value - 1) * 10 + i;
             ><el-select aria-label="规则动作" v-model="editing.action"
               ><el-option label="设置评级" value="grade" /><el-option
                 label="添加标签"
-                value="tag" /></el-select
+                value="tag" /><el-option
+                v-if="event"
+                label="累加变量（变量名=数值）"
+                value="increment" /><el-option
+                v-if="event"
+                label="设置变量（变量名=值）"
+                value="set" /></el-select
           ></el-form-item>
           <el-form-item label="动作值"
             ><el-input

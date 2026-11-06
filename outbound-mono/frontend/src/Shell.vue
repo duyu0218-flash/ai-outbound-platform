@@ -2,6 +2,8 @@
 import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SupportDesk from './components/SupportDesk.vue';
+import ProductHelp from './components/ProductHelp.vue';
+import NotificationPanel from './components/NotificationPanel.vue';
 import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
@@ -37,6 +39,7 @@ watch(() => route.path, unread.load);
 const opsProfile = ref(null),
   groupOpen = ref({}),
   helpOpen = ref(false),
+  helpMode = ref('single'),
   supportOpen = ref(false);
 onMounted(() =>
   request('/api/v1/ops/me')
@@ -202,18 +205,37 @@ async function leave() {
             ><el-option label="中文" value="zh-CN" /><el-option
               label="English"
               value="en-US" /></el-select
-          ><el-badge :value="unread.data.value?.count" :hidden="!unread.data.value?.count" :max="99"
-            ><el-button
-              link
-              aria-label="通知中心"
-              @click="router.push('/' + role + '/operations/notices')"
-              >🔔</el-button
-            ></el-badge
+          ><NotificationPanel :role="role" @read="unread.load"
+            ><el-badge
+              :value="unread.data.value?.count"
+              :hidden="!unread.data.value?.count"
+              :max="99"
+              ><el-button
+                link
+                aria-label="通知中心"
+                @click="router.push('/' + role + '/operations/notices')"
+                >🔔</el-button
+              ></el-badge
+            ></NotificationPanel
           >
           <el-button link @click="router.push('/' + role + '/operations/workspace')"
             >个人配置</el-button
           >
           <el-button link @click="supportOpen = true">客服</el-button
+          ><el-button
+            v-for="[mode, label] in [
+              ['single', '个性化单呼'],
+              ['group', '个性化群呼'],
+              ['robot', '纯机器人外呼'],
+            ]"
+            :key="mode"
+            link
+            @click="
+              helpMode = mode;
+              helpOpen = true;
+            "
+            >{{ label }}</el-button
+          ><el-button link @click="helpOpen = true">使用说明</el-button
           ><el-button link @click="helpOpen = true">帮助</el-button>
           <span>{{ session.user?.full_name || session.user?.username }}</span
           ><el-button @click="leave">{{ t('logout') }}</el-button>
@@ -265,9 +287,20 @@ async function leave() {
     <p v-else>
       在工作台设置接听状态，处理分配给您的通话和线索。通话证据、跟进与个人配置按账号权限显示。
     </p>
+    <ProductHelp :mode="helpMode" />
   </el-drawer>
 </template>
 <style scoped>
+.app-header {
+  height: auto;
+  min-height: 72px;
+  padding-block: 10px;
+}
+.app-header > .actions:last-child {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .workspace-pages {
   display: flex;
   align-items: center;
