@@ -11,11 +11,21 @@ const defaults = {
   response_ms: 8000,
   timeout_count: 1,
   block_machine: true,
+  handoff_hide_dialogue: false,
+  handoff_disable_agent_recognition: false,
+  handoff_disable_customer_recognition: false,
   frequency_hours: 0,
   frequency_count: 1,
   min_seconds: 0,
   record_at: 'answer',
   record_delay: 0,
+  input_gain: 0,
+  output_gain: 0,
+  noise_gate: false,
+  filter_fillers: false,
+  fillers: '嗯,呃,啊',
+  timeout_prompt: '您好，您还在听吗？',
+  intent_threshold: 0,
 };
 const fields = [
   ['ring_seconds', '呼叫超时时长（秒）', 1, 300],
@@ -26,6 +36,9 @@ const fields = [
   ['frequency_count', '呼频限制次数', 1, 1000],
   ['min_seconds', '最小通话时长（秒）', 0, 3600],
   ['record_delay', '延迟录音时长（秒）', 0, 3600],
+  ['input_gain', '入声音量（dB）', -12, 12],
+  ['output_gain', '出声音量（dB）', -12, 12],
+  ['intent_threshold', '系统意图阈值（%）', 0, 100],
 ];
 </script>
 <template>
@@ -45,6 +58,17 @@ const fields = [
         ><el-form-item label="拦截语音助手"
           ><el-switch aria-label="拦截语音助手" v-model="policy.flow_settings.block_machine"
         /></el-form-item>
+        <el-divider>转接隐私配置</el-divider
+        ><el-form-item
+          v-for="[key, label] in [
+            ['handoff_hide_dialogue', '隐藏对话内容'],
+            ['handoff_disable_agent_recognition', '关闭坐席识别'],
+            ['handoff_disable_customer_recognition', '关闭用户识别'],
+          ]"
+          :key="key"
+          :label="label"
+          ><el-switch v-model="policy.flow_settings[key]" :aria-label="label"
+        /></el-form-item>
         <el-form-item v-for="[key, label, min, max] in fields" :key="key" :label="label"
           ><el-input-number
             v-model="policy.flow_settings[key]"
@@ -52,6 +76,20 @@ const fields = [
             :min="min"
             :max="max"
             :precision="0"
+        /></el-form-item>
+        <el-form-item label="实时降噪（低幅噪声门）"
+          ><el-switch
+            v-model="policy.flow_settings.noise_gate"
+            aria-label="实时降噪" /></el-form-item
+        ><el-form-item label="语气词过滤"
+          ><el-switch
+            v-model="policy.flow_settings.filter_fillers"
+            aria-label="语气词过滤" /><el-input
+            v-model="policy.flow_settings.fillers"
+            aria-label="添加语气词"
+            placeholder="逗号分隔" /></el-form-item
+        ><el-form-item label="超时播放语音"
+          ><el-input v-model="policy.flow_settings.timeout_prompt" aria-label="超时播放语音"
         /></el-form-item>
         <label
           >录音时机<select aria-label="录音时机" v-model="policy.flow_settings.record_at">
@@ -69,8 +107,8 @@ const fields = [
     <el-button v-if="session.user?.role === 'admin'" @click="emit('section', 'sms')"
       >短信配置</el-button
     ><el-button @click="emit('section', 'knowledge')">转接配置</el-button
-    ><el-button @click="emit('section', 'slots')">自定义变量</el-button
-    ><el-button @click="emit('section', 'hangup')">自定义评级</el-button
+    ><el-button @click="emit('section', 'variables')">自定义变量</el-button
+    ><el-button @click="emit('section', 'grades')">自定义评级</el-button
     ><el-button
       v-for="n in ['语音合成', '语音识别', '接口配置', '多开场白设置']"
       :key="n"

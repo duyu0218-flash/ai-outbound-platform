@@ -128,6 +128,49 @@ public class Outbox {
     public void callback(
             Map<String, Object> call, String event, Map<String, Object> data, String key) {
         long tenant = ((Number) call.get("tenant_id")).longValue();
+        if (workspace != null
+                && Values.set("completed", "failed", "no_answer", "busy", "voicemail")
+                        .contains(call.get("status"))) {
+            var push = workspace.find(tenant, "push_calls", "tenant");
+            if (push != null) {
+                var c =
+                        com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                push.get("draft"));
+                boolean answered =
+                        "all".equals(c.get("call_type"))
+                                || workspace.jdbc.queryForObject(
+                                                "SELECT COUNT(*) FROM callusage WHERE tenant_id=? AND call_session_id=? AND answered_at IS NOT NULL",
+                                                Long.class,
+                                                tenant,
+                                                call.get("id"))
+                                        > 0;
+                if (Boolean.TRUE.equals(c.get("enabled")) && answered)
+                    enqueue(
+                            tenant,
+                            "business_callback",
+                            call.get("id"),
+                            "push-calls:" + key,
+                            JsonSupport.map(
+                                    "push_type",
+                                    "calls",
+                                    "data",
+                                    JsonSupport.map(
+                                            "event",
+                                            event,
+                                            "tenant_id",
+                                            tenant,
+                                            "call_id",
+                                            call.get("id"),
+                                            "campaign_id",
+                                            call.get("campaign_id"),
+                                            "phone",
+                                            call.get("phone"),
+                                            "status",
+                                            call.get("status"),
+                                            "data",
+                                            data)));
+            }
+        }
         Map<String, Object> config = settings.get(tenant, "integration");
         if (!Boolean.TRUE.equals(config.get("callback_enabled"))
                 || Objects.toString(config.get("webhook_base_url"), "").trim().isEmpty()) return;

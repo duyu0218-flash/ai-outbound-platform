@@ -76,6 +76,18 @@ public class PinnedWebhookTransport implements WebhookTransport {
 
     @Override
     public Reply post(URI uri, Map<String, String> headers, byte[] body) throws Exception {
+        var result = exchange(uri, headers, body, false);
+        return new Reply(result.status(), result.challenge());
+    }
+
+    public record Exchange(int status, String challenge, byte[] body) {}
+
+    public Exchange request(URI uri, Map<String, String> headers, byte[] body) throws Exception {
+        return exchange(uri, headers, body, true);
+    }
+
+    private Exchange exchange(URI uri, Map<String, String> headers, byte[] body, boolean consume)
+            throws Exception {
         validate(uri);
         InetAddress[] addresses = resolve(uri.getHost());
         if (addresses.length == 0 || Arrays.stream(addresses).anyMatch(a -> !publicAddress(a)))
@@ -133,21 +145,67 @@ public class PinnedWebhookTransport implements WebhookTransport {
                     if (!status.matches("HTTP/1\\.[01] [0-9]{3}.*"))
                         throw new IOException("invalid webhook response");
                     String challenge = "";
+                    var responseHeaders = new LinkedHashMap<String, String>();
                     int total = status.length();
                     for (String line; (line = line(in)).length() > 0; ) {
                         total += line.length();
                         if (total > 16384) throw new IOException("webhook headers too large");
                         int colon = line.indexOf(':');
+                        if (colon > 0)
+                            responseHeaders.put(
+                                    line.substring(0, colon).toLowerCase(Locale.ROOT),
+                                    line.substring(colon + 1).strip());
                         if (colon > 0
                                 && line.substring(0, colon).equalsIgnoreCase("X-Webhook-Challenge"))
                             challenge = line.substring(colon + 1).strip();
                     }
-                    return new Reply(Integer.parseInt(status.substring(9, 12)), challenge);
+                    return new Exchange(
+                            Integer.parseInt(status.substring(9, 12)),
+                            challenge,
+                            consume ? readBody(in, responseHeaders) : new byte[0]);
                 }
             } finally {
                 deadline.cancel(false);
             }
         }
+    }
+
+    private byte[] readBody(InputStream in, Map<String, String> headers) throws IOException {
+        var result = new ByteArrayOutputStream();
+        if ("chunked".equalsIgnoreCase(headers.get("transfer-encoding"))) {
+            for (int count = 0; count < 4096; count++) {
+                String size = line(in).split(";", 2)[0];
+                int length;
+                try {
+                    length = Integer.parseInt(size, 16);
+                } catch (NumberFormatException invalid) {
+                    throw new IOException("invalid response chunk");
+                }
+                if (length < 0 || result.size() + length > 65536)
+                    throw new IOException("response body too large");
+                if (length == 0) return result.toByteArray();
+                byte[] chunk = in.readNBytes(length);
+                if (chunk.length != length) throw new EOFException();
+                result.write(chunk);
+                if (!line(in).isEmpty()) throw new IOException("invalid chunk ending");
+            }
+            throw new IOException("too many response chunks");
+        }
+        if (headers.containsKey("content-length")) {
+            int length;
+            try {
+                length = Integer.parseInt(headers.get("content-length"));
+            } catch (NumberFormatException invalid) {
+                throw new IOException("invalid content length");
+            }
+            if (length < 0 || length > 65536) throw new IOException("response body too large");
+            byte[] bytes = in.readNBytes(length);
+            if (bytes.length != length) throw new EOFException();
+            return bytes;
+        }
+        byte[] bytes = in.readNBytes(65537);
+        if (bytes.length > 65536) throw new IOException("response body too large");
+        return bytes;
     }
 
     private String line(InputStream in) throws IOException {

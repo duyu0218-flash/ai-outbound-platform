@@ -24,6 +24,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class ContactImportJobs {
     @org.springframework.beans.factory.annotation.Autowired
+    private ImportReceipts receipts;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private ScheduledWork scheduledWork;
 
     private static final int CHUNK = 100;
@@ -115,6 +118,8 @@ public class ContactImportJobs {
                     Store.now(),
                     tenant,
                     id);
+            receipts.completed(
+                    tenant, docs.json.object(row.get("actor_json").toString()).get("id"), result);
         } catch (Exception e) {
             if (closing || Thread.currentThread().isInterrupted())
                 return; // retain payload and processing state for restart
@@ -305,7 +310,15 @@ public class ContactImportJobs {
                             tenant,
                             batch,
                             key,
-                            job.get("filename"),
+                            Objects.toString(
+                                                    WorkspaceDocuments.map(
+                                                                    result.get("variable_schema"))
+                                                            .get("batch_name"),
+                                                    "")
+                                            .isBlank()
+                                    ? job.get("filename")
+                                    : WorkspaceDocuments.map(result.get("variable_schema"))
+                                            .get("batch_name"),
                             job.get("file_sha"),
                             "{}",
                             actor.userId(),
@@ -323,6 +336,10 @@ public class ContactImportJobs {
                                     Long.class,
                                     tenant,
                                     batch));
+                    result.put(
+                            "expires_at",
+                            WorkspaceDocuments.map(result.get("variable_schema"))
+                                    .getOrDefault("expires_at", ""));
                     var errorRows = new ArrayList<Map<String, Object>>();
                     for (int n = 0; n < errors.size(); n++)
                         errorRows.add(JsonSupport.map("seq", n + 1, "message", errors.get(n)));

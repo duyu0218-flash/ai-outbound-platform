@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ops, perform } from '../operations';
+import SeatBehavior from '../components/SeatBehavior.vue';
 const conf = ref(null),
   error = ref('');
 async function load() {
@@ -46,5 +47,5 @@ onMounted(load);
         >保存个人配置</el-button
       ></el-form
     ></el-card
-  >
+  ><SeatBehavior />
 </template>

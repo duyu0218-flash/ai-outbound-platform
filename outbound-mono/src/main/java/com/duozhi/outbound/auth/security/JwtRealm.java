@@ -19,6 +19,17 @@ public final class JwtRealm extends AuthorizingRealm {
     private final Crypto crypto;
     private final Config config;
     private final ObjectMapper json;
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
+    public JwtRealm(
+            AuthIdentityMapper identities,
+            Crypto crypto,
+            Config config,
+            ObjectMapper json,
+            com.duozhi.outbound.auth.service.AccountSecurity security) {
+        this(identities, crypto, config, json);
+        this.accountSecurity = security;
+    }
 
     public JwtRealm(
             AuthIdentityMapper identities, Crypto crypto, Config config, ObjectMapper json) {
@@ -44,6 +55,12 @@ public final class JwtRealm extends AuthorizingRealm {
     }
 
     private Identity authenticate(JwtCredentials token) {
+        String personal =
+                token.authorization != null && token.authorization.startsWith("Bearer usr_")
+                        ? token.authorization.substring(7)
+                        : token.apiKey;
+        if (personal != null && personal.startsWith("usr_") && accountSecurity != null)
+            return accountSecurity.authenticateKey(personal);
         if (token.authorization != null) {
             if (!token.authorization.startsWith("Bearer "))
                 throw new ApiError(401, "Invalid token");

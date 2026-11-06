@@ -128,16 +128,56 @@ public class ProductOperations {
                     || ((Integer) e.getValue()) > 604800)
                 throw new ApiError(400, "invalid retry policy");
         Map<String, Object> result = contract.output("ScenarioPolicy", policy);
+        result.put(
+                "custom_variables",
+                com.duozhi.outbound.ai.service.FlowVariables.normalize(
+                        raw.getOrDefault("custom_variables", List.of())));
+        result.put(
+                "grade_definitions",
+                com.duozhi.outbound.ai.service.OutcomeRules.definitions(
+                        raw.getOrDefault("grade_definitions", List.of())));
+        result.put(
+                "http_interfaces",
+                com.duozhi.outbound.ai.service.BusinessInterfaces.normalize(
+                        raw.getOrDefault("http_interfaces", List.of())));
+        if (raw.containsKey("flow_speech"))
+            result.put(
+                    "flow_speech",
+                    com.duozhi.outbound.ai.service.FlowSpeech.normalize(raw.get("flow_speech")));
+        var variableNames = com.duozhi.outbound.ai.service.FlowVariables.initial(result).keySet();
+        for (var item : (List<?>) result.get("http_interfaces")) {
+            var api = com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(item);
+            if (!variableNames.containsAll(
+                    com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                    api.get("response_variables"))
+                            .keySet())) throw new ApiError(422, "接口响应须映射到已定义的自定义变量");
+        }
         result.putAll(HumanRouting.options(raw));
         if (raw.containsKey("bindings"))
             result.put(
                     "bindings",
                     com.duozhi.outbound.ai.service.ScriptBindings.normalize(raw.get("bindings")));
-        if (raw.containsKey("flow_settings"))
+        if (raw.containsKey("flow_settings")) {
+            var general =
+                    com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                            raw.get("flow_settings"));
+            general.putIfAbsent(
+                    "intent_threshold",
+                    (int)
+                            Math.round(
+                                    ((Number) result.get("confidence_threshold")).doubleValue()
+                                            * 100));
+            general.putIfAbsent("timeout_prompt", result.get("silence_prompt"));
             result.put(
                     "flow_settings",
-                    com.duozhi.outbound.ai.service.FlowSettings.normalize(
-                            raw.get("flow_settings")));
+                    com.duozhi.outbound.ai.service.FlowSettings.normalize(general));
+        }
+        if (raw.get("flow_settings") instanceof Map<?, ?> general) {
+            if (general.get("intent_threshold") instanceof Number n)
+                result.put("confidence_threshold", n.doubleValue() / 100);
+            if (general.get("timeout_prompt") instanceof String s && !s.isBlank())
+                result.put("silence_prompt", s);
+        }
         result.put(
                 "intent_rules",
                 com.duozhi.outbound.ai.service.ScriptIntents.normalize(
@@ -147,6 +187,7 @@ public class ProductOperations {
                     key,
                     com.duozhi.outbound.ai.service.OutcomeRules.normalize(
                             raw.getOrDefault(key, List.of())));
+        com.duozhi.outbound.ai.service.OutcomeRules.validateVariables(result);
         return result;
     }
 

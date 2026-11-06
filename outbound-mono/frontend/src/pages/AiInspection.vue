@@ -1,9 +1,12 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import { useData } from '../data';
+import { session } from '../session';
 import { query, ops, perform } from '../operations';
 import OperationsCalls from './OperationsCalls.vue';
 import CallDetails from '../components/CallDetails.vue';
+const ratingTipKey = 'rating-inspection-tip-' + session.user?.id,
+  ratingTip = ref(localStorage.getItem(ratingTipKey) !== 'dismissed');
 const tab = ref('unmatched'),
   filters = reactive({
     phone: '',
@@ -44,7 +47,24 @@ async function adopt(row) {
       label="评级巡检"
       name="ratings"
   /></el-tabs>
-  <OperationsCalls v-if="tab === 'ratings'" />
+  <template v-if="tab === 'ratings'"
+    ><el-alert
+      v-if="ratingTip"
+      title="评级巡检使用已记录的规则评级与人工复核。大模型能力需先绑定可用的模型账号。"
+      type="info"
+      ><el-checkbox
+        @change="
+          (value) => {
+            if (value) {
+              localStorage.setItem(ratingTipKey, 'dismissed');
+              ratingTip = false;
+            }
+          }
+        "
+        >不再提示</el-checkbox
+      ><el-button link @click="$router.push('/admin/voice-ai')">配置模型账号</el-button></el-alert
+    ><OperationsCalls
+  /></template>
   <template v-else
     ><el-alert
       v-if="error || data.error.value"

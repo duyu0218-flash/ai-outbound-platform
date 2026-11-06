@@ -1,14 +1,68 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { request } from '../session';
 import { useData } from '../data';
 import { ops, perform } from '../operations';
 import { ElMessageBox } from 'element-plus';
 const groups = useData('/api/v1/ops/lines/groups');
+const groupPolicies = useData('/api/v1/ops/benchmark/line-groups'),
+  groupOpen = ref(false),
+  groupModel = ref({}),
+  groupId = ref(''),
+  groupRevision = ref(0),
+  routeFilter = reactive({
+    phone: '',
+    result_code: '',
+    connected: '',
+    ringing: '',
+    line_group: '',
+    from: '',
+    until: '',
+  }),
+  routeApplied = ref({});
+function editGroup(row) {
+  const doc = groupPolicies.data.value?.find((d) => d.name === row?.name);
+  groupId.value = doc?.object_id || crypto.randomUUID();
+  groupRevision.value = doc?.revision || 0;
+  groupModel.value = {
+    name: row?.name || '',
+    line_ids: row?.ids ? row.ids.split('、').map(Number) : [],
+  };
+  groupOpen.value = true;
+}
+async function saveGroup() {
+  const v = await perform(
+    () =>
+      ops('/benchmark/line-groups/' + groupId.value, 'PUT', {
+        revision: groupRevision.value,
+        config: groupModel.value,
+      }),
+    async () => {
+      await groups.load();
+      await groupPolicies.load();
+    },
+  );
+  if (v) groupOpen.value = false;
+}
+function queryRoutes() {
+  routeApplied.value = Object.fromEntries(
+    Object.entries(routeFilter)
+      .filter(([, v]) => v)
+      .map(([key, value]) => [
+        key,
+        ['from', 'until'].includes(key)
+          ? value + (key === 'from' ? 'T00:00:00+08:00' : 'T23:59:59.999+08:00')
+          : value,
+      ]),
+  );
+  routes.load();
+}
 const lineView = ref('list'),
   profiles = useData('/api/v1/ops/benchmark/line-profiles'),
   routes = useData(() =>
-    lineView.value === 'routes' ? '/api/v1/ops/benchmark/reports/routes' : '',
+    lineView.value === 'routes'
+      ? '/api/v1/ops/benchmark/reports/routes?' + new URLSearchParams(routeApplied.value)
+      : '',
   ),
   profileOpen = ref(null),
   profileModel = ref({}),
@@ -21,6 +75,7 @@ const groupRows = computed(() => {
     a.push(r.line_id);
     m.set(r.group_name, a);
   }
+  for (const d of groupPolicies.data.value || []) if (!m.has(d.name)) m.set(d.name, []);
   return [...m.entries()].map(([name, ids]) => ({ name, ids: ids.join('、') }));
 });
 function lineProfile(row) {
@@ -260,11 +315,53 @@ async function save() {
       v-if="!query.loading.value && !query.data.value?.length"
       description="添加已采购的语音网关线路，填写主叫和开通容量" /></el-card
   ><el-card v-if="lineView === 'groups'"
+    ><el-button type="primary" @click="editGroup()">创建线路组</el-button
     ><el-table :data="groupRows"
       ><el-table-column prop="name" label="线路组" /><el-table-column
         prop="ids"
-        label="线路ID" /></el-table></el-card
+        label="线路ID"
+      /><el-table-column label="路由策略"
+        ><template #default>优先级与加权空闲容量</template></el-table-column
+      ><el-table-column label="操作"
+        ><template #default="{ row }"
+          ><el-button link @click="editGroup(row)">编辑线路组</el-button></template
+        ></el-table-column
+      ></el-table
+    ></el-card
   ><el-card v-if="lineView === 'routes'"
+    ><el-form class="form-grid" label-position="top"
+      ><el-form-item
+        v-for="[key, label] in [
+          ['from', '开始日期'],
+          ['until', '结束日期'],
+          ['phone', '号码'],
+          ['result_code', '信令结果码'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-input
+          v-model="routeFilter[key]"
+          :type="['from', 'until'].includes(key) ? 'date' : 'text'"
+          :aria-label="'多路由' + label" /></el-form-item
+      ><el-form-item
+        v-for="[key, label] in [
+          ['connected', '接通状态'],
+          ['ringing', '振铃状态'],
+        ]"
+        :key="key"
+        :label="label"
+        ><el-select v-model="routeFilter[key]" clearable :aria-label="'多路由' + label"
+          ><el-option value="true" label="是" /><el-option
+            value="false"
+            label="否" /></el-select></el-form-item
+      ><el-form-item label="线路组"
+        ><el-select v-model="routeFilter.line_group" clearable aria-label="多路由线路组"
+          ><el-option
+            v-for="g in groupRows"
+            :key="g.name"
+            :value="g.name"
+            :label="g.name" /></el-select></el-form-item></el-form
+    ><el-button type="primary" @click="queryRoutes">查询路由话单</el-button
     ><el-alert v-if="routes.error.value" :title="routes.error.value" type="error" /><el-button
       @click="routes.load"
       >刷新话单</el-button
@@ -275,6 +372,13 @@ async function save() {
         [
           ['id', '通话ID'],
           ['phone', '电话'],
+          ['signaling_code', '信令结果码'],
+          ['ringing', '振铃状态'],
+          ['connected', '接通状态'],
+          ['task_name', '任务名称'],
+          ['line_group', '线路组'],
+          ['line_name', '线路名称'],
+          ['script_name', '话术名称'],
           ['line_id', '线路ID'],
           ['attempt', '拨打轮次'],
           ['route_state', '路由状态'],
@@ -282,6 +386,21 @@ async function save() {
           ['last_error', '失败原因'],
         ].map(([key, label]) => ({ key, label }))
       " /></el-card
+  ><el-dialog v-model="groupOpen" title="创建线路组"
+    ><el-form label-position="top"
+      ><el-form-item label="线路组名称"
+        ><el-input v-model="groupModel.name" aria-label="线路组名称" /></el-form-item
+      ><el-form-item label="线路"
+        ><el-select v-model="groupModel.line_ids" multiple aria-label="线路组线路"
+          ><el-option
+            v-for="line in query.data.value || []"
+            :key="line.id"
+            :value="line.id"
+            :label="line.name" /></el-select
+      ></el-form-item>
+      <p>按线路优先级和加权空闲容量选择可用线路。线路加入新组后将移出原组。</p>
+      <el-button type="primary" @click="saveGroup">保存线路组</el-button></el-form
+    ></el-dialog
   ><el-dialog :model-value="!!profileOpen" title="线路价格与物理信息" @close="profileOpen = null"
     ><el-form label-position="top"
       ><el-form-item

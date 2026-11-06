@@ -26,6 +26,18 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/ops")
 public class Operations {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.workspace.service.WorkspaceDocuments workspaceDocuments;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.FormReviews formReviews;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private SeatBehavior seatBehavior;
+
+    @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.operations.service.OutboundRules outboundRules;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -203,10 +215,27 @@ public class Operations {
         return p;
     }
 
-    private Object callOutput(Map<String, Object> row) {
+    private Object callOutput(Map<String, Object> row, Identity actor) {
         var r = new LinkedHashMap<>(row);
         for (String k : List.of("status", "mode"))
             if (r.get(k) != null) r.put(k, Ascii.lower(r.get(k).toString()));
+        if (r.get("campaign_id") != null && r.get("tenant_id") instanceof Number tenant) {
+            var snapshot =
+                    workspaceDocuments.campaignSnapshot(tenant.longValue(), r.get("campaign_id"));
+            if (snapshot != null
+                    && !"admin".equals(actor.requireUser().get("role"))
+                    && Boolean.TRUE.equals(
+                            com.duozhi.outbound.ai.service.FlowSettings.from(
+                                            com.duozhi.outbound.workspace.service.WorkspaceDocuments
+                                                    .map(snapshot.getOrDefault("policy", Map.of())))
+                                    .get("handoff_hide_dialogue")))
+                r = new LinkedHashMap<>((Map<String, Object>) OperationsPhoneMask.scrubDialogue(r));
+            if (snapshot != null
+                    && Boolean.TRUE.equals(
+                            com.duozhi.outbound.workspace.service.WorkspaceDocuments.map(
+                                            snapshot.getOrDefault("task_options", Map.of()))
+                                    .get("mask_numbers"))) return OperationsPhoneMask.mask(r);
+        }
         return r;
     }
 
@@ -374,7 +403,7 @@ public class Operations {
                 "total",
                 db.count("callCount", p),
                 "rows",
-                db.rows("calls", p).stream().map(this::callOutput).toList());
+                db.rows("calls", p).stream().map(row -> callOutput(row, i)).toList());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -382,6 +411,8 @@ public class Operations {
     public ResponseEntity<byte[]> export(@RequestParam
     Map<String, String> q, HttpServletRequest r)
             throws IOException {
+        accountSecurity.export(
+                actor(r), Objects.toString(r.getHeader("X-Export-Verification"), ""));
         return exportFor(q, actor(r));
     }
 
@@ -417,13 +448,17 @@ public class Operations {
                         "result_code",
                         "reviewed_by");
         csv.printRecord(keys);
+        boolean hideSuccessful =
+                !Boolean.TRUE.equals(
+                        seatBehavior.effective(i.tenant(), i.userId()).get("success_phone"));
         p.put("limit", 250);
         for (int offset = 0; offset < total; offset += 250) {
             p.put("offset", offset);
             for (var raw : db.rows("calls", p)) {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> row = (Map<String, Object>) callOutput(raw);
-                if (!access.flag(i, "can_unmask")) {
+                Map<String, Object> row = (Map<String, Object>) callOutput(raw, i);
+                if (!access.flag(i, "can_unmask")
+                        || hideSuccessful && "completed".equals(row.get("stage"))) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> masked =
                             (Map<String, Object>) OperationsPhoneMask.mask(row);
@@ -558,6 +593,8 @@ public class Operations {
     public ResponseEntity<byte[]> reportExport(
             @RequestParam
             Map<String, String> q, HttpServletRequest r) throws IOException {
+        accountSecurity.export(
+                actor(r), Objects.toString(r.getHeader("X-Export-Verification"), ""));
         return reportExportFor(q, actor(r));
     }
 
@@ -1020,6 +1057,10 @@ public class Operations {
             wecomStatus = choice(b.get("wecom_status"), Set.of("pending", "added", "declined"));
         }
         if (action.equals("follow")) {
+            if (Set.of("completed", "invalid").contains(Objects.toString(b.get("stage"), ""))
+                    && !Boolean.TRUE.equals(
+                            seatBehavior.effective(i.tenant(), i.userId()).get("success_invalid")))
+                throw new ApiError(403, "当前坐席配置不允许标记成功单或失效单");
             if (current.get("owner_id") == null) throw new ApiError(409, "请先领取或分配线索");
             current.put(
                     "stage",
@@ -1055,6 +1096,7 @@ public class Operations {
             current.put("fields_json", json.json(fields));
             current.put("form_id", config.get("id"));
             current.put("form_revision", config.get("revision"));
+            formReviews.assign(i, config.get("id"), id, fields, key);
         }
         if (action.equals("tags")) {
             List<?> tags = list(b.get("tags"));

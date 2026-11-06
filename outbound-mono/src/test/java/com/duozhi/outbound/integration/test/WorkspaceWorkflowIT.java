@@ -1440,4 +1440,292 @@ class WorkspaceWorkflowIT {
         assertThat(frozen).doesNotContainKey("_knowledge_fallback");
         assertThat(frozen.get("_script")).isEqualTo("旧版本话术");
     }
+
+    @Test
+    void splitCreationIsIdempotentAndPreservesImportedVariables() throws Exception {
+        var script = script(Map.of());
+        var a = contact("拆分一");
+        var b = contact("拆分二");
+        var c = contact("拆分三");
+        var batch =
+                imported(
+                        "手机号,变量:offer\n"
+                                + a.get("phone")
+                                + ",甲\n"
+                                + b.get("phone")
+                                + ",乙\n"
+                                + c.get("phone")
+                                + ",丙\n",
+                        contactVariables.schema(1, script.path("id").asText(), ""),
+                        false);
+        var payload =
+                JsonSupport.map(
+                        "name",
+                        "拆分验收",
+                        "mode",
+                        "ai_only",
+                        "script_template_id",
+                        script.path("id").asLong(),
+                        "batch_ids",
+                        List.of(batch.get("batch_id")),
+                        "contact_ids",
+                        List.of(),
+                        "split_size",
+                        2,
+                        "request_key",
+                        UUID.randomUUID().toString(),
+                        "task_options",
+                        Map.of("mask_numbers", true, "call_order", "random"));
+        var created = api(HttpMethod.POST, "/tasks", payload);
+        var repeated = api(HttpMethod.POST, "/tasks", payload);
+        assertThat(created.path("tasks")).hasSize(2);
+        assertThat(repeated.path("tasks").get(0).path("id"))
+                .isEqualTo(created.path("tasks").get(0).path("id"));
+        var offers = new ArrayList<String>();
+        for (var task : created.path("tasks")) {
+            var members =
+                    api(
+                            HttpMethod.GET,
+                            "/task-resources/tasks/" + task.path("id").asText() + "/members",
+                            null);
+            for (var member : members.path("rows"))
+                offers.add(member.path("variables").path("offer").asText());
+            assertThat(task.path("snapshot").path("task_options").path("mask_numbers").asBoolean())
+                    .isTrue();
+        }
+        assertThat(offers).containsExactlyInAnyOrder("甲", "乙", "丙");
+        var different = new LinkedHashMap<>(payload);
+        different.put("name", "不同请求");
+        assertThat(raw(HttpMethod.POST, "/tasks", different).getStatusCode().value())
+                .isEqualTo(409);
+    }
+
+    @Test
+    void shareGroupsRouteOnceRoundRobinAndApplyChangesToExistingTask() {
+        var script = script(Map.of("opening", "您好"));
+        var one = account(1, "agent");
+        var two = account(1, "agent");
+        var shareBody =
+                JsonSupport.map(
+                        "revision",
+                        0,
+                        "usernames",
+                        List.of(one.getUsername(), two.getUsername()),
+                        "reference",
+                        "grade",
+                        "intention_groups",
+                        List.of(
+                                Map.of(
+                                        "name",
+                                        "所有意向",
+                                        "values",
+                                        List.of(),
+                                        "user_ids",
+                                        List.of(one.getId(), two.getId()))));
+        var share =
+                api(HttpMethod.PUT, "/scripts/" + script.path("id").asText() + "/share", shareBody);
+        var first = contact("分享一");
+        var second = contact("分享二");
+        var third = contact("分享三");
+        var task =
+                api(
+                        HttpMethod.POST,
+                        "/tasks",
+                        Map.of(
+                                "name",
+                                "分组分配验收",
+                                "mode",
+                                "ai_only",
+                                "script_template_id",
+                                script.path("id").asLong(),
+                                "contact_ids",
+                                List.of(first.get("id"), second.get("id"), third.get("id"))));
+        var routing = new com.duozhi.outbound.operations.service.SharedLeadAssignment(docs);
+        int index = 0;
+        for (var c : List.of(first, second)) {
+            var call =
+                    store.insert(
+                            "callsession",
+                            JsonSupport.map(
+                                    "tenant_id",
+                                    1,
+                                    "campaign_id",
+                                    task.path("id").asLong(),
+                                    "contact_id",
+                                    c.get("id"),
+                                    "phone",
+                                    c.get("phone"),
+                                    "mode",
+                                    "ai_only",
+                                    "status",
+                                    "completed",
+                                    "attempts",
+                                    1));
+            var event =
+                    JsonSupport.map(
+                            "call_id",
+                            call.get("id"),
+                            "attempt",
+                            1,
+                            "campaign_id",
+                            task.path("id").asLong(),
+                            "contact_id",
+                            c.get("id"),
+                            "grade",
+                            "A成功结束");
+            routing.execute(Map.of("tenant_id", 1), event);
+            routing.execute(Map.of("tenant_id", 1), event);
+            assertThat(
+                            docs.one(
+                                            "SELECT owner_id FROM ops_lead WHERE tenant_id=1 AND contact_id=?",
+                                            c.get("id"))
+                                    .get("owner_id"))
+                    .isEqualTo(index++ == 0 ? one.getId() : two.getId());
+        }
+        shareBody.put("revision", share.path("revision").asInt());
+        shareBody.put("apply_existing", true);
+        shareBody.put(
+                "intention_groups",
+                List.of(
+                        Map.of(
+                                "name",
+                                "调整分配",
+                                "values",
+                                List.of(),
+                                "user_ids",
+                                List.of(two.getId()))));
+        api(HttpMethod.PUT, "/scripts/" + script.path("id").asText() + "/share", shareBody);
+        assertThat(docs.find(1, "share_cursor", script.path("id").asText())).isNull();
+        var call =
+                store.insert(
+                        "callsession",
+                        JsonSupport.map(
+                                "tenant_id",
+                                1,
+                                "campaign_id",
+                                task.path("id").asLong(),
+                                "contact_id",
+                                third.get("id"),
+                                "phone",
+                                third.get("phone"),
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "completed",
+                                "attempts",
+                                1));
+        routing.execute(
+                Map.of("tenant_id", 1),
+                JsonSupport.map(
+                        "call_id",
+                        call.get("id"),
+                        "attempt",
+                        1,
+                        "campaign_id",
+                        task.path("id").asLong(),
+                        "contact_id",
+                        third.get("id"),
+                        "grade",
+                        "A成功结束"));
+        assertThat(
+                        docs.one(
+                                        "SELECT owner_id FROM ops_lead WHERE tenant_id=1 AND contact_id=?",
+                                        third.get("id"))
+                                .get("owner_id"))
+                .isEqualTo(two.getId());
+    }
+
+    @Test
+    void automaticNotificationListSharesBudgetAndIgnoresManualRows() {
+        var script = script(Map.of("opening", "您好"));
+        var customer = contact("短信客户");
+        var internal = contact("内部通知联系人");
+        var task =
+                api(
+                        HttpMethod.POST,
+                        "/tasks",
+                        Map.of(
+                                "name",
+                                "通知列表验收",
+                                "mode",
+                                "ai_only",
+                                "script_template_id",
+                                script.path("id").asLong(),
+                                "contact_ids",
+                                List.of(customer.get("id"))));
+        String product = asset("product", Map.of("form", "sms", "unit_price", 1000)),
+                template = asset("template", Map.of("form", "sms", "body", "已完成服务回访")),
+                sender = asset("sender", Map.of("brand", "服务企业"));
+        var automatic =
+                JsonSupport.map(
+                        "title",
+                        "自动提醒",
+                        "template_id",
+                        template,
+                        "contact_id",
+                        internal.get("id"),
+                        "owner_id",
+                        user.getId(),
+                        "auto_send",
+                        true,
+                        "variables",
+                        Map.of());
+        var manual = new LinkedHashMap<>(automatic);
+        manual.put("title", "手动提醒");
+        manual.put("auto_send", false);
+        var rule =
+                api(
+                        HttpMethod.POST,
+                        "/tasks/" + task.path("id").asText() + "/sms-rule",
+                        JsonSupport.map(
+                                "confirmed",
+                                true,
+                                "budget",
+                                2000,
+                                "condition",
+                                "completed",
+                                "product_id",
+                                product,
+                                "sender_id",
+                                sender,
+                                "template_id",
+                                template,
+                                "notifications",
+                                List.of(automatic, manual)));
+        messaging.credit(1, "notice-test-" + UUID.randomUUID(), 100000);
+        var call =
+                store.insert(
+                        "callsession",
+                        JsonSupport.map(
+                                "tenant_id",
+                                1,
+                                "campaign_id",
+                                task.path("id").asLong(),
+                                "contact_id",
+                                customer.get("id"),
+                                "phone",
+                                customer.get("phone"),
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "completed",
+                                "attempts",
+                                1));
+        messaging.deferCall(1, call.get("id").toString(), 1);
+        messaging.deferCall(1, call.get("id").toString(), 1);
+        for (int n = 0; n < 30 && messaging.processCallIntent(); n++) {}
+        var intents =
+                docs.jdbc.queryForList(
+                        "SELECT recipient_kind,state,message_id FROM msg_call_intent WHERE tenant_id=1 AND rule_id=? ORDER BY recipient_kind",
+                        rule.path("id").asText());
+        assertThat(intents).hasSize(2);
+        assertThat(intents)
+                .allSatisfy(
+                        row -> {
+                            assertThat(row.get("state")).isEqualTo("CREATED");
+                            assertThat(row.get("message_id")).isNotNull();
+                        });
+        assertThat(intents.stream().map(row -> row.get("recipient_kind")))
+                .containsExactlyInAnyOrder("customer", "notice:0");
+    }
 }

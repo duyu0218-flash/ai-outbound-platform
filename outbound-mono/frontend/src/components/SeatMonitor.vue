@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import SeatPacing from './SeatPacing.vue';
 import { useData } from '../data';
 import { ops, perform } from '../operations';
 import { ElMessageBox } from 'element-plus';
@@ -146,13 +147,14 @@ function ratio(n, d) {
         /><el-button
           :disabled="!info || info.inherited || Math.floor(info.limit * multiple) > 100000"
           @click="saveCap(Math.floor(info.limit * multiple))"
-          >倍速修改</el-button
+          >按个人倍数调整</el-button
         ><small v-if="info">{{
           info.inherited
             ? '继承租户并发上限'
             : '已设上限 ' + info.limit + '，倍速调整后 ' + Math.floor(info.limit * multiple)
         }}</small>
       </div>
+      <SeatPacing />
       <el-table v-if="layout === '表格'" :data="filtered" row-key="id"
         ><el-table-column prop="username" sortable label="坐席账号" /><el-table-column
           prop="state"

@@ -2,6 +2,8 @@
 import { ref, reactive } from 'vue';
 import { useData } from '../data';
 import { query, ops, perform } from '../operations';
+import ContactImport from '../components/ContactImport.vue';
+const importing = ref(false);
 const q = reactive({ phone: '', batch: '', page: 1 }),
   applied = ref({ ...q }),
   picked = ref([]),
@@ -25,7 +27,7 @@ function search() {
 <template>
   <PageHeader title="数据集" description="从号码池查看触达历史并勾选创建任务"
     ><el-button @click="exportData">导出数据</el-button
-    ><el-button @click="$router.push('/admin/contacts')">导入数据</el-button
+    ><el-button @click="importing = true">导入数据</el-button
     ><el-button
       type="primary"
       :disabled="purpose !== 'task' || !picked.length"
@@ -106,6 +108,12 @@ function search() {
       @current-change="
         q.page = $event;
         search();
-      "
-  /></el-card>
+      " /></el-card
+  ><ContactImport
+    v-model="importing"
+    @imported="
+      batches.load();
+      data.load();
+    "
+  />
 </template>

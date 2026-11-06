@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/workspace/audiences")
 @AdminPermission("contacts:write")
 public class AudienceWorkflow {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.auth.service.AccountSecurity accountSecurity;
+
     private final WorkspaceAudience audience;
     private final com.duozhi.outbound.marketing.dataset.Segments segments;
 
@@ -50,7 +53,10 @@ public class AudienceWorkflow {
             @RequestBody
             Map<String, Object> body, HttpServletRequest r)
             throws java.io.IOException {
-        var result = audience.resolve(tenant(r), body);
+        long tenantId = tenant(r);
+        accountSecurity.export(
+                Identity.from(r), Objects.toString(r.getHeader("X-Export-Verification"), ""));
+        var result = audience.resolve(tenantId, body);
         var output = new java.io.StringWriter();
         output.write('\ufeff');
         try (var csv = new CSVPrinter(output, CSVFormat.DEFAULT)) {

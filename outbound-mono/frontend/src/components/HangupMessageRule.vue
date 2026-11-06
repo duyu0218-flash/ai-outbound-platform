@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { request } from '../session';
 import { useData, action } from '../data';
-const props = defineProps({ taskId: [Number, String], draft: Object });
+import ScriptNotifications from './ScriptNotifications.vue';
+const props = defineProps({ taskId: [Number, String], scriptId: [Number, String], draft: Object });
 const emit = defineEmits(['defaults']);
 const products = useData('/api/v1/admin/messaging/resources/product'),
   templates = useData('/api/v1/admin/messaging/resources/template'),
@@ -13,6 +14,7 @@ const model = ref({
     sender_id: '',
     condition: 'completed',
     budget: 1000000,
+    notifications: [],
   }),
   error = ref(''),
   busy = ref(false);
@@ -39,6 +41,7 @@ async function load() {
       ? await request('/api/v1/workspace/tasks/' + props.taskId + '/sms-rule')
       : props.draft;
     if (v?.product_id) model.value = JSON.parse(JSON.stringify(v));
+    model.value.notifications ||= [];
   } catch (e) {
     error.value = e.message;
   }
@@ -124,6 +127,13 @@ onMounted(load);
           :value="r.id"
           :label="r.name" /></el-select
     ></template>
+    <ScriptNotifications
+      v-model="model.notifications"
+      :script-id="scriptId"
+      :templates="approved(templates.data)"
+      :products="approved(products.data)"
+      :senders="approved(senders.data)"
+    />
     <el-button type="primary" :loading="busy" @click="save">{{
       taskId ? '确认保存挂机短信规则' : '应用到话术草稿'
     }}</el-button>

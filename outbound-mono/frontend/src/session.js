@@ -29,11 +29,17 @@ export function clearSession() {
   session.user = null;
   sessionStorage.removeItem(KEY);
 }
-export async function login(username, password, role) {
-  const response = await apiRequest('/api/v1/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  });
+export async function login(username, password, role, code = '', apiKey = '') {
+  const response = apiKey
+    ? await apiRequest(
+        '/api/v1/auth/key-session',
+        { method: 'POST', body: JSON.stringify({ code }) },
+        apiKey,
+      )
+    : await apiRequest('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, code }),
+      });
   if (
     response.role !== role &&
     !(role === 'agent' && ['admin', 'operator'].includes(response.role))
@@ -71,11 +77,28 @@ export function request(path, method = 'GET', body, options = {}) {
   );
 }
 export async function download(path, name, options = {}) {
+  let verification = '';
+  if (/\/export(?:\?|$)/.test(path)) {
+    const security = await request('/api/v1/auth/security');
+    if (security.config.export_verification) {
+      const { ElMessageBox } = await import('element-plus');
+      try {
+        verification = (
+          await ElMessageBox.prompt('请输入验证器中的六位验证码', '导出验证', {
+            inputPattern: /^[0-9]{6}$/,
+          })
+        ).value;
+      } catch {
+        return;
+      }
+    }
+  }
   const response = await fetch(path, {
     method: options.method || 'GET',
     ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     headers: {
       Authorization: 'Bearer ' + session.token,
+      ...(verification ? { 'X-Export-Verification': verification } : {}),
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
   });

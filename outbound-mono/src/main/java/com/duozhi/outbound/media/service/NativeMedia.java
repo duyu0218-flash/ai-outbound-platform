@@ -341,7 +341,15 @@ public final class NativeMedia implements MediaManager {
         stream.lastPcmAt = now;
         inputFrames.increment();
         if (previous != 0) arrivalGap.accumulate((now - previous) / 1_000_000_000.0);
-        stream.audio(pcm);
+        var levels =
+                Support.map(
+                        Support.map(stream.session.metadata.get("scenario_policy"))
+                                .get("flow_settings"));
+        stream.audio(
+                PcmLevel.apply(
+                        pcm,
+                        (int) Support.integer(levels, "input_gain", 0),
+                        Boolean.TRUE.equals(levels.get("noise_gate"))));
     }
 
     public void disconnected(WebSocketSession socket) {
@@ -794,6 +802,13 @@ public final class NativeMedia implements MediaManager {
                                             settings.get("PIPECAT_TTS_VOICE", "alloy")),
                                     "input",
                                     text,
+                                    "speed",
+                                    .5
+                                            + Support.integer(
+                                                            Support.map(policy.get("flow_speech")),
+                                                            "speed",
+                                                            50)
+                                                    / 100.0,
                                     "response_format",
                                     "pcm"));
             var response =
@@ -1459,9 +1474,14 @@ public final class NativeMedia implements MediaManager {
         }
 
         Map<String, Object> header(String name) {
+            var speech =
+                    Support.map(
+                            Support.map(session.metadata.get("scenario_policy"))
+                                    .get("flow_speech"));
+            String app = Support.str(speech, "application_id", "");
             return Map.of(
                     "appkey",
-                    settings.get("ALIYUN_NLS_APPKEY", ""),
+                    app.isBlank() ? settings.get("ALIYUN_NLS_APPKEY", "") : app,
                     "message_id",
                     UUID.randomUUID().toString().replace("-", ""),
                     "task_id",
@@ -1795,7 +1815,22 @@ public final class NativeMedia implements MediaManager {
             send.lock();
             try {
                 if (!socket.isOpen()) throw new IOException("media socket closed");
-                socket.sendMessage(new BinaryMessage(value));
+                var levels =
+                        Support.map(
+                                Support.map(session.metadata.get("scenario_policy"))
+                                        .get("flow_settings"));
+                int gain = (int) Support.integer(levels, "output_gain", 0);
+                if (!session.metadata.containsKey("voice_ai_profile")) {
+                    long volume =
+                            Support.integer(
+                                    Support.map(
+                                            Support.map(session.metadata.get("scenario_policy"))
+                                                    .get("flow_speech")),
+                                    "volume",
+                                    50);
+                    gain += volume == 0 ? -120 : (int) Math.round(20 * Math.log10(volume / 50.0));
+                }
+                socket.sendMessage(new BinaryMessage(PcmLevel.apply(value, gain, false)));
             } finally {
                 send.unlock();
             }
@@ -1923,6 +1958,7 @@ public final class NativeMedia implements MediaManager {
 
     private Map<String, Object> aliyunPayload(Session session) {
         var policy = Support.map(session.metadata.get("scenario_policy"));
+        var speech = Support.map(policy.get("flow_speech"));
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("format", "pcm");
         payload.put("sample_rate", rate);
@@ -1950,6 +1986,10 @@ public final class NativeMedia implements MediaManager {
         String vocabulary =
                 Support.str(policy, "vocabulary_id", settings.get("ALIYUN_NLS_VOCABULARY_ID", ""));
         if (!vocabulary.isEmpty()) payload.put("vocabulary_id", vocabulary);
+        if (speech.get("silence_ms") instanceof Number n)
+            payload.put("max_sentence_silence", n.intValue());
+        payload.putAll(
+                Support.map(Support.map(speech.get("recognition_parameters")).get("aliyun")));
         String customization = settings.get("ALIYUN_NLS_CUSTOMIZATION_ID", "");
         if (!customization.isEmpty()) payload.put("customization_id", customization);
         return payload;

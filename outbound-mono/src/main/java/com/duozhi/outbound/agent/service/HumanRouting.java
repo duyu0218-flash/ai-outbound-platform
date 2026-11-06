@@ -34,6 +34,9 @@ public class HumanRouting {
     @org.springframework.beans.factory.annotation.Autowired
     private ScheduledWork scheduledWork;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.SeatPacing seatPacing;
+
     private final Store store;
     private final OperationsStore db;
     private final Transactions tx;
@@ -248,6 +251,7 @@ public class HumanRouting {
         var policy = conversation.policy(conversation.state(call));
         if (Boolean.FALSE.equals(policy.get("handoff_capacity_control"))) return true;
         long tenant = CallLifecycle.tenant(call);
+        if (seatPacing != null && !seatPacing.permits(tenant, policy)) return false;
         var people = candidates(tenant, policy).stream().filter(a -> usable(tenant, a)).toList();
         if (people.isEmpty()) return false;
         int ready = 0;

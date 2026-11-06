@@ -15,6 +15,9 @@ public class WecomWorkspace {
     private final WorkspaceDocuments docs;
     private final OperationsAccess access;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.operations.service.WecomAutomation automation;
+
     public WecomWorkspace(WorkspaceDocuments docs, OperationsAccess access) {
         this.docs = docs;
         this.access = access;
@@ -30,6 +33,65 @@ public class WecomWorkspace {
         if (!Objects.toString(i.userId()).equals("" + id)) access.admin(i);
         if (docs.one("SELECT id FROM sys_user WHERE tenant_id=? AND id=?", i.tenant(), id) == null)
             throw new ApiError(404, "账号不存在");
+    }
+
+    @GetMapping("/accounts")
+    public Object accounts(HttpServletRequest r) {
+        return automation.accounts(actor(r).tenant());
+    }
+
+    @PutMapping("/accounts/{id}")
+    public Object account(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return automation.account(i, id, b);
+    }
+
+    @DeleteMapping("/accounts/{id}")
+    public Object removeAccount(
+            @PathVariable
+            String id, @RequestParam
+            int revision, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return docs.tx.serialized(
+                () -> {
+                    var d = docs.require(i.tenant(), "wecom_account", id);
+                    if (WorkspaceDocuments.number(d.get("revision")) != revision)
+                        throw new ApiError(409, "配置已被修改");
+                    docs.jdbc.update(
+                            "DELETE FROM platform_document WHERE tenant_id=? AND kind='wecom_account' AND object_id=?",
+                            i.tenant(),
+                            id);
+                    return Map.of("deleted", true);
+                });
+    }
+
+    @GetMapping("/providers")
+    public Object providers(HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return automation.providers(i.tenant());
+    }
+
+    @PutMapping("/providers/{id}")
+    public Object provider(
+            @PathVariable
+            String id, @RequestBody
+            Map<String, Object> b, HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return automation.provider(i, id, b);
+    }
+
+    @GetMapping("/requests")
+    public Object requests(HttpServletRequest r) {
+        var i = actor(r);
+        access.admin(i);
+        return docs.list(i.tenant(), "wecom_request", null);
     }
 
     @GetMapping("/profiles/{id}")

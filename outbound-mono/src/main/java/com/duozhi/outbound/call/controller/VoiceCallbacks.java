@@ -130,6 +130,7 @@ public class VoiceCallbacks {
         speech.putIfAbsent("asr_provider", "telephony");
         Map<String, Object> result =
                 speech(call, contract.input("SpeechWebhookEvent", speech, true));
+        if ("ignored".equals(result.get("result"))) return result;
         outbox.callback(
                 call,
                 "call.transcript",
@@ -139,8 +140,37 @@ public class VoiceCallbacks {
         return JsonSupport.map("result", "ok");
     }
 
+    private void node(Map<String, Object> call, Map<String, Object> turn) {
+        if (call.get("flow_node_key") != null)
+            lifecycle.event(
+                    call,
+                    "speech_node",
+                    "flow",
+                    JsonSupport.map(
+                            "event_id",
+                            "speech-node:" + turn.get("id"),
+                            "attempt",
+                            call.get("attempts"),
+                            "turn_id",
+                            turn.get("id"),
+                            "node_id",
+                            call.get("flow_node_key")));
+    }
+
     private Map<String, Object> speech(Map<String, Object> call, Map<String, Object> body) {
         if (stale(call, body.get("attempt"))) return ignored("stale_attempt");
+        if (Set.of("in_human", "handoff_transferring").contains(call.get("status"))) {
+            var options =
+                    com.duozhi.outbound.ai.service.FlowSettings.from(
+                            product.policy(product.state(call)));
+            String role = Objects.toString(body.get("speaker_role"), "customer");
+            if (role.equals("agent")
+                            && Boolean.TRUE.equals(options.get("handoff_disable_agent_recognition"))
+                    || role.equals("customer")
+                            && Boolean.TRUE.equals(
+                                    options.get("handoff_disable_customer_recognition")))
+                return ignored("handoff_recognition_disabled");
+        }
         long tenant = CallLifecycle.tenant(call);
         Object id = call.get("id");
         if (Boolean.TRUE.equals(body.get("provider_final"))
@@ -189,6 +219,7 @@ public class VoiceCallbacks {
                                     true,
                                     "asr_provider",
                                     body.get("asr_provider")));
+            node(call, turn);
             return JsonSupport.map("result", "ok", "turn_id", turn.get("id"));
         }
         boolean last = Boolean.TRUE.equals(body.get("is_final"));
@@ -254,6 +285,7 @@ public class VoiceCallbacks {
                         "end_ms",
                         "asr_provider")) if (body.containsKey(name)) turn.put(name, body.get(name));
         turn = store.insert("speechturn", turn);
+        node(call, turn);
         String detail =
                 body.get("confidence") == null ? "" : "confidence=" + body.get("confidence");
         if (body.get("start_ms") != null && body.get("end_ms") != null)

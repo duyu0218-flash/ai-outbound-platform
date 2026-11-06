@@ -52,6 +52,12 @@ public class ScriptFlows {
             for (Map<String, Object> item : list(g, name)) {
                 Map<String, Object> node =
                         contract.input("nodes".equals(name) ? "FlowNode" : "FlowEdge", item, true);
+                if ("nodes".equals(name) && item.containsKey("interface_id")) {
+                    String interfaceId = Objects.toString(item.get("interface_id"), "");
+                    if (!interfaceId.matches("[A-Za-z0-9_-]{0,64}"))
+                        throw new ApiError(422, "节点接口编号无效");
+                    node.put("interface_id", interfaceId);
+                }
                 if ("edges".equals(name)) node.putIfAbsent("keywords", new ArrayList<>());
                 clean.add(node);
             }

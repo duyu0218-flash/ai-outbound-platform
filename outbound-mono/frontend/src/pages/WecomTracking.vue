@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue';
+import WecomConfiguration from '../components/WecomConfiguration.vue';
 import { session } from '../session';
 import { useData, action } from '../data';
 import { ops, perform } from '../operations';
@@ -100,58 +101,62 @@ async function save() {
         prop="added"
         label="通过数量" /><el-table-column prop="approval_rate" label="通过率（%）" /></el-table
   ></el-card>
-  <el-card v-else-if="tab === 'config'"
-    ><el-alert v-if="profile.error.value" :title="profile.error.value" type="error" /><el-form
-      label-position="top"
-      ><el-form-item
-        v-for="[key, label] in [
-          ['corp_id', '企业ID'],
-          ['member_id', '企微成员账号'],
-          ['contact_url', '联系客户链接'],
-        ]"
-        :key="key"
-        :label="label"
-        ><el-input v-model="config[key]" :aria-label="label" /></el-form-item
-      ><el-button
-        type="primary"
-        :disabled="!config.corp_id || !config.member_id"
-        @click="saveProfile"
-        >保存企微配置</el-button
-      ></el-form
-    ></el-card
+  <template v-else-if="tab === 'config'"
+    ><WecomConfiguration /><el-card
+      ><el-alert v-if="profile.error.value" :title="profile.error.value" type="error" /><el-form
+        label-position="top"
+        ><el-form-item
+          v-for="[key, label] in [
+            ['corp_id', '企业ID'],
+            ['member_id', '企微成员账号'],
+            ['contact_url', '联系客户链接'],
+          ]"
+          :key="key"
+          :label="label"
+          ><el-input v-model="config[key]" :aria-label="label" /></el-form-item
+        ><el-button
+          type="primary"
+          :disabled="!config.corp_id || !config.member_id"
+          @click="saveProfile"
+          >保存企微配置</el-button
+        ></el-form
+      ></el-card
+    ></template
   >
-  <el-card v-else
-    ><el-input
-      aria-label="查找企微线索"
-      v-model="keyword"
-      placeholder="按客户姓名或号码搜索"
-      clearable
-      @input="page = 1"
-    />
-    <el-table :data="rows.data.value?.rows || []" row-key="contact_id"
-      ><el-table-column prop="name" label="客户" /><el-table-column
-        prop="phone"
-        label="电话"
-      /><el-table-column label="添加结果"
-        ><template #default="{ row }">{{ labels[row.wecom_status] }}</template></el-table-column
-      ><el-table-column label="操作"
-        ><template #default="{ row }"
-          ><a
-            v-if="config.contact_url"
-            :href="config.contact_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            >在企业微信打开</a
-          ><el-button @click="edit(row)">登记添加结果</el-button></template
-        ></el-table-column
-      ></el-table
-    >
-    <el-pagination
-      v-model:current-page="page"
-      :page-size="30"
-      :total="rows.data.value?.total || 0"
-      layout="prev,pager,next,total"
-    /> </el-card
+  <template v-else
+    ><WecomConfiguration accounts-only />
+    <el-card
+      ><el-input
+        aria-label="查找企微线索"
+        v-model="keyword"
+        placeholder="按客户姓名或号码搜索"
+        clearable
+        @input="page = 1"
+      />
+      <el-table :data="rows.data.value?.rows || []" row-key="contact_id"
+        ><el-table-column prop="name" label="客户" /><el-table-column
+          prop="phone"
+          label="电话"
+        /><el-table-column label="添加结果"
+          ><template #default="{ row }">{{ labels[row.wecom_status] }}</template></el-table-column
+        ><el-table-column label="操作"
+          ><template #default="{ row }"
+            ><a
+              v-if="config.contact_url"
+              :href="config.contact_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              >在企业微信打开</a
+            ><el-button @click="edit(row)">登记添加结果</el-button></template
+          ></el-table-column
+        ></el-table
+      >
+      <el-pagination
+        v-model:current-page="page"
+        :page-size="30"
+        :total="rows.data.value?.total || 0"
+        layout="prev,pager,next,total"
+      /> </el-card></template
   ><el-dialog :model-value="!!selected" title="登记添加结果" @close="selected = null"
     ><el-form label-position="top"
       ><el-form-item label="添加结果"

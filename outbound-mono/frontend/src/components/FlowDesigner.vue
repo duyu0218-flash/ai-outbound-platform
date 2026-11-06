@@ -356,7 +356,17 @@ const edgeFields = computed(() => [
             v-model="selectedNode.value"
             :disabled="!draft"
             aria-label="变量值"
-          /><el-button v-if="selectedNode.type !== 'start'" :disabled="!draft" @click="copyNode"
+          /><el-select
+            v-model="selectedNode.interface_id"
+            clearable
+            :disabled="!draft"
+            aria-label="节点调用接口"
+            ><el-option value="" label="不调用接口" /><el-option
+              v-for="api in template.interfaces || []"
+              :key="api.id"
+              :value="api.id"
+              :label="api.name" /></el-select
+          ><el-button v-if="selectedNode.type !== 'start'" :disabled="!draft" @click="copyNode"
             >复制节点</el-button
           ><el-button
             v-if="selectedNode.type !== 'start'"

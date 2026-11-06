@@ -26,6 +26,8 @@ public class AuthService {
     private final Crypto crypto;
     private final Config config;
     private final ExpiringValues media;
+    @Autowired
+    private AccountSecurity accountSecurity;
 
     @Autowired
     private ApplicationEventPublisher events;
@@ -53,13 +55,22 @@ public class AuthService {
 
     @Transactional
     public Map<String, Object> login(String username, String password) {
+        return login(username, password, "", "");
+    }
+
+    @Transactional
+    public Map<String, Object> login(
+            String username, String password, String code, String address) {
         SysUser user = identities.findByUsernameForLogin(username);
         if (user == null || !Boolean.TRUE.equals(user.getEnabled())) return null;
         LocalDateTime now = now();
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) return null;
         int failed = user.getLockedUntil() == null ? user.getFailedLoginAttempts() : 0;
         var changes = new LinkedHashMap<String, Object>();
-        if (!crypto.verifyPassword(user.getPasswordHash(), password)) {
+        if (!crypto.verifyPassword(user.getPasswordHash(), password)
+                || accountSecurity != null
+                        && (accountSecurity.passwordDisabled(UserRecords.map(user))
+                                || !accountSecurity.login(UserRecords.map(user), code, address))) {
             changes.put("failed_login_attempts", failed + 1);
             if (failed + 1 >= Math.max(1, config.number("AUTH_MAX_FAILED_ATTEMPTS", 5)))
                 changes.put(

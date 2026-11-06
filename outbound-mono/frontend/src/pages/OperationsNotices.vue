@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useData } from '../data';
 import { ops, prefix, perform } from '../operations';
-import { download } from '../session';
+import { download, request } from '../session';
 const typeLabels = {
   calls: '话单导出',
+  'calls-custom': '自定义话单导出',
   reports: '运营报表',
   dataset: '数据集',
   tasks: '任务归档',
@@ -21,6 +22,7 @@ const route = useRoute(),
   router = useRouter(),
   rows = ref([]),
   error = ref(''),
+  receipt = ref(null),
   tab = ref(route.query.tab === 'downloads' ? 'downloads' : 'unread');
 const exports = useData(() => (tab.value === 'downloads' ? '/api/v1/ops/exports' : ''), 2000);
 const shown = computed(() =>
@@ -57,9 +59,38 @@ async function file(row) {
 async function remove(row) {
   await perform(() => ops('/benchmark/notices/' + row.id + '/delete', 'POST'), load);
 }
-onMounted(load);
+async function loadReceipt() {
+  if (!route.query.receipt) return;
+  try {
+    receipt.value = await request(
+      '/api/v1/workspace/contact-batches/' + encodeURIComponent(route.query.receipt) + '/receipt',
+    );
+  } catch (e) {
+    error.value = e.message;
+  }
+}
+watch(() => route.query.receipt, loadReceipt);
+onMounted(() => {
+  load();
+  loadReceipt();
+});
 </script>
 <template>
+  <el-dialog :model-value="!!receipt" title="号码导入回执" width="700px" @close="receipt = null"
+    ><template v-if="receipt"
+      ><p>
+        {{ receipt.name }} · 传入{{ receipt.result.total }}，新增{{
+          receipt.result.created
+        }}，更新{{ receipt.result.updated }}，失败{{ receipt.result.failed }}
+      </p>
+      <el-table :data="receipt.numbers"
+        ><el-table-column prop="phone" label="成功处理号码" /><el-table-column
+          prop="currently_blocked"
+          label="当前禁呼状态"
+      /></el-table>
+      <p>最多展示1000个号码，完整批次可在数据集中查询。</p>
+      <JsonView :value="receipt.result.errors" /></template
+  ></el-dialog>
   <PageHeader title="消息中心" description="导出文件、未读通知、已读记录与已删除消息"
     ><el-button
       @click="
@@ -91,10 +122,10 @@ onMounted(load);
         ><template #default="{ row }">{{
           stateLabels[row.state] || row.state
         }}</template></el-table-column
-      ><el-table-column prop="error" label="内容" /><el-table-column
-        prop="created_at"
-        label="日期"
-      /><el-table-column label="文件与操作"
+      ><el-table-column prop="queue_position" label="队列排位" /><el-table-column
+        prop="error"
+        label="内容"
+      /><el-table-column prop="created_at" label="日期" /><el-table-column label="文件与操作"
         ><template #default="{ row }"
           ><el-button :disabled="row.state !== 'ready'" link @click="file(row)">下载文件</el-button
           ><span v-if="['queued', 'processing'].includes(row.state)">正在生成</span></template

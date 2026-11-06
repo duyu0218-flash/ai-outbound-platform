@@ -28,7 +28,14 @@ public final class OpeningAudioCache {
         var speech = speechProfile(profile);
         var voice = new LinkedHashMap<String, Object>();
         for (String field :
-                List.of("vendor", "tts_url", "tts_model", "voice", "credential_scope", "volc_auth"))
+                List.of(
+                        "vendor",
+                        "tts_url",
+                        "tts_model",
+                        "voice",
+                        "credential_scope",
+                        "volc_auth",
+                        "tts_options"))
             if (speech.containsKey(field)) voice.put(field, speech.get(field));
         return Support.hex(
                 Support.sha(
