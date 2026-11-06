@@ -1,6 +1,6 @@
 # 消息营销与语音 v2：当前实现及接入说明
 
-本次实现供应商无关的消息业务模块和语音 v2 的单实例运行时改造。用户尚未选择供应商，因此所有消息产品使用 `mock` 适配器；没有真实手机发送、终端能力证明、供应商审核或真实资金交易。三种增强消息形态 `rcs`、`yuexin`、`oem_ip` 分别建模，普通短信使用 `sms`。不能据此宣称已经接通四类通道。
+消息业务模块和语音 v2 保持现有单实例运行方式。短信首选现已调整为 Austin＋SMSGate，新增适配与功能测试说明见 [短信模块](austin-smsgate-sms.md)。其他增强消息形态仍使用 `mock`；真实线路、供应商审核和真实资金交易尚未验收。下文未特别说明的模拟能力沿用原实现。三种增强消息形态 `rcs`、`yuexin`、`oem_ip` 分别建模，普通短信使用 `sms`。不能据此宣称已经接通四类通道。
 
 完整目标架构见 `marketing-messaging-architecture-v1.md` / 同名 Word；`messaging-target-design.openapi.json` 是目标草案。**当前对接使用 `messaging-implemented.openapi.json`**，不能混用草案中的响应包裹、代理商委托、能力探测等尚未开放字段。原始语音方案保留为 `voice-streaming-v2-source.md`，其中“本次只更新文档”等描述属于原文历史状态；当前开发验收以 `../reviews/20261028-marketing-voice-implementation.md` 为准。
 

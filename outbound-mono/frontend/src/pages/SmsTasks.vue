@@ -166,7 +166,7 @@ async function imported(v) {
     :closable="false"
   />
   <el-alert
-    title="当前仅接入模拟短信供应商。已提交数量不等于送达量；供应商送达回执、退订和实际费用在发送记录中分别查看。"
+    title="短信按所选产品通道发送。已提交数量不等于送达量；送达回执在发送记录中查看。平台仍使用模拟账本，运营商实际费用需另行核对。"
     type="info"
     :closable="false"
   />

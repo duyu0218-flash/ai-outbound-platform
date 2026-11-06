@@ -131,6 +131,33 @@ class SmsReceiptIT extends LinkTestSupport {
     }
 
     @Test
+    void liveMultipartFailureReachesMarketingAndAcceptanceIsNotDelivery() {
+        String failed = sent("13900139021", "FAILED");
+        String accepted = sent("13900139022", "ACCEPTED");
+        for (String id : List.of(failed, accepted))
+            jdbc.update("UPDATE msg_message SET actual_transport='austin_smsgate' WHERE id=?", id);
+        event(failed, "message.failed", "{\"status\":\"FAILED\"}");
+        event(accepted, "message.accepted", "{\"status\":\"ACCEPTED\"}");
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(2))
+                .untilAsserted(
+                        () -> {
+                            drain();
+                            assertThat(codes(failed)).containsExactly("SMS_FAIL_TEMP");
+                        });
+        assertThat(codes(accepted)).isEmpty();
+        receipts.markUnknown(1000);
+        assertThat(codes(accepted)).isEmpty();
+        jdbc.update(
+                "UPDATE msg_message SET submitted_at=? WHERE id=?", now().minusHours(73), accepted);
+        receipts.markUnknown(1000);
+        assertThat(codes(accepted)).containsExactly("SMS_UNKNOWN");
+        jdbc.update("UPDATE mk_link_cursor SET position=0 WHERE name='sms_receipts'");
+        drain();
+        assertThat(codes(failed)).containsExactly("SMS_FAIL_TEMP");
+    }
+
+    @Test
     void messagesWithoutAFinalReportAfterSeventyTwoHoursBecomeUnknown() {
         String stale = message("13900139011", "UNKNOWN", now().minusHours(73), null);
         String recent = message("13900139012", "UNKNOWN", now().minusHours(10), null);

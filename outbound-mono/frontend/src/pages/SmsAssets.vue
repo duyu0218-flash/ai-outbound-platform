@@ -93,7 +93,7 @@ async function state(row, value) {
       kind === 'template' ? '新建模板' : '新建签名'
     }}</el-button></PageHeader
   ><el-alert
-    title="当前为模拟通道。内部批准与供应商审核分别记录；真实通道审核尚未接入。"
+    title="短信首选 Austin＋SMSGate。内部批准不代表运营商审核通过；启用真实通道前需完成运营商签名与模板审核。"
     :closable="false"
   /><el-alert
     v-if="caps.error.value || caps.data.value?.enabled === false"
@@ -103,7 +103,9 @@ async function state(row, value) {
     v-if="error || query.error.value"
     :title="error || query.error.value"
     type="error"
-  /><el-tabs v-model="kind"
+  /><el-button @click="$router.push('/admin/messaging?section=content')"
+    >配置短信产品与通道</el-button
+  ><el-tabs v-model="kind"
     ><el-tab-pane label="短信模板" name="template" /><el-tab-pane
       label="短信签名"
       name="sender" /></el-tabs

@@ -286,6 +286,9 @@ class DataLayerIT {
                             "msg_message",
                             "msg_nonce",
                             "msg_resource",
+                            "msg_sms_dispatch",
+                            "msg_sms_part",
+                            "msg_sms_report",
                             "msg_suppression",
                             "msg_webhook",
                             "msg_webhook_delivery"));
@@ -324,7 +327,7 @@ class DataLayerIT {
                             "ops_call_dimension",
                             "script_recording_asset",
                             "platform_message_job"));
-            assertThat(expectedTables).hasSize(129);
+            assertThat(expectedTables).hasSize(132);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);

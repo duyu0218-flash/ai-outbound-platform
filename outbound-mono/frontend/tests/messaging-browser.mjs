@@ -23,7 +23,9 @@ export async function messagingChecks({ page, origin, check }) {
     await page.goto(origin + '/admin/messaging');
     await expect(page).toHaveURL(origin + '/admin/messaging');
     await expect(page.getByRole('heading', { name: '短信营销', exact: true })).toBeVisible();
-    await expect(page.getByText(/当前为模拟环境/)).toBeVisible();
+    await expect(page.getByText(/短信首选 Austin/)).toBeVisible();
+    await tab('短信通道');
+    await expect(page.getByText('短信模块 · Austin＋SMSGate', { exact: true })).toBeVisible();
     await tab('签名与模板');
     for (const [kind, name, field, value] of [
       ['消息产品', '浏览器消息产品', null, null],
@@ -31,6 +33,7 @@ export async function messagingChecks({ page, origin, check }) {
       ['消息模板', '浏览器消息模板', '模板正文', '您好，{{name}}。'],
     ]) {
       await choose('资源类型', kind);
+      if (kind === '消息产品') await choose('短信通道', '模拟通道');
       await page.getByRole('textbox', { name: '资源名称', exact: true }).fill(name);
       if (field) await page.getByRole('textbox', { name: field, exact: true }).fill(value);
       await page.getByRole('button', { name: '保存草稿', exact: true }).click();
@@ -59,7 +62,7 @@ export async function messagingChecks({ page, origin, check }) {
     await expect(page.getByText('模拟额度已入账', { exact: true })).toBeVisible();
     await saved();
     await tab('发送消息');
-    await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
+    await page.getByRole('button', { name: '提交发送', exact: true }).click();
     await expect(page.getByText('请选择消息产品', { exact: true })).toBeVisible();
     await choose('消息产品', '浏览器消息产品');
     await choose('发送主体', '浏览器消息主体');
@@ -69,7 +72,7 @@ export async function messagingChecks({ page, origin, check }) {
       .getByRole('textbox', { name: '授权联系人编号', exact: true })
       .fill(String(contact.id));
     await page.getByRole('textbox', { name: '发送模板变量', exact: true }).fill('{"name":"客户"}');
-    await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
+    await page.getByRole('button', { name: '提交发送', exact: true }).click();
     await expect(page.getByText(/已受理模拟消息/)).toBeVisible();
     const sentId = (await page.getByText(/已受理模拟消息/).textContent()).match(
       /msg_[A-Za-z0-9_-]+/,
@@ -176,7 +179,7 @@ export async function messagingChecks({ page, origin, check }) {
       return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
     });
     await page.getByRole('textbox', { name: '计划发送时间', exact: true }).fill(later);
-    await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
+    await page.getByRole('button', { name: '提交发送', exact: true }).click();
     await expect(page.getByText(/已受理模拟消息/)).toBeVisible();
     const cancelId = (await page.getByText(/已受理模拟消息/).textContent()).match(
       /msg_[A-Za-z0-9_-]+/,
@@ -241,7 +244,7 @@ export async function messagingChecks({ page, origin, check }) {
     await row('浏览器模拟活动').getByRole('button', { name: '批准', exact: true }).click();
     await expect(row('浏览器模拟活动')).toContainText('APPROVED');
     await saved();
-    await row('浏览器模拟活动').getByRole('button', { name: '启动模拟活动', exact: true }).click();
+    await row('浏览器模拟活动').getByRole('button', { name: '启动活动', exact: true }).click();
     await expect(page.getByRole('button', { name: '刷新批次', exact: true })).toBeVisible();
     await saved();
     await expect
@@ -287,7 +290,7 @@ export async function messagingChecks({ page, origin, check }) {
       .getByRole('textbox', { name: '授权联系人编号', exact: true })
       .fill(String(contact.id));
     await page.getByRole('textbox', { name: '发送模板变量', exact: true }).fill('{"name":"客户"}');
-    await page.getByRole('button', { name: '提交模拟发送', exact: true }).click();
+    await page.getByRole('button', { name: '提交发送', exact: true }).click();
     await expect(page.getByText(/已退订/)).toBeVisible();
   });
 }

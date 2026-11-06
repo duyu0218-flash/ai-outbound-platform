@@ -90,3 +90,7 @@ API Key 继续从 TENANT_API_SCOPES_JSON 取得租户权限集合；管理员接
 ## 百炼套件平台试聊
 
 独立入口 `/admin/bailian-trial` 支持百炼套件多轮语音、业务草稿及人工确认写入现有线索跟进，不开启真实外呼。账号配置、工具协议、验收范围和未验证项见 [接入说明](BAILIAN-TRIAL.md) 与 [验收记录](BAILIAN-TRIAL-ACCEPTANCE.md)。
+
+## Austin＋SMSGate 短信模块
+
+短信产品首选 Austin＋SMSGate，入口 `/admin/messaging` →「短信通道」，复用现有模板、签名、单发/定时/批次、退订和外呼结束联动。新增 Austin 编排适配、平台内 SMSGate CMPP 3.0 通道、持久幂等桥接和分片回执。配置、Java 启动参数、上游桥接安装与真实测试边界见 [短信接入说明](../docs/architecture/austin-smsgate-sms.md) 和 [功能验收](SMS-ACCEPTANCE.md)。

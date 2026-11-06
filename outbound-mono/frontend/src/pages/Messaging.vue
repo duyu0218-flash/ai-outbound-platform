@@ -14,6 +14,7 @@ const route = useRoute(),
   router = useRouter();
 const sections = [
   ['overview', '短信概览'],
+  ['sms', '短信通道'],
   ['content', '签名与模板'],
   ['campaigns', '发送任务'],
   ['send', '发送消息'],
@@ -37,6 +38,7 @@ const error = ref(''),
   balance = ref({}),
   detail = ref(null),
   events = ref([]),
+  smsParts = ref([]),
   newKey = ref(null),
   batch = ref(null);
 const resources = reactive({
@@ -50,7 +52,9 @@ const resources = reactive({
 const model = reactive({
   kind: 'template',
   name: '',
-  form: route.path.startsWith('/admin/sms/') ? 'sms' : 'rcs',
+  form: 'sms',
+  adapter: 'austin_smsgate',
+  austin_template_id: '',
   body: '',
   brand: '',
   unit_price: 1000,
@@ -145,6 +149,10 @@ async function saveResource() {
   if (model.kind === 'product')
     Object.assign(payload, {
       form: model.form,
+      adapter: model.form === 'sms' ? model.adapter : 'mock',
+      ...(model.form === 'sms' && model.adapter === 'austin_smsgate'
+        ? { austin_template_id: model.austin_template_id }
+        : {}),
       unit_price: model.unit_price,
       daily_recipient_limit: model.daily_recipient_limit,
       simulation_outcome: model.simulation_outcome,
@@ -206,7 +214,7 @@ async function send() {
     headers: { 'Idempotency-Key': pendingSendKey.value },
   });
   pendingSendKey.value = '';
-  success.value = `已受理模拟消息 ${result.message_id}，当前状态${messageState(result.status)}。`;
+  success.value = `已受理${result.simulated ? '模拟' : '短信'}消息 ${result.message_id}，当前状态 ${messageState(result.status)}。`;
   detail.value = result;
 }
 watch(message, () => (pendingSendKey.value = ''));
@@ -222,6 +230,7 @@ watch(
 async function open(row) {
   detail.value = await api('/messages/' + row.id);
   events.value = await api('/messages/' + row.id + '/events');
+  smsParts.value = await api('/messages/' + row.id + '/sms-parts');
 }
 async function commandMessage(row, command) {
   await run(async () => {
@@ -262,7 +271,11 @@ onMounted(() => run(async () => {}));
     ><el-button :loading="busy" @click="run(async () => {})">刷新</el-button></PageHeader
   >
   <el-alert
-    title="当前为模拟环境：尚未选择供应商，不会向手机发送消息，也不会产生真实费用。"
+    :title="
+      capability.sms_transport_configured
+        ? 'Austin＋SMSGate 已配置：选择该通道会提交真实短信，请仅使用测试联系人；平台账本仍为模拟额度。'
+        : '短信首选 Austin＋SMSGate，尚未启用真实通道。模拟产品仅用于功能验证。'
+    "
     type="warning"
     :closable="false"
   />
@@ -306,7 +319,32 @@ onMounted(() => run(async () => {}));
     <el-button type="primary" @click="router.push({ query: { section: 'content' } })"
       >开始配置内容</el-button
     >
-    <el-button @click="router.push({ query: { section: 'send' } })">发送一条模拟消息</el-button>
+    <el-button @click="router.push({ query: { section: 'send' } })">发送一条消息</el-button>
+  </el-card>
+  <el-card v-if="section === 'sms'" header="短信模块 · Austin＋SMSGate">
+    <p>
+      统一管理短信模板、签名、单发、定时、人群批发、退订和外呼结束联动。短信通过 Austin
+      编排、SMSGate CMPP 3.0 通道发送。
+    </p>
+    <el-descriptions :column="1" border>
+      <el-descriptions-item label="首选方案">Austin＋SMSGate</el-descriptions-item>
+      <el-descriptions-item label="通道配置">{{
+        capability.sms_transport_configured ? '已配置，待运营商联调验收' : '待平台管理员配置'
+      }}</el-descriptions-item>
+      <el-descriptions-item label="送达依据"
+        >运营商分片回执全部送达；受理成功不代表送达</el-descriptions-item
+      >
+      <el-descriptions-item label="未知结果"
+        >保留发送记录，等待回执或人工核查，不自动重发</el-descriptions-item
+      >
+      <el-descriptions-item label="费用"
+        >当前平台账本为模拟额度；运营商可能按实际发送计费</el-descriptions-item
+      >
+    </el-descriptions>
+    <el-button @click="router.push({ query: { section: 'content' } })"
+      >配置短信产品和模板</el-button
+    >
+    <el-button @click="router.push({ query: { section: 'records' } })">查看发送记录</el-button>
   </el-card>
   <template v-if="section === 'content' || section === 'campaigns'">
     <el-card
@@ -353,6 +391,24 @@ onMounted(() => run(async () => {}));
         <el-form-item v-if="model.kind === 'sender'" label="品牌主体"
           ><el-input v-model="model.brand" aria-label="品牌主体"
         /></el-form-item>
+        <el-form-item v-if="model.kind === 'product' && model.form === 'sms'" label="短信通道">
+          <el-select v-model="model.adapter" aria-label="短信通道">
+            <el-option label="Austin＋SMSGate（首选）" value="austin_smsgate" />
+            <el-option label="模拟通道" value="mock" />
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          v-if="
+            model.kind === 'product' && model.form === 'sms' && model.adapter === 'austin_smsgate'
+          "
+          label="Austin 模板编号"
+        >
+          <el-input
+            v-model="model.austin_template_id"
+            aria-label="Austin 模板编号"
+            placeholder="关联专用短信账号的模板编号"
+          />
+        </el-form-item>
         <template v-if="model.kind === 'product'"
           ><el-form-item label="模拟单价（微元）"
             ><el-input-number
@@ -366,7 +422,7 @@ onMounted(() => run(async () => {}));
               :min="1"
               :max="100"
               :precision="0" /></el-form-item
-          ><el-form-item label="模拟结果"
+          ><el-form-item v-if="model.form !== 'sms' || model.adapter === 'mock'" label="模拟结果"
             ><el-select v-model="model.simulation_outcome"
               ><el-option label="送达" value="DELIVERED" /><el-option
                 label="明确拒绝"
@@ -464,7 +520,7 @@ onMounted(() => run(async () => {}));
             v-if="kind === 'campaign' && row.state === 'APPROVED'"
             link
             @click="run(() => launch(row))"
-            >启动模拟活动</el-button
+            >启动活动</el-button
           ><el-popover width="420" trigger="click">
             <pre>{{ JSON.stringify(row.payload, null, 2) }}</pre>
             <template #reference><el-button link>查看内容</el-button></template></el-popover
@@ -487,7 +543,7 @@ onMounted(() => run(async () => {}));
     /></el-card>
   </template>
   <el-card v-if="section === 'send'"
-    ><h2>发送模拟消息</h2>
+    ><h2>发送消息</h2>
     <el-form label-width="130px" @submit.prevent="run(send)">
       <el-form-item
         v-for="[field, kind, label] in [
@@ -530,7 +586,7 @@ onMounted(() => run(async () => {}));
           type="datetime-local"
           aria-label="消息失效时间" /></el-form-item
       ><el-button type="primary" native-type="submit" :disabled="busy || !capability.enabled"
-        >提交模拟发送</el-button
+        >提交发送</el-button
       ></el-form
     >
   </el-card>
@@ -546,6 +602,13 @@ onMounted(() => run(async () => {}));
           { key: 'status', label: '状态', render: messageState },
           { key: 'billing_state', label: '账务状态', render: billingState },
           { key: 'sales_amount', label: '模拟费用', render: microAmount },
+          {
+            key: 'actual_transport',
+            label: '发送通道',
+            render: (v) =>
+              v === 'austin_smsgate' ? 'Austin＋SMSGate' : v === 'mock' ? '模拟通道' : '待提交',
+          },
+          { key: 'simulated', label: '发送模式', render: (v) => (v ? '模拟' : '真实通道') },
         ]"
         :pagination="20"
         ><template #actions="{ row }"
@@ -594,6 +657,20 @@ onMounted(() => run(async () => {}));
           detail.finished_at ? formatDate(detail.finished_at) : '尚未完成'
         }}</el-descriptions-item>
       </el-descriptions>
+      <DataGrid
+        v-if="detail.actual_transport === 'austin_smsgate'"
+        :rows="smsParts"
+        :columns="[
+          { key: 'part_no', label: '分片' },
+          { key: 'provider_id', label: '运营商消息编号' },
+          { key: 'submit_state', label: '提交状态', render: messageState },
+          {
+            key: 'delivery_state',
+            label: '送达状态',
+            render: (v) => (v ? messageState(v) : '等待回执'),
+          },
+        ]"
+      />
       <DataGrid
         :rows="events"
         :columns="[
@@ -748,7 +825,7 @@ onMounted(() => run(async () => {}));
         :pagination="20"
     /></el-card>
     <el-card
-      ><h3>模拟发送与账务汇总</h3>
+      ><h3>发送与模拟账务汇总</h3>
       <DataGrid
         :rows="report.messages || []"
         :columns="[

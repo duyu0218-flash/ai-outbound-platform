@@ -16,14 +16,17 @@ public class MessageAdmin {
     private final Messaging service;
     private final Audit audit;
     private final com.duozhi.outbound.messaging.service.MessageWebhooks hooks;
+    private final com.duozhi.outbound.messaging.service.SmsGateGateway gateway;
 
     public MessageAdmin(
             Messaging service,
             Audit audit,
-            com.duozhi.outbound.messaging.service.MessageWebhooks hooks) {
+            com.duozhi.outbound.messaging.service.MessageWebhooks hooks,
+            com.duozhi.outbound.messaging.service.SmsGateGateway gateway) {
         this.service = service;
         this.audit = audit;
         this.hooks = hooks;
+        this.gateway = gateway;
     }
 
     private Identity actor(HttpServletRequest r) {
@@ -191,6 +194,12 @@ public class MessageAdmin {
     public Object events(@PathVariable
     String id, HttpServletRequest r) {
         return service.events(principal(r), id, 0);
+    }
+
+    @GetMapping("/messages/{id}/sms-parts")
+    public Object smsParts(@PathVariable
+    String id, HttpServletRequest r) {
+        return gateway.parts(actor(r).tenant(), id);
     }
 
     @PostMapping("/messages/{id}/sandbox-receipt")

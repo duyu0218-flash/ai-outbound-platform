@@ -100,6 +100,14 @@ class MessagingIT {
         }
     }
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    SmsGateTransport smsTransport;
+
+    @Autowired
+    SmsGateGateway smsGateway;
+    @Autowired
+    org.springframework.core.env.ConfigurableEnvironment environment;
+
     @Autowired
     WakeProbe wake;
     @Autowired
@@ -141,6 +149,7 @@ class MessagingIT {
 
     @BeforeEach
     void seed() {
+        org.mockito.Mockito.reset(smsTransport);
         tenant = ++nextTenant;
         Tenant t = new Tenant();
         t.setId((int) tenant);
@@ -205,6 +214,12 @@ class MessagingIT {
 
     @AfterEach
     void cleanup() {
+        environment.getPropertySources().remove("sms-test");
+        db.jdbc()
+                .update(
+                        "DELETE p FROM msg_sms_part p JOIN msg_sms_dispatch d ON d.message_id=p.message_id WHERE d.tenant_id=?",
+                        tenant);
+        db.jdbc().update("DELETE FROM msg_sms_dispatch WHERE tenant_id=?", tenant);
         for (String table :
                 List.of(
                         "msg_interaction",
@@ -253,6 +268,265 @@ class MessagingIT {
 
     Map<String, Object> account() {
         return Support.map(Support.map(service.balance(tenant)).get("account"));
+    }
+
+    void enableSms() {
+        environment
+                .getPropertySources()
+                .addFirst(
+                        new org.springframework.core.env.MapPropertySource(
+                                "sms-test",
+                                Map.of(
+                                        "SMS_AUSTIN_ENABLED",
+                                        "true",
+                                        "SMS_SMSGATE_ENABLED",
+                                        "true",
+                                        "SMS_AUSTIN_SEND_URL",
+                                        "http://127.0.0.1:9/send",
+                                        "SMS_BRIDGE_TOKEN",
+                                        "sms-integration-bridge-test-only-123456")));
+        product =
+                resource(
+                        "product",
+                        Map.of(
+                                "form",
+                                "sms",
+                                "adapter",
+                                "austin_smsgate",
+                                "austin_template_id",
+                                "123",
+                                "unit_price",
+                                999));
+        template = resource("template", Map.of("form", "sms", "body", "您好，{{name}}。"));
+        body.put("service_product_id", product);
+        body.put("template_version_id", template);
+        body.put(
+                "channel_policy",
+                Map.of("mode", "fixed", "allowed_forms", List.of("sms"), "allow_fallback", false));
+    }
+
+    String smsMessage() {
+        var result = service.create(console, "sms-request-" + UUID.randomUUID(), body);
+        String id = result.get("message_id").toString();
+        // Emulate the persisted claim immediately before Austin's asynchronous handoff.
+        db.jdbc()
+                .update(
+                        "UPDATE msg_message SET state='ACCEPTED',actual_transport='austin_smsgate',submitted_at=CURRENT_TIMESTAMP(6) WHERE id=?",
+                        id);
+        return id;
+    }
+
+    @Test
+    void smsDispatchDeduplicatesAndWaitsForEveryCarrierPart() throws Exception {
+        enableSms();
+        String id = smsMessage();
+        org.mockito.Mockito.when(
+                        smsTransport.submit(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(
+                        List.of(
+                                new SmsGateTransport.Part(id + "-1", "ACCEPTED"),
+                                new SmsGateTransport.Part(id + "-2", "ACCEPTED")));
+        assertThat(smsGateway.dispatch(id))
+                .containsEntry("state", "ACCEPTED")
+                .containsEntry("part_count", 2);
+        smsGateway.dispatch(id);
+        org.mockito.Mockito.verify(smsTransport, org.mockito.Mockito.times(1))
+                .submit(phone.substring(3), "【测试品牌】您好，客户。");
+        assertThat(service.message(console, id))
+                .containsEntry("simulated", false)
+                .containsEntry("billing_state", "HELD")
+                .containsEntry("sales_amount", 0L);
+        smsGateway.report(new SmsGateTransport.Part(id + "-1", "DELIVERED"));
+        assertThat(service.message(console, id).get("status")).isNotEqualTo("DELIVERED");
+        db.jdbc().update("UPDATE tenant SET enabled=false WHERE id=?", tenant);
+        smsGateway.report(new SmsGateTransport.Part(id + "-2", "DELIVERED"));
+        db.jdbc().update("UPDATE tenant SET enabled=true WHERE id=?", tenant);
+        smsGateway.report(new SmsGateTransport.Part(id + "-2", "FAILED"));
+        assertThat(service.message(console, id)).containsEntry("status", "DELIVERED");
+        assertThat(smsGateway.parts(tenant, id)).hasSize(2);
+        assertThatThrownBy(() -> smsGateway.parts(tenant + 1, id)).isInstanceOf(ApiError.class);
+        assertThatThrownBy(() -> service.receipt(tenant, id, "fake-delivery", "DELIVERED"))
+                .isInstanceOf(ApiError.class);
+        assertThat(
+                        db.jdbc()
+                                .queryForObject(
+                                        "SELECT COUNT(*) FROM msg_journal WHERE tenant_id=? AND operation_key=?",
+                                        Long.class,
+                                        tenant,
+                                        "finish:" + id))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void smsUnknownCannotResendAndEarlyReportsReconcile() throws Exception {
+        enableSms();
+        String id = smsMessage();
+        org.mockito.Mockito.when(
+                        smsTransport.submit(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(
+                        invocation -> {
+                            smsGateway.report(
+                                    new SmsGateTransport.Part(id + "-early", "DELIVERED"));
+                            return List.of(new SmsGateTransport.Part(id + "-early", "ACCEPTED"));
+                        });
+        smsGateway.dispatch(id);
+        assertThat(service.message(console, id).get("status")).isEqualTo("DELIVERED");
+        String unknown = smsMessage();
+        org.mockito.Mockito.when(
+                        smsTransport.submit(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyString()))
+                .thenThrow(new java.io.IOException("ambiguous"));
+        smsGateway.dispatch(unknown);
+        smsGateway.dispatch(unknown);
+        assertThat(service.message(console, unknown))
+                .containsEntry("status", "UNKNOWN")
+                .containsEntry("billing_state", "HELD");
+        org.mockito.Mockito.verify(smsTransport, org.mockito.Mockito.times(2))
+                .submit(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void smsBridgeRechecksConsentAndRequiresDedicatedCredential() throws Exception {
+        enableSms();
+        String id = smsMessage();
+        var client = HttpClient.newHttpClient();
+        var uri = URI.create("http://127.0.0.1:" + port + "/internal/messaging/smsgate/dispatch");
+        byte[] bytes = Support.json(Map.of("message_id", id));
+        var unauthorized =
+                client.send(
+                        HttpRequest.newBuilder(uri)
+                                .header("Content-Type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
+                                .build(),
+                        HttpResponse.BodyHandlers.ofString());
+        assertThat(unauthorized.statusCode()).isEqualTo(401);
+        service.suppress(tenant, contact, "退订");
+        var denied =
+                client.send(
+                        HttpRequest.newBuilder(uri)
+                                .header("Content-Type", "application/json")
+                                .header(
+                                        "Authorization",
+                                        "Bearer sms-integration-bridge-test-only-123456")
+                                .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
+                                .build(),
+                        HttpResponse.BodyHandlers.ofString());
+        assertThat(denied.statusCode()).isBetween(400, 499);
+        org.mockito.Mockito.verifyNoInteractions(smsTransport);
+        assertThat(db.one("SELECT * FROM msg_sms_dispatch WHERE message_id=?", id)).isNull();
+    }
+
+    @Test
+    void completedCallTraversesAustinHttpBridgeAndLateHttpResponseCannotUndoReceipt()
+            throws Exception {
+        enableSms();
+        var austin =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        environment
+                .getPropertySources()
+                .addFirst(
+                        new org.springframework.core.env.MapPropertySource(
+                                "sms-http",
+                                Map.of(
+                                        "SMS_AUSTIN_SEND_URL",
+                                        "http://127.0.0.1:"
+                                                + austin.getAddress().getPort()
+                                                + "/send")));
+        var requests = new java.util.concurrent.atomic.AtomicInteger();
+        austin.createContext(
+                "/send",
+                exchange -> {
+                    try {
+                        requests.incrementAndGet();
+                        var payload =
+                                Support.map(
+                                        Support.object(exchange.getRequestBody().readAllBytes())
+                                                .get("messageParam"));
+                        String id = payload.get("bizId").toString();
+                        var bridge =
+                                HttpRequest.newBuilder(
+                                                URI.create(
+                                                        "http://127.0.0.1:"
+                                                                + port
+                                                                + "/internal/messaging/smsgate/dispatch"))
+                                        .header("Content-Type", "application/json")
+                                        .header(
+                                                "Authorization",
+                                                "Bearer sms-integration-bridge-test-only-123456")
+                                        .POST(
+                                                HttpRequest.BodyPublishers.ofByteArray(
+                                                        Support.json(Map.of("message_id", id))))
+                                        .build();
+                        var reply =
+                                HttpClient.newHttpClient()
+                                        .send(bridge, HttpResponse.BodyHandlers.ofString());
+                        if (reply.statusCode() != 200)
+                            throw new IllegalStateException(
+                                    "bridge returned " + reply.statusCode());
+                        smsGateway.report(
+                                new SmsGateTransport.Part("full-chain-" + tenant, "DELIVERED"));
+                        byte[] data =
+                                Support.json(
+                                        Map.of(
+                                                "code",
+                                                "00000",
+                                                "data",
+                                                List.of(
+                                                        Map.of(
+                                                                "messageId",
+                                                                "austin-test",
+                                                                "bizId",
+                                                                id))));
+                        exchange.sendResponseHeaders(200, data.length);
+                        exchange.getResponseBody().write(data);
+                    } catch (Exception failure) {
+                        exchange.sendResponseHeaders(500, -1);
+                    } finally {
+                        exchange.close();
+                    }
+                });
+        austin.start();
+        try {
+            org.mockito.Mockito.when(
+                            smsTransport.submit(
+                                    org.mockito.ArgumentMatchers.anyString(),
+                                    org.mockito.ArgumentMatchers.anyString()))
+                    .thenReturn(
+                            List.of(new SmsGateTransport.Part("full-chain-" + tenant, "ACCEPTED")));
+            completedCallCreatesExactlyOneMessageOnlyAfterHangup();
+            String id = service.messages(tenant).getFirst().get("message_id").toString();
+            assertThat(service.processOne()).isTrue();
+            assertThat(service.message(console, id))
+                    .containsEntry("status", "DELIVERED")
+                    .containsEntry("simulated", false);
+            assertThat(service.processOne()).isFalse();
+            assertThat(requests.get()).isEqualTo(1);
+            org.mockito.Mockito.verify(smsTransport).submit(phone.substring(3), "【测试品牌】您好，客户。");
+        } finally {
+            austin.stop(0);
+            environment.getPropertySources().remove("sms-http");
+        }
+    }
+
+    @Test
+    void austinTimeoutDoesNotTriggerCarrierOrAutomaticRetry() {
+        enableSms();
+        String id =
+                service.create(console, "austin-timeout-case", body).get("message_id").toString();
+        assertThat(service.processOne()).isTrue();
+        assertThat(service.message(console, id))
+                .containsEntry("status", "UNKNOWN")
+                .containsEntry("simulated", false);
+        assertThat(service.processOne()).isFalse();
+        org.mockito.Mockito.verifyNoInteractions(smsTransport);
     }
 
     @Test
@@ -409,6 +683,35 @@ class MessagingIT {
                                         Long.class,
                                         tenant))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void liveBatchModeSurvivesPrivacyRetention() {
+        enableSms();
+        var result =
+                Support.map(
+                        service.batch(
+                                console,
+                                "live-batch-retention",
+                                Map.of(
+                                        "items",
+                                        List.of(
+                                                Map.of(
+                                                        "client_item_id",
+                                                        "one",
+                                                        "message",
+                                                        body)))));
+        assertThat(result).containsEntry("simulated", false);
+        service.processBatch();
+        String id = result.get("batch_id").toString();
+        db.jdbc()
+                .update(
+                        "UPDATE msg_batch SET created_at=CURRENT_TIMESTAMP(6)-INTERVAL 91 DAY WHERE id=?",
+                        id);
+        service.retain();
+        assertThat(service.batchStatus(console, id))
+                .containsEntry("simulated", false)
+                .doesNotContainKey("payload");
     }
 
     @Test

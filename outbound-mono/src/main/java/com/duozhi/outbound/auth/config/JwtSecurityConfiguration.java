@@ -97,6 +97,8 @@ public class JwtSecurityConfiguration {
                                 "clientJwt",
                                 new ClientJwtFilter(clients, json))));
         var chain = new LinkedHashMap<String, String>();
+        // SmsGateBridge verifies its own narrowly scoped service token.
+        chain.put("/internal/messaging/smsgate/dispatch", "noSessionCreation,anon");
         for (String path :
                 List.of(
                         "/healthz",

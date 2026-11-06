@@ -42,6 +42,9 @@
         <appender-ref ref="console" />
         <appender-ref ref="logFile" />
     </logger>
+    <!-- SMSGate logs protocol payloads at multiple levels, including failed submissions. -->
+    <logger name="com.zx.sms" level="OFF" />
+    <logger name="entity" level="OFF" />
     <root level="${ROOT_LEVEL}">
         <appender-ref ref="console" />
         <appender-ref ref="logFile" />

@@ -889,7 +889,9 @@
               "UNKNOWN",
               "BLOCKED",
               "CANCELLED",
-              "EXPIRED"
+              "EXPIRED",
+              "ACCEPTED",
+              "FAILED"
             ]
           },
           "state": {
@@ -957,6 +959,12 @@
           "campaign_id": {
             "type": "string",
             "nullable": true
+          },
+          "billing_environment": {
+            "type": "string",
+            "enum": [
+              "sandbox"
+            ]
           }
         },
         "required": [
@@ -1280,6 +1288,12 @@
           },
           "amount_unit": {
             "type": "string"
+          },
+          "preferred_sms_stack": {
+            "type": "string"
+          },
+          "sms_transport_configured": {
+            "type": "boolean"
           }
         }
       },
