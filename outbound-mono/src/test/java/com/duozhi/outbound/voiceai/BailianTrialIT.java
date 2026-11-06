@@ -250,7 +250,14 @@ class BailianTrialIT {
                             "ticket",
                             created.get("ticket").asText()));
             await("provider_connected");
-            await("state");
+            // The first state is Connecting; commands require the provider's Listening state.
+            until(
+                    () ->
+                            events.stream()
+                                    .anyMatch(
+                                            e ->
+                                                    "state".equals(e.get("type"))
+                                                            && "Listening".equals(e.get("state"))));
         }
 
         public void onOpen(WebSocket ws) {
@@ -273,7 +280,16 @@ class BailianTrialIT {
         }
 
         Map<String, Object> await(String type) throws Exception {
-            until(() -> events.stream().anyMatch(e -> type.equals(e.get("type"))));
+            try {
+                until(() -> events.stream().anyMatch(e -> type.equals(e.get("type"))));
+            } catch (AssertionError timeout) {
+                throw new AssertionError(
+                        "Missing "
+                                + type
+                                + "; event types="
+                                + events.stream().map(e -> e.get("type")).toList(),
+                        timeout);
+            }
             return events.stream()
                     .filter(e -> type.equals(e.get("type")))
                     .reduce((a, b) -> b)
