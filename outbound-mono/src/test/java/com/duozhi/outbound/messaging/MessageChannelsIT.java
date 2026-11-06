@@ -444,6 +444,50 @@ class MessageChannelsIT {
     }
 
     @Test
+    void parallelPartitionOwnersSubmitOneMessageOnceAndNeverResendUnknown() throws Exception {
+        mode = "LOST";
+        String id =
+                messages.create(console, UUID.randomUUID().toString(), body("sms"))
+                        .get("message_id")
+                        .toString();
+        var partition = new MessagePartition(tenant, channel);
+        var start = new CountDownLatch(1);
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            var first =
+                    workers.submit(
+                            () -> {
+                                start.await();
+                                return messages.processOne(partition);
+                            });
+            var second =
+                    workers.submit(
+                            () -> {
+                                start.await();
+                                return messages.processOne(partition);
+                            });
+            start.countDown();
+            boolean a = first.get(5, TimeUnit.SECONDS), b = second.get(5, TimeUnit.SECONDS);
+            assertThat(a || b).isTrue();
+        }
+        assertThat(submits.get()).isEqualTo(1);
+        assertThat(messages.message(console, id))
+                .containsEntry("status", "UNKNOWN")
+                .containsEntry("billing_state", "HELD");
+        assertThat(messages.processOne(partition)).isFalse();
+        assertThat(
+                        db.jdbc()
+                                .queryForObject(
+                                        "SELECT COUNT(*) FROM msg_attempt WHERE message_id=?",
+                                        Integer.class,
+                                        id))
+                .isEqualTo(1);
+        delivery.scheduleQuery(tenant, id);
+        assertThat(delivery.queryOne(partition)).isTrue();
+        assertThat(submits.get()).isEqualTo(1);
+        assertThat(messages.message(console, id)).containsEntry("status", "DELIVERED");
+    }
+
+    @Test
     void allRichFormsPreserveCardsAssetsAndProviderInteraction() throws Exception {
         byte[] png =
                 Base64.getDecoder()

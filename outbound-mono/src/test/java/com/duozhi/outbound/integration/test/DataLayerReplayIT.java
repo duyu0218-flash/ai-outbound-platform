@@ -294,6 +294,7 @@ class DataLayerReplayIT {
                         DriverManager.getConnection(
                                 MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
                 var statement = connection.createStatement()) {
+            assertReviewSchema(connection);
             for (var expected :
                     Map.of(
                                     "ix_taskoutbox_ready_scope",
@@ -326,9 +327,14 @@ class DataLayerReplayIT {
         }
         // Marketing tables (mk_*) are owned and verified by the marketing module tests.
         assertThat(tables.keySet().stream().filter(name -> !name.startsWith("mk_")).count())
-                .isEqualTo(139);
+                .isEqualTo(144);
         assertThat(tables)
                 .containsKeys(
+                        "ops_call_statistics",
+                        "ops_campaign_statistics",
+                        "ops_campaign_contact_statistics",
+                        "ops_dial_attempt_fact",
+                        "platform_job_cursor",
                         "ops_interception",
                         "ops_export_job",
                         "ops_account_transfer",
@@ -395,6 +401,8 @@ class DataLayerReplayIT {
         report.put("operationsTableCount", 10);
         report.put("dialControlTableCount", 22);
         report.put("voiceAiComparisonTableCount", 3);
+        report.put("transactionalStatisticsTableCount", 4);
+        report.put("persistentJobCursorTableCount", 1);
         report.put("applicationTableCount", tables.size() - 1);
         report.put("tables", tables);
         Path target = Path.of("target", "data-layer-replay.json");
@@ -416,7 +424,116 @@ class DataLayerReplayIT {
                         + second.success);
         System.out.println(
                 "MySQL inventory: businessTables=34, auxiliaryTables=10, flywayMetadataTables=1,"
-                        + " operationsTables=10, dialControlTables=22, totalTables=77");
+                        + " operationsTables=10, dialControlTables=22, totalTables="
+                        + tables.size());
+    }
+
+    /** Independently maintained V47–V49 additions; never inferred from the running schema. */
+    static void assertReviewSchema(java.sql.Connection connection) throws Exception {
+        com.fasterxml.jackson.databind.JsonNode contract;
+        try (var input =
+                DataLayerReplayIT.class.getResourceAsStream(
+                        "/contracts/review-schema-v47-v49.json")) {
+            contract = new ObjectMapper().readTree(input);
+        }
+        var entries = contract.fields();
+        while (entries.hasNext()) {
+            var entry = entries.next();
+            String table = entry.getKey();
+            var expected = entry.getValue();
+            var columns = new LinkedHashMap<String, Map<String, Object>>();
+            try (var query =
+                    connection.prepareStatement(
+                            "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COLLATION_NAME,EXTRA,GENERATION_EXPRESSION"
+                                    + " FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? ORDER BY ORDINAL_POSITION")) {
+                query.setString(1, table);
+                try (var rows = query.executeQuery()) {
+                    while (rows.next()) {
+                        var column = new LinkedHashMap<String, Object>();
+                        column.put("type", rows.getString(2));
+                        column.put("nullable", "YES".equals(rows.getString(3)));
+                        column.put("collation", rows.getString(4));
+                        column.put("extra", rows.getString(5));
+                        column.put("expression", rows.getString(6));
+                        columns.put(rows.getString(1), column);
+                    }
+                }
+            }
+            var wantedColumns = new ArrayList<String>();
+            expected.get("columns").fieldNames().forEachRemaining(wantedColumns::add);
+            if (expected.get("complete").asBoolean())
+                assertThat(columns.keySet())
+                        .as(table + " exact columns")
+                        .containsExactlyElementsOf(wantedColumns);
+            var fields = expected.get("columns").fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                var actual = columns.get(field.getKey());
+                String label = table + "." + field.getKey();
+                assertThat(actual).as(label).isNotNull();
+                assertThat(actual.get("type"))
+                        .as(label + " type")
+                        .isEqualTo(field.getValue().get("type").asText());
+                assertThat(actual.get("nullable"))
+                        .as(label + " nullable")
+                        .isEqualTo(field.getValue().get("nullable").asBoolean());
+                if (field.getValue().has("collation"))
+                    assertThat(actual.get("collation"))
+                            .as(label + " collation")
+                            .isEqualTo(field.getValue().get("collation").asText());
+                if (field.getValue().path("generated").asBoolean()) {
+                    assertThat(actual.get("extra").toString())
+                            .as(label + " stored generation")
+                            .contains("STORED GENERATED");
+                    String expression =
+                            actual.get("expression").toString().toLowerCase(Locale.ROOT);
+                    for (var token : field.getValue().get("expressionTokens"))
+                        assertThat(expression)
+                                .as(label + " generation expression")
+                                .contains(token.asText());
+                } else {
+                    assertThat(actual.get("expression"))
+                            .as(label + " ordinary column")
+                            .isEqualTo("");
+                }
+            }
+            var indexes = new LinkedHashMap<String, List<String>>();
+            var unique = new HashMap<String, Boolean>();
+            try (var query =
+                    connection.prepareStatement(
+                            "SELECT INDEX_NAME,COLUMN_NAME,NON_UNIQUE,SUB_PART FROM information_schema.STATISTICS"
+                                    + " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? ORDER BY INDEX_NAME,SEQ_IN_INDEX")) {
+                query.setString(1, table);
+                try (var rows = query.executeQuery()) {
+                    while (rows.next()) {
+                        String name = rows.getString(1);
+                        indexes.computeIfAbsent(name, ignored -> new ArrayList<>())
+                                .add(rows.getString(2));
+                        unique.put(name, !rows.getBoolean(3));
+                        if (expected.get("indexes").has(name))
+                            assertThat(rows.getObject(4))
+                                    .as(table + "." + name + " full-column index")
+                                    .isNull();
+                    }
+                }
+            }
+            var wantedIndexes = new HashSet<String>();
+            expected.get("indexes").fieldNames().forEachRemaining(wantedIndexes::add);
+            if (expected.get("complete").asBoolean())
+                assertThat(indexes.keySet()).as(table + " exact indexes").isEqualTo(wantedIndexes);
+            var keys = expected.get("indexes").fields();
+            while (keys.hasNext()) {
+                var key = keys.next();
+                var wanted = new ArrayList<String>();
+                key.getValue().get("columns").forEach(column -> wanted.add(column.asText()));
+                assertThat(indexes.get(key.getKey()))
+                        .as(table + "." + key.getKey())
+                        .isEqualTo(wanted);
+                assertThat(unique.get(key.getKey()))
+                        .as(table + "." + key.getKey() + " unique")
+                        .isEqualTo(key.getValue().get("unique").asBoolean());
+            }
+        }
     }
 
     /** Versions of the V<n>__*.sql files on the classpath; new modules add migrations freely. */

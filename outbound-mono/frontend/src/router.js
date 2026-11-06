@@ -64,12 +64,101 @@ const previousMenu = [
 ];
 const benchmarkPaths = new Set(benchmarkMenu.flatMap((s) => s.items.map((i) => i[0])));
 export const adminMenu = [
-  ...benchmarkMenu,
+  {
+    group: 'AI 外呼',
+    sections: [
+      ['工作台', ['', 'operations/performance']],
+      [
+        '名单与任务',
+        [
+          'contacts',
+          'dashBoard/datacube',
+          'campaigns',
+          'tasks/current',
+          'tasks/history',
+          'tasks/setting',
+          'tasks/form',
+        ],
+      ],
+      [
+        '话术与知识',
+        [
+          'scripts',
+          'knowledge',
+          'scene/intent',
+          'scene/share',
+          'scene/tag',
+          'operations/shared-scripts',
+        ],
+      ],
+      [
+        '通话与跟进',
+        [
+          'calls',
+          'tasks/record',
+          'tasks/inspection',
+          'quality',
+          'operations/leads',
+          'operations/wecom',
+        ],
+      ],
+      [
+        '数据统计',
+        [
+          'operations/overview',
+          'dashBoard/call',
+          'dashBoard/seating',
+          'dashBoard/intercept',
+          'dashBoard/intent',
+          'dashBoard/followUp',
+          'dashBoard/textMsg',
+          'dashBoard/dataAnalysis',
+          'reports',
+        ],
+      ],
+      [
+        '外呼配置',
+        [
+          'account/seatingMon',
+          'operations/teams',
+          'lines',
+          'system/voice-ai',
+          'voice-statements',
+          'account/recharge',
+          'account/filterStrategy',
+        ],
+      ],
+    ].map(([group, paths]) => ({
+      group,
+      items: paths.map((path) =>
+        [...benchmarkMenu, ...previousMenu]
+          .flatMap((section) => section.items)
+          .find((item) => item[0] === path),
+      ),
+    })),
+  },
   ...previousMenu
-    .map((s) => ({ ...s, items: s.items.filter((i) => !benchmarkPaths.has(i[0])) }))
-    .filter((s) => s.items.length),
+    .filter((section) => section.group !== 'AI 外呼')
+    .map((section) => ({ ...section, items: [...section.items] })),
 ];
-export const adminNavigation = adminMenu.flatMap((section) => section.items);
+const outboundPaths = new Set(
+  adminMenu[0].sections.flatMap((section) => section.items.map((item) => item[0])),
+);
+for (const section of adminMenu.slice(1))
+  section.items = section.items.filter((item) => !outboundPaths.has(item[0]));
+const assignedPaths = new Set(
+  adminMenu.flatMap((section) =>
+    section.sections
+      ? section.sections.flatMap((child) => child.items.map((item) => item[0]))
+      : section.items.map((item) => item[0]),
+  ),
+);
+for (const item of benchmarkMenu.flatMap((section) => section.items))
+  if (!assignedPaths.has(item[0]))
+    adminMenu.find((section) => section.group === '系统').items.push(item);
+export const adminNavigation = adminMenu.flatMap((section) =>
+  section.sections ? section.sections.flatMap((child) => child.items) : section.items,
+);
 const hiddenAdmin = [
   ['contacts-operations', 'ContactOperations'],
   ['operations/calls', 'OperationsCalls'],

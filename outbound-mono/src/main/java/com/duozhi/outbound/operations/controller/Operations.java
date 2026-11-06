@@ -417,11 +417,29 @@ public class Operations {
     }
 
     public ResponseEntity<byte[]> exportFor(Map<String, String> q, Identity i) throws IOException {
+        var target = new java.io.ByteArrayOutputStream();
+        try (var writer =
+                new java.io.OutputStreamWriter(
+                        new com.duozhi.outbound.operations.service.ExportStorage.Budget(
+                                        com.duozhi.outbound.operations.service.ExportStorage
+                                                .MAX_BYTES)
+                                .wrap(target),
+                        StandardCharsets.UTF_8)) {
+            writeCalls(q, i, writer, 100000);
+        }
+        notice(i, i.userId(), "export:" + UUID.randomUUID(), "话单导出已完成", "/operations/calls");
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=filtered-calls.csv")
+                .body(target.toByteArray());
+    }
+
+    public void writeCalls(Map<String, String> q, Identity i, java.io.Writer writer, int maximum)
+            throws IOException {
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
         var p = filters(i, q);
         long total = db.count("callCount", p);
-        if (total > 100000) throw new ApiError(422, "导出最多十万条，请缩小查询范围");
-        var writer = new StringWriter();
+        if (total > maximum) throw new ApiError(422, "导出数量超过限制，请缩小查询范围");
         writer.write('\ufeff');
         var csv = new CSVPrinter(writer, CSVFormat.DEFAULT);
         var keys =
@@ -453,6 +471,8 @@ public class Operations {
                         seatBehavior.effective(i.tenant(), i.userId()).get("success_phone"));
         p.put("limit", 250);
         for (int offset = 0; offset < total; offset += 250) {
+            if (!com.duozhi.outbound.common.runtime.ScheduledWork.withinBudget())
+                throw new ApiError(422, "导出超时，请缩小范围");
             p.put("offset", offset);
             for (var raw : db.rows("calls", p)) {
                 @SuppressWarnings("unchecked")
@@ -470,11 +490,7 @@ public class Operations {
             }
         }
         audit.record(i, "export", "ops_calls", null, "matched=" + total);
-        notice(i, i.userId(), "export:" + UUID.randomUUID(), "话单导出已完成", "/operations/calls");
-        return ResponseEntity.ok()
-                .header("Content-Type", "text/csv;charset=UTF-8")
-                .header("Content-Disposition", "attachment; filename=filtered-calls.csv")
-                .body(writer.toString().getBytes(StandardCharsets.UTF_8));
+        csv.flush();
     }
 
     public static String csvCell(Object value) {
@@ -600,9 +616,26 @@ public class Operations {
 
     public ResponseEntity<byte[]> reportExportFor(Map<String, String> q, Identity i)
             throws IOException {
+        var target = new java.io.ByteArrayOutputStream();
+        try (var writer =
+                new java.io.OutputStreamWriter(
+                        new com.duozhi.outbound.operations.service.ExportStorage.Budget(
+                                        com.duozhi.outbound.operations.service.ExportStorage
+                                                .MAX_BYTES)
+                                .wrap(target),
+                        StandardCharsets.UTF_8)) {
+            writeReport(q, i, writer);
+        }
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv;charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=operations-report.csv")
+                .body(target.toByteArray());
+    }
+
+    public void writeReport(Map<String, String> q, Identity i, java.io.Writer writer)
+            throws IOException {
         if (!access.flag(i, "can_export")) throw new ApiError(403, "没有导出权限");
         var data = reportsFor(q, i);
-        var writer = new StringWriter();
         writer.write('\ufeff');
         var csv = new CSVPrinter(writer, CSVFormat.DEFAULT);
         List<String> fields =
@@ -663,10 +696,7 @@ public class Operations {
                 "ops_report",
                 null,
                 "dimension=" + q.getOrDefault("dimension", "campaign"));
-        return ResponseEntity.ok()
-                .header("Content-Type", "text/csv;charset=UTF-8")
-                .header("Content-Disposition", "attachment; filename=operations-report.csv")
-                .body(writer.toString().getBytes(StandardCharsets.UTF_8));
+        csv.flush();
     }
 
     @GetMapping("/campaigns")

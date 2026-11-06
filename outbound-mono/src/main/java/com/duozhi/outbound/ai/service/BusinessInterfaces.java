@@ -9,12 +9,16 @@ import com.duozhi.outbound.messaging.service.PinnedWebhookTransport;
 import com.duozhi.outbound.workspace.service.WorkspaceDocuments;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.*;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
 /** Node HTTP requests run in the integration outbox, outside the dial/conversation writer lock. */
 @Service
 public class BusinessInterfaces {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.common.config.Config config;
+
     private final WorkspaceDocuments docs;
     private final Outbox outbox;
     private final PinnedWebhookTransport transport;
@@ -136,7 +140,9 @@ public class BusinessInterfaces {
                         "definition",
                         def,
                         "variables",
-                        variables));
+                        variables,
+                        "queued_at",
+                        Instant.now().toString()));
         return true;
     }
 
@@ -176,6 +182,7 @@ public class BusinessInterfaces {
         String error = "";
         try {
             com.duozhi.outbound.job.worker.TaskWorker.permitted();
+            if (queueExpired(task, payload)) throw new ApiError(408, "业务接口排队超时");
             var reply =
                     transport.request(
                             URI.create(def.get("url").toString()),
@@ -254,5 +261,19 @@ public class BusinessInterfaces {
                                     Objects.toString(row.get("last_transcript"), "")));
                     return null;
                 });
+    }
+
+    private boolean queueExpired(Map<String, Object> task, Map<String, Object> payload) {
+        int millis = config == null ? 10000 : config.number("JAVA_INTERFACE_QUEUE_MS", 10000);
+        millis = Math.max(100, Math.min(60000, millis));
+        Instant queued;
+        if (payload.get("queued_at") != null)
+            queued = Instant.parse(payload.get("queued_at").toString());
+        else if (task.get("created_at") != null)
+            queued =
+                    LocalDateTime.parse(task.get("created_at").toString())
+                            .toInstant(ZoneOffset.UTC);
+        else return false;
+        return queued.plusMillis(millis).isBefore(Instant.now());
     }
 }

@@ -68,6 +68,55 @@ public class WorkspaceDocuments {
                 .toList();
     }
 
+    /**
+     * Growth histories opt into bounded server-side paging instead of the configuration list cap.
+     */
+    public Map<String, Object> historyPage(long tenant, String kind, Map<String, String> query) {
+        int page, size;
+        try {
+            page = Integer.parseInt(query.getOrDefault("page", "1"));
+            size = Integer.parseInt(query.getOrDefault("size", "20"));
+        } catch (NumberFormatException invalid) {
+            throw new ApiError(422, "分页参数无效");
+        }
+        if (page < 1 || page > 1000000 || size < 1 || size > 200) throw new ApiError(422, "分页参数无效");
+        var args = new ArrayList<Object>();
+        args.add(tenant);
+        args.add(kind);
+        String where = " WHERE tenant_id=? AND kind=?";
+        String state = query.getOrDefault("state", "");
+        if (!state.isBlank()) {
+            if (!state.matches("[a-z_]{1,32}")) throw new ApiError(422, "状态筛选无效");
+            where += " AND draft_json->>'$.state'=?";
+            args.add(state);
+        }
+        String request = query.getOrDefault("request_id", "");
+        if (!request.isBlank()) {
+            if (request.length() > 160) throw new ApiError(422, "请求ID过长");
+            where += " AND object_id=?";
+            args.add(request);
+        }
+        var total =
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM platform_document" + where,
+                        Long.class,
+                        args.toArray());
+        args.add(size);
+        args.add((long) (page - 1) * size);
+        var rows =
+                jdbc
+                        .queryForList(
+                                "SELECT * FROM platform_document"
+                                        + where
+                                        + " ORDER BY updated_at DESC,object_id LIMIT ? OFFSET ?",
+                                args.toArray())
+                        .stream()
+                        .map(this::output)
+                        .toList();
+        return Map.of(
+                "rows", rows, "total", total == null ? 0L : total, "page", page, "size", size);
+    }
+
     public Map<String, Object> save(
             Identity actor,
             String kind,

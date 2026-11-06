@@ -624,6 +624,10 @@ public class CompetitiveWorkflows {
         i.admin("operations:write");
         var args = new ArrayList<Object>();
         args.add(i.tenant());
+        String started =
+                "(SELECT MIN(s.started_at) FROM ops_call_statistics s WHERE s.tenant_id=g.tenant_id AND s.campaign_id=g.id)";
+        String ended =
+                "(SELECT MAX(s.ended_at) FROM ops_call_statistics s WHERE s.tenant_id=g.tenant_id AND s.campaign_id=g.id)";
         String where = "g.tenant_id=? AND g.status<> 'deleted'";
         if (q.getOrDefault("history", "false").equals("true"))
             where += " AND g.status IN ('completed','stopped','failed')";
@@ -653,8 +657,8 @@ public class CompetitiveWorkflows {
                         case "mode" -> " AND g.mode=?";
                         case "line_id" ->
                                 " AND EXISTS(SELECT 1 FROM callsession cc WHERE cc.tenant_id=g.tenant_id AND cc.campaign_id=g.id AND cc.telephony_line_id=?)";
-                        case "from" -> " AND COALESCE(stats.started_at,g.created_at)>=?";
-                        case "until" -> " AND COALESCE(stats.ended_at,g.updated_at)<=?";
+                        case "from" -> " AND COALESCE(" + started + ",g.created_at)>=?";
+                        case "until" -> " AND COALESCE(" + ended + ",g.updated_at)<=?";
                         case "min_seconds" -> " AND stats.seconds>=?";
                         case "max_seconds" -> " AND stats.seconds<=?";
                         case "team_id" ->
@@ -674,10 +678,11 @@ public class CompetitiveWorkflows {
         if (!suggestion.isBlank()) {
             if (!Set.of("insufficient", "improve", "continue").contains(suggestion))
                 throw new ApiError(422, "外呼建议无效");
-            if (suggestion.equals("insufficient")) where += " AND COALESCE(stats.answered,0)=0";
+            if (suggestion.equals("insufficient"))
+                where += " AND COALESCE(stats.connected_sessions,0)=0";
             else {
                 where +=
-                        " AND stats.answered>0 AND 100*COALESCE(stats.interested,0)/stats.answered "
+                        " AND stats.connected_sessions>0 AND 100*COALESCE(stats.interested,0)/stats.connected_sessions "
                                 + (suggestion.equals("improve") ? "<" : ">=")
                                 + " ?";
                 args.add(target);
@@ -686,39 +691,110 @@ public class CompetitiveWorkflows {
         int page = OutboundRules.integer(q.getOrDefault("page", "1"), 1, 100000);
         int size = OutboundRules.integer(q.getOrDefault("size", "20"), 1, 200);
         String join =
-                " FROM campaign g LEFT JOIN scripttemplate script ON script.tenant_id=g.tenant_id AND script.id=g.script_template_id LEFT JOIN LATERAL(SELECT COUNT(*) AS sessions,COUNT(DISTINCT CASE WHEN c.attempts>0 THEN c.contact_id END) AS dialed_contacts,SUM(c.status IN ('COMPLETED','FAILED','NO_ANSWER','BUSY','VOICEMAIL')) AS finished,MIN(c.started_at) AS started_at,MAX(c.finished_at) AS ended_at,SUM(c.attempts) AS dialed,SUM(EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL)) AS answered,SUM(a.result_code='qualified_lead') AS successful,SUM(a.result_code IN ('interested','qualified_lead','callback_confirmed')) AS interested,SUM((SELECT SUM(u.telephony_seconds) FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id)) AS seconds,SUM(EXISTS(SELECT 1 FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id)) AS entered,SUM(EXISTS(SELECT 1 FROM handoffrequest h WHERE h.tenant_id=c.tenant_id AND h.call_session_id=c.id AND h.state IN ('ACCEPTED','COMPLETED'))) AS taken FROM callsession c LEFT JOIN callanalysis a ON a.tenant_id=c.tenant_id AND a.call_session_id=c.id WHERE c.tenant_id=g.tenant_id AND c.campaign_id=g.id) stats ON TRUE WHERE "
+                " FROM campaign g LEFT JOIN scripttemplate script ON script.tenant_id=g.tenant_id AND script.id=g.script_template_id LEFT JOIN ops_campaign_statistics stats ON stats.tenant_id=g.tenant_id AND stats.campaign_id=g.id WHERE "
                         + where;
         long total = docs.jdbc.queryForObject("SELECT COUNT(*)" + join, Long.class, args.toArray());
         args.add(size);
         args.add((page - 1) * size);
+        String fields =
+                List.of(
+                                "sessions",
+                                "dialed_contacts",
+                                "finished",
+                                "dialed",
+                                "answered",
+                                "connected_sessions",
+                                "successful",
+                                "interested",
+                                "seconds",
+                                "entered",
+                                "taken")
+                        .stream()
+                        .map(name -> "COALESCE(stats." + name + ",0) AS " + name)
+                        .collect(java.util.stream.Collectors.joining(","));
         var rows =
                 docs.jdbc.queryForList(
-                        "SELECT g.*,script.name AS script_name,stats.*,(SELECT GROUP_CONCAT(DISTINCT tl.name) FROM callsession cc JOIN telephonyline tl ON tl.tenant_id=cc.tenant_id AND tl.id=cc.telephony_line_id WHERE cc.tenant_id=g.tenant_id AND cc.campaign_id=g.id) AS line_names,(SELECT GROUP_CONCAT(DISTINCT t.name) FROM callsession cc JOIN ops_call_dimension d ON d.tenant_id=cc.tenant_id AND d.call_id=cc.id JOIN ops_team t ON t.tenant_id=d.tenant_id AND t.id=d.team_id WHERE cc.tenant_id=g.tenant_id AND cc.campaign_id=g.id) AS team_names,(SELECT COUNT(*) FROM campaigncontact cc WHERE cc.campaign_id=g.id) AS contacts,(SELECT COUNT(*) FROM smslog s JOIN callsession c ON c.tenant_id=s.tenant_id AND c.id=s.call_session_id WHERE c.tenant_id=g.tenant_id AND c.campaign_id=g.id) AS sms,(SELECT SUM(v.bill_seconds) FROM voice_statement_entry v JOIN callsession c ON c.tenant_id=v.tenant_id AND c.id=v.call_id WHERE c.tenant_id=g.tenant_id AND c.campaign_id=g.id) AS bill_seconds,(SELECT SUM(-v.signed_amount) FROM voice_statement_entry v JOIN callsession c ON c.tenant_id=v.tenant_id AND c.id=v.call_id WHERE c.tenant_id=g.tenant_id AND c.campaign_id=g.id AND v.kind='charge') AS cost"
+                        "SELECT g.*,script.name AS script_name,"
+                                + fields
+                                + ","
+                                + started
+                                + " AS started_at,"
+                                + ended
+                                + " AS ended_at,stats.updated_at AS statistics_updated_at"
                                 + join
                                 + " ORDER BY g.id DESC LIMIT ? OFFSET ?",
                         args.toArray());
+        taskDetails(i.tenant(), rows);
         for (var row : rows) {
             double answered = row.get("answered") instanceof Number n ? n.doubleValue() : 0,
+                    connected =
+                            row.get("connected_sessions") instanceof Number n ? n.doubleValue() : 0,
                     attempts = row.get("dialed") instanceof Number n ? n.doubleValue() : 0,
                     entered = row.get("entered") instanceof Number n ? n.doubleValue() : 0,
                     intents = row.get("interested") instanceof Number n ? n.doubleValue() : 0;
             row.put("answer_rate", attempts > 0 ? 100 * answered / attempts : null);
-            row.put("entry_rate", answered > 0 ? 100 * entered / answered : null);
+            row.put("answer_rate_basis", "dial_attempt_v2");
+            row.put("outcome_rate_basis", "connected_session_v1");
+            row.put("entry_rate", connected > 0 ? 100 * entered / connected : null);
             row.put("takeover_rate", entered > 0 ? 100 * number(row.get("taken")) / entered : null);
             row.put(
                     "success_rate",
-                    answered > 0 ? 100 * number(row.get("successful")) / answered : null);
+                    connected > 0 ? 100 * number(row.get("successful")) / connected : null);
             row.put("evaluation_rule", "目标意向率 " + target + "%");
             row.put(
                     "evaluation_result",
-                    answered == 0 ? "数据不足" : 100 * intents / answered >= target ? "已达目标" : "未达目标");
+                    connected == 0
+                            ? "数据不足"
+                            : 100 * intents / connected >= target ? "已达目标" : "未达目标");
             row.put(
                     "suggestion",
-                    answered == 0 ? "数据不足" : 100 * intents / answered >= target ? "继续拨打" : "优化话术");
+                    connected == 0
+                            ? "数据不足"
+                            : 100 * intents / connected >= target ? "继续拨打" : "优化话术");
             long contacts = ((Number) row.getOrDefault("contacts", 0)).longValue();
             row.put("progress", contacts > 0 ? 100 * number(row.get("finished")) / contacts : null);
         }
         return Map.of("rows", rows, "total", total);
+    }
+
+    /** Aggregate only the selected page; count/filter queries never traverse detail ledgers. */
+    private void taskDetails(long tenant, List<Map<String, Object>> rows) {
+        if (rows.isEmpty()) return;
+        var byId = new LinkedHashMap<Long, Map<String, Object>>();
+        var args = new ArrayList<Object>();
+        args.add(tenant);
+        for (var row : rows) {
+            long id = ((Number) row.get("id")).longValue();
+            byId.put(id, row);
+            args.add(id);
+            row.put("contacts", 0L);
+            row.put("sms", 0L);
+            for (String key : List.of("line_names", "team_names", "bill_seconds", "cost"))
+                row.put(key, null);
+        }
+        String ids = String.join(",", Collections.nCopies(rows.size(), "?"));
+        List<String> queries =
+                List.of(
+                        "SELECT c.campaign_id,GROUP_CONCAT(DISTINCT l.name) AS line_names FROM callsession c JOIN telephonyline l ON l.tenant_id=c.tenant_id AND l.id=c.telephony_line_id WHERE c.tenant_id=? AND c.campaign_id IN ("
+                                + ids
+                                + ") GROUP BY c.campaign_id",
+                        "SELECT c.campaign_id,GROUP_CONCAT(DISTINCT t.name) AS team_names FROM callsession c JOIN ops_call_dimension d ON d.tenant_id=c.tenant_id AND d.call_id=c.id JOIN ops_team t ON t.tenant_id=d.tenant_id AND t.id=d.team_id WHERE c.tenant_id=? AND c.campaign_id IN ("
+                                + ids
+                                + ") GROUP BY c.campaign_id",
+                        "SELECT g.id AS campaign_id,COUNT(cc.id) AS contacts FROM campaign g JOIN campaigncontact cc ON cc.campaign_id=g.id WHERE g.tenant_id=? AND g.id IN ("
+                                + ids
+                                + ") GROUP BY g.id",
+                        "SELECT c.campaign_id,COUNT(*) AS sms FROM callsession c JOIN smslog s ON s.tenant_id=c.tenant_id AND s.call_session_id=c.id WHERE c.tenant_id=? AND c.campaign_id IN ("
+                                + ids
+                                + ") GROUP BY c.campaign_id",
+                        "SELECT c.campaign_id,SUM(v.bill_seconds) AS bill_seconds,SUM(CASE WHEN v.kind='charge' THEN -v.signed_amount END) AS cost FROM callsession c JOIN voice_statement_entry v ON v.tenant_id=c.tenant_id AND v.call_id=c.id WHERE c.tenant_id=? AND c.campaign_id IN ("
+                                + ids
+                                + ") GROUP BY c.campaign_id");
+        for (String sql : queries)
+            for (var detail : docs.jdbc.queryForList(sql, args.toArray())) {
+                var row = byId.get(((Number) detail.remove("campaign_id")).longValue());
+                if (row != null) row.putAll(detail);
+            }
     }
 
     @PostMapping("/notices/{id}/delete")

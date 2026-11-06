@@ -19,6 +19,7 @@ public class CmppMessageProtocol implements ChannelProtocol {
     private final MessageChannels channels;
     private final ObjectProvider<MessageDelivery> deliveries;
     private final Map<String, CMPPClientEndpointEntity> endpoints = new HashMap<>();
+    private final Map<String, Long> lastUsed = new HashMap<>();
     private final ThreadPoolExecutor reports =
             new ThreadPoolExecutor(
                     1,
@@ -41,7 +42,11 @@ public class CmppMessageProtocol implements ChannelProtocol {
     private synchronized CMPPClientEndpointEntity endpoint(
             Map<String, Object> channel, Map<String, Object> credentials) throws Exception {
         String id = channel.get("id").toString();
-        if (endpoints.containsKey(id)) return endpoints.get(id);
+        if (endpoints.containsKey(id)) {
+            lastUsed.put(id, System.nanoTime());
+            return endpoints.get(id);
+        }
+        reapInactive();
         if (endpoints.size() >= 64)
             throw new java.io.IOException("CMPP connection budget exhausted");
         var cfg = Messaging.object(channel.get("config"));
@@ -70,7 +75,20 @@ public class CmppMessageProtocol implements ChannelProtocol {
         EndpointManager.INS.openEndpoint(e);
         EndpointManager.INS.startConnectionCheckTask();
         endpoints.put(id, e);
+        lastUsed.put(id, System.nanoTime());
         return e;
+    }
+
+    public synchronized void reapInactive() {
+        long cutoff = System.nanoTime() - TimeUnit.MINUTES.toNanos(1);
+        for (String id : new ArrayList<>(endpoints.keySet())) {
+            if (lastUsed.getOrDefault(id, Long.MAX_VALUE) >= cutoff
+                    || !channels.drainedInactive(id)) continue;
+            var endpoint = endpoints.remove(id);
+            EndpointManager.INS.close(endpoint);
+            EndpointManager.INS.remove(endpoint.getId());
+            lastUsed.remove(id);
+        }
     }
 
     private CMPPClientEndpointEntity connected(
@@ -195,7 +213,11 @@ public class CmppMessageProtocol implements ChannelProtocol {
     @PreDestroy
     public synchronized void close() {
         reports.shutdownNow();
-        for (var e : endpoints.values()) EndpointManager.INS.close(e);
+        for (var e : endpoints.values()) {
+            EndpointManager.INS.close(e);
+            EndpointManager.INS.remove(e.getId());
+        }
         endpoints.clear();
+        lastUsed.clear();
     }
 }

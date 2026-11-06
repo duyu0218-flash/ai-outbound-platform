@@ -178,41 +178,80 @@ public class OperationalPush {
         scheduled.submit(ScheduledWork.Job.OPERATIONS_PUSH, this::balances);
     }
 
-    public void balances() {
-        for (var d :
-                docs.jdbc.queryForList(
-                        "SELECT tenant_id,revision,draft_json FROM platform_document WHERE kind='push_balance' AND object_id='tenant' LIMIT 1000")) {
-            if (!ScheduledWork.withinBudget()) return;
-            var c = docs.json.object(d.get("draft_json").toString());
-            if (!Boolean.TRUE.equals(c.get("enabled"))) continue;
-            long tenant = number(d.get("tenant_id"));
-            var balance = statements.balance(tenant);
-            if (!Boolean.TRUE.equals(balance.get("available"))
-                    || !(balance.get("amount") instanceof Number n)
-                    || n.doubleValue() > ((Number) c.get("threshold")).doubleValue()) continue;
-            outbox.enqueue(
-                    tenant,
-                    "business_callback",
-                    "balance:" + tenant,
-                    "push-balance:"
-                            + tenant
-                            + ":"
-                            + d.get("revision")
-                            + ":"
-                            + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")),
-                    Map.of(
-                            "push_type",
-                            "balance",
-                            "data",
-                            Map.of(
-                                    "event",
-                                    "balance.low",
-                                    "tenant_id",
-                                    tenant,
-                                    "balance",
-                                    balance.get("amount"),
-                                    "threshold",
-                                    c.get("threshold"))));
+    public synchronized void balances() {
+        long after =
+                docs.jdbc.queryForObject(
+                        "SELECT last_id FROM platform_job_cursor WHERE job_key='balance-push'",
+                        Long.class);
+        // Keyset pages bound each scan. Persist the next position before work so an interrupted
+        // dependency cannot force every subsequent tick to restart at the same tenant.
+        for (int page = 0; page < 10 && ScheduledWork.withinBudget(); page++) {
+            var rows =
+                    docs.jdbc.queryForList(
+                            "SELECT tenant_id,revision,draft_json FROM platform_document WHERE kind='push_balance' AND object_id='tenant' AND tenant_id>? ORDER BY tenant_id LIMIT 100",
+                            after);
+            if (rows.isEmpty()) {
+                balanceCursor(0);
+                return;
+            }
+            for (var d : rows) {
+                if (!ScheduledWork.withinBudget()) return;
+                after = ((Number) d.get("tenant_id")).longValue();
+                balanceCursor(after);
+                try {
+                    balance(d);
+                } catch (RuntimeException failed) {
+                    org.slf4j.LoggerFactory.getLogger(OperationalPush.class)
+                            .warn(
+                                    "balance scan tenant={} error_type={}",
+                                    after,
+                                    failed.getClass().getSimpleName());
+                    // A failed tenant is retried next cycle, without starving the other tenants.
+                }
+            }
+            if (rows.size() < 100) {
+                balanceCursor(0);
+                return;
+            }
         }
+    }
+
+    private void balanceCursor(long next) {
+        docs.jdbc.update(
+                "UPDATE platform_job_cursor SET last_id=?,updated_at=CURRENT_TIMESTAMP(6) WHERE job_key='balance-push'",
+                next);
+    }
+
+    private void balance(Map<String, Object> d) {
+        var c = docs.json.object(d.get("draft_json").toString());
+        if (!Boolean.TRUE.equals(c.get("enabled"))) return;
+        long tenant = number(d.get("tenant_id"));
+        var balance = statements.balance(tenant);
+        if (!Boolean.TRUE.equals(balance.get("available"))
+                || !(balance.get("amount") instanceof Number n)
+                || n.doubleValue() > ((Number) c.get("threshold")).doubleValue()) return;
+        outbox.enqueue(
+                tenant,
+                "business_callback",
+                "balance:" + tenant,
+                "push-balance:"
+                        + tenant
+                        + ":"
+                        + d.get("revision")
+                        + ":"
+                        + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")),
+                Map.of(
+                        "push_type",
+                        "balance",
+                        "data",
+                        Map.of(
+                                "event",
+                                "balance.low",
+                                "tenant_id",
+                                tenant,
+                                "balance",
+                                balance.get("amount"),
+                                "threshold",
+                                c.get("threshold"))));
     }
 }

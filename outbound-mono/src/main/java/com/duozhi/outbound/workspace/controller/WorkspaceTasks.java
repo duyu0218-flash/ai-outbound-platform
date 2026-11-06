@@ -35,6 +35,9 @@ public class WorkspaceTasks {
     @org.springframework.beans.factory.annotation.Autowired
     private com.duozhi.outbound.operations.service.TaskStrategies strategies;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.duozhi.outbound.system.service.Audit audit;
+
     private final com.duozhi.outbound.client.controller.ClientAdmin clients;
 
     public WorkspaceTasks(
@@ -115,88 +118,98 @@ public class WorkspaceTasks {
     public Object create(@RequestBody
     Map<String, Object> body, HttpServletRequest r) {
         String request = Objects.toString(body.get("request_key"), "");
-        if (request.isBlank()) return createOnce(body, r);
         long tenant = tenant(r);
-        if (!request.matches("[A-Za-z0-9-]{1,64}")) throw new ApiError(422, "创建请求编号无效");
+        if (!request.isBlank() && !request.matches("[A-Za-z0-9-]{1,64}"))
+            throw new ApiError(422, "创建请求编号无效");
         String hash = JsonSupport.sha(docs.json.canonical(body, false));
-        return docs.tx.serialized(
+        var old = request.isBlank() ? null : docs.find(tenant, "task_create_request", request);
+        if (old != null) return replay(old, hash, r);
+        // Expensive source resolution must never occupy the global dial-admission mutex.
+        var selection = docs.tx.run(() -> audience.resolve(tenant, body));
+        return docs.tx.serializedIdentity(
+                "workspace-task-create:"
+                        + tenant
+                        + ":"
+                        + (request.isBlank() ? UUID.randomUUID() : request),
                 () -> {
-                    var old = docs.find(tenant, "task_create_request", request);
-                    if (old != null) {
-                        var saved = map(old.get("draft"));
-                        if (!hash.equals(saved.get("hash")))
-                            throw new ApiError(409, "同一创建请求包含不同内容");
-                        var tasks =
-                                ((List<?>) saved.get("ids"))
-                                        .stream()
-                                                .map(id -> detail(((Number) id).longValue(), r))
-                                                .toList();
-                        return Boolean.TRUE.equals(saved.get("split"))
-                                ? Map.of("tasks", tasks)
-                                : tasks.getFirst();
-                    }
-                    Object result = createOnce(body, r);
+                    var existing =
+                            request.isBlank()
+                                    ? null
+                                    : docs.find(tenant, "task_create_request", request);
+                    if (existing != null) return replay(existing, hash, r);
+                    Object result = createOnce(body, r, selection);
+                    if (request.isBlank()) return result;
                     var output = map(result);
                     boolean split = output.containsKey("tasks");
                     var tasks = split ? (List<?>) output.get("tasks") : List.of(output);
-                    docs.save(
-                            Identity.from(r),
-                            "task_create_request",
+                    // The request-key lock and unique key protect this receipt. It commits with
+                    // every child, so a timeout leaves neither a receipt nor partially ready tasks.
+                    docs.jdbc.update(
+                            "INSERT INTO platform_document(tenant_id,kind,object_id,name,parent_id,draft_json,updated_by,updated_at) VALUES(?,'task_create_request',?,'任务创建请求','',?,?,?)",
+                            tenant,
                             request,
-                            "",
-                            Map.of(
-                                    "name",
-                                    "任务创建请求",
-                                    "hash",
-                                    hash,
-                                    "split",
-                                    split,
-                                    "ids",
-                                    tasks.stream().map(task -> map(task).get("id")).toList()),
-                            0);
+                            docs.json.json(
+                                    Map.of(
+                                            "name",
+                                            "任务创建请求",
+                                            "hash",
+                                            hash,
+                                            "split",
+                                            split,
+                                            "ids",
+                                            tasks.stream()
+                                                    .map(task -> map(task).get("id"))
+                                                    .toList())),
+                            Identity.from(r).userId(),
+                            Store.now());
+                    audit.record(
+                            Identity.from(r),
+                            "save_draft",
+                            "workspace_task_create_request",
+                            request,
+                            "task creation committed");
                     return result;
                 });
     }
 
-    private Object createOnce(Map<String, Object> body, HttpServletRequest r) {
+    private Object replay(Map<String, Object> old, String hash, HttpServletRequest r) {
+        var saved = map(old.get("draft"));
+        if (!hash.equals(saved.get("hash"))) throw new ApiError(409, "同一创建请求包含不同内容");
+        var tasks =
+                ((List<?>) saved.get("ids"))
+                        .stream().map(id -> detail(((Number) id).longValue(), r)).toList();
+        return Boolean.TRUE.equals(saved.get("split")) ? Map.of("tasks", tasks) : tasks.getFirst();
+    }
+
+    private Object createOnce(
+            Map<String, Object> body,
+            HttpServletRequest r,
+            com.duozhi.outbound.workspace.service.WorkspaceAudience.Selection selection) {
         int split =
                 com.duozhi.outbound.operations.service.OutboundRules.integer(
                         body.getOrDefault("split_size", 0), 0, 200000);
         if (split > 0) {
-            long tenant = tenant(r);
-            return docs.tx.serialized(
-                    () -> {
-                        var selection = audience.resolve(tenant, body);
-                        var ids = new ArrayList<>(selection.members().keySet());
-                        if (ids.isEmpty() || (ids.size() + split - 1) / split > 50)
-                            throw new ApiError(422, "拆分后任务数须为1至50个");
-                        var tasks = new ArrayList<Object>();
-                        for (int offset = 0; offset < ids.size(); offset += split) {
-                            var part = new LinkedHashMap<>(body);
-                            part.put(
-                                    "name",
-                                    Objects.toString(body.get("name"), "")
-                                            + " "
-                                            + (offset / split + 1));
-                            var include =
-                                    new HashSet<>(
-                                            ids.subList(
-                                                    offset, Math.min(offset + split, ids.size())));
-                            var excluded =
-                                    new ArrayList<Object>(
-                                            (List<?>)
-                                                    body.getOrDefault(
-                                                            "excluded_contact_ids", List.of()));
-                            ids.stream()
-                                    .filter(cid -> !include.contains(cid))
-                                    .forEach(excluded::add);
-                            part.put("excluded_contact_ids", excluded);
-                            tasks.add(save(null, part, r));
-                        }
-                        return Map.of("tasks", tasks);
-                    });
+            var ids = new ArrayList<>(selection.members().keySet());
+            if (ids.isEmpty() || (ids.size() + split - 1) / split > 50)
+                throw new ApiError(422, "拆分后任务数须为1至50个");
+            var tasks = new ArrayList<Object>();
+            for (int offset = 0; offset < ids.size(); offset += split) {
+                var part = new LinkedHashMap<>(body);
+                part.put(
+                        "name",
+                        Objects.toString(body.get("name"), "") + " " + (offset / split + 1));
+                var include =
+                        new ArrayList<>(ids.subList(offset, Math.min(offset + split, ids.size())));
+                part.put("contact_ids", include);
+                part.put("batch_ids", List.of());
+                part.put("segment_snapshot_ids", List.of());
+                part.put("excluded_contact_ids", List.of());
+                part.put("_split_snapshot", true);
+                tasks.add(save(null, part, r, selection.subset(include)));
+            }
+            return Map.of("tasks", tasks);
         }
-        return save(null, body, r);
+        return save(null, body, r, selection);
     }
 
     @PutMapping("/{id}")
@@ -209,11 +222,22 @@ public class WorkspaceTasks {
 
     private Object save(Long id, Map<String, Object> body, HttpServletRequest r) {
         long tenant = tenant(r);
-        return docs.tx.serialized(
+        return save(id, body, r, docs.tx.run(() -> audience.resolve(tenant, body)));
+    }
+
+    private Object save(
+            Long id,
+            Map<String, Object> body,
+            HttpServletRequest r,
+            com.duozhi.outbound.workspace.service.WorkspaceAudience.Selection selection) {
+        long tenant = tenant(r);
+        java.util.function.Supplier<Object> write =
                 () -> {
                     var data = new LinkedHashMap<>(body);
                     data.remove("split_size");
                     data.remove("request_key");
+                    data.remove("_split_snapshot");
+                    data.remove("frozen_audience_id");
                     var taskOptions = strategies.options(tenant, data.remove("task_options"));
                     if (id != null) {
                         var previous = docs.campaignSnapshot(tenant, id);
@@ -230,7 +254,6 @@ public class WorkspaceTasks {
                     String startAt = Objects.toString(data.remove("start_at"), ""),
                             endAt = Objects.toString(data.remove("end_at"), "");
                     com.duozhi.outbound.workspace.service.TaskSchedule.validate(startAt, endAt);
-                    var selection = audience.resolve(tenant, body);
                     var selected = new LinkedHashSet<>(selection.members().keySet());
                     var assessment =
                             strategies.assessContacts(
@@ -351,7 +374,7 @@ public class WorkspaceTasks {
                         r.setAttribute("workspaceTaskWrite", true);
                         row =
                                 id == null
-                                        ? campaigns.create(data, r)
+                                        ? campaigns.createDraft(data, r)
                                         : campaigns.update(id, data, r);
                     } finally {
                         if (oldContext == null) r.removeAttribute("workspaceTaskWrite");
@@ -437,6 +460,9 @@ public class WorkspaceTasks {
                     }
                     snapshot.put("task_options", taskOptions);
                     snapshot.put("assessment", assessment);
+                    if (Boolean.TRUE.equals(body.get("_split_snapshot"))
+                            || body.get("frozen_audience_id") != null)
+                        snapshot.put("frozen_audience_id", taskId);
                     docs.jdbc.update(
                             "INSERT INTO platform_campaign_snapshot(tenant_id,campaign_id,snapshot_json,created_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE snapshot_json=VALUES(snapshot_json),created_at=VALUES(created_at)",
                             tenant,
@@ -449,6 +475,7 @@ public class WorkspaceTasks {
                                 JsonSupport.map("client_id", clientId),
                                 r);
                     return detail(((Number) taskId).longValue(), r);
-                });
+                };
+        return id == null ? docs.tx.run(write) : docs.tx.serialized(write);
     }
 }

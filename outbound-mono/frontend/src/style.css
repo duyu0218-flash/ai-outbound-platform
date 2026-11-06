@@ -50,9 +50,17 @@ a {
   padding-bottom: 4px;
 }
 .nav-group {
-  color: #7f8fb5;
-  font-size: 12px;
+  color: #c6d2ee;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0.08em;
+}
+.nav-subgroup-title {
+  padding: 10px 20px 2px;
+}
+.nav-subgroup {
+  color: #8fa2c9;
+  font-size: 12px;
 }
 .nav-group-rule {
   display: block;

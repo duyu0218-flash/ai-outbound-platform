@@ -88,10 +88,24 @@ public class WecomWorkspace {
     }
 
     @GetMapping("/requests")
-    public Object requests(HttpServletRequest r) {
+    public Object requests(@RequestParam
+    Map<String, String> query, HttpServletRequest r) {
         var i = actor(r);
         access.admin(i);
-        return docs.list(i.tenant(), "wecom_request", null);
+        // Preserve the old configuration-client shape; the UI uses explicit pagination.
+        if (query.isEmpty()) {
+            long total =
+                    docs.jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM platform_document WHERE tenant_id=? AND kind='wecom_request'",
+                            Long.class,
+                            i.tenant());
+            return org.springframework.http.ResponseEntity.ok()
+                    .header("X-Total-Count", Long.toString(total))
+                    .header("X-Result-Truncated", Boolean.toString(total > 1000))
+                    .header("Link", "</api/v1/ops/wecom/requests?page=1&size=200>; rel=\"first\"")
+                    .body(docs.list(i.tenant(), "wecom_request", null));
+        }
+        return docs.historyPage(i.tenant(), "wecom_request", query);
     }
 
     @GetMapping("/profiles/{id}")

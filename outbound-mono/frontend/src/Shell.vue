@@ -47,13 +47,16 @@ onMounted(() =>
     .catch(() => {}),
 );
 const agentPath = (p) => '/agent/operations/' + p;
+const adminItems = (items) =>
+  items.map(([path, label]) => ({ path: '/admin' + (path ? '/' + path : ''), label }));
 const navigation = computed(() =>
   props.role === 'admin'
-    ? adminMenu.map(({ group, items }) => ({
+    ? adminMenu.map(({ group, items, sections }) => ({
         group,
-        items: items.map(([path, label]) => ({
-          path: '/admin' + (path ? '/' + path : ''),
-          label,
+        items: items ? adminItems(items) : [],
+        sections: sections?.map((section) => ({
+          group: section.group,
+          items: adminItems(section.items),
         })),
       }))
     : [
@@ -92,6 +95,20 @@ const navigation = computed(() =>
         },
         { group: 'navPersonal', items: [{ path: agentPath('workspace'), label: '坐席个人配置' }] },
       ],
+);
+watch(
+  () => route.path,
+  (path) => {
+    for (const section of navigation.value) {
+      for (const child of section.sections || [section]) {
+        if (child.items.some((item) => item.path === path)) {
+          groupOpen.value[section.group] = true;
+          if (section.sections) groupOpen.value[section.group + ':' + child.group] = true;
+        }
+      }
+    }
+  },
+  { immediate: true },
 );
 watch(
   () => route.path,
@@ -161,14 +178,40 @@ async function leave() {
             >
               {{ t(section.group) }}</button
             ><span v-else class="nav-group-rule"></span></template
-          ><el-menu-item
-            v-for="item in section.items"
-            :key="item.path"
-            :index="item.path"
-            v-show="collapsed || groupOpen[section.group] !== false"
-            ><el-icon><span class="nav-dot"></span></el-icon
-            ><template #title>{{ t(item.label) }}</template></el-menu-item
-          ></el-menu-item-group
+          ><template
+            v-for="child in section.sections || [{ items: section.items }]"
+            :key="child.group || section.group"
+          >
+            <div
+              v-if="child.group && !collapsed"
+              v-show="groupOpen[section.group] !== false"
+              class="nav-subgroup-title"
+            >
+              <button
+                class="nav-subgroup nav-toggle"
+                :aria-label="'展开或收起' + child.group"
+                :aria-expanded="groupOpen[section.group + ':' + child.group] !== false"
+                @click="
+                  groupOpen[section.group + ':' + child.group] =
+                    groupOpen[section.group + ':' + child.group] === false
+                "
+              >
+                {{ child.group }}
+              </button>
+            </div>
+            <el-menu-item
+              v-for="item in child.items"
+              :key="item.path"
+              :index="item.path"
+              v-show="
+                collapsed ||
+                (groupOpen[section.group] !== false &&
+                  (!child.group || groupOpen[section.group + ':' + child.group] !== false))
+              "
+              ><el-icon><span class="nav-dot"></span></el-icon
+              ><template #title>{{ t(item.label) }}</template></el-menu-item
+            >
+          </template></el-menu-item-group
         ></el-menu
       >
       <footer v-if="!collapsed">
@@ -320,8 +363,6 @@ async function leave() {
   text-align: left;
   width: 100%;
   cursor: pointer;
-  color: inherit;
-  font: inherit;
   padding: 0;
 }
 .nav-toggle:after {
