@@ -334,7 +334,14 @@ class DataLayerIT {
                             "ops_call_dimension",
                             "script_recording_asset",
                             "platform_message_job"));
-            assertThat(expectedTables).hasSize(139);
+            expectedTables.addAll(
+                    Set.of(
+                            "ops_call_statistics",
+                            "ops_campaign_statistics",
+                            "ops_campaign_contact_statistics",
+                            "ops_dial_attempt_fact",
+                            "platform_job_cursor"));
+            assertThat(expectedTables).hasSize(144);
             // Marketing tables (mk_*) are owned and verified by the marketing module tests.
             actualTables.removeIf(name -> name.startsWith("mk_"));
             assertThat(actualTables).isEqualTo(expectedTables);
@@ -379,6 +386,14 @@ class DataLayerIT {
                             }
                             count++;
                         }
+                        // V48 adds one database-derived field, deliberately absent from the
+                        // original Java domain contract. Its full definition is checked below.
+                        if (table.equals("taskoutbox")) {
+                            assertThat(rs.next())
+                                    .as("taskoutbox generated routing column")
+                                    .isTrue();
+                            assertThat(rs.getString(1)).isEqualTo("integration_lane");
+                        }
                         assertThat(rs.next()).isFalse();
                     }
                 }
@@ -399,6 +414,7 @@ class DataLayerIT {
                 }
             }
             assertThat(count).isEqualTo(379);
+            DataLayerReplayIT.assertReviewSchema(s.getConnection());
         }
     }
 

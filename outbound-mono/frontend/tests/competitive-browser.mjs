@@ -55,6 +55,29 @@ export async function competitiveChecks({ page, check, go }) {
     await page.getByRole('tab', { name: '搜索企微', exact: true }).click();
     await expect(page.getByRole('row').filter({ hasText: '浏览器服务微信' })).toBeVisible();
   });
+  await check('enterprise WeChat history paginates and status filters reset the page', async () => {
+    await go('/admin/operations/wecom', '企微添加');
+    await page.getByRole('tab', { name: '企微配置', exact: true }).click();
+    const history = page
+      .locator('.el-card')
+      .filter({ has: page.getByRole('heading', { name: '自动添加请求', exact: true }) });
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-00' })).toBeVisible();
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-' })).toHaveCount(20);
+    await history.locator('.el-pagination .btn-next').click();
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-24' })).toBeVisible();
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-' })).toHaveCount(5);
+    await page
+      .getByRole('combobox', { name: '请求状态', exact: true })
+      .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]')
+      .click();
+    await page.getByRole('option', { name: '服务商已受理', exact: true }).click();
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-' })).toHaveCount(13);
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-00' })).toBeVisible();
+    await expect(history.locator('.el-pagination .btn-prev')).toBeDisabled();
+    await page.reload();
+    await page.getByRole('tab', { name: '企微配置', exact: true }).click();
+    await expect(history.getByRole('row').filter({ hasText: 'browser-request-00' })).toBeVisible();
+  });
   await check('round two compact creation keeps creation and dialing separate', async () => {
     await go('/admin/campaigns', '外呼任务');
     await page.getByRole('button', { name: '创建任务', exact: true }).click();

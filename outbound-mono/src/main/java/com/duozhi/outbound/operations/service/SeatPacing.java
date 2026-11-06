@@ -21,22 +21,29 @@ public class SeatPacing {
         this.config = config;
     }
 
-    private long signedIn(long tenant, Object team) {
-        return docs.jdbc.queryForObject(
-                "SELECT COUNT(DISTINCT u.id) FROM sys_user u JOIN ops_member m ON m.tenant_id=u.tenant_id AND m.user_id=u.id JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id WHERE u.tenant_id=? AND m.team_id=? AND t.enabled=1 AND u.enabled=1 AND u.role='agent' AND u.agent_status IN ('ready','busy') AND u.last_seen_at>=TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP(3))",
-                Long.class,
-                tenant,
-                team,
-                -Math.max(30, config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90)));
+    private Map<Long, Long> signedIn(long tenant) {
+        var counts = new HashMap<Long, Long>();
+        for (var row :
+                docs.jdbc.queryForList(
+                        "SELECT m.team_id,COUNT(DISTINCT u.id) AS signed_in FROM sys_user u JOIN ops_member m ON m.tenant_id=u.tenant_id AND m.user_id=u.id JOIN ops_team t ON t.tenant_id=m.tenant_id AND t.id=m.team_id WHERE u.tenant_id=? AND t.enabled=1 AND u.enabled=1 AND u.role='agent' AND u.agent_status IN ('ready','busy') AND u.last_seen_at>=TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP(3)) GROUP BY m.team_id",
+                        tenant,
+                        -Math.max(30, config.number("AGENT_PRESENCE_TIMEOUT_SEC", 90))))
+            counts.put(
+                    ((Number) row.get("team_id")).longValue(),
+                    ((Number) row.get("signed_in")).longValue());
+        return counts;
     }
 
     public Object list(long tenant) {
+        var signed = signedIn(tenant);
         return docs.list(tenant, "seat_pacing", null).stream()
                 .map(
                         d -> {
                             var out = new LinkedHashMap<>(d);
                             var v = map(d.get("draft"));
-                            long count = signedIn(tenant, v.get("team_id"));
+                            long count =
+                                    signed.getOrDefault(
+                                            ((Number) v.get("team_id")).longValue(), 0L);
                             out.put("signed_in", count);
                             out.put(
                                     "maximum_concurrency",
@@ -90,6 +97,8 @@ public class SeatPacing {
             data = Map.of("rules", docs.list(tenant, "seat_pacing", null));
             if (batch != null) batch.facts.put(key, data);
         }
+        if (((List<?>) data.get("rules")).isEmpty()) return true;
+        var signed = signedIn(tenant);
         var selected = (List<?>) policy.getOrDefault("handoff_team_ids", List.of());
         var teams = new ArrayList<Object>();
         long maximum = 0;
@@ -106,7 +115,7 @@ public class SeatPacing {
             maximum +=
                     (long)
                             Math.floor(
-                                    signedIn(tenant, v.get("team_id"))
+                                    signed.getOrDefault(((Number) v.get("team_id")).longValue(), 0L)
                                             * ((Number) v.get("multiplier")).doubleValue());
             wait = Math.min(wait, number(v.get("average_wait_seconds")));
         }

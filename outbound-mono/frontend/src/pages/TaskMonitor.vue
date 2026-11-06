@@ -87,7 +87,8 @@ const cols = {
   contacts: '总数',
   dialed_contacts: '已拨打',
   dialed: '累计拨打尝试',
-  answered: '接通数',
+  answered: '接通次数',
+  connected_sessions: '接通会话数',
   taken: '接管数',
   sms: '短信数',
   seconds: '通话时长(s)',
@@ -260,7 +261,7 @@ function progress(r) {
               '剩余数量',
               Math.max(0, Number(selected.contacts || 0) - Number(selected.dialed_contacts || 0)),
             ],
-            ['意向率', percent(selected.interested, selected.answered)],
+            ['意向率', percent(selected.interested, selected.connected_sessions)],
             ['接管率', percent(selected.taken, selected.entered)],
             ['通话时长', selected.seconds ?? '—'],
           ]"
@@ -340,8 +341,8 @@ function progress(r) {
         min-width="145"
       /><el-table-column label="评估结果" width="160"
         ><template #default="{ row }">{{
-          Number(row.answered)
-            ? (100 * Number(row.interested || 0)) / Number(row.answered) >=
+          Number(row.connected_sessions)
+            ? (100 * Number(row.interested || 0)) / Number(row.connected_sessions) >=
               Number(settings.data.value?.draft.target_intent_rate || 0)
               ? '已达目标'
               : '未达目标'

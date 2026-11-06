@@ -17,7 +17,13 @@ const typeLabels = {
   'benchmark:recharge': '充值记录',
   'benchmark:routes': '线路话单',
 };
-const stateLabels = { queued: '排队中', processing: '生成中', ready: '可下载', failed: '生成失败' };
+const stateLabels = {
+  queued: '排队中',
+  processing: '生成中',
+  ready: '可下载',
+  failed: '生成失败',
+  expired: '已过期',
+};
 const route = useRoute(),
   router = useRouter(),
   rows = ref([]),
@@ -125,7 +131,10 @@ onMounted(() => {
       ><el-table-column prop="queue_position" label="队列排位" /><el-table-column
         prop="error"
         label="内容"
-      /><el-table-column prop="created_at" label="日期" /><el-table-column label="文件与操作"
+      /><el-table-column prop="created_at" label="日期" /><el-table-column
+        prop="expires_at"
+        label="下载有效期"
+      /><el-table-column label="文件与操作"
         ><template #default="{ row }"
           ><el-button :disabled="row.state !== 'ready'" link @click="file(row)">下载文件</el-button
           ><span v-if="['queued', 'processing'].includes(row.state)">正在生成</span></template

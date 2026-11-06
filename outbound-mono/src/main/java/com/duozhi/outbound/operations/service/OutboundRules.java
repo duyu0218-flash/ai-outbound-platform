@@ -192,22 +192,18 @@ public class OutboundRules {
                 LocalDateTime.ofInstant(
                         local.toLocalDate().atStartOfDay(local.getZone()).toInstant(),
                         ZoneOffset.UTC);
-        var stats =
-                docs.jdbc.queryForMap(
-                        "SELECT COUNT(*) AS n,MAX(e.created_at) AS last_at FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=? AND c.phone=? AND e.event_type='dial_attempt_claimed' AND e.created_at>=?",
-                        tenant,
-                        phone,
-                        since);
-        if (((Number) stats.get("n")).intValue() >= integer(v.get("max_daily"), 1, 20))
-            return "task_frequency_daily";
+        int maximum = integer(v.get("max_daily"), 1, 20);
+        long dailyAttempts = strategies.attemptsSince(tenant, phone, since, true, "all", 20);
+        if (dailyAttempts >= maximum) return "task_frequency_daily";
         int interval = integer(v.get("min_interval_seconds"), 0, 604800);
         if (interval > 0
-                && docs.jdbc.queryForObject(
-                                "SELECT COUNT(*) FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=? AND c.phone=? AND e.event_type='dial_attempt_claimed' AND e.created_at>?",
-                                Long.class,
+                && strategies.attemptsSince(
                                 tenant,
                                 phone,
-                                LocalDateTime.ofInstant(now.minusSeconds(interval), ZoneOffset.UTC))
+                                LocalDateTime.ofInstant(now.minusSeconds(interval), ZoneOffset.UTC),
+                                false,
+                                "all",
+                                1)
                         > 0) return "task_frequency_interval";
         for (var raw : groups) {
             var doc = map(raw);
@@ -229,8 +225,7 @@ public class OutboundRules {
                                                     phone,
                                                     value)
                                             > 0;
-                            case "frequency" ->
-                                    ((Number) stats.get("n")).intValue() >= integer(value, 1, 20);
+                            case "frequency" -> dailyAttempts >= integer(value, 1, 20);
                             default -> false;
                         };
                 if (blocked) {

@@ -25,7 +25,13 @@ public class WorkspaceAudience {
             LinkedHashMap<Long, Map<String, Object>> members,
             int excluded,
             int control,
-            int unlinked) {}
+            int unlinked) {
+        public Selection subset(List<Long> ids) {
+            var subset = new LinkedHashMap<Long, Map<String, Object>>();
+            ids.forEach(id -> subset.put(id, members.get(id)));
+            return new Selection(subset, excluded, control, unlinked);
+        }
+    }
 
     private List<?> list(Map<String, Object> body, String key, int limit) {
         Object v = body.getOrDefault(key, List.of());
@@ -37,10 +43,37 @@ public class WorkspaceAudience {
     public Selection resolve(long tenant, Map<String, Object> body) {
         var values = new LinkedHashMap<Long, Map<String, Object>>();
         int control = 0, unlinked = 0;
+        var direct = new LinkedHashSet<Long>();
         for (Object raw : list(body, "contact_ids", 200000)) {
             if (!(raw instanceof Number n) || n.longValue() < 1)
                 throw new ApiError(422, "联系人标识不正确");
-            values.put(n.longValue(), variables.current(tenant, n.longValue()));
+            direct.add(n.longValue());
+        }
+        values.putAll(variables.current(tenant, direct));
+        // Split task edits retain their imported variables without re-expanding the original list.
+        if (body.get("frozen_audience_id") != null) {
+            if (!(body.get("frozen_audience_id") instanceof Number n) || n.longValue() < 1)
+                throw new ApiError(422, "原任务名单标识不正确");
+            long source = n.longValue();
+            if (docs.campaignSnapshot(tenant, source) == null)
+                throw new ApiError(404, "原任务名单不存在或无权访问");
+            for (var chunk : chunks(new ArrayList<>(direct), 500)) {
+                var args = new ArrayList<Object>(List.of(tenant, "call:" + source));
+                args.addAll(chunk);
+                for (var row :
+                        docs.jdbc.queryForList(
+                                "SELECT contact_id,variables_json FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=? AND contact_id IN ("
+                                        + String.join(",", Collections.nCopies(chunk.size(), "?"))
+                                        + ")",
+                                args.toArray())) {
+                    var frozen = docs.json.object(row.get("variables_json").toString());
+                    // Built-ins are refreshed from the contact below. Imported batches contain
+                    // only business variables, so exclude built-ins from source conflict checks.
+                    frozen.remove("name");
+                    frozen.remove("phone");
+                    values.put(((Number) row.get("contact_id")).longValue(), frozen);
+                }
+            }
         }
         for (Object raw : list(body, "batch_ids", 50)) {
             String id = raw.toString();
@@ -82,6 +115,7 @@ public class WorkspaceAudience {
             while (true) {
                 var page = segments.page(tenant, id, after, 1000);
                 if (page.isEmpty()) break;
+                var missing = new LinkedHashSet<Long>();
                 for (var m : page) {
                     after = m.sequence();
                     if (!"test".equals(m.group())) {
@@ -92,8 +126,9 @@ public class WorkspaceAudience {
                         unlinked++;
                         continue;
                     }
-                    values.putIfAbsent(m.contactId(), variables.current(tenant, m.contactId()));
+                    if (!values.containsKey(m.contactId())) missing.add(m.contactId());
                 }
+                values.putAll(variables.current(tenant, missing));
                 if (values.size() > 200000) throw new ApiError(422, "名单超过200000人");
             }
         }
@@ -138,16 +173,19 @@ public class WorkspaceAudience {
                 "DELETE FROM platform_audience_member WHERE tenant_id=? AND snapshot_id=?",
                 tenant,
                 snapshot);
-        docs.jdbc.batchUpdate(
-                "INSERT INTO platform_audience_member(tenant_id,snapshot_id,contact_id,variables_json) VALUES(?,?,?,?)",
-                selected.members.entrySet(),
-                500,
-                (ps, e) -> {
-                    ps.setLong(1, tenant);
-                    ps.setString(2, snapshot);
-                    ps.setLong(3, e.getKey());
-                    ps.setString(4, docs.json.json(e.getValue()));
-                });
+        for (var chunk : chunks(new ArrayList<>(selected.members.entrySet()), 500)) {
+            var args = new ArrayList<Object>();
+            for (var member : chunk) {
+                args.add(tenant);
+                args.add(snapshot);
+                args.add(member.getKey());
+                args.add(docs.json.json(member.getValue()));
+            }
+            docs.jdbc.update(
+                    "INSERT INTO platform_audience_member(tenant_id,snapshot_id,contact_id,variables_json) VALUES "
+                            + String.join(",", Collections.nCopies(chunk.size(), "(?,?,?,?)")),
+                    args.toArray());
+        }
     }
 
     public Map<String, Object> preview(long tenant, Map<String, Object> body, int page, int size) {

@@ -524,12 +524,13 @@ public class DialService {
                         if (options.get("frequency_hours") instanceof Number h
                                 && h.intValue() > 0) {
                             long prior =
-                                    workspace.jdbc.queryForObject(
-                                            "SELECT COUNT(*) FROM callsession c JOIN callevent e ON e.call_session_id=c.id AND e.event_type='dial_attempt_claimed' WHERE c.tenant_id=? AND c.phone=? AND e.created_at>=?",
-                                            Long.class,
+                                    taskStrategies.attemptsSince(
                                             tenant,
-                                            call.get("phone"),
-                                            Store.now().minusHours(h.intValue()));
+                                            call.get("phone").toString(),
+                                            Store.now().minusHours(h.intValue()),
+                                            true,
+                                            "all",
+                                            ((Number) options.get("frequency_count")).longValue());
                             if (com.duozhi.outbound.ai.service.FlowSettings.overFrequency(
                                     options, prior)) reason = "script_frequency_limit";
                         }

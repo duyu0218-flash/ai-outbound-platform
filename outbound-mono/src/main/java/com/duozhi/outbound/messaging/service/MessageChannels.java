@@ -224,6 +224,14 @@ public class MessageChannels {
                 });
     }
 
+    /** Keep inactive connections until all potentially late delivery reports are reconciled. */
+    public boolean drainedInactive(String id) {
+        return db.one(
+                        "SELECT id FROM msg_channel c WHERE id=? AND state<>'ACTIVE' AND NOT EXISTS(SELECT 1 FROM msg_delivery d WHERE d.channel_id=c.id AND d.state IN ('SUBMITTING','ACCEPTED','UNKNOWN')) AND NOT EXISTS(SELECT 1 FROM msg_message m WHERE m.channel_id=c.id AND m.state='SUBMITTING')",
+                        id)
+                != null;
+    }
+
     public void connectionVerified(long tenant, String id) {
         db.jdbc()
                 .update(

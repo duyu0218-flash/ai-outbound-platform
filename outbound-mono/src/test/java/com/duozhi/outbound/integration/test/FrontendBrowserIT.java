@@ -72,6 +72,8 @@ class FrontendBrowserIT {
     TaskWorker worker;
     @Autowired
     TestRestTemplate http;
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Test
     void allVueEntrancesFormsSessionBoundariesAndMockEvidenceViewsWorkInChromium()
@@ -91,6 +93,17 @@ class FrontendBrowserIT {
             user.setPasswordHash(crypto.password("SyntheticBrowserPass123!"));
             users.insert(user);
         }
+        var requestHistory = new ArrayList<Object[]>();
+        for (int n = 0; n < 25; n++) {
+            requestHistory.add(
+                    new Object[] {
+                        String.format("browser-request-%02d", n),
+                        "{\"state\":\"" + (n % 2 == 0 ? "accepted" : "pending") + "\"}"
+                    });
+        }
+        jdbc.batchUpdate(
+                "INSERT INTO platform_document(tenant_id,kind,object_id,name,parent_id,draft_json,updated_at) VALUES(1,'wecom_request',?,'browser request','',?,'2026-11-06 00:00:00')",
+                requestHistory);
         store.insert(
                 "adminsetting",
                 Values.map(

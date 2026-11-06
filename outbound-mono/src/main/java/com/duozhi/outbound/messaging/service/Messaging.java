@@ -1259,10 +1259,33 @@ public class Messaging {
     }
 
     public boolean processOne() {
+        return processOne(null);
+    }
+
+    public List<MessagePartition> readyPartitions(MessagePartition after, int limit) {
+        return db
+                .jdbc()
+                .queryForList(
+                        "SELECT tenant_id,COALESCE(channel_id,'') AS channel_id FROM msg_message WHERE state='QUEUED' AND scheduled_at<=CURRENT_TIMESTAMP(6) AND (tenant_id>? OR (tenant_id=? AND COALESCE(channel_id,'')>?)) GROUP BY tenant_id,channel_id ORDER BY tenant_id,channel_id LIMIT ?",
+                        after.tenant(),
+                        after.tenant(),
+                        after.channel(),
+                        Math.max(1, Math.min(64, limit)))
+                .stream()
+                .map(MessagePartition::from)
+                .toList();
+    }
+
+    public boolean processOne(MessagePartition partition) {
         if (!config.flag("MESSAGING_ENABLED", false)) return false;
         var candidate =
-                db.one(
-                        "SELECT id,tenant_id FROM msg_message WHERE state='QUEUED' AND scheduled_at<=CURRENT_TIMESTAMP(6) ORDER BY scheduled_at,id LIMIT 1");
+                partition == null
+                        ? db.one(
+                                "SELECT id,tenant_id FROM msg_message WHERE state='QUEUED' AND scheduled_at<=CURRENT_TIMESTAMP(6) ORDER BY scheduled_at,id LIMIT 1")
+                        : db.one(
+                                "SELECT id,tenant_id FROM msg_message WHERE state='QUEUED' AND tenant_id=? AND COALESCE(channel_id,'')=? AND scheduled_at<=CURRENT_TIMESTAMP(6) ORDER BY scheduled_at,id LIMIT 1",
+                                partition.tenant(),
+                                partition.channel());
         if (candidate == null) return false;
         long tenant = ((Number) candidate.get("tenant_id")).longValue();
         String id = candidate.get("id").toString();

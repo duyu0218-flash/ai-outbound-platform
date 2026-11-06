@@ -1,0 +1,465 @@
+{
+  "ops_call_statistics": {
+    "complete": true,
+    "columns": {
+      "call_id": {
+        "type": "char(36)",
+        "nullable": false,
+        "collation": "utf8mb4_0900_bin"
+      },
+      "tenant_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "campaign_id": {
+        "type": "bigint",
+        "nullable": true
+      },
+      "contact_id": {
+        "type": "bigint",
+        "nullable": true
+      },
+      "attempts": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "answered_attempts": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "seconds": {
+        "type": "double",
+        "nullable": false
+      },
+      "analyzed": {
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      "terminal": {
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      "finished": {
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      "interested": {
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      "successful": {
+        "type": "tinyint(1)",
+        "nullable": false
+      },
+      "handoffs": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "taken_handoffs": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "started_at": {
+        "type": "datetime(3)",
+        "nullable": true
+      },
+      "ended_at": {
+        "type": "datetime(3)",
+        "nullable": true
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "call_id"
+        ],
+        "unique": true
+      },
+      "ops_stats_contact": {
+        "columns": [
+          "tenant_id",
+          "contact_id"
+        ],
+        "unique": false
+      },
+      "ops_stats_campaign_start": {
+        "columns": [
+          "tenant_id",
+          "campaign_id",
+          "started_at"
+        ],
+        "unique": false
+      },
+      "ops_stats_campaign_end": {
+        "columns": [
+          "tenant_id",
+          "campaign_id",
+          "ended_at"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "ops_campaign_statistics": {
+    "complete": true,
+    "columns": {
+      "tenant_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "campaign_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "sessions": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "dialed": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "answered": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "connected_sessions": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "finished": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "interested": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "successful": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "seconds": {
+        "type": "double",
+        "nullable": false
+      },
+      "entered": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "taken": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_total": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_attempts": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_answered": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_connected": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_interested": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "analyzed_successful": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "dialed_contacts": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "updated_at": {
+        "type": "datetime(3)",
+        "nullable": false
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "tenant_id",
+          "campaign_id"
+        ],
+        "unique": true
+      }
+    }
+  },
+  "ops_campaign_contact_statistics": {
+    "complete": true,
+    "columns": {
+      "tenant_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "campaign_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "contact_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "dialed_sessions": {
+        "type": "bigint",
+        "nullable": false
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "tenant_id",
+          "campaign_id",
+          "contact_id"
+        ],
+        "unique": true
+      }
+    }
+  },
+  "ops_dial_attempt_fact": {
+    "complete": true,
+    "columns": {
+      "event_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "tenant_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "phone": {
+        "type": "longtext",
+        "nullable": false,
+        "collation": "utf8mb4_0900_bin"
+      },
+      "phone_digest": {
+        "type": "binary(32)",
+        "nullable": true,
+        "generated": true,
+        "expressionTokens": [
+          "unhex",
+          "sha2",
+          "phone",
+          "256"
+        ]
+      },
+      "call_id": {
+        "type": "char(36)",
+        "nullable": false,
+        "collation": "utf8mb4_0900_bin"
+      },
+      "attempt": {
+        "type": "bigint",
+        "nullable": true
+      },
+      "claimed_at": {
+        "type": "datetime(3)",
+        "nullable": false
+      },
+      "answered": {
+        "type": "tinyint(1)",
+        "nullable": false
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "event_id"
+        ],
+        "unique": true
+      },
+      "ops_attempt_phone_time": {
+        "columns": [
+          "tenant_id",
+          "phone_digest",
+          "claimed_at"
+        ],
+        "unique": false
+      },
+      "ops_attempt_call": {
+        "columns": [
+          "call_id",
+          "tenant_id",
+          "attempt"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "platform_job_cursor": {
+    "complete": true,
+    "columns": {
+      "job_key": {
+        "type": "varchar(64)",
+        "nullable": false,
+        "collation": "ascii_bin"
+      },
+      "last_id": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "updated_at": {
+        "type": "datetime(6)",
+        "nullable": false
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "job_key"
+        ],
+        "unique": true
+      }
+    }
+  },
+  "taskoutbox": {
+    "complete": false,
+    "columns": {
+      "integration_lane": {
+        "type": "varchar(16)",
+        "nullable": true,
+        "generated": true,
+        "expressionTokens": [
+          "task_type",
+          "payload_json",
+          "share_assignment",
+          "assignment",
+          "interface_request",
+          "interface",
+          "push_type",
+          "push",
+          "callback",
+          "recording_ingest",
+          "recording_delete",
+          "recording",
+          "send_sms",
+          "sms"
+        ]
+      }
+    },
+    "indexes": {
+      "ix_taskoutbox_integration_ready": {
+        "columns": [
+          "tenant_id",
+          "integration_lane",
+          "task_type",
+          "state",
+          "available_at",
+          "id"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "platform_document": {
+    "complete": false,
+    "columns": {},
+    "indexes": {
+      "platform_balance_scan": {
+        "columns": [
+          "kind",
+          "object_id",
+          "tenant_id"
+        ],
+        "unique": false
+      },
+      "document_history": {
+        "columns": [
+          "tenant_id",
+          "kind",
+          "updated_at",
+          "object_id"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "msg_message": {
+    "complete": false,
+    "columns": {},
+    "indexes": {
+      "msg_send_partition": {
+        "columns": [
+          "state",
+          "tenant_id",
+          "channel_id",
+          "scheduled_at",
+          "id"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "msg_delivery": {
+    "complete": false,
+    "columns": {},
+    "indexes": {
+      "msg_query_partition": {
+        "columns": [
+          "state",
+          "tenant_id",
+          "channel_id",
+          "next_query_at",
+          "message_id"
+        ],
+        "unique": false
+      }
+    }
+  },
+  "ops_export_job": {
+    "complete": false,
+    "columns": {
+      "storage_key": {
+        "type": "varchar(240)",
+        "nullable": true
+      },
+      "content_bytes": {
+        "type": "bigint",
+        "nullable": true
+      },
+      "expires_at": {
+        "type": "datetime(3)",
+        "nullable": true
+      },
+      "cleanup_after": {
+        "type": "datetime(3)",
+        "nullable": true
+      }
+    },
+    "indexes": {
+      "export_tenant_queue": {
+        "columns": [
+          "state",
+          "tenant_id",
+          "created_at",
+          "id"
+        ],
+        "unique": false
+      },
+      "export_owner_queue": {
+        "columns": [
+          "tenant_id",
+          "user_id",
+          "state"
+        ],
+        "unique": false
+      },
+      "export_expiry": {
+        "columns": [
+          "state",
+          "expires_at"
+        ],
+        "unique": false
+      }
+    }
+  }
+}

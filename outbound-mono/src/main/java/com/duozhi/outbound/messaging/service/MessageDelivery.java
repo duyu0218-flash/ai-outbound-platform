@@ -432,11 +432,41 @@ public class MessageDelivery {
     }
 
     public boolean queryOne() {
+        return queryOne(null);
+    }
+
+    public void reapConnections() {
+        for (var protocol : protocols.values())
+            if (protocol instanceof CmppMessageProtocol cmpp) cmpp.reapInactive();
+    }
+
+    public List<MessagePartition> queryPartitions(MessagePartition after, int limit) {
+        if (!config.flag("MESSAGING_ENABLED", false)
+                || !config.flag("MESSAGING_TRANSPORT_ENABLED", false)) return List.of();
+        return db
+                .jdbc()
+                .queryForList(
+                        "SELECT tenant_id,channel_id FROM msg_delivery WHERE state IN ('SUBMITTING','ACCEPTED','UNKNOWN') AND next_query_at<=CURRENT_TIMESTAMP(6) AND (tenant_id>? OR (tenant_id=? AND channel_id>?)) GROUP BY tenant_id,channel_id ORDER BY tenant_id,channel_id LIMIT ?",
+                        after.tenant(),
+                        after.tenant(),
+                        after.channel(),
+                        Math.max(1, Math.min(64, limit)))
+                .stream()
+                .map(MessagePartition::from)
+                .toList();
+    }
+
+    public boolean queryOne(MessagePartition partition) {
         if (!config.flag("MESSAGING_ENABLED", false)
                 || !config.flag("MESSAGING_TRANSPORT_ENABLED", false)) return false;
         var candidate =
-                db.one(
-                        "SELECT tenant_id,message_id,channel_id FROM msg_delivery WHERE state IN ('SUBMITTING','ACCEPTED','UNKNOWN') AND next_query_at<=CURRENT_TIMESTAMP(6) ORDER BY next_query_at LIMIT 1");
+                partition == null
+                        ? db.one(
+                                "SELECT tenant_id,message_id,channel_id FROM msg_delivery WHERE state IN ('SUBMITTING','ACCEPTED','UNKNOWN') AND next_query_at<=CURRENT_TIMESTAMP(6) ORDER BY next_query_at,message_id LIMIT 1")
+                        : db.one(
+                                "SELECT tenant_id,message_id,channel_id FROM msg_delivery WHERE state IN ('SUBMITTING','ACCEPTED','UNKNOWN') AND tenant_id=? AND channel_id=? AND next_query_at<=CURRENT_TIMESTAMP(6) ORDER BY next_query_at,message_id LIMIT 1",
+                                partition.tenant(),
+                                partition.channel());
         if (candidate == null) return false;
         long tenant = ((Number) candidate.get("tenant_id")).longValue();
         String id = candidate.get("message_id").toString(),

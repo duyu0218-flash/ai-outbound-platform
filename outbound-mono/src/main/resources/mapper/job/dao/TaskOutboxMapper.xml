@@ -208,14 +208,29 @@
         <foreach close=")" collection="types" item="type" open="(" separator=",">
             #{type}
         </foreach>
+        <if test="integrationLane != null">
+            AND integration_lane=#{integrationLane}
+        </if>
         AND state='PROCESSING' AND locked_at &lt;= #{cutoff} AND attempts &gt;= max_attempts LIMIT 10
     </select>
     <select id="claimCandidate" resultMap="row">
-        SELECT * FROM taskoutbox FORCE INDEX (ix_taskoutbox_ready_scope) WHERE tenant_id =
+        SELECT * FROM taskoutbox
+        <choose>
+            <when test="integrationLane != null">
+                FORCE INDEX (ix_taskoutbox_integration_ready)
+            </when>
+            <otherwise>
+                FORCE INDEX (ix_taskoutbox_ready_scope)
+            </otherwise>
+        </choose>
+        WHERE tenant_id =
         #{tenantId} AND task_type IN
         <foreach close=")" collection="types" item="type" open="(" separator=",">
             #{type}
         </foreach>
+        <if test="integrationLane != null">
+            AND integration_lane=#{integrationLane}
+        </if>
         <if test="recoverOnly">
             AND (task_type&lt;&gt;'dial_call' OR EXISTS(SELECT 1 FROM dial_command_journal j WHERE
             j.tenant_id=taskoutbox.tenant_id AND j.call_id=taskoutbox.aggregate_id AND
@@ -229,7 +244,9 @@
         (state='PROCESSING' AND locked_at &lt;= #{cutoff})) AND NOT EXISTS (SELECT 1 FROM taskoutbox
         older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE taskoutbox.task_type&lt;&gt;'after_playback'
         AND older.tenant_id=taskoutbox.tenant_id AND older.aggregate_id=taskoutbox.aggregate_id AND
-        (older.task_type=taskoutbox.task_type OR (older.task_type IN
+        ((older.task_type=taskoutbox.task_type AND
+        (taskoutbox.task_type&lt;&gt;'business_callback' OR
+        older.integration_lane=taskoutbox.integration_lane)) OR (older.task_type IN
         ('recording_ingest','recording_delete') AND taskoutbox.task_type IN
         ('recording_ingest','recording_delete'))) AND older.state IN
         ('PENDING','FAILED','PROCESSING') AND (older.created_at&lt;taskoutbox.created_at OR

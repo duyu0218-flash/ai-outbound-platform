@@ -2,19 +2,26 @@ import { expect } from '@playwright/test';
 export async function workspaceChecks({ page, origin, check, go }) {
   await check('competitor navigation groups and all visible module entrances render', async () => {
     await expect(page.locator('.sidebar .nav-group')).toHaveText([
-      '数据管理',
-      '快捷面板',
-      '外呼任务',
-      '话术管理',
-      '账号中心',
       'AI 外呼',
       '短信营销',
       '营销中台',
       '系统',
     ]);
-    await page.getByRole('button', { name: '展开或收起话术管理', exact: true }).click();
+    await expect(page.locator('.sidebar .nav-subgroup')).toHaveText([
+      '工作台',
+      '名单与任务',
+      '话术与知识',
+      '通话与跟进',
+      '数据统计',
+      '外呼配置',
+    ]);
+    await page.getByRole('button', { name: '展开或收起AI 外呼', exact: true }).click();
     await expect(page.getByRole('menuitem').filter({ hasText: '话术编辑' })).toBeHidden();
-    await page.getByRole('button', { name: '展开或收起话术管理', exact: true }).click();
+    await expect(page.getByRole('menuitem').filter({ hasText: '发送任务' })).toBeVisible();
+    await page.getByRole('button', { name: '展开或收起AI 外呼', exact: true }).click();
+    await page.getByRole('button', { name: '展开或收起话术与知识', exact: true }).click();
+    await expect(page.getByRole('menuitem').filter({ hasText: '话术编辑' })).toBeHidden();
+    await page.getByRole('button', { name: '展开或收起话术与知识', exact: true }).click();
     await page.getByRole('button', { name: '帮助', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: '创建一次外呼任务', exact: true }),

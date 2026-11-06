@@ -92,9 +92,21 @@ public class Campaigns {
         for (Object value : (List<?>) data.getOrDefault("contact_ids", Collections.emptyList())) {
             long id = ((Number) value).longValue();
             if (!seen.add(id)) throw new ApiError(400, "duplicate contact id");
-            if (store.one("contact", "sourceCampaigns54_2", Store.queryParameters(0, tenant, id))
-                    == null) throw new ApiError(400, "contact not found: " + id);
             ids.add(id);
+        }
+        for (int offset = 0; offset < ids.size(); offset += 500) {
+            var chunk = ids.subList(offset, Math.min(offset + 500, ids.size()));
+            var args = new ArrayList<Object>();
+            args.add(tenant);
+            args.addAll(chunk);
+            long count =
+                    workspace.jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM contact WHERE tenant_id=? AND id IN ("
+                                    + String.join(",", Collections.nCopies(chunk.size(), "?"))
+                                    + ")",
+                            Long.class,
+                            args.toArray());
+            if (count != chunk.size()) throw new ApiError(400, "contact not found in tenant");
         }
         Object templateId = data.get("script_template_id");
         if (templateId != null) {
@@ -128,16 +140,19 @@ public class Campaigns {
                 "campaigncontact",
                 "replaceCampaignContacts",
                 Values.map("tenantId", tenant, "campaignId", id));
-        for (int index = 0; index < contacts.size(); index++)
-            store.insert(
-                    "campaigncontact",
-                    Values.map(
-                            "campaign_id",
-                            id,
-                            "contact_id",
-                            contacts.get(index),
-                            "contact_order",
-                            index));
+        for (int offset = 0; offset < contacts.size(); offset += 500) {
+            int end = Math.min(offset + 500, contacts.size());
+            var args = new ArrayList<Object>();
+            for (int index = offset; index < end; index++) {
+                args.add(id);
+                args.add(contacts.get(index));
+                args.add(index);
+            }
+            workspace.jdbc.update(
+                    "INSERT INTO campaigncontact(campaign_id,contact_id,contact_order,is_active) VALUES "
+                            + String.join(",", Collections.nCopies(end - offset, "(?,?,?,true)")),
+                    args.toArray());
+        }
     }
 
     private String script(long tenant, Map<String, Object> campaign) {
@@ -186,6 +201,14 @@ public class Campaigns {
     public Map<String, Object> create(
             @RequestBody
             Map<String, Object> body, HttpServletRequest request) {
+        return createDraft(body, request);
+    }
+
+    /** A new draft has no live resources; its enclosing creation transaction owns all its rows. */
+    public Map<String, Object> createDraft(Map<String, Object> body, HttpServletRequest request) {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager
+                .isActualTransactionActive())
+            throw new IllegalStateException("draft creation requires a transaction");
         long tenant = tenant(request);
         Map<String, Object> data = contract.input("CampaignCreate", body, true);
         List<Long> contacts = validate(tenant, data);

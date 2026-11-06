@@ -74,6 +74,8 @@ public class TaskWorker {
     private final AtomicBoolean[] dialLanes;
     private final ExecutorService executor;
     private final ExecutorService aiExecutor, controlExecutor, analysisExecutor;
+    private final Map<String, ExecutorService> integrationExecutors = new LinkedHashMap<>();
+    private final Map<Integer, String> integrationLanes = new HashMap<>();
     private final int controlOwners;
     // Renewals are short UPDATEs; more than one thread keeps a slow commit from delaying every
     // other lease past its cutoff.
@@ -180,6 +182,20 @@ public class TaskWorker {
         for (int i = 0; i < analysisOwners; i++) types.add("('call_analysis')");
         for (int i = 1; i < controlOwners; i++)
             types.add("('after_playback','interrupt_playback')");
+        int integrationWorkers =
+                Math.max(1, Math.min(8, config.number("JAVA_INTEGRATION_TASK_WORKERS", 2)));
+        for (String kind :
+                List.of("interface", "assignment", "push", "callback", "recording", "sms")) {
+            integrationExecutors.put(kind, pool(integrationWorkers, "java-integration-" + kind));
+            String allowed =
+                    kind.equals("recording")
+                            ? "('recording_ingest','recording_delete')"
+                            : kind.equals("sms") ? "('send_sms')" : "('business_callback')";
+            for (int owner = 0; owner < integrationWorkers; owner++) {
+                integrationLanes.put(types.size(), kind);
+                types.add(allowed);
+            }
+        }
         laneTypes = types.toArray(String[]::new);
         lanes =
                 IntStream.range(0, laneTypes.length)
@@ -201,7 +217,7 @@ public class TaskWorker {
     }
 
     private static ExecutorService pool(int threads, String name) {
-        // At most 50 logical owners exist, each with one outstanding slice.
+        // Each executor has a fixed number of logical owners, each with one outstanding slice.
         return new ThreadPoolExecutor(
                 threads,
                 threads,
@@ -219,7 +235,17 @@ public class TaskWorker {
         return Arrays.asList(laneTypes).indexOf("('call_analysis')");
     }
 
+    public int integrationLane(String kind) {
+        return integrationLanes.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(kind))
+                .mapToInt(Map.Entry::getKey)
+                .min()
+                .orElseThrow(() -> new IllegalArgumentException("unknown integration lane"));
+    }
+
     private ExecutorService executorFor(int lane) {
+        if (integrationLanes.containsKey(lane))
+            return integrationExecutors.get(integrationLanes.get(lane));
         String type = laneTypes[lane];
         if (type.equals("('ai_turn')")) return aiExecutor;
         if (type.equals("('after_playback','interrupt_playback')")) return controlExecutor;
@@ -269,6 +295,7 @@ public class TaskWorker {
         aiExecutor.shutdownNow();
         controlExecutor.shutdownNow();
         analysisExecutor.shutdownNow();
+        integrationExecutors.values().forEach(ExecutorService::shutdownNow);
         dialExecutor.shutdownNow();
         receipts.shutdownNow();
         heartbeat.shutdownNow();
@@ -400,6 +427,11 @@ public class TaskWorker {
     }
 
     private Map<String, Object> claim(Long tenant, String types, int partition, int partitions) {
+        return claim(tenant, types, partition, partitions, null);
+    }
+
+    private Map<String, Object> claim(
+            Long tenant, String types, int partition, int partitions, String integrationLane) {
         boolean parallel = config.flag("JAVA_TASK_CLAIM_PARALLEL_ENABLED", true);
         Supplier<Map<String, Object>> work =
                 () -> {
@@ -433,6 +465,8 @@ public class TaskWorker {
                                     partition,
                                     "controlPartitions",
                                     partitions,
+                                    "integrationLane",
+                                    integrationLane,
                                     "recoverOnly",
                                     types.contains("'dial_call'") && dialControl.sendingClosed());
                     for (var candidate :
@@ -591,6 +625,8 @@ public class TaskWorker {
     }
 
     private boolean processRoutedLane(Long tenant, int lane) {
+        if (integrationLanes.containsKey(lane))
+            return processOne(tenant, laneTypes[lane], 0, 1, integrationLanes.get(lane));
         if (lane == 0 && dialBatch.size() > 1)
             return dialBatch.process(tenant, heartbeat) || processOne(tenant, "('mock_status')");
         if (analysisBatchSize > 1 && laneTypes[lane].equals("('call_analysis')"))
@@ -845,7 +881,12 @@ public class TaskWorker {
     }
 
     private boolean processOne(Long tenant, String types, int partition, int partitions) {
-        Map<String, Object> task = claim(tenant, types, partition, partitions);
+        return processOne(tenant, types, partition, partitions, null);
+    }
+
+    private boolean processOne(
+            Long tenant, String types, int partition, int partitions, String integrationLane) {
+        Map<String, Object> task = claim(tenant, types, partition, partitions, integrationLane);
         if (task == null) return false;
         AtomicBoolean lost = new AtomicBoolean();
         int period = Math.max(1, config.number("TASK_LEASE_SEC", 30) / 3);
@@ -1099,6 +1140,9 @@ public class TaskWorker {
     public void tick() {
         if (!ready || !config.flag("JAVA_WORKERS_ENABLED", false) || dialControl.frozen()) return;
         for (int lane = 0; lane < laneTypes.length; lane++) {
+            // Lane 3 remains an explicit synchronous compatibility/drain entry point. Scheduled
+            // work always uses the isolated lanes, including tasks created before this upgrade.
+            if (lane == 3) continue;
             final int index = lane;
             if (index == 0 && dialBatch.size() > 1) {
                 for (int i = 0; i < dialLanes.length; i++)

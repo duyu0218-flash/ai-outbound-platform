@@ -207,31 +207,70 @@ public class TaskStrategies {
                             .orElse(Map.of());
         }
         if (rule.isEmpty()) return "";
-        String condition = rule.get("condition").toString();
-        String answered =
-                "EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.attempt=JSON_EXTRACT(e.payload,'$.attempt') AND u.answered_at IS NOT NULL)";
+        long limit = ((Number) rule.get("limit")).longValue();
         long count =
-                docs.jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM callevent e JOIN callsession c ON c.id=e.call_session_id WHERE c.tenant_id=? AND c.phone=? AND e.event_type='dial_attempt_claimed' AND e.created_at>?"
-                                + (condition.equals("all")
-                                        ? ""
-                                        : " AND "
-                                                + (condition.equals("unanswered") ? "NOT " : "")
-                                                + answered),
-                        Long.class,
+                attemptsSince(
                         tenant,
                         phone,
                         LocalDateTime.ofInstant(
                                 now.minusSeconds(3600L * ((Number) rule.get("hours")).longValue()),
-                                ZoneOffset.UTC));
-        return count >= ((Number) rule.get("limit")).longValue() ? "frequency_rule_limit" : "";
+                                ZoneOffset.UTC),
+                        false,
+                        rule.get("condition").toString(),
+                        limit);
+        return count >= limit ? "frequency_rule_limit" : "";
+    }
+
+    /** Reads transactional attempt facts and stops as soon as the admission limit is reached. */
+    public long attemptsSince(
+            long tenant,
+            String phone,
+            LocalDateTime since,
+            boolean inclusive,
+            String condition,
+            long limit) {
+        if (limit < 1 || limit > 1000) throw new IllegalArgumentException("attempt limit");
+        String answered =
+                switch (condition) {
+                    case "all" -> "";
+                    case "answered" -> " AND answered=TRUE";
+                    case "unanswered" -> " AND answered=FALSE";
+                    default -> throw new IllegalArgumentException("attempt condition");
+                };
+        return docs.jdbc.queryForObject(
+                "SELECT COUNT(*) FROM (SELECT event_id FROM ops_dial_attempt_fact WHERE tenant_id=? AND phone_digest=UNHEX(SHA2(?,256)) AND phone=? AND claimed_at"
+                        + (inclusive ? ">=?" : ">?")
+                        + answered
+                        + " LIMIT ?) bounded_attempts",
+                Long.class,
+                tenant,
+                phone,
+                phone,
+                since,
+                limit);
     }
 
     public Map<String, Object> stats(long tenant, Object campaign) {
-        return docs.jdbc.queryForMap(
-                "SELECT COUNT(*) AS total,COALESCE(SUM(c.attempts),0) AS attempts,COALESCE(SUM(EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL)),0) AS connected,COALESCE(SUM(a.result_code IN ('qualified_lead','interested','callback_confirmed')),0) AS interested,COALESCE(SUM(a.result_code='qualified_lead'),0) AS successful FROM callsession c LEFT JOIN callanalysis a ON a.tenant_id=c.tenant_id AND a.call_session_id=c.id WHERE c.tenant_id=? AND c.campaign_id=? AND c.status IN ('COMPLETED','FAILED','BUSY','NO_ANSWER','CANCELED') AND a.id IS NOT NULL",
-                tenant,
-                campaign);
+        var rows =
+                docs.jdbc.queryForList(
+                        "SELECT analyzed_total AS total,analyzed_attempts AS attempts,analyzed_answered AS answered_attempts,analyzed_connected AS connected,analyzed_interested AS interested,analyzed_successful AS successful FROM ops_campaign_statistics WHERE tenant_id=? AND campaign_id=?",
+                        tenant,
+                        campaign);
+        return rows.isEmpty()
+                ? Map.of(
+                        "total",
+                        0L,
+                        "attempts",
+                        0L,
+                        "answered_attempts",
+                        0L,
+                        "connected",
+                        0L,
+                        "interested",
+                        0L,
+                        "successful",
+                        0L)
+                : rows.get(0);
     }
 
     public Map<String, Object> assessContacts(
@@ -239,9 +278,10 @@ public class TaskStrategies {
         var rule = selected(tenant, "evaluation", ruleId);
         if (rule.isEmpty()) return Map.of("advice", "none", "label", "未使用评估规则");
         var counts = new LinkedHashMap<String, Object>();
-        for (String k : List.of("connected", "attempts", "interested", "successful"))
+        for (String k :
+                List.of("connected", "attempts", "answered_attempts", "interested", "successful"))
             counts.put(k, 0L);
-        var ids = new ArrayList<>(contacts);
+        var ids = new ArrayList<>(new LinkedHashSet<>(contacts));
         for (int offset = 0; offset < ids.size(); offset += 500) {
             var chunk = ids.subList(offset, Math.min(offset + 500, ids.size()));
             var params = new ArrayList<Object>();
@@ -249,7 +289,7 @@ public class TaskStrategies {
             params.addAll(chunk);
             var row =
                     docs.jdbc.queryForMap(
-                            "SELECT COALESCE(SUM(c.attempts),0) AS attempts,COALESCE(SUM(EXISTS(SELECT 1 FROM callusage u WHERE u.tenant_id=c.tenant_id AND u.call_session_id=c.id AND u.answered_at IS NOT NULL)),0) AS connected,COALESCE(SUM(a.result_code IN ('qualified_lead','interested','callback_confirmed')),0) AS interested,COALESCE(SUM(a.result_code='qualified_lead'),0) AS successful FROM callsession c LEFT JOIN callanalysis a ON a.tenant_id=c.tenant_id AND a.call_session_id=c.id WHERE c.tenant_id=? AND c.contact_id IN ("
+                            "SELECT COALESCE(SUM(c.attempts),0) AS attempts,COALESCE(SUM(c.answered_attempts),0) AS answered_attempts,COALESCE(SUM(c.answered_attempts>0),0) AS connected,COALESCE(SUM(c.interested),0) AS interested,COALESCE(SUM(c.successful),0) AS successful FROM ops_call_statistics c WHERE c.tenant_id=? AND c.contact_id IN ("
                                     + String.join(",", Collections.nCopies(chunk.size(), "?"))
                                     + ")",
                             params.toArray());
@@ -261,14 +301,19 @@ public class TaskStrategies {
     }
 
     public static Map<String, Object> assess(Map<String, Object> rule, Map<String, Object> stats) {
-        long connected = number(stats.get("connected"));
-        if (connected < number(rule.get("minimum_connected")))
-            return Map.of("advice", "insufficient", "label", "样本不足", "connected", connected);
+        long connected = ((Number) stats.getOrDefault("connected", 0L)).longValue();
+        long answered = ((Number) stats.getOrDefault("answered_attempts", connected)).longValue();
         String metric = Objects.toString(rule.get("metric"), "connection");
-        long denominator = metric.equals("connection") ? number(stats.get("attempts")) : connected;
+        long sample = metric.equals("connection") ? answered : connected;
+        if (sample < number(rule.get("minimum_connected")))
+            return Map.of("advice", "insufficient", "label", "样本不足", "connected", connected);
+        long denominator =
+                metric.equals("connection")
+                        ? ((Number) stats.getOrDefault("attempts", 0L)).longValue()
+                        : connected;
         long numerator =
                 metric.equals("connection")
-                        ? connected
+                        ? answered
                         : number(stats.get(metric.equals("intent") ? "interested" : "successful"));
         double rate = denominator == 0 ? 0 : Math.min(100, 100.0 * numerator / denominator);
         String advice =
@@ -283,7 +328,11 @@ public class TaskStrategies {
                 "rate",
                 rate,
                 "connected",
-                connected);
+                connected,
+                "answered_attempts",
+                answered,
+                "metric_basis",
+                metric.equals("connection") ? "dial_attempt_v2" : "connected_session_v1");
     }
 
     public boolean guard(Map<String, Object> call) {

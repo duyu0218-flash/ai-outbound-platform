@@ -174,6 +174,28 @@ public class ContactVariables {
                 : docs.json.object(row.get("values_json").toString());
     }
 
+    /** Resolve a contact set with bounded SQL batches, retaining the caller's order. */
+    public LinkedHashMap<Long, Map<String, Object>> current(
+            long tenant, Collection<Long> contacts) {
+        var result = new LinkedHashMap<Long, Map<String, Object>>();
+        contacts.forEach(id -> result.putIfAbsent(id, new LinkedHashMap<>()));
+        for (var chunk : WorkspaceAudience.chunks(new ArrayList<>(result.keySet()), 500)) {
+            var args = new ArrayList<Object>();
+            args.add(tenant);
+            args.addAll(chunk);
+            for (var row :
+                    docs.jdbc.queryForList(
+                            "SELECT contact_id,values_json FROM platform_contact_value WHERE tenant_id=? AND contact_id IN ("
+                                    + String.join(",", Collections.nCopies(chunk.size(), "?"))
+                                    + ")",
+                            args.toArray()))
+                result.put(
+                        ((Number) row.get("contact_id")).longValue(),
+                        docs.json.object(row.get("values_json").toString()));
+        }
+        return result;
+    }
+
     public Map<String, Object> frozen(long tenant, String snapshot, long contact) {
         var row =
                 docs.one(

@@ -1,17 +1,34 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useData } from '../data';
 import { ops, perform } from '../operations';
 const props = defineProps({ accountsOnly: Boolean });
+const requestPage = ref(1),
+  requestSize = ref(20),
+  requestState = ref(''),
+  requestTotal = ref(0);
 const accounts = useData('/api/v1/ops/wecom/accounts'),
   providers = useData(() => (props.accountsOnly ? '' : '/api/v1/ops/wecom/providers')),
-  requests = useData(() => (props.accountsOnly ? '' : '/api/v1/ops/wecom/requests')),
+  requests = useData(() =>
+    props.accountsOnly
+      ? ''
+      : '/api/v1/ops/wecom/requests?page=' +
+        requestPage.value +
+        '&size=' +
+        requestSize.value +
+        '&state=' +
+        requestState.value,
+  ),
   open = ref(false),
   kind = ref('account'),
   id = ref(''),
   revision = ref(0),
   model = ref({}),
   secret = ref('');
+watch(requests.data, (result) => {
+  // Keep the last count while a new page loads; a temporary zero resets the current page.
+  if (result) requestTotal.value = Number(result.total || 0);
+});
 function edit(type, row) {
   kind.value = type;
   id.value = row?.object_id || (type === 'provider' ? crypto.randomUUID() : '');
@@ -84,10 +101,27 @@ async function remove(row) {
       ></el-table
     >
     <h3>自动添加请求</h3>
-    <el-button @click="requests.load">刷新请求</el-button>
-    <p>服务商受理后仍需客户确认；通过率使用实际登记结果。</p>
-    <el-table :data="requests.data.value || []"
-      ><el-table-column prop="draft.phone" label="客户号码" /><el-table-column
+    <div class="actions">
+      <el-button @click="requests.load">刷新请求</el-button>
+      <el-select
+        v-model="requestState"
+        aria-label="请求状态"
+        style="width: 180px"
+        @change="requestPage = 1"
+      >
+        <el-option label="全部请求" value="" />
+        <el-option label="待服务商受理" value="pending" />
+        <el-option label="服务商已受理" value="accepted" />
+      </el-select>
+    </div>
+    <p>服务商受理后仍需客户确认；通过率使用实际登记结果。请求历史按时间分页查询。</p>
+    <el-alert v-if="requests.error.value" :title="requests.error.value" type="error" />
+    <el-table :data="requests.data.value?.rows || []"
+      ><el-table-column prop="object_id" label="请求ID" min-width="180" /><el-table-column
+        prop="updated_at"
+        label="更新时间"
+        min-width="160"
+      /><el-table-column prop="draft.phone" label="客户号码" /><el-table-column
         prop="draft.wecom_id"
         label="随机选择微信号"
       /><el-table-column label="状态"
@@ -96,6 +130,14 @@ async function remove(row) {
         }}</template></el-table-column
       ></el-table
     >
+    <el-pagination
+      v-model:current-page="requestPage"
+      v-model:page-size="requestSize"
+      :page-sizes="[20, 50, 100, 200]"
+      :total="requestTotal"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="requestPage = 1"
+    />
   </el-card>
   <el-dialog
     v-model="open"
