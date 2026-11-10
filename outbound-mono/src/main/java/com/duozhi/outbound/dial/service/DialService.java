@@ -151,8 +151,17 @@ public class DialService {
 
     public Map<String, Object> create(Identity identity, Map<String, Object> input) {
         var call = createQueued(identity, input);
-        dispatch(call.get("id"));
-        return store.require("callsession", identity.tenant(), call.get("id"));
+        return dispatchCreated(call);
+    }
+
+    private Map<String, Object> dispatchCreated(Map<String, Object> call) {
+        try {
+            dispatch(call.get("id"));
+        } catch (PendingConfirmation pending) {
+            // The call and immutable command are already durable. Recovery confirms
+            // that same attempt; an HTTP failure would invite duplicate creation.
+        }
+        return store.require("callsession", CallLifecycle.tenant(call), call.get("id"));
     }
 
     void preflightQueued(Identity identity, Map<String, Object> input) {
@@ -1611,8 +1620,7 @@ public class DialService {
                                     null));
                     return null;
                 });
-        dispatch(call.get("id"));
-        return store.require("callsession", CallLifecycle.tenant(call), call.get("id"));
+        return dispatchCreated(call);
     }
 
     public Map<String, Object> hangup(Map<String, Object> call, String reason) {
