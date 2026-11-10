@@ -1,10 +1,11 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SupportDesk from './components/SupportDesk.vue';
 import ProductHelp from './components/ProductHelp.vue';
 import NotificationPanel from './components/NotificationPanel.vue';
 import WorkspaceTabs from './components/WorkspaceTabs.vue';
+import SidebarNavigation from './components/SidebarNavigation.vue';
 import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
@@ -15,6 +16,25 @@ const props = defineProps({ role: String }),
   router = useRouter(),
   collapsed = ref(false),
   healthy = ref(null);
+const narrowViewport = window.matchMedia('(max-width: 900px)');
+const narrow = ref(narrowViewport.matches);
+const drawerOpen = ref(false);
+const drawerNavigation = ref(null);
+const navigationLabel = computed(() =>
+  t(narrow.value ? 'navigationMenu' : collapsed.value ? 'expandNavigation' : 'collapseNavigation'),
+);
+function syncViewport(event) {
+  narrow.value = event.matches;
+  if (!narrow.value) drawerOpen.value = false;
+}
+onMounted(() => narrowViewport.addEventListener('change', syncViewport));
+onUnmounted(() => narrowViewport.removeEventListener('change', syncViewport));
+function toggleNavigation() {
+  if (narrow.value) {
+    revealCurrentGroup();
+    drawerOpen.value = true;
+  } else collapsed.value = !collapsed.value;
+}
 const dial = useData(
   () => (['admin', 'operator'].includes(session.user?.role) ? '/api/v1/ops/dial-control' : ''),
   15000,
@@ -114,19 +134,23 @@ const navigation = computed(() =>
         { group: 'navPersonal', items: [{ path: agentPath('workspace'), label: '坐席个人配置' }] },
       ],
 );
-watch(
-  () => route.path,
-  (path) => {
-    for (const section of navigation.value) {
-      for (const child of section.sections || [section]) {
-        if (child.items.some((item) => item.path === path)) {
-          groupOpen.value[section.group] = true;
-          if (section.sections) groupOpen.value[section.group + ':' + child.group] = true;
-        }
+function revealCurrentGroup() {
+  for (const section of navigation.value) {
+    for (const child of section.sections || [section]) {
+      if (child.items.some((item) => item.path === route.path)) {
+        groupOpen.value[section.group] = true;
+        if (section.sections) groupOpen.value[section.group + ':' + child.group] = true;
       }
     }
-  },
-  { immediate: true },
+  }
+}
+function toggleGroup(key) {
+  groupOpen.value[key] = groupOpen.value[key] === false;
+}
+watch(() => [route.path, navigation.value], revealCurrentGroup, { immediate: true });
+watch(
+  () => route.fullPath,
+  () => (drawerOpen.value = false),
 );
 watch(
   () => route.path,
@@ -170,83 +194,30 @@ async function leave() {
 }
 </script>
 <template>
-  <el-container class="app-shell"
-    ><el-aside :width="collapsed ? '76px' : '232px'" class="sidebar"
-      ><a class="brand" :href="'/' + role" @click.prevent="router.push('/' + role)"
-        ><b>◉</b
-        ><span v-if="!collapsed"
-          >{{ t('product')
-          }}<small>{{ t(role === 'admin' ? 'adminPortal' : 'agentPortal') }}</small></span
-        ></a
-      ><el-menu
-        router
-        :default-active="route.path"
-        :collapse="collapsed"
-        background-color="#0b1736"
-        text-color="#c6d2ee"
-        active-text-color="#fff"
-        ><el-menu-item-group v-for="section in navigation" :key="section.group"
-          ><template #title
-            ><button
-              v-if="!collapsed"
-              class="nav-group nav-toggle"
-              :aria-label="'展开或收起' + t(section.group)"
-              :aria-expanded="groupOpen[section.group] !== false"
-              @click="groupOpen[section.group] = groupOpen[section.group] === false"
-            >
-              {{ t(section.group) }}</button
-            ><span v-else class="nav-group-rule"></span></template
-          ><template
-            v-for="child in section.sections || [{ items: section.items }]"
-            :key="child.group || section.group"
-          >
-            <div
-              v-if="child.group && !collapsed"
-              v-show="groupOpen[section.group] !== false"
-              class="nav-subgroup-title"
-            >
-              <button
-                class="nav-subgroup nav-toggle"
-                :aria-label="'展开或收起' + child.group"
-                :aria-expanded="groupOpen[section.group + ':' + child.group] !== false"
-                @click="
-                  groupOpen[section.group + ':' + child.group] =
-                    groupOpen[section.group + ':' + child.group] === false
-                "
-              >
-                {{ child.group }}
-              </button>
-            </div>
-            <el-menu-item
-              v-for="item in child.items"
-              :key="item.path"
-              :index="item.path"
-              v-show="
-                collapsed ||
-                (groupOpen[section.group] !== false &&
-                  (!child.group || groupOpen[section.group + ':' + child.group] !== false))
-              "
-              ><el-icon><span class="nav-dot"></span></el-icon
-              ><template #title>{{ t(item.label) }}</template></el-menu-item
-            >
-          </template></el-menu-item-group
-        ></el-menu
-      >
-      <footer v-if="!collapsed">
-        {{ t('tenant') }} #{{ session.user?.tenant_id }} · {{ session.user?.role }}
-      </footer></el-aside
-    ><el-container
+  <el-container class="app-shell" :class="{ 'navigation-open': drawerOpen }">
+    <el-aside v-if="!narrow" :width="collapsed ? '76px' : '232px'" class="sidebar">
+      <SidebarNavigation
+        :role="role"
+        :groups="navigation"
+        :group-open="groupOpen"
+        :collapsed="collapsed"
+        @toggle-group="toggleGroup"
+      />
+    </el-aside>
+    <el-container
       ><el-header class="app-header">
         <div class="header-location">
           <button
             type="button"
             class="header-button"
-            :aria-label="t(collapsed ? 'expandNavigation' : 'collapseNavigation')"
-            :aria-expanded="!collapsed"
-            :title="t(collapsed ? 'expandNavigation' : 'collapseNavigation')"
-            @click="collapsed = !collapsed"
+            :aria-label="navigationLabel"
+            :aria-expanded="narrow ? drawerOpen : !collapsed"
+            :aria-haspopup="narrow ? 'dialog' : undefined"
+            :title="navigationLabel"
+            @click="toggleNavigation"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            <span v-if="narrow">{{ t('menuShort') }}</span>
           </button>
           <strong :title="t(route.meta.label || 'dashboard')">{{
             t(route.meta.label || 'dashboard')
@@ -388,6 +359,27 @@ async function leave() {
         <router-view
           :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
+  <el-drawer
+    v-model="drawerOpen"
+    class="navigation-drawer"
+    :title="t('navigationMenu')"
+    direction="ltr"
+    size="min(320px, 100vw)"
+    append-to-body
+    :lock-scroll="false"
+    destroy-on-close
+    @opened="drawerNavigation?.scrollToCurrent()"
+  >
+    <SidebarNavigation
+      ref="drawerNavigation"
+      :role="role"
+      :groups="navigation"
+      :group-open="groupOpen"
+      searchable
+      @toggle-group="toggleGroup"
+      @select-current="drawerOpen = false"
+    />
+  </el-drawer>
   <SupportDesk v-if="supportOpen" @close="supportOpen = false" /><el-drawer
     v-if="helpOpen"
     v-model="helpOpen"
@@ -566,21 +558,5 @@ async function leave() {
   .account-name {
     display: none;
   }
-}
-.nav-toggle {
-  display: block;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  width: 100%;
-  cursor: pointer;
-  padding: 0;
-}
-.nav-toggle:after {
-  content: '⌄';
-  float: right;
-}
-.nav-toggle[aria-expanded='false']:after {
-  content: '›';
 }
 </style>

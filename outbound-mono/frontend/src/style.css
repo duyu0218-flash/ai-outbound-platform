@@ -28,6 +28,9 @@ a {
 .app-shell {
   min-height: 100vh;
 }
+body:has(.app-shell.navigation-open) {
+  overflow: hidden;
+}
 .sidebar {
   background: #0b1736;
   color: #c6d2ee;
@@ -36,17 +39,20 @@ a {
   height: 100vh;
   overflow-y: auto;
 }
-.sidebar .el-menu {
+.sidebar .el-menu,
+.navigation-drawer .el-menu {
   border: 0;
 }
-.sidebar .el-menu-item.is-active {
+.sidebar .el-menu-item.is-active,
+.navigation-drawer .el-menu-item.is-active {
   background: #2457d6;
 }
 .sidebar .el-menu-item {
   height: 40px;
   line-height: 40px;
 }
-.sidebar .el-menu-item-group__title {
+.sidebar .el-menu-item-group__title,
+.navigation-drawer .el-menu-item-group__title {
   padding-top: 14px;
   padding-bottom: 4px;
 }
@@ -372,10 +378,10 @@ a {
   }
 }
 @media (max-width: 700px) {
-  .sidebar {
+  .client-shell .sidebar {
     max-width: 76px;
   }
-  .brand span {
+  .client-shell .brand span {
     display: none;
   }
   .el-main {

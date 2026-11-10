@@ -129,6 +129,59 @@ try {
     await page.goBack();
     await expect(page).toHaveURL(origin + '/admin/operations/notices');
   });
+  await check(
+    'narrow navigation drawer exposes complete grouped labels and searchable entries',
+    async () => {
+      const sidebar = page.locator('.app-shell .sidebar');
+      await expect(sidebar).toBeVisible();
+      await page.setViewportSize({ width: 390, height: 850 });
+      await expect(sidebar).toHaveCount(0);
+      const toggle = page.getByRole('button', { name: '导航菜单', exact: true });
+      const drawer = page.getByRole('dialog', { name: '导航菜单', exact: true });
+      const search = drawer.getByRole('textbox', { name: '搜索菜单', exact: true });
+      await toggle.focus();
+      await toggle.press('Enter');
+      await expect(drawer).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(drawer.getByRole('navigation', { name: '主导航' })).toBeVisible();
+      await search.fill('话术与知识');
+      await expect(drawer.getByRole('menuitem', { name: '知识库', exact: true })).toBeVisible();
+      await expect(drawer.getByRole('menuitem', { name: '客户名单', exact: true })).toHaveCount(0);
+      await search.fill('无此入口验收');
+      await expect(drawer.getByRole('status')).toContainText('未找到相关入口');
+      await search.fill('帐户线路');
+      const lineEntry = drawer.getByRole('menuitem', { name: '帐户线路', exact: true });
+      await expect(lineEntry).toBeVisible();
+      expect(await lineEntry.evaluate((item) => item.scrollWidth <= item.clientWidth)).toBe(true);
+      await search.press('Escape');
+      await expect(drawer).toBeHidden();
+      await expect(toggle).toBeFocused();
+
+      await toggle.click();
+      await expect(search).toHaveValue('');
+      await search.fill('客户名单');
+      const contact = drawer.getByRole('menuitem', { name: '客户名单', exact: true });
+      await expect(contact).toHaveAttribute('tabindex', '0');
+      await contact.focus();
+      await contact.press('Enter');
+      await expect(page).toHaveURL(origin + '/admin/contacts');
+      await expect(drawer).toBeHidden();
+
+      await toggle.click();
+      await expect(drawer.locator('[aria-current="page"]')).toHaveText('客户名单');
+      await page.mouse.click(370, 180);
+      await expect(drawer).toBeHidden();
+      await expect(page).toHaveURL(origin + '/admin/contacts');
+
+      await toggle.click();
+      await expect(drawer).toBeVisible();
+      await page.setViewportSize({ width: 901, height: 950 });
+      await expect(drawer).toHaveCount(0);
+      await expect(sidebar).toBeVisible();
+      await expect(page.locator('body')).not.toHaveCSS('overflow-y', 'hidden');
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    },
+  );
   await check('workspace tabs fit one row and expose hidden pages after resizing', async () => {
     await go('/admin/contacts', '客户名单');
     await go('/admin/campaigns', '外呼任务');
@@ -468,6 +521,23 @@ try {
     await expect(page).toHaveURL(origin + '/agent');
     await page.getByRole('button', { name: '账号菜单', exact: true }).click();
     await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
+  });
+  await check('narrow agent navigation searches only the agent menu', async () => {
+    await login('agent');
+    await page.setViewportSize({ width: 390, height: 850 });
+    await page.getByRole('button', { name: '导航菜单', exact: true }).click();
+    const drawer = page.getByRole('dialog', { name: '导航菜单', exact: true });
+    const search = drawer.getByRole('textbox', { name: '搜索菜单', exact: true });
+    await search.fill('帐户线路');
+    await expect(drawer.getByRole('status')).toContainText('未找到相关入口');
+    await search.fill('话单');
+    await drawer.getByRole('menuitem', { name: '话单查询', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/agent/operations/calls');
+    await expect(drawer).toBeHidden();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/agent/login');
   });
   await check('agent operations entrances use scoped data and read-only boundaries', async () => {
     await login('agent');

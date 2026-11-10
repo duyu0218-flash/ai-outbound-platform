@@ -1,5 +1,10 @@
 import { ref } from 'vue';
 const zh = {
+  navigationMenu: '导航菜单',
+  menuShort: '菜单',
+  mainNavigation: '主导航',
+  searchNavigation: '搜索菜单',
+  navigationEmpty: '未找到相关入口，试试其他关键词。',
   expandNavigation: '展开导航',
   collapseNavigation: '收起导航',
   runtimeStatus: '运行状态',
@@ -400,6 +405,11 @@ const zh = {
 };
 
 const en = {
+  navigationMenu: 'Navigation menu',
+  menuShort: 'Menu',
+  mainNavigation: 'Main navigation',
+  searchNavigation: 'Search menu',
+  navigationEmpty: 'No matching pages. Try another keyword.',
   expandNavigation: 'Expand navigation',
   collapseNavigation: 'Collapse navigation',
   runtimeStatus: 'Runtime status',
