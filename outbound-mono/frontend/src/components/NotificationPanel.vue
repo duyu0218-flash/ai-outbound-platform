@@ -24,16 +24,18 @@ async function visit(row) {
 <template>
   <el-popover
     v-model:visible="open"
-    trigger="hover"
+    trigger="click"
     placement="bottom-end"
     width="min(420px, calc(100vw - 24px))"
     ><template #reference><slot /></template
     ><el-tabs v-model="tab"
       ><el-tab-pane name="unread" label="未读" /><el-tab-pane name="read" label="已读" /></el-tabs
     ><el-alert v-if="feed.error.value" :title="feed.error.value" type="error" />
-    <div v-for="row in rows" :key="row.id" class="record-card">
-      <el-button link @click="visit(row)">{{ row.title }}</el-button
-      ><small>{{ row.created_at }}</small>
+    <div v-if="rows.length" class="notice-feed">
+      <div v-for="row in rows" :key="row.id" class="record-card">
+        <el-button link @click="visit(row)">{{ row.title }}</el-button>
+        <small>{{ row.created_at }}</small>
+      </div>
     </div>
     <el-empty v-if="!rows.length" description="暂无消息" /><el-button
       link
@@ -45,3 +47,10 @@ async function visit(row) {
     ></el-popover
   >
 </template>
+
+<style scoped>
+.notice-feed {
+  max-height: min(380px, 48vh);
+  overflow-y: auto;
+}
+</style>

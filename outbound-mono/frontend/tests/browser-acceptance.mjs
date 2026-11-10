@@ -55,9 +55,10 @@ async function go(path, title) {
     '/admin/billing': '用量与费用',
   };
   const item = page.getByRole('menuitem').filter({ hasText: labels[path] || title });
-  if (path.endsWith('/operations/notices'))
+  if (path.endsWith('/operations/notices')) {
     await page.getByRole('button', { name: '通知中心', exact: true }).click();
-  else if (await item.count()) await item.first().click();
+    await page.getByRole('button', { name: '打开消息中心', exact: true }).click();
+  } else if (await item.count()) await item.first().click();
   else
     await page.evaluate((path) => {
       document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path);
@@ -106,6 +107,8 @@ try {
     await header.getByRole('button', { name: 'Language', exact: true }).click();
     await page.getByRole('menuitem', { name: '中文', exact: true }).click();
     await header.getByRole('button', { name: '通知中心', exact: true }).click();
+    await expect(page.getByRole('button', { name: '打开消息中心', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '打开消息中心', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/operations/notices');
     await expect(page.getByRole('heading', { name: '消息中心', exact: true })).toBeVisible();
     await header.getByRole('button', { name: '账号菜单' }).click();

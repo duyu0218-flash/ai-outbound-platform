@@ -326,7 +326,6 @@ async function leave() {
                 class="header-button"
                 :aria-label="t('notificationCenter')"
                 :title="t('notificationCenter')"
-                @click="router.push('/' + role + '/operations/notices')"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3zm4 11a2 2 0 0 0 4 0" />
