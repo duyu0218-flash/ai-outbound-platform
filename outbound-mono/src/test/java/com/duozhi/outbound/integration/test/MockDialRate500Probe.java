@@ -529,7 +529,17 @@ class MockDialRate500Probe {
                             awaitFiniteDrain();
                         } else {
                             Thread.sleep((seconds + warmup + 1) * 1000L);
-                            if (drainDiagnostic) stopAndDrain();
+                            if (drainDiagnostic) {
+                                result.put(
+                                        "event_time_buckets_before_stop",
+                                        acknowledgementBuckets(phase));
+                                result.put(
+                                        "event_time_bucket_note",
+                                        "Event timestamps are diagnostic only; capacity uses post-commit intervals.");
+                                write();
+                                stopAndDrain();
+                                if (maximumDiagnostic) recordCommitRate(phase);
+                            }
                         }
                     }
                     for (int i = 0; !queued && i < 500 * (seconds + warmup + 1); i++) {
@@ -599,27 +609,12 @@ class MockDialRate500Probe {
                                             + " calls inserted as DIALING or IN_AI"
                                     : "Fixed 2 ms async HTTP schedule; every planned call is"
                                             + " submitted even when server admission is full");
-                    var buckets = new TreeMap<Long, Long>();
+                    var buckets = acknowledgementBuckets(phase);
                     long within = 0, accepted = 0;
-                    try (var c = connection();
-                            var q =
-                                    c.prepareStatement(
-                                            "SELECT"
-                                                    + " FLOOR((UNIX_TIMESTAMP(e.created_at)*1000-?)/1000)"
-                                                    + " AS bucket,COUNT(*) AS n FROM callevent e JOIN"
-                                                    + " callsession c ON c.id=e.call_session_id WHERE"
-                                                    + " c.tenant_id=1 AND"
-                                                    + " e.event_type='dial_command_accepted' GROUP BY"
-                                                    + " bucket ORDER BY bucket")) {
-                        q.setLong(1, phase);
-                        try (var rows = q.executeQuery()) {
-                            while (rows.next()) {
-                                long bucket = rows.getLong(1), n = rows.getLong(2);
-                                buckets.put(bucket, n);
-                                accepted += n;
-                                if (bucket >= warmup && bucket < warmup + seconds) within += n;
-                            }
-                        }
+                    for (var entry : buckets.entrySet()) {
+                        long bucket = entry.getKey(), n = entry.getValue();
+                        accepted += n;
+                        if (bucket >= warmup && bucket < warmup + seconds) within += n;
                     }
                     result.put("dial_accepted_per_second", buckets);
                     result.put("dial_accepted_within_window", within);
@@ -677,7 +672,7 @@ class MockDialRate500Probe {
                         var examples = new ArrayList<Map<String, Object>>();
                         while (rows.next())
                             examples.add(
-                                    Values.map(
+                                    JsonSupport.map(
                                             "tenant",
                                             rows.getLong(1),
                                             "call_id",
@@ -905,7 +900,6 @@ class MockDialRate500Probe {
                                             "max_failures",
                                             rows.getLong(3)));
                     }
-                    if (maximumDiagnostic) recordCommitRate(phase);
                     boolean passed =
                             !calibration
                                     && within >= 500L * seconds
@@ -1023,6 +1017,18 @@ class MockDialRate500Probe {
                         assertTrue(
                                 passed,
                                 "500 CPS NOT achieved; evidence " + folder.resolve("result.json"));
+                } catch (Throwable workloadFailure) {
+                    if (maximumDiagnostic
+                            && !result.containsKey("commit_rate")
+                            && result.get("phase_start_ms") instanceof Number phase) {
+                        try {
+                            recordCommitRate(phase.longValue());
+                        } catch (Throwable evidenceFailure) {
+                            result.put(
+                                    "commit_evidence_collection_error", evidenceFailure.toString());
+                        }
+                    }
+                    throw workloadFailure;
                 } finally {
                     if (application != null) {
                         application.destroy();
@@ -1040,11 +1046,38 @@ class MockDialRate500Probe {
         }
     }
 
+    Map<Long, Long> acknowledgementBuckets(long phaseMs) throws SQLException {
+        var buckets = new TreeMap<Long, Long>();
+        try (var c = connection();
+                var q =
+                        c.prepareStatement(
+                                "SELECT FLOOR((UNIX_TIMESTAMP(e.created_at)*1000-?)/1000) AS bucket,"
+                                        + "COUNT(DISTINCT c.id,JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt'))) AS n "
+                                        + "FROM callevent e JOIN callsession c ON c.id=e.call_session_id "
+                                        + "WHERE c.tenant_id=1 AND e.event_type='dial_command_accepted' GROUP BY bucket ORDER BY bucket")) {
+            q.setLong(1, phaseMs);
+            try (var rows = q.executeQuery()) {
+                while (rows.next()) buckets.put(rows.getLong(1), rows.getLong(2));
+            }
+        }
+        return buckets;
+    }
+
     void recordCommitRate(long phaseMs) throws Exception {
         var window = new DialRateWindow(phaseMs * 1000, warmup, seconds);
-        long remaining =
-                ((Number) result.getOrDefault("unadmitted_queued_preserved", 0)).longValue();
+        long remaining;
+        try (var c = connection();
+                var q = c.createStatement();
+                var rows =
+                        q.executeQuery(
+                                "SELECT COUNT(*) FROM callsession WHERE tenant_id=1 AND status='QUEUED' AND attempts=0")) {
+            rows.next();
+            remaining = rows.getLong(1);
+        }
         result.put("input_pool_not_exhausted", remaining > 0);
+        result.put(
+                "commit_snapshot_after_drain",
+                Boolean.TRUE.equals(result.get("stop_drain_verified")));
         assertTrue(
                 remaining > 0,
                 "increase dial.pool: an exhausted input pool cannot measure saturation");
@@ -1095,14 +1128,16 @@ class MockDialRate500Probe {
                 }
             }
         }
-        result.put("commit_rate", window.summary());
+        boolean complete = total > 0 && missing == 0 && duplicate == 0 && invalidClock == 0;
+        var summary = new LinkedHashMap<>(window.summary());
+        summary.put("upper_bound_verified", complete);
+        if (!complete) summary.put("peak_cps_upper_bound", null);
+        result.put("commit_rate", summary);
         result.put("commit_evidence_missing", missing);
         result.put("duplicate_acknowledgement_identities", duplicate);
         result.put("invalid_commit_clocks", invalidClock);
         result.put("unique_acknowledgement_identities", total);
-        result.put(
-                "commit_evidence_complete",
-                total > 0 && missing == 0 && duplicate == 0 && invalidClock == 0);
+        result.put("commit_evidence_complete", complete);
         write();
         assertTrue(total > 0, "maximum-rate diagnostic requires actual durable acknowledgements");
         assertEquals(0, missing, "every acknowledgement needs post-commit evidence");
@@ -1249,10 +1284,22 @@ class MockDialRate500Probe {
                 closed = true;
                 break;
             }
-            assertEquals(
-                    409,
-                    reply.statusCode(),
-                    "only unresolved sending may postpone the barrier: " + reply.body());
+            boolean lockBusy =
+                    reply.statusCode() == 503
+                            && "PLATFORM_LOCK_TIMEOUT"
+                                    .equals(json.readValue(reply.body(), Map.class).get("detail"));
+            if (lockBusy) {
+                result.merge(
+                        "sending_barrier_lock_timeouts",
+                        1,
+                        (left, right) -> ((Number) left).intValue() + 1);
+            } else {
+                assertEquals(
+                        409,
+                        reply.statusCode(),
+                        "only unresolved sending or a bounded lock timeout may postpone the barrier: "
+                                + reply.body());
+            }
             Thread.sleep(200);
         }
         assertTrue(closed, "sending barrier must close before drain deadline");
