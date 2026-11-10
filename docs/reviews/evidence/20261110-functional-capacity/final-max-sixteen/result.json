@@ -1,0 +1,2894 @@
+{
+  "run_id" : "bb609305",
+  "scope" : "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+  "target_cps" : 500,
+  "seconds" : 20,
+  "jar_sha256" : "e074cc101b96fe7ca9abbcb0a6e15f794d525dd36d75cc3b7dc1b52090d586e1",
+  "dial_source" : "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+  "drain_diagnostic_only" : true,
+  "calibration_only" : false,
+  "capacity_qualified" : false,
+  "maximum_rate_diagnostic_only" : true,
+  "campaign_count" : 16,
+  "mysql_resource_overrides" : {
+    "bufferMiB" : 512,
+    "tableCache" : 512,
+    "packetMiB" : 16,
+    "redoMiB" : 256
+  },
+  "mysql_buffer_pool_override_mib" : 512,
+  "mysql_binlog_compression_override" : false,
+  "mysql_actual_variables" : {
+    "binlog_group_commit_sync_delay" : "0",
+    "binlog_row_image" : "FULL",
+    "binlog_transaction_compression" : "OFF",
+    "innodb_buffer_pool_size" : "536870912",
+    "innodb_flush_log_at_trx_commit" : "1",
+    "innodb_redo_log_capacity" : "268435456",
+    "log_bin" : "ON",
+    "max_allowed_packet" : "16777216",
+    "sync_binlog" : "1",
+    "table_open_cache" : "512",
+    "transaction_isolation" : "REPEATABLE-READ",
+    "version" : "8.4.13",
+    "version_comment" : "MySQL Community Server - GPL"
+  },
+  "mysql_container" : "e81a0705ac88abe021e17da4d5106a56b3351025a4ca191e033674a2416f9697",
+  "redis_container" : "37383cb77b9bd6280196a70f181f7c978fdfbd388f2b61f6d65a934708410347",
+  "mysql_jdbc" : "jdbc:mysql://localhost:32874/test?connectTimeout=3000&socketTimeout=10000",
+  "profile_jfr" : true,
+  "configuration" : {
+    "jvm_heap_max_gib" : 2,
+    "db_pool_max" : 8,
+    "voice_ledger_pool_max" : 4,
+    "model_quota_window" : "disabled; rule AI",
+    "http_inflight_limit" : 100,
+    "api_rate_limit_rps" : 2000,
+    "ai_lane_threads_max" : 4,
+    "callback_consumer_threads" : 2,
+    "external_model" : "not used",
+    "audio" : "not exercised",
+    "capacity_knobs" : 20000,
+    "application_jvms" : 1,
+    "dial_batch_size" : "100",
+    "gateway_command_batch_max" : 100,
+    "callback_batch_size" : "32",
+    "voice_callback_batch_enabled" : true,
+    "VOICE_MAX_CONCURRENT" : "20000",
+    "VOICE_CPS" : "1000",
+    "VOICE_DAILY_CALL_LIMIT" : "10000000",
+    "VOICE_HOUR_BUDGET_MINOR" : "1000000000",
+    "VOICE_DAY_BUDGET_MINOR" : "1000000000",
+    "VOICE_MOCK_OCCUPANCY_SEC" : "20",
+    "OUTBOUND_DAILY_CALL_LIMIT" : "10000000",
+    "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED" : "true",
+    "VOICE_ADMISSION_BATCH_CACHE_ENABLED" : "false",
+    "JAVA_DIAL_RATE_CONTROL" : "legacy",
+    "JAVA_DIAL_AUTH_PROTOCOL" : "2",
+    "VOICE_MATERIALIZED_LIMITS_ENABLED" : "true",
+    "JAVA_DIAL_TOKEN_BURST" : "35",
+    "dial_executor_threads" : "4",
+    "general_task_executor_threads" : "4",
+    "JAVA_TASK_CLAIM_PARALLEL_ENABLED" : "false",
+    "JAVA_ANALYSIS_TASK_OWNERS" : "0",
+    "JAVA_ANALYSIS_TASK_WORKERS" : "2",
+    "JAVA_CONTROL_TASK_WORKERS" : "4",
+    "JAVA_CONTROL_TASK_OWNERS" : "4",
+    "JAVA_AI_TASK_WORKERS" : "4",
+    "realtime_jdbc_pool_max" : 4,
+    "analysis_jdbc_pool_max" : 1,
+    "total_business_jdbc_pool_max" : 13,
+    "worker_poll_ms" : "250",
+    "task_scheduler_threads" : 1,
+    "dial_cohort_sizing" : "fixed configured batch; live per-item token check",
+    "logical_task_lanes" : 11,
+    "JAVA_ANALYSIS_BATCH_SIZE" : "1",
+    "voice_callback_delivery_concurrency" : "128",
+    "voice_callback_max_inflight_events" : "128",
+    "VOICE_MOCK_ANSWER_PERCENT" : "100",
+    "VOICE_MOCK_DISTRIBUTION_SEED" : "v5-simulation-20261021",
+    "voice_callback_batch_size" : "64",
+    "voice_callback_partition_groups" : "2",
+    "voice_callback_protocol" : "v1 for <=16; additive signed v2 for 17..64",
+    "callback_consumer_poll_ms" : "10",
+    "daily_counter_read" : false
+  },
+  "application_pid" : 103484,
+  "fixtures" : "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+  "mysql_physical_before_workload" : {
+    "at_ms" : 1794334887622,
+    "exit" : 0,
+    "du_sk" : "427176\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 41224,
+      "redo" : 262148,
+      "binlogs" : 10552
+    },
+    "largest_paths_du_kib" : "427184\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n41224\t/var/lib/mysql/test\n36868\t/var/lib/mysql/mysql.ibd\n16384\t/var/lib/mysql/undo_002\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo6\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo5\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo4\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo34_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo33_tmp"
+  },
+  "phase_start_ms" : 1794334939597,
+  "db_stats_before" : {
+    "Com_commit" : 20820,
+    "Com_insert" : 186140,
+    "Com_rollback" : 0,
+    "Com_select" : 186460,
+    "Com_stmt_execute" : 100994,
+    "Com_update" : 40399,
+    "Innodb_row_lock_time" : 0,
+    "Questions" : 237329
+  },
+  "mysql_physical_after_queue_commit" : {
+    "at_ms" : 1794334940823,
+    "exit" : 0,
+    "du_sk" : "614896\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 151064,
+      "redo" : 262148,
+      "binlogs" : 72052
+    },
+    "largest_paths_du_kib" : "614904\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n151064\t/var/lib/mysql/test\n69116\t/var/lib/mysql/binlog.000002\n57348\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_002\n23556\t/var/lib/mysql/test/ops_call_statistics.ibd\n18436\t/var/lib/mysql/test/dial_fact_revision.ibd\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n11268\t/var/lib/mysql/test/dial_fact_head.ibd\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7"
+  },
+  "queued_pool_size" : 31000,
+  "event_time_buckets_before_stop" : {
+    "10" : 100,
+    "17" : 100,
+    "22" : 100
+  },
+  "event_time_bucket_note" : "Event timestamps are diagnostic only; capacity uses post-commit intervals.",
+  "stop_requested_at_ms" : 1794334971927,
+  "backlog_at_stop_request" : {
+    "at_ms" : 1794334971927,
+    "reserved" : 768,
+    "receipts_remaining" : 68,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 2304,
+    "mock_schedules_remaining" : 200,
+    "voice_counter_active" : 600,
+    "lifecycle_tasks_remaining" : 776,
+    "gateway_active" : 200,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 400,
+    "business_active" : 768,
+    "phone_guards" : 768,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "FAILED",
+      "count" : 6,
+      "due" : 0,
+      "future" : 6,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 98,
+      "due" : 10,
+      "future" : 88,
+      "oldest_due_age_sec" : 1.097
+    }, {
+      "type" : "ai_turn",
+      "state" : "PENDING",
+      "count" : 144,
+      "due" : 144,
+      "future" : 0,
+      "oldest_due_age_sec" : 13.337
+    }, {
+      "type" : "ai_turn",
+      "state" : "PROCESSING",
+      "count" : 2,
+      "due" : 2,
+      "future" : 0,
+      "oldest_due_age_sec" : 13.343
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 26,
+      "due" : 26,
+      "future" : 0,
+      "oldest_due_age_sec" : 2.649
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1300,
+      "due" : 1300,
+      "future" : 0,
+      "oldest_due_age_sec" : 15.229
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 400,
+      "due" : 400,
+      "future" : 0,
+      "oldest_due_age_sec" : 25.815
+    } ]
+  },
+  "drain_begin" : {
+    "phase" : "ADMISSION_CLOSED",
+    "epoch" : 2,
+    "revision" : 1,
+    "updated_at" : "2026-11-10T18:22:55.535",
+    "captured" : 837,
+    "business_active" : 837,
+    "gateway_active" : 300,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 137,
+    "pending_lifecycle_tasks" : 284,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "sending_closed" : {
+    "phase" : "SEND_CLOSED",
+    "epoch" : 2,
+    "revision" : 2,
+    "updated_at" : "2026-11-10T18:24:49.967",
+    "captured" : 837,
+    "business_active" : 20,
+    "gateway_active" : 19,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 1,
+    "pending_lifecycle_tasks" : 9,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "fixed_attempt_count_after_sending_closed" : 900,
+  "stop_drain_samples" : [ {
+    "at_ms" : 1794335090051,
+    "reserved" : 20,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 60,
+    "mock_schedules_remaining" : 19,
+    "voice_counter_active" : 57,
+    "lifecycle_tasks_remaining" : 23,
+    "gateway_active" : 19,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 300,
+    "business_active" : 20,
+    "phone_guards" : 20,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 814,
+      "due" : 783,
+      "future" : 31,
+      "oldest_due_age_sec" : 2.223
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 9,
+      "due" : 1,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.161
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 300,
+      "due" : 300,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.518
+    } ]
+  }, {
+    "at_ms" : 1794335091176,
+    "reserved" : 19,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 57,
+    "mock_schedules_remaining" : 17,
+    "voice_counter_active" : 51,
+    "lifecycle_tasks_remaining" : 17,
+    "gateway_active" : 17,
+    "gateway_callbacks_remaining" : 2,
+    "dial_processing" : 8,
+    "business_active" : 19,
+    "phone_guards" : 19,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.439
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 8,
+      "due" : 0,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 8,
+      "due" : 8,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.289
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.336
+    } ]
+  }, {
+    "at_ms" : 1794335092362,
+    "reserved" : 14,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 42,
+    "mock_schedules_remaining" : 14,
+    "voice_counter_active" : 42,
+    "lifecycle_tasks_remaining" : 8,
+    "gateway_active" : 14,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 14,
+    "phone_guards" : 14,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 4.551
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 8,
+      "due" : 0,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.0
+    } ]
+  }, {
+    "at_ms" : 1794335093454,
+    "reserved" : 14,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 42,
+    "mock_schedules_remaining" : 14,
+    "voice_counter_active" : 42,
+    "lifecycle_tasks_remaining" : 7,
+    "gateway_active" : 14,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 14,
+    "phone_guards" : 14,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 5.667
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 7,
+      "due" : 0,
+      "future" : 7,
+      "oldest_due_age_sec" : 0.0
+    } ]
+  }, {
+    "at_ms" : 1794335094580,
+    "reserved" : 13,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 39,
+    "mock_schedules_remaining" : 13,
+    "voice_counter_active" : 39,
+    "lifecycle_tasks_remaining" : 5,
+    "gateway_active" : 13,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 13,
+    "phone_guards" : 13,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 6.788
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 0,
+      "future" : 5,
+      "oldest_due_age_sec" : 0.0
+    } ]
+  }, {
+    "at_ms" : 1794335095680,
+    "reserved" : 11,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 33,
+    "mock_schedules_remaining" : 11,
+    "voice_counter_active" : 33,
+    "lifecycle_tasks_remaining" : 5,
+    "gateway_active" : 11,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 11,
+    "phone_guards" : 11,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 7.875
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 0,
+      "future" : 5,
+      "oldest_due_age_sec" : 0.0
+    } ]
+  }, {
+    "at_ms" : 1794335096772,
+    "reserved" : 10,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 30,
+    "mock_schedules_remaining" : 10,
+    "voice_counter_active" : 30,
+    "lifecycle_tasks_remaining" : 6,
+    "gateway_active" : 10,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 10,
+    "phone_guards" : 10,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 8.982
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 2,
+      "future" : 3,
+      "oldest_due_age_sec" : 0.062
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.102
+    } ]
+  }, {
+    "at_ms" : 1794335097876,
+    "reserved" : 10,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 30,
+    "mock_schedules_remaining" : 10,
+    "voice_counter_active" : 30,
+    "lifecycle_tasks_remaining" : 3,
+    "gateway_active" : 10,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 10,
+    "phone_guards" : 10,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 10.053
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 0,
+      "future" : 3,
+      "oldest_due_age_sec" : 0.0
+    } ]
+  }, {
+    "at_ms" : 1794335098953,
+    "reserved" : 9,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 27,
+    "mock_schedules_remaining" : 9,
+    "voice_counter_active" : 27,
+    "lifecycle_tasks_remaining" : 3,
+    "gateway_active" : 9,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 9,
+    "phone_guards" : 9,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 11.126
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 2,
+      "due" : 0,
+      "future" : 2,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.152
+    } ]
+  }, {
+    "at_ms" : 1794335100020,
+    "reserved" : 8,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 24,
+    "mock_schedules_remaining" : 8,
+    "voice_counter_active" : 24,
+    "lifecycle_tasks_remaining" : 2,
+    "gateway_active" : 8,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 8,
+    "phone_guards" : 8,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 12.183
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 0,
+      "future" : 1,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.358
+    } ]
+  }, {
+    "at_ms" : 1794335101073,
+    "reserved" : 8,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 24,
+    "mock_schedules_remaining" : 8,
+    "voice_counter_active" : 24,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 8,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 8,
+    "phone_guards" : 8,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 13.247
+    } ]
+  }, {
+    "at_ms" : 1794335102140,
+    "reserved" : 7,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 21,
+    "mock_schedules_remaining" : 7,
+    "voice_counter_active" : 21,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 7,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 7,
+    "phone_guards" : 7,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 14.322
+    } ]
+  }, {
+    "at_ms" : 1794335103218,
+    "reserved" : 5,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 15,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 5,
+    "phone_guards" : 5,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 15.396
+    } ]
+  }, {
+    "at_ms" : 1794335104289,
+    "reserved" : 5,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 15,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 5,
+    "phone_guards" : 5,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 16.461
+    } ]
+  }, {
+    "at_ms" : 1794335105363,
+    "reserved" : 4,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 12,
+    "mock_schedules_remaining" : 4,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 1,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 4,
+    "phone_guards" : 4,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 17.549
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.094
+    } ]
+  }, {
+    "at_ms" : 1794335106441,
+    "reserved" : 3,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 9,
+    "mock_schedules_remaining" : 3,
+    "voice_counter_active" : 9,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 3,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 3,
+    "phone_guards" : 3,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 18.612
+    } ]
+  }, {
+    "at_ms" : 1794335107507,
+    "reserved" : 3,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 9,
+    "mock_schedules_remaining" : 3,
+    "voice_counter_active" : 9,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 3,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 3,
+    "phone_guards" : 3,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 19.662
+    } ]
+  }, {
+    "at_ms" : 1794335108556,
+    "reserved" : 1,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 3,
+    "mock_schedules_remaining" : 1,
+    "voice_counter_active" : 3,
+    "lifecycle_tasks_remaining" : 1,
+    "gateway_active" : 1,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 1,
+    "phone_guards" : 1,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 20.721
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.046
+    } ]
+  }, {
+    "at_ms" : 1794335109614,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 1,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 21.782
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.056
+    } ]
+  }, {
+    "at_ms" : 1794335110676,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 22.847
+    } ]
+  }, {
+    "at_ms" : 1794335111740,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 23.902
+    } ]
+  }, {
+    "at_ms" : 1794335112793,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1100,
+      "due" : 1100,
+      "future" : 0,
+      "oldest_due_age_sec" : 24.949
+    } ]
+  } ],
+  "stop_drain_elapsed_sec" : 140.911284281,
+  "stop_drain_final" : {
+    "phase" : "FROZEN",
+    "epoch" : 2,
+    "revision" : 3,
+    "updated_at" : "2026-11-10T18:24:49.967",
+    "captured" : 837,
+    "business_active" : 0,
+    "gateway_active" : 0,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 0,
+    "pending_lifecycle_tasks" : 0,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "drain_invalid_identities" : 0,
+  "unadmitted_queued_preserved" : 30100,
+  "superseded_control_tasks" : [ {
+    "type" : "after_playback",
+    "count" : 285,
+    "superseded_after_due" : 138,
+    "max_superseded_after_due_ms" : 6764.0
+  }, {
+    "type" : "ai_turn",
+    "count" : 360,
+    "superseded_after_due" : 349,
+    "max_superseded_after_due_ms" : 29557.0
+  } ],
+  "superseded_note" : "Kept as original durable task rows, never treated as successful control dispatch. Supersession after due is reported separately and cannot erase earlier SLO misses; validity at each deadline needs independent event evidence.",
+  "task_due_to_completion_latency" : {
+    "after_playback" : {
+      "count" : 190,
+      "p99_ms" : 7552.0,
+      "max_ms" : 7789.0,
+      "over_2000ms" : 38
+    },
+    "ai_turn" : {
+      "count" : 538,
+      "p99_ms" : 27827.0,
+      "max_ms" : 30045.0,
+      "over_2000ms" : 440
+    }
+  },
+  "task_latency_note" : "Upper-bound diagnostic includes execution and commit; excludes superseded tasks, is not independently collected action-dispatch evidence or a formal V3 SLO pass.",
+  "stop_drain_verified" : true,
+  "input_pool_not_exhausted" : true,
+  "commit_snapshot_after_drain" : true,
+  "commit_rate" : {
+    "scope" : "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+    "average_cps_lower_bound" : 10.0,
+    "per_second" : [ {
+      "second_after_phase" : 10,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 11,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 12,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 13,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 14,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 15,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 16,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 17,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 18,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 19,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 20,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 21,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 22,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 23,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 24,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 25,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 26,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 27,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 28,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 29,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    } ],
+    "peak_cps_lower_bound" : 100,
+    "counting" : "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+    "peak_cps_upper_bound" : 100,
+    "minimum_second_cps_lower_bound" : 0,
+    "upper_bound_verified" : true
+  },
+  "commit_evidence_missing" : 0,
+  "duplicate_acknowledgement_identities" : 0,
+  "invalid_commit_clocks" : 0,
+  "unique_acknowledgement_identities" : 900,
+  "commit_evidence_complete" : true,
+  "campaign_statistics_mismatches" : 0,
+  "planned_calls" : 31000,
+  "warmup_seconds" : 10,
+  "measured_seconds" : 20,
+  "measurement_note" : "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+  "submitted_calls" : 0,
+  "generator_capacity_misses" : 0,
+  "http_codes" : { },
+  "error_examples" : { },
+  "generator" : "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+  "dial_accepted_per_second" : {
+    "10" : 100,
+    "17" : 100,
+    "22" : 100,
+    "34" : 100,
+    "38" : 100,
+    "41" : 100,
+    "44" : 1,
+    "46" : 1,
+    "49" : 2,
+    "51" : 1,
+    "54" : 1,
+    "56" : 1,
+    "58" : 1,
+    "61" : 1,
+    "63" : 1,
+    "64" : 1,
+    "66" : 1,
+    "67" : 1,
+    "68" : 1,
+    "71" : 100,
+    "73" : 100,
+    "74" : 1,
+    "75" : 1,
+    "76" : 1,
+    "77" : 1,
+    "78" : 1,
+    "79" : 1,
+    "80" : 1,
+    "82" : 1,
+    "83" : 1,
+    "84" : 1,
+    "87" : 2,
+    "89" : 2,
+    "92" : 1,
+    "94" : 1,
+    "98" : 1,
+    "99" : 1,
+    "100" : 1,
+    "101" : 1,
+    "102" : 1,
+    "103" : 1,
+    "104" : 5,
+    "105" : 1,
+    "106" : 1,
+    "107" : 1,
+    "108" : 1,
+    "109" : 1,
+    "110" : 1,
+    "111" : 2,
+    "112" : 1,
+    "113" : 1,
+    "114" : 1,
+    "115" : 1,
+    "116" : 1,
+    "117" : 2,
+    "118" : 2,
+    "119" : 1,
+    "120" : 1,
+    "121" : 1,
+    "122" : 1,
+    "123" : 1,
+    "124" : 1,
+    "125" : 1,
+    "126" : 1,
+    "127" : 1,
+    "128" : 1,
+    "129" : 3,
+    "130" : 1,
+    "131" : 4,
+    "132" : 1,
+    "134" : 1,
+    "135" : 2,
+    "138" : 1,
+    "139" : 5,
+    "140" : 1,
+    "142" : 2,
+    "143" : 3,
+    "144" : 1,
+    "145" : 2,
+    "146" : 1,
+    "147" : 1,
+    "148" : 1,
+    "149" : 1,
+    "150" : 1
+  },
+  "dial_accepted_within_window" : 300,
+  "dial_accepted_at_observation_end" : 900,
+  "actual_cps" : 15.0,
+  "real_telephony_verified" : false,
+  "db_stats_after" : {
+    "Com_commit" : 60968,
+    "Com_insert" : 215234,
+    "Com_rollback" : 279,
+    "Com_select" : 513305,
+    "Com_stmt_execute" : 390927,
+    "Com_update" : 92526,
+    "Innodb_row_lock_time" : 166984,
+    "Questions" : 700284
+  },
+  "mysql_physical_at_observation_end" : {
+    "at_ms" : 1794335113876,
+    "exit" : 0,
+    "du_sk" : "943720\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 302620,
+      "redo" : 262148,
+      "binlogs" : 249292
+    },
+    "largest_paths_du_kib" : "943720\t/var/lib/mysql\n302620\t/var/lib/mysql/test\n262148\t/var/lib/mysql/#innodb_redo\n246376\t/var/lib/mysql/binlog.000002\n61444\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_002\n25604\t/var/lib/mysql/test/ops_call_statistics.ibd\n22532\t/var/lib/mysql/test/taskoutbox.ibd\n19460\t/var/lib/mysql/test/dial_fact_revision.ibd\n18436\t/var/lib/mysql/test/callevent.ibd\n18436\t/var/lib/mysql/test/callbackinbox.ibd\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n13316\t/var/lib/mysql/test/voice_attempts.ibd\n13316\t/var/lib/mysql/test/dial_command_journal.ibd\n12292\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1"
+  },
+  "observed_synthetic_lifetimes" : {
+    "accepted" : 900,
+    "answered" : 900,
+    "ended" : 900,
+    "min_ended_age_sec" : 0.4140000343322754,
+    "mean_ended_age_sec" : 20.6944222301907,
+    "max_ended_age_sec" : 26.85199999809265,
+    "ended_under_19_9_sec" : 9,
+    "note" : "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+  },
+  "short_occupancy_examples" : [ {
+    "tenant" : 1,
+    "call_id" : "72e3d554-a223-478e-954e-5f7bf523a9a2",
+    "attempt" : 1,
+    "age_sec" : 3.072000026702881,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"a66a6283-38f6-4ed0-8cc5-8d8cc156d506\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.104"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"a66a6283-38f6-4ed0-8cc5-8d8cc156d506\"}",
+      "at" : "2026-11-10 18:24:38.733"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 3, \"contact_id\": 835, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:a66a6283-38f6-4ed0-8cc5-8d8cc156d506:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"a66a6283-38f6-4ed0-8cc5-8d8cc156d506\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:38.776"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 3, \"contact_id\": 835, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:a66a6283-38f6-4ed0-8cc5-8d8cc156d506:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"a66a6283-38f6-4ed0-8cc5-8d8cc156d506\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:40.706"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:40.924"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 3, \"contact_id\": 835, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:a66a6283-38f6-4ed0-8cc5-8d8cc156d506:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"a66a6283-38f6-4ed0-8cc5-8d8cc156d506\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:41.997"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "8824b214-9fcf-4c92-ab59-8b423964b2ca",
+    "attempt" : 1,
+    "age_sec" : 0.4140000343322754,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"00021de2-5ae6-44b2-9028-c7463ada5c0f\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.231"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"00021de2-5ae6-44b2-9028-c7463ada5c0f\"}",
+      "at" : "2026-11-10 18:24:41.770"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 8, \"contact_id\": 1000, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:00021de2-5ae6-44b2-9028-c7463ada5c0f:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"00021de2-5ae6-44b2-9028-c7463ada5c0f\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:42.096"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:8824b214-9fcf-4c92-ab59-8b423964b2ca:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:42.950"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 8, \"contact_id\": 1000, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:00021de2-5ae6-44b2-9028-c7463ada5c0f:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"00021de2-5ae6-44b2-9028-c7463ada5c0f\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:43.034"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "a2b1baf6-6e0a-4bf2-91af-adedddaca5fd",
+    "attempt" : 1,
+    "age_sec" : 4.436000108718872,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"16792a9c-9c77-4e14-9622-d924d96534b0\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.332"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 14, \"contact_id\": 206, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:16792a9c-9c77-4e14-9622-d924d96534b0:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"16792a9c-9c77-4e14-9622-d924d96534b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:39.190"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"16792a9c-9c77-4e14-9622-d924d96534b0\"}",
+      "at" : "2026-11-10 18:24:39.248"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 14, \"contact_id\": 206, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:16792a9c-9c77-4e14-9622-d924d96534b0:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"16792a9c-9c77-4e14-9622-d924d96534b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:40.746"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:41.149"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:a2b1baf6-6e0a-4bf2-91af-adedddaca5fd:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:43.669"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 14, \"contact_id\": 206, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:16792a9c-9c77-4e14-9622-d924d96534b0:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"16792a9c-9c77-4e14-9622-d924d96534b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:43.759"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "75ec3f65-e639-428a-b282-3284735ad1bc",
+    "attempt" : 1,
+    "age_sec" : 6.115999937057495,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"2839dafe-87c0-443c-9c90-759c1305e7b5\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.424"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"2839dafe-87c0-443c-9c90-759c1305e7b5\"}",
+      "at" : "2026-11-10 18:24:38.737"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 736, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:2839dafe-87c0-443c-9c90-759c1305e7b5:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"2839dafe-87c0-443c-9c90-759c1305e7b5\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:38.983"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 736, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:2839dafe-87c0-443c-9c90-759c1305e7b5:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"2839dafe-87c0-443c-9c90-759c1305e7b5\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:40.744"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:40.978"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:75ec3f65-e639-428a-b282-3284735ad1bc:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:45.238"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 736, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:2839dafe-87c0-443c-9c90-759c1305e7b5:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"2839dafe-87c0-443c-9c90-759c1305e7b5\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:45.343"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "7fec1513-80bf-4a82-a8bc-c59325291e1a",
+    "attempt" : 1,
+    "age_sec" : 1.4160001277923584,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"c36958e0-14bf-4efa-9c20-173af86927b0\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.495"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"c36958e0-14bf-4efa-9c20-173af86927b0\"}",
+      "at" : "2026-11-10 18:24:43.980"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 5, \"contact_id\": 997, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:c36958e0-14bf-4efa-9c20-173af86927b0:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"c36958e0-14bf-4efa-9c20-173af86927b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:44.030"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 5, \"contact_id\": 997, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:c36958e0-14bf-4efa-9c20-173af86927b0:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"c36958e0-14bf-4efa-9c20-173af86927b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:45.503"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:7fec1513-80bf-4a82-a8bc-c59325291e1a:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:46.007"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 5, \"contact_id\": 997, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:c36958e0-14bf-4efa-9c20-173af86927b0:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"c36958e0-14bf-4efa-9c20-173af86927b0\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:46.282"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "812dee10-1b64-441c-96c4-b24c0d190d27",
+    "attempt" : 1,
+    "age_sec" : 1.6129999160766602,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"494de9fd-65f5-4cc1-a87b-bd81a8621ccb\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.637"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 290, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:494de9fd-65f5-4cc1-a87b-bd81a8621ccb:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"494de9fd-65f5-4cc1-a87b-bd81a8621ccb\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:44.624"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"494de9fd-65f5-4cc1-a87b-bd81a8621ccb\"}",
+      "at" : "2026-11-10 18:24:45.104"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 290, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:494de9fd-65f5-4cc1-a87b-bd81a8621ccb:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"494de9fd-65f5-4cc1-a87b-bd81a8621ccb\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:45.687"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:45.832"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 290, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:494de9fd-65f5-4cc1-a87b-bd81a8621ccb:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"494de9fd-65f5-4cc1-a87b-bd81a8621ccb\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:46.479"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "771837e6-cc05-4d55-a20e-7bf2ee809325",
+    "attempt" : 1,
+    "age_sec" : 1.1140000820159912,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"729906a0-43d5-4b90-9a51-279b2662c6a3\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.706"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 82, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:729906a0-43d5-4b90-9a51-279b2662c6a3:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"729906a0-43d5-4b90-9a51-279b2662c6a3\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:46.590"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"729906a0-43d5-4b90-9a51-279b2662c6a3\"}",
+      "at" : "2026-11-10 18:24:47.115"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:771837e6-cc05-4d55-a20e-7bf2ee809325:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:48"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 82, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:729906a0-43d5-4b90-9a51-279b2662c6a3:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"729906a0-43d5-4b90-9a51-279b2662c6a3\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:48.212"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 2, \"contact_id\": 82, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:729906a0-43d5-4b90-9a51-279b2662c6a3:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"729906a0-43d5-4b90-9a51-279b2662c6a3\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:48.917"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "7e1aa5ce-9037-40d5-85f5-2938238ae063",
+    "attempt" : 1,
+    "age_sec" : 5.381999969482422,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"1d6800c4-d67a-4c53-b7d4-38db881993bc\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.822"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"1d6800c4-d67a-4c53-b7d4-38db881993bc\"}",
+      "at" : "2026-11-10 18:24:42.762"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 8, \"contact_id\": 56, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:1d6800c4-d67a-4c53-b7d4-38db881993bc:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"1d6800c4-d67a-4c53-b7d4-38db881993bc\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:43.189"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 8, \"contact_id\": 56, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:1d6800c4-d67a-4c53-b7d4-38db881993bc:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"1d6800c4-d67a-4c53-b7d4-38db881993bc\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:44.032"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:44.449"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"attempt\": 1, \"event_id\": \"reconciled-end:7e1aa5ce-9037-40d5-85f5-2938238ae063:1\", \"hangup_reason\": \"provider status timeout\", \"status\": \"failed\"}",
+      "at" : "2026-11-10 18:24:48.548"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 8, \"contact_id\": 56, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:1d6800c4-d67a-4c53-b7d4-38db881993bc:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"1d6800c4-d67a-4c53-b7d4-38db881993bc\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:48.617"
+    } ]
+  }, {
+    "tenant" : 1,
+    "call_id" : "82d10b51-c2cf-4d05-9104-2f27e308a723",
+    "attempt" : 1,
+    "age_sec" : 9.95799994468689,
+    "voice_result" : "{\"evidence_source\":\"synthetic_executor\",\"mock_answer_percent\":100,\"mock_answered\":true,\"provider_call_id\":\"b1e3cae4-465e-4bf2-ae5d-6a8708f111ea\",\"result\":\"pbx_accepted\"}",
+    "business_events" : [ {
+      "event_type" : "dial_attempt_claimed",
+      "source" : "platform",
+      "payload" : "{\"attempt\":1}",
+      "at" : "2026-11-10 18:22:35.830"
+    }, {
+      "event_type" : "dial_command_accepted",
+      "source" : "telephony",
+      "payload" : "{\"attempt\":1,\"provider_call_id\":\"b1e3cae4-465e-4bf2-ae5d-6a8708f111ea\"}",
+      "at" : "2026-11-10 18:24:38.737"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 992, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:b1e3cae4-465e-4bf2-ae5d-6a8708f111ea:dialing\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"b1e3cae4-465e-4bf2-ae5d-6a8708f111ea\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"dialing\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:38.984"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 992, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:b1e3cae4-465e-4bf2-ae5d-6a8708f111ea:answered\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"b1e3cae4-465e-4bf2-ae5d-6a8708f111ea\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"answered\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:40.687"
+    }, {
+      "event_type" : "ai_decision",
+      "source" : "dispatcher",
+      "payload" : "{\"action\":\"speak\",\"tts_dispatched\":true,\"handoff_to_human\":false,\"resulting_status\":\"in_ai\"}",
+      "at" : "2026-11-10 18:24:40.861"
+    }, {
+      "event_type" : "status",
+      "source" : "telephony",
+      "payload" : "{\"asr_provider\": \"provider-default\", \"attempt\": 1, \"campaign_id\": 16, \"contact_id\": 992, \"dtmf_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/dtmf\", \"event_id\": \"synthetic:b1e3cae4-465e-4bf2-ae5d-6a8708f111ea:completed\", \"gateway_node_id\": null, \"hangup_sms_enabled\": true, \"human_agent_id\": null, \"language\": \"zh-CN\", \"media_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/media\", \"mode\": \"ai_only\", \"provider_call_id\": \"b1e3cae4-465e-4bf2-ae5d-6a8708f111ea\", \"recording_enabled\": true, \"recording_notice\": true, \"recording_notice_text\": \"本次通话可能会被录音，用于服务和质量管理。\", \"recording_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/recording\", \"scenario_policy\": {\"allow_interruptions\": true, \"clarify_prompt\": \"抱歉，我没有听清楚，请您再说一次。\", \"confidence_threshold\": 0.55, \"dtmf_end\": \"#\", \"dtmf_max_digits\": 20, \"end_hour\": 20, \"failure_prompt\": \"抱歉，当前服务暂时无法继续，我们先结束本次通话。\", \"faqs\": {}, \"handoff_agent_ids\": [], \"handoff_auto_callback\": true, \"handoff_capacity_control\": true, \"handoff_expected_ratio\": 0.1, \"handoff_fallback\": \"end\", \"handoff_prompt\": \"正在为您联系人工客服，请稍候。\", \"handoff_queue_limit\": 20, \"handoff_skills\": [], \"handoff_team_ids\": [], \"handoff_timeout_prompt\": \"抱歉，暂时没有客服接听，本次先结束，您可以稍后联系。\", \"handoff_wait_seconds\": 45, \"holidays\": [], \"language\": \"zh-CN\", \"machine_action\": \"confirm\", \"max_clarifications\": 2, \"min_interrupt_chars\": 1, \"model_wait_prompt\": \"请稍等，我正在为您确认。\", \"model_wait_seconds\": 4, \"name\": \"默认业务策略\", \"opening_delay_ms\": 0, \"permanent_causes\": [\"UNALLOCATED_NUMBER\", \"INVALID_NUMBER_FORMAT\", \"NUMBER_CHANGED\", \"CALL_REJECTED\"], \"retry_seconds\": {\"busy\": 1800, \"no_answer\": 3600, \"voicemail\": 86400}, \"sentence_silence_ms\": 800, \"silence_prompt\": \"您好，您还在听吗？\", \"silence_seconds\": 10, \"slots\": [], \"start_hour\": 9, \"timezone\": \"Asia/Shanghai\", \"vocabulary_id\": \"\", \"voice\": \"\", \"wait_seconds\": 30, \"weekdays\": [0, 1, 2, 3, 4, 5, 6]}, \"speech_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/speech\", \"status\": \"completed\", \"status_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/status\", \"telephony_line_id\": null, \"tenant_id\": 1, \"transcript_webhook_url\": \"http://127.0.0.1:40303/api/v1/webhooks/telephony/transcript\", \"tts_provider\": \"provider-default\", \"voice\": \"female-1\", \"voice_ai_pipeline\": \"legacy\"}",
+      "at" : "2026-11-10 18:24:49"
+    } ]
+  } ],
+  "tasks_at_observation_end" : [ {
+    "oldest_due_age_sec" : 150.281,
+    "count" : 475,
+    "state" : "COMPLETED",
+    "type" : "after_playback"
+  }, {
+    "oldest_due_age_sec" : 161.924,
+    "count" : 898,
+    "state" : "COMPLETED",
+    "type" : "ai_turn"
+  }, {
+    "oldest_due_age_sec" : 145.062,
+    "count" : 900,
+    "state" : "COMPLETED",
+    "type" : "call_analysis"
+  }, {
+    "oldest_due_age_sec" : 173.549,
+    "count" : 900,
+    "state" : "COMPLETED",
+    "type" : "dial_call"
+  }, {
+    "oldest_due_age_sec" : 26.154,
+    "count" : 1100,
+    "state" : "PENDING",
+    "type" : "dial_call"
+  } ],
+  "storage_estimates_at_observation_end" : [ {
+    "table" : "callsession",
+    "data_bytes" : 6815744,
+    "index_bytes" : 45694976,
+    "estimated_rows" : 30072
+  }, {
+    "table" : "ops_call_statistics",
+    "data_bytes" : 7913472,
+    "index_bytes" : 7913472,
+    "estimated_rows" : 32516
+  }, {
+    "table" : "taskoutbox",
+    "data_bytes" : 3260416,
+    "index_bytes" : 10780672,
+    "estimated_rows" : 4494
+  }, {
+    "table" : "dial_fact_revision",
+    "data_bytes" : 12124160,
+    "index_bytes" : 0,
+    "estimated_rows" : 34031
+  }, {
+    "table" : "callevent",
+    "data_bytes" : 9977856,
+    "index_bytes" : 1048576,
+    "estimated_rows" : 7387
+  }, {
+    "table" : "callbackinbox",
+    "data_bytes" : 7880704,
+    "index_bytes" : 950272,
+    "estimated_rows" : 2267
+  }, {
+    "table" : "contact",
+    "data_bytes" : 3686400,
+    "index_bytes" : 3637248,
+    "estimated_rows" : 30956
+  }, {
+    "table" : "voice_attempts",
+    "data_bytes" : 5586944,
+    "index_bytes" : 507904,
+    "estimated_rows" : 600
+  }, {
+    "table" : "dial_command_journal",
+    "data_bytes" : 4636672,
+    "index_bytes" : 229376,
+    "estimated_rows" : 719
+  }, {
+    "table" : "conversationstate",
+    "data_bytes" : 3686400,
+    "index_bytes" : 196608,
+    "estimated_rows" : 709
+  }, {
+    "table" : "dial_fact_head",
+    "data_bytes" : 3686400,
+    "index_bytes" : 0,
+    "estimated_rows" : 33561
+  }, {
+    "table" : "dial_reservation",
+    "data_bytes" : 1589248,
+    "index_bytes" : 327680,
+    "estimated_rows" : 930
+  }, {
+    "table" : "webhookeventingest",
+    "data_bytes" : 442368,
+    "index_bytes" : 606208,
+    "estimated_rows" : 2483
+  }, {
+    "table" : "capacity_identity_evidence",
+    "data_bytes" : 409600,
+    "index_bytes" : 409600,
+    "estimated_rows" : 2610
+  }, {
+    "table" : "speechturn",
+    "data_bytes" : 180224,
+    "index_bytes" : 311296,
+    "estimated_rows" : 628
+  }, {
+    "table" : "callanalysis",
+    "data_bytes" : 393216,
+    "index_bytes" : 81920,
+    "estimated_rows" : 875
+  }, {
+    "table" : "voice_dial_authorization",
+    "data_bytes" : 393216,
+    "index_bytes" : 0,
+    "estimated_rows" : 900
+  }, {
+    "table" : "voice_nonces",
+    "data_bytes" : 245760,
+    "index_bytes" : 147456,
+    "estimated_rows" : 1176
+  }, {
+    "table" : "callusage",
+    "data_bytes" : 180224,
+    "index_bytes" : 180224,
+    "estimated_rows" : 900
+  }, {
+    "table" : "ops_dial_attempt_fact",
+    "data_bytes" : 163840,
+    "index_bytes" : 180224,
+    "estimated_rows" : 900
+  }, {
+    "table" : "realtimesession",
+    "data_bytes" : 98304,
+    "index_bytes" : 163840,
+    "estimated_rows" : 517
+  }, {
+    "table" : "ops_call_dimension",
+    "data_bytes" : 147456,
+    "index_bytes" : 81920,
+    "estimated_rows" : 900
+  }, {
+    "table" : "voice_dial_authorization_history",
+    "data_bytes" : 147456,
+    "index_bytes" : 49152,
+    "estimated_rows" : 302
+  }, {
+    "table" : "callmetric",
+    "data_bytes" : 81920,
+    "index_bytes" : 98304,
+    "estimated_rows" : 423
+  }, {
+    "table" : "dial_drain_member",
+    "data_bytes" : 163840,
+    "index_bytes" : 0,
+    "estimated_rows" : 837
+  }, {
+    "table" : "client_lead",
+    "data_bytes" : 16384,
+    "index_bytes" : 98304,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_touch_event",
+    "data_bytes" : 16384,
+    "index_bytes" : 98304,
+    "estimated_rows" : 0
+  }, {
+    "table" : "campaign",
+    "data_bytes" : 16384,
+    "index_bytes" : 81920,
+    "estimated_rows" : 16
+  }, {
+    "table" : "mk_journey_member",
+    "data_bytes" : 16384,
+    "index_bytes" : 81920,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_match_request",
+    "data_bytes" : 16384,
+    "index_bytes" : 81920,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_export_job",
+    "data_bytes" : 16384,
+    "index_bytes" : 81920,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_call_outcome",
+    "data_bytes" : 16384,
+    "index_bytes" : 65536,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_dataset_row",
+    "data_bytes" : 16384,
+    "index_bytes" : 65536,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_dispatch",
+    "data_bytes" : 16384,
+    "index_bytes" : 65536,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_short_link",
+    "data_bytes" : 16384,
+    "index_bytes" : 65536,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_message",
+    "data_bytes" : 16384,
+    "index_bytes" : 65536,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_campaign_contact_statistics",
+    "data_bytes" : 81920,
+    "index_bytes" : 0,
+    "estimated_rows" : 900
+  }, {
+    "table" : "callbackappointment",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "client_lead_event",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "handoffrequest",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "knowledgeitem",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_link_domain",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_delivery",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_event",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_interaction",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "productworkitem",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "scriptflowversion",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_outbox",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_statement_entry",
+    "data_bytes" : 16384,
+    "index_bytes" : 49152,
+    "estimated_rows" : 0
+  }, {
+    "table" : "adminsetting",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 1
+  }, {
+    "table" : "aivoicetestrun",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "aivoicetrial",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "auditlog",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "campaigncontact",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "client_org",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "client_user",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_phone_guard",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_v3_quota_allocation",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_dataset_version",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_journey",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_journey_step",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_link_click",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_match_job",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_profile_history",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_send_task",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_stat_hourly",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_batch",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_call_intent",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_cost_event",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_provider_event",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_reconcile_batch",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_webhook",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_webhook_delivery",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_account_transfer",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_history",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_interception",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_notice",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_seat_state_sample",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_team",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_debug_session",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_knowledge_gap",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_knowledge_upload",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_message_job",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "recordingasset",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "scenarioversion",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "scripttemplate",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "smslog",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "sys_user",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 1
+  }, {
+    "table" : "taskreceipt",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_event_quarantine",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_permits",
+    "data_bytes" : 16384,
+    "index_bytes" : 32768,
+    "estimated_rows" : 0
+  }, {
+    "table" : "aivoicetestset",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "aivoicetrialaudio",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "capacity_commit_evidence",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 173
+  }, {
+    "table" : "client_campaign",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "client_campaign_log",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "client_staff_scope",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "contactimportjob",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_async_batch",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_daily_counter",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_v3_quota_grant",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_v3_quota_grant_scope",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "flyway_schema_history",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 49
+  }, {
+    "table" : "mk_dataset",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_dataset_chunk",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_journey_version",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_match_flight",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_match_result",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_outcome_review",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_outcome_rule",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_partner",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_profile",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_segment",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_segment_snapshot",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_send_item",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_snapshot_member",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_application",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_asset",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_attempt",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_channel",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_channel_binding",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_delivery_part",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_journal",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_nonce",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_resource",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_config",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_lead",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_member",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_view",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "phonesuppression",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_contact_batch",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_contact_batch_member",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_contact_upload",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_debug_turn",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_document",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "script_reach",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "telephonyline",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "tenant",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 1
+  }, {
+    "table" : "voice_action_commands",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_mock_schedule",
+    "data_bytes" : 16384,
+    "index_bytes" : 16384,
+    "estimated_rows" : 0
+  }, {
+    "table" : "aivoiceconfig",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "callbackinboxpartition",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 64
+  }, {
+    "table" : "callbackinboxworker",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 1
+  }, {
+    "table" : "client_setting",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_admission_control",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 1
+  }, {
+    "table" : "dial_migration_generation",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_quota_counter",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 18
+  }, {
+    "table" : "dial_v3_coordinator",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "dial_v3_quota_scope",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "gatewaynode",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_contact_guard",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_landing_domain",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_link_cursor",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_outcome_watermark",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_policy_config",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_profile_applied",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "mk_sms_status_map",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 13
+  }, {
+    "table" : "mk_worker_cursor",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_account",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_channel_window",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_inbox",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_reconcile_item",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "msg_suppression",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_campaign_statistics",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 16
+  }, {
+    "table" : "ops_line_group_assignment",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_permission",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_presence",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "ops_tag_link",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_audience_member",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_campaign_snapshot",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_contact_batch_error",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_contact_value",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "platform_job_cursor",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 1
+  }, {
+    "table" : "platform_publication",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "script_recording_asset",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_audit",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_flags",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 2
+  }, {
+    "table" : "voice_media_owners",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_model_budgets",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_model_usage",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 0
+  }, {
+    "table" : "voice_scope_counter",
+    "data_bytes" : 16384,
+    "index_bytes" : 0,
+    "estimated_rows" : 9
+  } ],
+  "mysql_statement_digests" : [ {
+    "total_ms" : 128849.0767,
+    "normalized_sql" : "COMMIT",
+    "rows_sent" : 0,
+    "max_ms" : 395.5869,
+    "rows_examined" : 0,
+    "count" : 60983
+  }, {
+    "total_ms" : 36082.0622,
+    "normalized_sql" : "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `phone` , `mode` , `tenant_id` , `campaign_id` , `contact_id` ) VALUES (...)",
+    "rows_sent" : 0,
+    "max_ms" : 30.0794,
+    "rows_examined" : 62000,
+    "count" : 31000
+  }, {
+    "total_ms" : 12404.6849,
+    "normalized_sql" : "SET `autocommit` = ?",
+    "rows_sent" : 0,
+    "max_ms" : 56.811,
+    "rows_examined" : 0,
+    "count" : 122487
+  }, {
+    "total_ms" : 8189.8731,
+    "normalized_sql" : "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `name` , `phone` , `tenant_id` , `id` ) VALUES (...)",
+    "rows_sent" : 0,
+    "max_ms" : 30.3366,
+    "rows_examined" : 31000,
+    "count" : 31000
+  }, {
+    "total_ms" : 7025.335,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ? FOR UPDATE",
+    "rows_sent" : 124,
+    "max_ms" : 1956.2657,
+    "rows_examined" : 124,
+    "count" : 124
+  }, {
+    "total_ms" : 6391.1868,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ?",
+    "rows_sent" : 28684,
+    "max_ms" : 21.9014,
+    "rows_examined" : 28684,
+    "count" : 28684
+  }, {
+    "total_ms" : 3933.2492,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ? FOR SHARE",
+    "rows_sent" : 24743,
+    "max_ms" : 13.2187,
+    "rows_examined" : 24743,
+    "count" : 24743
+  }, {
+    "total_ms" : 1132.3067,
+    "normalized_sql" : "CALL `voice_mock_accept` (...)",
+    "rows_sent" : 0,
+    "max_ms" : 30.8622,
+    "rows_examined" : 0,
+    "count" : 1115
+  }, {
+    "total_ms" : 1077.978,
+    "normalized_sql" : "SELECT PHASE , `epoch` FROM `dial_admission_control` WHERE `id` = ? FOR SHARE",
+    "rows_sent" : 231,
+    "max_ms" : 440.2204,
+    "rows_examined" : 231,
+    "count" : 231
+  }, {
+    "total_ms" : 1029.6815,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `callsession` `c` WHERE `c` . `status` IN (...) AND NOT EXISTS ( SELECT ? FROM `callevent` `e` WHERE `e` . `call_session_id` = `c` . `id` AND `e` . `event_type` = ? AND `JSON_EXTRACT` ( `e` . `payload` , ? ) = `c` . `attempts` ) AND NOT EXISTS ( SELECT ? FROM `voice_attempts` `v` WHERE REPLACE ( `v` . `call_id` , ?, ... ) = REPLACE ( `c` . `id` , ?, ... ) AND `v` . `tenant` = `c` . `tenant_id` AND `v` . `attempt` = `c` . `attempts` AND `v` . `send_state` IN (...) )",
+    "rows_sent" : 123,
+    "max_ms" : 73.4488,
+    "rows_examined" : 150016,
+    "count" : 123
+  }, {
+    "total_ms" : 841.8295,
+    "normalized_sql" : "SELECT `enforce_quotas` , `generation_id` FROM `dial_admission_control` WHERE `id` = ?",
+    "rows_sent" : 4397,
+    "max_ms" : 14.635,
+    "rows_examined" : 4397,
+    "count" : 4397
+  }, {
+    "total_ms" : 445.0927,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `taskoutbox` `t` WHERE `t` . `state` != ? AND ( `t` . `task_type` != ? OR EXISTS ( SELECT ? FROM `dial_command_journal` `j` WHERE `j` . `tenant_id` = `t` . `tenant_id` AND `j` . `call_id` = `t` . `aggregate_id` AND `j` . `attempt` = `JSON_EXTRACT` ( `t` . `payload_json` , ? ) + ? ) )",
+    "rows_sent" : 23,
+    "max_ms" : 123.2226,
+    "rows_examined" : 27290,
+    "count" : 23
+  }, {
+    "total_ms" : 400.7145,
+    "normalized_sql" : "SELECT PHASE , `epoch` FROM `dial_admission_control` WHERE `id` = ? FOR UPDATE",
+    "rows_sent" : 1,
+    "max_ms" : 400.7145,
+    "rows_examined" : 1,
+    "count" : 1
+  }, {
+    "total_ms" : 297.2659,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `voice_attempts` WHERE `state` != ? AND `send_state` NOT IN (...)",
+    "rows_sent" : 123,
+    "max_ms" : 67.0942,
+    "rows_examined" : 14503,
+    "count" : 123
+  }, {
+    "total_ms" : 263.0404,
+    "normalized_sql" : "SELECT * FROM `dial_command_journal` WHERE `state` IN (...) AND `recovery_at` <= UTC_TIMESTAMP (?) AND `created_at` <= DATE_SUB ( UTC_TIMESTAMP (?) , INTERVAL ? SQL_TSI_SECOND ) AND ( `recovery_until` IS NULL OR `recovery_until` < UTC_TIMESTAMP (?) ) ORDER BY `recovery_at` , `created_at` LIMIT ? FOR UPDATE SKIP LOCKED",
+    "rows_sent" : 94,
+    "max_ms" : 14.1938,
+    "rows_examined" : 20187,
+    "count" : 206
+  }, {
+    "total_ms" : 231.3022,
+    "normalized_sql" : "UPDATE `ops_export_job` SET `state` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 5.232,
+    "rows_examined" : 0,
+    "count" : 672
+  }, {
+    "total_ms" : 203.3245,
+    "normalized_sql" : "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+    "rows_sent" : 198,
+    "max_ms" : 2.9959,
+    "rows_examined" : 21292,
+    "count" : 201
+  }, {
+    "total_ms" : 167.3361,
+    "normalized_sql" : "SELECT `task_type` , `state` , COUNT ( * ) , SUM ( `available_at` <= UTC_TIMESTAMP (?) ) , SUM ( `available_at` > UTC_TIMESTAMP (?) ) , `GREATEST` ( ? , COALESCE ( MAX ( TIMESTAMPDIFF ( MICROSECOND , `available_at` , UTC_TIMESTAMP (?) ) ) , ? ) ) / ? FROM `taskoutbox` WHERE `state` != ? GROUP BY `task_type` , `state`",
+    "rows_sent" : 48,
+    "max_ms" : 19.7092,
+    "rows_examined" : 26768,
+    "count" : 23
+  }, {
+    "total_ms" : 149.7092,
+    "normalized_sql" : "ROLLBACK",
+    "rows_sent" : 0,
+    "max_ms" : 55.6991,
+    "rows_examined" : 0,
+    "count" : 279
+  }, {
+    "total_ms" : 148.0051,
+    "normalized_sql" : "SELECT TABLE_NAME , `table_rows` , `data_length` , `index_length` FROM `information_schema` . `tables` WHERE `table_schema` = SCHEMA ( ) ORDER BY `data_length` + `index_length` DESC",
+    "rows_sent" : 181,
+    "max_ms" : 148.0051,
+    "rows_examined" : 545,
+    "count" : 1
+  }, {
+    "total_ms" : 115.928,
+    "normalized_sql" : "UPDATE `platform_knowledge_upload` SET `state` = ? , `progress` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 3.8011,
+    "rows_examined" : 0,
+    "count" : 209
+  }, {
+    "total_ms" : 96.7697,
+    "normalized_sql" : "CREATE INDEX `ix_callsession_gateway_capacity` ON `callsession` ( `gateway_node_id` , `status` )",
+    "rows_sent" : 0,
+    "max_ms" : 96.7697,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 96.3669,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `voice_attempts` `v` LEFT JOIN `callsession` `c` ON `c` . `tenant_id` = `v` . `tenant` AND REPLACE ( `c` . `id` , ?, ... ) = REPLACE ( `v` . `call_id` , ?, ... ) AND `c` . `attempts` = `v` . `attempt` WHERE `c` . `id` IS NULL OR `v` . `state` != ? OR `v` . `send_state` != ? OR `c` . `status` NOT IN (...) OR ( SELECT COUNT ( * ) FROM `callevent` `e` WHERE `e` . `call_session_id` = `c` . `id` AND `e` . `event_type` = ? AND `JSON_EXTRACT` ( `e` . `payload` , ? ) = `v` . `attempt` ) != ? OR NOT EXISTS ( SELECT ? FROM `callusage` `u` WHERE `u` . `tenant_id` = `v` . `tenant` AND `u` . `call_session_id` = `c` . `id` AND `u` . `attempt` = `v` . `attempt` AND `u` . `ended_at` IS NOT NULL )",
+    "rows_sent" : 1,
+    "max_ms" : 96.3669,
+    "rows_examined" : 37959,
+    "count" : 1
+  }, {
+    "total_ms" : 94.4827,
+    "normalized_sql" : "UPDATE `platform_contact_upload` SET `state` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 18.0094,
+    "rows_examined" : 0,
+    "count" : 167
+  }, {
+    "total_ms" : 86.1763,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM ( SELECT `tenant_id` , `campaign_id` , COUNT ( * ) `sessions` , SUM ( `attempts` ) `dialed` , SUM ( `answered_attempts` ) `answered` , SUM ( `finished` ) `finished` , SUM ( `seconds` ) `seconds` FROM `ops_call_statistics` WHERE `campaign_id` IS NOT NULL GROUP BY `tenant_id` , `campaign_id` ) `d` LEFT JOIN `ops_campaign_statistics` `s` ON `s` . `tenant_id` = `d` . `tenant_id` AND `s` . `campaign_id` = `d` . `campaign_id` WHERE `s` . `campaign_id` IS NULL OR `s` . `sessions` != `d` . `sessions` OR `s` . `dialed` != `d` . `dialed` OR `s` . `answered` != `d` . `answered` OR `s` . `finished` != `d` . `finished` OR `ABS` ( `s` . `seconds` - `d` . `seconds` ) > ?",
+    "rows_sent" : 1,
+    "max_ms" : 86.1763,
+    "rows_examined" : 32,
+    "count" : 1
+  }, {
+    "total_ms" : 75.0027,
+    "normalized_sql" : "ALTER TABLE `taskoutbox` ADD COLUMN `integration_lane` VARCHARACTER (?) GENERATED ALWAYS AS ( CASE WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? THEN ? WHEN `task_type` IN (...) THEN ? WHEN `task_type` = ? THEN ? ELSE ? END ) STORED , ADD INDEX `ix_taskoutbox_integration_ready` ( `tenant_id` , `integration_lane` , `task_type` , `state` , `available_at` , `id` )",
+    "rows_sent" : 0,
+    "max_ms" : 75.0027,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 74.5506,
+    "normalized_sql" : "CREATE TABLE `ops_view` ( `id` INT8 NOT NULL AUTO_INCREMENT PRIMARY KEY , `tenant_id` INTEGER NOT NULL , `user_id` INTEGER NOT NULL , `kind` VARCHARACTER (?) NOT NULL , NAME VARCHARACTER (?) NOT NULL , `config_json` JSON NOT NULL , `revision` INTEGER NOT NULL DEFAULT ? , UNIQUE KEY `uq_ops_view` ( `tenant_id` , `user_id` , `kind` , NAME ) ) ENGINE = `InnoDB` DEFAULT CHARSET = `utf8mb4`",
+    "rows_sent" : 0,
+    "max_ms" : 74.5506,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 72.793,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `callsession` WHERE `tenant_id` = ? AND STATUS = ? AND `attempts` = ?",
+    "rows_sent" : 1,
+    "max_ms" : 72.793,
+    "rows_examined" : 31000,
+    "count" : 1
+  }, {
+    "total_ms" : 63.0704,
+    "normalized_sql" : "SELECT `event_type` , SOURCE , `payload` , `created_at` FROM `callevent` WHERE REPLACE ( `call_session_id` , ?, ... ) = REPLACE (...) ORDER BY `created_at` , `id` LIMIT ?",
+    "rows_sent" : 56,
+    "max_ms" : 13.4603,
+    "rows_examined" : 46487,
+    "count" : 9
+  }, {
+    "total_ms" : 58.9655,
+    "normalized_sql" : "SELECT @@SESSION . `transaction_read_only`",
+    "rows_sent" : 415,
+    "max_ms" : 3.1835,
+    "rows_examined" : 415,
+    "count" : 415
+  } ],
+  "mysql_prepared_statement_statistics" : [ {
+    "parameterized_sql" : "INSERT INTO `callanalysis`\n         ( `tenant_id`,\n            `call_session_id`,\n            `result_code`,\n            `sentiment`,\n            `intent`,\n            `summary`,\n            `qa_score`,\n            `qa_flags_json`,\n            `structured_json`,\n            `automatic_result_json`,\n            `needs_review`,\n            `review_state`,\n            `reviewed_by`,\n            `reviewed_at`,\n            `created_at`,\n            `updated_at` ) \n         VALUES ( ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ? )",
+    "count" : 900,
+    "total_ms" : 18615.0283,
+    "max_ms" : 1642.9191,
+    "rows_examined" : 1800
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 115,
+    "total_ms" : 9777.6791,
+    "max_ms" : 1765.284,
+    "rows_examined" : 115
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 103,
+    "total_ms" : 7441.9463,
+    "max_ms" : 1663.55,
+    "rows_examined" : 103
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 137,
+    "total_ms" : 6487.2733,
+    "max_ms" : 1431.0092,
+    "rows_examined" : 137
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 45,
+    "total_ms" : 6471.7597,
+    "max_ms" : 1564.1913,
+    "rows_examined" : 45
+  }, {
+    "parameterized_sql" : "SELECT COUNT(*) FROM `callsession` WHERE tenant_id=? AND campaign_id=? AND\n        (status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')\n        OR status='QUEUED' OR next_attempt_at IS NOT NULL)",
+    "count" : 309,
+    "total_ms" : 6275.6216,
+    "max_ms" : 80.5376,
+    "rows_examined" : 10173740
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n         \n     \n        FOR UPDATE",
+    "count" : 539,
+    "total_ms" : 5955.3196,
+    "max_ms" : 1070.8628,
+    "rows_examined" : 521
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 118,
+    "total_ms" : 5556.7433,
+    "max_ms" : 1686.5393,
+    "rows_examined" : 118
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n         \n     \n        FOR UPDATE",
+    "count" : 607,
+    "total_ms" : 5068.2038,
+    "max_ms" : 1025.0881,
+    "rows_examined" : 587
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n         \n     \n        FOR UPDATE",
+    "count" : 430,
+    "total_ms" : 4661.0719,
+    "max_ms" : 1017.603,
+    "rows_examined" : 406
+  }, {
+    "parameterized_sql" : "SELECT * FROM callbackinboxpartition WHERE id IN\n         (  \n            ?\n         , \n            ?\n         ) \n        ORDER BY id FOR UPDATE",
+    "count" : 18,
+    "total_ms" : 4298.4472,
+    "max_ms" : 1192.7933,
+    "rows_examined" : 36
+  }, {
+    "parameterized_sql" : "SELECT o.* FROM voice_outbox o WHERE o.due<=? AND NOT EXISTS(SELECT 1 FROM voice_outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?",
+    "count" : 14405,
+    "total_ms" : 4206.6539,
+    "max_ms" : 20.0727,
+    "rows_examined" : 1471
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n         \n     \n        FOR UPDATE",
+    "count" : 526,
+    "total_ms" : 4176.505,
+    "max_ms" : 922.0315,
+    "rows_examined" : 496
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 47,
+    "total_ms" : 4071.6201,
+    "max_ms" : 1106.7359,
+    "rows_examined" : 47
+  }, {
+    "parameterized_sql" : "SELECT o.* FROM voice_outbox o WHERE o.due<=? AND NOT EXISTS(SELECT 1 FROM voice_outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?",
+    "count" : 13435,
+    "total_ms" : 4069.2559,
+    "max_ms" : 57.91,
+    "rows_examined" : 992
+  }, {
+    "parameterized_sql" : "SELECT COUNT(*) FROM `callsession` WHERE tenant_id=? AND campaign_id=? AND\n        (status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')\n        OR status='QUEUED' OR next_attempt_at IS NOT NULL)",
+    "count" : 157,
+    "total_ms" : 3891.3431,
+    "max_ms" : 65.3677,
+    "rows_examined" : 5169104
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 62,
+    "total_ms" : 3492.4319,
+    "max_ms" : 1520.7991,
+    "rows_examined" : 62
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 58,
+    "total_ms" : 3430.1386,
+    "max_ms" : 1619.2823,
+    "rows_examined" : 58
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 578,
+    "total_ms" : 3142.6039,
+    "max_ms" : 1910.6048,
+    "rows_examined" : 1156
+  }, {
+    "parameterized_sql" : "UPDATE `callsession`\n         SET `status` = ?,\n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 166,
+    "total_ms" : 3058.0528,
+    "max_ms" : 1892.8096,
+    "rows_examined" : 466
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n            AND NOT EXISTS (SELECT 1 FROM realtimesession r WHERE r.tenant_id=?\n            AND r.call_session_id=c.id AND COALESCE(r.turn_sequence,0)<>?)\n         \n         \n     \n        FOR UPDATE",
+    "count" : 169,
+    "total_ms" : 3049.1127,
+    "max_ms" : 1802.4881,
+    "rows_examined" : 165
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 466,
+    "total_ms" : 2953.0639,
+    "max_ms" : 1958.4955,
+    "rows_examined" : 932
+  }, {
+    "parameterized_sql" : "UPDATE `callsession`\n         SET `status` = ?,\n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 133,
+    "total_ms" : 2711.0698,
+    "max_ms" : 1925.1478,
+    "rows_examined" : 362
+  }, {
+    "parameterized_sql" : "SELECT * FROM callbackinboxpartition WHERE id IN\n         (  \n            ?\n         , \n            ?\n         ) \n        ORDER BY id FOR UPDATE",
+    "count" : 23,
+    "total_ms" : 2525.7424,
+    "max_ms" : 988.8869,
+    "rows_examined" : 46
+  }, {
+    "parameterized_sql" : "SELECT * FROM taskoutbox\n         \n                FORCE INDEX (ix_taskoutbox_ready_scope)\n             \n        WHERE tenant_id =\n        ? AND task_type IN\n         (  \n            ?\n         ) \n         \n         \n         \n        AND available_at <= ? AND attempts < max_attempts AND (state IN ('PENDING','FAILED') OR\n        (state='PROCESSING' AND locked_at <= ?)) AND NOT EXISTS (SELECT 1 FROM taskoutbox\n        older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE taskoutbox.task_type<>'after_playback'\n        AND older.tenant_id=taskoutbox.tenant_id AND older.aggregate_id=taskoutbox.aggregate_id AND\n        ((older.task_type=taskoutbox.task_type AND\n        (taskoutbox.task_type<>'business_callback' OR\n        older.integration_lane=taskoutbox.integration_lane)) OR (older.task_type IN\n        ('recording_ingest','recording_delete') AND taskoutbox.task_type IN\n        ('recording_ingest','recording_delete'))) AND older.state IN\n        ('PENDING','FAILED','PROCESSING') AND (older.created_at<taskoutbox.cre",
+    "count" : 1327,
+    "total_ms" : 2506.581,
+    "max_ms" : 25.2328,
+    "rows_examined" : 230731
+  }, {
+    "parameterized_sql" : "SELECT COUNT(*) FROM `callsession` WHERE tenant_id=? AND campaign_id=? AND\n        (status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')\n        OR status='QUEUED' OR next_attempt_at IS NOT NULL)",
+    "count" : 112,
+    "total_ms" : 2314.1171,
+    "max_ms" : 53.6554,
+    "rows_examined" : 3687542
+  }, {
+    "parameterized_sql" : "SELECT * FROM callbackinboxpartition WHERE id IN\n         (  \n            ?\n         , \n            ?\n         ) \n        ORDER BY id FOR UPDATE",
+    "count" : 11,
+    "total_ms" : 2037.8051,
+    "max_ms" : 1351.7321,
+    "rows_examined" : 22
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 73,
+    "total_ms" : 1873.0268,
+    "max_ms" : 996.5324,
+    "rows_examined" : 73
+  }, {
+    "parameterized_sql" : "SELECT * FROM callbackinboxpartition WHERE id IN\n         (  \n            ?\n         , \n            ?\n         ) \n        ORDER BY id FOR UPDATE",
+    "count" : 19,
+    "total_ms" : 1857.8398,
+    "max_ms" : 1060.8758,
+    "rows_examined" : 38
+  }, {
+    "parameterized_sql" : "SELECT c.* FROM callsession c WHERE c.tenant_id=?\n        AND c.id=?\n         \n        AND c.attempts=? AND c.status IN ('ANSWERED','IN_AI')\n         \n            AND NOT EXISTS (SELECT 1 FROM realtimesession r WHERE r.tenant_id=?\n            AND r.call_session_id=c.id AND COALESCE(r.turn_sequence,0)<>?)\n         \n         \n     \n        FOR UPDATE",
+    "count" : 119,
+    "total_ms" : 1836.3729,
+    "max_ms" : 1773.288,
+    "rows_examined" : 117
+  } ],
+  "mysql_file_waits" : [ {
+    "event" : "wait/io/file/innodb/innodb_log_file",
+    "operations" : 444406,
+    "total_ms" : 156920.8485,
+    "writes" : 299974,
+    "written_bytes" : 691059200
+  }, {
+    "event" : "wait/io/file/sql/binlog",
+    "operations" : 90808,
+    "total_ms" : 43458.2931,
+    "writes" : 59689,
+    "written_bytes" : 252282086
+  }, {
+    "event" : "wait/io/file/innodb/innodb_data_file",
+    "operations" : 67499,
+    "total_ms" : 8602.1776,
+    "writes" : 58358,
+    "written_bytes" : 1294450688
+  }, {
+    "event" : "wait/io/file/sql/io_cache",
+    "operations" : 34133,
+    "total_ms" : 1208.2495,
+    "writes" : 7571,
+    "written_bytes" : 214810881
+  }, {
+    "event" : "wait/io/file/innodb/innodb_dblwr_file",
+    "operations" : 599,
+    "total_ms" : 717.4967,
+    "writes" : 591,
+    "written_bytes" : 918945792
+  }, {
+    "event" : "wait/io/file/sql/hash_join",
+    "operations" : 192,
+    "total_ms" : 12.4318,
+    "writes" : 48,
+    "written_bytes" : 1838956
+  }, {
+    "event" : "wait/io/file/innodb/innodb_temp_file",
+    "operations" : 60,
+    "total_ms" : 11.1083,
+    "writes" : 20,
+    "written_bytes" : 327680
+  }, {
+    "event" : "wait/io/file/sql/casetest",
+    "operations" : 15,
+    "total_ms" : 1.7815,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/binlog_index",
+    "operations" : 23,
+    "total_ms" : 1.4992,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/misc",
+    "operations" : 5,
+    "total_ms" : 0.3425,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/ERRMSG",
+    "operations" : 5,
+    "total_ms" : 0.297,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/pid",
+    "operations" : 3,
+    "total_ms" : 0.0507,
+    "writes" : 1,
+    "written_bytes" : 2
+  }, {
+    "event" : "wait/io/file/mysys/charset",
+    "operations" : 3,
+    "total_ms" : 0.0243,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/mysys/cnf",
+    "operations" : 5,
+    "total_ms" : 0.0206,
+    "writes" : 0,
+    "written_bytes" : 0
+  } ],
+  "call_states_at_observation_end" : {
+    "COMPLETED" : 894,
+    "FAILED" : 6,
+    "QUEUED" : 30100
+  },
+  "callback_receipts" : [ {
+    "state" : "done",
+    "count" : 2699,
+    "oldest_age_sec" : 163.621
+  } ],
+  "gateway_callback_backlog" : {
+    "max_failures" : 0,
+    "count" : 0,
+    "oldest_age_sec" : 0.0
+  },
+  "passed" : false,
+  "probe_error" : "org.opentest4j.AssertionFailedError: do not shorten the 20-second occupancy to clear queues ==> expected: <0> but was: <9>"
+}

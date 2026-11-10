@@ -1,0 +1,1454 @@
+{
+  "run_id" : "121d2644",
+  "scope" : "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+  "target_cps" : 500,
+  "seconds" : 20,
+  "jar_sha256" : "e074cc101b96fe7ca9abbcb0a6e15f794d525dd36d75cc3b7dc1b52090d586e1",
+  "dial_source" : "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+  "drain_diagnostic_only" : true,
+  "calibration_only" : false,
+  "capacity_qualified" : false,
+  "maximum_rate_diagnostic_only" : true,
+  "campaign_count" : 1,
+  "mysql_resource_overrides" : {
+    "bufferMiB" : 512,
+    "tableCache" : 512,
+    "packetMiB" : 16,
+    "redoMiB" : 256
+  },
+  "mysql_buffer_pool_override_mib" : 512,
+  "mysql_binlog_compression_override" : false,
+  "mysql_actual_variables" : {
+    "binlog_group_commit_sync_delay" : "0",
+    "binlog_row_image" : "FULL",
+    "binlog_transaction_compression" : "OFF",
+    "innodb_buffer_pool_size" : "536870912",
+    "innodb_flush_log_at_trx_commit" : "1",
+    "innodb_redo_log_capacity" : "268435456",
+    "log_bin" : "ON",
+    "max_allowed_packet" : "16777216",
+    "sync_binlog" : "1",
+    "table_open_cache" : "512",
+    "transaction_isolation" : "REPEATABLE-READ",
+    "version" : "8.4.13",
+    "version_comment" : "MySQL Community Server - GPL"
+  },
+  "mysql_container" : "0de940aaeb194f08f24bec3bdf3aea926d661e194df10bb24d2ee98daa5b977f",
+  "redis_container" : "a1bde076d5df71abba6877660fb5f9e1183dc633800bac8299c81c5ac002f578",
+  "mysql_jdbc" : "jdbc:mysql://localhost:32871/test?connectTimeout=3000&socketTimeout=10000",
+  "profile_jfr" : true,
+  "configuration" : {
+    "jvm_heap_max_gib" : 2,
+    "db_pool_max" : 8,
+    "voice_ledger_pool_max" : 4,
+    "model_quota_window" : "disabled; rule AI",
+    "http_inflight_limit" : 100,
+    "api_rate_limit_rps" : 2000,
+    "ai_lane_threads_max" : 4,
+    "callback_consumer_threads" : 2,
+    "external_model" : "not used",
+    "audio" : "not exercised",
+    "capacity_knobs" : 20000,
+    "application_jvms" : 1,
+    "dial_batch_size" : "100",
+    "gateway_command_batch_max" : 100,
+    "callback_batch_size" : "32",
+    "voice_callback_batch_enabled" : true,
+    "VOICE_MAX_CONCURRENT" : "20000",
+    "VOICE_CPS" : "1000",
+    "VOICE_DAILY_CALL_LIMIT" : "10000000",
+    "VOICE_HOUR_BUDGET_MINOR" : "1000000000",
+    "VOICE_DAY_BUDGET_MINOR" : "1000000000",
+    "VOICE_MOCK_OCCUPANCY_SEC" : "20",
+    "OUTBOUND_DAILY_CALL_LIMIT" : "10000000",
+    "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED" : "true",
+    "VOICE_ADMISSION_BATCH_CACHE_ENABLED" : "false",
+    "JAVA_DIAL_RATE_CONTROL" : "legacy",
+    "JAVA_DIAL_AUTH_PROTOCOL" : "2",
+    "VOICE_MATERIALIZED_LIMITS_ENABLED" : "true",
+    "JAVA_DIAL_TOKEN_BURST" : "35",
+    "dial_executor_threads" : "4",
+    "general_task_executor_threads" : "4",
+    "JAVA_TASK_CLAIM_PARALLEL_ENABLED" : "false",
+    "JAVA_ANALYSIS_TASK_OWNERS" : "0",
+    "JAVA_ANALYSIS_TASK_WORKERS" : "2",
+    "JAVA_CONTROL_TASK_WORKERS" : "4",
+    "JAVA_CONTROL_TASK_OWNERS" : "4",
+    "JAVA_AI_TASK_WORKERS" : "4",
+    "realtime_jdbc_pool_max" : 4,
+    "analysis_jdbc_pool_max" : 1,
+    "total_business_jdbc_pool_max" : 13,
+    "worker_poll_ms" : "250",
+    "task_scheduler_threads" : 1,
+    "dial_cohort_sizing" : "fixed configured batch; live per-item token check",
+    "logical_task_lanes" : 11,
+    "JAVA_ANALYSIS_BATCH_SIZE" : "1",
+    "voice_callback_delivery_concurrency" : "128",
+    "voice_callback_max_inflight_events" : "128",
+    "VOICE_MOCK_ANSWER_PERCENT" : "100",
+    "VOICE_MOCK_DISTRIBUTION_SEED" : "v5-simulation-20261021",
+    "voice_callback_batch_size" : "64",
+    "voice_callback_partition_groups" : "2",
+    "voice_callback_protocol" : "v1 for <=16; additive signed v2 for 17..64",
+    "callback_consumer_poll_ms" : "10",
+    "daily_counter_read" : false
+  },
+  "application_pid" : 101478,
+  "fixtures" : "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+  "mysql_physical_before_workload" : {
+    "at_ms" : 1794334518465,
+    "exit" : 0,
+    "du_sk" : "427300\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 41224,
+      "redo" : 262148,
+      "binlogs" : 10680
+    },
+    "largest_paths_du_kib" : "427308\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n41224\t/var/lib/mysql/test\n36868\t/var/lib/mysql/mysql.ibd\n16384\t/var/lib/mysql/undo_002\n16384\t/var/lib/mysql/undo_001\n15360\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo6\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo5\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo4\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo34_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo33_tmp"
+  },
+  "phase_start_ms" : 1794334576268,
+  "db_stats_before" : {
+    "Com_commit" : 22046,
+    "Com_insert" : 186125,
+    "Com_rollback" : 0,
+    "Com_select" : 191611,
+    "Com_stmt_execute" : 105642,
+    "Com_update" : 40587,
+    "Innodb_row_lock_time" : 0,
+    "Questions" : 246503
+  },
+  "mysql_physical_after_queue_commit" : {
+    "at_ms" : 1794334577261,
+    "exit" : 0,
+    "du_sk" : "617008\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 153108,
+      "redo" : 262148,
+      "binlogs" : 72112
+    },
+    "largest_paths_du_kib" : "617012\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n153108\t/var/lib/mysql/test\n69180\t/var/lib/mysql/binlog.000002\n57348\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_002\n24580\t/var/lib/mysql/test/ops_call_statistics.ibd\n18436\t/var/lib/mysql/test/dial_fact_revision.ibd\n16384\t/var/lib/mysql/undo_001\n15360\t/var/lib/mysql/test/contact.ibd\n12292\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7"
+  },
+  "queued_pool_size" : 31000,
+  "event_time_buckets_before_stop" : {
+    "8" : 100,
+    "14" : 100,
+    "19" : 100,
+    "22" : 100,
+    "26" : 100,
+    "29" : 100
+  },
+  "event_time_bucket_note" : "Event timestamps are diagnostic only; capacity uses post-commit intervals.",
+  "stop_requested_at_ms" : 1794334608445,
+  "backlog_at_stop_request" : {
+    "at_ms" : 1794334608445,
+    "platform_counter_active" : 3000,
+    "mock_schedules_remaining" : 600,
+    "voice_counter_active" : 1800,
+    "lifecycle_tasks_remaining" : 402,
+    "gateway_active" : 600,
+    "gateway_callbacks_remaining" : 200,
+    "dial_processing" : 400,
+    "business_active" : 1000,
+    "phone_guards" : 1000,
+    "reserved" : 1000,
+    "receipts_remaining" : 4,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.423
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.569
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1000,
+      "due" : 1000,
+      "future" : 0,
+      "oldest_due_age_sec" : 19.269
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 400,
+      "due" : 400,
+      "future" : 0,
+      "oldest_due_age_sec" : 26.29
+    } ]
+  },
+  "drain_begin" : {
+    "phase" : "ADMISSION_CLOSED",
+    "epoch" : 2,
+    "revision" : 1,
+    "updated_at" : "2026-11-10T18:16:50.646",
+    "captured" : 1100,
+    "business_active" : 1100,
+    "gateway_active" : 700,
+    "pending_callbacks" : 100,
+    "pending_inbox" : 159,
+    "pending_lifecycle_tasks" : 41,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "sending_barrier_lock_timeouts" : 6,
+  "sending_closed" : {
+    "phase" : "SEND_CLOSED",
+    "epoch" : 2,
+    "revision" : 2,
+    "updated_at" : "2026-11-10T18:19:15.79",
+    "captured" : 1100,
+    "business_active" : 39,
+    "gateway_active" : 39,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 1,
+    "pending_lifecycle_tasks" : 649,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "fixed_attempt_count_after_sending_closed" : 1100,
+  "stop_drain_samples" : [ {
+    "at_ms" : 1794334755942,
+    "platform_counter_active" : 117,
+    "mock_schedules_remaining" : 39,
+    "voice_counter_active" : 117,
+    "lifecycle_tasks_remaining" : 659,
+    "gateway_active" : 39,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 308,
+    "business_active" : 39,
+    "phone_guards" : 39,
+    "reserved" : 39,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 27,
+      "due" : 0,
+      "future" : 27,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "ai_turn",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.482
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 617,
+      "due" : 617,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.679
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 606,
+      "due" : 606,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.093
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 308,
+      "due" : 308,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.564
+    } ]
+  }, {
+    "at_ms" : 1794334757172,
+    "platform_counter_active" : 117,
+    "mock_schedules_remaining" : 39,
+    "voice_counter_active" : 117,
+    "lifecycle_tasks_remaining" : 630,
+    "gateway_active" : 39,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 39,
+    "phone_guards" : 39,
+    "reserved" : 39,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 27,
+      "due" : 1,
+      "future" : 26,
+      "oldest_due_age_sec" : 0.013
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 602,
+      "due" : 602,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.079
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.165
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 2.254
+    } ]
+  }, {
+    "at_ms" : 1794334758248,
+    "platform_counter_active" : 117,
+    "mock_schedules_remaining" : 39,
+    "voice_counter_active" : 117,
+    "lifecycle_tasks_remaining" : 608,
+    "gateway_active" : 39,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 39,
+    "phone_guards" : 39,
+    "reserved" : 39,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 25,
+      "due" : 1,
+      "future" : 24,
+      "oldest_due_age_sec" : 0.074
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.214
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 582,
+      "due" : 582,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.205
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.349
+    } ]
+  }, {
+    "at_ms" : 1794334759342,
+    "platform_counter_active" : 114,
+    "mock_schedules_remaining" : 38,
+    "voice_counter_active" : 114,
+    "lifecycle_tasks_remaining" : 593,
+    "gateway_active" : 38,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 38,
+    "phone_guards" : 38,
+    "reserved" : 38,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 19,
+      "due" : 0,
+      "future" : 19,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 2,
+      "due" : 2,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.671
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 572,
+      "due" : 572,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.321
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 4.486
+    } ]
+  }, {
+    "at_ms" : 1794334760481,
+    "platform_counter_active" : 111,
+    "mock_schedules_remaining" : 37,
+    "voice_counter_active" : 111,
+    "lifecycle_tasks_remaining" : 576,
+    "gateway_active" : 37,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 37,
+    "phone_guards" : 37,
+    "reserved" : 37,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 16,
+      "due" : 0,
+      "future" : 16,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 560,
+      "due" : 560,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.405
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 5.645
+    } ]
+  }, {
+    "at_ms" : 1794334761645,
+    "platform_counter_active" : 108,
+    "mock_schedules_remaining" : 35,
+    "voice_counter_active" : 105,
+    "lifecycle_tasks_remaining" : 565,
+    "gateway_active" : 35,
+    "gateway_callbacks_remaining" : 1,
+    "dial_processing" : 0,
+    "business_active" : 36,
+    "phone_guards" : 36,
+    "reserved" : 36,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 9,
+      "due" : 1,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.602
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 556,
+      "due" : 556,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.074
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 6.742
+    } ]
+  }, {
+    "at_ms" : 1794334762742,
+    "platform_counter_active" : 90,
+    "mock_schedules_remaining" : 29,
+    "voice_counter_active" : 87,
+    "lifecycle_tasks_remaining" : 564,
+    "gateway_active" : 29,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 30,
+    "phone_guards" : 30,
+    "reserved" : 30,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 6,
+      "due" : 0,
+      "future" : 6,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.154
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 557,
+      "due" : 557,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.571
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 7.847
+    } ]
+  }, {
+    "at_ms" : 1794334763854,
+    "platform_counter_active" : 87,
+    "mock_schedules_remaining" : 29,
+    "voice_counter_active" : 87,
+    "lifecycle_tasks_remaining" : 542,
+    "gateway_active" : 29,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 29,
+    "phone_guards" : 29,
+    "reserved" : 29,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 536,
+      "due" : 536,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.109
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 1,
+      "future" : 4,
+      "oldest_due_age_sec" : 0.071
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 8.938
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.181
+    } ]
+  }, {
+    "at_ms" : 1794334764933,
+    "platform_counter_active" : 87,
+    "mock_schedules_remaining" : 29,
+    "voice_counter_active" : 87,
+    "lifecycle_tasks_remaining" : 520,
+    "gateway_active" : 29,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 29,
+    "phone_guards" : 29,
+    "reserved" : 29,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 516,
+      "due" : 516,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.416
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 1,
+      "future" : 2,
+      "oldest_due_age_sec" : 0.175
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 10.032
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.492
+    } ]
+  }, {
+    "at_ms" : 1794334766044,
+    "platform_counter_active" : 78,
+    "mock_schedules_remaining" : 26,
+    "voice_counter_active" : 78,
+    "lifecycle_tasks_remaining" : 506,
+    "gateway_active" : 26,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 26,
+    "phone_guards" : 26,
+    "reserved" : 26,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 504,
+      "due" : 504,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.324
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 11.155
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 2,
+      "due" : 1,
+      "future" : 1,
+      "oldest_due_age_sec" : 0.129
+    } ]
+  }, {
+    "at_ms" : 1794334767158,
+    "platform_counter_active" : 69,
+    "mock_schedules_remaining" : 19,
+    "voice_counter_active" : 57,
+    "lifecycle_tasks_remaining" : 494,
+    "gateway_active" : 19,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 23,
+    "phone_guards" : 23,
+    "reserved" : 23,
+    "receipts_remaining" : 4,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 493,
+      "due" : 493,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.124
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 12.253
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.19
+    } ]
+  }, {
+    "at_ms" : 1794334768254,
+    "platform_counter_active" : 57,
+    "mock_schedules_remaining" : 19,
+    "voice_counter_active" : 57,
+    "lifecycle_tasks_remaining" : 486,
+    "gateway_active" : 19,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 19,
+    "phone_guards" : 19,
+    "reserved" : 19,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 485,
+      "due" : 485,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.269
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 13.345
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.362
+    } ]
+  }, {
+    "at_ms" : 1794334769348,
+    "platform_counter_active" : 48,
+    "mock_schedules_remaining" : 15,
+    "voice_counter_active" : 45,
+    "lifecycle_tasks_remaining" : 485,
+    "gateway_active" : 15,
+    "gateway_callbacks_remaining" : 1,
+    "dial_processing" : 0,
+    "business_active" : 16,
+    "phone_guards" : 16,
+    "reserved" : 16,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 485,
+      "due" : 485,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.157
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 14.473
+    } ]
+  }, {
+    "at_ms" : 1794334770478,
+    "platform_counter_active" : 36,
+    "mock_schedules_remaining" : 8,
+    "voice_counter_active" : 24,
+    "lifecycle_tasks_remaining" : 486,
+    "gateway_active" : 8,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 12,
+    "phone_guards" : 12,
+    "reserved" : 12,
+    "receipts_remaining" : 4,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 485,
+      "due" : 485,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.881
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 15.572
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.003
+    } ]
+  }, {
+    "at_ms" : 1794334771582,
+    "platform_counter_active" : 21,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 486,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 1,
+    "dial_processing" : 0,
+    "business_active" : 7,
+    "phone_guards" : 7,
+    "reserved" : 7,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 486,
+      "due" : 486,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.735
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 16.719
+    } ]
+  }, {
+    "at_ms" : 1794334772725,
+    "platform_counter_active" : 15,
+    "mock_schedules_remaining" : 4,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 482,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 5,
+    "phone_guards" : 5,
+    "reserved" : 5,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 481,
+      "due" : 481,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.987
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 17.82
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.066
+    } ]
+  }, {
+    "at_ms" : 1794334773820,
+    "platform_counter_active" : 6,
+    "mock_schedules_remaining" : 2,
+    "voice_counter_active" : 6,
+    "lifecycle_tasks_remaining" : 480,
+    "gateway_active" : 2,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 2,
+    "phone_guards" : 2,
+    "reserved" : 2,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 479,
+      "due" : 479,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.702
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 18.925
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.78
+    } ]
+  }, {
+    "at_ms" : 1794334774929,
+    "platform_counter_active" : 3,
+    "mock_schedules_remaining" : 1,
+    "voice_counter_active" : 3,
+    "lifecycle_tasks_remaining" : 469,
+    "gateway_active" : 1,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 1,
+    "phone_guards" : 1,
+    "reserved" : 1,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 469,
+      "due" : 469,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.976
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 20.067
+    } ]
+  }, {
+    "at_ms" : 1794334776076,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 460,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 460,
+      "due" : 460,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.211
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 21.174
+    } ]
+  }, {
+    "at_ms" : 1794334777170,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 447,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 447,
+      "due" : 447,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.096
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 22.284
+    } ]
+  }, {
+    "at_ms" : 1794334778289,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 433,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 432,
+      "due" : 432,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.096
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 23.385
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.165
+    } ]
+  }, {
+    "at_ms" : 1794334779388,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 421,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 421,
+      "due" : 421,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.102
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 24.49
+    } ]
+  }, {
+    "at_ms" : 1794334780488,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 407,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 407,
+      "due" : 407,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.152
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 25.582
+    } ]
+  }, {
+    "at_ms" : 1794334781575,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 391,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 390,
+      "due" : 390,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.673
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 26.669
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.892
+    } ]
+  }, {
+    "at_ms" : 1794334782671,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 375,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 375,
+      "due" : 375,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.501
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 27.762
+    } ]
+  }, {
+    "at_ms" : 1794334783758,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 350,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 349,
+      "due" : 349,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.513
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 28.873
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.584
+    } ]
+  }, {
+    "at_ms" : 1794334784874,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 326,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 326,
+      "due" : 326,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.639
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 29.953
+    } ]
+  }, {
+    "at_ms" : 1794334785952,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 309,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 308,
+      "due" : 308,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.391
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 31.021
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.534
+    } ]
+  }, {
+    "at_ms" : 1794334787017,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 284,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 283,
+      "due" : 283,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.402
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 32.111
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.488
+    } ]
+  }, {
+    "at_ms" : 1794334788109,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 254,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 254,
+      "due" : 254,
+      "future" : 0,
+      "oldest_due_age_sec" : 91.471
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 33.183
+    } ]
+  }, {
+    "at_ms" : 1794334789176,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 228,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 227,
+      "due" : 227,
+      "future" : 0,
+      "oldest_due_age_sec" : 89.959
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 34.261
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 90.032
+    } ]
+  }, {
+    "at_ms" : 1794334790254,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 203,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "task_backlog" : [ {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 202,
+      "due" : 202,
+      "future" : 0,
+      "oldest_due_age_sec" : 88.927
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 900,
+      "due" : 900,
+      "future" : 0,
+      "oldest_due_age_sec" : 35.306
+    }, {
+      "type" : "call_analysis",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 89.008
+    } ]
+  } ],
+  "input_pool_not_exhausted" : true,
+  "commit_snapshot_after_drain" : false,
+  "commit_rate" : {
+    "scope" : "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+    "average_cps_lower_bound" : 25.0,
+    "per_second" : [ {
+      "second_after_phase" : 10,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 11,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 12,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 13,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 14,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 15,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 16,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 17,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 18,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 19,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 20,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 21,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 22,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 23,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 24,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 25,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 26,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    }, {
+      "second_after_phase" : 27,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 28,
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0
+    }, {
+      "second_after_phase" : 29,
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100
+    } ],
+    "peak_cps_lower_bound" : 100,
+    "counting" : "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+    "peak_cps_upper_bound" : 100,
+    "minimum_second_cps_lower_bound" : 0,
+    "upper_bound_verified" : true
+  },
+  "commit_evidence_missing" : 0,
+  "duplicate_acknowledgement_identities" : 0,
+  "invalid_commit_clocks" : 0,
+  "unique_acknowledgement_identities" : 1100,
+  "commit_evidence_complete" : true,
+  "campaign_statistics_mismatches" : 0,
+  "probe_error" : "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>"
+}

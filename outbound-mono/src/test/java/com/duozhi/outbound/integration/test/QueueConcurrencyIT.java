@@ -144,6 +144,86 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void batchQueueSelectsPublishedRunningCampaignsWithThePersistedCase() {
+        var tenant =
+                store.insert(
+                        "tenant", Values.map("code", key(), "name", "Batch campaign selection"));
+        long tid = ((Number) tenant.get("id")).longValue();
+        var campaigns = new ArrayList<Map<String, Object>>();
+        var calls = new ArrayList<Map<String, Object>>();
+        try {
+            for (String status : List.of("running", "paused", "stopped", "running")) {
+                var campaign =
+                        store.insert(
+                                "campaign",
+                                Values.map(
+                                        "tenant_id",
+                                        tid,
+                                        "name",
+                                        key(),
+                                        "script",
+                                        "Synthetic campaign",
+                                        "mode",
+                                        "ai_only",
+                                        "status",
+                                        status,
+                                        "dispatch_enabled",
+                                        campaigns.size() != 3));
+                campaigns.add(campaign);
+                calls.add(
+                        store.insert(
+                                "callsession",
+                                Values.map(
+                                        "tenant_id",
+                                        tid,
+                                        "campaign_id",
+                                        campaign.get("id"),
+                                        "phone",
+                                        "15550000001",
+                                        "mode",
+                                        "ai_only",
+                                        "status",
+                                        "queued",
+                                        "max_attempts",
+                                        1)));
+            }
+            calls.add(
+                    store.insert(
+                            "callsession",
+                            Values.map(
+                                    "tenant_id",
+                                    tid,
+                                    "phone",
+                                    "15550000002",
+                                    "mode",
+                                    "ai_only",
+                                    "status",
+                                    "queued",
+                                    "max_attempts",
+                                    1)));
+            assertThat(
+                            jdbc.queryForObject(
+                                    "SELECT status FROM campaign WHERE id=?",
+                                    String.class,
+                                    campaigns.getFirst().get("id")))
+                    .isEqualTo("running");
+            List<Map<String, Object>> selected =
+                    sqlSession.selectList(
+                            MapperRegistry.statement("DialBatchMapper.queuedCandidates"),
+                            Values.map("tenantId", tid, "now", Store.now(), "limit", 10));
+            assertThat(selected)
+                    .extracting(row -> row.get("id").toString())
+                    .containsExactlyInAnyOrder(
+                            calls.getFirst().get("id").toString(),
+                            calls.getLast().get("id").toString());
+        } finally {
+            calls.forEach(call -> store.delete("callsession", tid, call.get("id")));
+            campaigns.forEach(campaign -> store.delete("campaign", tid, campaign.get("id")));
+            store.delete("tenant", tid, tenant.get("id"));
+        }
+    }
+
+    @Test
     void predecessorChecksUseTenantAndStreamIndexForBothClaimPaths() throws Exception {
         // Use the actual mapped statements and type handlers, rather than a
         // copied SQL query that could drift away from the production path.

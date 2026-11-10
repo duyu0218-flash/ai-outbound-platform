@@ -142,6 +142,21 @@ class VoiceStreamingTest {
                 .isInstanceOf(RuntimeException.class);
     }
 
+    @Test
+    void invalidProviderApprovalCannotFallBackToDevelopmentCapacityOrOverflow() {
+        for (String environment : List.of("dev", "production")) {
+            var resources = new VoiceResources(new Settings(Map.of("ENV", environment)));
+            for (long approval : new long[] {-1, Long.MAX_VALUE, 1L + Integer.MAX_VALUE}) {
+                var profile =
+                        Map.<String, Object>of(
+                                "vendor", "aliyun", "approved_quotas", Map.of("s2s", approval));
+                assertThatThrownBy(() -> resources.acquire(profile, 1, "ai", "s2s"))
+                        .hasMessageContaining("quota");
+                assertThat(resources.usage()).isEmpty();
+            }
+        }
+    }
+
     static Settings settings(
             VoiceAiBackendsTest.Fixture asr, VoiceAiBackendsTest.Fixture tts, int port) {
         return new Settings(

@@ -22,6 +22,11 @@ on:
         type: choice
         default: balanced
         options: [balanced, large]
+      capacity_campaigns:
+        description: Campaign distribution for the saturation probe; compare concentrated and distributed writes separately
+        type: choice
+        default: '1'
+        options: ['1', '16']
 permissions:
   contents: read
 jobs:
@@ -89,13 +94,14 @@ jobs:
     name: Synthetic capacity (500 CPS and 500 in-flight)
     if: github.event_name == 'workflow_dispatch' && inputs.synthetic_capacity
     runs-on: ${{ inputs.capacity_arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       CAPACITY_PROFILE: ${{ inputs.capacity_profile == 'large' && 'large' || 'balanced' }}
       DIAL_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '500' || '100' }}
       RECEIPT_BATCH_SIZE: ${{ inputs.capacity_profile == 'large' && '250' || '32' }}
+      DIAL_CAMPAIGNS: ${{ inputs.capacity_campaigns || '1' }}
     concurrency:
-      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}-${{ inputs.capacity_profile || 'balanced' }}
+      group: mono-synthetic-capacity-${{ github.ref }}-${{ inputs.capacity_arch || 'x64' }}-${{ inputs.capacity_profile || 'balanced' }}-${{ inputs.capacity_campaigns || '1' }}
       cancel-in-progress: true
     defaults:
       run:
@@ -130,10 +136,20 @@ jobs:
           docker info > verification/ci-host/docker.txt
           git rev-parse HEAD > verification/ci-host/commit.txt
           printf '%s\n' "$CAPACITY_PROFILE" > verification/ci-host/profile.txt
+          printf '%s\n' "$DIAL_CAMPAIGNS" > verification/ci-host/campaigns.txt
           mvn -B -DskipTests package
           sha256sum target/outbound-mono.jar > verification/ci-host/jar-sha256.txt
+          docker build --file Dockerfile.runtime --build-arg VCS_REF="${{ github.sha }}" --tag outbound-mono-capacity:tested .
+          docker image inspect --format '{{.Id}}' outbound-mono-capacity:tested > verification/ci-host/runtime-image-id.txt
+          java -version 2> verification/ci-host/java.txt
+          mvn -version > verification/ci-host/maven.txt
+          node --version > verification/ci-host/node.txt
+      - name: Measure conservative per-second saturation and verify drain
+        id: maximum_cps
+        run: mvn -B -Dtest=MaximumDialRateProbe -Ddial.source=queue "-Ddial.campaigns=$DIAL_CAMPAIGNS" "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Ddial.output=verification/ci-cps-maximum test
       - name: Measure real queued-pool dial acknowledgements (first run)
         id: cps_first
+        if: always()
         run: mvn -B -Dtest=MockDialRate500Probe -Ddial.source=queue "-Ddial.batch=$DIAL_BATCH_SIZE" -Ddial.workers=4 -Ddial.db.pool=8 "-Ddial.receipt.batch=$RECEIPT_BATCH_SIZE" -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256 -Dcapacity.jfr=true -Ddial.output=verification/ci-cps-first test
       - name: Publish first CPS evidence before the longer AI probe
         if: always()
@@ -156,16 +172,17 @@ jobs:
       - name: Require every capacity probe to pass
         if: always()
         env:
+          MAXIMUM_CPS: ${{ steps.maximum_cps.outcome }}
           CPS_FIRST: ${{ steps.cps_first.outcome }}
           CPS_REPEAT: ${{ steps.cps_repeat.outcome }}
           AI_CAPACITY: ${{ steps.ai_capacity.outcome }}
-        run: test "$CPS_FIRST" = success && test "$CPS_REPEAT" = success && test "$AI_CAPACITY" = success
+        run: test "$MAXIMUM_CPS" = success && test "$CPS_FIRST" = success && test "$CPS_REPEAT" = success && test "$AI_CAPACITY" = success
       - name: Preserve synthetic-only capacity evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: outbound-mono-synthetic-capacity
-          retention-days: 7
+          retention-days: 30
           path: |
             outbound-mono/verification/ci-host/
             outbound-mono/verification/ci-*/result.json
@@ -175,4 +192,5 @@ jobs:
             outbound-mono/verification/ci-*/samples.jsonl
             outbound-mono/verification/ci-*/database-*.json
             outbound-mono/verification/ci-*/profile.jfr
+            outbound-mono/verification/ci-*/commit-intervals.csv
             outbound-mono/target/surefire-reports/

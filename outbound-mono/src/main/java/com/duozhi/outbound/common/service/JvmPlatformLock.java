@@ -122,12 +122,14 @@ public final class JvmPlatformLock implements PlatformLock {
                             ? entry.lock.tryLock()
                             : entry.lock.tryLock(timeoutNanos, TimeUnit.NANOSECONDS);
         } catch (InterruptedException interrupted) {
+            wait.record(System.nanoTime() - waiting, TimeUnit.NANOSECONDS);
             releaseReference(key, entry);
             interruptions.increment();
             Thread.currentThread().interrupt();
             throw new PlatformLock.Unavailable(true);
         }
         if (!acquiredLock) {
+            wait.record(System.nanoTime() - waiting, TimeUnit.NANOSECONDS);
             releaseReference(key, entry);
             if (immediate) return null;
             timeouts.increment();

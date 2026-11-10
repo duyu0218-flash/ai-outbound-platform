@@ -1244,6 +1244,74 @@ class BusinessHttpIT {
         store.update("callsession", 2, call.get("id"), Values.map("status", "failed"));
     }
 
+    @Test
+    void createdCallReturnsItsIdentityWhileProviderConfirmationIsPending() {
+        var fixture = retryFixture("completed");
+        doReturn(Map.of("result", "pending"))
+                .when(telephony)
+                .command(anyMap(), eq("dial"), anyMap());
+        var response =
+                ok(
+                        request(
+                                HttpMethod.POST,
+                                "/api/v1/calls",
+                                Map.of("phone", fixture.get("phone"), "mode", "ai_only")));
+        assertPendingCallCanConfirmWithoutRedial(response.get("id").asText(), 1);
+    }
+
+    @Test
+    void retriedCallReturnsItsIdentityWhenProviderOutcomeIsUnknown() {
+        var fixture = retryFixture("completed");
+        doThrow(new TelephonyClient.Failure(429, true))
+                .when(telephony)
+                .command(anyMap(), eq("dial"), anyMap());
+        var response =
+                ok(request(HttpMethod.POST, "/api/v1/calls/" + fixture.get("id") + "/retry", null));
+        assertThat(response.get("id").asText()).isEqualTo(fixture.get("id"));
+        assertPendingCallCanConfirmWithoutRedial(response.get("id").asText(), 2);
+    }
+
+    void assertPendingCallCanConfirmWithoutRedial(String id, int attempt) {
+        var call = store.require("callsession", 2, id);
+        assertThat(call).containsEntry("status", "dialing").containsEntry("attempts", attempt);
+        assertThat(call.get("telephony_call_id")).isNull();
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM dial_command_journal WHERE call_id=?",
+                                Long.class,
+                                id))
+                .isEqualTo(1);
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM callevent WHERE call_session_id=? AND event_type='dial_command_accepted'",
+                                Long.class,
+                                id))
+                .isZero();
+        var dial = (DialService) ReflectionTestUtils.getField(worker, "dial");
+        doReturn(Map.of("result", "accepted", "provider_call_id", "confirmed-" + id))
+                .when(telephony)
+                .command(anyMap(), eq("dial-confirmation"), anyMap());
+        assertThat(dial.confirmClaimed(call, dial.metadataFor(call))).isTrue();
+        assertThat(store.require("callsession", 2, id))
+                .containsEntry("attempts", attempt)
+                .containsEntry("telephony_call_id", "confirmed-" + id);
+        verify(telephony, times(1))
+                .command(argThat(c -> id.equals(c.get("id"))), eq("dial"), anyMap());
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM dial_command_journal WHERE call_id=?",
+                                Long.class,
+                                id))
+                .isEqualTo(1);
+        assertThat(
+                        jdbc.queryForObject(
+                                "SELECT COUNT(*) FROM callevent WHERE call_session_id=? AND event_type='dial_command_accepted'",
+                                Long.class,
+                                id))
+                .isEqualTo(1);
+        store.update("callsession", 2, id, Values.map("status", "failed"));
+    }
+
     SysUser handoffAgent() {
         var agent = new SysUser();
         agent.setTenantId(2);

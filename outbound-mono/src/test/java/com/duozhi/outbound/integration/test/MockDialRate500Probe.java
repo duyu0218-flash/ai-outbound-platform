@@ -36,12 +36,13 @@ class MockDialRate500Probe {
     final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     final Map<String, Object> result = new LinkedHashMap<>();
     final String run = UUID.randomUUID().toString().substring(0, 8);
-    final int seconds = Integer.getInteger("dial.seconds", 5);
+    int seconds = Integer.getInteger("dial.seconds", 5);
     final String SECRET = "isolated-dialrate-jwt-secret-with-more-than-32-characters",
             HOOK = "isolated-dialrate-hook-secret-with-more-than-32-characters";
     final int dbPool = Integer.getInteger("dial.db.pool", 4);
-    final int poolSize = Integer.getInteger("dial.pool", 10000);
-    final int warmup = Integer.getInteger("dial.warmup.seconds", 1);
+    int poolSize = Integer.getInteger("dial.pool", 10000);
+    int warmup = Integer.getInteger("dial.warmup.seconds", 1);
+    final int campaigns = Integer.getInteger("dial.campaigns", 0);
     final HttpClient http =
             HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(3))
@@ -61,7 +62,19 @@ class MockDialRate500Probe {
     }
 
     void run(boolean calibration, boolean drainDiagnostic) throws Exception {
+        run(calibration, drainDiagnostic, false);
+    }
+
+    void run(boolean calibration, boolean drainDiagnostic, boolean maximumDiagnostic)
+            throws Exception {
+        if (maximumDiagnostic) {
+            seconds = Integer.getInteger("dial.seconds", 20);
+            warmup = Integer.getInteger("dial.warmup.seconds", 10);
+            poolSize = Integer.getInteger("dial.pool", (seconds + warmup + 1) * 1000);
+        }
         assertTrue(dbPool >= 1 && dbPool <= 32, "Bounded explicit business JDBC pool");
+        assertTrue(poolSize >= 1 && poolSize <= 500000, "Bounded explicit synthetic number pool");
+        assertTrue(campaigns >= 0 && campaigns <= 64, "Bounded explicit campaign distribution");
         assertTrue(
                 seconds >= 1 && seconds <= 300 && warmup >= 0 && warmup <= 60,
                 "Explicit bounded measurement and warmup durations");
@@ -71,10 +84,19 @@ class MockDialRate500Probe {
             assertTrue(queued, "stop-and-drain diagnostic requires an explicit queued cohort");
             assertFalse(calibration, "calibration and stop-and-drain are separate workloads");
         }
+        if (maximumDiagnostic) {
+            assertTrue(
+                    drainDiagnostic && queued,
+                    "maximum-rate evidence requires a stopped and drained queued cohort");
+            assertTrue(
+                    seconds >= 10 && warmup >= 10,
+                    "retain at least ten measured seconds after ten warmup seconds");
+        }
         folder = Path.of(System.getProperty("dial.output", "verification/dial500-" + run));
         assertFalse(Files.exists(folder));
         Files.createDirectories(folder);
         Path jar = Path.of("target/outbound-mono.jar");
+        result.put("run_id", run);
         result.put(
                 "scope",
                 (queued
@@ -99,6 +121,8 @@ class MockDialRate500Probe {
         result.put("drain_diagnostic_only", drainDiagnostic);
         result.put("calibration_only", calibration);
         result.put("capacity_qualified", false);
+        result.put("maximum_rate_diagnostic_only", maximumDiagnostic);
+        result.put("campaign_count", campaigns);
         if (calibration) assertTrue(queued, "storage calibration requires a finite queued cohort");
         var futures = new ArrayList<CompletableFuture<?>>();
         var codes = new ConcurrentHashMap<Integer, AtomicInteger>();
@@ -195,6 +219,10 @@ class MockDialRate500Probe {
                             System.getProperty("dial.receipt.batch", "100"));
                     cfg.put("VOICE_CALLBACK_BATCH_ENABLED", "true");
                     cfg.put("JAVA_DIAL_PROFILE", "true");
+                    if (maximumDiagnostic) {
+                        cfg.put("JAVA_CAPACITY_EVIDENCE_ENABLED", "true");
+                        cfg.put("JAVA_CAPACITY_RUN_ID", run);
+                    }
                     env.putAll(cfg);
                     // Diagnostic profile only. Formal v5 evidence uses bounded commit
                     // intervals and request deadlines, not this legacy timestamp probe.
@@ -469,6 +497,10 @@ class MockDialRate500Probe {
                                                         1));
                                 // Identical K values give compression/control cohorts the
                                 // same answer distribution, independent of random run IDs.
+                                if (campaigns > 0) {
+                                    input.put("campaign_id", 1 + i % campaigns);
+                                    input.put("contact_id", i + 1);
+                                }
                                 if (calibration)
                                     input.put(
                                             "id",
@@ -489,6 +521,7 @@ class MockDialRate500Probe {
                                         + " admission and dial transitions. No public telephone"
                                         + " calls.");
                         result.put("queued_pool_size", poolSize);
+                        write();
                         if (calibration) {
                             phase = System.currentTimeMillis();
                             result.put("phase_start_ms", phase);
@@ -496,7 +529,17 @@ class MockDialRate500Probe {
                             awaitFiniteDrain();
                         } else {
                             Thread.sleep((seconds + warmup + 1) * 1000L);
-                            if (drainDiagnostic) stopAndDrain();
+                            if (drainDiagnostic) {
+                                result.put(
+                                        "event_time_buckets_before_stop",
+                                        acknowledgementBuckets(phase));
+                                result.put(
+                                        "event_time_bucket_note",
+                                        "Event timestamps are diagnostic only; capacity uses post-commit intervals.");
+                                write();
+                                stopAndDrain();
+                                if (maximumDiagnostic) recordCommitRate(phase);
+                            }
                         }
                     }
                     for (int i = 0; !queued && i < 500 * (seconds + warmup + 1); i++) {
@@ -566,27 +609,12 @@ class MockDialRate500Probe {
                                             + " calls inserted as DIALING or IN_AI"
                                     : "Fixed 2 ms async HTTP schedule; every planned call is"
                                             + " submitted even when server admission is full");
-                    var buckets = new TreeMap<Long, Long>();
+                    var buckets = acknowledgementBuckets(phase);
                     long within = 0, accepted = 0;
-                    try (var c = connection();
-                            var q =
-                                    c.prepareStatement(
-                                            "SELECT"
-                                                    + " FLOOR((UNIX_TIMESTAMP(e.created_at)*1000-?)/1000)"
-                                                    + " AS bucket,COUNT(*) AS n FROM callevent e JOIN"
-                                                    + " callsession c ON c.id=e.call_session_id WHERE"
-                                                    + " c.tenant_id=1 AND"
-                                                    + " e.event_type='dial_command_accepted' GROUP BY"
-                                                    + " bucket ORDER BY bucket")) {
-                        q.setLong(1, phase);
-                        try (var rows = q.executeQuery()) {
-                            while (rows.next()) {
-                                long bucket = rows.getLong(1), n = rows.getLong(2);
-                                buckets.put(bucket, n);
-                                accepted += n;
-                                if (bucket >= warmup && bucket < warmup + seconds) within += n;
-                            }
-                        }
+                    for (var entry : buckets.entrySet()) {
+                        long bucket = entry.getKey(), n = entry.getValue();
+                        accepted += n;
+                        if (bucket >= warmup && bucket < warmup + seconds) within += n;
                     }
                     result.put("dial_accepted_per_second", buckets);
                     result.put("dial_accepted_within_window", within);
@@ -612,7 +640,7 @@ class MockDialRate500Probe {
                         if (rows.next())
                             result.put(
                                     "observed_synthetic_lifetimes",
-                                    Values.map(
+                                    JsonSupport.map(
                                             "accepted",
                                             rows.getLong(1),
                                             "answered",
@@ -644,7 +672,7 @@ class MockDialRate500Probe {
                         var examples = new ArrayList<Map<String, Object>>();
                         while (rows.next())
                             examples.add(
-                                    Values.map(
+                                    JsonSupport.map(
                                             "tenant",
                                             rows.getLong(1),
                                             "call_id",
@@ -881,7 +909,7 @@ class MockDialRate500Probe {
                                                     bucket ->
                                                             buckets.getOrDefault(bucket, 0L)
                                                                     >= 500);
-                    result.put("passed", passed);
+                    result.put("passed", !maximumDiagnostic && passed);
                     if (drainDiagnostic) {
                         assertEquals(
                                 true,
@@ -989,6 +1017,18 @@ class MockDialRate500Probe {
                         assertTrue(
                                 passed,
                                 "500 CPS NOT achieved; evidence " + folder.resolve("result.json"));
+                } catch (Throwable workloadFailure) {
+                    if (maximumDiagnostic
+                            && !result.containsKey("commit_rate")
+                            && result.get("phase_start_ms") instanceof Number phase) {
+                        try {
+                            recordCommitRate(phase.longValue());
+                        } catch (Throwable evidenceFailure) {
+                            result.put(
+                                    "commit_evidence_collection_error", evidenceFailure.toString());
+                        }
+                    }
+                    throw workloadFailure;
                 } finally {
                     if (application != null) {
                         application.destroy();
@@ -1003,6 +1043,123 @@ class MockDialRate500Probe {
         } finally {
             json.writerWithDefaultPrettyPrinter()
                     .writeValue(folder.resolve("result.json").toFile(), result);
+        }
+    }
+
+    Map<Long, Long> acknowledgementBuckets(long phaseMs) throws SQLException {
+        var buckets = new TreeMap<Long, Long>();
+        try (var c = connection();
+                var q =
+                        c.prepareStatement(
+                                "SELECT FLOOR((UNIX_TIMESTAMP(e.created_at)*1000-?)/1000) AS bucket,"
+                                        + "COUNT(DISTINCT c.id,JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt'))) AS n "
+                                        + "FROM callevent e JOIN callsession c ON c.id=e.call_session_id "
+                                        + "WHERE c.tenant_id=1 AND e.event_type='dial_command_accepted' GROUP BY bucket ORDER BY bucket")) {
+            q.setLong(1, phaseMs);
+            try (var rows = q.executeQuery()) {
+                while (rows.next()) buckets.put(rows.getLong(1), rows.getLong(2));
+            }
+        }
+        return buckets;
+    }
+
+    void recordCommitRate(long phaseMs) throws Exception {
+        var window = new DialRateWindow(phaseMs * 1000, warmup, seconds);
+        long remaining;
+        try (var c = connection();
+                var q = c.createStatement();
+                var rows =
+                        q.executeQuery(
+                                "SELECT COUNT(*) FROM callsession WHERE tenant_id=1 AND status='QUEUED' AND attempts=0")) {
+            rows.next();
+            remaining = rows.getLong(1);
+        }
+        result.put("input_pool_not_exhausted", remaining > 0);
+        result.put(
+                "commit_snapshot_after_drain",
+                Boolean.TRUE.equals(result.get("stop_drain_verified")));
+        assertTrue(
+                remaining > 0,
+                "increase dial.pool: an exhausted input pool cannot measure saturation");
+        long missing = 0, duplicate = 0, invalidClock = 0, total = 0;
+        try (var c = connection();
+                var q =
+                        c.prepareStatement(
+                                "SELECT c.tenant_id,c.id,JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt')) attempt,"
+                                        + "COUNT(e.id),MIN(t.lo_us),MAX(t.hi_us),MIN(t.clock_valid),COUNT(t.transaction_id) "
+                                        + "FROM callevent e JOIN callsession c ON c.id=e.call_session_id "
+                                        + "LEFT JOIN capacity_identity_evidence i ON i.evidence_kind='ack' "
+                                        + "AND i.tenant_id=c.tenant_id AND i.call_id=c.id "
+                                        + "AND i.attempt=JSON_EXTRACT(e.payload,'$.attempt') "
+                                        + "LEFT JOIN capacity_commit_evidence t ON t.transaction_id=i.transaction_id AND t.run_id=? "
+                                        + "WHERE c.tenant_id=1 AND e.event_type='dial_command_accepted' "
+                                        + "GROUP BY c.tenant_id,c.id,JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.attempt'))");
+                var csv = Files.newBufferedWriter(folder.resolve("commit-intervals.csv"))) {
+            q.setString(1, run);
+            csv.write("tenant,call,attempt,event_count,commit_lo_us,commit_hi_us,clock_valid\n");
+            try (var rows = q.executeQuery()) {
+                while (rows.next()) {
+                    total++;
+                    long events = rows.getLong(4);
+                    if (events != 1) duplicate++;
+                    if (rows.getLong(8) != events) {
+                        missing++;
+                        continue;
+                    }
+                    long lo = rows.getLong(5), hi = rows.getLong(6);
+                    boolean valid = rows.getBoolean(7);
+                    if (!valid) invalidClock++;
+                    csv.write(
+                            rows.getLong(1)
+                                    + ","
+                                    + rows.getString(2)
+                                    + ","
+                                    + rows.getString(3)
+                                    + ","
+                                    + events
+                                    + ","
+                                    + lo
+                                    + ","
+                                    + hi
+                                    + ","
+                                    + valid
+                                    + "\n");
+                    if (valid && events == 1) window.add(lo, hi);
+                }
+            }
+        }
+        boolean complete = total > 0 && missing == 0 && duplicate == 0 && invalidClock == 0;
+        var summary = new LinkedHashMap<>(window.summary());
+        summary.put("upper_bound_verified", complete);
+        if (!complete) summary.put("peak_cps_upper_bound", null);
+        result.put("commit_rate", summary);
+        result.put("commit_evidence_missing", missing);
+        result.put("duplicate_acknowledgement_identities", duplicate);
+        result.put("invalid_commit_clocks", invalidClock);
+        result.put("unique_acknowledgement_identities", total);
+        result.put("commit_evidence_complete", complete);
+        write();
+        assertTrue(total > 0, "maximum-rate diagnostic requires actual durable acknowledgements");
+        assertEquals(0, missing, "every acknowledgement needs post-commit evidence");
+        assertEquals(
+                0, duplicate, "deduplicate by tenant, call and attempt, and reject duplicates");
+        assertEquals(0, invalidClock, "invalid clocks cannot establish per-second capacity");
+        if (campaigns > 0) {
+            try (var c = connection();
+                    var q = c.createStatement();
+                    var rows =
+                            q.executeQuery(
+                                    "SELECT COUNT(*) FROM (SELECT tenant_id,campaign_id,COUNT(*) sessions,SUM(attempts) dialed,"
+                                            + "SUM(answered_attempts) answered,SUM(finished) finished,SUM(seconds) seconds "
+                                            + "FROM ops_call_statistics WHERE campaign_id IS NOT NULL GROUP BY tenant_id,campaign_id) d "
+                                            + "LEFT JOIN ops_campaign_statistics s ON s.tenant_id=d.tenant_id AND s.campaign_id=d.campaign_id "
+                                            + "WHERE s.campaign_id IS NULL OR s.sessions<>d.sessions OR s.dialed<>d.dialed "
+                                            + "OR s.answered<>d.answered OR s.finished<>d.finished OR ABS(s.seconds-d.seconds)>0.000001")) {
+                rows.next();
+                result.put("campaign_statistics_mismatches", rows.getLong(1));
+                write();
+                assertEquals(0, rows.getLong(1), "campaign aggregates must reconcile after drain");
+            }
         }
     }
 
@@ -1127,10 +1284,22 @@ class MockDialRate500Probe {
                 closed = true;
                 break;
             }
-            assertEquals(
-                    409,
-                    reply.statusCode(),
-                    "only unresolved sending may postpone the barrier: " + reply.body());
+            boolean lockBusy =
+                    reply.statusCode() == 503
+                            && "PLATFORM_LOCK_TIMEOUT"
+                                    .equals(json.readValue(reply.body(), Map.class).get("detail"));
+            if (lockBusy) {
+                result.merge(
+                        "sending_barrier_lock_timeouts",
+                        1,
+                        (left, right) -> ((Number) left).intValue() + 1);
+            } else {
+                assertEquals(
+                        409,
+                        reply.statusCode(),
+                        "only unresolved sending or a bounded lock timeout may postpone the barrier: "
+                                + reply.body());
+            }
             Thread.sleep(200);
         }
         assertTrue(closed, "sending barrier must close before drain deadline");
@@ -1445,12 +1614,38 @@ class MockDialRate500Probe {
                         "compliance",
                         "data_json",
                         "{\"allowed_start_hour\":0,\"allowed_end_hour\":0,\"max_calls_per_day\":10000000}"));
+        for (int i = 1; i <= campaigns; i++)
+            fixture(
+                    c,
+                    sourceDefaults,
+                    "campaign",
+                    Map.of(
+                            "id",
+                            i,
+                            "tenant_id",
+                            1,
+                            "name",
+                            "Synthetic campaign " + i,
+                            "script",
+                            "隔离环境容量验证",
+                            "mode",
+                            "ai_only",
+                            "status",
+                            "running",
+                            "dispatch_enabled",
+                            true,
+                            "concurrency",
+                            20000,
+                            "created_by",
+                            1));
         for (int i = 0; i < Math.max(poolSize, 500 * (seconds + warmup + 1)); i++)
             fixture(
                     c,
                     sourceDefaults,
                     "contact",
                     Map.of(
+                            "id",
+                            i + 1,
                             "tenant_id",
                             1,
                             "phone",
