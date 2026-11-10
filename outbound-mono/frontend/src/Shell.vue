@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import SupportDesk from './components/SupportDesk.vue';
 import ProductHelp from './components/ProductHelp.vue';
 import NotificationPanel from './components/NotificationPanel.vue';
+import WorkspaceTabs from './components/WorkspaceTabs.vue';
 import { adminMenu, operatorNavigation } from './router';
 import { apiRequest } from './api';
 import { session, logout, request } from './session';
@@ -18,34 +19,51 @@ const dial = useData(
   () => (['admin', 'operator'].includes(session.user?.role) ? '/api/v1/ops/dial-control' : ''),
   15000,
 );
+const switchingCalls = ref(false);
 async function switchCalls() {
-  if (!dial.data.value) return;
-  await action(
-    () =>
-      request('/api/v1/ops/dial-control', 'PUT', {
-        enabled: !dial.data.value.enabled,
-        revision: dial.data.value.revision,
-      }),
-    {
-      confirm: dial.data.value.enabled
-        ? '停止本租户新派发？已获得资源的通话可继续。'
-        : '恢复本租户新派发？',
-      refresh: dial.load,
-    },
-  );
+  const control = dial.data.value;
+  if (!control || switchingCalls.value) return;
+  switchingCalls.value = true;
+  try {
+    await action(
+      () =>
+        request('/api/v1/ops/dial-control', 'PUT', {
+          enabled: !control.enabled,
+          revision: control.revision,
+        }),
+      {
+        confirm: control.enabled
+          ? '停止本租户新派发？已获得资源的通话可继续。'
+          : '恢复本租户新派发？',
+        refresh: dial.load,
+      },
+    );
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') await dial.load();
+  } finally {
+    switchingCalls.value = false;
+  }
 }
 const unread = useData('/api/v1/ops/notices/unread', 60000);
 watch(() => route.path, unread.load);
 const opsProfile = ref(null),
   groupOpen = ref({}),
   helpOpen = ref(false),
-  helpMode = ref('single'),
   supportOpen = ref(false);
 onMounted(() =>
   request('/api/v1/ops/me')
     .then((v) => (opsProfile.value = v))
     .catch(() => {}),
 );
+const accountName = computed(() => session.user?.full_name || session.user?.username || '');
+const accountInitial = computed(() => Array.from(accountName.value)[0]?.toUpperCase() || '·');
+const serviceLabel = computed(() =>
+  healthy.value === null ? t('checkingService') : t(healthy.value ? 'online' : 'offline'),
+);
+function accountAction(command) {
+  if (command === 'logout') return leave();
+  return router.push('/' + props.role + '/operations/workspace');
+}
 const agentPath = (p) => '/agent/operations/' + p;
 const adminItems = (items) =>
   items.map(([path, label]) => ({ path: '/admin' + (path ? '/' + path : ''), label }));
@@ -218,90 +236,156 @@ async function leave() {
         {{ t('tenant') }} #{{ session.user?.tenant_id }} · {{ session.user?.role }}
       </footer></el-aside
     ><el-container
-      ><el-header class="app-header"
-        ><div class="actions">
-          <el-button aria-label="收起导航" @click="collapsed = !collapsed">☰</el-button
-          ><strong>{{ t(route.meta.label || 'dashboard') }}</strong>
-        </div>
-        <div class="actions">
-          <template v-if="dial.data.value"
-            ><el-button link :disabled="session.user?.role !== 'admin'" @click="switchCalls"
-              >呼叫开关 {{ dial.data.value.enabled ? '开' : '关' }}</el-button
-            ><span :title="dial.data.value.updated_at">实时并发 {{ dial.data.value.active }}</span
-            ><span v-if="dial.data.value.voice_balance" aria-label="语音余额"
-              >{{ dial.data.value.voice_balance.mode === 'simulation' ? '模拟余额' : '语音余额' }}
-              {{
-                dial.data.value.voice_balance.available
-                  ? dial.data.value.voice_balance.amount + '元'
-                  : '未接入'
-              }}</span
-            ></template
+      ><el-header class="app-header">
+        <div class="header-location">
+          <button
+            type="button"
+            class="header-button"
+            :aria-label="t(collapsed ? 'expandNavigation' : 'collapseNavigation')"
+            :aria-expanded="!collapsed"
+            :title="t(collapsed ? 'expandNavigation' : 'collapseNavigation')"
+            @click="collapsed = !collapsed"
           >
-          <el-tag :type="healthy === false ? 'danger' : 'success'">{{
-            t(healthy === false ? 'offline' : 'online')
-          }}</el-tag
-          ><el-select
-            :model-value="language"
-            aria-label="语言"
-            class="language"
-            @change="setLanguage"
-            ><el-option label="中文" value="zh-CN" /><el-option
-              label="English"
-              value="en-US" /></el-select
-          ><NotificationPanel :role="role" @read="unread.load"
-            ><el-badge
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+          <strong :title="t(route.meta.label || 'dashboard')">{{
+            t(route.meta.label || 'dashboard')
+          }}</strong>
+        </div>
+        <div class="header-runtime" :aria-label="t('runtimeStatus')" role="group">
+          <template v-if="dial.data.value">
+            <button
+              type="button"
+              class="dial-control"
+              :class="{ 'is-on': dial.data.value.enabled }"
+              :disabled="session.user?.role !== 'admin' || switchingCalls"
+              :aria-pressed="dial.data.value.enabled"
+              @click="switchCalls"
+            >
+              <span class="status-dot"></span>{{ t('dialControl') }}
+              <b>{{ t(dial.data.value.enabled ? 'stateOn' : 'stateOff') }}</b>
+            </button>
+            <span class="runtime-metric" :title="dial.data.value.updated_at">
+              {{ t('liveConcurrency') }} <b>{{ dial.data.value.active }}</b>
+            </span>
+            <span v-if="dial.data.value.voice_balance" class="runtime-metric">
+              {{
+                t(
+                  dial.data.value.voice_balance.mode === 'simulation'
+                    ? 'simulatedBalance'
+                    : 'voiceBalance',
+                )
+              }}
+              <b>{{
+                dial.data.value.voice_balance.available
+                  ? dial.data.value.voice_balance.amount + ' ' + t('yuanUnit')
+                  : t('balanceUnavailable')
+              }}</b>
+            </span>
+          </template>
+          <span v-else-if="dial.error.value" class="runtime-metric">{{
+            t('dialStatusUnavailable')
+          }}</span>
+          <span
+            class="service-status"
+            :class="{ 'is-healthy': healthy === true, 'is-unhealthy': healthy === false }"
+            role="status"
+          >
+            <span class="status-dot"></span>{{ serviceLabel }}
+          </span>
+        </div>
+        <div class="header-tools" :aria-label="t('headerTools')" role="group">
+          <el-dropdown trigger="click" @command="setLanguage">
+            <button
+              type="button"
+              class="header-button language-button"
+              :aria-label="t('language')"
+              :title="t('language')"
+            >
+              {{ language === 'zh-CN' ? '中' : 'EN' }}
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="zh-CN" :disabled="language === 'zh-CN'"
+                  >中文</el-dropdown-item
+                >
+                <el-dropdown-item command="en-US" :disabled="language === 'en-US'"
+                  >English</el-dropdown-item
+                >
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <NotificationPanel :role="role" @read="unread.load">
+            <el-badge
               :value="unread.data.value?.count"
               :hidden="!unread.data.value?.count"
               :max="99"
-              ><el-button
-                link
-                aria-label="通知中心"
+            >
+              <button
+                type="button"
+                class="header-button"
+                :aria-label="t('notificationCenter')"
+                :title="t('notificationCenter')"
                 @click="router.push('/' + role + '/operations/notices')"
-                >🔔</el-button
-              ></el-badge
-            ></NotificationPanel
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3zm4 11a2 2 0 0 0 4 0" />
+                </svg>
+              </button>
+            </el-badge>
+          </NotificationPanel>
+          <button
+            type="button"
+            class="header-button"
+            :aria-label="t('supportDesk')"
+            :title="t('supportDesk')"
+            @click="supportOpen = true"
           >
-          <el-button link @click="router.push('/' + role + '/operations/workspace')"
-            >个人配置</el-button
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 13v-2a8 8 0 0 1 16 0v5a4 4 0 0 1-4 4h-4M4 12h3v5H4zm13 0h3v5h-3z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="header-button"
+            :aria-label="t('help')"
+            :title="t('help')"
+            @click="helpOpen = true"
           >
-          <el-button link @click="supportOpen = true">客服</el-button
-          ><el-button
-            v-for="[mode, label] in [
-              ['single', '个性化单呼'],
-              ['group', '个性化群呼'],
-              ['robot', '纯机器人外呼'],
-            ]"
-            :key="mode"
-            link
-            @click="
-              helpMode = mode;
-              helpOpen = true;
-            "
-            >{{ label }}</el-button
-          ><el-button link @click="helpOpen = true">使用说明</el-button
-          ><el-button link @click="helpOpen = true">帮助</el-button>
-          <span>{{ session.user?.full_name || session.user?.username }}</span
-          ><el-button @click="leave">{{ t('logout') }}</el-button>
-        </div></el-header
-      ><el-main>
-        <nav class="workspace-pages" aria-label="已打开页面">
-          <span v-for="item in openPages" :key="item.path">
-            <el-button
-              link
-              :type="item.path === route.path ? 'primary' : 'default'"
-              @click="router.push(item.url)"
-              >{{ t(item.label) }}</el-button
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2 1-1.2 1.8m0 3h.01" />
+            </svg>
+          </button>
+          <el-dropdown trigger="click" @command="accountAction">
+            <button
+              type="button"
+              class="header-button account-button"
+              :aria-label="t('accountMenu')"
+              :title="accountName"
             >
-            <el-button
-              v-if="openPages.length > 1"
-              link
-              :aria-label="'关闭' + t(item.label)"
-              @click="closePage(item)"
-              >×</el-button
-            >
-          </span>
-          <el-button link aria-label="刷新当前页面" @click="refreshIndex++">刷新</el-button>
-        </nav>
+              <span class="account-avatar" aria-hidden="true">{{ accountInitial }}</span>
+              <span class="account-name">{{ accountName }}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="workspace">{{
+                  t('personalConfiguration')
+                }}</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>{{ t('logout') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </el-header>
+      <el-main>
+        <WorkspaceTabs
+          :pages="openPages"
+          :active-path="route.path"
+          @select="(item) => router.push(item.url)"
+          @close="closePage"
+          @refresh="refreshIndex++" />
         <router-view
           :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
@@ -309,7 +393,7 @@ async function leave() {
     v-if="helpOpen"
     v-model="helpOpen"
     title="操作帮助"
-    size="420px"
+    size="min(420px, 100vw)"
   >
     <template v-if="role === 'admin'">
       <h3>创建一次外呼任务</h3>
@@ -330,32 +414,160 @@ async function leave() {
     <p v-else>
       在工作台设置接听状态，处理分配给您的通话和线索。通话证据、跟进与个人配置按账号权限显示。
     </p>
-    <ProductHelp :mode="helpMode" />
+    <ProductHelp />
   </el-drawer>
 </template>
 <style scoped>
 .app-header {
-  height: auto;
-  min-height: 72px;
-  padding-block: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  height: var(--outbound-header-height);
+  padding-inline: 16px;
 }
-.app-header > .actions:last-child {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.workspace-pages {
+.header-location,
+.header-tools,
+.header-runtime {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+  gap: 6px;
+  min-width: 0;
 }
-.workspace-pages > span {
+.header-location strong,
+.account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-location {
+  gap: 10px;
+}
+.header-runtime {
+  gap: 10px;
+  padding: 4px 8px;
+  background: #f5f7fb;
+  border: 1px solid #e5eaf3;
+  border-radius: 8px;
+  color: #4b5871;
+  font-size: 12px;
+}
+.header-runtime b {
+  color: #18253e;
+  font-variant-numeric: tabular-nums;
+}
+.dial-control,
+.service-status {
   display: inline-flex;
-  gap: 2px;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 7px;
+  background: #edf0f6;
+  color: #4b5871;
+  font: inherit;
 }
-
+.dial-control:not(:disabled) {
+  cursor: pointer;
+}
+.dial-control:not(:disabled):hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.dial-control.is-on,
+.service-status.is-healthy {
+  color: #126344;
+  background: #e6f4ed;
+}
+.service-status.is-unhealthy {
+  color: #a61c32;
+  background: #fcecef;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.header-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #40506c;
+  font: inherit;
+  cursor: pointer;
+}
+.header-button:hover {
+  background: #eef3fb;
+  color: #2457d6;
+}
+.header-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.language-button {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-button {
+  margin-left: 4px;
+}
+.account-button svg {
+  width: 14px;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #234eae;
+  background: #e8efff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.account-name {
+  max-width: 116px;
+  font-size: 13px;
+}
+@media (max-width: 1120px) {
+  .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 34px auto;
+    gap: 6px;
+    padding: 7px 10px;
+  }
+  .header-runtime {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    gap: 4px 9px;
+  }
+}
+@media (max-width: 700px) {
+  .app-header {
+    padding-inline: 8px;
+  }
+  .header-tools {
+    gap: 3px;
+  }
+  .account-name {
+    display: none;
+  }
+}
 .nav-toggle {
   display: block;
   border: 0;

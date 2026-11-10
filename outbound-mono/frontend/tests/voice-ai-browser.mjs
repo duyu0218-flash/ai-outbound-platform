@@ -286,7 +286,8 @@ try {
   });
   await page.screenshot({ path: 'target/voice-ai-browser.png', fullPage: true });
   await check('logout redirects protected page to login', async () => {
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
     await page.goto(origin + '/admin/system/voice-ai');
     await expect(page).toHaveURL(origin + '/admin/login');
   });

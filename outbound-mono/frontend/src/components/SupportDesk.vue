@@ -36,7 +36,7 @@ async function save(isReply) {
 }
 </script>
 <template>
-  <el-drawer :model-value="true" title="客服工单" size="520px" @close="emit('close')"
+  <el-drawer :model-value="true" title="客服工单" size="min(520px, 100vw)" @close="emit('close')"
     ><p>提交给本企业后台管理员处理，可在此查看回复。</p>
     <el-input
       aria-label="客服工单标题"

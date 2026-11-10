@@ -44,7 +44,8 @@ try {
   await page.goto(origin + '/admin');
   await marketingChecks({ page, origin, check, go });
   await check('marketing logout unauthenticated entrance and agent boundary', async () => {
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/login');
     expect(
       await page.evaluate(() => sessionStorage.getItem('ai-platform-access-token')),

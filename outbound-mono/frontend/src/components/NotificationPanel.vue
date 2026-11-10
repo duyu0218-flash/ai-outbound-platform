@@ -22,7 +22,11 @@ async function visit(row) {
 }
 </script>
 <template>
-  <el-popover v-model:visible="open" trigger="hover" placement="bottom-end" width="420"
+  <el-popover
+    v-model:visible="open"
+    trigger="hover"
+    placement="bottom-end"
+    width="min(420px, calc(100vw - 24px))"
     ><template #reference><slot /></template
     ><el-tabs v-model="tab"
       ><el-tab-pane name="unread" label="未读" /><el-tab-pane name="read" label="已读" /></el-tabs

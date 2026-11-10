@@ -67,6 +67,95 @@ async function go(path, title) {
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0);
 }
 try {
+  await check('admin login and dashboard', () => login('admin'));
+  await check('header runtime control, status and feedback avoid overlap', async () => {
+    const header = page.locator('.app-header');
+    const dial = header.getByRole('button', { name: /^呼叫开关/ });
+    await expect(header.getByText('服务正常', { exact: true })).toBeVisible();
+    await expect(header.getByText(/实时并发/)).toBeVisible();
+    await expect(dial).toBeEnabled();
+    const initial = await dial.getAttribute('aria-pressed');
+    await dial.click();
+    await page.keyboard.press('Escape');
+    await expect(dial).toBeEnabled();
+    await expect(dial).toHaveAttribute('aria-pressed', initial);
+    for (const state of [String(initial === 'false'), initial]) {
+      await dial.click();
+      await page.getByRole('button', { name: '确定', exact: true }).click();
+      await expect(dial).toHaveAttribute('aria-pressed', state);
+      const feedback = page.getByText('操作成功', { exact: true }).last();
+      await expect(feedback).toBeVisible();
+      const toastBox = await feedback.boundingBox();
+      const headerBox = await header.boundingBox();
+      expect(toastBox.y).toBeGreaterThan(headerBox.y + headerBox.height);
+      await expect(dial).toBeEnabled();
+    }
+    await page.route('**/healthz', (route) => route.fulfill({ status: 503 }));
+    await page.reload();
+    await expect(header.getByText('服务异常', { exact: true })).toBeVisible();
+    await page.unroute('**/healthz');
+    await page.reload();
+    await expect(header.getByText('服务正常', { exact: true })).toBeVisible();
+  });
+  await check('header language, notifications, support and personal configuration', async () => {
+    const header = page.locator('.app-header');
+    await header.getByRole('button', { name: '语言', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'English', exact: true }).click();
+    await expect(header.getByRole('button', { name: 'Account menu' })).toBeVisible();
+    await page.reload();
+    await header.getByRole('button', { name: 'Language', exact: true }).click();
+    await page.getByRole('menuitem', { name: '中文', exact: true }).click();
+    await header.getByRole('button', { name: '通知中心', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/admin/operations/notices');
+    await expect(page.getByRole('heading', { name: '消息中心', exact: true })).toBeVisible();
+    await header.getByRole('button', { name: '账号菜单' }).click();
+    await page.getByRole('menuitem', { name: '个人配置', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/admin/operations/workspace');
+    await expect(page.getByRole('button', { name: '保存个人配置', exact: true })).toBeVisible();
+    await header.getByRole('button', { name: '客服', exact: true }).click();
+    const desk = page.getByRole('dialog', { name: '客服工单' });
+    await expect(desk.getByRole('button', { name: '提交工单' })).toBeDisabled();
+    await desk.getByLabel('客服工单标题').fill('顶部入口验收');
+    await desk.getByLabel('客服工单内容').fill('浏览器测试工单');
+    await desk.getByRole('button', { name: '提交工单' }).click();
+    await expect(desk.getByText('顶部入口验收', { exact: true })).toBeVisible();
+    await desk.locator('.el-drawer__close-btn').click();
+    await header.getByRole('button', { name: '客服', exact: true }).click();
+    await expect(desk.getByText('浏览器测试工单', { exact: true })).toBeVisible();
+    await desk.locator('.el-drawer__close-btn').click();
+    await page.goBack();
+    await expect(page).toHaveURL(origin + '/admin/operations/notices');
+  });
+  await check('workspace tabs fit one row and expose hidden pages after resizing', async () => {
+    await go('/admin/contacts', '客户名单');
+    await go('/admin/campaigns', '外呼任务');
+    await go('/admin/calls', '通话记录');
+    const tabs = page.getByRole('navigation', { name: '已打开页面' });
+    const more = tabs.getByRole('button', { name: /^更多页面/ });
+    const current = tabs.locator('[aria-current="page"]');
+    await expect(more).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 900 });
+    await expect(more).toBeVisible();
+    await expect(current).toHaveText('通话记录');
+    const pageButtons = await tabs
+      .locator('button:visible')
+      .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().y));
+    expect(new Set(pageButtons).size).toBe(1);
+    await more.focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('menuitem', { name: '客户名单', exact: true }).click();
+    await expect(page).toHaveURL(origin + '/admin/contacts');
+    await expect(current).toHaveText('客户名单');
+    await expect(current).toBeVisible();
+    await tabs.getByRole('button', { name: '刷新当前页面' }).click();
+    await expect(current).toHaveText('客户名单');
+    await tabs.getByRole('button', { name: '关闭客户名单' }).click();
+    await expect(current).not.toHaveText('客户名单');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(more).toHaveCount(0);
+    await expect(tabs.getByRole('button', { name: '客户名单', exact: true })).toHaveCount(0);
+    await page.goto(origin + '/admin');
+  });
   await navigationRaceChecks({
     browser,
     origin,
@@ -78,7 +167,6 @@ try {
     ),
     check,
   });
-  await check('admin login and dashboard', () => login('admin'));
   await check('contacts required validation create edit search persistence', async () => {
     await go('/admin/contacts', '客户管理');
     await page.getByRole('button', { name: '新增客户', exact: true }).click();
@@ -344,7 +432,8 @@ try {
   await check('browser back and logout session invalidation', async () => {
     await page.goBack();
     await expect(page).toHaveURL(origin + '/admin/product');
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
     await expect(page).toHaveURL(origin + '/admin/login');
     expect(
       await page.evaluate(() => sessionStorage.getItem('ai-platform-access-token')),
@@ -374,7 +463,8 @@ try {
     await expect(page.getByRole('row').filter({ hasText: '13100000001' })).toHaveCount(0);
     await page.goto(origin + '/admin/contacts');
     await expect(page).toHaveURL(origin + '/agent');
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
   });
   await check('agent operations entrances use scoped data and read-only boundaries', async () => {
     await login('agent');
@@ -388,7 +478,8 @@ try {
       await go('/agent/operations/' + path, label);
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     }
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
   });
   await check('supervisor agent quality entrance uses the original supervisor role', async () => {
     await page.goto(origin + '/agent/login');
@@ -399,7 +490,8 @@ try {
     await go('/agent/quality', '质检复核');
     await expect(page.getByRole('heading', { name: '质检复核', exact: true })).toBeVisible();
     await expect(page.getByText('待复核', { exact: true }).first()).toBeVisible();
-    await page.getByRole('button', { name: '退出登录', exact: true }).click();
+    await page.getByRole('button', { name: '账号菜单', exact: true }).click();
+    await page.getByRole('menuitem', { name: '退出登录', exact: true }).click();
     await expect(page).toHaveURL(origin + '/agent/login');
   });
   await check('wrong credentials error and unauthorized protected entrance', async () => {

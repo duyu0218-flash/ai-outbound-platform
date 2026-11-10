@@ -115,7 +115,10 @@ export async function competitiveChecks({ page, check, go }) {
       page.getByRole('dialog').getByRole('spinbutton', { name: '倍速平均等待时长', exact: true }),
     ).toBeVisible();
     await page.getByRole('dialog').locator('button.el-dialog__headerbtn').click();
-    await page.getByRole('button', { name: '纯机器人外呼', exact: true }).click();
+    const header = page.locator('.app-header');
+    for (const name of ['个性化单呼', '个性化群呼', '纯机器人外呼', '使用说明'])
+      await expect(header.getByRole('button', { name, exact: true })).toHaveCount(0);
+    await header.getByRole('button', { name: '帮助', exact: true }).click();
     await expect(page.getByRole('tab', { name: '纯机器人外呼', exact: true })).toBeVisible();
     await page.locator('.el-drawer__close-btn').click();
     await go('/admin/dashBoard/intercept', '拦截统计');

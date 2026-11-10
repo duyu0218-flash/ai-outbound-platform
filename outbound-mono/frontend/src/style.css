@@ -8,6 +8,7 @@
     sans-serif;
   color: #18253e;
   background: #f4f7fb;
+  --outbound-header-height: 64px;
   --el-color-primary: #2f6bff;
 }
 * {
@@ -105,9 +106,6 @@ a {
   position: sticky;
   top: 0;
   z-index: 20;
-}
-.language {
-  width: 110px;
 }
 .actions {
   display: flex;
@@ -383,14 +381,6 @@ a {
   .el-main {
     padding: 14px;
   }
-  .app-header {
-    height: auto;
-    min-height: 70px;
-    padding: 10px;
-  }
-  .app-header strong {
-    display: none;
-  }
   .page-header {
     align-items: flex-start;
     flex-direction: column;
@@ -414,17 +404,19 @@ a {
   .metrics {
     grid-template-columns: 1fr 1fr;
   }
-  .app-header .actions {
-    gap: 5px;
-  }
 }
 
-.app-header .language {
-  width: 110px;
-  flex: 0 0 110px;
+@media (max-width: 1120px) {
+  :root {
+    --outbound-header-height: 110px;
+  }
 }
-.app-header > .actions:last-child {
-  flex-wrap: nowrap;
+body:has(.app-shell) .el-message {
+  margin-top: var(--outbound-header-height);
+}
+body:has(.app-shell) .el-message-fade-enter-from,
+body:has(.app-shell) .el-message-fade-leave-to {
+  transform: none;
 }
 .ops-filters {
   grid-template-columns: repeat(3, minmax(0, 1fr));
