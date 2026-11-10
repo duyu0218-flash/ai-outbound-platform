@@ -6,7 +6,6 @@ import com.duozhi.outbound.auth.service.Crypto;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.support.JsonSupport;
-import com.duozhi.outbound.common.support.Values;
 import com.fasterxml.jackson.databind.*;
 import java.io.*;
 import java.net.*;
@@ -70,6 +69,9 @@ class SingleHost500CapacityProbe {
     @Test
     void singleFatJarSustains500InFlightAndDurableDialogue() throws Exception {
         assertEquals(500, target, "This qualification is specifically for 500 calls");
+        assertTrue(
+                seconds >= 120 && seconds <= 3120,
+                "Keep at least the 120-second qualification window");
         folder =
                 Path.of(
                         System.getProperty(
@@ -195,6 +197,15 @@ class SingleHost500CapacityProbe {
                 cfg.put("TELEPHONY_PROVIDER", "http");
                 cfg.put("TELEPHONY_PROVIDER_ENDPOINT", origin);
                 cfg.put("VOICE_GATEWAY_DRIVER", "mock");
+                cfg.put("JAVA_DIAL_AUTH_PROTOCOL", "2");
+                // Configure both admission authorities. Gateway defaults (20 calls,
+                // 2 CPS and a 3-second lifetime) cannot exercise 500 held calls.
+                cfg.put("VOICE_MAX_CONCURRENT", "500");
+                cfg.put("VOICE_CPS", "1000");
+                cfg.put("VOICE_DAILY_CALL_LIMIT", "1000000");
+                cfg.put("VOICE_HOUR_BUDGET_MINOR", "1000000000");
+                cfg.put("VOICE_DAY_BUDGET_MINOR", "1000000000");
+                cfg.put("VOICE_MOCK_OCCUPANCY_SEC", "" + (seconds + 480));
                 cfg.put("VOICE_AI_PIPELINE", "legacy");
                 cfg.put("VOICE_COMMAND_SECRET", HOOK);
                 cfg.put("VOICE_CALLBACK_BASE_URL", origin);
@@ -208,7 +219,7 @@ class SingleHost500CapacityProbe {
                 // unchanged.
                 result.put(
                         "configuration",
-                        Values.map(
+                        JsonSupport.map(
                                 "jvm_heap_max_gib",
                                 2,
                                 "db_pool_max",
@@ -237,6 +248,16 @@ class SingleHost500CapacityProbe {
                                 500,
                                 "application_jvms",
                                 1));
+                for (String key :
+                        List.of(
+                                "JAVA_DIAL_AUTH_PROTOCOL",
+                                "VOICE_MAX_CONCURRENT",
+                                "VOICE_CPS",
+                                "VOICE_DAILY_CALL_LIMIT",
+                                "VOICE_HOUR_BUDGET_MINOR",
+                                "VOICE_DAY_BUDGET_MINOR",
+                                "VOICE_MOCK_OCCUPANCY_SEC"))
+                    ((Map<String, Object>) result.get("configuration")).put(key, cfg.get(key));
                 application = command.start();
                 result.put("application_pid", application.pid());
                 write();
@@ -360,6 +381,16 @@ class SingleHost500CapacityProbe {
                         500,
                         inAi,
                         "Actual admission failed to reach 500 IN_AI; not a steady-state sample");
+                assertEquals(
+                        200, overflow.statusCode(), "The 501st call must retain a queued identity");
+                assertEquals(
+                        "queued",
+                        over.path("status").asText(),
+                        "The 501st call must not exceed admission quota");
+                assertEquals(
+                        500L,
+                        count(
+                                "SELECT COUNT(*) FROM callsession WHERE status NOT IN ('CREATED','QUEUED','COMPLETED','FAILED','BUSY','NO_ANSWER','VOICEMAIL')"));
                 diagnostics("before-load");
                 if (Boolean.getBoolean("capacity.jfr"))
                     capture(
