@@ -3,6 +3,7 @@ package com.duozhi.outbound.voiceai.service;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** Bounded overlap of TTS preparation and generation; reviewed sentences alone reach the task. */
@@ -38,6 +39,8 @@ public final class CascadePipeline {
             preparing = () -> prepared;
         }
         Factory taskFactory = preparing;
+        var firstReviewed = new AtomicBoolean();
+        var firstToken = new AtomicBoolean();
         var sentences = new ArrayBlockingQueue<String>(8);
         var synthesis = new CompletableFuture<Void>();
         var failure = new CompletableFuture<Void>();
@@ -47,7 +50,9 @@ public final class CascadePipeline {
                         .unstarted(
                                 () -> {
                                     try {
-                                        stage.accept("tts_connect_start");
+                                        if (!Boolean.FALSE.equals(
+                                                guard.get("tts_prepare_parallel")))
+                                            stage.accept("tts_connect_start");
                                         try (var task = owner.own(taskFactory.open())) {
                                             stage.accept("tts_ready");
                                             for (; ; ) {
@@ -82,7 +87,10 @@ public final class CascadePipeline {
                                                         guard,
                                                         reviewer,
                                                         text -> {
-                                                            stage.accept("first_reviewed_sentence");
+                                                            if (firstReviewed.compareAndSet(
+                                                                    false, true))
+                                                                stage.accept(
+                                                                        "first_reviewed_sentence");
                                                             while (!sentences.offer(
                                                                     text,
                                                                     50,
@@ -121,9 +129,10 @@ public final class CascadePipeline {
                         check(reviewed);
                         check(synthesis);
                         owner.check();
-                        stage.accept("llm_first_token");
+                        if (delta.isEmpty()) return;
                         if (delta.length() > 4000)
                             throw new IOException("text delta exceeds limit");
+                        if (firstToken.compareAndSet(false, true)) stage.accept("llm_first_token");
                         while (!deltas.offer(delta, 50, TimeUnit.MILLISECONDS)) {
                             check(reviewed);
                             check(synthesis);

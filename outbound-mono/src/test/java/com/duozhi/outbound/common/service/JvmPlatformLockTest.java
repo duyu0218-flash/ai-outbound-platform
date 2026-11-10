@@ -112,6 +112,10 @@ class JvmPlatformLockTest {
         }
         assertEquals(0, locks.retainedKeys());
         assertEquals(
+                3,
+                registry.get("outbound.lock.wait").tag("scope", "identity").timer().count(),
+                "owner, timeout and interrupted attempts all contribute wait evidence");
+        assertEquals(
                 1,
                 registry.get("outbound.lock.failures").tag("reason", "timeout").counter().count());
         assertEquals(

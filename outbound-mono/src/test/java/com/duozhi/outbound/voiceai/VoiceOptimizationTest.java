@@ -58,6 +58,50 @@ class VoiceOptimizationTest {
     }
 
     @Test
+    void cascadeReportsFirstUsefulEventsOnceAndDoesNotSendEmptyDeltas() throws Exception {
+        for (boolean parallel : List.of(true, false)) {
+            var stages = new CopyOnWriteArrayList<String>();
+            var heard = new CopyOnWriteArrayList<String>();
+            try (var scope = new ResponseScope()) {
+                String result =
+                        CascadePipeline.run(
+                                scope,
+                                Map.of("tts_prepare_parallel", parallel),
+                                () ->
+                                        new VoiceAiBackends.TextSession() {
+                                            public void append(String text) {
+                                                heard.add(text);
+                                            }
+
+                                            public void finish() {}
+
+                                            public void close() {}
+                                        },
+                                delta -> {
+                                    delta.accept("");
+                                    assertThat(stages).doesNotContain("llm_first_token");
+                                    delta.accept("第一句。");
+                                    delta.accept("第二句。");
+                                },
+                                (text, child) -> passed(),
+                                event -> {},
+                                stages::add);
+                assertThat(result).isEqualTo("第一句。第二句。");
+                assertThat(heard).containsExactly("第一句。", "第二句。");
+                for (String stage :
+                        List.of(
+                                "tts_connect_start",
+                                "tts_ready",
+                                "llm_request",
+                                "llm_first_token",
+                                "first_reviewed_sentence")) {
+                    assertThat(Collections.frequency(stages, stage)).as(stage).isEqualTo(1);
+                }
+            }
+        }
+    }
+
+    @Test
     void ttsHandshakeDoesNotBlockGenerationAndOnlyReviewedSentencesReachTts() throws Exception {
         var connecting = new CompletableFuture<Void>();
         var generating = new CompletableFuture<Void>();

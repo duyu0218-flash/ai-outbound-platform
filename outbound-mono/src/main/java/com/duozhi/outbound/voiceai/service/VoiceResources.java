@@ -28,6 +28,8 @@ public final class VoiceResources {
             } else {
                 long approved =
                         Support.integer(Support.map(profile.get("approved_quotas")), kind, 0);
+                if (approved < 0 || approved > Integer.MAX_VALUE)
+                    throw new Support.Failure(503, "invalid voice quota approval: " + kind);
                 if (approved == 0 && settings.production())
                     throw new Support.Failure(503, "voice quota approval is missing: " + kind);
                 int limit = approved > 0 ? (int) Math.max(1, approved * 9 / 10) : 200;
