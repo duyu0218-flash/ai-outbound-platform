@@ -65,7 +65,7 @@
         FROM callsession c LEFT JOIN campaign p ON p.tenant_id=c.tenant_id AND p.id=c.campaign_id
         WHERE c.tenant_id=#{tenantId} AND c.status='QUEUED' AND c.attempts&lt;c.max_attempts AND
         (c.next_attempt_at IS NULL OR c.next_attempt_at&lt;=#{now}) AND (c.campaign_id IS NULL
-        OR(p.status='RUNNING' AND p.dispatch_enabled=TRUE))
+        OR(p.status='running' AND p.dispatch_enabled=TRUE))
         AND NOT EXISTS(SELECT 1 FROM taskreceipt r WHERE r.tenant_id=c.tenant_id AND
         r.idempotency_key=CONCAT('dial:',c.id,':',c.attempts+1))
         AND NOT EXISTS(SELECT 1 FROM taskoutbox t WHERE t.tenant_id=c.tenant_id AND

@@ -521,6 +521,7 @@ class MockDialRate500Probe {
                                         + " admission and dial transitions. No public telephone"
                                         + " calls.");
                         result.put("queued_pool_size", poolSize);
+                        write();
                         if (calibration) {
                             phase = System.currentTimeMillis();
                             result.put("phase_start_ms", phase);
@@ -644,7 +645,7 @@ class MockDialRate500Probe {
                         if (rows.next())
                             result.put(
                                     "observed_synthetic_lifetimes",
-                                    Values.map(
+                                    JsonSupport.map(
                                             "accepted",
                                             rows.getLong(1),
                                             "answered",
