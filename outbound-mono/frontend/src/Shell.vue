@@ -360,6 +360,7 @@ async function leave() {
           :key="route.path + ':' + session.epoch + ':' + refreshIndex" /></el-main></el-container
   ></el-container>
   <el-drawer
+    v-if="drawerOpen"
     v-model="drawerOpen"
     class="navigation-drawer"
     :title="t('navigationMenu')"
@@ -367,7 +368,6 @@ async function leave() {
     size="min(320px, 100vw)"
     append-to-body
     :lock-scroll="false"
-    destroy-on-close
     @opened="drawerNavigation?.scrollToCurrent()"
   >
     <SidebarNavigation
