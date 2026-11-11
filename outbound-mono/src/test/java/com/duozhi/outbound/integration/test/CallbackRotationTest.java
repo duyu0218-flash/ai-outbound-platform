@@ -28,6 +28,36 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class CallbackRotationTest {
     @Test
+    void controlExecutionConcurrencyCannotExceedItsReservedConnectionBudget() {
+        var environment =
+                new org.springframework.mock.env.MockEnvironment()
+                        .withProperty("JAVA_CONTROL_DB_POOL", "1")
+                        .withProperty("JAVA_CONTROL_TASK_WORKERS", "4")
+                        .withProperty("JAVA_CONTROL_TASK_OWNERS", "4");
+        var worker =
+                new TaskWorker(
+                        mock(Store.class),
+                        mock(Transactions.class),
+                        new Config(environment),
+                        mock(JsonSupport.class),
+                        mock(Outbox.class),
+                        mock(DialService.class),
+                        mock(CallLifecycle.class),
+                        mock(CallAnalysis.class),
+                        mock(CallbackInbox.class),
+                        mock(AiRuntime.class),
+                        mock(IntegrationTasks.class),
+                        mock(DialBatchWorker.class));
+        try {
+            var executor =
+                    (ThreadPoolExecutor) ReflectionTestUtils.getField(worker, "controlExecutor");
+            assertThat(executor.getMaximumPoolSize()).isEqualTo(1);
+        } finally {
+            worker.close();
+        }
+    }
+
+    @Test
     void analysisOwnersCannotPublishAiWorkerProgress() throws Exception {
         var environment = new StandardEnvironment();
         environment

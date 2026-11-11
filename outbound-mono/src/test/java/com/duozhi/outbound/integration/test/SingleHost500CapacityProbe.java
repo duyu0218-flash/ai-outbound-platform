@@ -176,6 +176,7 @@ class SingleHost500CapacityProbe {
                 cfg.put("SPRING_DATASOURCE_DRUID_MAX_ACTIVE", "" + dbPool);
                 cfg.put("JAVA_TASK_WORKERS", "" + taskWorkers);
                 cfg.put("JAVA_CALLBACK_DB_POOL", "2");
+                cfg.put("JAVA_CONTROL_DB_POOL", "4");
                 cfg.put("JAVA_AI_TASK_OWNERS", "" + aiOwners);
                 cfg.put("ENV", "dev");
                 cfg.put("JWT_SECRET", SECRET);
@@ -229,12 +230,14 @@ class SingleHost500CapacityProbe {
                                 4,
                                 "callback_jdbc_pool_max",
                                 2,
+                                "control_jdbc_pool_max",
+                                4,
                                 "realtime_jdbc_pool_max",
                                 4,
                                 "analysis_jdbc_pool_max",
                                 1,
                                 "total_business_jdbc_pool_max",
-                                dbPool + 7,
+                                dbPool + 11,
                                 "model_quota_window",
                                 "disabled; rule AI",
                                 "http_inflight_limit",

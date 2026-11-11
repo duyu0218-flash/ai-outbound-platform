@@ -145,7 +145,15 @@ public class TaskWorker {
                         Math.max(
                                 1,
                                 Math.min(
-                                        controlOwners,
+                                        Math.min(
+                                                controlOwners,
+                                                Math.max(
+                                                        1,
+                                                        Math.min(
+                                                                4,
+                                                                config.number(
+                                                                        "JAVA_CONTROL_DB_POOL",
+                                                                        4)))),
                                         config.number("JAVA_CONTROL_TASK_WORKERS", 4))),
                         "java-call-control");
         analysisExecutor =
@@ -616,9 +624,10 @@ public class TaskWorker {
                 type.equals("('call_analysis')")
                         ? WorkloadDataSource.Lane.ANALYSIS
                         : type.equals("('ai_turn')")
-                                        || type.equals("('after_playback','interrupt_playback')")
                                 ? WorkloadDataSource.Lane.REALTIME
-                                : WorkloadDataSource.Lane.DEFAULT;
+                                : type.equals("('after_playback','interrupt_playback')")
+                                        ? WorkloadDataSource.Lane.CONTROL
+                                        : WorkloadDataSource.Lane.DEFAULT;
         try (var routing = WorkloadDataSource.use(route)) {
             return processRoutedLane(tenant, lane);
         }
@@ -1021,6 +1030,7 @@ public class TaskWorker {
                             : "waiting for dial admission";
             deferred = true;
         } catch (RuntimeException e) {
+            taskFailure("execute", task, e);
             state =
                     CallLifecycle.number(task, "attempts")
                                     >= CallLifecycle.number(task, "max_attempts")
@@ -1035,77 +1045,106 @@ public class TaskWorker {
         }
         final String finalState = state, finalError = error;
         final boolean isDeferred = deferred;
-        if (!lost.get())
-            tx.run(
-                    () -> {
-                        Map<String, Object> owned =
-                                store.one(
-                                        "taskoutbox",
-                                        "scopedTaskWorker151",
-                                        Store.scopedParameters(
-                                                CallLifecycle.tenant(task),
-                                                store.encode("taskoutbox", "id", task.get("id")),
-                                                task.get("lease_token"),
-                                                leaseCutoff()));
-                        if (owned != null) {
-                            Map<String, Object> change =
-                                    JsonSupport.map(
-                                            "state",
-                                            finalState,
-                                            "last_error",
-                                            finalError,
-                                            "lease_token",
-                                            null,
-                                            "locked_at",
-                                            null);
-                            if (!"completed".equals(finalState))
-                                change.put(
-                                        "available_at",
-                                        Store.now()
-                                                .plusSeconds(
-                                                        isDeferred
-                                                                ? 1
-                                                                : Math.min(
-                                                                        300,
-                                                                        1L
-                                                                                << Math.min(
-                                                                                        8,
-                                                                                        CallLifecycle
-                                                                                                .number(
-                                                                                                        task,
-                                                                                                        "attempts")))));
-                            if (isDeferred)
-                                change.put(
-                                        "attempts",
-                                        Math.max(0, CallLifecycle.number(task, "attempts") - 1));
-                            patchTask(owned, change);
-                            if ("dead".equals(finalState)
-                                    && Values.set("recording_ingest", "recording_delete")
-                                            .contains(task.get("task_type"))) {
-                                Object assetId =
-                                        json.object(task.get("payload_json").toString())
-                                                .get("recording_asset_id");
-                                Map<String, Object> asset =
-                                        store.one(
+        if (!lost.get()) {
+            try {
+                tx.run(
+                        () -> {
+                            Map<String, Object> owned =
+                                    store.one(
+                                            "taskoutbox",
+                                            "scopedTaskWorker151",
+                                            Store.scopedParameters(
+                                                    CallLifecycle.tenant(task),
+                                                    store.encode(
+                                                            "taskoutbox", "id", task.get("id")),
+                                                    task.get("lease_token"),
+                                                    leaseCutoff()));
+                            if (owned != null) {
+                                Map<String, Object> change =
+                                        JsonSupport.map(
+                                                "state",
+                                                finalState,
+                                                "last_error",
+                                                finalError,
+                                                "lease_token",
+                                                null,
+                                                "locked_at",
+                                                null);
+                                if (!"completed".equals(finalState))
+                                    change.put(
+                                            "available_at",
+                                            Store.now()
+                                                    .plusSeconds(
+                                                            isDeferred
+                                                                    ? 1
+                                                                    : Math.min(
+                                                                            300,
+                                                                            1L
+                                                                                    << Math.min(
+                                                                                            8,
+                                                                                            CallLifecycle
+                                                                                                    .number(
+                                                                                                            task,
+                                                                                                            "attempts")))));
+                                if (isDeferred)
+                                    change.put(
+                                            "attempts",
+                                            Math.max(
+                                                    0, CallLifecycle.number(task, "attempts") - 1));
+                                patchTask(owned, change);
+                                if ("dead".equals(finalState)
+                                        && Values.set("recording_ingest", "recording_delete")
+                                                .contains(task.get("task_type"))) {
+                                    Object assetId =
+                                            json.object(task.get("payload_json").toString())
+                                                    .get("recording_asset_id");
+                                    Map<String, Object> asset =
+                                            store.one(
+                                                    "recordingasset",
+                                                    "sourceTaskWorker159_7",
+                                                    Store.queryParameters(
+                                                            0,
+                                                            CallLifecycle.tenant(task),
+                                                            assetId));
+                                    if (asset != null && asset.get("deleted_at") == null)
+                                        store.update(
                                                 "recordingasset",
-                                                "sourceTaskWorker159_7",
-                                                Store.queryParameters(
-                                                        0, CallLifecycle.tenant(task), assetId));
-                                if (asset != null && asset.get("deleted_at") == null)
-                                    store.update(
-                                            "recordingasset",
-                                            CallLifecycle.tenant(task),
-                                            assetId,
-                                            JsonSupport.map(
-                                                    "state",
-                                                    "recording_delete".equals(task.get("task_type"))
-                                                            ? "deletion_failed"
-                                                            : "ingest_failed"));
+                                                CallLifecycle.tenant(task),
+                                                assetId,
+                                                JsonSupport.map(
+                                                        "state",
+                                                        "recording_delete"
+                                                                        .equals(
+                                                                                task.get(
+                                                                                        "task_type"))
+                                                                ? "deletion_failed"
+                                                                : "ingest_failed"));
+                                }
                             }
-                        }
-                        return null;
-                    });
+                            return null;
+                        });
+            } catch (RuntimeException failure) {
+                taskFailure("complete", task, failure);
+                throw failure;
+            }
+        }
         return true;
+    }
+
+    private void taskFailure(String phase, Map<String, Object> task, Throwable error) {
+        var codes = new StringJoiner("->");
+        for (int depth = 0; error != null && depth < 8; depth++, error = error.getCause()) {
+            codes.add(error.getClass().getSimpleName());
+            if (error instanceof java.sql.SQLException sql)
+                codes.add("SQLSTATE=" + sql.getSQLState() + ",vendor=" + sql.getErrorCode());
+        }
+        LoggerFactory.getLogger(TaskWorker.class)
+                .warn(
+                        "task_failure phase={} task_id={} task_type={} cause_codes={}",
+                        phase,
+                        task.get("id"),
+                        task.get("task_type"),
+                        codes);
     }
 
     @org.springframework.transaction.event.TransactionalEventListener(

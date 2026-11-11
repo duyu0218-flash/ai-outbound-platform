@@ -87,7 +87,7 @@ from the presence of code or a green functional job:
 | Phase | Candidate implementation | Remaining acceptance |
 | --- | --- | --- |
 | P0 | Reconciliation queries provider status without sending a timeout-derived hangup. Same attempt and provider identity are checked again under the call lock before terminal recovery. V50 atomically retains the original terminal callback before its transport row can be acknowledged/deleted; reconciliation replays this event and its original billing fields. An ended boolean without the correlated event retains capacity. | Delay acceptance beyond the watchdog age; prove no short synthetic occupancy and no resource release on UNKNOWN. |
-| P1 | Callback consumption uses its own JDBC pool (default 2, bounded 1–4), separate from realtime AI/control, analysis and general work. The default business connection budget increases by 2; capacity manifests record this explicitly. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
+| P1 | Callback consumption and playback/timer controls each use their own JDBC pool (callback default 2, control default 4, each bounded 1–4), separate from AI, analysis and general work. The default business connection budget increases by 6; capacity manifests record this explicitly. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
 | P2 | A dial cohort is admitted in independent chunks of at most 100 calls (`JAVA_DIAL_ADMISSION_CHUNK_SIZE`, default 100). A later failure leaves earlier immutable command identities recoverable. | Sustained CPS, failure/replay reconciliation. Durable-quota authority cutover and asynchronous report projection are not implemented by this patch. |
 | P3 | Optional remote media transport and a separate JVM entry role, with RPC authentication, session/attempt/worker epoch checks and a worker-specific WS address. | Static-provider configuration only; real bidirectional PCM, control restart, live cancellation and accounting recovery remain unqualified. Profile authority RPC is not implemented, and profile mode is rejected rather than silently ignored. |
 | P4 | Existing single-instance ownership, freeze and exit-78 behavior is retained. | Automatic controller/database failover is not implemented or qualified. Execution-enforced cross-primary fencing and a target DB replication/recovery contract are required. |
@@ -142,3 +142,16 @@ without a large already-admitted unsent tail. Successfully acknowledged groups r
 task completion outcomes if a later group fails; only the unfinished suffix inherits that
 failure. Prepare/send profiling records cumulative group durations rather than one contiguous
 prepare phase followed by one send phase.
+
+Control claims and completion use a separate pool so AI connection saturation cannot strand an
+already-executed playback/timer task before its durable completion. Task failure logs record
+phase, identity, exception classes and SQL codes, without payloads or exception messages; drain
+censuses retain failure-code samples for FAILED/DEAD tasks. Retry limits and DEAD-task gates are
+unchanged. This isolation addresses observed control-lane transaction acquisition failures;
+pressure results remain authoritative for liveness and latency qualification.
+
+Control executor concurrency is also capped by its reserved connection budget, so new control
+claims cannot occupy every reserved connection while additional control threads wait to record
+completion. The default four control workers have four reserved connections; configuring a
+smaller control pool lowers physical control concurrency, while logical owner ordering remains
+unchanged. This adds a bounded reservation rather than treating transient failures as success.

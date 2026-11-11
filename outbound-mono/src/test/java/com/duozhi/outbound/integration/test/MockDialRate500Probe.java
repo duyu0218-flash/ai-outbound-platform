@@ -347,7 +347,9 @@ class MockDialRate500Probe {
                     actualConfiguration.put("analysis_jdbc_pool_max", 1);
                     env.put("JAVA_CALLBACK_DB_POOL", "2");
                     actualConfiguration.put("callback_jdbc_pool_max", 2);
-                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 7);
+                    env.put("JAVA_CONTROL_DB_POOL", "4");
+                    actualConfiguration.put("control_jdbc_pool_max", 4);
+                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 11);
                     env.put(
                             "JAVA_WORKER_POLL_MS",
                             System.getProperty("dial.worker.poll.ms", "250"));
@@ -1235,6 +1237,7 @@ class MockDialRate500Probe {
                     q.executeQuery(
                             "SELECT"
                                     + " task_type,state,COUNT(*),SUM(available_at<=UTC_TIMESTAMP(3)),SUM(available_at>UTC_TIMESTAMP(3)),GREATEST(0,COALESCE(MAX(TIMESTAMPDIFF(MICROSECOND,available_at,UTC_TIMESTAMP(3))),0))/1000000"
+                                    + ",COALESCE(GROUP_CONCAT(DISTINCT CASE WHEN state IN ('DEAD','FAILED') THEN LEFT(last_error,160) END),'')"
                                     + " FROM taskoutbox WHERE state!='COMPLETED' GROUP BY"
                                     + " task_type,state")) {
                 while (rows.next())
@@ -1251,7 +1254,9 @@ class MockDialRate500Probe {
                                     "future",
                                     rows.getLong(5),
                                     "oldest_due_age_sec",
-                                    rows.getDouble(6)));
+                                    rows.getDouble(6),
+                                    "error_codes",
+                                    rows.getString(7)));
             }
             sample.put("task_backlog", tasks);
             db.commit();

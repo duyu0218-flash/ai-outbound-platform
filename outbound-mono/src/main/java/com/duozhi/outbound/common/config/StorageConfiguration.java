@@ -24,8 +24,10 @@ public class StorageConfiguration {
             @Qualifier("analysisDataSource")
             DruidDataSource analysis,
             @Qualifier("callbackDataSource")
-            DruidDataSource callbacks) {
-        var pool = new WorkloadDataSource(realtime, analysis, callbacks);
+            DruidDataSource callbacks,
+            @Qualifier("controlDataSource")
+            DruidDataSource control) {
+        var pool = new WorkloadDataSource(realtime, analysis, callbacks, control);
         pool.setUrl(properties.determineUrl());
         pool.setUsername(properties.determineUsername());
         pool.setPassword(properties.determinePassword());
@@ -50,6 +52,11 @@ public class StorageConfiguration {
         return lanePool(properties, config, "callbackDataSource", "JAVA_CALLBACK_DB_POOL", 2, 4);
     }
 
+    @Bean(name = "controlDataSource", destroyMethod = "close")
+    DruidDataSource controlDataSource(DataSourceProperties properties, Config config) {
+        return lanePool(properties, config, "controlDataSource", "JAVA_CONTROL_DB_POOL", 4, 4);
+    }
+
     private DruidDataSource lanePool(
             DataSourceProperties properties,
             Config config,
@@ -66,7 +73,9 @@ public class StorageConfiguration {
         pool.setMinIdle(0);
         pool.setMaxActive(size);
         pool.setMaxWait(
-                name.equals("realtimeDataSource") || name.equals("callbackDataSource")
+                name.equals("realtimeDataSource")
+                                || name.equals("callbackDataSource")
+                                || name.equals("controlDataSource")
                         ? 1000
                         : 5000);
         pool.setDefaultTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
@@ -110,7 +119,8 @@ public class StorageConfiguration {
         pool.setUrl(JdbcBudgets.boundedUrl(pool.getUrl()));
         pool.setMaxWait(5000);
         if (("realtimeDataSource".equals(pool.getName())
-                || "callbackDataSource".equals(pool.getName()))) pool.setMaxWait(1000);
+                || "callbackDataSource".equals(pool.getName())
+                || "controlDataSource".equals(pool.getName()))) pool.setMaxWait(1000);
         pool.setConnectionInitSqls(
                 List.of(
                         "SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',NO_AUTO_VALUE_ON_ZERO')",

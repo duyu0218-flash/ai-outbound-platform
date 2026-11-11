@@ -144,7 +144,7 @@ class QueueConcurrencyIT {
     }
 
     @Test
-    void callbackConnectionsRemainAvailableWhenEveryRealtimeConnectionIsBorrowed()
+    void callbackAndControlConnectionsRemainAvailableWhenEveryRealtimeConnectionIsBorrowed()
             throws Exception {
         var held = new ArrayList<java.sql.Connection>();
         try (var realtime =
@@ -152,15 +152,18 @@ class QueueConcurrencyIT {
                         com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.REALTIME)) {
             try {
                 for (int i = 0; i < 4; i++) held.add(dataSource.getConnection());
-                try (var callback =
-                                com.duozhi.outbound.common.dao.WorkloadDataSource.use(
-                                        com.duozhi.outbound.common.dao.WorkloadDataSource.Lane
-                                                .CALLBACK);
-                        var connection = dataSource.getConnection();
-                        var query = connection.createStatement();
-                        var rows = query.executeQuery("SELECT 1")) {
-                    assertThat(rows.next()).isTrue();
-                    assertThat(rows.getInt(1)).isEqualTo(1);
+                for (var lane :
+                        List.of(
+                                com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.CALLBACK,
+                                com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.CONTROL)) {
+                    try (var critical =
+                                    com.duozhi.outbound.common.dao.WorkloadDataSource.use(lane);
+                            var connection = dataSource.getConnection();
+                            var query = connection.createStatement();
+                            var rows = query.executeQuery("SELECT 1")) {
+                        assertThat(rows.next()).isTrue();
+                        assertThat(rows.getInt(1)).isEqualTo(1);
+                    }
                 }
             } finally {
                 for (var connection : held) connection.close();

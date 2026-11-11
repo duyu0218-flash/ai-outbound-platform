@@ -41,6 +41,7 @@ public class Transactions {
         var budget =
                 WorkloadDataSource.current() == WorkloadDataSource.Lane.REALTIME
                                 || WorkloadDataSource.current() == WorkloadDataSource.Lane.CALLBACK
+                                || WorkloadDataSource.current() == WorkloadDataSource.Lane.CONTROL
                         ? realtime
                         : template;
         return budget.execute(
