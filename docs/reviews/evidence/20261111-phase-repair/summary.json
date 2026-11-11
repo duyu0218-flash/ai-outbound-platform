@@ -52,6 +52,23 @@
           "Recovery unit fixture mocked sendingClosed but not the new admissionClosed boundary. Updated it to exercise both closed-admission and closed-send recovery modes."
         ],
         "runtime_and_probe_source_unchanged": true
+      },
+      {
+        "head_sha": "54b9d901abef9f4c53308c7d788ea4cfd567e48a",
+        "run_id": 42965237040,
+        "url": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/42965237040",
+        "unit_tests": 409,
+        "unit_failures": 0,
+        "unit_errors": 0,
+        "unit_skipped": 0,
+        "integration_tests": 526,
+        "integration_failures": 1,
+        "integration_errors": 0,
+        "integration_skipped": 0,
+        "failure_reasons": [
+          "DataLayerIT strict table catalog still expected 144 tables and omitted the new V50 voice_terminal_fact table. Added the named table and exact 145 count; original 379-domain-column and complete reviewed V50 column/index checks remain."
+        ],
+        "runtime_and_probe_source_unchanged": true
       }
     ],
     "additional_targeted_unit": {
@@ -65,6 +82,16 @@
       ],
       "log_local_path": "outbound-mono/verification/20261111-drain-recovery/ci-policy-compatibility.log",
       "log_sha256": "2244f0e354df6922861ddf542eecbd8c48cf697694d080a220348606f0c51b01",
+      "runtime_and_probe_source_unchanged": true
+    },
+    "additional_data_layer_integration": {
+      "tests": 121,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "class": "DataLayerIT",
+      "log_local_path": "outbound-mono/verification/20261111-drain-recovery/ci-datalayer-contract.log",
+      "log_sha256": "63b3355c7dc979f22532ee46aaf944b755e6f2255e381c2b23e0b6b4f9424c0a",
       "runtime_and_probe_source_unchanged": true
     }
   },
@@ -3897,7 +3924,7 @@
     "maximum_large": "Same maximum_one arguments, with -Ddial.batch=500 -Ddial.campaigns=16 and a different output directory.",
     "ai_500": "mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.callback.workers=4 -Dcapacity.callback.pool=4 -Dcapacity.callback.poll.ms=10 -Dcapacity.callback.batch=32 -Dcapacity.output=verification/reproduce-ai-500 surefire:test",
     "note": "Append common_probe_arguments to each probe command. Package once, then use surefire:test so all three probes use the same Jar; do not rebuild between probes.",
-    "additional_checks": "mvn -B -Dtest=TenantMapperPolicyTest,DialBatchRecoveryTest test",
+    "additional_checks": "mvn -B -Dtest=TenantMapperPolicyTest,DialBatchRecoveryTest -Dit.test=DataLayerIT test failsafe:integration-test failsafe:verify",
     "test_policy_revision": "Use the final PR #126 head for the full test-policy catalog and recovery fixtures. The runtime/probe source and measured Jar remain at the recorded 304447a source."
   },
   "production_capacity_verified": false,
