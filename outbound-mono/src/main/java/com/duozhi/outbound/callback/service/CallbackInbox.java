@@ -433,72 +433,17 @@ public class CallbackInbox {
         // Each receipt's business writes, outbox rows and completion commit together.
         final Object[] failedId = new Object[1];
         try {
-            return tx.serialized(
-                    () -> {
-                        if (!store.lock().isEmpty()) {
-                            Boolean locked = tx.tryLock(19483921, partitionId);
-                            if (!Boolean.TRUE.equals(locked)) return false;
-                        }
-                        // Match receive/batch ordering: partition before receipt, never the
-                        // reverse.
-                        if (store.one(
-                                        "callbackinboxpartition",
-                                        "sourceCallbackInbox56_4",
-                                        Store.queryParameters(-1, partitionId))
-                                == null) return false;
-                        Map<String, Object> receipt =
-                                store.one(
-                                        "callbackinbox",
-                                        "sourceCallbackInbox100_7",
-                                        Store.queryParameters(
-                                                -1,
-                                                partitionId,
-                                                store.encode(
-                                                        "callbackinbox",
-                                                        "available_at",
-                                                        Store.now())));
-                        if (receipt != null)
-                            receipt =
-                                    store.one(
-                                            "callbackinbox",
-                                            "sourceCallbackInbox115_8",
-                                            Store.queryParameters(-1, receipt.get("id")));
-                        if (receipt == null
-                                || !"pending".equals(receipt.get("state"))
-                                || LocalDateTime.parse(receipt.get("available_at").toString())
-                                        .isAfter(Store.now())) return false;
-                        failedId[0] = receipt.get("id");
-                        Map<String, Object> body = json.object(receipt.get("body_json").toString());
-                        callbacks.handle(receipt.get("kind").toString(), body);
-                        store.updateInternal(
-                                "callbackinbox",
-                                receipt.get("id"),
-                                JsonSupport.map(
-                                        "state",
-                                        "done",
-                                        "completed_at",
-                                        Store.now(),
-                                        "error_type",
-                                        ""));
-                        store.execute(
-                                "callbackinboxpartition",
-                                "rawCallbackInbox106_7",
-                                Store.queryParameters(-1, receipt.get("body_bytes"), partitionId));
-                        double latency =
-                                Math.max(
-                                        0,
-                                        Duration.between(
-                                                        LocalDateTime.parse(
-                                                                receipt.get("received_at")
-                                                                        .toString()),
-                                                        Store.now())
-                                                .toMillis());
-                        store.execute(
-                                "callbackinboxworker",
-                                "rawCallbackInbox108_8",
-                                Store.queryParameters(-1, latency, latency, workerId));
-                        return true;
-                    });
+            if (config.flag("CALLBACK_INBOX_LOCAL_SPEECH_ENABLED", true)) {
+                try {
+                    return consumeReceipt(partitionId, failedId, true);
+                } catch (VoiceCallbacks.LocalSpeechUnavailable shared) {
+                    // The local transaction rolled back before taking the platform lock.
+                    // Retry a fresh partition/receipt/call snapshot, never upgrade from a
+                    // held call row lock. This fallback consumes no failure attempt.
+                    failedId[0] = null;
+                }
+            }
+            return consumeReceipt(partitionId, failedId, false);
         } catch (RuntimeException e) {
             if (failedId[0] == null) throw e;
             tx.serialized(
@@ -530,6 +475,75 @@ public class CallbackInbox {
                     });
             return false;
         }
+    }
+
+    private boolean consumeReceipt(int partitionId, Object[] failedId, boolean localSpeech) {
+        Function<Supplier<Boolean>, Boolean> transaction = localSpeech ? tx::run : tx::serialized;
+        return transaction.apply(
+                () -> {
+                    if (!store.lock().isEmpty()) {
+                        Boolean locked = tx.tryLock(19483921, partitionId);
+                        if (!Boolean.TRUE.equals(locked)) return false;
+                    }
+                    // Match receive/batch ordering: partition before receipt, never the
+                    // reverse.
+                    if (store.one(
+                                    "callbackinboxpartition",
+                                    "sourceCallbackInbox56_4",
+                                    Store.queryParameters(-1, partitionId))
+                            == null) return false;
+                    Map<String, Object> receipt =
+                            store.one(
+                                    "callbackinbox",
+                                    "sourceCallbackInbox100_7",
+                                    Store.queryParameters(
+                                            -1,
+                                            partitionId,
+                                            store.encode(
+                                                    "callbackinbox", "available_at", Store.now())));
+                    if (receipt != null)
+                        receipt =
+                                store.one(
+                                        "callbackinbox",
+                                        "sourceCallbackInbox115_8",
+                                        Store.queryParameters(-1, receipt.get("id")));
+                    if (receipt == null
+                            || !"pending".equals(receipt.get("state"))
+                            || LocalDateTime.parse(receipt.get("available_at").toString())
+                                    .isAfter(Store.now())) return false;
+                    failedId[0] = receipt.get("id");
+                    Map<String, Object> body = json.object(receipt.get("body_json").toString());
+                    if (localSpeech)
+                        callbacks.handleLocalSpeech(receipt.get("kind").toString(), body);
+                    else callbacks.handle(receipt.get("kind").toString(), body);
+                    store.updateInternal(
+                            "callbackinbox",
+                            receipt.get("id"),
+                            JsonSupport.map(
+                                    "state",
+                                    "done",
+                                    "completed_at",
+                                    Store.now(),
+                                    "error_type",
+                                    ""));
+                    store.execute(
+                            "callbackinboxpartition",
+                            "rawCallbackInbox106_7",
+                            Store.queryParameters(-1, receipt.get("body_bytes"), partitionId));
+                    double latency =
+                            Math.max(
+                                    0,
+                                    Duration.between(
+                                                    LocalDateTime.parse(
+                                                            receipt.get("received_at").toString()),
+                                                    Store.now())
+                                            .toMillis());
+                    store.execute(
+                            "callbackinboxworker",
+                            "rawCallbackInbox108_8",
+                            Store.queryParameters(-1, latency, latency, workerId));
+                    return true;
+                });
     }
 
     public int consumeBatch(int limit) {

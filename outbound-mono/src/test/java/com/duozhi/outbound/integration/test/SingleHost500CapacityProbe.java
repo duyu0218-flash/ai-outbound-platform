@@ -175,7 +175,24 @@ class SingleHost500CapacityProbe {
                                 && aiOwners <= 16);
                 cfg.put("SPRING_DATASOURCE_DRUID_MAX_ACTIVE", "" + dbPool);
                 cfg.put("JAVA_TASK_WORKERS", "" + taskWorkers);
-                cfg.put("JAVA_CALLBACK_DB_POOL", "2");
+                int callbackWorkers = Integer.getInteger("capacity.callback.workers", 1);
+                int callbackPool = Integer.getInteger("capacity.callback.pool", 2);
+                int callbackPoll = Integer.getInteger("capacity.callback.poll.ms", 100);
+                int callbackBatch = Integer.getInteger("capacity.callback.batch", 1);
+                assertTrue(
+                        callbackWorkers >= 1
+                                && callbackWorkers <= 4
+                                && callbackPool >= callbackWorkers
+                                && callbackPool <= 4);
+                assertTrue(
+                        callbackPoll >= 10
+                                && callbackPoll <= 1000
+                                && callbackBatch >= 1
+                                && callbackBatch <= 500);
+                cfg.put("JAVA_CALLBACK_DB_POOL", "" + callbackPool);
+                cfg.put("JAVA_CALLBACK_WORKERS", "" + callbackWorkers);
+                cfg.put("JAVA_CALLBACK_POLL_MS", "" + callbackPoll);
+                cfg.put("JAVA_CALLBACK_BATCH_SIZE", "" + callbackBatch);
                 cfg.put("JAVA_CONTROL_DB_POOL", "4");
                 cfg.put("JAVA_AI_TASK_OWNERS", "" + aiOwners);
                 cfg.put("ENV", "dev");
@@ -229,7 +246,7 @@ class SingleHost500CapacityProbe {
                                 "voice_ledger_pool_max",
                                 4,
                                 "callback_jdbc_pool_max",
-                                2,
+                                callbackPool,
                                 "control_jdbc_pool_max",
                                 4,
                                 "realtime_jdbc_pool_max",
@@ -237,7 +254,7 @@ class SingleHost500CapacityProbe {
                                 "analysis_jdbc_pool_max",
                                 1,
                                 "total_business_jdbc_pool_max",
-                                dbPool + 11,
+                                dbPool + 9 + callbackPool,
                                 "model_quota_window",
                                 "disabled; rule AI",
                                 "http_inflight_limit",
@@ -251,7 +268,13 @@ class SingleHost500CapacityProbe {
                                 "ai_lane_threads_max",
                                 Math.min(taskWorkers, aiOwners),
                                 "callback_consumer_threads",
-                                1,
+                                callbackWorkers,
+                                "callback_consumer_poll_ms",
+                                callbackPoll,
+                                "callback_batch_size",
+                                callbackBatch,
+                                "local_speech_consumption_enabled",
+                                true,
                                 "external_model",
                                 "not used",
                                 "audio",

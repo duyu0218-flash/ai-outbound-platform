@@ -346,6 +346,8 @@ class MockDialRate500Probe {
                     actualConfiguration.put("realtime_jdbc_pool_max", 4);
                     actualConfiguration.put("analysis_jdbc_pool_max", 1);
                     env.put("JAVA_CALLBACK_DB_POOL", "2");
+                    ((Map<String, Object>) result.get("configuration"))
+                            .put("local_speech_consumption_enabled", true);
                     actualConfiguration.put("callback_jdbc_pool_max", 2);
                     env.put("JAVA_CONTROL_DB_POOL", "4");
                     actualConfiguration.put("control_jdbc_pool_max", 4);

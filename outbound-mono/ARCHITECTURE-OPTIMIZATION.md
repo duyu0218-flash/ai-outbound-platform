@@ -164,3 +164,15 @@ them. A 409 alone never completes the task or releases resources. Persistent con
 fail the drain deadline. Other errors retain the existing FAILED/DEAD behavior, and appointment
 dial commands are excluded from this conflict treatment. Structured task diagnostics include
 HTTP status codes without logging command bodies or exception messages.
+
+Ordinary `telephony_speech` receipt consumption for a locked `answered`/`in_ai` call now
+commits using its partition, receipt and call locks without the global resource mutex. Business
+writes, durable follow-up tasks and receipt completion remain atomic. All other callback kinds
+and call states roll back that local attempt before retrying through the original platform-lock
+path, preserving partition-before-call ordering without lock upgrades. This narrow route never
+changes reservations, quota authority or human-agent ownership. `CALLBACK_INBOX_LOCAL_SPEECH_ENABLED=false`
+restores the original receipt route. A real-MySQL regression holds the resource mutex while two
+speech events complete in order, then proves the following terminal event waits for that mutex.
+The AI capacity fixture exposes bounded callback worker/pool/poll/batch settings and reports their
+actual values; changing these is a different resource/configuration profile, not an isolated
+code-only speed comparison.

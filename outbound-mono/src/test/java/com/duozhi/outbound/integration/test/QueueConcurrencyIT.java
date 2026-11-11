@@ -752,6 +752,107 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void ordinarySpeechReceiptsCommitWithoutResourceMutexButTerminalStillWaits() throws Exception {
+        // Other fixtures intentionally retain undelivered receipts. Use an empty
+        // partition rather than consuming or changing those fixtures.
+        String isolatedId = null;
+        for (int candidate = 0; candidate < 1024 && isolatedId == null; candidate++) {
+            String id = key();
+            int partition =
+                    (int) ((ByteBuffer.wrap(JsonSupport.digest(id)).getInt() & 0xffffffffL) % 64);
+            if (jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM callbackinbox WHERE partition_id=? AND state='pending'",
+                            Long.class,
+                            partition)
+                    == 0) isolatedId = id;
+        }
+        assertThat(isolatedId).isNotNull();
+        var call =
+                store.insert(
+                        "callsession",
+                        Values.map(
+                                "id",
+                                isolatedId,
+                                "tenant_id",
+                                1,
+                                "phone",
+                                "15500003339",
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "in_ai",
+                                "attempts",
+                                1,
+                                "max_attempts",
+                                1));
+        String id = call.get("id").toString();
+        for (int turn = 0; turn < 2; turn++) {
+            Map<String, Object> body =
+                    Values.map(
+                            "call_id",
+                            id,
+                            "attempt",
+                            1,
+                            "event_id",
+                            key(),
+                            "speaker_role",
+                            "customer",
+                            "transcript",
+                            "继续了解" + turn,
+                            "is_final",
+                            true);
+            inbox.receive("telephony_speech", body);
+            assertThat(inbox.receive("telephony_speech", body)).containsEntry("duplicate", true);
+        }
+        inbox.receive(
+                "telephony_status",
+                Values.map(
+                        "call_id",
+                        id,
+                        "payload",
+                        Values.map("status", "completed", "attempt", 1, "event_id", key())));
+        var rows =
+                store
+                        .query("callbackinbox", "list", Values.map("offset", 0, "limit", 1000))
+                        .stream()
+                        .filter(r -> id.equals(r.get("call_id")))
+                        .toList();
+        assertThat(rows).hasSize(3);
+        int partition = ((Number) rows.getFirst().get("partition_id")).intValue();
+        var pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Boolean> terminal;
+            try (var held = platformLocks.lock(718492061L)) {
+                assertThat(pool.submit(() -> inbox.consume(partition)).get(5, TimeUnit.SECONDS))
+                        .isTrue();
+                assertThat(pool.submit(() -> inbox.consume(partition)).get(5, TimeUnit.SECONDS))
+                        .isTrue();
+                assertThat(businessVoice.realtime(call)).containsEntry("turn_sequence", 2);
+                assertThat(store.require("callsession", 1, id)).containsEntry("status", "in_ai");
+                var entered = new CountDownLatch(1);
+                terminal =
+                        pool.submit(
+                                () -> {
+                                    entered.countDown();
+                                    return inbox.consume(partition);
+                                });
+                assertThat(entered.await(3, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> terminal.get(200, TimeUnit.MILLISECONDS))
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(store.require("callsession", 1, id)).containsEntry("status", "in_ai");
+            }
+            assertThat(terminal.get(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(store.require("callsession", 1, id)).containsEntry("status", "completed");
+            for (var row : rows)
+                assertThat(store.one("callbackinbox", "findById", Map.of("id", row.get("id"))))
+                        .containsEntry("state", "done")
+                        .containsEntry("attempts", 0);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
     void concurrentAnalysisOfOneCallRemainsUniqueWhileResourceMutexIsHeld() throws Exception {
         var call =
                 store.insert(
@@ -1453,13 +1554,18 @@ class QueueConcurrencyIT {
 
     @Test
     void mediaConflictKeepsDurableControlUntilCorrelatedTerminalAndOtherErrorsStillDie() {
-        long tenant = 398;
-        store.insert(
-                "tenant",
-                Values.map(
-                        "id", tenant, "code", "media-conflict", "name", "Media conflict fixture"));
         try {
             for (int status : List.of(409, 500)) {
+                long tenant = status == 409 ? 398 : 399;
+                store.insert(
+                        "tenant",
+                        Values.map(
+                                "id",
+                                tenant,
+                                "code",
+                                "media-conflict-" + status,
+                                "name",
+                                "Media conflict fixture"));
                 var call =
                         store.insert(
                                 "callsession",

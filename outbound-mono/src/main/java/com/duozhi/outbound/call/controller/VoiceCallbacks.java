@@ -75,6 +75,21 @@ public class VoiceCallbacks {
                 });
     }
 
+    public static final class LocalSpeechUnavailable extends RuntimeException {}
+
+    /** Only ordinary AI speech changes call-local rows; shared transitions use handle(). */
+    public Map<String, Object> handleLocalSpeech(String kind, Map<String, Object> body) {
+        if (!"telephony_speech".equals(kind)) throw new LocalSpeechUnavailable();
+        return tx.run(
+                () -> {
+                    Map<String, Object> call = tx.call(body.get("call_id"));
+                    if (call == null
+                            || !Values.set("answered", "in_ai").contains(call.get("status")))
+                        throw new LocalSpeechUnavailable();
+                    return speech(call, body);
+                });
+    }
+
     public Map<String, Object> realtime(Map<String, Object> call) {
         Map<String, Object> row =
                 store.one(
