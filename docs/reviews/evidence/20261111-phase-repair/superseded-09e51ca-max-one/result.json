@@ -1,0 +1,2083 @@
+{
+  "run_id" : "c8b4c59e",
+  "scope" : "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+  "target_cps" : 500,
+  "seconds" : 20,
+  "jar_sha256" : "e7e69a1f7c030f7eee78968adceae8993189be0b31a010d74d2c71e47b5bda7e",
+  "dial_source" : "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+  "drain_diagnostic_only" : true,
+  "calibration_only" : false,
+  "capacity_qualified" : false,
+  "maximum_rate_diagnostic_only" : true,
+  "campaign_count" : 1,
+  "mysql_resource_overrides" : {
+    "bufferMiB" : 512,
+    "tableCache" : 512,
+    "packetMiB" : 16,
+    "redoMiB" : 256
+  },
+  "mysql_buffer_pool_override_mib" : 512,
+  "mysql_binlog_compression_override" : false,
+  "mysql_actual_variables" : {
+    "binlog_group_commit_sync_delay" : "0",
+    "binlog_row_image" : "FULL",
+    "binlog_transaction_compression" : "OFF",
+    "innodb_buffer_pool_size" : "536870912",
+    "innodb_flush_log_at_trx_commit" : "1",
+    "innodb_redo_log_capacity" : "268435456",
+    "log_bin" : "ON",
+    "max_allowed_packet" : "16777216",
+    "sync_binlog" : "1",
+    "table_open_cache" : "512",
+    "transaction_isolation" : "REPEATABLE-READ",
+    "version" : "8.4.13",
+    "version_comment" : "MySQL Community Server - GPL"
+  },
+  "mysql_container" : "c6577a95e1eca4590c5bacc13fc40d2d240b67705657cb4df1fcb9cc6571a002",
+  "redis_container" : "79ea46373b6485e020eebd54bfb56a0ba99136eb8975df44ed78af414dea8a8a",
+  "mysql_jdbc" : "jdbc:mysql://localhost:32968/test?connectTimeout=3000&socketTimeout=10000",
+  "profile_jfr" : true,
+  "configuration" : {
+    "jvm_heap_max_gib" : 2,
+    "db_pool_max" : 8,
+    "voice_ledger_pool_max" : 4,
+    "model_quota_window" : "disabled; rule AI",
+    "http_inflight_limit" : 100,
+    "api_rate_limit_rps" : 2000,
+    "ai_lane_threads_max" : 4,
+    "callback_consumer_threads" : 2,
+    "external_model" : "not used",
+    "audio" : "not exercised",
+    "capacity_knobs" : 20000,
+    "application_jvms" : 1,
+    "dial_batch_size" : "100",
+    "gateway_command_batch_max" : 100,
+    "callback_batch_size" : "32",
+    "voice_callback_batch_enabled" : true,
+    "VOICE_MAX_CONCURRENT" : "20000",
+    "VOICE_CPS" : "1000",
+    "VOICE_DAILY_CALL_LIMIT" : "10000000",
+    "VOICE_HOUR_BUDGET_MINOR" : "1000000000",
+    "VOICE_DAY_BUDGET_MINOR" : "1000000000",
+    "VOICE_MOCK_OCCUPANCY_SEC" : "20",
+    "OUTBOUND_DAILY_CALL_LIMIT" : "10000000",
+    "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED" : "true",
+    "VOICE_ADMISSION_BATCH_CACHE_ENABLED" : "false",
+    "JAVA_DIAL_RATE_CONTROL" : "legacy",
+    "JAVA_DIAL_AUTH_PROTOCOL" : "2",
+    "VOICE_MATERIALIZED_LIMITS_ENABLED" : "true",
+    "JAVA_DIAL_TOKEN_BURST" : "35",
+    "dial_executor_threads" : "4",
+    "general_task_executor_threads" : "4",
+    "JAVA_TASK_CLAIM_PARALLEL_ENABLED" : "true",
+    "JAVA_ANALYSIS_TASK_OWNERS" : "0",
+    "JAVA_CONTROL_TASK_WORKERS" : "4",
+    "JAVA_CONTROL_TASK_OWNERS" : "4",
+    "JAVA_AI_TASK_WORKERS" : "4",
+    "JAVA_ANALYSIS_TASK_WORKERS" : "2",
+    "realtime_jdbc_pool_max" : 4,
+    "analysis_jdbc_pool_max" : 1,
+    "callback_jdbc_pool_max" : 2,
+    "control_jdbc_pool_max" : 4,
+    "total_business_jdbc_pool_max" : 19,
+    "worker_poll_ms" : "250",
+    "task_scheduler_threads" : 1,
+    "dial_cohort_sizing" : "fixed configured batch; live per-item token check",
+    "logical_task_lanes" : 11,
+    "JAVA_ANALYSIS_BATCH_SIZE" : "4",
+    "voice_callback_delivery_concurrency" : "128",
+    "voice_callback_max_inflight_events" : "128",
+    "VOICE_MOCK_ANSWER_PERCENT" : "100",
+    "VOICE_MOCK_DISTRIBUTION_SEED" : "v5-simulation-20261021",
+    "voice_callback_batch_size" : "64",
+    "voice_callback_partition_groups" : "2",
+    "voice_callback_protocol" : "v1 for <=16; additive signed v2 for 17..64",
+    "callback_consumer_poll_ms" : "10",
+    "daily_counter_read" : false
+  },
+  "application_pid" : 199280,
+  "fixtures" : "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+  "mysql_physical_before_workload" : {
+    "at_ms" : 1794368182544,
+    "exit" : 0,
+    "du_sk" : "427400\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "redo" : 262148,
+      "business_tables" : 41360,
+      "binlogs" : 10640
+    },
+    "largest_paths_du_kib" : "427408\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n41360\t/var/lib/mysql/test\n36868\t/var/lib/mysql/mysql.ibd\n16384\t/var/lib/mysql/undo_002\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo6\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo5\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo4\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo34_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo33_tmp"
+  },
+  "phase_start_ms" : 1794368236841,
+  "db_stats_before" : {
+    "Com_commit" : 21956,
+    "Com_insert" : 186126,
+    "Com_rollback" : 0,
+    "Com_select" : 192058,
+    "Com_stmt_execute" : 106903,
+    "Com_update" : 40886,
+    "Innodb_row_lock_time" : 0,
+    "Questions" : 247328
+  },
+  "mysql_physical_after_queue_commit" : {
+    "at_ms" : 1794368237800,
+    "exit" : 0,
+    "du_sk" : "617280\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "redo" : 262148,
+      "business_tables" : 162128,
+      "binlogs" : 72252
+    },
+    "largest_paths_du_kib" : "617288\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n153244\t/var/lib/mysql/test\n69320\t/var/lib/mysql/binlog.000002\n57348\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_002\n24580\t/var/lib/mysql/test/ops_call_statistics.ibd\n18436\t/var/lib/mysql/test/dial_fact_revision.ibd\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12292\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7"
+  },
+  "queued_pool_size" : 31000,
+  "event_time_buckets_before_stop" : {
+    "8" : 100,
+    "16" : 100,
+    "21" : 100,
+    "27" : 100
+  },
+  "event_time_bucket_note" : "Event timestamps are diagnostic only; capacity uses post-commit intervals.",
+  "stop_requested_at_ms" : 1794368269024,
+  "backlog_at_stop_request" : {
+    "at_ms" : 1794368269024,
+    "business_active" : 900,
+    "phone_guards" : 900,
+    "reserved" : 900,
+    "receipts_remaining" : 154,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 2700,
+    "mock_schedules_remaining" : 301,
+    "voice_counter_active" : 903,
+    "lifecycle_tasks_remaining" : 696,
+    "gateway_active" : 301,
+    "gateway_callbacks_remaining" : 44,
+    "dial_processing" : 400,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 130,
+      "due" : 0,
+      "future" : 130,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "ai_turn",
+      "state" : "PENDING",
+      "count" : 62,
+      "due" : 62,
+      "future" : 0,
+      "oldest_due_age_sec" : 7.705,
+      "error_codes" : ""
+    }, {
+      "type" : "ai_turn",
+      "state" : "PROCESSING",
+      "count" : 4,
+      "due" : 4,
+      "future" : 0,
+      "oldest_due_age_sec" : 8.846,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 200,
+      "due" : 200,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.937,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 400,
+      "due" : 400,
+      "future" : 0,
+      "oldest_due_age_sec" : 28.936,
+      "error_codes" : ""
+    } ]
+  },
+  "drain_begin" : {
+    "phase" : "ADMISSION_CLOSED",
+    "epoch" : 2,
+    "revision" : 1,
+    "updated_at" : "2026-11-11T03:37:50.734",
+    "captured" : 895,
+    "business_active" : 895,
+    "gateway_active" : 401,
+    "pending_callbacks" : 100,
+    "pending_inbox" : 131,
+    "pending_lifecycle_tasks" : 257,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "sending_barrier_lock_timeouts" : 10,
+  "sending_closed" : {
+    "phase" : "SEND_CLOSED",
+    "epoch" : 2,
+    "revision" : 2,
+    "updated_at" : "2026-11-11T03:39:55.478",
+    "captured" : 895,
+    "business_active" : 18,
+    "gateway_active" : 18,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 0,
+    "pending_lifecycle_tasks" : 99,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "fixed_attempt_count_after_sending_closed" : 900,
+  "stop_drain_samples" : [ {
+    "at_ms" : 1794368395595,
+    "business_active" : 18,
+    "phone_guards" : 18,
+    "reserved" : 18,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 54,
+    "mock_schedules_remaining" : 18,
+    "voice_counter_active" : 54,
+    "lifecycle_tasks_remaining" : 104,
+    "gateway_active" : 18,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 11,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 58.649,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 8,
+      "due" : 0,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 42,
+      "due" : 42,
+      "future" : 0,
+      "oldest_due_age_sec" : 12.244,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 102,
+      "due" : 94,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.162,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 11,
+      "due" : 11,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.168,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368396716,
+    "business_active" : 17,
+    "phone_guards" : 17,
+    "reserved" : 17,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 51,
+    "mock_schedules_remaining" : 17,
+    "voice_counter_active" : 51,
+    "lifecycle_tasks_remaining" : 50,
+    "gateway_active" : 17,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 59.754,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 9,
+      "due" : 0,
+      "future" : 9,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.267,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368397761,
+    "business_active" : 16,
+    "phone_guards" : 16,
+    "reserved" : 16,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 48,
+    "mock_schedules_remaining" : 15,
+    "voice_counter_active" : 45,
+    "lifecycle_tasks_remaining" : 49,
+    "gateway_active" : 15,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 60.8,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 8,
+      "due" : 0,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 2.313,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368398805,
+    "business_active" : 14,
+    "phone_guards" : 14,
+    "reserved" : 14,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 42,
+    "mock_schedules_remaining" : 14,
+    "voice_counter_active" : 42,
+    "lifecycle_tasks_remaining" : 49,
+    "gateway_active" : 14,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 61.838,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 8,
+      "due" : 0,
+      "future" : 8,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.351,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368399847,
+    "business_active" : 8,
+    "phone_guards" : 8,
+    "reserved" : 8,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 24,
+    "mock_schedules_remaining" : 8,
+    "voice_counter_active" : 24,
+    "lifecycle_tasks_remaining" : 51,
+    "gateway_active" : 8,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 62.91,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 7,
+      "due" : 0,
+      "future" : 7,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 3,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.259,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 4.423,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368400920,
+    "business_active" : 7,
+    "phone_guards" : 7,
+    "reserved" : 7,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 21,
+    "mock_schedules_remaining" : 7,
+    "voice_counter_active" : 21,
+    "lifecycle_tasks_remaining" : 47,
+    "gateway_active" : 7,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 63.965,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 6,
+      "due" : 0,
+      "future" : 6,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 5.478,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368401973,
+    "business_active" : 7,
+    "phone_guards" : 7,
+    "reserved" : 7,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 21,
+    "mock_schedules_remaining" : 7,
+    "voice_counter_active" : 21,
+    "lifecycle_tasks_remaining" : 46,
+    "gateway_active" : 7,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 65.002,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 0,
+      "future" : 5,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 6.515,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368403008,
+    "business_active" : 7,
+    "phone_guards" : 7,
+    "reserved" : 7,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 21,
+    "mock_schedules_remaining" : 6,
+    "voice_counter_active" : 18,
+    "lifecycle_tasks_remaining" : 44,
+    "gateway_active" : 6,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 66.05,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 0,
+      "future" : 3,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 7.563,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368404059,
+    "business_active" : 6,
+    "phone_guards" : 6,
+    "reserved" : 6,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 18,
+    "mock_schedules_remaining" : 6,
+    "voice_counter_active" : 18,
+    "lifecycle_tasks_remaining" : 44,
+    "gateway_active" : 6,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 67.093,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 0,
+      "future" : 3,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 8.606,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368405100,
+    "business_active" : 6,
+    "phone_guards" : 6,
+    "reserved" : 6,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 18,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 43,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 68.146,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 2,
+      "due" : 0,
+      "future" : 2,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 9.659,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368406157,
+    "business_active" : 5,
+    "phone_guards" : 5,
+    "reserved" : 5,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 15,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 42,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 69.19,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 1,
+      "due" : 0,
+      "future" : 1,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 10.703,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368407197,
+    "business_active" : 5,
+    "phone_guards" : 5,
+    "reserved" : 5,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 15,
+    "mock_schedules_remaining" : 5,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 70.23,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 11.743,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368408236,
+    "business_active" : 4,
+    "phone_guards" : 4,
+    "reserved" : 4,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 12,
+    "mock_schedules_remaining" : 4,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 71.269,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 12.782,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368409274,
+    "business_active" : 4,
+    "phone_guards" : 4,
+    "reserved" : 4,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 12,
+    "mock_schedules_remaining" : 4,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 72.304,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 13.817,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368410309,
+    "business_active" : 4,
+    "phone_guards" : 4,
+    "reserved" : 4,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 12,
+    "mock_schedules_remaining" : 4,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 73.341,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 14.854,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368411347,
+    "business_active" : 3,
+    "phone_guards" : 3,
+    "reserved" : 3,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 9,
+    "mock_schedules_remaining" : 3,
+    "voice_counter_active" : 9,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 3,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 74.38,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 15.893,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368412386,
+    "business_active" : 2,
+    "phone_guards" : 2,
+    "reserved" : 2,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 6,
+    "mock_schedules_remaining" : 2,
+    "voice_counter_active" : 6,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 2,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 75.439,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 16.952,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368413446,
+    "business_active" : 2,
+    "phone_guards" : 2,
+    "reserved" : 2,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 6,
+    "mock_schedules_remaining" : 2,
+    "voice_counter_active" : 6,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 2,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 76.475,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 17.988,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368414481,
+    "business_active" : 1,
+    "phone_guards" : 1,
+    "reserved" : 1,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 3,
+    "mock_schedules_remaining" : 1,
+    "voice_counter_active" : 3,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 1,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 77.512,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 19.025,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368415517,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 78.539,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 20.052,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368416543,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 79.573,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 21.086,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368417580,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 80.616,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 22.129,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368418623,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 81.667,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 23.18,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368419674,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 82.707,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 24.22,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368420716,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 83.752,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 25.265,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368421757,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 84.792,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 26.305,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368422798,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 85.829,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 27.342,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368423835,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 86.857,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 28.37,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368424864,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 87.89,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 29.403,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368425896,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 88.95,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 30.463,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368426957,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 89.992,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 31.505,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368427997,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 91.035,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 32.548,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368429042,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 92.066,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 33.579,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368430071,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 93.103,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 34.616,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368431108,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 94.135,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 35.648,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368432140,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 95.178,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 36.691,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368433191,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 96.231,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 37.744,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368434239,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 97.266,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 38.779,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368435272,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 98.303,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 39.816,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368436311,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 99.341,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 40.854,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368437347,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 100.385,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 41.898,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368438391,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 101.435,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 42.948,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368439443,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 102.502,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 44.015,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368440511,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 103.541,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 45.054,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368441546,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 104.567,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 46.08,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368442571,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 105.596,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 47.109,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368443601,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 106.635,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 48.148,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368444642,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 107.667,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 49.18,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368445672,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 108.74,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 50.253,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368446747,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 109.77,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 51.283,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368447776,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 110.813,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 52.326,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368448820,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 111.842,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 53.355,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794368449847,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 41,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 41,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "DEAD",
+      "count" : 41,
+      "due" : 41,
+      "future" : 0,
+      "oldest_due_age_sec" : 112.874,
+      "error_codes" : "Failure"
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 100,
+      "due" : 100,
+      "future" : 0,
+      "oldest_due_age_sec" : 54.387,
+      "error_codes" : ""
+    } ]
+  } ],
+  "input_pool_not_exhausted" : true,
+  "commit_snapshot_after_drain" : false,
+  "commit_rate" : {
+    "counting" : "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+    "peak_cps_upper_bound" : 100,
+    "minimum_second_cps_lower_bound" : 0,
+    "scope" : "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+    "average_cps_lower_bound" : 10.0,
+    "per_second" : [ {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 10
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 11
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 12
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 13
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 14
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 15
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100,
+      "second_after_phase" : 16
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 17
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 18
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 19
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 20
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100,
+      "second_after_phase" : 21
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 22
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 23
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 24
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 25
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 26
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 27
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 28
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 29
+    } ],
+    "peak_cps_lower_bound" : 100,
+    "upper_bound_verified" : true
+  },
+  "commit_evidence_missing" : 0,
+  "duplicate_acknowledgement_identities" : 0,
+  "invalid_commit_clocks" : 0,
+  "unique_acknowledgement_identities" : 900,
+  "commit_evidence_complete" : true,
+  "campaign_statistics_mismatches" : 0,
+  "probe_error" : "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>"
+}

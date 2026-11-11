@@ -1,0 +1,9 @@
+{
+  "scope": "isolated media JVM HTTP/epoch smoke; no PCM, real provider, database failover or continuity qualification",
+  "jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+  "first_epoch": "96934dc87f3f410ba85a2079b6337ca9",
+  "worker_id": "smoke-worker",
+  "second_epoch": "5b9d906e06aa40b5b152950aeaa6c4ba",
+  "old_epoch_status": 409,
+  "passed": true
+}

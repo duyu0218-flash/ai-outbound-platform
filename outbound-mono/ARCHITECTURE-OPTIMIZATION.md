@@ -201,3 +201,26 @@ The isolated stop probe retries only documented pre-transaction `503 PLATFORM_LO
 responses for admission closure, recording each retry. Admission capture, sending closure and
 full drain now share 180 seconds from the stop request; retries do not grant another deadline.
 Unknown responses and unresolved sends remain failures.
+
+### Candidate validation and delivery evidence
+
+Runtime/probe source: `304447ae2ac50f21d9f71211419ba182fbd85371`; host Jar SHA-256:
+`f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645`. The final local scoped run passed 37 unit and 57
+integration tests without failures, errors or skips. The earlier 409-unit full run belongs to
+`f8ffb04`, before the last heartbeat and recovery revisions; final full-suite CI is recorded in
+the associated PR. Host JVM load measurements do not qualify a runtime image or real media.
+
+| Diagnostic | Result |
+| --- | --- |
+| One campaign, batch 100 | Peak 100 CPS; measured average lower bound 15 CPS, minimum-second lower bound 0; full drain 157.15s. All 900 calls ended at age >=20s. |
+| Sixteen campaigns, batch 500 | Peak 100 CPS; measured average lower bound 15 CPS, minimum-second lower bound 0; full drain 85.94s. All 700 calls ended at age >=20s. |
+| Complete dial drain | Both captured cohorts reached zero business/gateway activity, reservations, phone guards, callback/inbox backlog and lifecycle work; DEAD=0. Unadmitted queued data was preserved. |
+| 500 simulated AI calls | Held all 500 for 120s; call 501 queued. 2342/6000 planned turns completed eventually; 15.82 valid replies/s in the steady window, P95 27.527s, P99 32.021s. Original SLO failed; no pending replies after its 30s reply drain. |
+| Standalone media process | Actual separate JVM restart produced a new epoch; the prior epoch received HTTP 409. No real PCM, provider or live continuity qualification. |
+
+The original MySQL durability settings, complete lifecycle drain and reply thresholds remain.
+See [machine evidence](../docs/reviews/evidence/20261111-phase-repair/summary.json) for exact
+configuration, commit intervals, all failed/superseded runs, hashes and reproduction commands.
+No stable maximum CPS, real audio capacity, automatic HA or production qualification is claimed.
+The existing functional-merge boundary applies to this bounded patch; merging does not complete
+P0–P5. Durable quota/report cutover, profile authority and automatic HA remain open.

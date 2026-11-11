@@ -1,0 +1,3874 @@
+{
+  "recorded_at_utc": "2026-11-11T05:07:07.654728+00:00",
+  "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+  "runtime_source_tree": "f0f2e524b608bb2eaa3ee690ef343a29d76650d3",
+  "probe_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+  "candidate_jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+  "scope": "Isolated synthetic telephone control and rule AI with real MySQL/Redis. Host JVM only. No real SIP/RTP/PCM, paid model, production traffic or database failover qualification.",
+  "hardware": {
+    "architecture": "x86_64",
+    "cpu_quota": "400000 100000",
+    "memory_limit_bytes": "17179869184"
+  },
+  "validation": {
+    "candidate_focused_unit": {
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "candidate_integration": {
+      "tests": 57,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "candidate_integration_scope": [
+      "DataLayerReplayIT",
+      "QueueConcurrencyIT",
+      "DialV5ProtocolIT",
+      "RuntimeOwnershipIT"
+    ],
+    "functional_log_sha256": "b83155de90027f0be7272ab9f461c83bfe717c1a82d8cf3a7089ed6e7ff28851",
+    "earlier_broad_unit_run": {
+      "source_commit": "f8ffb0441e9edf6e598c2cab0f8b8eb250957ffb",
+      "tests": 409,
+      "failures": 0,
+      "errors": 0,
+      "integration": 56,
+      "note": "Full units and selected integration passed before the final heartbeat and drain-recovery changes; not full-suite evidence for the final source."
+    }
+  },
+  "phases": {
+    "P0": "Read-only provider probe; correlated immutable terminal facts; ordered durable-inbox replay. Requires original outcome/billing proof, never an ended boolean alone.",
+    "P1": "Separate callback (2 in CPS, 4 in AI) and control (4) JDBC pools, AI realtime (4), analysis (1) and general (8 in this fixture). Control execution is bounded by its reservation. Ordinary speech receipts for locked answered/in_ai calls avoid the global resource mutex; other states/kinds roll back before platform-locked fallback. Playback 409 conflicts defer unchanged until correlated reconciliation; other failure limits and complete drain gates remain. Coalesced worker maintenance acquires identity before JDBC and commits heartbeat before bounded completed-receipt retention. Admission closure filters new dial claims out and permits only frozen-command recovery despite unhealthy new-admission feedback. Latency qualification remains determined by load results.",
+    "P2": "Commit and send each group of at most 100 before preparing later groups, preserving successful-prefix outcomes. Known rolled-back deadlock retries bounded to once. Durable quota authority cutover and async report projection remain unimplemented.",
+    "P3": "Optional standalone media JVM and authenticated RPC; static-provider configuration only. Profile authority RPC and real audio/restart continuity remain unqualified.",
+    "P4": "Automatic controller/database failover remains unimplemented and unqualified; single-controller guard is retained. User confirmed no target media/failover environment.",
+    "P5": "Functional checks and synthetic load recorded here; real-media and failover qualification unavailable."
+  },
+  "all_phases_complete": false,
+  "runs": [
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-phases/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-c8286da-max-one",
+      "current_candidate": false,
+      "runtime_source_commit": "c8286dafef3344a2b4db4da24ba082f7beb28493",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T01:59:03.321",
+          "captured": 1100,
+          "business_active": 23,
+          "gateway_active": 23,
+          "pending_callbacks": 0,
+          "pending_inbox": 1,
+          "pending_lifecycle_tasks": 745,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "run_id": "b861432e",
+        "jar_sha256": "c9bfec232585a4e40f646da88b185ac5346106403e686c5ea3df3fcdf7d8b229",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "false",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 13,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "1",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "average_cps_lower_bound": 20.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "second_after_phase": 10,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 11,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 12,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 13,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 14,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 15,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 16,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 17,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 18,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 19,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 20,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 21,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 22,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 23,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 24,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 25,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 26,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 27,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 28,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 29,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            }
+          ],
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 1100,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>",
+        "sending_barrier_lock_timeouts": 17,
+        "last_drain_sample": {
+          "at_ms": 1794362372356,
+          "lifecycle_tasks_remaining": 132,
+          "voice_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "platform_counter_active": 0,
+          "dead_tasks": 0,
+          "receipts_remaining": 0,
+          "reserved": 0,
+          "phone_guards": 0,
+          "business_active": 0,
+          "dial_processing": 0,
+          "gateway_callbacks_remaining": 0,
+          "gateway_active": 0,
+          "task_backlog": [
+            {
+              "type": "call_analysis",
+              "state": "PENDING",
+              "count": 132,
+              "due": 132,
+              "future": 0,
+              "oldest_due_age_sec": 49.862
+            },
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 900,
+              "due": 900,
+              "future": 0,
+              "oldest_due_age_sec": 30.272
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "3ef12b9c05a138afe22109e891e6745c0c30a76267ebfd863e66e1a3a479b5f7",
+          "bytes": 36584
+        },
+        "commit-intervals.csv": {
+          "sha256": "f2db7b146451667c0d1e3ee0b15d3f06fe744e3326e2de4b424dff8fe30767e2",
+          "bytes": 90270
+        },
+        "application.log": {
+          "sha256": "62a8fbed77c3bc07127e9ae6654dc7cf3f27e34896611b44e47955caa4f5f8a5",
+          "bytes": 558618
+        },
+        "gc.log": {
+          "sha256": "ea1583ea77cf8b7d063ec6471fce3e9c7d9f4ed7af65505e213235493716f749",
+          "bytes": 206715
+        },
+        "profile.jfr": {
+          "sha256": "e640157010f33592801791089cc07226a4e9026ba2ed3be8db361b37971851d3",
+          "bytes": 60876769
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-phases/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-c8286da-max-large",
+      "current_candidate": false,
+      "runtime_source_commit": "c8286dafef3344a2b4db4da24ba082f7beb28493",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "run_id": "f52f31a5",
+        "jar_sha256": "c9bfec232585a4e40f646da88b185ac5346106403e686c5ea3df3fcdf7d8b229",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "false",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 13,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "1",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "guaranteed_commits": 1,
+              "possible_commits": 1,
+              "second_after_phase": 10
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 13
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "guaranteed_commits": 1,
+              "possible_commits": 1,
+              "second_after_phase": 18
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 1,
+              "second_after_phase": 20
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 1,
+              "second_after_phase": 21
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "guaranteed_commits": 1,
+              "possible_commits": 1,
+              "second_after_phase": 23
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "guaranteed_commits": 1,
+              "possible_commits": 1,
+              "second_after_phase": 26
+            },
+            {
+              "guaranteed_commits": 100,
+              "possible_commits": 100,
+              "second_after_phase": 27
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "guaranteed_commits": 1,
+              "possible_commits": 1,
+              "second_after_phase": 29
+            }
+          ],
+          "average_cps_lower_bound": 5.25,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 410,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: only unresolved sending or a bounded lock timeout may postpone the barrier: {\"timestamp\":\"2026-11-11T02:02:58.034+00:00\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/v1/admin/dial-control/close-sending\"} ==> expected: <409> but was: <500>"
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "bdbba47b0852f7dc5b926e38db1a9d9bda2a791e6afea354154fd1cc04c95516",
+          "bytes": 11505
+        },
+        "commit-intervals.csv": {
+          "sha256": "128dadbe6cb76f8cdcb2e56c6adf6d42896657c93c89fd8199dd76a27045eb95",
+          "bytes": 33690
+        },
+        "application.log": {
+          "sha256": "2460f56760d441b92a6c706b0f9ce1774f6cd9852fa6485a229f3c88f4d3b154",
+          "bytes": 126000
+        },
+        "gc.log": {
+          "sha256": "2bd1e10c297dced78553d0a25e2a5332493255ce96ef8eead8b3ba77c1ba8281",
+          "bytes": 120262
+        },
+        "profile.jfr": {
+          "sha256": "dff077e13562b3c0dfa2ecd1b2ddfef456717e6faa23fc297b14573a0a3dc094",
+          "bytes": 28905482
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-phases/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-c8286da-ai-500",
+      "current_candidate": false,
+      "runtime_source_commit": "c8286dafef3344a2b4db4da24ba082f7beb28493",
+      "metrics": {
+        "run_id": "34cfd06b",
+        "jar_sha256": "c9bfec232585a4e40f646da88b185ac5346106403e686c5ea3df3fcdf7d8b229",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 1,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-phases/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "scheduled_reply_fraction_min": 0.99,
+          "reply_p99_ms_max": 3000,
+          "http_success_fraction_min": 0.999,
+          "pending_after_drain_max": 0,
+          "reply_p95_ms_max": 1500,
+          "all_500_in_ai": true
+        },
+        "admission": {
+          "created": 500,
+          "elapsed_seconds": 141.521342147,
+          "p95_ms": 477.243679,
+          "http_status": {
+            "200": 500
+          }
+        },
+        "call_501": {
+          "status": "queued",
+          "http": 200,
+          "active_count": 500
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 53831.0,
+        "reply_p99_ms": 67575.0,
+        "steady_valid_reply_rps": 12.833333333333334,
+        "sent_turns": 1972,
+        "planned_turns": 6000,
+        "durable_replies": 1873,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 4028,
+        "pending_calls_after_drain": 99,
+        "delivered_within_steady_window": 1540,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "2480ca34f4fae6d8ccbb543149cb905c30a425d77fd8943223223d39d42ef6ca",
+          "bytes": 4626
+        },
+        "samples.jsonl": {
+          "sha256": "4b7a98f7092add20050eb413c47e33a1ea3e14119451cb34429e5c6af8303996",
+          "bytes": 75250
+        },
+        "application.log": {
+          "sha256": "2098019415de7c68a927a784cb6004344013f635817edcc1651933d634fea10b",
+          "bytes": 1051913
+        },
+        "gc.log": {
+          "sha256": "b427850408900fee1d2423e93575fd32cec1b40753242dc9a2ebafd863743b66",
+          "bytes": 270880
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "e37c7d014820f564325bd7039d6aca9d589b230f7adfea893160e7f2b16d9bcf",
+          "bytes": 243988
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-phase-replay/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-00e4aa0-max-one",
+      "current_candidate": false,
+      "runtime_source_commit": "00e4aa0c9d993f006d4cb4169ab887a701864824",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": true,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T02:35:28.859",
+          "captured": 800,
+          "business_active": 37,
+          "gateway_active": 37,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 16,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "drain_invalid_identities": 0,
+        "unadmitted_queued_preserved": 30200,
+        "run_id": "9525a48f",
+        "jar_sha256": "c057221805cbb96b89ff657429b3ad5416059707010b70f90f4dbbb0640ba05f",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "total_business_jdbc_pool_max": 15,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "warmup_seconds": 10,
+        "measured_seconds": 20,
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "second_after_phase": 10,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 11,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 12,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 13,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 14,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 15,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 16,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 17,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 18,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 19,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 20,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 21,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 22,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 23,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 24,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 25,
+              "guaranteed_commits": 0,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 26,
+              "guaranteed_commits": 0,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 27,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 28,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 29,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            }
+          ],
+          "average_cps_lower_bound": 5.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 800,
+        "campaign_statistics_mismatches": 0,
+        "stop_drain_elapsed_sec": 144.296825313,
+        "stop_drain_verified": true,
+        "stop_drain_final": {
+          "phase": "FROZEN",
+          "epoch": 2,
+          "revision": 3,
+          "updated_at": "2026-11-11T02:35:28.859",
+          "captured": 800,
+          "business_active": 0,
+          "gateway_active": 0,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 0,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "observed_synthetic_lifetimes": {
+          "accepted": 800,
+          "answered": 800,
+          "ended": 800,
+          "min_ended_age_sec": 20.008999824523926,
+          "mean_ended_age_sec": 20.820486246943474,
+          "max_ended_age_sec": 26.183000087738037,
+          "ended_under_19_9_sec": 0,
+          "note": "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+        },
+        "short_occupancy_examples": [],
+        "passed": false,
+        "diagnostic_passed": true,
+        "capacity_qualified": false,
+        "sending_barrier_lock_timeouts": 5,
+        "last_drain_sample": {
+          "at_ms": 1794364550400,
+          "dial_processing": 0,
+          "gateway_callbacks_remaining": 0,
+          "gateway_active": 0,
+          "lifecycle_tasks_remaining": 0,
+          "voice_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "platform_counter_active": 0,
+          "dead_tasks": 0,
+          "receipts_remaining": 0,
+          "reserved": 0,
+          "phone_guards": 0,
+          "business_active": 0,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 1200,
+              "due": 1200,
+              "future": 0,
+              "oldest_due_age_sec": 23.142
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "bb50a2e3327d30acf0efdfce9e70cc5f6a06d4195a5663bbde0b5491419e26e3",
+          "bytes": 78165
+        },
+        "commit-intervals.csv": {
+          "sha256": "58b43ae120d442ab3ebf3ed2195da37390e1283889f92aff48890bf27d1fefe5",
+          "bytes": 65670
+        },
+        "application.log": {
+          "sha256": "4d6a76a2ca38335eb1e46aa93ecfa9d9b91adae74d08727a493cda3a28690fae",
+          "bytes": 521349
+        },
+        "gc.log": {
+          "sha256": "db2ad62df1873e15efc191a394ff7814e6653fd49bc920e1787b9e3854682654",
+          "bytes": 159309
+        },
+        "profile.jfr": {
+          "sha256": "e4cd0bb45100b9633a31df5bff9896b5190f99b76663f47af16e05e583e344d2",
+          "bytes": 54305088
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-phase-replay/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-00e4aa0-max-large",
+      "current_candidate": false,
+      "runtime_source_commit": "00e4aa0c9d993f006d4cb4169ab887a701864824",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T02:41:59.11",
+          "captured": 1400,
+          "business_active": 21,
+          "gateway_active": 20,
+          "pending_callbacks": 0,
+          "pending_inbox": 1,
+          "pending_lifecycle_tasks": 12,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "run_id": "9c26e101",
+        "jar_sha256": "c057221805cbb96b89ff657429b3ad5416059707010b70f90f4dbbb0640ba05f",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "total_business_jdbc_pool_max": 15,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "minimum_second_cps_lower_bound": 0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "average_cps_lower_bound": 10.05,
+          "per_second": [
+            {
+              "second_after_phase": 10,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 11,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 12,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 13,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 14,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 15,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 16,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 17,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 18,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 19,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 20,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 21,
+              "possible_commits": 100,
+              "guaranteed_commits": 100
+            },
+            {
+              "second_after_phase": 22,
+              "possible_commits": 1,
+              "guaranteed_commits": 1
+            },
+            {
+              "second_after_phase": 23,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 24,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 25,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 26,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 27,
+              "possible_commits": 100,
+              "guaranteed_commits": 100
+            },
+            {
+              "second_after_phase": 28,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            },
+            {
+              "second_after_phase": 29,
+              "possible_commits": 0,
+              "guaranteed_commits": 0
+            }
+          ],
+          "peak_cps_lower_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_upper_bound": 100,
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 1400,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>",
+        "last_drain_sample": {
+          "at_ms": 1794364924821,
+          "phone_guards": 15,
+          "reserved": 15,
+          "receipts_remaining": 0,
+          "dead_tasks": 0,
+          "platform_counter_active": 45,
+          "mock_schedules_remaining": 15,
+          "voice_counter_active": 45,
+          "lifecycle_tasks_remaining": 6,
+          "gateway_active": 15,
+          "gateway_callbacks_remaining": 0,
+          "dial_processing": 0,
+          "business_active": 15,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 1600,
+              "due": 1600,
+              "future": 0,
+              "oldest_due_age_sec": 4.21
+            },
+            {
+              "type": "after_playback",
+              "state": "PENDING",
+              "count": 6,
+              "due": 0,
+              "future": 6,
+              "oldest_due_age_sec": 0.0
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "a1194cebabad22d456d26a2256af325ecaac4de265c0c297ee9aa17f2a589671",
+          "bytes": 16598
+        },
+        "commit-intervals.csv": {
+          "sha256": "c1a6d685ad162b12b02b27a43b6827bf7cda8074b20828a1da5f701a91fe69e5",
+          "bytes": 114870
+        },
+        "application.log": {
+          "sha256": "c11c8a34dd133244308b6d02efa47bfbc5836d18f8e84363cdc71f2a22c52a67",
+          "bytes": 689521
+        },
+        "gc.log": {
+          "sha256": "5ab61749d5e0074b8bf750789780f20f0ece8be3244c19783acdde1e5d2a41a2",
+          "bytes": 303212
+        },
+        "profile.jfr": {
+          "sha256": "8d3bdcf17669265acbc5e3b97d8b859e8139460c2bd06780ec4fa8e69ca2a192",
+          "bytes": 63552149
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-phase-replay/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-00e4aa0-ai-500",
+      "current_candidate": false,
+      "runtime_source_commit": "00e4aa0c9d993f006d4cb4169ab887a701864824",
+      "metrics": {
+        "run_id": "8fb7f9d7",
+        "jar_sha256": "c057221805cbb96b89ff657429b3ad5416059707010b70f90f4dbbb0640ba05f",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "callback_jdbc_pool_max": 2,
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 15,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 1,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-phase-replay/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "http_success_fraction_min": 0.999,
+          "reply_p99_ms_max": 3000,
+          "scheduled_reply_fraction_min": 0.99,
+          "all_500_in_ai": true,
+          "reply_p95_ms_max": 1500,
+          "pending_after_drain_max": 0
+        },
+        "admission": {
+          "created": 500,
+          "http_status": {
+            "200": 500
+          },
+          "p95_ms": 397.344226,
+          "elapsed_seconds": 125.618704948
+        },
+        "call_501": {
+          "http": 200,
+          "status": "queued",
+          "active_count": 500
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 44880.0,
+        "reply_p99_ms": 50243.0,
+        "steady_valid_reply_rps": 15.008333333333333,
+        "sent_turns": 2224,
+        "planned_turns": 6000,
+        "durable_replies": 2224,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 3776,
+        "pending_calls_after_drain": 0,
+        "delivered_within_steady_window": 1801,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "7895c46cee757ab442c8297a429a0dc2b7cc31e8c460f0b281ebe894389c570a",
+          "bytes": 4776
+        },
+        "samples.jsonl": {
+          "sha256": "8d45ce46232b18b0408dc395d6ea1fced02c1ee38365ca1caa4cb02ecc284601",
+          "bytes": 70303
+        },
+        "application.log": {
+          "sha256": "4e882e04e7a3b864542b86954e375a7c65aef14657a5171c12499c642f9d372a",
+          "bytes": 1125838
+        },
+        "gc.log": {
+          "sha256": "d2282112e5f30cc6732b4d76fbad2a7d9e5dda981a8717406ba62cdd149a3a3a",
+          "bytes": 218756
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "f27b89f88c9dad96e31bea0998ef5810ec32a51430b3bdc7cbb1a6dbd62d83a7",
+          "bytes": 280912
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-dispatch-repair/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-9461dfa-max-one",
+      "current_candidate": false,
+      "runtime_source_commit": "9461dfaec4574cc3f613fac7a2c27b5f76b9cbb3",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T03:03:01.353",
+          "captured": 900,
+          "business_active": 77,
+          "gateway_active": 77,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 72,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "run_id": "df30278e",
+        "jar_sha256": "07a2a5f8e6c5b3077a373c173e65750e3dcfecc652bfa0e72706167979e29c32",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "total_business_jdbc_pool_max": 15,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "peak_cps_lower_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_upper_bound": 100,
+          "minimum_second_cps_lower_bound": 0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "average_cps_lower_bound": 15.0,
+          "per_second": [
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 10
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 13
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 18
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 20
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 21
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 26
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 28
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 29
+            }
+          ],
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 900,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>",
+        "sending_barrier_lock_timeouts": 10,
+        "last_drain_sample": {
+          "at_ms": 1794366253783,
+          "business_active": 0,
+          "phone_guards": 0,
+          "reserved": 0,
+          "receipts_remaining": 0,
+          "dead_tasks": 2,
+          "platform_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "voice_counter_active": 0,
+          "lifecycle_tasks_remaining": 2,
+          "gateway_active": 0,
+          "gateway_callbacks_remaining": 0,
+          "dial_processing": 0,
+          "task_backlog": [
+            {
+              "type": "after_playback",
+              "state": "DEAD",
+              "count": 2,
+              "due": 2,
+              "future": 0,
+              "oldest_due_age_sec": 101.439
+            },
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 100,
+              "due": 100,
+              "future": 0,
+              "oldest_due_age_sec": 72.534
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "7c2a6d992582015a475eee995af88614e5f7537d3cf4977efb378f491f8f2ea9",
+          "bytes": 66483
+        },
+        "commit-intervals.csv": {
+          "sha256": "9aee82bb8270f0153190ba6197562613a23a1f947e496890bcd3af77da50db58",
+          "bytes": 73870
+        },
+        "application.log": {
+          "sha256": "916b6d8fd72531384d9ec5c7d5750c9b122727b0f5c2f5ca73835841069938a7",
+          "bytes": 523481
+        },
+        "gc.log": {
+          "sha256": "2cb2357a03761c82340689622b62078a52185aa8249edb180811e4fba9a7a951",
+          "bytes": 192067
+        },
+        "profile.jfr": {
+          "sha256": "49f230a13578d69fa5e8df1a9ac6d9ac0faad87fc9a46259fa44f24c23383f58",
+          "bytes": 53075018
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-dispatch-repair/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-9461dfa-max-large",
+      "current_candidate": false,
+      "runtime_source_commit": "9461dfaec4574cc3f613fac7a2c27b5f76b9cbb3",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": true,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T03:09:27.743",
+          "captured": 893,
+          "business_active": 19,
+          "gateway_active": 19,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 10,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "drain_invalid_identities": 0,
+        "unadmitted_queued_preserved": 30100,
+        "run_id": "9056b931",
+        "jar_sha256": "07a2a5f8e6c5b3077a373c173e65750e3dcfecc652bfa0e72706167979e29c32",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "total_business_jdbc_pool_max": 15,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "warmup_seconds": 10,
+        "measured_seconds": 20,
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 10
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 13
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 100,
+              "second_after_phase": 14
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 100,
+              "second_after_phase": 15
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 18
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 20
+            },
+            {
+              "guaranteed_commits": 100,
+              "possible_commits": 100,
+              "second_after_phase": 21
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 26
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 29
+            }
+          ],
+          "average_cps_lower_bound": 5.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 900,
+        "campaign_statistics_mismatches": 0,
+        "stop_drain_elapsed_sec": 142.704399541,
+        "stop_drain_verified": true,
+        "stop_drain_final": {
+          "phase": "FROZEN",
+          "epoch": 2,
+          "revision": 3,
+          "updated_at": "2026-11-11T03:09:27.743",
+          "captured": 893,
+          "business_active": 0,
+          "gateway_active": 0,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 0,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "observed_synthetic_lifetimes": {
+          "accepted": 900,
+          "answered": 900,
+          "ended": 900,
+          "min_ended_age_sec": 20.014999866485596,
+          "mean_ended_age_sec": 21.539769971105788,
+          "max_ended_age_sec": 28.22699999809265,
+          "ended_under_19_9_sec": 0,
+          "note": "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+        },
+        "short_occupancy_examples": [],
+        "passed": false,
+        "diagnostic_passed": true,
+        "capacity_qualified": false,
+        "sending_barrier_lock_timeouts": 2,
+        "last_drain_sample": {
+          "at_ms": 1794366589659,
+          "platform_counter_active": 0,
+          "dead_tasks": 0,
+          "receipts_remaining": 0,
+          "reserved": 0,
+          "phone_guards": 0,
+          "business_active": 0,
+          "dial_processing": 0,
+          "gateway_callbacks_remaining": 0,
+          "gateway_active": 0,
+          "lifecycle_tasks_remaining": 0,
+          "voice_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 2100,
+              "due": 2100,
+              "future": 0,
+              "oldest_due_age_sec": 25.545
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "bc76e2e3b35895a24fcae7e9b1f5f58ab097b7887b71c431ba5310bbfe56e966",
+          "bytes": 77638
+        },
+        "commit-intervals.csv": {
+          "sha256": "73c836f74d3dda7e7b4b4653341702f0d956fd51a2412b30adbcd66f7fee791d",
+          "bytes": 73870
+        },
+        "application.log": {
+          "sha256": "925933afb349c08d6d37bad30e53129d6c002a0bfa6c2ee165ff00e181a7e590",
+          "bytes": 539642
+        },
+        "gc.log": {
+          "sha256": "6a2b21f2383a57507bdd8f516cd473c44d92496ffdacffaa82281611177b7b2f",
+          "bytes": 261183
+        },
+        "profile.jfr": {
+          "sha256": "22cea0636a7addc0761fbf4ffef30acce2ef856cad4889ed1d81c399c2662248",
+          "bytes": 56153637
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-dispatch-repair/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-9461dfa-ai-500",
+      "current_candidate": false,
+      "runtime_source_commit": "9461dfaec4574cc3f613fac7a2c27b5f76b9cbb3",
+      "metrics": {
+        "run_id": "4f7acbac",
+        "jar_sha256": "07a2a5f8e6c5b3077a373c173e65750e3dcfecc652bfa0e72706167979e29c32",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "callback_jdbc_pool_max": 2,
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 15,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 1,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-dispatch-repair/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "pending_after_drain_max": 0,
+          "reply_p95_ms_max": 1500,
+          "all_500_in_ai": true,
+          "scheduled_reply_fraction_min": 0.99,
+          "reply_p99_ms_max": 3000,
+          "http_success_fraction_min": 0.999
+        },
+        "admission": {
+          "elapsed_seconds": 127.780622117,
+          "p95_ms": 416.301444,
+          "http_status": {
+            "200": 500
+          },
+          "created": 500
+        },
+        "call_501": {
+          "active_count": 500,
+          "status": "queued",
+          "http": 200
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 48594.0,
+        "reply_p99_ms": 61491.0,
+        "steady_valid_reply_rps": 14.091666666666667,
+        "sent_turns": 2112,
+        "planned_turns": 6000,
+        "durable_replies": 2112,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 3888,
+        "pending_calls_after_drain": 0,
+        "delivered_within_steady_window": 1691,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "d6ffdf1aebdcb4b641b97780e158f123a799673fb0ed65dbac881b7a02ce064d",
+          "bytes": 4780
+        },
+        "samples.jsonl": {
+          "sha256": "336788dbad9ee6ce4c7bf25b1452cad4f6e4d6402daa587f367c58f799c59125",
+          "bytes": 71962
+        },
+        "application.log": {
+          "sha256": "a5d811192fb05ae3569914762cfbe772e5d304b2e908af9be58014b943d1b899",
+          "bytes": 1093442
+        },
+        "gc.log": {
+          "sha256": "014fa774b7f8db2d94fe602b4eca198a5c4a538bc5502a1b5d40bb67450a56f5",
+          "bytes": 214691
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "1c80ca6bd7483c0a930d0061c513bdb01b18aad16b5867e540fc4138cf07452e",
+          "bytes": 216733
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-control-reservation/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-09e51ca-max-one",
+      "current_candidate": false,
+      "runtime_source_commit": "09e51cac1b4736d560e5bdd203472b4d099c345e",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T03:39:55.478",
+          "captured": 895,
+          "business_active": 18,
+          "gateway_active": 18,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 99,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "run_id": "c8b4c59e",
+        "jar_sha256": "e7e69a1f7c030f7eee78968adceae8993189be0b31a010d74d2c71e47b5bda7e",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_upper_bound": 100,
+          "minimum_second_cps_lower_bound": 0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "average_cps_lower_bound": 10.0,
+          "per_second": [
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 10
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 13
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 16
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 18
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 20
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 21
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 26
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 29
+            }
+          ],
+          "peak_cps_lower_bound": 100,
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 900,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: stopped cohort must drain without dead tasks, unknown sends or resource leaks ==> expected: <3> but was: <0>",
+        "sending_barrier_lock_timeouts": 10,
+        "last_drain_sample": {
+          "at_ms": 1794368449847,
+          "business_active": 0,
+          "phone_guards": 0,
+          "reserved": 0,
+          "receipts_remaining": 0,
+          "dead_tasks": 41,
+          "platform_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "voice_counter_active": 0,
+          "lifecycle_tasks_remaining": 41,
+          "gateway_active": 0,
+          "gateway_callbacks_remaining": 0,
+          "dial_processing": 0,
+          "task_backlog": [
+            {
+              "type": "after_playback",
+              "state": "DEAD",
+              "count": 41,
+              "due": 41,
+              "future": 0,
+              "oldest_due_age_sec": 112.874,
+              "error_codes": "Failure"
+            },
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 100,
+              "due": 100,
+              "future": 0,
+              "oldest_due_age_sec": 54.387,
+              "error_codes": ""
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "fe07714572c4fbd66948fcc32f8375e0be862900e6bec722f8ddec2fab7edabc",
+          "bytes": 56807
+        },
+        "commit-intervals.csv": {
+          "sha256": "95ba1e072e9afaa1fcca5381117df5cd7189287b831f688365d37d7a6d0b83ab",
+          "bytes": 73870
+        },
+        "application.log": {
+          "sha256": "dd8325b186c41e55484202562214c6b43466cfa2bb12f7963a9c9398186c8ae9",
+          "bytes": 600017
+        },
+        "gc.log": {
+          "sha256": "b4406e930321ac8056e4cb3e17cec0e36f69a1a796bc157b3dceedc21a606f2a",
+          "bytes": 190790
+        },
+        "profile.jfr": {
+          "sha256": "e73bc1a3cb7efa0122f13493b7eeee16f1e106c78961d00ce67bc3f79f260d56",
+          "bytes": 58372869
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-control-reservation/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-09e51ca-max-large",
+      "current_candidate": false,
+      "runtime_source_commit": "09e51cac1b4736d560e5bdd203472b4d099c345e",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": true,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T03:46:22.572",
+          "captured": 682,
+          "business_active": 19,
+          "gateway_active": 18,
+          "pending_callbacks": 0,
+          "pending_inbox": 1,
+          "pending_lifecycle_tasks": 9,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "drain_invalid_identities": 0,
+        "unadmitted_queued_preserved": 30300,
+        "run_id": "cfd9adb1",
+        "jar_sha256": "e7e69a1f7c030f7eee78968adceae8993189be0b31a010d74d2c71e47b5bda7e",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "warmup_seconds": 10,
+        "measured_seconds": 20,
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "guaranteed_commits": 100,
+              "possible_commits": 100,
+              "second_after_phase": 10
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 13
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "guaranteed_commits": 100,
+              "possible_commits": 100,
+              "second_after_phase": 18
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 20
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 21
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "guaranteed_commits": 100,
+              "possible_commits": 100,
+              "second_after_phase": 26
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "guaranteed_commits": 0,
+              "possible_commits": 0,
+              "second_after_phase": 29
+            }
+          ],
+          "average_cps_lower_bound": 15.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 700,
+        "campaign_statistics_mismatches": 0,
+        "stop_drain_elapsed_sec": 153.672498973,
+        "stop_drain_verified": true,
+        "stop_drain_final": {
+          "phase": "FROZEN",
+          "epoch": 2,
+          "revision": 3,
+          "updated_at": "2026-11-11T03:46:22.572",
+          "captured": 682,
+          "business_active": 0,
+          "gateway_active": 0,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 0,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "observed_synthetic_lifetimes": {
+          "accepted": 700,
+          "answered": 700,
+          "ended": 700,
+          "min_ended_age_sec": 20.015000104904175,
+          "mean_ended_age_sec": 21.248870006969998,
+          "max_ended_age_sec": 28.311000108718872,
+          "ended_under_19_9_sec": 0,
+          "note": "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+        },
+        "short_occupancy_examples": [],
+        "passed": false,
+        "diagnostic_passed": true,
+        "capacity_qualified": false,
+        "sending_barrier_lock_timeouts": 2,
+        "last_drain_sample": {
+          "at_ms": 1794368804929,
+          "reserved": 0,
+          "phone_guards": 0,
+          "business_active": 0,
+          "dial_processing": 0,
+          "gateway_callbacks_remaining": 0,
+          "gateway_active": 0,
+          "lifecycle_tasks_remaining": 0,
+          "voice_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "platform_counter_active": 0,
+          "dead_tasks": 0,
+          "receipts_remaining": 0,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 2300,
+              "due": 2300,
+              "future": 0,
+              "oldest_due_age_sec": 23.252,
+              "error_codes": ""
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "fd9e673601fddf293ce8a9c1bbe8db7d8b75cce15d60c319f9c6e126bbf5ae29",
+          "bytes": 81540
+        },
+        "commit-intervals.csv": {
+          "sha256": "062394da3b55ce8365d428f501ce6f02d7f806c366459fef29d95b3bffa21714",
+          "bytes": 57470
+        },
+        "application.log": {
+          "sha256": "08859e82d4f0b4e3e0c766bdd34dcb46c77ecfd97b18b427b81ed367496e6a57",
+          "bytes": 626208
+        },
+        "gc.log": {
+          "sha256": "4981cf744103b319472e202c9b3f0423c8d1a29a1672fc414df281e9d897cd8a",
+          "bytes": 229421
+        },
+        "profile.jfr": {
+          "sha256": "91d6fbcb1537c7557bffde8d14680172c1c0212c5590fcfc62110e18875bce81",
+          "bytes": 58202731
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-control-reservation/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-09e51ca-ai-500",
+      "current_candidate": false,
+      "runtime_source_commit": "09e51cac1b4736d560e5bdd203472b4d099c345e",
+      "metrics": {
+        "run_id": "b6c53fd4",
+        "jar_sha256": "e7e69a1f7c030f7eee78968adceae8993189be0b31a010d74d2c71e47b5bda7e",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 19,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 1,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-control-reservation/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "http_success_fraction_min": 0.999,
+          "reply_p99_ms_max": 3000,
+          "scheduled_reply_fraction_min": 0.99,
+          "all_500_in_ai": true,
+          "reply_p95_ms_max": 1500,
+          "pending_after_drain_max": 0
+        },
+        "admission": {
+          "elapsed_seconds": 143.101718486,
+          "created": 500,
+          "http_status": {
+            "200": 500
+          },
+          "p95_ms": 437.695647
+        },
+        "call_501": {
+          "http": 200,
+          "status": "queued",
+          "active_count": 500
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 54167.0,
+        "reply_p99_ms": 61375.0,
+        "steady_valid_reply_rps": 12.675,
+        "sent_turns": 1983,
+        "planned_turns": 6000,
+        "durable_replies": 1926,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 4017,
+        "pending_calls_after_drain": 57,
+        "delivered_within_steady_window": 1521,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "4ded40eba9ed738139254e17044d7790f0611548a2c63b2bbea4123cc88ec395",
+          "bytes": 4805
+        },
+        "samples.jsonl": {
+          "sha256": "4f305ce96759aa8d744b9b4563a74730f174e418ec767625310cb7e6221fd767",
+          "bytes": 74815
+        },
+        "application.log": {
+          "sha256": "718ba5adb73996fff64f361d6ad654413dfaa82c1a8a9f2cbfd73fa795dd5057",
+          "bytes": 1057216
+        },
+        "gc.log": {
+          "sha256": "6d76de6961501176509e78e0273b5f5a7705a73050e2eedfcdd4f286f73a9b42",
+          "bytes": 219232
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "fa3bcdec8b9ded0439e37654bd142ec9b09f3d4512b3e2c41e29feddc0c1df37",
+          "bytes": 221924
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-local-speech/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-f8ffb04-max-one",
+      "current_candidate": false,
+      "runtime_source_commit": "f8ffb0441e9edf6e598c2cab0f8b8eb250957ffb",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "run_id": "db2300ea",
+        "jar_sha256": "ffe73d0985aaa0108d55fd2af8001230ded915cc78d2429c56f7c1ef5cf5ac0a",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "local_speech_consumption_enabled": true,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "per_second": [
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 10
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 13
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 18
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 20
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 0,
+              "second_after_phase": 21
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 26
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 29
+            }
+          ],
+          "peak_cps_lower_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_upper_bound": 100,
+          "minimum_second_cps_lower_bound": 0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "average_cps_lower_bound": 5.0,
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 899,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: sending barrier must close before drain deadline ==> expected: <true> but was: <false>",
+        "sending_barrier_lock_timeouts": 14
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "0f91eca029e9d4f5a567eadb58c52c353c7302522661f3d45867a325a16da280",
+          "bytes": 11751
+        },
+        "commit-intervals.csv": {
+          "sha256": "47176b5004c82fd0e30471d04ecf233863bb6a901d7fb07050f710da8f633bbc",
+          "bytes": 73788
+        },
+        "application.log": {
+          "sha256": "dbe93f8904163a99b33eee8e89037e7d37c4894d0e3411be594e38540c0c49fc",
+          "bytes": 1084961
+        },
+        "gc.log": {
+          "sha256": "55e0f6ddf055c7e3df12dc2098851cc39a9df4ebc3a7601a29cdcbe50c771902",
+          "bytes": 275011
+        },
+        "profile.jfr": {
+          "sha256": "dd605880c0968653f875f7fcb1bc20a8f8b09c86ceb1dd36828bd9455ff746f6",
+          "bytes": 61771071
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-local-speech/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-f8ffb04-max-large",
+      "current_candidate": false,
+      "runtime_source_commit": "f8ffb0441e9edf6e598c2cab0f8b8eb250957ffb",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": false,
+        "run_id": "e1758826",
+        "jar_sha256": "ffe73d0985aaa0108d55fd2af8001230ded915cc78d2429c56f7c1ef5cf5ac0a",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "local_speech_consumption_enabled": true,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "average_cps_lower_bound": 10.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "second_after_phase": 10,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 11,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 12,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 13,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 14,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 15,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 16,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 17,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 18,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 19,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 20,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 21,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 22,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 23,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 24,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 25,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 26,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 27,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 28,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 29,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            }
+          ],
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 400,
+        "campaign_statistics_mismatches": 0,
+        "capacity_qualified": false,
+        "probe_error": "org.opentest4j.AssertionFailedError: isolated maintenance: /v1/admin/dial-control/begin: {\"detail\":\"PLATFORM_LOCK_TIMEOUT\"} ==> expected: <200> but was: <503>"
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "82184af3d9226aab8e9d10c3dcb159e96a732c8a977f41358bd5e3ffd6e7618e",
+          "bytes": 11759
+        },
+        "commit-intervals.csv": {
+          "sha256": "059cef4b3a1d0428ce07565ebe35693c5ad927b6a9fe5e628f23a8c0c85d41f1",
+          "bytes": 32870
+        },
+        "application.log": {
+          "sha256": "0528f5a684b8a47f7396e342566bf18fb4cf3eb07ac1c665daa373fd400d41bc",
+          "bytes": 95310
+        },
+        "gc.log": {
+          "sha256": "b9e98df3f73816a91b9cc88d7d0b3325a126f36f16e0055ba8cb4c62d2f2a100",
+          "bytes": 118040
+        },
+        "profile.jfr": {
+          "sha256": "7b441250e5be24927f8a8014d090efb63e673871b3f21207cb72650196761aba",
+          "bytes": 26226669
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-local-speech/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/superseded-f8ffb04-ai-500",
+      "current_candidate": false,
+      "runtime_source_commit": "f8ffb0441e9edf6e598c2cab0f8b8eb250957ffb",
+      "metrics": {
+        "run_id": "278f759d",
+        "jar_sha256": "ffe73d0985aaa0108d55fd2af8001230ded915cc78d2429c56f7c1ef5cf5ac0a",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "callback_jdbc_pool_max": 4,
+          "control_jdbc_pool_max": 4,
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 21,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 4,
+          "callback_consumer_poll_ms": 10,
+          "callback_batch_size": 32,
+          "local_speech_consumption_enabled": true,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-local-speech/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "reply_p99_ms_max": 3000,
+          "scheduled_reply_fraction_min": 0.99,
+          "all_500_in_ai": true,
+          "reply_p95_ms_max": 1500,
+          "pending_after_drain_max": 0,
+          "http_success_fraction_min": 0.999
+        },
+        "admission": {
+          "created": 500,
+          "http_status": {
+            "200": 500
+          },
+          "p95_ms": 463.022782,
+          "elapsed_seconds": 152.551404272
+        },
+        "call_501": {
+          "status": "queued",
+          "active_count": 500,
+          "http": 200
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 27300.0,
+        "reply_p99_ms": 31410.0,
+        "steady_valid_reply_rps": 16.7,
+        "sent_turns": 2470,
+        "planned_turns": 6000,
+        "durable_replies": 2470,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 3530,
+        "pending_calls_after_drain": 0,
+        "delivered_within_steady_window": 2004,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "934323d519c64af4728bb4c266dd7080cabf1c9f5c8637cc2955af6178e06790",
+          "bytes": 4913
+        },
+        "samples.jsonl": {
+          "sha256": "927efe081947f4c5f4d294e337c76bd5a309ad59d657180ca7e7426cd200bfb0",
+          "bytes": 73187
+        },
+        "application.log": {
+          "sha256": "ae18d38a8c90a212dbca4635508763c7ca032092f25610ed99b49cd78b4550f6",
+          "bytes": 1199262
+        },
+        "gc.log": {
+          "sha256": "ccd4bbaee1a76cbb680ab7b1c6e59419277f1b6a7c5bf14881e5519bd176c1f1",
+          "bytes": 236145
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "4d9ebc18c8834b27274c8defb43460bdc0c4fa67c7033441e1488d4df0a71dc3",
+          "bytes": 250489
+        }
+      },
+      "measurement_caveat": "Superseded diagnostic while development continued on the same shared host; not a controlled performance comparison."
+    },
+    {
+      "name": "max-one",
+      "local_raw_directory": "outbound-mono/verification/20261111-drain-recovery/max-one",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/candidate-max-one",
+      "current_candidate": true,
+      "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": true,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T04:53:14.935",
+          "captured": 900,
+          "business_active": 37,
+          "gateway_active": 33,
+          "pending_callbacks": 0,
+          "pending_inbox": 5,
+          "pending_lifecycle_tasks": 11,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "drain_invalid_identities": 0,
+        "unadmitted_queued_preserved": 30100,
+        "run_id": "92837c6a",
+        "jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "100",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "local_speech_consumption_enabled": true,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "warmup_seconds": 10,
+        "measured_seconds": 20,
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "average_cps_lower_bound": 15.0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "minimum_second_cps_lower_bound": 0,
+          "peak_cps_upper_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_lower_bound": 100,
+          "per_second": [
+            {
+              "second_after_phase": 10,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 11,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 12,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 13,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 14,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 15,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 16,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 17,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 18,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 19,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 20,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 21,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 22,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 23,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 24,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 25,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 26,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 27,
+              "guaranteed_commits": 100,
+              "possible_commits": 100
+            },
+            {
+              "second_after_phase": 28,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            },
+            {
+              "second_after_phase": 29,
+              "guaranteed_commits": 0,
+              "possible_commits": 0
+            }
+          ],
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 900,
+        "campaign_statistics_mismatches": 0,
+        "stop_drain_elapsed_sec": 157.149988585,
+        "stop_drain_verified": true,
+        "stop_drain_final": {
+          "phase": "FROZEN",
+          "epoch": 2,
+          "revision": 3,
+          "updated_at": "2026-11-11T04:53:14.935",
+          "captured": 900,
+          "business_active": 0,
+          "gateway_active": 0,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 0,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "observed_synthetic_lifetimes": {
+          "accepted": 900,
+          "answered": 900,
+          "ended": 900,
+          "min_ended_age_sec": 20.013000011444092,
+          "mean_ended_age_sec": 21.825466689268747,
+          "max_ended_age_sec": 33.712000131607056,
+          "ended_under_19_9_sec": 0,
+          "note": "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+        },
+        "short_occupancy_examples": [],
+        "passed": false,
+        "diagnostic_passed": true,
+        "capacity_qualified": false,
+        "sending_barrier_lock_timeouts": 17,
+        "last_drain_sample": {
+          "at_ms": 1794372816175,
+          "gateway_callbacks_remaining": 0,
+          "gateway_active": 0,
+          "lifecycle_tasks_remaining": 0,
+          "voice_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "platform_counter_active": 0,
+          "dead_tasks": 0,
+          "receipts_remaining": 0,
+          "reserved": 0,
+          "phone_guards": 0,
+          "business_active": 0,
+          "dial_processing": 0,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "FAILED",
+              "count": 100,
+              "due": 100,
+              "future": 0,
+              "oldest_due_age_sec": 165.355,
+              "error_codes": "DeadlockLoserDataAccessException"
+            },
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 1000,
+              "due": 1000,
+              "future": 0,
+              "oldest_due_age_sec": 166.947,
+              "error_codes": ""
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "043678bd02e00b5f1787817455aa2ab9ff2f720a118df5b48eb057eada592bdc",
+          "bytes": 83502
+        },
+        "commit-intervals.csv": {
+          "sha256": "7cb23a80156e3cbb6ebbd31ee24cb16e345f34251f47bb4fab1d08a5543efd1c",
+          "bytes": 73870
+        },
+        "application.log": {
+          "sha256": "1b730a537cfb6b46db4aefe4b93182607534a36c07aea7e81ec7b114aa949e33",
+          "bytes": 923972
+        },
+        "gc.log": {
+          "sha256": "89c504dae650035939664ffbc4598b0542148a876d25cab45499f820d95f03e0",
+          "bytes": 193234
+        },
+        "profile.jfr": {
+          "sha256": "2ca3b9c0e928903759e69b1272a72b78e7a82aa7933a14740260dc0b0767cd39",
+          "bytes": 53441163
+        }
+      },
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+    },
+    {
+      "name": "max-large",
+      "local_raw_directory": "outbound-mono/verification/20261111-drain-recovery/max-large",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/candidate-max-large",
+      "current_candidate": true,
+      "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+      "metrics": {
+        "input_pool_not_exhausted": true,
+        "commit_snapshot_after_drain": true,
+        "sending_closed": {
+          "phase": "SEND_CLOSED",
+          "epoch": 2,
+          "revision": 2,
+          "updated_at": "2026-11-11T04:57:43.723",
+          "captured": 698,
+          "business_active": 88,
+          "gateway_active": 88,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 44,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "drain_invalid_identities": 0,
+        "unadmitted_queued_preserved": 30300,
+        "run_id": "eeb218c4",
+        "jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+        "scope": "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+        "target_cps": 500,
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 2000,
+          "ai_lane_threads_max": 4,
+          "callback_consumer_threads": 2,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 20000,
+          "application_jvms": 1,
+          "dial_batch_size": "500",
+          "gateway_command_batch_max": 100,
+          "callback_batch_size": "32",
+          "voice_callback_batch_enabled": true,
+          "VOICE_MAX_CONCURRENT": "20000",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "10000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "20",
+          "OUTBOUND_DAILY_CALL_LIMIT": "10000000",
+          "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED": "true",
+          "VOICE_ADMISSION_BATCH_CACHE_ENABLED": "false",
+          "JAVA_DIAL_RATE_CONTROL": "legacy",
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MATERIALIZED_LIMITS_ENABLED": "true",
+          "JAVA_DIAL_TOKEN_BURST": "35",
+          "dial_executor_threads": "4",
+          "general_task_executor_threads": "4",
+          "JAVA_TASK_CLAIM_PARALLEL_ENABLED": "true",
+          "JAVA_ANALYSIS_TASK_OWNERS": "0",
+          "JAVA_ANALYSIS_TASK_WORKERS": "2",
+          "JAVA_CONTROL_TASK_WORKERS": "4",
+          "JAVA_CONTROL_TASK_OWNERS": "4",
+          "JAVA_AI_TASK_WORKERS": "4",
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "local_speech_consumption_enabled": true,
+          "callback_jdbc_pool_max": 2,
+          "control_jdbc_pool_max": 4,
+          "total_business_jdbc_pool_max": 19,
+          "worker_poll_ms": "250",
+          "task_scheduler_threads": 1,
+          "dial_cohort_sizing": "fixed configured batch; live per-item token check",
+          "logical_task_lanes": 11,
+          "JAVA_ANALYSIS_BATCH_SIZE": "4",
+          "voice_callback_delivery_concurrency": "128",
+          "voice_callback_max_inflight_events": "128",
+          "VOICE_MOCK_ANSWER_PERCENT": "100",
+          "VOICE_MOCK_DISTRIBUTION_SEED": "v5-simulation-20261021",
+          "voice_callback_batch_size": "64",
+          "voice_callback_partition_groups": "2",
+          "voice_callback_protocol": "v1 for <=16; additive signed v2 for 17..64",
+          "callback_consumer_poll_ms": "10",
+          "daily_counter_read": false
+        },
+        "warmup_seconds": 10,
+        "measured_seconds": 20,
+        "queued_pool_size": 31000,
+        "commit_rate": {
+          "per_second": [
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 10
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 11
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 12
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 13
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 14
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 15
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 16
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 17
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 18
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 19
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 20
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 21
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 22
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 23
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 24
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 25
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 26
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 27
+            },
+            {
+              "possible_commits": 0,
+              "guaranteed_commits": 0,
+              "second_after_phase": 28
+            },
+            {
+              "possible_commits": 100,
+              "guaranteed_commits": 100,
+              "second_after_phase": 29
+            }
+          ],
+          "peak_cps_lower_bound": 100,
+          "counting": "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+          "peak_cps_upper_bound": 100,
+          "minimum_second_cps_lower_bound": 0,
+          "scope": "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+          "average_cps_lower_bound": 15.0,
+          "upper_bound_verified": true
+        },
+        "commit_evidence_complete": true,
+        "commit_evidence_missing": 0,
+        "duplicate_acknowledgement_identities": 0,
+        "invalid_commit_clocks": 0,
+        "unique_acknowledgement_identities": 700,
+        "campaign_statistics_mismatches": 0,
+        "stop_drain_elapsed_sec": 85.943052222,
+        "stop_drain_verified": true,
+        "stop_drain_final": {
+          "phase": "FROZEN",
+          "epoch": 2,
+          "revision": 3,
+          "updated_at": "2026-11-11T04:57:43.723",
+          "captured": 698,
+          "business_active": 0,
+          "gateway_active": 0,
+          "pending_callbacks": 0,
+          "pending_inbox": 0,
+          "pending_lifecycle_tasks": 0,
+          "external_pbx_verified": false,
+          "certificate_issued": false
+        },
+        "observed_synthetic_lifetimes": {
+          "accepted": 700,
+          "answered": 700,
+          "ended": 700,
+          "min_ended_age_sec": 20.01800012588501,
+          "mean_ended_age_sec": 22.07499718053,
+          "max_ended_age_sec": 28.121999979019165,
+          "ended_under_19_9_sec": 0,
+          "note": "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+        },
+        "short_occupancy_examples": [],
+        "passed": false,
+        "diagnostic_passed": true,
+        "capacity_qualified": false,
+        "sending_barrier_lock_timeouts": 3,
+        "last_drain_sample": {
+          "at_ms": 1794373085765,
+          "voice_counter_active": 0,
+          "lifecycle_tasks_remaining": 0,
+          "gateway_active": 0,
+          "gateway_callbacks_remaining": 0,
+          "dial_processing": 0,
+          "business_active": 0,
+          "phone_guards": 0,
+          "reserved": 0,
+          "receipts_remaining": 0,
+          "dead_tasks": 0,
+          "platform_counter_active": 0,
+          "mock_schedules_remaining": 0,
+          "task_backlog": [
+            {
+              "type": "dial_call",
+              "state": "PENDING",
+              "count": 2300,
+              "due": 2300,
+              "future": 0,
+              "oldest_due_age_sec": 92.875,
+              "error_codes": ""
+            }
+          ]
+        }
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "b4387645fa10073530accf99f74b6d5b7bf758be9b1e7f3b5c72256eb2e53031",
+          "bytes": 83464
+        },
+        "commit-intervals.csv": {
+          "sha256": "2e49e413efe5220d715f6af4b310c5cd47a7d4bccebddf0a0c1ca986a2cf154e",
+          "bytes": 57470
+        },
+        "application.log": {
+          "sha256": "d72e9602c2f0564ded79783d50e82dc97f1da6c20b467d6703f0eb95396e64e7",
+          "bytes": 582563
+        },
+        "gc.log": {
+          "sha256": "e895e8ace2284014561212693691c732846c20164d9ec5ed566d6bd775f71817",
+          "bytes": 161443
+        },
+        "profile.jfr": {
+          "sha256": "d2ce04951e607baf97c996f7f8a67d9155d4adfcf1a5fa245eec3c1c972a5a87",
+          "bytes": 41591261
+        }
+      },
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+    },
+    {
+      "name": "ai-500",
+      "local_raw_directory": "outbound-mono/verification/20261111-drain-recovery/ai-500",
+      "saved_evidence_directory": "docs/reviews/evidence/20261111-phase-repair/candidate-ai-500",
+      "current_candidate": true,
+      "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+      "metrics": {
+        "run_id": "9305c71f",
+        "jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+        "scope": "single fat jar / real MySQL and Redis / synthetic embedded voice, rule AI; no PCM, external model, PBX or real recording",
+        "configuration": {
+          "jvm_heap_max_gib": 2,
+          "db_pool_max": 8,
+          "voice_ledger_pool_max": 4,
+          "callback_jdbc_pool_max": 4,
+          "control_jdbc_pool_max": 4,
+          "realtime_jdbc_pool_max": 4,
+          "analysis_jdbc_pool_max": 1,
+          "total_business_jdbc_pool_max": 21,
+          "model_quota_window": "disabled; rule AI",
+          "http_inflight_limit": 100,
+          "api_rate_limit_rps": 100,
+          "worker_lanes": 11,
+          "task_executor_threads": 8,
+          "ai_lane_threads_max": 8,
+          "callback_consumer_threads": 4,
+          "callback_consumer_poll_ms": 10,
+          "callback_batch_size": 32,
+          "local_speech_consumption_enabled": true,
+          "external_model": "not used",
+          "audio": "not exercised",
+          "capacity_knobs": 500,
+          "application_jvms": 1,
+          "JAVA_DIAL_AUTH_PROTOCOL": "2",
+          "VOICE_MAX_CONCURRENT": "500",
+          "VOICE_CPS": "1000",
+          "VOICE_DAILY_CALL_LIMIT": "1000000",
+          "VOICE_HOUR_BUDGET_MINOR": "1000000000",
+          "VOICE_DAY_BUDGET_MINOR": "1000000000",
+          "VOICE_MOCK_OCCUPANCY_SEC": "600"
+        },
+        "probe_error": "org.opentest4j.AssertionFailedError: 500-call simulation missed its stated SLO; complete evidence: verification/20261111-drain-recovery/ai-500/result.json ==> expected: <true> but was: <false>",
+        "target_calls": 500,
+        "target_turns_per_second": 50,
+        "hold_seconds": 120,
+        "thresholds": {
+          "pending_after_drain_max": 0,
+          "reply_p95_ms_max": 1500,
+          "all_500_in_ai": true,
+          "scheduled_reply_fraction_min": 0.99,
+          "reply_p99_ms_max": 3000,
+          "http_success_fraction_min": 0.999
+        },
+        "admission": {
+          "p95_ms": 467.908567,
+          "http_status": {
+            "200": 500
+          },
+          "created": 500,
+          "elapsed_seconds": 146.297893595
+        },
+        "call_501": {
+          "active_count": 500,
+          "status": "queued",
+          "http": 200
+        },
+        "held_500_in_steady_samples": true,
+        "simulation_slo_passed": false,
+        "reply_p95_ms": 27527.0,
+        "reply_p99_ms": 32021.0,
+        "steady_valid_reply_rps": 15.816666666666666,
+        "sent_turns": 2342,
+        "planned_turns": 6000,
+        "durable_replies": 2342,
+        "generator_missed_slots": 0,
+        "call_waiting_missed_slots": 3658,
+        "pending_calls_after_drain": 0,
+        "delivered_within_steady_window": 1898,
+        "real_500_audio_capacity_verified": false,
+        "production_capacity_verified": false
+      },
+      "artifacts": {
+        "result.json": {
+          "sha256": "9097b25e4e027fee36f38ea7ef042bd0c341742ab044ce3ea9cbe5854ad4e554",
+          "bytes": 4931
+        },
+        "samples.jsonl": {
+          "sha256": "1eadd0814798d6010980219002fb2feb2fe8200a84244f2345bf42e5d532e398",
+          "bytes": 70816
+        },
+        "application.log": {
+          "sha256": "b468e666f40ac42afaf62fb54d5c776e88ff99bead28f36f767aac410f126c49",
+          "bytes": 1161953
+        },
+        "gc.log": {
+          "sha256": "af2ded04d49acddd7bc497b17569f252ba27fd2c39c90168d48e245bcc1544b6",
+          "bytes": 232567
+        },
+        "thread-dump-60s.txt": {
+          "sha256": "da41c28b4513e0aee89c82a1ae4e3543c880f3d66e23026bac9712661a42693b",
+          "bytes": 281291
+        }
+      },
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+    }
+  ],
+  "aborted_attempts": [
+    {
+      "directory": "20261111-phases-final",
+      "source_commit": "dca61bdb1bdba436fe457676bdb04dd824ef74c4",
+      "note": "Functional verification passed: 33 unit + 54 integration. Subsequent pressure startup was cancelled before a valid measurement window to preserve ordered inbox replay and gateway transport fencing in the next candidate. No capacity conclusion from this incomplete pressure attempt.",
+      "functional_tests": {
+        "unit": 33,
+        "integration": 54,
+        "failures": 0,
+        "errors": 0
+      },
+      "capacity_qualified": false
+    },
+    {
+      "directory": "20261111-media-conflict",
+      "source_commit": "45f176456c04f5760f3b412dc2add24a3b55577d",
+      "note": "Full unit run: 409 tests, one exact ledger table-list assertion failed after V50 added voice_terminal_fact. Updated the explicit list; no pressure cases executed. Earlier test compile Map inference failure also retained locally.",
+      "functional_log_sha256": "8d025b4e3124b4ea3561072f1238dbd2b9a93f52713e2f5a5754471f501537d5"
+    },
+    {
+      "directory": "20261111-local-speech/preflight",
+      "note": "10 unit passed; 2 selected integration, one test-fixture failure: a previous terminal fixture enqueued analysis ahead of the HTTP 500 control. Final fixture uses independent tenants for the two error cases. Full candidate integration suite rerun.",
+      "functional_log_sha256": "dfe0ebfdb0dbe7e1e95bda25272886e320d0c696f8166d5144bba93ed20fee5a"
+    }
+  ],
+  "host_manifest": {
+    "recorded_at_utc": "2026-11-11T04:42:14.214937+00:00",
+    "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+    "architecture": "x86_64",
+    "cpu_max": "400000 100000",
+    "memory_max": "17179869184",
+    "jdk": "openjdk version \"21.0.9\" 2025-10-21 LTS\nOpenJDK Runtime Environment Temurin-21.0.9+10 (build 21.0.9+10-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.9+10 (build 21.0.9+10-LTS, mixed mode, sharing)",
+    "mysql_image_id": "sha256:0f1a0ccadda3a1734d1db557e203ec58621d56fa248525016e85fe4f631311ec",
+    "redis_image_id": "sha256:3a17a97bb6c7d9a7ee1bd3d5ecf7c6d02adf4bfd9fe73a974b3767b442dfbfaa"
+  },
+  "media_process_smoke": {
+    "scope": "isolated media JVM HTTP/epoch smoke; no PCM, real provider, database failover or continuity qualification",
+    "jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+    "first_epoch": "96934dc87f3f410ba85a2079b6337ca9",
+    "worker_id": "smoke-worker",
+    "second_epoch": "5b9d906e06aa40b5b152950aeaa6c4ba",
+    "old_epoch_status": 409,
+    "passed": true
+  },
+  "reproduction": {
+    "working_directory": "outbound-mono",
+    "source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+    "build": "mvn -B -Dtest=CallReconciliationTest,DialAdmissionChunkTest,CallbackRotationTest,MediaWorkerApplicationTest,MediaTest,ResourceLayoutTest,DialDrainRetryTest,VoiceMockExecutionTest,DialChunkDispatchTest -Dit.test=QueueConcurrencyIT,DialV5ProtocolIT,RuntimeOwnershipIT,DataLayerReplayIT verify",
+    "common_probe_arguments": "-Dcapacity.mysql.bufferMiB=512 -Dcapacity.mysql.tableCache=512 -Dcapacity.mysql.packetMiB=16 -Dcapacity.mysql.redoMiB=256",
+    "maximum_one": "mvn -B -Dtest=MaximumDialRateProbe -Dcapacity.jfr=true -Ddial.task.parallel=true -Ddial.analysis.batch=4 -Ddial.source=queue -Ddial.batch=100 -Ddial.campaigns=1 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=32 -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Ddial.output=verification/reproduce-max-one surefire:test",
+    "maximum_large": "Same maximum_one arguments, with -Ddial.batch=500 -Ddial.campaigns=16 and a different output directory.",
+    "ai_500": "mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.callback.workers=4 -Dcapacity.callback.pool=4 -Dcapacity.callback.poll.ms=10 -Dcapacity.callback.batch=32 -Dcapacity.output=verification/reproduce-ai-500 surefire:test",
+    "note": "Append common_probe_arguments to each probe command. Package once, then use surefire:test so all three probes use the same Jar; do not rebuild between probes."
+  },
+  "production_capacity_verified": false,
+  "stable_maximum_cps_verified": false
+}

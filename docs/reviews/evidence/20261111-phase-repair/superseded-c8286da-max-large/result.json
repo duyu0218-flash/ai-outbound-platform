@@ -1,0 +1,308 @@
+{
+  "run_id" : "f52f31a5",
+  "scope" : "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+  "target_cps" : 500,
+  "seconds" : 20,
+  "jar_sha256" : "c9bfec232585a4e40f646da88b185ac5346106403e686c5ea3df3fcdf7d8b229",
+  "dial_source" : "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+  "drain_diagnostic_only" : true,
+  "calibration_only" : false,
+  "capacity_qualified" : false,
+  "maximum_rate_diagnostic_only" : true,
+  "campaign_count" : 16,
+  "mysql_resource_overrides" : {
+    "bufferMiB" : 512,
+    "tableCache" : 512,
+    "packetMiB" : 16,
+    "redoMiB" : 256
+  },
+  "mysql_buffer_pool_override_mib" : 512,
+  "mysql_binlog_compression_override" : false,
+  "mysql_actual_variables" : {
+    "binlog_group_commit_sync_delay" : "0",
+    "binlog_row_image" : "FULL",
+    "binlog_transaction_compression" : "OFF",
+    "innodb_buffer_pool_size" : "536870912",
+    "innodb_flush_log_at_trx_commit" : "1",
+    "innodb_redo_log_capacity" : "268435456",
+    "log_bin" : "ON",
+    "max_allowed_packet" : "16777216",
+    "sync_binlog" : "1",
+    "table_open_cache" : "512",
+    "transaction_isolation" : "REPEATABLE-READ",
+    "version" : "8.4.13",
+    "version_comment" : "MySQL Community Server - GPL"
+  },
+  "mysql_container" : "a6dfe2c4571dd4f4cf4cbd95982ab1eb446c8acdeb0521c1bf4abda3cbb1a399",
+  "redis_container" : "0faeed7a2faecc635308a0741fe385be1d6d53abaee952f87a1100cff6dc9c42",
+  "mysql_jdbc" : "jdbc:mysql://localhost:32906/test?connectTimeout=3000&socketTimeout=10000",
+  "profile_jfr" : true,
+  "configuration" : {
+    "jvm_heap_max_gib" : 2,
+    "db_pool_max" : 8,
+    "voice_ledger_pool_max" : 4,
+    "model_quota_window" : "disabled; rule AI",
+    "http_inflight_limit" : 100,
+    "api_rate_limit_rps" : 2000,
+    "ai_lane_threads_max" : 4,
+    "callback_consumer_threads" : 2,
+    "external_model" : "not used",
+    "audio" : "not exercised",
+    "capacity_knobs" : 20000,
+    "application_jvms" : 1,
+    "dial_batch_size" : "500",
+    "gateway_command_batch_max" : 100,
+    "callback_batch_size" : "32",
+    "voice_callback_batch_enabled" : true,
+    "VOICE_MAX_CONCURRENT" : "20000",
+    "VOICE_CPS" : "1000",
+    "VOICE_DAILY_CALL_LIMIT" : "10000000",
+    "VOICE_HOUR_BUDGET_MINOR" : "1000000000",
+    "VOICE_DAY_BUDGET_MINOR" : "1000000000",
+    "VOICE_MOCK_OCCUPANCY_SEC" : "20",
+    "OUTBOUND_DAILY_CALL_LIMIT" : "10000000",
+    "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED" : "true",
+    "VOICE_ADMISSION_BATCH_CACHE_ENABLED" : "false",
+    "JAVA_DIAL_RATE_CONTROL" : "legacy",
+    "JAVA_DIAL_AUTH_PROTOCOL" : "2",
+    "VOICE_MATERIALIZED_LIMITS_ENABLED" : "true",
+    "JAVA_DIAL_TOKEN_BURST" : "35",
+    "dial_executor_threads" : "4",
+    "general_task_executor_threads" : "4",
+    "JAVA_TASK_CLAIM_PARALLEL_ENABLED" : "false",
+    "JAVA_ANALYSIS_TASK_OWNERS" : "0",
+    "JAVA_CONTROL_TASK_OWNERS" : "4",
+    "JAVA_CONTROL_TASK_WORKERS" : "4",
+    "JAVA_ANALYSIS_TASK_WORKERS" : "2",
+    "JAVA_AI_TASK_WORKERS" : "4",
+    "realtime_jdbc_pool_max" : 4,
+    "analysis_jdbc_pool_max" : 1,
+    "total_business_jdbc_pool_max" : 13,
+    "worker_poll_ms" : "250",
+    "task_scheduler_threads" : 1,
+    "dial_cohort_sizing" : "fixed configured batch; live per-item token check",
+    "logical_task_lanes" : 11,
+    "JAVA_ANALYSIS_BATCH_SIZE" : "1",
+    "voice_callback_delivery_concurrency" : "128",
+    "voice_callback_max_inflight_events" : "128",
+    "VOICE_MOCK_ANSWER_PERCENT" : "100",
+    "VOICE_MOCK_DISTRIBUTION_SEED" : "v5-simulation-20261021",
+    "voice_callback_batch_size" : "64",
+    "voice_callback_partition_groups" : "2",
+    "voice_callback_protocol" : "v1 for <=16; additive signed v2 for 17..64",
+    "callback_consumer_poll_ms" : "10",
+    "daily_counter_read" : false
+  },
+  "application_pid" : 150644,
+  "fixtures" : "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+  "mysql_physical_before_workload" : {
+    "at_ms" : 1794362480123,
+    "exit" : 0,
+    "du_sk" : "427360\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 41252,
+      "redo" : 262148,
+      "binlogs" : 10700
+    },
+    "largest_paths_du_kib" : "427368\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n41252\t/var/lib/mysql/test\n36868\t/var/lib/mysql/mysql.ibd\n16388\t/var/lib/mysql/undo_002\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12292\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo6\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo5\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo4\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo34_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo33_tmp"
+  },
+  "phase_start_ms" : 1794362535536,
+  "db_stats_before" : {
+    "Com_commit" : 21909,
+    "Com_insert" : 186140,
+    "Com_rollback" : 0,
+    "Com_select" : 190291,
+    "Com_stmt_execute" : 104045,
+    "Com_update" : 40434,
+    "Innodb_row_lock_time" : 0,
+    "Questions" : 244464
+  },
+  "mysql_physical_after_queue_commit" : {
+    "at_ms" : 1794362536483,
+    "exit" : 0,
+    "du_sk" : "614924\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 151084,
+      "redo" : 262148,
+      "binlogs" : 72044
+    },
+    "largest_paths_du_kib" : "614928\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n151084\t/var/lib/mysql/test\n69112\t/var/lib/mysql/binlog.000002\n57348\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32772\t/var/lib/mysql/undo_002\n22532\t/var/lib/mysql/test/ops_call_statistics.ibd\n18436\t/var/lib/mysql/test/dial_fact_revision.ibd\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12292\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7"
+  },
+  "queued_pool_size" : 31000,
+  "event_time_buckets_before_stop" : {
+    "10" : 1,
+    "18" : 1,
+    "20" : 1,
+    "23" : 1,
+    "26" : 1,
+    "27" : 100,
+    "29" : 1,
+    "31" : 1
+  },
+  "event_time_bucket_note" : "Event timestamps are diagnostic only; capacity uses post-commit intervals.",
+  "stop_requested_at_ms" : 1794362567575,
+  "backlog_at_stop_request" : {
+    "at_ms" : 1794362567575,
+    "reserved" : 1198,
+    "phone_guards" : 1198,
+    "business_active" : 1198,
+    "dial_processing" : 1500,
+    "gateway_callbacks_remaining" : 0,
+    "gateway_active" : 108,
+    "lifecycle_tasks_remaining" : 1203,
+    "voice_counter_active" : 324,
+    "mock_schedules_remaining" : 108,
+    "platform_counter_active" : 3594,
+    "dead_tasks" : 0,
+    "receipts_remaining" : 0,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 33,
+      "due" : 0,
+      "future" : 33,
+      "oldest_due_age_sec" : 0.0
+    }, {
+      "type" : "ai_turn",
+      "state" : "PENDING",
+      "count" : 69,
+      "due" : 69,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.668
+    }, {
+      "type" : "ai_turn",
+      "state" : "PROCESSING",
+      "count" : 2,
+      "due" : 2,
+      "future" : 0,
+      "oldest_due_age_sec" : 3.746
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1400,
+      "due" : 1400,
+      "future" : 0,
+      "oldest_due_age_sec" : 9.243
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 1500,
+      "due" : 1500,
+      "future" : 0,
+      "oldest_due_age_sec" : 18.825
+    } ]
+  },
+  "drain_begin" : {
+    "phase" : "ADMISSION_CLOSED",
+    "epoch" : 2,
+    "revision" : 1,
+    "updated_at" : "2026-11-11T02:02:49.236",
+    "captured" : 1298,
+    "business_active" : 1298,
+    "gateway_active" : 208,
+    "pending_callbacks" : 100,
+    "pending_inbox" : 0,
+    "pending_lifecycle_tasks" : 104,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "input_pool_not_exhausted" : true,
+  "commit_snapshot_after_drain" : false,
+  "commit_rate" : {
+    "minimum_second_cps_lower_bound" : 0,
+    "peak_cps_upper_bound" : 100,
+    "counting" : "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+    "peak_cps_lower_bound" : 100,
+    "per_second" : [ {
+      "guaranteed_commits" : 1,
+      "possible_commits" : 1,
+      "second_after_phase" : 10
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 11
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 12
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 13
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 14
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 15
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 16
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 17
+    }, {
+      "guaranteed_commits" : 1,
+      "possible_commits" : 1,
+      "second_after_phase" : 18
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 19
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 1,
+      "second_after_phase" : 20
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 1,
+      "second_after_phase" : 21
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 22
+    }, {
+      "guaranteed_commits" : 1,
+      "possible_commits" : 1,
+      "second_after_phase" : 23
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 24
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 25
+    }, {
+      "guaranteed_commits" : 1,
+      "possible_commits" : 1,
+      "second_after_phase" : 26
+    }, {
+      "guaranteed_commits" : 100,
+      "possible_commits" : 100,
+      "second_after_phase" : 27
+    }, {
+      "guaranteed_commits" : 0,
+      "possible_commits" : 0,
+      "second_after_phase" : 28
+    }, {
+      "guaranteed_commits" : 1,
+      "possible_commits" : 1,
+      "second_after_phase" : 29
+    } ],
+    "average_cps_lower_bound" : 5.25,
+    "scope" : "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+    "upper_bound_verified" : true
+  },
+  "commit_evidence_missing" : 0,
+  "duplicate_acknowledgement_identities" : 0,
+  "invalid_commit_clocks" : 0,
+  "unique_acknowledgement_identities" : 410,
+  "commit_evidence_complete" : true,
+  "campaign_statistics_mismatches" : 0,
+  "probe_error" : "org.opentest4j.AssertionFailedError: only unresolved sending or a bounded lock timeout may postpone the barrier: {\"timestamp\":\"2026-11-11T02:02:58.034+00:00\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/v1/admin/dial-control/close-sending\"} ==> expected: <409> but was: <500>"
+}

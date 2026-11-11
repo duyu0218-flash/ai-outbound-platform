@@ -1,0 +1,2492 @@
+{
+  "run_id" : "eeb218c4",
+  "scope" : "Preloaded number pool with real durable scheduling / real MySQL+Redis / embedded mock telephony. No real SIP, RTP, audio, cloud models or public numbers.",
+  "target_cps" : 500,
+  "seconds" : 20,
+  "jar_sha256" : "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
+  "dial_source" : "Preloaded QUEUED pool; real enqueueDue/outbox/admission/mock gateway, no HTTP creation requests",
+  "drain_diagnostic_only" : true,
+  "calibration_only" : false,
+  "capacity_qualified" : false,
+  "maximum_rate_diagnostic_only" : true,
+  "campaign_count" : 16,
+  "mysql_resource_overrides" : {
+    "bufferMiB" : 512,
+    "tableCache" : 512,
+    "packetMiB" : 16,
+    "redoMiB" : 256
+  },
+  "mysql_buffer_pool_override_mib" : 512,
+  "mysql_binlog_compression_override" : false,
+  "mysql_actual_variables" : {
+    "binlog_group_commit_sync_delay" : "0",
+    "binlog_row_image" : "FULL",
+    "binlog_transaction_compression" : "OFF",
+    "innodb_buffer_pool_size" : "536870912",
+    "innodb_flush_log_at_trx_commit" : "1",
+    "innodb_redo_log_capacity" : "268435456",
+    "log_bin" : "ON",
+    "max_allowed_packet" : "16777216",
+    "sync_binlog" : "1",
+    "table_open_cache" : "512",
+    "transaction_isolation" : "REPEATABLE-READ",
+    "version" : "8.4.13",
+    "version_comment" : "MySQL Community Server - GPL"
+  },
+  "mysql_container" : "5b88be0924727d6a50c1764af25c2aa051ab45d17f95807fb50abe87cf04768f",
+  "redis_container" : "441ae643f1250b2159edd09b1a2b9239c2416e6c20acabca37f9b864baadd4d9",
+  "mysql_jdbc" : "jdbc:mysql://localhost:33019/test?connectTimeout=3000&socketTimeout=10000",
+  "profile_jfr" : true,
+  "configuration" : {
+    "jvm_heap_max_gib" : 2,
+    "db_pool_max" : 8,
+    "voice_ledger_pool_max" : 4,
+    "model_quota_window" : "disabled; rule AI",
+    "http_inflight_limit" : 100,
+    "api_rate_limit_rps" : 2000,
+    "ai_lane_threads_max" : 4,
+    "callback_consumer_threads" : 2,
+    "external_model" : "not used",
+    "audio" : "not exercised",
+    "capacity_knobs" : 20000,
+    "application_jvms" : 1,
+    "dial_batch_size" : "500",
+    "gateway_command_batch_max" : 100,
+    "callback_batch_size" : "32",
+    "voice_callback_batch_enabled" : true,
+    "VOICE_MAX_CONCURRENT" : "20000",
+    "VOICE_CPS" : "1000",
+    "VOICE_DAILY_CALL_LIMIT" : "10000000",
+    "VOICE_HOUR_BUDGET_MINOR" : "1000000000",
+    "VOICE_DAY_BUDGET_MINOR" : "1000000000",
+    "VOICE_MOCK_OCCUPANCY_SEC" : "20",
+    "OUTBOUND_DAILY_CALL_LIMIT" : "10000000",
+    "JAVA_CALLBACK_TERMINAL_BATCH_ENABLED" : "true",
+    "VOICE_ADMISSION_BATCH_CACHE_ENABLED" : "false",
+    "JAVA_DIAL_RATE_CONTROL" : "legacy",
+    "JAVA_DIAL_AUTH_PROTOCOL" : "2",
+    "VOICE_MATERIALIZED_LIMITS_ENABLED" : "true",
+    "JAVA_DIAL_TOKEN_BURST" : "35",
+    "dial_executor_threads" : "4",
+    "general_task_executor_threads" : "4",
+    "JAVA_TASK_CLAIM_PARALLEL_ENABLED" : "true",
+    "JAVA_ANALYSIS_TASK_OWNERS" : "0",
+    "JAVA_ANALYSIS_TASK_WORKERS" : "2",
+    "JAVA_CONTROL_TASK_WORKERS" : "4",
+    "JAVA_CONTROL_TASK_OWNERS" : "4",
+    "JAVA_AI_TASK_WORKERS" : "4",
+    "realtime_jdbc_pool_max" : 4,
+    "analysis_jdbc_pool_max" : 1,
+    "local_speech_consumption_enabled" : true,
+    "callback_jdbc_pool_max" : 2,
+    "control_jdbc_pool_max" : 4,
+    "total_business_jdbc_pool_max" : 19,
+    "worker_poll_ms" : "250",
+    "task_scheduler_threads" : 1,
+    "dial_cohort_sizing" : "fixed configured batch; live per-item token check",
+    "logical_task_lanes" : 11,
+    "JAVA_ANALYSIS_BATCH_SIZE" : "4",
+    "voice_callback_delivery_concurrency" : "128",
+    "voice_callback_max_inflight_events" : "128",
+    "VOICE_MOCK_ANSWER_PERCENT" : "100",
+    "VOICE_MOCK_DISTRIBUTION_SEED" : "v5-simulation-20261021",
+    "voice_callback_batch_size" : "64",
+    "voice_callback_partition_groups" : "2",
+    "voice_callback_protocol" : "v1 for <=16; additive signed v2 for 17..64",
+    "callback_consumer_poll_ms" : "10",
+    "daily_counter_read" : false
+  },
+  "application_pid" : 285980,
+  "fixtures" : "Isolated explicitly-consented synthetic contacts and QUEUED calls committed together; actual durable scheduler performs all admission and dial transitions. No public telephone calls.",
+  "mysql_physical_before_workload" : {
+    "at_ms" : 1794372915803,
+    "exit" : 0,
+    "du_sk" : "426224\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 41352,
+      "redo" : 262148,
+      "binlogs" : 9444
+    },
+    "largest_paths_du_kib" : "426224\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n41352\t/var/lib/mysql/test\n36868\t/var/lib/mysql/mysql.ibd\n16388\t/var/lib/mysql/undo_002\n16384\t/var/lib/mysql/undo_001\n15364\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo6\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo5\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo4\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo34_tmp\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo33_tmp"
+  },
+  "phase_start_ms" : 1794372967609,
+  "db_stats_before" : {
+    "Com_commit" : 11119,
+    "Com_insert" : 186141,
+    "Com_rollback" : 0,
+    "Com_select" : 173985,
+    "Com_stmt_execute" : 71178,
+    "Com_update" : 31392,
+    "Innodb_row_lock_time" : 0,
+    "Questions" : 177863
+  },
+  "mysql_physical_after_queue_commit" : {
+    "at_ms" : 1794372968575,
+    "exit" : 0,
+    "du_sk" : "617216\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 157328,
+      "redo" : 262148,
+      "binlogs" : 68076
+    },
+    "largest_paths_du_kib" : "617216\t/var/lib/mysql\n262148\t/var/lib/mysql/#innodb_redo\n157328\t/var/lib/mysql/test\n65160\t/var/lib/mysql/binlog.000002\n61444\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_001\n25604\t/var/lib/mysql/test/ops_call_statistics.ibd\n17412\t/var/lib/mysql/test/dial_fact_revision.ibd\n16388\t/var/lib/mysql/undo_002\n15364\t/var/lib/mysql/test/contact.ibd\n12288\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1\n12288\t/var/lib/mysql/ibdata1\n12288\t/var/lib/mysql/#ib_16384_1.dblwr\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo9\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo8\n8192\t/var/lib/mysql/#innodb_redo/#ib_redo7"
+  },
+  "queued_pool_size" : 31000,
+  "event_time_buckets_before_stop" : {
+    "6" : 100,
+    "13" : 100,
+    "20" : 100,
+    "29" : 100
+  },
+  "event_time_bucket_note" : "Event timestamps are diagnostic only; capacity uses post-commit intervals.",
+  "stop_requested_at_ms" : 1794372999887,
+  "backlog_at_stop_request" : {
+    "at_ms" : 1794372999887,
+    "voice_counter_active" : 816,
+    "lifecycle_tasks_remaining" : 380,
+    "gateway_active" : 272,
+    "gateway_callbacks_remaining" : 196,
+    "dial_processing" : 1000,
+    "business_active" : 600,
+    "phone_guards" : 600,
+    "reserved" : 600,
+    "receipts_remaining" : 68,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 1800,
+    "mock_schedules_remaining" : 272,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 103,
+      "due" : 7,
+      "future" : 96,
+      "oldest_due_age_sec" : 1.46,
+      "error_codes" : ""
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 2,
+      "due" : 2,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.502,
+      "error_codes" : ""
+    }, {
+      "type" : "ai_turn",
+      "state" : "PENDING",
+      "count" : 72,
+      "due" : 72,
+      "future" : 0,
+      "oldest_due_age_sec" : 9.371,
+      "error_codes" : ""
+    }, {
+      "type" : "ai_turn",
+      "state" : "PROCESSING",
+      "count" : 3,
+      "due" : 3,
+      "future" : 0,
+      "oldest_due_age_sec" : 9.387,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 1600,
+      "due" : 1600,
+      "future" : 0,
+      "oldest_due_age_sec" : 12.009,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 1000,
+      "due" : 1000,
+      "future" : 0,
+      "oldest_due_age_sec" : 17.603,
+      "error_codes" : ""
+    } ]
+  },
+  "drain_begin" : {
+    "phase" : "ADMISSION_CLOSED",
+    "epoch" : 2,
+    "revision" : 1,
+    "updated_at" : "2026-11-11T04:56:42.496",
+    "captured" : 698,
+    "business_active" : 698,
+    "gateway_active" : 372,
+    "pending_callbacks" : 100,
+    "pending_inbox" : 196,
+    "pending_lifecycle_tasks" : 170,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "sending_barrier_lock_timeouts" : 3,
+  "sending_closed" : {
+    "phase" : "SEND_CLOSED",
+    "epoch" : 2,
+    "revision" : 2,
+    "updated_at" : "2026-11-11T04:57:43.723",
+    "captured" : 698,
+    "business_active" : 88,
+    "gateway_active" : 88,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 0,
+    "pending_lifecycle_tasks" : 44,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "fixed_attempt_count_after_sending_closed" : 700,
+  "stop_drain_samples" : [ {
+    "at_ms" : 1794373063916,
+    "voice_counter_active" : 264,
+    "lifecycle_tasks_remaining" : 61,
+    "gateway_active" : 88,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 19,
+    "business_active" : 88,
+    "phone_guards" : 88,
+    "reserved" : 88,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 264,
+    "mock_schedules_remaining" : 88,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 39,
+      "due" : 15,
+      "future" : 24,
+      "oldest_due_age_sec" : 0.935,
+      "error_codes" : ""
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 3,
+      "due" : 3,
+      "future" : 0,
+      "oldest_due_age_sec" : 1.049,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 71.15,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PROCESSING",
+      "count" : 19,
+      "due" : 19,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.881,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373065154,
+    "voice_counter_active" : 261,
+    "lifecycle_tasks_remaining" : 21,
+    "gateway_active" : 87,
+    "gateway_callbacks_remaining" : 1,
+    "dial_processing" : 0,
+    "business_active" : 88,
+    "phone_guards" : 88,
+    "reserved" : 88,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 264,
+    "mock_schedules_remaining" : 87,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 19,
+      "due" : 3,
+      "future" : 16,
+      "oldest_due_age_sec" : 0.185,
+      "error_codes" : ""
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 2,
+      "due" : 2,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.29,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 72.318,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373066296,
+    "voice_counter_active" : 255,
+    "lifecycle_tasks_remaining" : 16,
+    "gateway_active" : 85,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 86,
+    "phone_guards" : 86,
+    "reserved" : 86,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 258,
+    "mock_schedules_remaining" : 85,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 16,
+      "due" : 0,
+      "future" : 16,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 73.43,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373067390,
+    "voice_counter_active" : 225,
+    "lifecycle_tasks_remaining" : 10,
+    "gateway_active" : 75,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 75,
+    "phone_guards" : 75,
+    "reserved" : 75,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 225,
+    "mock_schedules_remaining" : 75,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 10,
+      "due" : 0,
+      "future" : 10,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 74.523,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373068478,
+    "voice_counter_active" : 210,
+    "lifecycle_tasks_remaining" : 7,
+    "gateway_active" : 70,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 70,
+    "phone_guards" : 70,
+    "reserved" : 70,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 210,
+    "mock_schedules_remaining" : 70,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 6,
+      "due" : 0,
+      "future" : 6,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "after_playback",
+      "state" : "PROCESSING",
+      "count" : 1,
+      "due" : 1,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.159,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 75.621,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373069569,
+    "voice_counter_active" : 207,
+    "lifecycle_tasks_remaining" : 5,
+    "gateway_active" : 69,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 69,
+    "phone_guards" : 69,
+    "reserved" : 69,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 207,
+    "mock_schedules_remaining" : 69,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 5,
+      "due" : 0,
+      "future" : 5,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 76.677,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373070627,
+    "voice_counter_active" : 135,
+    "lifecycle_tasks_remaining" : 4,
+    "gateway_active" : 45,
+    "gateway_callbacks_remaining" : 6,
+    "dial_processing" : 0,
+    "business_active" : 66,
+    "phone_guards" : 66,
+    "reserved" : 66,
+    "receipts_remaining" : 15,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 198,
+    "mock_schedules_remaining" : 45,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 4,
+      "due" : 0,
+      "future" : 4,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 77.775,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373071729,
+    "voice_counter_active" : 78,
+    "lifecycle_tasks_remaining" : 17,
+    "gateway_active" : 26,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 37,
+    "phone_guards" : 37,
+    "reserved" : 37,
+    "receipts_remaining" : 11,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 111,
+    "mock_schedules_remaining" : 26,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 3,
+      "due" : 0,
+      "future" : 3,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "call_analysis",
+      "state" : "PENDING",
+      "count" : 14,
+      "due" : 14,
+      "future" : 0,
+      "oldest_due_age_sec" : 0.519,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 78.865,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373072830,
+    "voice_counter_active" : 66,
+    "lifecycle_tasks_remaining" : 2,
+    "gateway_active" : 22,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 22,
+    "phone_guards" : 22,
+    "reserved" : 22,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 66,
+    "mock_schedules_remaining" : 22,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 2,
+      "due" : 0,
+      "future" : 2,
+      "oldest_due_age_sec" : 0.0,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 79.949,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373073896,
+    "voice_counter_active" : 51,
+    "lifecycle_tasks_remaining" : 2,
+    "gateway_active" : 17,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 20,
+    "phone_guards" : 20,
+    "reserved" : 20,
+    "receipts_remaining" : 3,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 60,
+    "mock_schedules_remaining" : 17,
+    "task_backlog" : [ {
+      "type" : "after_playback",
+      "state" : "PENDING",
+      "count" : 2,
+      "due" : 1,
+      "future" : 1,
+      "oldest_due_age_sec" : 0.086,
+      "error_codes" : ""
+    }, {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 81.036,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373074992,
+    "voice_counter_active" : 48,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 16,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 16,
+    "phone_guards" : 16,
+    "reserved" : 16,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 48,
+    "mock_schedules_remaining" : 16,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 82.112,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373076059,
+    "voice_counter_active" : 27,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 9,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 10,
+    "phone_guards" : 10,
+    "reserved" : 10,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 30,
+    "mock_schedules_remaining" : 9,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 83.184,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373077150,
+    "voice_counter_active" : 18,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 6,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 6,
+    "phone_guards" : 6,
+    "reserved" : 6,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 18,
+    "mock_schedules_remaining" : 6,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 84.297,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373078255,
+    "voice_counter_active" : 15,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 5,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 6,
+    "phone_guards" : 6,
+    "reserved" : 6,
+    "receipts_remaining" : 1,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 18,
+    "mock_schedules_remaining" : 5,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 85.456,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373079406,
+    "voice_counter_active" : 12,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 4,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 4,
+    "phone_guards" : 4,
+    "reserved" : 4,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 12,
+    "mock_schedules_remaining" : 4,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 86.515,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373080481,
+    "voice_counter_active" : 9,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 3,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 3,
+    "phone_guards" : 3,
+    "reserved" : 3,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 9,
+    "mock_schedules_remaining" : 3,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 87.599,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373081544,
+    "voice_counter_active" : 6,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 2,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 2,
+    "phone_guards" : 2,
+    "reserved" : 2,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 6,
+    "mock_schedules_remaining" : 2,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 88.646,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373082593,
+    "voice_counter_active" : 3,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 1,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 1,
+    "phone_guards" : 1,
+    "reserved" : 1,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 3,
+    "mock_schedules_remaining" : 1,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 89.701,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373083648,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 90.751,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373084697,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 91.818,
+      "error_codes" : ""
+    } ]
+  }, {
+    "at_ms" : 1794373085765,
+    "voice_counter_active" : 0,
+    "lifecycle_tasks_remaining" : 0,
+    "gateway_active" : 0,
+    "gateway_callbacks_remaining" : 0,
+    "dial_processing" : 0,
+    "business_active" : 0,
+    "phone_guards" : 0,
+    "reserved" : 0,
+    "receipts_remaining" : 0,
+    "dead_tasks" : 0,
+    "platform_counter_active" : 0,
+    "mock_schedules_remaining" : 0,
+    "task_backlog" : [ {
+      "type" : "dial_call",
+      "state" : "PENDING",
+      "count" : 2300,
+      "due" : 2300,
+      "future" : 0,
+      "oldest_due_age_sec" : 92.875,
+      "error_codes" : ""
+    } ]
+  } ],
+  "stop_drain_elapsed_sec" : 85.943052222,
+  "stop_drain_final" : {
+    "phase" : "FROZEN",
+    "epoch" : 2,
+    "revision" : 3,
+    "updated_at" : "2026-11-11T04:57:43.723",
+    "captured" : 698,
+    "business_active" : 0,
+    "gateway_active" : 0,
+    "pending_callbacks" : 0,
+    "pending_inbox" : 0,
+    "pending_lifecycle_tasks" : 0,
+    "external_pbx_verified" : false,
+    "certificate_issued" : false
+  },
+  "drain_invalid_identities" : 0,
+  "unadmitted_queued_preserved" : 30300,
+  "superseded_control_tasks" : [ {
+    "type" : "after_playback",
+    "count" : 157,
+    "superseded_after_due" : 151,
+    "max_superseded_after_due_ms" : 7411.0
+  }, {
+    "type" : "ai_turn",
+    "count" : 228,
+    "superseded_after_due" : 224,
+    "max_superseded_after_due_ms" : 21462.0
+  } ],
+  "superseded_note" : "Kept as original durable task rows, never treated as successful control dispatch. Supersession after due is reported separately and cannot erase earlier SLO misses; validity at each deadline needs independent event evidence.",
+  "task_due_to_completion_latency" : {
+    "after_playback" : {
+      "count" : 283,
+      "p99_ms" : 7274.0,
+      "max_ms" : 8489.0,
+      "over_2000ms" : 31
+    },
+    "ai_turn" : {
+      "count" : 472,
+      "p99_ms" : 19111.0,
+      "max_ms" : 21549.0,
+      "over_2000ms" : 365
+    }
+  },
+  "task_latency_note" : "Upper-bound diagnostic includes execution and commit; excludes superseded tasks, is not independently collected action-dispatch evidence or a formal V3 SLO pass.",
+  "stop_drain_verified" : true,
+  "input_pool_not_exhausted" : true,
+  "commit_snapshot_after_drain" : true,
+  "commit_rate" : {
+    "per_second" : [ {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 10
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 11
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 12
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100,
+      "second_after_phase" : 13
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 14
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 15
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 16
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 17
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 18
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 19
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 20
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100,
+      "second_after_phase" : 21
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 22
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 23
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 24
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 25
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 26
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 27
+    }, {
+      "possible_commits" : 0,
+      "guaranteed_commits" : 0,
+      "second_after_phase" : 28
+    }, {
+      "possible_commits" : 100,
+      "guaranteed_commits" : 100,
+      "second_after_phase" : 29
+    } ],
+    "peak_cps_lower_bound" : 100,
+    "counting" : "unique tenant/call/attempt durable acknowledgements; JDBC commit intervals, not created_at or HTTP acceptance",
+    "peak_cps_upper_bound" : 100,
+    "minimum_second_cps_lower_bound" : 0,
+    "scope" : "observed saturation on this host/configuration; not a production limit or sustained capacity qualification",
+    "average_cps_lower_bound" : 15.0,
+    "upper_bound_verified" : true
+  },
+  "commit_evidence_missing" : 0,
+  "duplicate_acknowledgement_identities" : 0,
+  "invalid_commit_clocks" : 0,
+  "unique_acknowledgement_identities" : 700,
+  "commit_evidence_complete" : true,
+  "campaign_statistics_mismatches" : 0,
+  "planned_calls" : 31000,
+  "warmup_seconds" : 10,
+  "measured_seconds" : 20,
+  "measurement_note" : "Every measured second must have >=500 durable dial acknowledgements; all earlier cold-start buckets are retained separately and never relabelled as passes",
+  "submitted_calls" : 0,
+  "generator_capacity_misses" : 0,
+  "http_codes" : { },
+  "error_examples" : { },
+  "generator" : "Preloaded durable QUEUED pool committed at phase start; no calls inserted as DIALING or IN_AI",
+  "dial_accepted_per_second" : {
+    "6" : 100,
+    "13" : 100,
+    "20" : 100,
+    "29" : 100,
+    "34" : 100,
+    "41" : 100,
+    "51" : 1,
+    "54" : 1,
+    "60" : 1,
+    "72" : 1,
+    "76" : 1,
+    "77" : 3,
+    "78" : 8,
+    "79" : 5,
+    "80" : 4,
+    "81" : 2,
+    "82" : 2,
+    "83" : 36,
+    "84" : 9,
+    "85" : 2,
+    "86" : 6,
+    "87" : 5,
+    "88" : 5,
+    "89" : 1,
+    "90" : 1,
+    "91" : 1,
+    "92" : 2,
+    "93" : 1,
+    "94" : 1,
+    "95" : 1
+  },
+  "dial_accepted_within_window" : 300,
+  "dial_accepted_at_observation_end" : 700,
+  "actual_cps" : 15.0,
+  "real_telephony_verified" : false,
+  "db_stats_after" : {
+    "Com_commit" : 41732,
+    "Com_insert" : 208864,
+    "Com_rollback" : 315,
+    "Com_select" : 409062,
+    "Com_stmt_execute" : 284863,
+    "Com_update" : 65977,
+    "Innodb_row_lock_time" : 186216,
+    "Questions" : 502645
+  },
+  "mysql_physical_at_observation_end" : {
+    "at_ms" : 1794373086680,
+    "exit" : 0,
+    "du_sk" : "903132\t/var/lib/mysql",
+    "physical_categories_kib" : {
+      "business_tables" : 297792,
+      "redo" : 262148,
+      "binlogs" : 213528
+    },
+    "largest_paths_du_kib" : "903132\t/var/lib/mysql\n297792\t/var/lib/mysql/test\n262148\t/var/lib/mysql/#innodb_redo\n210612\t/var/lib/mysql/binlog.000002\n61444\t/var/lib/mysql/test/callsession.ibd\n36868\t/var/lib/mysql/mysql.ibd\n32768\t/var/lib/mysql/undo_001\n25604\t/var/lib/mysql/test/ops_call_statistics.ibd\n24580\t/var/lib/mysql/test/taskoutbox.ibd\n19460\t/var/lib/mysql/test/dial_fact_revision.ibd\n16388\t/var/lib/mysql/undo_002\n16388\t/var/lib/mysql/test/callevent.ibd\n16388\t/var/lib/mysql/test/callbackinbox.ibd\n15364\t/var/lib/mysql/test/contact.ibd\n12292\t/var/lib/mysql/test/voice_attempts.ibd\n12292\t/var/lib/mysql/test/dial_command_journal.ibd\n12288\t/var/lib/mysql/test/dial_fact_head.ibd\n12288\t/var/lib/mysql/ibtmp1"
+  },
+  "observed_synthetic_lifetimes" : {
+    "accepted" : 700,
+    "answered" : 700,
+    "ended" : 700,
+    "min_ended_age_sec" : 20.01800012588501,
+    "mean_ended_age_sec" : 22.07499718053,
+    "max_ended_age_sec" : 28.121999979019165,
+    "ended_under_19_9_sec" : 0,
+    "note" : "Includes real application hangup commands; unfinished calls are excluded from ended-age aggregates. Diagnostic only, not formal occupancy coverage."
+  },
+  "short_occupancy_examples" : [ ],
+  "tasks_at_observation_end" : [ {
+    "state" : "COMPLETED",
+    "type" : "after_playback",
+    "oldest_due_age_sec" : 99.286,
+    "count" : 440
+  }, {
+    "state" : "COMPLETED",
+    "type" : "ai_turn",
+    "oldest_due_age_sec" : 109.916,
+    "count" : 700
+  }, {
+    "state" : "COMPLETED",
+    "type" : "call_analysis",
+    "oldest_due_age_sec" : 85.787,
+    "count" : 700
+  }, {
+    "state" : "COMPLETED",
+    "type" : "dial_call",
+    "oldest_due_age_sec" : 118.366,
+    "count" : 700
+  }, {
+    "state" : "PENDING",
+    "type" : "dial_call",
+    "oldest_due_age_sec" : 93.807,
+    "count" : 2300
+  } ],
+  "storage_estimates_at_observation_end" : [ {
+    "index_bytes" : 43794432,
+    "estimated_rows" : 32401,
+    "table" : "callsession",
+    "data_bytes" : 7913472
+  }, {
+    "index_bytes" : 10010624,
+    "estimated_rows" : 31320,
+    "table" : "ops_call_statistics",
+    "data_bytes" : 7913472
+  }, {
+    "index_bytes" : 11812864,
+    "estimated_rows" : 4925,
+    "table" : "taskoutbox",
+    "data_bytes" : 3325952
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 32207,
+    "table" : "dial_fact_revision",
+    "data_bytes" : 10010624
+  }, {
+    "index_bytes" : 851968,
+    "estimated_rows" : 1700,
+    "table" : "callbackinbox",
+    "data_bytes" : 7880704
+  }, {
+    "index_bytes" : 3637248,
+    "estimated_rows" : 30956,
+    "table" : "contact",
+    "data_bytes" : 3686400
+  }, {
+    "index_bytes" : 393216,
+    "estimated_rows" : 480,
+    "table" : "voice_attempts",
+    "data_bytes" : 4702208
+  }, {
+    "index_bytes" : 229376,
+    "estimated_rows" : 448,
+    "table" : "dial_command_journal",
+    "data_bytes" : 4620288
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 30964,
+    "table" : "dial_fact_head",
+    "data_bytes" : 4734976
+  }, {
+    "index_bytes" : 622592,
+    "estimated_rows" : 3332,
+    "table" : "callevent",
+    "data_bytes" : 3686400
+  }, {
+    "index_bytes" : 180224,
+    "estimated_rows" : 525,
+    "table" : "conversationstate",
+    "data_bytes" : 3653632
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 530,
+    "table" : "voice_terminal_fact",
+    "data_bytes" : 3686400
+  }, {
+    "index_bytes" : 491520,
+    "estimated_rows" : 3200,
+    "table" : "capacity_identity_evidence",
+    "data_bytes" : 1589248
+  }, {
+    "index_bytes" : 147456,
+    "estimated_rows" : 639,
+    "table" : "callanalysis",
+    "data_bytes" : 1589248
+  }, {
+    "index_bytes" : 245760,
+    "estimated_rows" : 618,
+    "table" : "dial_reservation",
+    "data_bytes" : 458752
+  }, {
+    "index_bytes" : 262144,
+    "estimated_rows" : 686,
+    "table" : "speechturn",
+    "data_bytes" : 147456
+  }, {
+    "index_bytes" : 147456,
+    "estimated_rows" : 2900,
+    "table" : "voice_nonces",
+    "data_bytes" : 245760
+  }, {
+    "index_bytes" : 196608,
+    "estimated_rows" : 749,
+    "table" : "webhookeventingest",
+    "data_bytes" : 163840
+  }, {
+    "index_bytes" : 163840,
+    "estimated_rows" : 857,
+    "table" : "callmetric",
+    "data_bytes" : 131072
+  }, {
+    "index_bytes" : 180224,
+    "estimated_rows" : 0,
+    "table" : "dial_phone_guard",
+    "data_bytes" : 114688
+  }, {
+    "index_bytes" : 163840,
+    "estimated_rows" : 700,
+    "table" : "ops_dial_attempt_fact",
+    "data_bytes" : 131072
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 700,
+    "table" : "voice_dial_authorization",
+    "data_bytes" : 262144
+  }, {
+    "index_bytes" : 163840,
+    "estimated_rows" : 486,
+    "table" : "realtimesession",
+    "data_bytes" : 65536
+  }, {
+    "index_bytes" : 114688,
+    "estimated_rows" : 700,
+    "table" : "callusage",
+    "data_bytes" : 65536
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 698,
+    "table" : "dial_drain_member",
+    "data_bytes" : 163840
+  }, {
+    "index_bytes" : 81920,
+    "estimated_rows" : 700,
+    "table" : "ops_call_dimension",
+    "data_bytes" : 81920
+  }, {
+    "index_bytes" : 98304,
+    "estimated_rows" : 0,
+    "table" : "client_lead",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 98304,
+    "estimated_rows" : 0,
+    "table" : "mk_touch_event",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 81920,
+    "estimated_rows" : 16,
+    "table" : "campaign",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 81920,
+    "estimated_rows" : 0,
+    "table" : "mk_journey_member",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 81920,
+    "estimated_rows" : 0,
+    "table" : "mk_match_request",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 81920,
+    "estimated_rows" : 0,
+    "table" : "ops_export_job",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "voice_outbox",
+    "data_bytes" : 49152
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 0,
+    "table" : "mk_call_outcome",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 0,
+    "table" : "mk_dataset_row",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 0,
+    "table" : "mk_dispatch",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 0,
+    "table" : "mk_short_link",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 65536,
+    "estimated_rows" : 0,
+    "table" : "msg_message",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 700,
+    "table" : "ops_campaign_contact_statistics",
+    "data_bytes" : 81920
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "callbackappointment",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "client_lead_event",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "handoffrequest",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "knowledgeitem",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "mk_link_domain",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "msg_delivery",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "msg_event",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "msg_interaction",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "productworkitem",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "scriptflowversion",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "voice_mock_schedule",
+    "data_bytes" : 49152
+  }, {
+    "index_bytes" : 49152,
+    "estimated_rows" : 0,
+    "table" : "voice_statement_entry",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 1,
+    "table" : "adminsetting",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "aivoicetestrun",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "aivoicetrial",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "auditlog",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "campaigncontact",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "client_org",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "client_user",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "dial_v3_quota_allocation",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_dataset_version",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_journey",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_journey_step",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_link_click",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_match_job",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_profile_history",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_send_task",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "mk_stat_hourly",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_batch",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_call_intent",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_cost_event",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_provider_event",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_reconcile_batch",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_webhook",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "msg_webhook_delivery",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_account_transfer",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_history",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_interception",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_notice",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_seat_state_sample",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "ops_team",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "platform_debug_session",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "platform_knowledge_gap",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "platform_knowledge_upload",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "platform_message_job",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "recordingasset",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "scenarioversion",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "scripttemplate",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "smslog",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 1,
+    "table" : "sys_user",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "taskreceipt",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "voice_event_quarantine",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 32768,
+    "estimated_rows" : 0,
+    "table" : "voice_permits",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "aivoicetestset",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "aivoicetrialaudio",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 74,
+    "table" : "capacity_commit_evidence",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "client_campaign",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "client_campaign_log",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "client_staff_scope",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "contactimportjob",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "dial_async_batch",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "dial_daily_counter",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "dial_v3_quota_grant",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "dial_v3_quota_grant_scope",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 50,
+    "table" : "flyway_schema_history",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_dataset",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_dataset_chunk",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_journey_version",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_match_flight",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_match_result",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_outcome_review",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_outcome_rule",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_partner",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_profile",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_segment",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_segment_snapshot",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_send_item",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "mk_snapshot_member",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_application",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_asset",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_attempt",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_channel",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_channel_binding",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_delivery_part",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_journal",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_nonce",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "msg_resource",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "ops_config",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "ops_lead",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "ops_member",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "ops_view",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "phonesuppression",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "platform_contact_batch",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "platform_contact_batch_member",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "platform_contact_upload",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "platform_debug_turn",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "platform_document",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "script_reach",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "telephonyline",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 1,
+    "table" : "tenant",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "voice_action_commands",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 16384,
+    "estimated_rows" : 0,
+    "table" : "voice_dial_authorization_history",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "aivoiceconfig",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 64,
+    "table" : "callbackinboxpartition",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 1,
+    "table" : "callbackinboxworker",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "client_setting",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 1,
+    "table" : "dial_admission_control",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "dial_migration_generation",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 18,
+    "table" : "dial_quota_counter",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "dial_v3_coordinator",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "dial_v3_quota_scope",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "gatewaynode",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_contact_guard",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_landing_domain",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_link_cursor",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_outcome_watermark",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_policy_config",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_profile_applied",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 13,
+    "table" : "mk_sms_status_map",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "mk_worker_cursor",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "msg_account",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "msg_channel_window",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "msg_inbox",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "msg_reconcile_item",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "msg_suppression",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 16,
+    "table" : "ops_campaign_statistics",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "ops_line_group_assignment",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "ops_permission",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "ops_presence",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "ops_tag_link",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "platform_audience_member",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "platform_campaign_snapshot",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "platform_contact_batch_error",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "platform_contact_value",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 1,
+    "table" : "platform_job_cursor",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "platform_publication",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "script_recording_asset",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "voice_audit",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 2,
+    "table" : "voice_flags",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "voice_media_owners",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "voice_model_budgets",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 0,
+    "table" : "voice_model_usage",
+    "data_bytes" : 16384
+  }, {
+    "index_bytes" : 0,
+    "estimated_rows" : 9,
+    "table" : "voice_scope_counter",
+    "data_bytes" : 16384
+  } ],
+  "mysql_statement_digests" : [ {
+    "total_ms" : 80123.1818,
+    "normalized_sql" : "COMMIT",
+    "rows_sent" : 0,
+    "max_ms" : 399.8481,
+    "rows_examined" : 0,
+    "count" : 41714
+  }, {
+    "total_ms" : 35073.5984,
+    "normalized_sql" : "INSERT INTO `callsession` ( `id` , `status` , `attempts` , `max_attempts` , `voice_ai_pipeline` , `created_at` , `updated_at` , `mode` , `tenant_id` , `phone` , `campaign_id` , `contact_id` ) VALUES (...)",
+    "rows_sent" : 0,
+    "max_ms" : 61.8023,
+    "rows_examined" : 62000,
+    "count" : 31000
+  }, {
+    "total_ms" : 10570.8979,
+    "normalized_sql" : "SET `autocommit` = ?",
+    "rows_sent" : 0,
+    "max_ms" : 47.6719,
+    "rows_examined" : 0,
+    "count" : 84013
+  }, {
+    "total_ms" : 7446.0389,
+    "normalized_sql" : "INSERT INTO `contact` ( `tags` , `consent_state` , `dnc` , `timezone` , `created_at` , `updated_at` , `tenant_id` , `id` , `name` , `phone` ) VALUES (...)",
+    "rows_sent" : 0,
+    "max_ms" : 22.019,
+    "rows_examined" : 31000,
+    "count" : 31000
+  }, {
+    "total_ms" : 4976.4273,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ?",
+    "rows_sent" : 20847,
+    "max_ms" : 131.1595,
+    "rows_examined" : 20846,
+    "count" : 20845
+  }, {
+    "total_ms" : 2351.3605,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ? FOR UPDATE",
+    "rows_sent" : 71,
+    "max_ms" : 1335.3081,
+    "rows_examined" : 71,
+    "count" : 71
+  }, {
+    "total_ms" : 1226.9772,
+    "normalized_sql" : "SELECT PHASE , `epoch` FROM `dial_admission_control` WHERE `id` = ? FOR UPDATE",
+    "rows_sent" : 1,
+    "max_ms" : 1226.9772,
+    "rows_examined" : 1,
+    "count" : 1
+  }, {
+    "total_ms" : 814.2242,
+    "normalized_sql" : "CALL `voice_mock_accept` (...)",
+    "rows_sent" : 0,
+    "max_ms" : 26.4288,
+    "rows_examined" : 0,
+    "count" : 700
+  }, {
+    "total_ms" : 675.2927,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `taskoutbox` `t` WHERE `t` . `state` != ? AND ( `t` . `task_type` != ? OR EXISTS ( SELECT ? FROM `dial_command_journal` `j` WHERE `j` . `tenant_id` = `t` . `tenant_id` AND `j` . `call_id` = `t` . `aggregate_id` AND `j` . `attempt` = `JSON_EXTRACT` ( `t` . `payload_json` , ? ) + ? ) )",
+    "rows_sent" : 22,
+    "max_ms" : 174.127,
+    "rows_examined" : 104713,
+    "count" : 22
+  }, {
+    "total_ms" : 588.9248,
+    "normalized_sql" : "SELECT PHASE FROM `dial_admission_control` WHERE `id` = ? FOR SHARE",
+    "rows_sent" : 2532,
+    "max_ms" : 18.9238,
+    "rows_examined" : 2532,
+    "count" : 2532
+  }, {
+    "total_ms" : 537.3923,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `callsession` `c` WHERE `c` . `status` IN (...) AND NOT EXISTS ( SELECT ? FROM `callevent` `e` WHERE `e` . `call_session_id` = `c` . `id` AND `e` . `event_type` = ? AND `JSON_EXTRACT` ( `e` . `payload` , ? ) = `c` . `attempts` ) AND NOT EXISTS ( SELECT ? FROM `voice_attempts` `v` WHERE REPLACE ( `v` . `call_id` , ?, ... ) = REPLACE ( `c` . `id` , ?, ... ) AND `v` . `tenant` = `c` . `tenant_id` AND `v` . `attempt` = `c` . `attempts` AND `v` . `send_state` IN (...) )",
+    "rows_sent" : 70,
+    "max_ms" : 65.0018,
+    "rows_examined" : 71270,
+    "count" : 70
+  }, {
+    "total_ms" : 438.1569,
+    "normalized_sql" : "SELECT `task_type` , `state` , COUNT ( * ) , SUM ( `available_at` <= UTC_TIMESTAMP (?) ) , SUM ( `available_at` > UTC_TIMESTAMP (?) ) , `GREATEST` ( ? , COALESCE ( MAX ( TIMESTAMPDIFF ( MICROSECOND , `available_at` , UTC_TIMESTAMP (?) ) ) , ? ) ) / ? , COALESCE ( GROUP_CONCAT ( DISTINCTROW CASE WHEN `state` IN (...) THEN LEFT ( `last_error` , ? ) END ) , ? ) FROM `taskoutbox` WHERE `state` != ? GROUP BY `task_type` , `state`",
+    "rows_sent" : 42,
+    "max_ms" : 57.5907,
+    "rows_examined" : 104494,
+    "count" : 22
+  }, {
+    "total_ms" : 425.0173,
+    "normalized_sql" : "SELECT PHASE , `epoch` FROM `dial_admission_control` WHERE `id` = ? FOR SHARE",
+    "rows_sent" : 222,
+    "max_ms" : 74.2163,
+    "rows_examined" : 222,
+    "count" : 222
+  }, {
+    "total_ms" : 276.4244,
+    "normalized_sql" : "SELECT `enforce_quotas` , `generation_id` FROM `dial_admission_control` WHERE `id` = ?",
+    "rows_sent" : 1414,
+    "max_ms" : 20.4488,
+    "rows_examined" : 1414,
+    "count" : 1414
+  }, {
+    "total_ms" : 198.1254,
+    "normalized_sql" : "SELECT * FROM `dial_command_journal` WHERE `state` IN (...) AND `recovery_at` <= UTC_TIMESTAMP (?) AND `created_at` <= DATE_SUB ( UTC_TIMESTAMP (?) , INTERVAL ? SQL_TSI_SECOND ) AND ( `recovery_until` IS NULL OR `recovery_until` < UTC_TIMESTAMP (?) ) ORDER BY `recovery_at` , `created_at` LIMIT ? FOR UPDATE SKIP LOCKED",
+    "rows_sent" : 52,
+    "max_ms" : 15.724,
+    "rows_examined" : 8792,
+    "count" : 160
+  }, {
+    "total_ms" : 190.6903,
+    "normalized_sql" : "UPDATE `ops_export_job` SET `state` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 6.8566,
+    "rows_examined" : 0,
+    "count" : 508
+  }, {
+    "total_ms" : 183.9261,
+    "normalized_sql" : "SELECT `TABLE_SCHEMA` AS `TABLE_CAT` , ? AS `TABLE_SCHEM` , TABLE_NAME , CASE WHEN `TABLE_TYPE` = ? THEN CASE WHEN `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? OR `TABLE_SCHEMA` = ? THEN ? ELSE ? END WHEN `TABLE_TYPE` = ? THEN ? ELSE `TABLE_TYPE` END AS `TABLE_TYPE` , `TABLE_COMMENT` AS `REMARKS` , ? AS `TYPE_CAT` , ? AS `TYPE_SCHEM` , ? AS `TYPE_NAME` , ? AS `SELF_REFERENCING_COL_NAME` , ? AS `REF_GENERATION` FROM `INFORMATION_SCHEMA` . `TABLES` WHERE `TABLE_SCHEMA` = ? AND TABLE_NAME LIKE ? ORDER BY `TABLE_TYPE` , `TABLE_SCHEMA` , TABLE_NAME",
+    "rows_sent" : 202,
+    "max_ms" : 4.119,
+    "rows_examined" : 22036,
+    "count" : 205
+  }, {
+    "total_ms" : 137.0487,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `voice_attempts` WHERE `state` != ? AND `send_state` NOT IN (...)",
+    "rows_sent" : 70,
+    "max_ms" : 13.3045,
+    "rows_examined" : 5761,
+    "count" : 70
+  }, {
+    "total_ms" : 133.5909,
+    "normalized_sql" : "SELECT TABLE_NAME , `table_rows` , `data_length` , `index_length` FROM `information_schema` . `tables` WHERE `table_schema` = SCHEMA ( ) ORDER BY `data_length` + `index_length` DESC",
+    "rows_sent" : 182,
+    "max_ms" : 133.5909,
+    "rows_examined" : 548,
+    "count" : 1
+  }, {
+    "total_ms" : 83.4094,
+    "normalized_sql" : "ALTER TABLE `dial_reservation` ADD COLUMN `owner_expires_at` DATETIME (?) , ADD COLUMN `authorization_state` VARCHARACTER (?) NOT NULL DEFAULT ?",
+    "rows_sent" : 0,
+    "max_ms" : 83.4094,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 80.4201,
+    "normalized_sql" : "SELECT `FLOOR` ( ( `UNIX_TIMESTAMP` ( `e` . `created_at` ) * ? - ? ) / ? ) AS `bucket` , COUNT ( DISTINCTROW `c` . `id` , `JSON_UNQUOTE` ( `JSON_EXTRACT` ( `e` . `payload` , ? ) ) ) AS `n` FROM `callevent` `e` JOIN `callsession` `c` ON `c` . `id` = `e` . `call_session_id` WHERE `c` . `tenant_id` = ? AND `e` . `event_type` = ? GROUP BY `bucket` ORDER BY `bucket`",
+    "rows_sent" : 34,
+    "max_ms" : 73.9581,
+    "rows_examined" : 3300,
+    "count" : 2
+  }, {
+    "total_ms" : 80.2909,
+    "normalized_sql" : "CREATE INDEX `ix_speechturn_created_at` ON `speechturn` ( `created_at` )",
+    "rows_sent" : 0,
+    "max_ms" : 80.2909,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 72.0067,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `voice_attempts` `v` LEFT JOIN `callsession` `c` ON `c` . `tenant_id` = `v` . `tenant` AND REPLACE ( `c` . `id` , ?, ... ) = REPLACE ( `v` . `call_id` , ?, ... ) AND `c` . `attempts` = `v` . `attempt` WHERE `c` . `id` IS NULL OR `v` . `state` != ? OR `v` . `send_state` != ? OR `c` . `status` NOT IN (...) OR ( SELECT COUNT ( * ) FROM `callevent` `e` WHERE `e` . `call_session_id` = `c` . `id` AND `e` . `event_type` = ? AND `JSON_EXTRACT` ( `e` . `payload` , ? ) = `v` . `attempt` ) != ? OR NOT EXISTS ( SELECT ? FROM `callusage` `u` WHERE `u` . `tenant_id` = `v` . `tenant` AND `u` . `call_session_id` = `c` . `id` AND `u` . `attempt` = `v` . `attempt` AND `u` . `ended_at` IS NOT NULL )",
+    "rows_sent" : 1,
+    "max_ms" : 72.0067,
+    "rows_examined" : 36606,
+    "count" : 1
+  }, {
+    "total_ms" : 67.6079,
+    "normalized_sql" : "UPDATE `platform_knowledge_upload` SET `state` = ? , `progress` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 2.5182,
+    "rows_examined" : 0,
+    "count" : 157
+  }, {
+    "total_ms" : 63.5528,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM ( SELECT `tenant_id` , `campaign_id` , COUNT ( * ) `sessions` , SUM ( `attempts` ) `dialed` , SUM ( `answered_attempts` ) `answered` , SUM ( `finished` ) `finished` , SUM ( `seconds` ) `seconds` FROM `ops_call_statistics` WHERE `campaign_id` IS NOT NULL GROUP BY `tenant_id` , `campaign_id` ) `d` LEFT JOIN `ops_campaign_statistics` `s` ON `s` . `tenant_id` = `d` . `tenant_id` AND `s` . `campaign_id` = `d` . `campaign_id` WHERE `s` . `campaign_id` IS NULL OR `s` . `sessions` != `d` . `sessions` OR `s` . `dialed` != `d` . `dialed` OR `s` . `answered` != `d` . `answered` OR `s` . `finished` != `d` . `finished` OR `ABS` ( `s` . `seconds` - `d` . `seconds` ) > ?",
+    "rows_sent" : 1,
+    "max_ms" : 63.5528,
+    "rows_examined" : 32,
+    "count" : 1
+  }, {
+    "total_ms" : 62.8236,
+    "normalized_sql" : "ALTER TABLE `taskoutbox` ADD COLUMN `integration_lane` VARCHARACTER (?) GENERATED ALWAYS AS ( CASE WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? AND `JSON_CONTAINS_PATH` ( IF ( `JSON_VALID` ( `payload_json` ) , `payload_json` , ? ) , ?, ... ) THEN ? WHEN `task_type` = ? THEN ? WHEN `task_type` IN (...) THEN ? WHEN `task_type` = ? THEN ? ELSE ? END ) STORED , ADD INDEX `ix_taskoutbox_integration_ready` ( `tenant_id` , `integration_lane` , `task_type` , `state` , `available_at` , `id` )",
+    "rows_sent" : 0,
+    "max_ms" : 62.8236,
+    "rows_examined" : 0,
+    "count" : 1
+  }, {
+    "total_ms" : 58.663,
+    "normalized_sql" : "UPDATE `platform_contact_upload` SET `state` = ? WHERE `state` = ? AND `updated_at` < UTC_TIMESTAMP (?) - INTERVAL ? SQL_TSI_MINUTE",
+    "rows_sent" : 0,
+    "max_ms" : 5.4309,
+    "rows_examined" : 0,
+    "count" : 126
+  }, {
+    "total_ms" : 54.86,
+    "normalized_sql" : "SELECT @@SESSION . `transaction_read_only`",
+    "rows_sent" : 417,
+    "max_ms" : 1.1392,
+    "rows_examined" : 417,
+    "count" : 417
+  }, {
+    "total_ms" : 53.0981,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `callsession` WHERE `tenant_id` = ? AND STATUS = ? AND `attempts` = ?",
+    "rows_sent" : 1,
+    "max_ms" : 53.0981,
+    "rows_examined" : 31000,
+    "count" : 1
+  }, {
+    "total_ms" : 50.2932,
+    "normalized_sql" : "SELECT COUNT ( * ) FROM `callsession` WHERE `attempts` = ? AND STATUS = ?",
+    "rows_sent" : 1,
+    "max_ms" : 50.2932,
+    "rows_examined" : 30300,
+    "count" : 1
+  } ],
+  "mysql_prepared_statement_statistics" : [ {
+    "parameterized_sql" : "INSERT INTO `callanalysis`\n         ( `tenant_id`,\n            `call_session_id`,\n            `result_code`,\n            `sentiment`,\n            `intent`,\n            `summary`,\n            `qa_score`,\n            `qa_flags_json`,\n            `structured_json`,\n            `automatic_result_json`,\n            `needs_review`,\n            `review_state`,\n            `reviewed_by`,\n            `reviewed_at`,\n            `created_at`,\n            `updated_at` ) \n         VALUES ( ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ? )",
+    "count" : 755,
+    "total_ms" : 17799.0777,
+    "max_ms" : 1843.0782,
+    "rows_examined" : 1493
+  }, {
+    "parameterized_sql" : "SELECT COUNT(*) FROM `callsession` WHERE tenant_id=? AND campaign_id=? AND\n        (status IN ('DIALING','ANSWERED','IN_AI','WAITING_HUMAN','HANDOFF_TRANSFERRING','IN_HUMAN')\n        OR status='QUEUED' OR next_attempt_at IS NOT NULL)",
+    "count" : 373,
+    "total_ms" : 10269.4312,
+    "max_ms" : 110.9402,
+    "rows_examined" : 12280156
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 295,
+    "total_ms" : 9630.5115,
+    "max_ms" : 1525.3312,
+    "rows_examined" : 295
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 333,
+    "total_ms" : 9553.6091,
+    "max_ms" : 1426.5123,
+    "rows_examined" : 333
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 287,
+    "total_ms" : 9437.849,
+    "max_ms" : 2032.6445,
+    "rows_examined" : 287
+  }, {
+    "parameterized_sql" : "SELECT * FROM callsession WHERE tenant_id = ? AND id =\n        ? FOR UPDATE",
+    "count" : 314,
+    "total_ms" : 8579.5954,
+    "max_ms" : 1501.8649,
+    "rows_examined" : 314
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 32,
+    "total_ms" : 8293.3141,
+    "max_ms" : 2505.4968,
+    "rows_examined" : 32
+  }, {
+    "parameterized_sql" : "SELECT JSON_UNQUOTE(JSON_EXTRACT(r.body_json,'$.payload.status')) AS status FROM\n        callbackinbox r WHERE MOD(r.partition_id,?)=? AND r.state='pending' AND\n        r.available_at<=? AND r.kind='telephony_status' AND\n        JSON_UNQUOTE(JSON_EXTRACT(r.body_json,'$.payload.status')) IN\n        ('dialing','answered','completed','failed','no_answer','busy','voicemail') AND NOT\n        EXISTS(SELECT 1 FROM callbackinbox older WHERE older.call_id=r.call_id AND older.id<r.id AND\n        older.state<>'done') ORDER BY r.id LIMIT 1",
+    "count" : 10882,
+    "total_ms" : 5800.6745,
+    "max_ms" : 23.7292,
+    "rows_examined" : 369215
+  }, {
+    "parameterized_sql" : "SELECT JSON_UNQUOTE(JSON_EXTRACT(r.body_json,'$.payload.status')) AS status FROM\n        callbackinbox r WHERE MOD(r.partition_id,?)=? AND r.state='pending' AND\n        r.available_at<=? AND r.kind='telephony_status' AND\n        JSON_UNQUOTE(JSON_EXTRACT(r.body_json,'$.payload.status')) IN\n        ('dialing','answered','completed','failed','no_answer','busy','voicemail') AND NOT\n        EXISTS(SELECT 1 FROM callbackinbox older WHERE older.call_id=r.call_id AND older.id<r.id AND\n        older.state<>'done') ORDER BY r.id LIMIT 1",
+    "count" : 10731,
+    "total_ms" : 5767.8373,
+    "max_ms" : 53.4912,
+    "rows_examined" : 311832
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 27,
+    "total_ms" : 4979.1807,
+    "max_ms" : 1752.1004,
+    "rows_examined" : 27
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 33,
+    "total_ms" : 4823.8698,
+    "max_ms" : 1880.9774,
+    "rows_examined" : 33
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 35,
+    "total_ms" : 4607.2946,
+    "max_ms" : 2028.6604,
+    "rows_examined" : 35
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 34,
+    "total_ms" : 4415.5809,
+    "max_ms" : 2051.0766,
+    "rows_examined" : 34
+  }, {
+    "parameterized_sql" : "SELECT DISTINCT partition_id FROM callbackinbox WHERE state='pending' LIMIT 64",
+    "count" : 10646,
+    "total_ms" : 3982.7191,
+    "max_ms" : 34.3003,
+    "rows_examined" : 731
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 46,
+    "total_ms" : 3834.378,
+    "max_ms" : 1475.243,
+    "rows_examined" : 46
+  }, {
+    "parameterized_sql" : "UPDATE `callsession`\n         SET `status` = ?,\n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 109,
+    "total_ms" : 3560.1128,
+    "max_ms" : 1302.9396,
+    "rows_examined" : 327
+  }, {
+    "parameterized_sql" : "SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_ready_scope) WHERE\n        t.tenant_id=? AND t.task_type='dial_call'\n         \n            AND EXISTS(SELECT 1 FROM dial_command_journal j WHERE j.tenant_id=t.tenant_id AND\n            j.call_id=t.aggregate_id AND j.attempt=JSON_EXTRACT(t.payload_json,'$.attempt')+1)\n         \n        AND t.available_at<=? AND t.attempts<t.max_attempts AND (t.state IN\n        ('PENDING','FAILED') OR(t.state='PROCESSING' AND t.locked_at<=?)) AND NOT\n        EXISTS(SELECT 1 FROM taskoutbox older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE\n        older.tenant_id=t.tenant_id AND older.aggregate_id=t.aggregate_id AND\n        older.task_type=t.task_type AND older.state IN ('PENDING','FAILED','PROCESSING') AND\n        (older.created_at<t.created_at OR(older.created_at=t.created_at AND older.id<t.id))) ORDER\n        BY t.available_at,t.id LIMIT ?",
+    "count" : 82,
+    "total_ms" : 3407.3956,
+    "max_ms" : 156.0859,
+    "rows_examined" : 379476
+  }, {
+    "parameterized_sql" : "SELECT * FROM callbackinboxpartition WHERE id IN\n         (  \n            ?\n         , \n            ?\n         ) \n        ORDER BY id FOR UPDATE",
+    "count" : 10,
+    "total_ms" : 3337.6021,
+    "max_ms" : 2723.8891,
+    "rows_examined" : 20
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 333,
+    "total_ms" : 3328.3624,
+    "max_ms" : 1329.9837,
+    "rows_examined" : 666
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 305,
+    "total_ms" : 3211.832,
+    "max_ms" : 1355.7548,
+    "rows_examined" : 610
+  }, {
+    "parameterized_sql" : "SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_ready_scope) WHERE\n        t.tenant_id=? AND t.task_type='dial_call'\n         \n            AND EXISTS(SELECT 1 FROM dial_command_journal j WHERE j.tenant_id=t.tenant_id AND\n            j.call_id=t.aggregate_id AND j.attempt=JSON_EXTRACT(t.payload_json,'$.attempt')+1)\n         \n        AND t.available_at<=? AND t.attempts<t.max_attempts AND (t.state IN\n        ('PENDING','FAILED') OR(t.state='PROCESSING' AND t.locked_at<=?)) AND NOT\n        EXISTS(SELECT 1 FROM taskoutbox older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE\n        older.tenant_id=t.tenant_id AND older.aggregate_id=t.aggregate_id AND\n        older.task_type=t.task_type AND older.state IN ('PENDING','FAILED','PROCESSING') AND\n        (older.created_at<t.created_at OR(older.created_at=t.created_at AND older.id<t.id))) ORDER\n        BY t.available_at,t.id LIMIT ?",
+    "count" : 75,
+    "total_ms" : 3210.1445,
+    "max_ms" : 189.9772,
+    "rows_examined" : 348166
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 376,
+    "total_ms" : 3075.0344,
+    "max_ms" : 1344.1437,
+    "rows_examined" : 752
+  }, {
+    "parameterized_sql" : "SELECT * FROM `callbackinboxpartition` WHERE id=? FOR UPDATE",
+    "count" : 34,
+    "total_ms" : 3066.1858,
+    "max_ms" : 1680.7669,
+    "rows_examined" : 34
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 369,
+    "total_ms" : 3063.6516,
+    "max_ms" : 1304.7425,
+    "rows_examined" : 738
+  }, {
+    "parameterized_sql" : "SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_ready_scope) WHERE\n        t.tenant_id=? AND t.task_type='dial_call'\n         \n            AND EXISTS(SELECT 1 FROM dial_command_journal j WHERE j.tenant_id=t.tenant_id AND\n            j.call_id=t.aggregate_id AND j.attempt=JSON_EXTRACT(t.payload_json,'$.attempt')+1)\n         \n        AND t.available_at<=? AND t.attempts<t.max_attempts AND (t.state IN\n        ('PENDING','FAILED') OR(t.state='PROCESSING' AND t.locked_at<=?)) AND NOT\n        EXISTS(SELECT 1 FROM taskoutbox older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE\n        older.tenant_id=t.tenant_id AND older.aggregate_id=t.aggregate_id AND\n        older.task_type=t.task_type AND older.state IN ('PENDING','FAILED','PROCESSING') AND\n        (older.created_at<t.created_at OR(older.created_at=t.created_at AND older.id<t.id))) ORDER\n        BY t.available_at,t.id LIMIT ?",
+    "count" : 87,
+    "total_ms" : 3040.5991,
+    "max_ms" : 95.2001,
+    "rows_examined" : 402423
+  }, {
+    "parameterized_sql" : "SELECT t.* FROM taskoutbox t FORCE INDEX(ix_taskoutbox_ready_scope) WHERE\n        t.tenant_id=? AND t.task_type='dial_call'\n         \n            AND EXISTS(SELECT 1 FROM dial_command_journal j WHERE j.tenant_id=t.tenant_id AND\n            j.call_id=t.aggregate_id AND j.attempt=JSON_EXTRACT(t.payload_json,'$.attempt')+1)\n         \n        AND t.available_at<=? AND t.attempts<t.max_attempts AND (t.state IN\n        ('PENDING','FAILED') OR(t.state='PROCESSING' AND t.locked_at<=?)) AND NOT\n        EXISTS(SELECT 1 FROM taskoutbox older FORCE INDEX(ix_taskoutbox_stream_scope) WHERE\n        older.tenant_id=t.tenant_id AND older.aggregate_id=t.aggregate_id AND\n        older.task_type=t.task_type AND older.state IN ('PENDING','FAILED','PROCESSING') AND\n        (older.created_at<t.created_at OR(older.created_at=t.created_at AND older.id<t.id))) ORDER\n        BY t.available_at,t.id LIMIT ?",
+    "count" : 82,
+    "total_ms" : 2969.9235,
+    "max_ms" : 83.593,
+    "rows_examined" : 379253
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 286,
+    "total_ms" : 2967.8061,
+    "max_ms" : 1257.3682,
+    "rows_examined" : 572
+  }, {
+    "parameterized_sql" : "SELECT o.* FROM voice_outbox o WHERE o.due<=? AND NOT EXISTS(SELECT 1 FROM voice_outbox e WHERE e.stream_key=o.stream_key AND (e.created<o.created OR(e.created=o.created AND e.enqueue_order<o.enqueue_order))) ORDER BY o.created,o.enqueue_order LIMIT ?",
+    "count" : 9605,
+    "total_ms" : 2947.4942,
+    "max_ms" : 38.1095,
+    "rows_examined" : 1405
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 324,
+    "total_ms" : 2925.9742,
+    "max_ms" : 1270.1642,
+    "rows_examined" : 648
+  }, {
+    "parameterized_sql" : "UPDATE `conversationstate`\n         SET `call_id` = ?,\n            \n            \n                `attempt` = ?,\n            \n            \n                `policy_json` = ?,\n            \n            \n                `policy_version_id` = ?,\n            \n            \n                `data_json` = ?,\n            \n            \n                `generation` = ?,\n            \n            \n                `deadline` = ?,\n            \n            \n                `timer_kind` = ?,\n            \n            \n                `updated_at` = ? \n        WHERE `id` = ? AND `tenant_id` = ?",
+    "count" : 277,
+    "total_ms" : 2860.0552,
+    "max_ms" : 1181.1996,
+    "rows_examined" : 554
+  } ],
+  "mysql_file_waits" : [ {
+    "event" : "wait/io/file/innodb/innodb_log_file",
+    "operations" : 310992,
+    "total_ms" : 105069.8345,
+    "writes" : 209419,
+    "written_bytes" : 490680320
+  }, {
+    "event" : "wait/io/file/sql/binlog",
+    "operations" : 46598,
+    "total_ms" : 20360.1777,
+    "writes" : 36105,
+    "written_bytes" : 215658941
+  }, {
+    "event" : "wait/io/file/innodb/innodb_data_file",
+    "operations" : 50576,
+    "total_ms" : 7146.6172,
+    "writes" : 42995,
+    "written_bytes" : 1038073856
+  }, {
+    "event" : "wait/io/file/sql/io_cache",
+    "operations" : 40644,
+    "total_ms" : 2181.9445,
+    "writes" : 16440,
+    "written_bytes" : 620711274
+  }, {
+    "event" : "wait/io/file/innodb/innodb_dblwr_file",
+    "operations" : 462,
+    "total_ms" : 810.7955,
+    "writes" : 454,
+    "written_bytes" : 667369472
+  }, {
+    "event" : "wait/io/file/sql/hash_join",
+    "operations" : 320,
+    "total_ms" : 10.3891,
+    "writes" : 64,
+    "written_bytes" : 1823401
+  }, {
+    "event" : "wait/io/file/innodb/innodb_temp_file",
+    "operations" : 60,
+    "total_ms" : 9.1187,
+    "writes" : 20,
+    "written_bytes" : 327680
+  }, {
+    "event" : "wait/io/file/sql/casetest",
+    "operations" : 15,
+    "total_ms" : 1.8815,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/binlog_index",
+    "operations" : 23,
+    "total_ms" : 1.1945,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/ERRMSG",
+    "operations" : 5,
+    "total_ms" : 0.4192,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/pid",
+    "operations" : 3,
+    "total_ms" : 0.3542,
+    "writes" : 1,
+    "written_bytes" : 2
+  }, {
+    "event" : "wait/io/file/mysys/charset",
+    "operations" : 3,
+    "total_ms" : 0.0893,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/mysys/cnf",
+    "operations" : 5,
+    "total_ms" : 0.0193,
+    "writes" : 0,
+    "written_bytes" : 0
+  }, {
+    "event" : "wait/io/file/sql/misc",
+    "operations" : 5,
+    "total_ms" : 0.0185,
+    "writes" : 0,
+    "written_bytes" : 0
+  } ],
+  "call_states_at_observation_end" : {
+    "COMPLETED" : 700,
+    "QUEUED" : 30300
+  },
+  "callback_receipts" : [ {
+    "count" : 2100,
+    "oldest_age_sec" : 112.722,
+    "state" : "done"
+  } ],
+  "gateway_callback_backlog" : {
+    "max_failures" : 0,
+    "count" : 0,
+    "oldest_age_sec" : 0.0
+  },
+  "passed" : false,
+  "backlog_drain_passed" : true,
+  "diagnostic_passed" : true
+}
