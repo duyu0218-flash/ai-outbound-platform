@@ -39,7 +39,7 @@ jobs:
           node-version: '22'
       - name: Compile and test with JDK 17
         run: bash backend-java/scripts/build-java17.sh -B verify
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: java17-${{ matrix.database }}-tests
@@ -60,7 +60,7 @@ jobs:
         run: node --test tools/tests/security-check.test.mjs
       - name: SBOM, OSV dependencies and FindSecBugs analysis
         run: bash backend-java/scripts/security-check.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: java17-security-reports
@@ -83,7 +83,7 @@ jobs:
         run: node tools/container-smoke.mjs --role core --image java-core-ci
       - name: Preserve container diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: java-core-container-validation
           path: artifacts/no-python/
