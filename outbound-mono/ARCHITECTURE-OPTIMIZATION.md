@@ -146,8 +146,8 @@ prepare phase followed by one send phase.
 Control claims and completion use a separate pool so AI connection saturation cannot strand an
 already-executed playback/timer task before its durable completion. Task failure logs record
 phase, identity, exception classes and SQL codes, without payloads or exception messages; drain
-censuses retain failure-code samples for FAILED/DEAD tasks. Retry limits and DEAD-task gates are
-unchanged. This isolation addresses observed control-lane transaction acquisition failures;
+censuses retain failure-code samples for FAILED/DEAD tasks. Non-conflict failure retry limits
+and DEAD-task gates are unchanged. This isolation addresses observed control-lane transaction acquisition failures;
 pressure results remain authoritative for liveness and latency qualification.
 
 Control executor concurrency is also capped by its reserved connection budget, so new control
@@ -155,3 +155,12 @@ claims cannot occupy every reserved connection while additional control threads 
 completion. The default four control workers have four reserved connections; configuring a
 smaller control pool lowers physical control concurrency, while logical owner ordering remains
 unchanged. This adds a bounded reservation rather than treating transient failures as success.
+
+Playback and timer commands can see HTTP 409 while a newer media generation or provider terminal
+callback is still in transit. Non-appointment `after_playback` tasks now defer with their frozen
+payload and idempotency identity, without consuming the failure-attempt budget. They remain
+PENDING and count against drain until the normal correlated generation/terminal path supersedes
+them. A 409 alone never completes the task or releases resources. Persistent conflicts still
+fail the drain deadline. Other errors retain the existing FAILED/DEAD behavior, and appointment
+dial commands are excluded from this conflict treatment. Structured task diagnostics include
+HTTP status codes without logging command bodies or exception messages.

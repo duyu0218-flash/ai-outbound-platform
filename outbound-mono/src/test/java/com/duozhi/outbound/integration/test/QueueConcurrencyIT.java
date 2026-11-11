@@ -1486,7 +1486,7 @@ class QueueConcurrencyIT {
                         state.get("id"),
                         Values.map(
                                 "timer_kind", "silence", "deadline", Store.now().minusSeconds(1)));
-                var payload =
+                Map<String, Object> payload =
                         Values.map(
                                 "product_kind",
                                 "timer",
