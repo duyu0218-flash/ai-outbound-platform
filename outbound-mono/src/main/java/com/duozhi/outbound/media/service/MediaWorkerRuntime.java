@@ -37,7 +37,7 @@ public class MediaWorkerRuntime {
         manager = new NativeMedia(settings, this::event, this::permit, capacity);
     }
 
-    private void auth(String auth) {
+    public void authenticate(String auth) {
         Support.auth(settings, "MEDIA_RPC_TOKEN", auth, false);
     }
 
@@ -50,7 +50,7 @@ public class MediaWorkerRuntime {
     Map<String, Object> ready(
             @RequestHeader(value = "Authorization", required = false)
             String auth) {
-        auth(auth);
+        authenticate(auth);
         if (!manager.ready()) throw new Support.Failure(503, "media runtime unavailable");
         return Map.of("status", "ready");
     }
@@ -59,7 +59,7 @@ public class MediaWorkerRuntime {
     public Map<String, Object> state(
             @RequestHeader(value = "Authorization", required = false)
             String auth) {
-        auth(auth);
+        authenticate(auth);
         Map<String, Object> sessions = new LinkedHashMap<>();
         for (var session : registered.values()) sessions.put(session.call, session.state());
         return Map.of(
@@ -84,7 +84,7 @@ public class MediaWorkerRuntime {
             @RequestHeader(value = "Authorization", required = false)
             String auth)
             throws Exception {
-        auth(auth);
+        authenticate(auth);
         if (!epoch.equals(command.get("epoch")))
             throw new Support.Failure(409, "worker epoch changed");
         if (command.get("expires_at") instanceof Number n

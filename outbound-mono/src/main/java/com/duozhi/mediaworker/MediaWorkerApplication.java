@@ -85,13 +85,27 @@ public class MediaWorkerApplication implements WebSocketConfigurer {
             return worker.state(auth);
         }
 
-        @PostMapping("/internal/command")
+        @PostMapping(
+                path = "/internal/command",
+                consumes = {"application/json", "application/*+json"})
         public Map<String, Object> command(
-                @RequestBody
-                Map<String, Object> body,
+                jakarta.servlet.http.HttpServletRequest request,
                 @RequestHeader(value = "Authorization", required = false)
                 String auth)
                 throws Exception {
+            worker.authenticate(auth);
+            int maximum = 1024 * 1024;
+            if (request.getContentLengthLong() > maximum)
+                throw new Support.Failure(413, "media command body exceeds limit");
+            byte[] bytes = request.getInputStream().readNBytes(maximum + 1);
+            if (bytes.length > maximum)
+                throw new Support.Failure(413, "media command body exceeds limit");
+            Map<String, Object> body;
+            try {
+                body = Support.object(bytes);
+            } catch (Support.Failure invalid) {
+                throw new Support.Failure(400, "invalid JSON object");
+            }
             return worker.command(body, auth);
         }
 

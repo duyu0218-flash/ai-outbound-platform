@@ -67,6 +67,45 @@ class MediaWorkerApplicationTest {
                                             .build(),
                                     HttpResponse.BodyHandlers.ofString());
             assertThat(denied.statusCode()).isEqualTo(401);
+            var http = HttpClient.newHttpClient();
+            var unauthenticated =
+                    http.send(
+                            HttpRequest.newBuilder(URI.create(endpoint + "/internal/command"))
+                                    .header("Content-Type", "application/json")
+                                    .POST(HttpRequest.BodyPublishers.ofString("{"))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            assertThat(unauthenticated.statusCode())
+                    .as("authorize before parsing malformed JSON")
+                    .isEqualTo(401);
+            byte[] oversized = new byte[1024 * 1024 + 1];
+            for (var publisher :
+                    List.of(
+                            HttpRequest.BodyPublishers.ofByteArray(oversized),
+                            HttpRequest.BodyPublishers.ofInputStream(
+                                    () -> new java.io.ByteArrayInputStream(oversized)))) {
+                var tooLarge =
+                        http.send(
+                                HttpRequest.newBuilder(URI.create(endpoint + "/internal/command"))
+                                        .header("Authorization", "Bearer " + TOKEN)
+                                        .header("Content-Type", "application/json")
+                                        .POST(publisher)
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofString());
+                assertThat(tooLarge.statusCode())
+                        .as("bounded fixed-length and chunked request bodies")
+                        .isEqualTo(413);
+            }
+            var malformed =
+                    http.send(
+                            HttpRequest.newBuilder(URI.create(endpoint + "/internal/command"))
+                                    .header("Authorization", "Bearer " + TOKEN)
+                                    .header("Content-Type", "application/json")
+                                    .POST(HttpRequest.BodyPublishers.ofString("{"))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            assertThat(malformed.statusCode()).isEqualTo(400);
+
             var state = MediaRpc.request(endpoint, "/internal/state", null, TOKEN, 5);
             assertThat(state)
                     .containsEntry("worker_id", "test-worker")
