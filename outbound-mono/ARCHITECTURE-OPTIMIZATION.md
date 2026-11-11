@@ -86,8 +86,8 @@ from the presence of code or a green functional job:
 
 | Phase | Candidate implementation | Remaining acceptance |
 | --- | --- | --- |
-| P0 | Reconciliation queries provider status without sending a timeout-derived hangup. Same attempt and provider identity are checked again under the call lock before terminal recovery. | Delay acceptance beyond the watchdog age; prove no short synthetic occupancy and no resource release on UNKNOWN. |
-| P1 | Callback consumption uses the realtime JDBC lane, alongside existing separately scheduled AI/control/analysis work. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
+| P0 | Reconciliation queries provider status without sending a timeout-derived hangup. Same attempt and provider identity are checked again under the call lock before terminal recovery. V50 atomically retains the original terminal callback before its transport row can be acknowledged/deleted; reconciliation replays this event and its original billing fields. An ended boolean without the correlated event retains capacity. | Delay acceptance beyond the watchdog age; prove no short synthetic occupancy and no resource release on UNKNOWN. |
+| P1 | Callback consumption uses its own JDBC pool (default 2, bounded 1–4), separate from realtime AI/control, analysis and general work. The default business connection budget increases by 2; capacity manifests record this explicitly. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
 | P2 | A dial cohort is admitted in independent chunks of at most 100 calls (`JAVA_DIAL_ADMISSION_CHUNK_SIZE`, default 100). A later failure leaves earlier immutable command identities recoverable. | Sustained CPS, failure/replay reconciliation. Durable-quota authority cutover and asynchronous report projection are not implemented by this patch. |
 | P3 | Optional remote media transport and a separate JVM entry role, with RPC authentication, session/attempt/worker epoch checks and a worker-specific WS address. | Static-provider configuration only; real bidirectional PCM, control restart, live cancellation and accounting recovery remain unqualified. Profile authority RPC is not implemented, and profile mode is rejected rather than silently ignored. |
 | P4 | Existing single-instance ownership, freeze and exit-78 behavior is retained. | Automatic controller/database failover is not implemented or qualified. Execution-enforced cross-primary fencing and a target DB replication/recovery contract are required. |
@@ -114,3 +114,18 @@ and credential authority is implemented. Do not enable remote transport for such
 Worker state HTTP tests do not establish real audio capacity or continuity through a restart.
 The absence of a real media/DB failover environment was confirmed for this task; those acceptance
 items remain open rather than being replaced with synthetic results.
+
+V50 terminal facts use the existing `VOICE_SENSITIVE_RETENTION_DAYS` policy (default 90 days)
+and are removed in bounded purge batches. Older ended attempts without a retained terminal fact
+remain conservative holds until normal callback recovery or explicit reconciliation. V50 is
+additive; do not drop its trigger/table while the candidate writes callbacks. Its independent
+schema contract and migration tests cover correlation, exact payload preservation, duplicate
+terminal events, deletion of delivered transport rows and rollback atomicity.
+
+The capacity profile enables the existing parallel task claim path and sets analysis batches to
+4, bounded by the existing 1–16 contract. These are explicit configuration changes, not a
+same-configuration performance comparison with earlier compatibility-mode runs. The production
+analysis default remains 1. MySQL durability, SLO thresholds, stop deadlines and complete drain
+checks are unchanged. The sending barrier retries only MySQL 1213/40001 transaction rollbacks,
+at most once; exhaustion returns `503 DIAL_CONTROL_BUSY`. Clients may retry that documented
+backpressure inside their original overall deadline, without assuming sending was closed.

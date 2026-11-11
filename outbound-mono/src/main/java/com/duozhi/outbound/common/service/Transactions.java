@@ -40,6 +40,7 @@ public class Transactions {
         if (ownership != null) ownership.requireRunning();
         var budget =
                 WorkloadDataSource.current() == WorkloadDataSource.Lane.REALTIME
+                                || WorkloadDataSource.current() == WorkloadDataSource.Lane.CALLBACK
                         ? realtime
                         : template;
         return budget.execute(

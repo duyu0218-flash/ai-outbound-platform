@@ -1232,7 +1232,7 @@ public class TaskWorker {
                 () -> {
                     // Receipts advance live calls and release their resources. They must not
                     // compete with exports/integrations for the general JDBC pool.
-                    try (var routing = WorkloadDataSource.use(WorkloadDataSource.Lane.REALTIME)) {
+                    try (var routing = WorkloadDataSource.use(WorkloadDataSource.Lane.CALLBACK)) {
                         inbox.maintenance();
                         long deadline = System.nanoTime() + 250000000L;
                         do {

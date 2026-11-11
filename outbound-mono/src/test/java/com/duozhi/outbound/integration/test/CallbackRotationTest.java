@@ -99,7 +99,7 @@ class CallbackRotationTest {
                 .thenAnswer(
                         invocation -> {
                             assertThat(WorkloadDataSource.current())
-                                    .isEqualTo(WorkloadDataSource.Lane.REALTIME);
+                                    .isEqualTo(WorkloadDataSource.Lane.CALLBACK);
                             visited.add(invocation.getArgument(0));
                             Thread.sleep(60);
                             return true;

@@ -345,7 +345,9 @@ class MockDialRate500Probe {
                     }
                     actualConfiguration.put("realtime_jdbc_pool_max", 4);
                     actualConfiguration.put("analysis_jdbc_pool_max", 1);
-                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 5);
+                    env.put("JAVA_CALLBACK_DB_POOL", "2");
+                    actualConfiguration.put("callback_jdbc_pool_max", 2);
+                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 7);
                     env.put(
                             "JAVA_WORKER_POLL_MS",
                             System.getProperty("dial.worker.poll.ms", "250"));
@@ -1286,8 +1288,9 @@ class MockDialRate500Probe {
             }
             boolean lockBusy =
                     reply.statusCode() == 503
-                            && "PLATFORM_LOCK_TIMEOUT"
-                                    .equals(json.readValue(reply.body(), Map.class).get("detail"));
+                            && Set.of("PLATFORM_LOCK_TIMEOUT", "DIAL_CONTROL_BUSY")
+                                    .contains(
+                                            json.readValue(reply.body(), Map.class).get("detail"));
             if (lockBusy) {
                 result.merge(
                         "sending_barrier_lock_timeouts",
@@ -1297,7 +1300,7 @@ class MockDialRate500Probe {
                 assertEquals(
                         409,
                         reply.statusCode(),
-                        "only unresolved sending or a bounded lock timeout may postpone the barrier: "
+                        "only unresolved sending or documented lock/deadlock backpressure may postpone the barrier: "
                                 + reply.body());
             }
             Thread.sleep(200);

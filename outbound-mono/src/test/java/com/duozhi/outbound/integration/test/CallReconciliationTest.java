@@ -37,8 +37,24 @@ class CallReconciliationTest {
         probe(null, false, false);
     }
 
+    @Test
+    void endedBooleanWithoutOriginalTerminalEventCannotInventOutcomeOrBilling() {
+        probe(true, false, false, false, 1);
+    }
+
+    @Test
+    void anotherTenantsTerminalEventCannotReleaseTheCall() {
+        probe(true, false, false, true, 2);
+    }
+
     @SuppressWarnings("unchecked")
     private void probe(Boolean ended, boolean replaced, boolean release) {
+        probe(ended, replaced, release, true, 1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void probe(
+            Boolean ended, boolean replaced, boolean release, boolean withProof, int tenant) {
         var store = mock(Store.class);
         var tx = mock(Transactions.class);
         var client = mock(TelephonyClient.class);
@@ -66,12 +82,34 @@ class CallReconciliationTest {
         when(tx.serialized(any(Supplier.class)))
                 .thenAnswer(i -> ((Supplier<?>) i.getArgument(0)).get());
         when(tx.call("call")).thenReturn(latest);
+        var original =
+                JsonSupport.map(
+                        "call_id",
+                        "call",
+                        "kind",
+                        "status",
+                        "payload",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "attempt",
+                                1,
+                                "provider_call_id",
+                                "old-provider",
+                                "status",
+                                "completed",
+                                "event_id",
+                                "original-terminal-id",
+                                "billable_duration_sec",
+                                7));
+        var reply = new LinkedHashMap<String, Object>();
+        reply.put("ended", ended);
+        reply.put("provider_call_id", "old-provider");
+        if (withProof) reply.put("terminal_event", original);
         if (ended == null)
             when(client.command(anyMap(), eq("status"), anyMap()))
                     .thenThrow(new TelephonyClient.Failure(503, false));
-        else
-            when(client.command(anyMap(), eq("status"), anyMap()))
-                    .thenReturn(Map.of("ended", ended));
+        else when(client.command(anyMap(), eq("status"), anyMap())).thenReturn(reply);
         var service =
                 new CallReconciliation(
                         store, tx, new Config(new MockEnvironment()), client, lifecycle);
@@ -79,7 +117,7 @@ class CallReconciliationTest {
             assertThat(service.reconcile(20)).isEqualTo(release ? 1 : 0);
             verify(client).command(same(stale), eq("status"), anyMap());
             verify(client, never()).command(anyMap(), eq("hangup"), anyMap());
-            if (release) verify(lifecycle).status(anyMap());
+            if (release) verify(lifecycle).status(same(original));
             else verifyNoInteractions(lifecycle);
             verify(store, never()).update(anyString(), anyLong(), any(), anyMap());
         } finally {

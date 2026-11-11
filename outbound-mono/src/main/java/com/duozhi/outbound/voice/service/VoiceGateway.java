@@ -382,6 +382,25 @@ public final class VoiceGateway implements AutoCloseable {
                 });
     }
 
+    private Map<String, Object> terminalStatus(
+            Map<String, Object> row, Map<String, Object> response) {
+        if (!"ended".equals(row.get("state"))) return response;
+        var facts =
+                ledger.read(
+                        db ->
+                                LocalLedger.query(
+                                        db,
+                                        "SELECT body FROM voice_terminal_fact WHERE uuid=? AND tenant=? AND call_id=? AND attempt=?",
+                                        row.get("uuid"),
+                                        row.get("tenant"),
+                                        row.get("call_id"),
+                                        row.get("attempt")));
+        if (facts.isEmpty()) return response;
+        var result = new LinkedHashMap<>(response);
+        result.put("terminal_event", Support.object((byte[]) facts.getFirst().get("body")));
+        return result;
+    }
+
     private Map<String, Object> mockPost(String action, Map<String, Object> payload) {
         if (!action.equals("dial")) {
             long tenant = Support.integer(payload, "tenant_id", 0);
@@ -425,13 +444,15 @@ public final class VoiceGateway implements AutoCloseable {
                                                         "SELECT * FROM attempts WHERE uuid=?",
                                                         originalUuid)
                                                 .get(0));
-                return Map.of(
-                        "result",
-                        row.get("state").equals("ended") ? "hungup" : "pending",
-                        "ended",
-                        row.get("state").equals("ended"),
-                        "provider_call_id",
-                        row.get("uuid"));
+                return terminalStatus(
+                        row,
+                        Map.of(
+                                "result",
+                                row.get("state").equals("ended") ? "hungup" : "pending",
+                                "ended",
+                                row.get("state").equals("ended"),
+                                "provider_call_id",
+                                row.get("uuid")));
             }
             return Map.of("result", "accepted", "action", action);
         }
@@ -775,7 +796,8 @@ public final class VoiceGateway implements AutoCloseable {
         }
         if (Set.of("status", "hangup").contains(action)) {
             if (row.get("state").equals("ended"))
-                return Map.of("result", "hungup", "ended", true, "provider_call_id", uuid);
+                return terminalStatus(
+                        row, Map.of("result", "hungup", "ended", true, "provider_call_id", uuid));
             if (action.equals("hangup"))
                 try {
                     esl.command("uuid_kill " + uuid + " NORMAL_CLEARING", false);

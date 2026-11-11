@@ -90,22 +90,15 @@ public class CallReconciliation {
                         limit);
         int released = 0;
         for (Map<String, Object> call : stale) {
-            boolean confirmed;
+            Map<String, Object> confirmed;
             try {
                 TaskWorker.permitted();
-                confirmed =
-                        Boolean.TRUE.equals(
-                                client.command(
-                                                call,
-                                                "status",
-                                                JsonSupport.map(
-                                                        "reason", "provider_status_timeout"))
-                                        .get("ended"));
+                confirmed = terminalEvent(call, client.command(call, "status", Map.of()));
             } catch (RuntimeException failure) {
                 TaskWorker.permitted();
-                confirmed = false;
+                confirmed = null;
             }
-            final boolean ended = confirmed;
+            final Map<String, Object> terminal = confirmed;
             boolean changed =
                     tx.serialized(
                             () -> {
@@ -120,7 +113,7 @@ public class CallReconciliation {
                                                 call.get("telephony_call_id"))
                                         || CallLifecycle.TERMINAL.contains(latest.get("status")))
                                     return false;
-                                if (!ended) {
+                                if (terminal == null) {
                                     // Do not overwrite newer activity with an older failed probe.
                                     if (Objects.equals(
                                             latest.get("updated_at"), call.get("updated_at")))
@@ -134,28 +127,41 @@ public class CallReconciliation {
                                                                 + " retained"));
                                     return false;
                                 }
-                                lifecycle.status(
-                                        JsonSupport.map(
-                                                "call_id",
-                                                call.get("id"),
-                                                "payload",
-                                                JsonSupport.map(
-                                                        "status",
-                                                        "failed",
-                                                        "attempt",
-                                                        call.get("attempts"),
-                                                        "event_id",
-                                                        "reconciled-end:"
-                                                                + call.get("id")
-                                                                + ":"
-                                                                + call.get("attempts"),
-                                                        "hangup_reason",
-                                                        "provider confirmed ended during reconciliation")));
+                                lifecycle.status(terminal);
                                 return true;
                             });
             if (changed) released++;
         }
         return released;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> terminalEvent(Map<String, Object> call, Map<String, Object> reply) {
+        if (!Boolean.TRUE.equals(reply.get("ended"))
+                || !(reply.get("terminal_event") instanceof Map<?, ?> event)
+                || !(event.get("payload") instanceof Map<?, ?> raw)) return null;
+        var payload = (Map<String, Object>) raw;
+        Object provider =
+                payload.getOrDefault("provider_call_id", payload.get("telephony_call_id"));
+        if (!"status".equals(event.get("kind"))
+                || !Objects.equals(event.get("call_id"), call.get("id"))
+                || CallLifecycle.number(payload, "tenant_id") != CallLifecycle.tenant(call)
+                || CallLifecycle.number(payload, "attempt")
+                        != CallLifecycle.number(call, "attempts")
+                || call.get("telephony_call_id") == null
+                || !Objects.equals(provider, call.get("telephony_call_id"))
+                || !Objects.equals(provider, reply.get("provider_call_id"))
+                || Objects.toString(payload.get("event_id"), "").isBlank()
+                || !Set.of(
+                                "ended",
+                                "completed",
+                                "failed",
+                                "busy",
+                                "no_answer",
+                                "voicemail",
+                                "canceled")
+                        .contains(payload.get("status"))) return null;
+        return (Map<String, Object>) event;
     }
 
     @Scheduled(fixedDelayString = "${JAVA_RECONCILE_POLL_MS:5000}")

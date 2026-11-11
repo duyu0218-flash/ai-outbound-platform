@@ -24,6 +24,157 @@ class DataLayerReplayIT {
                             "--collation-server=utf8mb4_0900_ai_ci");
 
     @Test
+    void terminalReplayIsCorrelatedImmutableAndAtomicWithItsOutbox() throws Exception {
+        String schema = "terminal_replay_fixture";
+        try (var db = DriverManager.getConnection(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
+                var q = db.createStatement()) {
+            q.execute(
+                    "CREATE DATABASE "
+                            + schema
+                            + " CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin");
+        }
+        String url =
+                "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + schema;
+        Flyway.configure()
+                .dataSource(url, "root", MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+        try (var db = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+                var q = db.createStatement()) {
+            q.executeUpdate(
+                    "INSERT INTO voice_attempts(call_id,attempt,tenant,`line`,uuid,digest,payload,created,deadline,cost,rate,multiplier,state) VALUES ('proof-call',1,1,'line','proof-uuid','digest','{}',0,9999999999,100,10,1,'pending'),('rollback-call',1,1,'line','rollback-uuid','digest','{}',0,9999999999,100,10,1,'pending')");
+            var original =
+                    Map.of(
+                            "kind",
+                            "status",
+                            "call_id",
+                            "proof-call",
+                            "payload",
+                            Map.of(
+                                    "tenant_id",
+                                    1,
+                                    "attempt",
+                                    1,
+                                    "provider_call_id",
+                                    "proof-uuid",
+                                    "status",
+                                    "ended",
+                                    "event_id",
+                                    "original-end",
+                                    "billable_duration_sec",
+                                    7));
+            byte[] body = new ObjectMapper().writeValueAsBytes(original);
+            try (var insert =
+                    db.prepareStatement(
+                            "INSERT INTO voice_outbox(id,url,body,created,due,stream_key) VALUES(?,?,?,1,1,?)")) {
+                insert.setString(1, "original");
+                insert.setString(2, "http://127.0.0.1/fixture");
+                insert.setBytes(3, body);
+                insert.setString(4, "proof-call");
+                insert.executeUpdate();
+                q.executeUpdate("DELETE FROM voice_outbox WHERE id='original'");
+                try (var rows =
+                        q.executeQuery(
+                                "SELECT body FROM voice_terminal_fact WHERE uuid='proof-uuid'")) {
+                    assertThat(rows.next()).isTrue();
+                    assertThat(rows.getBytes(1)).containsExactly(body);
+                }
+                // A second transport event cannot replace the original outcome or billing facts.
+                insert.setString(1, "duplicate");
+                insert.setBytes(
+                        3,
+                        new ObjectMapper()
+                                .writeValueAsBytes(
+                                        Map.of(
+                                                "kind",
+                                                "status",
+                                                "call_id",
+                                                "proof-call",
+                                                "payload",
+                                                Map.of(
+                                                        "tenant_id",
+                                                        1,
+                                                        "attempt",
+                                                        1,
+                                                        "provider_call_id",
+                                                        "proof-uuid",
+                                                        "status",
+                                                        "failed",
+                                                        "event_id",
+                                                        "late-end",
+                                                        "billable_duration_sec",
+                                                        999))));
+                insert.executeUpdate();
+                try (var rows =
+                        q.executeQuery(
+                                "SELECT body FROM voice_terminal_fact WHERE uuid='proof-uuid'")) {
+                    assertThat(rows.next()).isTrue();
+                    assertThat(rows.getBytes(1)).containsExactly(body);
+                }
+                insert.setString(1, "wrong-tenant");
+                insert.setBytes(
+                        3,
+                        new ObjectMapper()
+                                .writeValueAsBytes(
+                                        Map.of(
+                                                "kind",
+                                                "status",
+                                                "call_id",
+                                                "rollback-call",
+                                                "payload",
+                                                Map.of(
+                                                        "tenant_id",
+                                                        2,
+                                                        "attempt",
+                                                        1,
+                                                        "provider_call_id",
+                                                        "rollback-uuid",
+                                                        "status",
+                                                        "ended"))));
+                insert.executeUpdate();
+                try (var rows =
+                        q.executeQuery(
+                                "SELECT COUNT(*) FROM voice_terminal_fact WHERE uuid='rollback-uuid'")) {
+                    rows.next();
+                    assertThat(rows.getLong(1)).isZero();
+                }
+                db.setAutoCommit(false);
+                insert.setString(1, "rollback");
+                insert.setString(4, "rollback-call");
+                insert.setBytes(
+                        3,
+                        new ObjectMapper()
+                                .writeValueAsBytes(
+                                        Map.of(
+                                                "kind",
+                                                "status",
+                                                "call_id",
+                                                "rollback-call",
+                                                "payload",
+                                                Map.of(
+                                                        "tenant_id",
+                                                        1,
+                                                        "attempt",
+                                                        1,
+                                                        "provider_call_id",
+                                                        "rollback-uuid",
+                                                        "status",
+                                                        "ended"))));
+                insert.executeUpdate();
+                db.rollback();
+                db.setAutoCommit(true);
+                try (var rows =
+                        q.executeQuery(
+                                "SELECT COUNT(*) FROM voice_terminal_fact WHERE uuid='rollback-uuid'")) {
+                    rows.next();
+                    assertThat(rows.getLong(1)).isZero();
+                }
+            }
+        }
+    }
+
+    @Test
     void v43UpgradeAddsQuarantineWithoutReleasingLiveVoiceReservations() throws Exception {
         String schema = "runtime_v43_upgrade";
         try (var connection =
@@ -327,9 +478,10 @@ class DataLayerReplayIT {
         }
         // Marketing tables (mk_*) are owned and verified by the marketing module tests.
         assertThat(tables.keySet().stream().filter(name -> !name.startsWith("mk_")).count())
-                .isEqualTo(144);
+                .isEqualTo(145);
         assertThat(tables)
                 .containsKeys(
+                        "voice_terminal_fact",
                         "ops_call_statistics",
                         "ops_campaign_statistics",
                         "ops_campaign_contact_statistics",
@@ -428,13 +580,20 @@ class DataLayerReplayIT {
                         + tables.size());
     }
 
-    /** Independently maintained V47–V49 additions; never inferred from the running schema. */
+    /** Independently maintained V47–V50 additions; never inferred from the running schema. */
     static void assertReviewSchema(java.sql.Connection connection) throws Exception {
         com.fasterxml.jackson.databind.JsonNode contract;
         try (var input =
                 DataLayerReplayIT.class.getResourceAsStream(
                         "/contracts/review-schema-v47-v49.json")) {
             contract = new ObjectMapper().readTree(input);
+        }
+        try (var input =
+                DataLayerReplayIT.class.getResourceAsStream("/contracts/review-schema-v50.json")) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode) contract)
+                    .setAll(
+                            (com.fasterxml.jackson.databind.node.ObjectNode)
+                                    new ObjectMapper().readTree(input));
         }
         var entries = contract.fields();
         while (entries.hasNext()) {

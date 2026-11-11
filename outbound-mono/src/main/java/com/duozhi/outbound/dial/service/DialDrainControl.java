@@ -115,6 +115,27 @@ public class DialDrainControl {
     }
 
     public Map<String, Object> closeSending() {
+        if (TransactionSynchronizationManager.isActualTransactionActive())
+            throw new IllegalStateException("sending barrier requires a fresh transaction");
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                return closeSendingTransaction();
+            } catch (org.springframework.dao.CannotAcquireLockException conflict) {
+                boolean deadlock = false;
+                for (Throwable cause = conflict; cause != null; cause = cause.getCause())
+                    if (cause instanceof java.sql.SQLException sql
+                            && sql.getErrorCode() == 1213
+                            && "40001".equals(sql.getSQLState())) deadlock = true;
+                if (!deadlock) throw conflict;
+                // MySQL 1213 rolls the entire transaction back. This barrier has no external
+                // effects, so retry its complete proof in a fresh transaction, at most once.
+                if (attempt == 1) throw new ApiError(503, "DIAL_CONTROL_BUSY");
+            }
+        }
+        throw new IllegalStateException("unreachable sending barrier retry");
+    }
+
+    private Map<String, Object> closeSendingTransaction() {
         return tx.serialized(
                 () -> {
                     String phase =
