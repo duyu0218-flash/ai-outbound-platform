@@ -37,6 +37,35 @@
       "errors": 0,
       "integration": 56,
       "note": "Full units and selected integration passed before the final heartbeat and drain-recovery changes; not full-suite evidence for the final source."
+    },
+    "ci_attempts": [
+      {
+        "head_sha": "a11e7816bfd8c6d9c43d40c25cf7bbcb2b2c8c89",
+        "run_id": 42964096871,
+        "url": "https://github.com/duyu0218-flash/ai-outbound-platform/actions/runs/42964096871",
+        "unit_tests": 409,
+        "failures": 2,
+        "errors": 0,
+        "skipped": 0,
+        "failure_reasons": [
+          "New global internal receipt-retention statement required one explicit named exception in the test-only tenant-query policy; tenantless callbackinbox table and completed/age/batch constraints were reviewed.",
+          "Recovery unit fixture mocked sendingClosed but not the new admissionClosed boundary. Updated it to exercise both closed-admission and closed-send recovery modes."
+        ],
+        "runtime_and_probe_source_unchanged": true
+      }
+    ],
+    "additional_targeted_unit": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "names": [
+        "TenantMapperPolicyTest",
+        "DialBatchRecoveryTest"
+      ],
+      "log_local_path": "outbound-mono/verification/20261111-drain-recovery/ci-policy-compatibility.log",
+      "log_sha256": "2244f0e354df6922861ddf542eecbd8c48cf697694d080a220348606f0c51b01",
+      "runtime_and_probe_source_unchanged": true
     }
   },
   "phases": {
@@ -3867,7 +3896,9 @@
     "maximum_one": "mvn -B -Dtest=MaximumDialRateProbe -Dcapacity.jfr=true -Ddial.task.parallel=true -Ddial.analysis.batch=4 -Ddial.source=queue -Ddial.batch=100 -Ddial.campaigns=1 -Ddial.workers=4 -Ddial.db.pool=8 -Ddial.receipt.batch=32 -Ddial.callback.workers=2 -Ddial.callback.groups=2 -Ddial.callback.concurrency=128 -Ddial.callback.poll.ms=10 -Ddial.warmup.seconds=10 -Ddial.output=verification/reproduce-max-one surefire:test",
     "maximum_large": "Same maximum_one arguments, with -Ddial.batch=500 -Ddial.campaigns=16 and a different output directory.",
     "ai_500": "mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.callback.workers=4 -Dcapacity.callback.pool=4 -Dcapacity.callback.poll.ms=10 -Dcapacity.callback.batch=32 -Dcapacity.output=verification/reproduce-ai-500 surefire:test",
-    "note": "Append common_probe_arguments to each probe command. Package once, then use surefire:test so all three probes use the same Jar; do not rebuild between probes."
+    "note": "Append common_probe_arguments to each probe command. Package once, then use surefire:test so all three probes use the same Jar; do not rebuild between probes.",
+    "additional_checks": "mvn -B -Dtest=TenantMapperPolicyTest,DialBatchRecoveryTest test",
+    "test_policy_revision": "Use the final PR #126 head for the full test-policy catalog and recovery fixtures. The runtime/probe source and measured Jar remain at the recorded 304447a source."
   },
   "production_capacity_verified": false,
   "stable_maximum_cps_verified": false

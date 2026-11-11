@@ -261,6 +261,11 @@
       "table": "callbackinbox",
       "reason": "Original platform-only persistence operation at CallbackInbox.java:39; table has no tenant_id."
     },
+    "com.duozhi.outbound.callback.dao.CallbackInboxMapper.purgeExpiredReceipts": {
+      "category": "A",
+      "table": "callbackinbox",
+      "reason": "Platform-internal retention on the shared receipt queue, which has no tenant_id; deletes only DONE rows older than the server-computed minimum seven-day cutoff, bounded to 1000 rows. Not exposed as a tenant data operation."
+    },
     "com.duozhi.outbound.callback.dao.CallbackInboxMapper.deleteExpiredReceipt": {
       "category": "A",
       "table": "callbackinbox",
