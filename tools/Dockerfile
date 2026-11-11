@@ -1,6 +1,6 @@
 # Clean development/test toolchain. No interpreter package is installed.
 FROM node:22-bookworm-slim AS node
-FROM maven:3.9.11-eclipse-temurin-17 AS toolchain
+FROM maven:3.9-eclipse-temurin-26 AS toolchain
 COPY --from=node /usr/local/ /usr/local/
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 WORKDIR /workspace
