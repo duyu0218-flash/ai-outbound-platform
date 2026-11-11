@@ -4,7 +4,7 @@
   "runtime_source_tree": "f0f2e524b608bb2eaa3ee690ef343a29d76650d3",
   "probe_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
   "candidate_jar_sha256": "f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645",
-  "scope": "Isolated synthetic telephone control and rule AI with real MySQL/Redis. Host JVM only. No real SIP/RTP/PCM, paid model, production traffic or database failover qualification.",
+  "scope": "Control-role load baseline at 304447a: synthetic telephone control and rule AI with real MySQL/Redis, host JVM only. The final standalone-media HTTP authentication/body-boundary change is validated separately. No real SIP/RTP/PCM, paid model, production traffic or database failover qualification.",
   "hardware": {
     "architecture": "x86_64",
     "cpu_quota": "400000 100000",
@@ -93,6 +93,13 @@
       "log_local_path": "outbound-mono/verification/20261111-drain-recovery/ci-datalayer-contract.log",
       "log_sha256": "63b3355c7dc979f22532ee46aaf944b755e6f2255e381c2b23e0b6b4f9424c0a",
       "runtime_and_probe_source_unchanged": true
+    },
+    "final_media_boundary_unit": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source_commit": "69ee63ca91d37c9b453a44e8e4677a4246d44c91"
     }
   },
   "phases": {
@@ -3473,7 +3480,9 @@
           "bytes": 53441163
         }
       },
-      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification.",
+      "measured_role": "control / mock telephony / legacy rule AI",
+      "includes_final_media_http_boundary_patch": false
     },
     {
       "name": "max-large",
@@ -3763,7 +3772,9 @@
           "bytes": 41591261
         }
       },
-      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification.",
+      "measured_role": "control / mock telephony / legacy rule AI",
+      "includes_final_media_http_boundary_patch": false
     },
     {
       "name": "ai-500",
@@ -3868,7 +3879,9 @@
           "bytes": 281291
         }
       },
-      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification."
+      "measurement_caveat": "Single diagnostic pass per distribution on a shared 4-CPU quota host; not sustained or production capacity qualification.",
+      "measured_role": "control / mock telephony / legacy rule AI",
+      "includes_final_media_http_boundary_patch": false
     }
   ],
   "aborted_attempts": [
@@ -3925,8 +3938,46 @@
     "ai_500": "mvn -B -Dtest=SingleHost500CapacityProbe -Dcapacity.db.pool=8 -Dcapacity.task.workers=8 -Dcapacity.ai.owners=8 -Dcapacity.callback.workers=4 -Dcapacity.callback.pool=4 -Dcapacity.callback.poll.ms=10 -Dcapacity.callback.batch=32 -Dcapacity.output=verification/reproduce-ai-500 surefire:test",
     "note": "Append common_probe_arguments to each probe command. Package once, then use surefire:test so all three probes use the same Jar; do not rebuild between probes.",
     "additional_checks": "mvn -B -Dtest=TenantMapperPolicyTest,DialBatchRecoveryTest -Dit.test=DataLayerIT test failsafe:integration-test failsafe:verify",
-    "test_policy_revision": "Use the final PR #126 head for the full test-policy catalog and recovery fixtures. The runtime/probe source and measured Jar remain at the recorded 304447a source."
+    "test_policy_revision": "Use the final PR #126 head for the full test-policy catalog and recovery fixtures. The runtime/probe source and measured Jar remain at the recorded 304447a source.",
+    "final_media_boundary": "Checkout the final PR head; mvn -B -Dtest=MediaWorkerApplicationTest,MediaTest package. Control-load commands above refer to the immutable 304447a baseline; media request bounds are validated separately."
   },
   "production_capacity_verified": false,
-  "stable_maximum_cps_verified": false
+  "stable_maximum_cps_verified": false,
+  "current_candidate_scope": "Control/legacy-mock workload baseline only; the final media-only HTTP boundary is not exercised by these load probes.",
+  "control_load_measured_jar_local_path": "outbound-mono/verification/20261111-drain-recovery/control-load-measured.jar",
+  "final_media_http_boundary": {
+    "source_commit": "69ee63ca91d37c9b453a44e8e4677a4246d44c91",
+    "jar_sha256": "120d300c4167eb40c8d78b3656831ef3469a89ef7d66b89340cca65da359beba",
+    "unit_tests": 10,
+    "unit_failures": 0,
+    "unit_errors": 0,
+    "unit_skipped": 0,
+    "package_log_sha256": "338dd545e59067e667d29494357267c0ae6659cb799d364b2593b146b886692b",
+    "before_fix_regression": {
+      "tests": 1,
+      "failures": 1,
+      "expected_unauthorized_malformed_status": 401,
+      "actual": 400,
+      "log_sha256": "26bf92b7bca480a0152b9d49dbfdd99abe73c0020d525730f05aa87c29774a26"
+    },
+    "native_jvm": {
+      "scope": "isolated media JVM request authentication/body bounds and epoch smoke; no PCM, provider or failover qualification",
+      "jar_sha256": "120d300c4167eb40c8d78b3656831ef3469a89ef7d66b89340cca65da359beba",
+      "first_epoch": "6a1a20f4d3e34fd1b531d59cc9a5622f",
+      "worker_id": "smoke-worker",
+      "unauthorized_malformed_status": 401,
+      "authorized_malformed_status": 400,
+      "oversized_fixed_status": 413,
+      "oversized_chunked_status": 413,
+      "second_epoch": "7e243a764bab47ac80ab88880e2d780f",
+      "old_epoch_status": 409,
+      "passed": true
+    },
+    "changed_main_files": [
+      "outbound-mono/src/main/java/com/duozhi/mediaworker/MediaWorkerApplication.java",
+      "outbound-mono/src/main/java/com/duozhi/outbound/media/service/MediaWorkerRuntime.java"
+    ],
+    "control_load_paths_changed": false,
+    "scope": "Standalone media request authorization precedes bounded JSON parsing; fixed and chunked requests are capped at 1 MiB. Native restart/epoch checked. No PCM or media load qualification."
+  }
 }

@@ -204,7 +204,7 @@ Unknown responses and unresolved sends remain failures.
 
 ### Candidate validation and delivery evidence
 
-Runtime/probe source: `304447ae2ac50f21d9f71211419ba182fbd85371`; host Jar SHA-256:
+Control-load runtime/probe baseline: `304447ae2ac50f21d9f71211419ba182fbd85371`; host Jar SHA-256:
 `f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645`. The final local scoped run passed 37 unit and 57
 integration tests without failures, errors or skips. The earlier 409-unit full run belongs to
 `f8ffb04`, before the last heartbeat and recovery revisions; final full-suite CI is recorded in
@@ -224,3 +224,14 @@ configuration, commit intervals, all failed/superseded runs, hashes and reproduc
 No stable maximum CPS, real audio capacity, automatic HA or production qualification is claimed.
 The existing functional-merge boundary applies to this bounded patch; merging does not complete
 P0–P5. Durable quota/report cutover, profile authority and automatic HA remain open.
+
+### Standalone media request boundary
+
+The standalone command handler authorizes the RPC header before reading or parsing JSON.
+Content-Length and chunked bodies are bounded at 1 MiB before object deserialization. Malformed
+JSON from an unauthorized caller returns 401; authorized malformed JSON remains 400 and oversized
+requests return 413. Ten media unit tests, including real HTTP requests, pass. The packaged
+`69ee63c` worker Jar also passes these cases and rejects the prior epoch after a restart.
+This modifies only the standalone entry and the worker authorization helper; the recorded mock
+control-load paths are unchanged. Its separate Jar digest and native process results are in
+`final_media_http_boundary` in the machine evidence. It does not qualify real media throughput.

@@ -1,0 +1,13 @@
+{
+  "scope": "isolated media JVM request authentication/body bounds and epoch smoke; no PCM, provider or failover qualification",
+  "jar_sha256": "120d300c4167eb40c8d78b3656831ef3469a89ef7d66b89340cca65da359beba",
+  "first_epoch": "6a1a20f4d3e34fd1b531d59cc9a5622f",
+  "worker_id": "smoke-worker",
+  "unauthorized_malformed_status": 401,
+  "authorized_malformed_status": 400,
+  "oversized_fixed_status": 413,
+  "oversized_chunked_status": 413,
+  "second_epoch": "7e243a764bab47ac80ab88880e2d780f",
+  "old_epoch_status": 409,
+  "passed": true
+}
