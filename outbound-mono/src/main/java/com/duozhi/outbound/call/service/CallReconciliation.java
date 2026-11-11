@@ -1,5 +1,6 @@
 package com.duozhi.outbound.call.service;
 
+import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.runtime.ScheduledWork;
@@ -17,7 +18,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-/** A database timeout alone is never evidence that the PBX released a call. */
+/**
+ * A database timeout alone is never evidence that the PBX released a call. Reconciliation is a
+ * read-only provider probe: queue/admission age must never become permission to hang up a live
+ * channel. Explicit business hangups continue through the normal fenced control path.
+ */
 @Service
 public class CallReconciliation {
     @org.springframework.beans.factory.annotation.Autowired
@@ -28,6 +33,8 @@ public class CallReconciliation {
     private final Config config;
     private final TelephonyClient client;
     private final CallLifecycle lifecycle;
+    @org.springframework.beans.factory.annotation.Autowired
+    private CallbackInbox inbox;
     private final AtomicBoolean running = new AtomicBoolean();
     private final ExecutorService executor =
             Executors.newSingleThreadExecutor(
@@ -84,24 +91,17 @@ public class CallReconciliation {
                                 limit),
                         List.of("updated_at:ASC", "id:ASC"),
                         limit);
-        int released = 0;
+        int replayed = 0;
         for (Map<String, Object> call : stale) {
-            boolean confirmed;
+            Map<String, Object> confirmed;
             try {
                 TaskWorker.permitted();
-                confirmed =
-                        Boolean.TRUE.equals(
-                                client.command(
-                                                call,
-                                                "hangup",
-                                                JsonSupport.map(
-                                                        "reason", "provider_status_timeout"))
-                                        .get("ended"));
+                confirmed = terminalEvent(call, client.command(call, "status", Map.of()));
             } catch (RuntimeException failure) {
                 TaskWorker.permitted();
-                confirmed = false;
+                confirmed = null;
             }
-            final boolean ended = confirmed;
+            final Map<String, Object> terminal = confirmed;
             boolean changed =
                     tx.serialized(
                             () -> {
@@ -111,9 +111,12 @@ public class CallReconciliation {
                                 if (latest == null
                                         || CallLifecycle.number(latest, "attempts")
                                                 != CallLifecycle.number(call, "attempts")
+                                        || !Objects.equals(
+                                                latest.get("telephony_call_id"),
+                                                call.get("telephony_call_id"))
                                         || CallLifecycle.TERMINAL.contains(latest.get("status")))
                                     return false;
-                                if (!ended) {
+                                if (terminal == null) {
                                     // Do not overwrite newer activity with an older failed probe.
                                     if (Objects.equals(
                                             latest.get("updated_at"), call.get("updated_at")))
@@ -127,28 +130,44 @@ public class CallReconciliation {
                                                                 + " retained"));
                                     return false;
                                 }
-                                lifecycle.status(
-                                        JsonSupport.map(
-                                                "call_id",
-                                                call.get("id"),
-                                                "payload",
-                                                JsonSupport.map(
-                                                        "status",
-                                                        "failed",
-                                                        "attempt",
-                                                        call.get("attempts"),
-                                                        "event_id",
-                                                        "reconciled-end:"
-                                                                + call.get("id")
-                                                                + ":"
-                                                                + call.get("attempts"),
-                                                        "hangup_reason",
-                                                        "provider status timeout")));
+                                if (config.flag("CALLBACK_INBOX_ENABLED", false))
+                                    inbox.receive("telephony_status", terminal);
+                                else lifecycle.status(terminal);
                                 return true;
                             });
-            if (changed) released++;
+            if (changed) replayed++;
         }
-        return released;
+        return replayed;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> terminalEvent(Map<String, Object> call, Map<String, Object> reply) {
+        if (!Boolean.TRUE.equals(reply.get("ended"))
+                || !(reply.get("terminal_event") instanceof Map<?, ?> event)
+                || !(event.get("payload") instanceof Map<?, ?> raw)) return null;
+        var payload = (Map<String, Object>) raw;
+        Object provider =
+                payload.getOrDefault("provider_call_id", payload.get("telephony_call_id"));
+        if (!"status".equals(event.get("kind"))
+                || !Objects.toString(event.get("call_id"), "")
+                        .equals(Objects.toString(call.get("id"), ""))
+                || CallLifecycle.number(payload, "tenant_id") != CallLifecycle.tenant(call)
+                || CallLifecycle.number(payload, "attempt")
+                        != CallLifecycle.number(call, "attempts")
+                || call.get("telephony_call_id") == null
+                || !Objects.equals(provider, call.get("telephony_call_id"))
+                || !Objects.equals(provider, reply.get("provider_call_id"))
+                || Objects.toString(payload.get("event_id"), "").isBlank()
+                || !Set.of(
+                                "ended",
+                                "completed",
+                                "failed",
+                                "busy",
+                                "no_answer",
+                                "voicemail",
+                                "canceled")
+                        .contains(payload.get("status"))) return null;
+        return (Map<String, Object>) event;
     }
 
     @Scheduled(fixedDelayString = "${JAVA_RECONCILE_POLL_MS:5000}")

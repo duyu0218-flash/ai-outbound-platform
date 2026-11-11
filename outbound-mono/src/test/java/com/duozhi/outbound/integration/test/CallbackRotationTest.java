@@ -8,6 +8,7 @@ import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.dial.service.DialDrainControl;
@@ -26,6 +27,36 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class CallbackRotationTest {
+    @Test
+    void controlExecutionConcurrencyCannotExceedItsReservedConnectionBudget() {
+        var environment =
+                new org.springframework.mock.env.MockEnvironment()
+                        .withProperty("JAVA_CONTROL_DB_POOL", "1")
+                        .withProperty("JAVA_CONTROL_TASK_WORKERS", "4")
+                        .withProperty("JAVA_CONTROL_TASK_OWNERS", "4");
+        var worker =
+                new TaskWorker(
+                        mock(Store.class),
+                        mock(Transactions.class),
+                        new Config(environment),
+                        mock(JsonSupport.class),
+                        mock(Outbox.class),
+                        mock(DialService.class),
+                        mock(CallLifecycle.class),
+                        mock(CallAnalysis.class),
+                        mock(CallbackInbox.class),
+                        mock(AiRuntime.class),
+                        mock(IntegrationTasks.class),
+                        mock(DialBatchWorker.class));
+        try {
+            var executor =
+                    (ThreadPoolExecutor) ReflectionTestUtils.getField(worker, "controlExecutor");
+            assertThat(executor.getMaximumPoolSize()).isEqualTo(1);
+        } finally {
+            worker.close();
+        }
+    }
+
     @Test
     void analysisOwnersCannotPublishAiWorkerProgress() throws Exception {
         var environment = new StandardEnvironment();
@@ -97,6 +128,8 @@ class CallbackRotationTest {
         when(inbox.consume(anyInt()))
                 .thenAnswer(
                         invocation -> {
+                            assertThat(WorkloadDataSource.current())
+                                    .isEqualTo(WorkloadDataSource.Lane.CALLBACK);
                             visited.add(invocation.getArgument(0));
                             Thread.sleep(60);
                             return true;

@@ -102,6 +102,47 @@ class VoiceMockExecutionTest {
                             .toList();
             assertThat(statuses).containsExactly("dialing", "no_answer");
             assertThat(
+                            recovered.post(
+                                    "status",
+                                    Map.of(
+                                            "call_id",
+                                            "synthetic-v5",
+                                            "tenant_id",
+                                            1,
+                                            "expected_attempt",
+                                            1,
+                                            "provider_call_id",
+                                            accepted.get("provider_call_id"))))
+                    .doesNotContainKey("terminal_event");
+            recovered.ledger.transaction(
+                    db -> {
+                        LocalLedger.execute(db, "DELETE FROM outbox");
+                        return null;
+                    });
+            var proof =
+                    recovered.post(
+                            "status",
+                            Map.of(
+                                    "call_id",
+                                    "synthetic-v5",
+                                    "tenant_id",
+                                    1,
+                                    "expected_attempt",
+                                    1,
+                                    "provider_call_id",
+                                    accepted.get("provider_call_id")));
+            assertThat(proof).containsEntry("ended", true);
+            var terminal = Support.map(proof.get("terminal_event"));
+            assertThat(terminal)
+                    .containsEntry("kind", "status")
+                    .containsEntry("call_id", "synthetic-v5");
+            assertThat(Support.map(terminal.get("payload"))).containsEntry("status", "no_answer");
+            assertThat(
+                            recovered.ledger.<Long>read(
+                                    db -> LocalLedger.scalar(db, "SELECT COUNT(*) FROM outbox")))
+                    .isZero();
+
+            assertThat(
                             recovered.ledger.<Long>read(
                                     db ->
                                             LocalLedger.scalar(

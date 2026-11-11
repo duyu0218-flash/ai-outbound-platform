@@ -345,7 +345,13 @@ class MockDialRate500Probe {
                     }
                     actualConfiguration.put("realtime_jdbc_pool_max", 4);
                     actualConfiguration.put("analysis_jdbc_pool_max", 1);
-                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 5);
+                    env.put("JAVA_CALLBACK_DB_POOL", "2");
+                    ((Map<String, Object>) result.get("configuration"))
+                            .put("local_speech_consumption_enabled", true);
+                    actualConfiguration.put("callback_jdbc_pool_max", 2);
+                    env.put("JAVA_CONTROL_DB_POOL", "4");
+                    actualConfiguration.put("control_jdbc_pool_max", 4);
+                    actualConfiguration.put("total_business_jdbc_pool_max", dbPool + 11);
                     env.put(
                             "JAVA_WORKER_POLL_MS",
                             System.getProperty("dial.worker.poll.ms", "250"));
@@ -1233,6 +1239,7 @@ class MockDialRate500Probe {
                     q.executeQuery(
                             "SELECT"
                                     + " task_type,state,COUNT(*),SUM(available_at<=UTC_TIMESTAMP(3)),SUM(available_at>UTC_TIMESTAMP(3)),GREATEST(0,COALESCE(MAX(TIMESTAMPDIFF(MICROSECOND,available_at,UTC_TIMESTAMP(3))),0))/1000000"
+                                    + ",COALESCE(GROUP_CONCAT(DISTINCT CASE WHEN state IN ('DEAD','FAILED') THEN LEFT(last_error,160) END),'')"
                                     + " FROM taskoutbox WHERE state!='COMPLETED' GROUP BY"
                                     + " task_type,state")) {
                 while (rows.next())
@@ -1249,7 +1256,9 @@ class MockDialRate500Probe {
                                     "future",
                                     rows.getLong(5),
                                     "oldest_due_age_sec",
-                                    rows.getDouble(6)));
+                                    rows.getDouble(6),
+                                    "error_codes",
+                                    rows.getString(7)));
             }
             sample.put("task_backlog", tasks);
             db.commit();
@@ -1261,11 +1270,38 @@ class MockDialRate500Probe {
         long stopped = System.nanoTime();
         result.put("stop_requested_at_ms", System.currentTimeMillis());
         result.put("backlog_at_stop_request", backlogSample());
-        var begin = admin("/v1/admin/dial-control/begin");
+        long deadline = stopped + TimeUnit.SECONDS.toNanos(180);
+        Map<String, Object> begin = null;
+        while (System.nanoTime() < deadline) {
+            var reply =
+                    http.send(
+                            HttpRequest.newBuilder(
+                                            URI.create(origin + "/v1/admin/dial-control/begin"))
+                                    .timeout(Duration.ofSeconds(30))
+                                    .header("Authorization", "Bearer " + HOOK)
+                                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            if (reply.statusCode() == 200) {
+                begin = json.readValue(reply.body(), Map.class);
+                break;
+            }
+            assertTrue(
+                    reply.statusCode() == 503
+                            && "PLATFORM_LOCK_TIMEOUT"
+                                    .equals(json.readValue(reply.body(), Map.class).get("detail")),
+                    "only a documented pre-transaction lock timeout may postpone admission closure: "
+                            + reply.body());
+            result.merge(
+                    "admission_barrier_lock_timeouts",
+                    1,
+                    (left, right) -> ((Number) left).intValue() + 1);
+            Thread.sleep(200);
+        }
+        assertNotNull(begin, "admission barrier must close within the original stop deadline");
         result.put("drain_begin", begin);
-        // The begin transaction captures admitted/sending K identities while closing new admission.
-        // QUEUED/unadmitted rows remain durable but never become a second load phase.
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(180);
+        // Admission capture, command completion and drain share the same original 180s budget.
+        // Only already-frozen identities may recover; fresh queued rows stay untouched.
         boolean closed = false;
         while (System.nanoTime() < deadline) {
             var reply =
@@ -1286,8 +1322,9 @@ class MockDialRate500Probe {
             }
             boolean lockBusy =
                     reply.statusCode() == 503
-                            && "PLATFORM_LOCK_TIMEOUT"
-                                    .equals(json.readValue(reply.body(), Map.class).get("detail"));
+                            && Set.of("PLATFORM_LOCK_TIMEOUT", "DIAL_CONTROL_BUSY")
+                                    .contains(
+                                            json.readValue(reply.body(), Map.class).get("detail"));
             if (lockBusy) {
                 result.merge(
                         "sending_barrier_lock_timeouts",
@@ -1297,7 +1334,7 @@ class MockDialRate500Probe {
                 assertEquals(
                         409,
                         reply.statusCode(),
-                        "only unresolved sending or a bounded lock timeout may postpone the barrier: "
+                        "only unresolved sending or documented lock/deadlock backpressure may postpone the barrier: "
                                 + reply.body());
             }
             Thread.sleep(200);

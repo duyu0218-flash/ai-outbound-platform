@@ -22,7 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 class DialBatchRecoveryTest {
     @Test
-    void pressureStopsNewClaimsButSendClosedCanFinishOriginalCommandTasks() {
+    void pressureStopsNewClaimsButClosedAdmissionsCanRecoverCapturedCommands() {
         var env = new StandardEnvironment();
         env.getPropertySources()
                 .addFirst(
@@ -59,15 +59,20 @@ class DialBatchRecoveryTest {
         assertThat(worker.process(null, null)).isFalse();
         when(rate.healthyForAdmission()).thenReturn(false);
         assertThat(worker.process(null, null)).isFalse();
+        // ADMISSION_CLOSED already forbids fresh claims while captured commands
+        // must recover even when new-admission health is false.
+        when(drain.admissionClosed()).thenReturn(true);
+        assertThat(worker.process(null, null)).isFalse();
         when(drain.sendingClosed()).thenReturn(true);
         assertThat(worker.process(null, null)).isFalse();
         var params = ArgumentCaptor.forClass(Map.class);
-        verify(db, times(2)).tasks(params.capture());
+        verify(db, times(3)).tasks(params.capture());
         assertThat(params.getAllValues().get(0))
                 .containsEntry("limit", 100)
                 .containsEntry("recoverOnly", false);
-        assertThat(params.getAllValues().get(1))
-                .containsEntry("limit", 100)
-                .containsEntry("recoverOnly", true);
+        for (int index : List.of(1, 2))
+            assertThat(params.getAllValues().get(index))
+                    .containsEntry("limit", 100)
+                    .containsEntry("recoverOnly", true);
     }
 }

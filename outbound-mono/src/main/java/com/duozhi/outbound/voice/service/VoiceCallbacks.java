@@ -415,6 +415,16 @@ public final class VoiceCallbacks implements AutoCloseable {
             ledger.transaction(
                     db -> {
                         double now = LocalLedger.now();
+                        LocalLedger.execute(
+                                db,
+                                "DELETE FROM voice_terminal_fact WHERE recorded_at<? LIMIT 1000",
+                                now
+                                        - settings.number(
+                                                        "VOICE_SENSITIVE_RETENTION_DAYS",
+                                                        90,
+                                                        1,
+                                                        36500)
+                                                * 86400);
                         var rows =
                                 LocalLedger.query(
                                         db,

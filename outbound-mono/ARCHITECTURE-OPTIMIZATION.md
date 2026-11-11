@@ -78,3 +78,160 @@
 新增配置回归覆盖关闭可选导出时原指标仍可用、已有原始注册表被正确复用。真实 HTTP 集成回归覆盖业务指标、wait/hold × platform/identity/partition 六组非零计数、sum 和 histogram bucket，以及三个指标入口的有效令牌、缺少令牌和错误令牌状态。独立 JAR 冒烟也检查实际 `/actuator/prometheus` 的业务与六组锁指标，防止仅测试注册表对象而漏掉发布制品。
 
 本次涉及的入口为 `/actuator/prometheus`、`/metrics` 和 `/metrics/runtime`。后两者继续维持原指标筛选语义；新增锁指标从 Actuator 导出。scope 仍只取上述三个固定值，没有加入电话号码或实际锁键。页面与主业务链路使用既有完整浏览器回归；111 继续保持供应商 mock、真实通道及后台发送关闭。当前修复不改变单实例和容量未验收边界，也不需要新增数据库迁移。测试通过、GitHub 合并及 111 发布的实际结果分别以对应验收证据为准。
+
+## 2026-11-11 staged repair candidate (not a capacity qualification)
+
+The candidate keeps the single-controller requirement. Phase completion must be assessed separately
+from the presence of code or a green functional job:
+
+| Phase | Candidate implementation | Remaining acceptance |
+| --- | --- | --- |
+| P0 | Reconciliation queries provider status without sending a timeout-derived hangup. Same attempt and provider identity are checked again under the call lock before terminal recovery. V50 atomically retains the original terminal callback before its transport row can be acknowledged/deleted; reconciliation replays this event and its original billing fields. An ended boolean without the correlated event retains capacity. | Delay acceptance beyond the watchdog age; prove no short synthetic occupancy and no resource release on UNKNOWN. |
+| P1 | Callback consumption and playback/timer controls each use their own JDBC pool (callback default 2, control default 4, each bounded 1–4), separate from AI, analysis and general work. The default business connection budget increases by 6; capacity manifests record this explicitly. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
+| P2 | A dial cohort is admitted in independent chunks of at most 100 calls (`JAVA_DIAL_ADMISSION_CHUNK_SIZE`, default 100). A later failure leaves earlier immutable command identities recoverable. | Sustained CPS, failure/replay reconciliation. Durable-quota authority cutover and asynchronous report projection are not implemented by this patch. |
+| P3 | Optional remote media transport and a separate JVM entry role, with RPC authentication, session/attempt/worker epoch checks and a worker-specific WS address. | Static-provider configuration only; real bidirectional PCM, control restart, live cancellation and accounting recovery remain unqualified. Profile authority RPC is not implemented, and profile mode is rejected rather than silently ignored. |
+| P4 | Existing single-instance ownership, freeze and exit-78 behavior is retained. | Automatic controller/database failover is not implemented or qualified. Execution-enforced cross-primary fencing and a target DB replication/recovery contract are required. |
+| P5 | Functional and synthetic capacity evidence must record the actual candidate Jar and all failed gates. | No blanket completion or production capacity claim until the independent gates pass. |
+
+### Independent media process configuration
+
+The default `MEDIA_WORKER_TRANSPORT=embedded` preserves the existing deployment. To exercise the
+new transport, configure the controller with `MEDIA_WORKER_TRANSPORT=remote`, an independent
+`MEDIA_RPC_TOKEN` of at least 32 characters, and `MEDIA_WORKERS_JSON` entries containing `id`,
+`endpoint`, `ws_base`, and `capacity`. HTTP/WS hosts and explicit ports must match; outside
+127.0.0.1 the pair must use HTTPS/WSS. The WS base ends in `/v1/pipecat/media` and is the address
+reachable by FreeSWITCH, not the controller's loopback media address.
+
+Start each worker from the same Jar using `OUTBOUND_RUNTIME_ROLE=media`, `MEDIA_WORKER_ID`,
+`MEDIA_WORKER_CAPACITY`, `MEDIA_RPC_TOKEN`, `MEDIA_CONTROL_ENDPOINT`, the static speech-provider
+configuration, and its own server port. This role imports HTTP/WS infrastructure only, without
+business component scanning, Flyway, database pools or campaign workers. `/internal/state` and
+`/internal/command` require the independent RPC bearer credential. The controller must reach the
+worker and the worker must reach the controller. RPC failures retain ownership uncertainty.
+
+`VOICE_AI_PROFILES_ENABLED=true` is rejected for this remote transport until the pinned profile
+and credential authority is implemented. Do not enable remote transport for such deployments.
+Worker state HTTP tests do not establish real audio capacity or continuity through a restart.
+The absence of a real media/DB failover environment was confirmed for this task; those acceptance
+items remain open rather than being replaced with synthetic results.
+
+V50 terminal facts use the existing `VOICE_SENSITIVE_RETENTION_DAYS` policy (default 90 days)
+and are removed in bounded purge batches. Older ended attempts without a retained terminal fact
+remain conservative holds until normal callback recovery or explicit reconciliation. V50 is
+additive; do not drop its trigger/table while the candidate writes callbacks. Its independent
+schema contract and migration tests cover correlation, exact payload preservation, duplicate
+terminal events, deletion of delivered transport rows and rollback atomicity.
+
+The capacity profile enables the existing parallel task claim path and sets analysis batches to
+4, bounded by the existing 1–16 contract. These are explicit configuration changes, not a
+same-configuration performance comparison with earlier compatibility-mode runs. The production
+analysis default remains 1. MySQL durability, SLO thresholds, stop deadlines and complete drain
+checks are unchanged. The sending barrier retries only MySQL 1213/40001 transaction rollbacks,
+at most once; exhaustion returns `503 DIAL_CONTROL_BUSY`. Clients may retry that documented
+backpressure inside their original overall deadline, without assuming sending was closed.
+
+Terminal replay does not overtake provider delivery: the gateway exposes the retained event only
+after that call's voice outbox stream has drained. With the durable inbox enabled, reconciliation
+submits the original event to that inbox and never directly applies lifecycle effects ahead of
+older receipts. Legacy direct processing remains available only in the existing inbox-disabled
+mode. Reconciliation's count describes replay submissions, not proof of completed release.
+
+Dial cohorts now commit and send each group of at most 100 before preparing the next group. The
+cohort's lease/fence remains unchanged, but admission closure can stop later unreserved groups
+without a large already-admitted unsent tail. Successfully acknowledged groups retain their own
+task completion outcomes if a later group fails; only the unfinished suffix inherits that
+failure. Prepare/send profiling records cumulative group durations rather than one contiguous
+prepare phase followed by one send phase.
+
+Control claims and completion use a separate pool so AI connection saturation cannot strand an
+already-executed playback/timer task before its durable completion. Task failure logs record
+phase, identity, exception classes and SQL codes, without payloads or exception messages; drain
+censuses retain failure-code samples for FAILED/DEAD tasks. Non-conflict failure retry limits
+and DEAD-task gates are unchanged. This isolation addresses observed control-lane transaction acquisition failures;
+pressure results remain authoritative for liveness and latency qualification.
+
+Control executor concurrency is also capped by its reserved connection budget, so new control
+claims cannot occupy every reserved connection while additional control threads wait to record
+completion. The default four control workers have four reserved connections; configuring a
+smaller control pool lowers physical control concurrency, while logical owner ordering remains
+unchanged. This adds a bounded reservation rather than treating transient failures as success.
+
+Playback and timer commands can see HTTP 409 while a newer media generation or provider terminal
+callback is still in transit. Non-appointment `after_playback` tasks now defer with their frozen
+payload and idempotency identity, without consuming the failure-attempt budget. They remain
+PENDING and count against drain until the normal correlated generation/terminal path supersedes
+them. A 409 alone never completes the task or releases resources. Persistent conflicts still
+fail the drain deadline. Other errors retain the existing FAILED/DEAD behavior, and appointment
+dial commands are excluded from this conflict treatment. Structured task diagnostics include
+HTTP status codes without logging command bodies or exception messages.
+
+Ordinary `telephony_speech` receipt consumption for a locked `answered`/`in_ai` call now
+commits using its partition, receipt and call locks without the global resource mutex. Business
+writes, durable follow-up tasks and receipt completion remain atomic. All other callback kinds
+and call states roll back that local attempt before retrying through the original platform-lock
+path, preserving partition-before-call ordering without lock upgrades. This narrow route never
+changes reservations, quota authority or human-agent ownership. `CALLBACK_INBOX_LOCAL_SPEECH_ENABLED=false`
+restores the original receipt route. A real-MySQL regression holds the resource mutex while two
+speech events complete in order, then proves the following terminal event waits for that mutex.
+The AI capacity fixture exposes bounded callback worker/pool/poll/batch settings and reports their
+actual values; changing these is a different resource/configuration profile, not an isolated
+code-only speed comparison.
+
+A subsequent 60-second AI thread sample showed multiple callback consumers waiting on the same
+worker-maintenance identity while already holding their reserved JDBC connections. Scheduled
+receipt consumers now coalesce maintenance per process and successful heartbeat interval (at most
+one second, shortened for smaller worker TTLs). Explicit maintenance remains immediate. The worker
+identity is acquired before borrowing JDBC, and failed maintenance does not advance the cadence.
+The short heartbeat commits before receipt retention work. The existing seven-day minimum
+retention predicate is preserved; cleanup uses one bounded DELETE of at most 1000 completed
+receipts instead of loading and deleting up to 100 bodies individually. Pending and recent
+receipts remain protected. Explicit maintenance calls still force a pass. A real-MySQL regression
+blocks the elected maintenance caller and verifies the other consumers return and both callback
+connections remain borrowable, then confirms the worker record commits after releasing the lock.
+
+Admission closure now switches both dial claim paths to existing frozen journal identities.
+Callback admission backpressure cannot pause captured-command recovery while waiting for the
+sending barrier: recovery continues in ADMISSION_CLOSED, and fresh queued tasks remain untouched.
+The separate SEND_CLOSED decision still prohibits sends and permits status confirmation only.
+The reserved-unsent MySQL regression forces unhealthy admission feedback, recovers the captured
+command through the real batch worker, verifies fresh task attempts stay zero, and closes sends
+without bypassing acceptance/cancellation proof.
+
+The isolated stop probe retries only documented pre-transaction `503 PLATFORM_LOCK_TIMEOUT`
+responses for admission closure, recording each retry. Admission capture, sending closure and
+full drain now share 180 seconds from the stop request; retries do not grant another deadline.
+Unknown responses and unresolved sends remain failures.
+
+### Candidate validation and delivery evidence
+
+Control-load runtime/probe baseline: `304447ae2ac50f21d9f71211419ba182fbd85371`; host Jar SHA-256:
+`f0caf656c71ac75e7020526fb5a740b55e9c56a5728596447c9358e3526d9645`. The final local scoped run passed 37 unit and 57
+integration tests without failures, errors or skips. The earlier 409-unit full run belongs to
+`f8ffb04`, before the last heartbeat and recovery revisions; final full-suite CI is recorded in
+the associated PR. Host JVM load measurements do not qualify a runtime image or real media.
+
+| Diagnostic | Result |
+| --- | --- |
+| One campaign, batch 100 | Peak 100 CPS; measured average lower bound 15 CPS, minimum-second lower bound 0; full drain 157.15s. All 900 calls ended at age >=20s. |
+| Sixteen campaigns, batch 500 | Peak 100 CPS; measured average lower bound 15 CPS, minimum-second lower bound 0; full drain 85.94s. All 700 calls ended at age >=20s. |
+| Complete dial drain | Both captured cohorts reached zero business/gateway activity, reservations, phone guards, callback/inbox backlog and lifecycle work; DEAD=0. Unadmitted queued data was preserved. |
+| 500 simulated AI calls | Held all 500 for 120s; call 501 queued. 2342/6000 planned turns completed eventually; 15.82 valid replies/s in the steady window, P95 27.527s, P99 32.021s. Original SLO failed; no pending replies after its 30s reply drain. |
+| Standalone media process | Actual separate JVM restart produced a new epoch; the prior epoch received HTTP 409. No real PCM, provider or live continuity qualification. |
+
+The original MySQL durability settings, complete lifecycle drain and reply thresholds remain.
+See [machine evidence](../docs/reviews/evidence/20261111-phase-repair/summary.json) for exact
+configuration, commit intervals, all failed/superseded runs, hashes and reproduction commands.
+No stable maximum CPS, real audio capacity, automatic HA or production qualification is claimed.
+The existing functional-merge boundary applies to this bounded patch; merging does not complete
+P0–P5. Durable quota/report cutover, profile authority and automatic HA remain open.
+
+### Standalone media request boundary
+
+The standalone command handler authorizes the RPC header before reading or parsing JSON.
+Content-Length and chunked bodies are bounded at 1 MiB before object deserialization. Malformed
+JSON from an unauthorized caller returns 401; authorized malformed JSON remains 400 and oversized
+requests return 413. Ten media unit tests, including real HTTP requests, pass. The packaged
+`69ee63c` worker Jar also passes these cases and rejects the prior epoch after a restart.
+This modifies only the standalone entry and the worker authorization helper; the recorded mock
+control-load paths are unchanged. Its separate Jar digest and native process results are in
+`final_media_http_boundary` in the machine evidence. It does not qualify real media throughput.

@@ -1,0 +1,47 @@
+{
+  "voice_terminal_fact": {
+    "complete": true,
+    "columns": {
+      "uuid": {
+        "type": "varchar(128)",
+        "nullable": false,
+        "collation": "utf8mb4_0900_bin"
+      },
+      "tenant": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "call_id": {
+        "type": "varchar(128)",
+        "nullable": false,
+        "collation": "utf8mb4_0900_bin"
+      },
+      "attempt": {
+        "type": "bigint",
+        "nullable": false
+      },
+      "body": {
+        "type": "longblob",
+        "nullable": false
+      },
+      "recorded_at": {
+        "type": "double",
+        "nullable": false
+      }
+    },
+    "indexes": {
+      "PRIMARY": {
+        "columns": [
+          "uuid"
+        ],
+        "unique": true
+      },
+      "voice_terminal_retention": {
+        "columns": [
+          "recorded_at"
+        ],
+        "unique": false
+      }
+    }
+  }
+}

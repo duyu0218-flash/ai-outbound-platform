@@ -186,7 +186,7 @@ public class DialBatchWorker {
                                             "limit",
                                             size(),
                                             "recoverOnly",
-                                            drain.sendingClosed());
+                                            drain.admissionClosed());
                             var expired = db.rows("expiredFinalTasks", params);
                             if (!expired.isEmpty()) {
                                 var expiration = new LinkedHashMap<>(params);
@@ -292,7 +292,7 @@ public class DialBatchWorker {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return false;
         if (config.flag("CALLBACK_INBOX_ENABLED", false)
                 && !rate.healthyForAdmission()
-                && !drain.sendingClosed()) return false;
+                && !drain.admissionClosed()) return false;
         long started = System.nanoTime();
         var tasks = claim(tenant);
         if (tasks.isEmpty()) return false;
@@ -351,25 +351,24 @@ public class DialBatchWorker {
         RuntimeException failure = null;
         long[] stages = new long[2];
         try {
-            entries =
-                    TaskWorker.guarded(
-                            owner,
-                            "batch:" + lease,
-                            guard,
-                            () -> {
-                                var prepared = dial.prepareTasks(tasks, db);
-                                stages[0] = System.nanoTime();
-                                dial.sendTasks(prepared, db);
-                                stages[1] = System.nanoTime();
-                                return prepared;
-                            });
+            TaskWorker.guarded(
+                    owner,
+                    "batch:" + lease,
+                    guard,
+                    () -> {
+                        dispatchChunks(tasks, entries, stages);
+                        return null;
+                    });
         } catch (RuntimeException error) {
             failure = error;
         } finally {
             renewal.cancel(false);
         }
         if (lost.get()) return true;
-        final var completed = entries;
+        final var completed = new HashMap<String, Map<String, Object>>();
+        for (var entry : entries)
+            completed.put(((Map<?, ?>) entry.get("task")).get("id").toString(), entry);
+        long finishing = System.nanoTime();
         final var thrown = failure;
         tx.run(
                 () -> {
@@ -381,28 +380,10 @@ public class DialBatchWorker {
                                 for (int i = 0; i < tasks.size(); i++) {
                                     var task = tasks.get(i);
                                     if (!owned.contains(task.get("id").toString())) continue;
-                                    var entry =
-                                            completed.size() == tasks.size()
-                                                    ? completed.get(i)
-                                                    : null;
-                                    boolean deferred =
-                                            thrown instanceof PlatformLock.Unavailable
-                                                    || entry != null
-                                                            && (entry.get("error")
-                                                                            instanceof
-                                                                            PlatformLock.Unavailable
-                                                                    || Boolean.TRUE.equals(
-                                                                            entry.get("deferred"))
-                                                                    || Boolean.TRUE.equals(
-                                                                            entry.get(
-                                                                                    "pending_confirmation")));
-                                    Object error =
-                                            thrown != null
-                                                    ? thrown
-                                                    : entry == null
-                                                            ? new IllegalStateException(
-                                                                    "incomplete cohort")
-                                                            : entry.get("error");
+                                    var entry = completed.get(task.get("id").toString());
+                                    var outcome = outcome(entry, thrown);
+                                    boolean deferred = outcome.deferred();
+                                    Object error = outcome.error();
                                     String state =
                                             deferred
                                                     ? "pending"
@@ -479,13 +460,51 @@ public class DialBatchWorker {
                             tasks.size(),
                             entries.stream().filter(e -> e.get("call") != null).count(),
                             ms(claimed, started),
-                            ms(stages[0], claimed),
-                            ms(stages[1], stages[0]),
-                            ms(stages[1] == 0 ? 0 : System.nanoTime(), stages[1]),
+                            stages[0] / 1_000_000.0,
+                            stages[1] / 1_000_000.0,
+                            ms(System.nanoTime(), finishing),
                             thrown == null ? "none" : thrown.getClass().getSimpleName());
         // Yield on admission pressure so due mock statuses/other lanes can free
         // capacity. Cycling through deferred cohorts must not starve completion.
         return thrown != null
                 || entries.stream().anyMatch(e -> !Boolean.TRUE.equals(e.get("deferred")));
+    }
+
+    // Commit and send each bounded group before reserving the next group. This limits
+    // admitted-but-unsent work during drain, while retaining the original cohort lease.
+    void dispatchChunks(
+            List<Map<String, Object>> tasks, List<Map<String, Object>> completed, long[] stages) {
+        for (int start = 0; start < tasks.size(); start += 100) {
+            TaskWorker.permitted();
+            long before = System.nanoTime();
+            var prepared =
+                    dial.prepareTasks(
+                            tasks.subList(start, Math.min(tasks.size(), start + 100)), db);
+            stages[0] += System.nanoTime() - before;
+            before = System.nanoTime();
+            try {
+                dial.sendTasks(prepared, db);
+            } finally {
+                stages[1] += System.nanoTime() - before;
+            }
+            // A later group failure must not erase successfully acknowledged prior groups.
+            // A throwing send remains unresolved and must recover using its frozen command.
+            completed.addAll(prepared);
+        }
+    }
+
+    record TaskOutcome(Object error, boolean deferred) {}
+
+    static TaskOutcome outcome(Map<String, Object> entry, RuntimeException failure) {
+        if (entry == null)
+            return new TaskOutcome(
+                    failure == null ? new IllegalStateException("incomplete cohort") : failure,
+                    failure instanceof PlatformLock.Unavailable);
+        Object error = entry.get("error");
+        return new TaskOutcome(
+                error,
+                error instanceof PlatformLock.Unavailable
+                        || Boolean.TRUE.equals(entry.get("deferred"))
+                        || Boolean.TRUE.equals(entry.get("pending_confirmation")));
     }
 }

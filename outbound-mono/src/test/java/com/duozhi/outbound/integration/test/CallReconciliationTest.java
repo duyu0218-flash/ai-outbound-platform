@@ -1,0 +1,157 @@
+package com.duozhi.outbound.integration.test;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import com.duozhi.outbound.call.service.CallLifecycle;
+import com.duozhi.outbound.call.service.CallReconciliation;
+import com.duozhi.outbound.common.config.Config;
+import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.service.Transactions;
+import com.duozhi.outbound.common.support.JsonSupport;
+import com.duozhi.outbound.integration.service.TelephonyClient;
+import java.util.*;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
+
+class CallReconciliationTest {
+    @Test
+    void delayedAcceptanceCannotBeHungUpByAnOldSnapshot() {
+        probe(false, false, false);
+    }
+
+    @Test
+    void providerConfirmedEndRecoversLifecycle() {
+        probe(true, false, true);
+    }
+
+    @Test
+    void oldProviderEndCannotEndReplacement() {
+        probe(true, true, false);
+    }
+
+    @Test
+    void unknownProviderRetainsResources() {
+        probe(null, false, false);
+    }
+
+    @Test
+    void endedBooleanWithoutOriginalTerminalEventCannotInventOutcomeOrBilling() {
+        probe(true, false, false, false, 1);
+    }
+
+    @Test
+    void anotherTenantsTerminalEventCannotReleaseTheCall() {
+        probe(true, false, false, true, 2);
+    }
+
+    @Test
+    void durableInboxReplayPreservesOrderedReceiptProcessing() {
+        probe(true, false, true, true, 1, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void probe(Boolean ended, boolean replaced, boolean release) {
+        probe(ended, replaced, release, true, 1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void probe(
+            Boolean ended, boolean replaced, boolean release, boolean withProof, int tenant) {
+        probe(ended, replaced, release, withProof, tenant, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void probe(
+            Boolean ended,
+            boolean replaced,
+            boolean release,
+            boolean withProof,
+            int tenant,
+            boolean durableInbox) {
+        var inbox = mock(com.duozhi.outbound.callback.service.CallbackInbox.class);
+        var store = mock(Store.class);
+        var tx = mock(Transactions.class);
+        var client = mock(TelephonyClient.class);
+        var lifecycle = mock(CallLifecycle.class);
+        var stale =
+                JsonSupport.map(
+                        "id",
+                        "call",
+                        "tenant_id",
+                        1,
+                        "attempts",
+                        1,
+                        "telephony_call_id",
+                        "old-provider",
+                        "status",
+                        "DIALING",
+                        "updated_at",
+                        "old");
+        var latest = new LinkedHashMap<>(stale);
+        latest.put("updated_at", "new");
+        latest.put("status", "IN_AI");
+        if (replaced) latest.put("telephony_call_id", "new-provider");
+        when(store.orderedAcross(eq("callsession"), anyString(), anyMap(), anyList(), anyInt()))
+                .thenReturn(List.of(stale));
+        when(tx.serialized(any(Supplier.class)))
+                .thenAnswer(i -> ((Supplier<?>) i.getArgument(0)).get());
+        when(tx.call("call")).thenReturn(latest);
+        var original =
+                JsonSupport.map(
+                        "call_id",
+                        "call",
+                        "kind",
+                        "status",
+                        "payload",
+                        JsonSupport.map(
+                                "tenant_id",
+                                tenant,
+                                "attempt",
+                                1,
+                                "provider_call_id",
+                                "old-provider",
+                                "status",
+                                "completed",
+                                "event_id",
+                                "original-terminal-id",
+                                "billable_duration_sec",
+                                7));
+        var reply = new LinkedHashMap<String, Object>();
+        reply.put("ended", ended);
+        reply.put("provider_call_id", "old-provider");
+        if (withProof) reply.put("terminal_event", original);
+        if (ended == null)
+            when(client.command(anyMap(), eq("status"), anyMap()))
+                    .thenThrow(new TelephonyClient.Failure(503, false));
+        else when(client.command(anyMap(), eq("status"), anyMap())).thenReturn(reply);
+        var service =
+                new CallReconciliation(
+                        store,
+                        tx,
+                        new Config(
+                                new MockEnvironment()
+                                        .withProperty("CALLBACK_INBOX_ENABLED", "" + durableInbox)),
+                        client,
+                        lifecycle);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "inbox", inbox);
+        try {
+            assertThat(service.reconcile(20)).isEqualTo(release ? 1 : 0);
+            verify(client).command(same(stale), eq("status"), anyMap());
+            verify(client, never()).command(anyMap(), eq("hangup"), anyMap());
+            if (release && durableInbox) {
+                verify(inbox).receive(eq("telephony_status"), same(original));
+                verifyNoInteractions(lifecycle);
+            } else if (release) verify(lifecycle).status(same(original));
+            else {
+                verifyNoInteractions(lifecycle);
+                verifyNoInteractions(inbox);
+            }
+            verify(store, never()).update(anyString(), anyLong(), any(), anyMap());
+        } finally {
+            service.close();
+        }
+    }
+}

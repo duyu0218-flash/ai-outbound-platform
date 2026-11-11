@@ -144,6 +144,133 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void overlappingCallbackMaintenanceDoesNotBorrowTheReceiptConnections() throws Exception {
+        var isolated =
+                new CallbackInbox(
+                        store,
+                        tx,
+                        new JsonSupport(new ObjectMapper()),
+                        new com.duozhi.outbound.common.config.Config(environment),
+                        lifecycle,
+                        businessVoice,
+                        (com.duozhi.outbound.callback.dao.CallbackBatchStore)
+                                ReflectionTestUtils.getField(inbox, "batchDb"));
+        String workerId = (String) ReflectionTestUtils.getField(isolated, "workerId");
+        long lock = ByteBuffer.wrap(JsonSupport.digest("callback-worker:" + workerId)).getLong();
+        var receipts = new ArrayList<Long>();
+        for (String kind : List.of("expired", "recent", "pending")) {
+            var accepted =
+                    inbox.receive(
+                            "telephony_status",
+                            Values.map(
+                                    "call_id",
+                                    key(),
+                                    "payload",
+                                    Values.map(
+                                            "status",
+                                            "completed",
+                                            "attempt",
+                                            1,
+                                            "event_id",
+                                            key())));
+            long id =
+                    jdbc.queryForObject(
+                            "SELECT id FROM callbackinbox WHERE receipt_key=?",
+                            Long.class,
+                            accepted.get("receipt_id"));
+            receipts.add(id);
+            store.updateInternal(
+                    "callbackinbox",
+                    id,
+                    Values.map(
+                            "state",
+                            kind.equals("pending") ? "pending" : "done",
+                            "completed_at",
+                            Store.now().minusDays(kind.equals("recent") ? 1 : 8)));
+        }
+        var pool = Executors.newFixedThreadPool(4);
+        var done = new CountDownLatch(3);
+        var start = new CountDownLatch(1);
+        var futures = new ArrayList<Future<?>>();
+        try {
+            try (var held = platformLocks.lock(lock)) {
+                for (int i = 0; i < 4; i++)
+                    futures.add(
+                            pool.submit(
+                                    () -> {
+                                        start.await();
+                                        try (var route =
+                                                WorkloadDataSource.use(
+                                                        WorkloadDataSource.Lane.CALLBACK)) {
+                                            isolated.periodicMaintenance();
+                                        } finally {
+                                            done.countDown();
+                                        }
+                                        return null;
+                                    }));
+                start.countDown();
+                assertThat(done.await(3, TimeUnit.SECONDS)).isTrue();
+                // Both reserved callback connections remain available while the
+                // elected maintenance caller is blocked on its worker identity.
+                try (var route = WorkloadDataSource.use(WorkloadDataSource.Lane.CALLBACK);
+                        var first = dataSource.getConnection();
+                        var second = dataSource.getConnection()) {
+                    assertThat(first.isValid(2)).isTrue();
+                    assertThat(second.isValid(2)).isTrue();
+                }
+            }
+            for (var future : futures) future.get(5, TimeUnit.SECONDS);
+            assertThat(store.one("callbackinboxworker", "findById", Map.of("id", workerId)))
+                    .isNotNull();
+            assertThat(
+                            jdbc.queryForObject(
+                                    "SELECT COUNT(*) FROM callbackinbox WHERE id=?",
+                                    Long.class,
+                                    receipts.get(0)))
+                    .isZero();
+            assertThat(store.one("callbackinbox", "findById", Map.of("id", receipts.get(1))))
+                    .containsEntry("state", "done");
+            assertThat(store.one("callbackinbox", "findById", Map.of("id", receipts.get(2))))
+                    .containsEntry("state", "pending");
+            store.updateInternal(
+                    "callbackinbox",
+                    receipts.get(2),
+                    Values.map("state", "done", "completed_at", Store.now()));
+
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void callbackAndControlConnectionsRemainAvailableWhenEveryRealtimeConnectionIsBorrowed()
+            throws Exception {
+        var held = new ArrayList<java.sql.Connection>();
+        try (var realtime =
+                com.duozhi.outbound.common.dao.WorkloadDataSource.use(
+                        com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.REALTIME)) {
+            try {
+                for (int i = 0; i < 4; i++) held.add(dataSource.getConnection());
+                for (var lane :
+                        List.of(
+                                com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.CALLBACK,
+                                com.duozhi.outbound.common.dao.WorkloadDataSource.Lane.CONTROL)) {
+                    try (var critical =
+                                    com.duozhi.outbound.common.dao.WorkloadDataSource.use(lane);
+                            var connection = dataSource.getConnection();
+                            var query = connection.createStatement();
+                            var rows = query.executeQuery("SELECT 1")) {
+                        assertThat(rows.next()).isTrue();
+                        assertThat(rows.getInt(1)).isEqualTo(1);
+                    }
+                }
+            } finally {
+                for (var connection : held) connection.close();
+            }
+        }
+    }
+
+    @Test
     void batchQueueSelectsPublishedRunningCampaignsWithThePersistedCase() {
         var tenant =
                 store.insert(
@@ -589,40 +716,60 @@ class QueueConcurrencyIT {
 
     @Test
     void platformWaitersDoNotBorrowTheFourBusinessConnections() throws Exception {
-        var pool = Executors.newFixedThreadPool(4);
-        var started = new CountDownLatch(4);
-        var waiting = new CopyOnWriteArrayList<Thread>();
-        var futures = new ArrayList<Future<?>>();
-        try {
-            try (var held = platformLocks.lock(718492061L)) {
-                for (int i = 0; i < 4; i++)
-                    futures.add(
-                            pool.submit(
-                                    () -> {
-                                        waiting.add(Thread.currentThread());
-                                        started.countDown();
-                                        return tx.serialized(() -> store.require("tenant", 0, 1));
-                                    }));
-                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
-                while (System.nanoTime() < deadline
-                        && !waiting.stream()
-                                .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
-                    Thread.sleep(10);
-                assertThat(waiting)
-                        .hasSize(4)
-                        .allSatisfy(
-                                t ->
-                                        assertThat(t.getState())
-                                                .isEqualTo(Thread.State.TIMED_WAITING));
-                assertThat(((DruidDataSource) dataSource).getActiveCount())
-                        .as("Mutex waiters must leave every JDBC connection available")
-                        .isZero();
-                assertThat(futures).allSatisfy(f -> assertThat(f.isDone()).isFalse());
+        // Other tests briefly start asynchronous workers in this application context. Count only
+        // this fixture's pool so an unrelated maintenance query cannot look like a mutex waiter
+        // borrowing a connection. Keep the strict zero-connection assertion.
+        try (var isolatedPool = new DruidDataSource()) {
+            isolatedPool.setUrl(MYSQL.getJdbcUrl());
+            isolatedPool.setUsername(MYSQL.getUsername());
+            isolatedPool.setPassword(MYSQL.getPassword());
+            isolatedPool.setMaxActive(4);
+            isolatedPool.init();
+            var isolatedTx =
+                    new Transactions(
+                            store,
+                            new org.springframework.jdbc.datasource.DataSourceTransactionManager(
+                                    isolatedPool),
+                            platformLocks);
+            var isolatedJdbc = new JdbcTemplate(isolatedPool);
+            var pool = Executors.newFixedThreadPool(4);
+            var started = new CountDownLatch(4);
+            var waiting = new CopyOnWriteArrayList<Thread>();
+            var futures = new ArrayList<Future<?>>();
+            try {
+                try (var held = platformLocks.lock(718492061L)) {
+                    for (int i = 0; i < 4; i++)
+                        futures.add(
+                                pool.submit(
+                                        () -> {
+                                            waiting.add(Thread.currentThread());
+                                            started.countDown();
+                                            return isolatedTx.serialized(
+                                                    () ->
+                                                            isolatedJdbc.queryForObject(
+                                                                    "SELECT 1", Integer.class));
+                                        }));
+                    assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+                    while (System.nanoTime() < deadline
+                            && !waiting.stream()
+                                    .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
+                        Thread.sleep(10);
+                    assertThat(waiting)
+                            .hasSize(4)
+                            .allSatisfy(
+                                    t ->
+                                            assertThat(t.getState())
+                                                    .isEqualTo(Thread.State.TIMED_WAITING));
+                    assertThat(isolatedPool.getActiveCount())
+                            .as("Mutex waiters must leave every JDBC connection available")
+                            .isZero();
+                    assertThat(futures).allSatisfy(f -> assertThat(f.isDone()).isFalse());
+                }
+                for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
+            } finally {
+                pool.shutdownNow();
             }
-            for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
-        } finally {
-            pool.shutdownNow();
         }
     }
 
@@ -699,6 +846,107 @@ class QueueConcurrencyIT {
                     .allSatisfy(row -> assertThat(row.get("state")).isEqualTo("done"));
         } finally {
             environment.getPropertySources().remove(properties.getName());
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void ordinarySpeechReceiptsCommitWithoutResourceMutexButTerminalStillWaits() throws Exception {
+        // Other fixtures intentionally retain undelivered receipts. Use an empty
+        // partition rather than consuming or changing those fixtures.
+        String isolatedId = null;
+        for (int candidate = 0; candidate < 1024 && isolatedId == null; candidate++) {
+            String id = key();
+            int partition =
+                    (int) ((ByteBuffer.wrap(JsonSupport.digest(id)).getInt() & 0xffffffffL) % 64);
+            if (jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM callbackinbox WHERE partition_id=? AND state='pending'",
+                            Long.class,
+                            partition)
+                    == 0) isolatedId = id;
+        }
+        assertThat(isolatedId).isNotNull();
+        var call =
+                store.insert(
+                        "callsession",
+                        Values.map(
+                                "id",
+                                isolatedId,
+                                "tenant_id",
+                                1,
+                                "phone",
+                                "15500003339",
+                                "mode",
+                                "ai_only",
+                                "status",
+                                "in_ai",
+                                "attempts",
+                                1,
+                                "max_attempts",
+                                1));
+        String id = call.get("id").toString();
+        for (int turn = 0; turn < 2; turn++) {
+            Map<String, Object> body =
+                    Values.map(
+                            "call_id",
+                            id,
+                            "attempt",
+                            1,
+                            "event_id",
+                            key(),
+                            "speaker_role",
+                            "customer",
+                            "transcript",
+                            "继续了解" + turn,
+                            "is_final",
+                            true);
+            inbox.receive("telephony_speech", body);
+            assertThat(inbox.receive("telephony_speech", body)).containsEntry("duplicate", true);
+        }
+        inbox.receive(
+                "telephony_status",
+                Values.map(
+                        "call_id",
+                        id,
+                        "payload",
+                        Values.map("status", "completed", "attempt", 1, "event_id", key())));
+        var rows =
+                store
+                        .query("callbackinbox", "list", Values.map("offset", 0, "limit", 1000))
+                        .stream()
+                        .filter(r -> id.equals(r.get("call_id")))
+                        .toList();
+        assertThat(rows).hasSize(3);
+        int partition = ((Number) rows.getFirst().get("partition_id")).intValue();
+        var pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Boolean> terminal;
+            try (var held = platformLocks.lock(718492061L)) {
+                assertThat(pool.submit(() -> inbox.consume(partition)).get(5, TimeUnit.SECONDS))
+                        .isTrue();
+                assertThat(pool.submit(() -> inbox.consume(partition)).get(5, TimeUnit.SECONDS))
+                        .isTrue();
+                assertThat(businessVoice.realtime(call)).containsEntry("turn_sequence", 2);
+                assertThat(store.require("callsession", 1, id)).containsEntry("status", "in_ai");
+                var entered = new CountDownLatch(1);
+                terminal =
+                        pool.submit(
+                                () -> {
+                                    entered.countDown();
+                                    return inbox.consume(partition);
+                                });
+                assertThat(entered.await(3, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> terminal.get(200, TimeUnit.MILLISECONDS))
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(store.require("callsession", 1, id)).containsEntry("status", "in_ai");
+            }
+            assertThat(terminal.get(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(store.require("callsession", 1, id)).containsEntry("status", "completed");
+            for (var row : rows)
+                assertThat(store.one("callbackinbox", "findById", Map.of("id", row.get("id"))))
+                        .containsEntry("state", "done")
+                        .containsEntry("attempts", 0);
+        } finally {
             pool.shutdownNow();
         }
     }
@@ -1400,6 +1648,115 @@ class QueueConcurrencyIT {
             ReflectionTestUtils.setField(worker, "analysisBatchSize", 1);
             environment.getPropertySources().remove(property.getName());
             pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void mediaConflictKeepsDurableControlUntilCorrelatedTerminalAndOtherErrorsStillDie() {
+        try {
+            for (int status : List.of(409, 500)) {
+                long tenant = status == 409 ? 398 : 399;
+                store.insert(
+                        "tenant",
+                        Values.map(
+                                "id",
+                                tenant,
+                                "code",
+                                "media-conflict-" + status,
+                                "name",
+                                "Media conflict fixture"));
+                var call =
+                        store.insert(
+                                "callsession",
+                                Values.map(
+                                        "tenant_id",
+                                        tenant,
+                                        "phone",
+                                        "1550000" + status,
+                                        "mode",
+                                        "ai_only",
+                                        "status",
+                                        "in_ai",
+                                        "attempts",
+                                        1,
+                                        "max_attempts",
+                                        1));
+                var state = conversation.state(call);
+                var media = businessVoice.realtime(call);
+                store.update(
+                        "realtimesession", tenant, media.get("id"), Map.of("state", "listening"));
+                store.update(
+                        "conversationstate",
+                        tenant,
+                        state.get("id"),
+                        Values.map(
+                                "timer_kind", "silence", "deadline", Store.now().minusSeconds(1)));
+                Map<String, Object> payload =
+                        Values.map(
+                                "product_kind",
+                                "timer",
+                                "call_id",
+                                call.get("id"),
+                                "attempt",
+                                1,
+                                "generation",
+                                state.get("generation"),
+                                "kind",
+                                "silence");
+                var task = outbox.enqueue(tenant, "after_playback", call.get("id"), key(), payload);
+                store.update("taskoutbox", tenant, task.get("id"), Map.of("max_attempts", 1));
+                Mockito.doThrow(new TelephonyClient.Failure(status, false))
+                        .when(runtime)
+                        .apply(
+                                ArgumentMatchers.argThat(
+                                        p -> call.get("id").equals(p.get("call_id"))),
+                                ArgumentMatchers.anyMap());
+                if (status == 409) {
+                    String frozen =
+                            store.require("taskoutbox", tenant, task.get("id"))
+                                    .get("payload_json")
+                                    .toString();
+                    for (int retry = 0; retry < 6; retry++) {
+                        store.update(
+                                "taskoutbox",
+                                tenant,
+                                task.get("id"),
+                                Map.of("available_at", Store.now().minusSeconds(1)));
+                        assertThat(worker.processOne(tenant)).isTrue();
+                        assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                                .containsEntry("state", "pending")
+                                .containsEntry("attempts", 0)
+                                .containsEntry("payload_json", frozen)
+                                .containsEntry(
+                                        "last_error",
+                                        "waiting for correlated media state after HTTP 409");
+                        assertThat(store.require("callsession", tenant, call.get("id")))
+                                .containsEntry("status", "in_ai");
+                    }
+                    lifecycle.status(
+                            Values.map(
+                                    "call_id",
+                                    call.get("id"),
+                                    "payload",
+                                    Values.map(
+                                            "attempt",
+                                            1,
+                                            "event_id",
+                                            key(),
+                                            "status",
+                                            "completed")));
+                    assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                            .containsEntry("state", "completed")
+                            .containsEntry("last_error", "superseded by terminal attempt");
+                } else {
+                    assertThat(worker.processOne(tenant)).isTrue();
+                    assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                            .containsEntry("state", "dead")
+                            .containsEntry("attempts", 1);
+                }
+            }
+        } finally {
+            Mockito.reset(runtime);
         }
     }
 

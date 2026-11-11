@@ -19,14 +19,14 @@ public class MediaWorkerRuntime {
     private final HttpClient http = Support.client();
     private final Control control;
 
-    interface Control {
+    public interface Control {
         Map<String, Object> post(String path, Map<String, Object> body) throws Exception;
     }
 
     private final Map<String, String> closed = new LinkedHashMap<>();
     private final Map<String, MediaManager.Session> registered = new ConcurrentHashMap<>();
 
-    MediaWorkerRuntime(Settings settings, Control control) {
+    public MediaWorkerRuntime(Settings settings, Control control) {
         this.settings = settings;
         worker = settings.get("MEDIA_WORKER_ID", "");
         capacity = (int) settings.number("MEDIA_WORKER_CAPACITY", 50, 1, 200);
@@ -37,7 +37,7 @@ public class MediaWorkerRuntime {
         manager = new NativeMedia(settings, this::event, this::permit, capacity);
     }
 
-    private void auth(String auth) {
+    public void authenticate(String auth) {
         Support.auth(settings, "MEDIA_RPC_TOKEN", auth, false);
     }
 
@@ -50,16 +50,16 @@ public class MediaWorkerRuntime {
     Map<String, Object> ready(
             @RequestHeader(value = "Authorization", required = false)
             String auth) {
-        auth(auth);
+        authenticate(auth);
         if (!manager.ready()) throw new Support.Failure(503, "media runtime unavailable");
         return Map.of("status", "ready");
     }
 
     @GetMapping("/internal/state")
-    Map<String, Object> state(
+    public Map<String, Object> state(
             @RequestHeader(value = "Authorization", required = false)
             String auth) {
-        auth(auth);
+        authenticate(auth);
         Map<String, Object> sessions = new LinkedHashMap<>();
         for (var session : registered.values()) sessions.put(session.call, session.state());
         return Map.of(
@@ -78,13 +78,13 @@ public class MediaWorkerRuntime {
     }
 
     @PostMapping("/internal/command")
-    Map<String, Object> command(
+    public Map<String, Object> command(
             @RequestBody
             Map<String, Object> command,
             @RequestHeader(value = "Authorization", required = false)
             String auth)
             throws Exception {
-        auth(auth);
+        authenticate(auth);
         if (!epoch.equals(command.get("epoch")))
             throw new Support.Failure(409, "worker epoch changed");
         if (command.get("expires_at") instanceof Number n
@@ -261,7 +261,15 @@ public class MediaWorkerRuntime {
     }
 
     @PreDestroy
-    void close() throws Exception {
+    public void close() throws Exception {
         manager.close();
+    }
+
+    public NativeMedia manager() {
+        return manager;
+    }
+
+    public boolean owns(String token) {
+        return manager.owns(token);
     }
 }

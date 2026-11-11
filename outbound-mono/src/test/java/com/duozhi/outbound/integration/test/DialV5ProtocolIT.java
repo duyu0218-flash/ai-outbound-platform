@@ -86,6 +86,12 @@ class DialV5ProtocolIT {
     @Autowired
     CapacityCommitEvidence timing;
     @Autowired
+    com.duozhi.outbound.dial.worker.DialBatchWorker batchWorker;
+    @Autowired
+    com.duozhi.outbound.job.service.Outbox outbox;
+    @MockitoSpyBean
+    com.duozhi.outbound.dial.service.DialRateControl rate;
+    @Autowired
     JdbcTemplate jdbc;
     @Autowired
     ConfigurableEnvironment environment;
@@ -131,7 +137,7 @@ class DialV5ProtocolIT {
 
     @AfterEach
     void cleanup() {
-        reset(telephony, drain);
+        reset(telephony, drain, rate);
         drain.cancelDrain();
     }
 
@@ -218,13 +224,42 @@ class DialV5ProtocolIT {
     void reservedUnsentTaskMustCompleteBeforeClosingSends() {
         var claimed = claim(queued());
         assertThat(claimed).isNotNull();
+        var reservedTask =
+                outbox.enqueue(
+                        1,
+                        "dial_call",
+                        claimed.get("id"),
+                        UUID.randomUUID().toString(),
+                        JsonSupport.map("call_id", claimed.get("id"), "attempt", 0));
         assertThat(drain.begin()).containsEntry("phase", "ADMISSION_CLOSED");
         var waiting = queued();
+        var freshTask =
+                outbox.enqueue(
+                        1,
+                        "dial_call",
+                        waiting.get("id"),
+                        UUID.randomUUID().toString(),
+                        JsonSupport.map("call_id", waiting.get("id"), "attempt", 0));
         assertThat(claim(waiting)).isNull();
         assertThatThrownBy(drain::closeSending)
                 .isInstanceOf(ApiError.class)
                 .hasMessageContaining("reserved");
-        assertThat(dial.sendClaimed(claimed, metadata(claimed))).isTrue();
+        doReturn(false).when(rate).healthyForAdmission();
+        var heartbeat = Executors.newSingleThreadScheduledExecutor();
+        try {
+            assertThat(batchWorker.process(1L, heartbeat)).isTrue();
+            assertThat(store.require("taskoutbox", 1, reservedTask.get("id")))
+                    .containsEntry("state", "completed");
+            assertThat(store.require("taskoutbox", 1, freshTask.get("id")))
+                    .containsEntry("state", "pending")
+                    .containsEntry("attempts", 0);
+            assertThat(batchWorker.process(1L, heartbeat)).isFalse();
+            assertThat(store.require("callsession", 1, waiting.get("id")))
+                    .containsEntry("status", "queued")
+                    .containsEntry("attempts", 0);
+        } finally {
+            heartbeat.shutdownNow();
+        }
         assertThat(drain.closeSending()).containsEntry("phase", "SEND_CLOSED");
         assertThat(drain.sending(claimed)).isFalse();
         lifecycle.status(

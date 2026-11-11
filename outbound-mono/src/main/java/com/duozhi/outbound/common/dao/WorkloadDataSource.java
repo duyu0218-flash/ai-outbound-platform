@@ -12,11 +12,13 @@ public final class WorkloadDataSource extends DruidDataSource {
     public enum Lane {
         DEFAULT,
         REALTIME,
+        CALLBACK,
+        CONTROL,
         ANALYSIS
     }
 
     private static final ThreadLocal<Lane> CURRENT = new ThreadLocal<>();
-    private final DruidDataSource realtime, analysis;
+    private final DruidDataSource realtime, analysis, callbacks, control;
 
     public static Lane current() {
         Lane lane = CURRENT.get();
@@ -24,8 +26,23 @@ public final class WorkloadDataSource extends DruidDataSource {
     }
 
     public WorkloadDataSource(DruidDataSource realtime, DruidDataSource analysis) {
+        this(realtime, analysis, realtime);
+    }
+
+    public WorkloadDataSource(
+            DruidDataSource realtime, DruidDataSource analysis, DruidDataSource callbacks) {
+        this(realtime, analysis, callbacks, realtime);
+    }
+
+    public WorkloadDataSource(
+            DruidDataSource realtime,
+            DruidDataSource analysis,
+            DruidDataSource callbacks,
+            DruidDataSource control) {
         this.realtime = realtime;
         this.analysis = analysis;
+        this.callbacks = callbacks;
+        this.control = control;
     }
 
     public static Scope use(Lane lane) {
@@ -49,6 +66,8 @@ public final class WorkloadDataSource extends DruidDataSource {
     public DruidPooledConnection getConnection() throws SQLException {
         Lane lane = CURRENT.get();
         if (lane == Lane.REALTIME) return realtime.getConnection();
+        if (lane == Lane.CALLBACK) return callbacks.getConnection();
+        if (lane == Lane.CONTROL) return control.getConnection();
         if (lane == Lane.ANALYSIS) return analysis.getConnection();
         return super.getConnection();
     }

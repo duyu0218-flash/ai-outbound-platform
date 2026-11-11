@@ -1,0 +1,10 @@
+{
+  "recorded_at_utc": "2026-11-11T04:42:14.214937+00:00",
+  "runtime_source_commit": "304447ae2ac50f21d9f71211419ba182fbd85371",
+  "architecture": "x86_64",
+  "cpu_max": "400000 100000",
+  "memory_max": "17179869184",
+  "jdk": "openjdk version \"21.0.9\" 2025-10-21 LTS\nOpenJDK Runtime Environment Temurin-21.0.9+10 (build 21.0.9+10-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.9+10 (build 21.0.9+10-LTS, mixed mode, sharing)",
+  "mysql_image_id": "sha256:0f1a0ccadda3a1734d1db557e203ec58621d56fa248525016e85fe4f631311ec",
+  "redis_image_id": "sha256:3a17a97bb6c7d9a7ee1bd3d5ecf7c6d02adf4bfd9fe73a974b3767b442dfbfaa"
+}
