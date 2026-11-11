@@ -144,6 +144,105 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void overlappingCallbackMaintenanceDoesNotBorrowTheReceiptConnections() throws Exception {
+        var isolated =
+                new CallbackInbox(
+                        store,
+                        tx,
+                        new JsonSupport(new ObjectMapper()),
+                        new com.duozhi.outbound.common.config.Config(environment),
+                        lifecycle,
+                        businessVoice,
+                        (com.duozhi.outbound.callback.dao.CallbackBatchStore)
+                                ReflectionTestUtils.getField(inbox, "batchDb"));
+        String workerId = (String) ReflectionTestUtils.getField(isolated, "workerId");
+        long lock = ByteBuffer.wrap(JsonSupport.digest("callback-worker:" + workerId)).getLong();
+        var receipts = new ArrayList<Long>();
+        for (String kind : List.of("expired", "recent", "pending")) {
+            var accepted =
+                    inbox.receive(
+                            "telephony_status",
+                            Values.map(
+                                    "call_id",
+                                    key(),
+                                    "payload",
+                                    Values.map(
+                                            "status",
+                                            "completed",
+                                            "attempt",
+                                            1,
+                                            "event_id",
+                                            key())));
+            long id =
+                    jdbc.queryForObject(
+                            "SELECT id FROM callbackinbox WHERE receipt_key=?",
+                            Long.class,
+                            accepted.get("receipt_id"));
+            receipts.add(id);
+            store.updateInternal(
+                    "callbackinbox",
+                    id,
+                    Values.map(
+                            "state",
+                            kind.equals("pending") ? "pending" : "done",
+                            "completed_at",
+                            Store.now().minusDays(kind.equals("recent") ? 1 : 8)));
+        }
+        var pool = Executors.newFixedThreadPool(4);
+        var done = new CountDownLatch(3);
+        var start = new CountDownLatch(1);
+        var futures = new ArrayList<Future<?>>();
+        try {
+            try (var held = platformLocks.lock(lock)) {
+                for (int i = 0; i < 4; i++)
+                    futures.add(
+                            pool.submit(
+                                    () -> {
+                                        start.await();
+                                        try (var route =
+                                                WorkloadDataSource.use(
+                                                        WorkloadDataSource.Lane.CALLBACK)) {
+                                            isolated.periodicMaintenance();
+                                        } finally {
+                                            done.countDown();
+                                        }
+                                        return null;
+                                    }));
+                start.countDown();
+                assertThat(done.await(3, TimeUnit.SECONDS)).isTrue();
+                // Both reserved callback connections remain available while the
+                // elected maintenance caller is blocked on its worker identity.
+                try (var route = WorkloadDataSource.use(WorkloadDataSource.Lane.CALLBACK);
+                        var first = dataSource.getConnection();
+                        var second = dataSource.getConnection()) {
+                    assertThat(first.isValid(2)).isTrue();
+                    assertThat(second.isValid(2)).isTrue();
+                }
+            }
+            for (var future : futures) future.get(5, TimeUnit.SECONDS);
+            assertThat(store.one("callbackinboxworker", "findById", Map.of("id", workerId)))
+                    .isNotNull();
+            assertThat(
+                            jdbc.queryForObject(
+                                    "SELECT COUNT(*) FROM callbackinbox WHERE id=?",
+                                    Long.class,
+                                    receipts.get(0)))
+                    .isZero();
+            assertThat(store.one("callbackinbox", "findById", Map.of("id", receipts.get(1))))
+                    .containsEntry("state", "done");
+            assertThat(store.one("callbackinbox", "findById", Map.of("id", receipts.get(2))))
+                    .containsEntry("state", "pending");
+            store.updateInternal(
+                    "callbackinbox",
+                    receipts.get(2),
+                    Values.map("state", "done", "completed_at", Store.now()));
+
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
     void callbackAndControlConnectionsRemainAvailableWhenEveryRealtimeConnectionIsBorrowed()
             throws Exception {
         var held = new ArrayList<java.sql.Connection>();

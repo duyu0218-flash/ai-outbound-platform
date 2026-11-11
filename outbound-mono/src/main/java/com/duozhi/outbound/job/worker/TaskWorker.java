@@ -476,7 +476,7 @@ public class TaskWorker {
                                     "integrationLane",
                                     integrationLane,
                                     "recoverOnly",
-                                    types.contains("'dial_call'") && dialControl.sendingClosed());
+                                    types.contains("'dial_call'") && dialControl.admissionClosed());
                     for (var candidate :
                             store.orderedAcross(
                                     "taskoutbox", "abandonedLeases", filters, List.of(), 10)) {
@@ -1288,7 +1288,7 @@ public class TaskWorker {
                     // Receipts advance live calls and release their resources. They must not
                     // compete with exports/integrations for the general JDBC pool.
                     try (var routing = WorkloadDataSource.use(WorkloadDataSource.Lane.CALLBACK)) {
-                        inbox.maintenance();
+                        inbox.periodicMaintenance();
                         long deadline = System.nanoTime() + 250000000L;
                         do {
                             boolean progress = false;

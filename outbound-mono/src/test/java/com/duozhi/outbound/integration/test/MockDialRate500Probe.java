@@ -1270,11 +1270,38 @@ class MockDialRate500Probe {
         long stopped = System.nanoTime();
         result.put("stop_requested_at_ms", System.currentTimeMillis());
         result.put("backlog_at_stop_request", backlogSample());
-        var begin = admin("/v1/admin/dial-control/begin");
+        long deadline = stopped + TimeUnit.SECONDS.toNanos(180);
+        Map<String, Object> begin = null;
+        while (System.nanoTime() < deadline) {
+            var reply =
+                    http.send(
+                            HttpRequest.newBuilder(
+                                            URI.create(origin + "/v1/admin/dial-control/begin"))
+                                    .timeout(Duration.ofSeconds(30))
+                                    .header("Authorization", "Bearer " + HOOK)
+                                    .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            if (reply.statusCode() == 200) {
+                begin = json.readValue(reply.body(), Map.class);
+                break;
+            }
+            assertTrue(
+                    reply.statusCode() == 503
+                            && "PLATFORM_LOCK_TIMEOUT"
+                                    .equals(json.readValue(reply.body(), Map.class).get("detail")),
+                    "only a documented pre-transaction lock timeout may postpone admission closure: "
+                            + reply.body());
+            result.merge(
+                    "admission_barrier_lock_timeouts",
+                    1,
+                    (left, right) -> ((Number) left).intValue() + 1);
+            Thread.sleep(200);
+        }
+        assertNotNull(begin, "admission barrier must close within the original stop deadline");
         result.put("drain_begin", begin);
-        // The begin transaction captures admitted/sending K identities while closing new admission.
-        // QUEUED/unadmitted rows remain durable but never become a second load phase.
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(180);
+        // Admission capture, command completion and drain share the same original 180s budget.
+        // Only already-frozen identities may recover; fresh queued rows stay untouched.
         boolean closed = false;
         while (System.nanoTime() < deadline) {
             var reply =

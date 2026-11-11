@@ -192,6 +192,14 @@ public class DialDrainControl {
                 });
     }
 
+    public boolean admissionClosed() {
+        return !"RUNNING"
+                .equals(
+                        jdbc.queryForObject(
+                                "SELECT phase FROM dial_admission_control WHERE id=1",
+                                String.class));
+    }
+
     public boolean sendingClosed() {
         return Set.of("SEND_CLOSED", "FROZEN")
                 .contains(

@@ -186,7 +186,7 @@ public class DialBatchWorker {
                                             "limit",
                                             size(),
                                             "recoverOnly",
-                                            drain.sendingClosed());
+                                            drain.admissionClosed());
                             var expired = db.rows("expiredFinalTasks", params);
                             if (!expired.isEmpty()) {
                                 var expiration = new LinkedHashMap<>(params);
@@ -292,7 +292,7 @@ public class DialBatchWorker {
         if (!config.flag("JAVA_DISPATCH_ENABLED", false)) return false;
         if (config.flag("CALLBACK_INBOX_ENABLED", false)
                 && !rate.healthyForAdmission()
-                && !drain.sendingClosed()) return false;
+                && !drain.admissionClosed()) return false;
         long started = System.nanoTime();
         var tasks = claim(tenant);
         if (tasks.isEmpty()) return false;

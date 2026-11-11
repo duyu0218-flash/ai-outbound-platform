@@ -193,6 +193,10 @@
     <select id="expiredReceipts" resultMap="row">
         SELECT * FROM callbackinbox WHERE state='done' AND completed_at&lt;#{p0} ORDER BY id LIMIT 100
     </select>
+    <delete id="purgeExpiredReceipts">
+        DELETE FROM callbackinbox WHERE state='done' AND completed_at&lt;#{cutoff}
+        ORDER BY completed_at,id LIMIT 1000
+    </delete>
     <delete id="deleteExpiredReceipt">
         DELETE FROM callbackinbox WHERE id=#{id} AND state='done' AND completed_at&lt;#{cutoff}
     </delete>

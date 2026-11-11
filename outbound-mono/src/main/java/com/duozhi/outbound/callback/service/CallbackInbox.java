@@ -18,6 +18,8 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.ibatis.executor.BatchExecutorException;
@@ -127,10 +129,37 @@ public class CallbackInbox {
                                         config.get("CALLBACK_INBOX_MAX_AGE_SEC", "1")));
     }
 
+    private final AtomicBoolean maintenanceRunning = new AtomicBoolean();
+    private final AtomicLong lastMaintenanceNanos = new AtomicLong();
+
+    public void periodicMaintenance() {
+        long interval =
+                Math.max(
+                        100_000_000L,
+                        Math.min(
+                                1_000_000_000L,
+                                Math.max(1L, config.number("CALLBACK_INBOX_WORKER_TTL_SEC", 10))
+                                        * 1_000_000_000L
+                                        / 3));
+        long last = lastMaintenanceNanos.get();
+        if (last != 0 && System.nanoTime() - last < interval) return;
+        if (!maintenanceRunning.compareAndSet(false, true)) return;
+        try {
+            last = lastMaintenanceNanos.get();
+            if (last != 0 && System.nanoTime() - last < interval) return;
+            maintenance();
+            lastMaintenanceNanos.set(System.nanoTime());
+        } finally {
+            maintenanceRunning.set(false);
+        }
+    }
+
     public void maintenance() {
-        tx.run(
+        // The worker identity is acquired before borrowing JDBC. Commit the
+        // short heartbeat before retention work so receipt statistics can advance.
+        tx.serializedIdentity(
+                "callback-worker:" + workerId,
                 () -> {
-                    tx.identity("callback-worker:" + workerId);
                     if (store.one(
                                     "callbackinboxworker",
                                     "sourceCallbackInbox36_3",
@@ -144,6 +173,10 @@ public class CallbackInbox {
                                 "callbackinboxworker",
                                 workerId,
                                 JsonSupport.map("heartbeat_at", Store.now()));
+                    return null;
+                });
+        tx.run(
+                () -> {
                     Object cutoff =
                             store.encode(
                                     "callbackinbox",
@@ -155,15 +188,9 @@ public class CallbackInbox {
                                                             config.number(
                                                                     "CALLBACK_INBOX_RECEIPT_DAYS",
                                                                     7))));
-                    for (var expired :
-                            store.query(
-                                    "callbackinbox",
-                                    "expiredReceipts",
-                                    Store.queryParameters(-1, cutoff)))
-                        store.execute(
-                                "callbackinbox",
-                                "deleteExpiredReceipt",
-                                Values.map("id", expired.get("id"), "cutoff", cutoff));
+                    // Keep cleanup bounded without loading/deleting each old body over JDBC.
+                    store.execute(
+                            "callbackinbox", "purgeExpiredReceipts", Values.map("cutoff", cutoff));
                     store.execute(
                             "callbackinboxworker",
                             "rawCallbackInbox40_2",

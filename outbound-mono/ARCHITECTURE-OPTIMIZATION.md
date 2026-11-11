@@ -176,3 +176,28 @@ speech events complete in order, then proves the following terminal event waits 
 The AI capacity fixture exposes bounded callback worker/pool/poll/batch settings and reports their
 actual values; changing these is a different resource/configuration profile, not an isolated
 code-only speed comparison.
+
+A subsequent 60-second AI thread sample showed multiple callback consumers waiting on the same
+worker-maintenance identity while already holding their reserved JDBC connections. Scheduled
+receipt consumers now coalesce maintenance per process and successful heartbeat interval (at most
+one second, shortened for smaller worker TTLs). Explicit maintenance remains immediate. The worker
+identity is acquired before borrowing JDBC, and failed maintenance does not advance the cadence.
+The short heartbeat commits before receipt retention work. The existing seven-day minimum
+retention predicate is preserved; cleanup uses one bounded DELETE of at most 1000 completed
+receipts instead of loading and deleting up to 100 bodies individually. Pending and recent
+receipts remain protected. Explicit maintenance calls still force a pass. A real-MySQL regression
+blocks the elected maintenance caller and verifies the other consumers return and both callback
+connections remain borrowable, then confirms the worker record commits after releasing the lock.
+
+Admission closure now switches both dial claim paths to existing frozen journal identities.
+Callback admission backpressure cannot pause captured-command recovery while waiting for the
+sending barrier: recovery continues in ADMISSION_CLOSED, and fresh queued tasks remain untouched.
+The separate SEND_CLOSED decision still prohibits sends and permits status confirmation only.
+The reserved-unsent MySQL regression forces unhealthy admission feedback, recovers the captured
+command through the real batch worker, verifies fresh task attempts stay zero, and closes sends
+without bypassing acceptance/cancellation proof.
+
+The isolated stop probe retries only documented pre-transaction `503 PLATFORM_LOCK_TIMEOUT`
+responses for admission closure, recording each retry. Admission capture, sending closure and
+full drain now share 180 seconds from the stop request; retries do not grant another deadline.
+Unknown responses and unresolved sends remain failures.
