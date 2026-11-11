@@ -1452,6 +1452,110 @@ class QueueConcurrencyIT {
     }
 
     @Test
+    void mediaConflictKeepsDurableControlUntilCorrelatedTerminalAndOtherErrorsStillDie() {
+        long tenant = 398;
+        store.insert(
+                "tenant",
+                Values.map(
+                        "id", tenant, "code", "media-conflict", "name", "Media conflict fixture"));
+        try {
+            for (int status : List.of(409, 500)) {
+                var call =
+                        store.insert(
+                                "callsession",
+                                Values.map(
+                                        "tenant_id",
+                                        tenant,
+                                        "phone",
+                                        "1550000" + status,
+                                        "mode",
+                                        "ai_only",
+                                        "status",
+                                        "in_ai",
+                                        "attempts",
+                                        1,
+                                        "max_attempts",
+                                        1));
+                var state = conversation.state(call);
+                var media = businessVoice.realtime(call);
+                store.update(
+                        "realtimesession", tenant, media.get("id"), Map.of("state", "listening"));
+                store.update(
+                        "conversationstate",
+                        tenant,
+                        state.get("id"),
+                        Values.map(
+                                "timer_kind", "silence", "deadline", Store.now().minusSeconds(1)));
+                var payload =
+                        Values.map(
+                                "product_kind",
+                                "timer",
+                                "call_id",
+                                call.get("id"),
+                                "attempt",
+                                1,
+                                "generation",
+                                state.get("generation"),
+                                "kind",
+                                "silence");
+                var task = outbox.enqueue(tenant, "after_playback", call.get("id"), key(), payload);
+                store.update("taskoutbox", tenant, task.get("id"), Map.of("max_attempts", 1));
+                Mockito.doThrow(new TelephonyClient.Failure(status, false))
+                        .when(runtime)
+                        .apply(
+                                ArgumentMatchers.argThat(
+                                        p -> call.get("id").equals(p.get("call_id"))),
+                                ArgumentMatchers.anyMap());
+                if (status == 409) {
+                    String frozen =
+                            store.require("taskoutbox", tenant, task.get("id"))
+                                    .get("payload_json")
+                                    .toString();
+                    for (int retry = 0; retry < 6; retry++) {
+                        store.update(
+                                "taskoutbox",
+                                tenant,
+                                task.get("id"),
+                                Map.of("available_at", Store.now().minusSeconds(1)));
+                        assertThat(worker.processOne(tenant)).isTrue();
+                        assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                                .containsEntry("state", "pending")
+                                .containsEntry("attempts", 0)
+                                .containsEntry("payload_json", frozen)
+                                .containsEntry(
+                                        "last_error",
+                                        "waiting for correlated media state after HTTP 409");
+                        assertThat(store.require("callsession", tenant, call.get("id")))
+                                .containsEntry("status", "in_ai");
+                    }
+                    lifecycle.status(
+                            Values.map(
+                                    "call_id",
+                                    call.get("id"),
+                                    "payload",
+                                    Values.map(
+                                            "attempt",
+                                            1,
+                                            "event_id",
+                                            key(),
+                                            "status",
+                                            "completed")));
+                    assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                            .containsEntry("state", "completed")
+                            .containsEntry("last_error", "superseded by terminal attempt");
+                } else {
+                    assertThat(worker.processOne(tenant)).isTrue();
+                    assertThat(store.require("taskoutbox", tenant, task.get("id")))
+                            .containsEntry("state", "dead")
+                            .containsEntry("attempts", 1);
+                }
+            }
+        } finally {
+            Mockito.reset(runtime);
+        }
+    }
+
+    @Test
     void localTimerPreparationAndCleanupDoNotWaitForResourceMutexAndStaleTimersHaveNoEffect()
             throws Exception {
         Mockito.doNothing()

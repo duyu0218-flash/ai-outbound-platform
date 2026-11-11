@@ -608,7 +608,19 @@ public class TaskWorker {
                 == 1;
     }
 
-    public static class Deferred extends RuntimeException {}
+    public static class Deferred extends RuntimeException {
+        public Deferred() {
+            this("waiting for dial admission");
+        }
+
+        public Deferred(String reason, Throwable cause) {
+            super(reason, cause);
+        }
+
+        public Deferred(String reason) {
+            super(reason);
+        }
+    }
 
     public boolean processOne() {
         return processOne(null);
@@ -1023,11 +1035,11 @@ public class TaskWorker {
             } else throw new IllegalStateException("unsupported durable task type");
             permitted();
         } catch (Deferred | PlatformLock.Unavailable e) {
+            if (e.getCause()
+                    instanceof com.duozhi.outbound.integration.service.TelephonyClient.Failure)
+                taskFailure("defer", task, e);
             state = "pending";
-            error =
-                    e instanceof PlatformLock.Unavailable
-                            ? e.getMessage()
-                            : "waiting for dial admission";
+            error = e.getMessage();
             deferred = true;
         } catch (RuntimeException e) {
             taskFailure("execute", task, e);
@@ -1135,6 +1147,10 @@ public class TaskWorker {
         var codes = new StringJoiner("->");
         for (int depth = 0; error != null && depth < 8; depth++, error = error.getCause()) {
             codes.add(error.getClass().getSimpleName());
+            if (error
+                    instanceof
+                    com.duozhi.outbound.integration.service.TelephonyClient.Failure remote)
+                codes.add("HTTP=" + remote.status);
             if (error instanceof java.sql.SQLException sql)
                 codes.add("SQLSTATE=" + sql.getSQLState() + ",vendor=" + sql.getErrorCode());
         }

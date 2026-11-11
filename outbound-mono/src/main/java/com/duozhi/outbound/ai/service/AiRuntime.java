@@ -1107,15 +1107,25 @@ public class AiRuntime {
             appointment(payload);
             return;
         }
-        if ("timer".equals(payload.get("product_kind"))) {
-            timer(payload);
-            return;
+        try {
+            if ("timer".equals(payload.get("product_kind"))) {
+                timer(payload);
+                return;
+            }
+            if (current(payload, false) == null) return;
+            Map<String, Object> result =
+                    new LinkedHashMap<>((Map<String, Object>) payload.get("result"));
+            result.put("tts_text", null);
+            finish(payload, result, true);
+        } catch (TelephonyClient.Failure conflict) {
+            if (conflict.status != 409) throw conflict;
+            // A media fence can advance before its durable callback reaches the
+            // controller. Preserve this task and its identity until normal
+            // generation/terminal reconciliation supersedes it. A 409 alone is
+            // never completion proof and cannot release call/quota ownership.
+            throw new TaskWorker.Deferred(
+                    "waiting for correlated media state after HTTP 409", conflict);
         }
-        if (current(payload, false) == null) return;
-        Map<String, Object> result =
-                new LinkedHashMap<>((Map<String, Object>) payload.get("result"));
-        result.put("tts_text", null);
-        finish(payload, result, true);
     }
 
     private void timer(Map<String, Object> payload) {
