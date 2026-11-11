@@ -1,5 +1,6 @@
 package com.duozhi.outbound.call.service;
 
+import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
 import com.duozhi.outbound.common.runtime.ScheduledWork;
@@ -32,6 +33,8 @@ public class CallReconciliation {
     private final Config config;
     private final TelephonyClient client;
     private final CallLifecycle lifecycle;
+    @org.springframework.beans.factory.annotation.Autowired
+    private CallbackInbox inbox;
     private final AtomicBoolean running = new AtomicBoolean();
     private final ExecutorService executor =
             Executors.newSingleThreadExecutor(
@@ -88,7 +91,7 @@ public class CallReconciliation {
                                 limit),
                         List.of("updated_at:ASC", "id:ASC"),
                         limit);
-        int released = 0;
+        int replayed = 0;
         for (Map<String, Object> call : stale) {
             Map<String, Object> confirmed;
             try {
@@ -127,12 +130,14 @@ public class CallReconciliation {
                                                                 + " retained"));
                                     return false;
                                 }
-                                lifecycle.status(terminal);
+                                if (config.flag("CALLBACK_INBOX_ENABLED", false))
+                                    inbox.receive("telephony_status", terminal);
+                                else lifecycle.status(terminal);
                                 return true;
                             });
-            if (changed) released++;
+            if (changed) replayed++;
         }
-        return released;
+        return replayed;
     }
 
     @SuppressWarnings("unchecked")
@@ -144,7 +149,8 @@ public class CallReconciliation {
         Object provider =
                 payload.getOrDefault("provider_call_id", payload.get("telephony_call_id"));
         if (!"status".equals(event.get("kind"))
-                || !Objects.equals(event.get("call_id"), call.get("id"))
+                || !Objects.toString(event.get("call_id"), "")
+                        .equals(Objects.toString(call.get("id"), ""))
                 || CallLifecycle.number(payload, "tenant_id") != CallLifecycle.tenant(call)
                 || CallLifecycle.number(payload, "attempt")
                         != CallLifecycle.number(call, "attempts")

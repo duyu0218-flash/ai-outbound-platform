@@ -47,6 +47,11 @@ class CallReconciliationTest {
         probe(true, false, false, true, 2);
     }
 
+    @Test
+    void durableInboxReplayPreservesOrderedReceiptProcessing() {
+        probe(true, false, true, true, 1, true);
+    }
+
     @SuppressWarnings("unchecked")
     private void probe(Boolean ended, boolean replaced, boolean release) {
         probe(ended, replaced, release, true, 1);
@@ -55,6 +60,18 @@ class CallReconciliationTest {
     @SuppressWarnings("unchecked")
     private void probe(
             Boolean ended, boolean replaced, boolean release, boolean withProof, int tenant) {
+        probe(ended, replaced, release, withProof, tenant, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void probe(
+            Boolean ended,
+            boolean replaced,
+            boolean release,
+            boolean withProof,
+            int tenant,
+            boolean durableInbox) {
+        var inbox = mock(com.duozhi.outbound.callback.service.CallbackInbox.class);
         var store = mock(Store.class);
         var tx = mock(Transactions.class);
         var client = mock(TelephonyClient.class);
@@ -112,13 +129,26 @@ class CallReconciliationTest {
         else when(client.command(anyMap(), eq("status"), anyMap())).thenReturn(reply);
         var service =
                 new CallReconciliation(
-                        store, tx, new Config(new MockEnvironment()), client, lifecycle);
+                        store,
+                        tx,
+                        new Config(
+                                new MockEnvironment()
+                                        .withProperty("CALLBACK_INBOX_ENABLED", "" + durableInbox)),
+                        client,
+                        lifecycle);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "inbox", inbox);
         try {
             assertThat(service.reconcile(20)).isEqualTo(release ? 1 : 0);
             verify(client).command(same(stale), eq("status"), anyMap());
             verify(client, never()).command(anyMap(), eq("hangup"), anyMap());
-            if (release) verify(lifecycle).status(same(original));
-            else verifyNoInteractions(lifecycle);
+            if (release && durableInbox) {
+                verify(inbox).receive(eq("telephony_status"), same(original));
+                verifyNoInteractions(lifecycle);
+            } else if (release) verify(lifecycle).status(same(original));
+            else {
+                verifyNoInteractions(lifecycle);
+                verifyNoInteractions(inbox);
+            }
             verify(store, never()).update(anyString(), anyLong(), any(), anyMap());
         } finally {
             service.close();

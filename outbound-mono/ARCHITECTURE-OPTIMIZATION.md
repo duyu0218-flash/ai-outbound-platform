@@ -129,3 +129,9 @@ analysis default remains 1. MySQL durability, SLO thresholds, stop deadlines and
 checks are unchanged. The sending barrier retries only MySQL 1213/40001 transaction rollbacks,
 at most once; exhaustion returns `503 DIAL_CONTROL_BUSY`. Clients may retry that documented
 backpressure inside their original overall deadline, without assuming sending was closed.
+
+Terminal replay does not overtake provider delivery: the gateway exposes the retained event only
+after that call's voice outbox stream has drained. With the durable inbox enabled, reconciliation
+submits the original event to that inbox and never directly applies lifecycle effects ahead of
+older receipts. Legacy direct processing remains available only in the existing inbox-disabled
+mode. Reconciliation's count describes replay submissions, not proof of completed release.

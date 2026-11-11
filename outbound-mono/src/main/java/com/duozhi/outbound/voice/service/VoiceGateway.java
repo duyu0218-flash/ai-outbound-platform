@@ -390,7 +390,7 @@ public final class VoiceGateway implements AutoCloseable {
                         db ->
                                 LocalLedger.query(
                                         db,
-                                        "SELECT body FROM voice_terminal_fact WHERE uuid=? AND tenant=? AND call_id=? AND attempt=?",
+                                        "SELECT body FROM voice_terminal_fact WHERE uuid=? AND tenant=? AND call_id=? AND attempt=? AND NOT EXISTS(SELECT 1 FROM voice_outbox o WHERE o.stream_key=voice_terminal_fact.call_id)",
                                         row.get("uuid"),
                                         row.get("tenant"),
                                         row.get("call_id"),

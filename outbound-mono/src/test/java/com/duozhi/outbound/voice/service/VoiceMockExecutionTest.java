@@ -101,6 +101,19 @@ class VoiceMockExecutionTest {
                                                     .get("status"))
                             .toList();
             assertThat(statuses).containsExactly("dialing", "no_answer");
+            assertThat(
+                            recovered.post(
+                                    "status",
+                                    Map.of(
+                                            "call_id",
+                                            "synthetic-v5",
+                                            "tenant_id",
+                                            1,
+                                            "expected_attempt",
+                                            1,
+                                            "provider_call_id",
+                                            accepted.get("provider_call_id"))))
+                    .doesNotContainKey("terminal_event");
             recovered.ledger.transaction(
                     db -> {
                         LocalLedger.execute(db, "DELETE FROM outbox");
