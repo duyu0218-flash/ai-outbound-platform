@@ -17,7 +17,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-/** A database timeout alone is never evidence that the PBX released a call. */
+/**
+ * A database timeout alone is never evidence that the PBX released a call. Reconciliation is a
+ * read-only provider probe: queue/admission age must never become permission to hang up a live
+ * channel. Explicit business hangups continue through the normal fenced control path.
+ */
 @Service
 public class CallReconciliation {
     @org.springframework.beans.factory.annotation.Autowired
@@ -93,7 +97,7 @@ public class CallReconciliation {
                         Boolean.TRUE.equals(
                                 client.command(
                                                 call,
-                                                "hangup",
+                                                "status",
                                                 JsonSupport.map(
                                                         "reason", "provider_status_timeout"))
                                         .get("ended"));
@@ -111,6 +115,9 @@ public class CallReconciliation {
                                 if (latest == null
                                         || CallLifecycle.number(latest, "attempts")
                                                 != CallLifecycle.number(call, "attempts")
+                                        || !Objects.equals(
+                                                latest.get("telephony_call_id"),
+                                                call.get("telephony_call_id"))
                                         || CallLifecycle.TERMINAL.contains(latest.get("status")))
                                     return false;
                                 if (!ended) {
@@ -143,7 +150,7 @@ public class CallReconciliation {
                                                                 + ":"
                                                                 + call.get("attempts"),
                                                         "hangup_reason",
-                                                        "provider status timeout")));
+                                                        "provider confirmed ended during reconciliation")));
                                 return true;
                             });
             if (changed) released++;

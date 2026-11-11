@@ -8,6 +8,7 @@ import com.duozhi.outbound.call.service.CallLifecycle;
 import com.duozhi.outbound.callback.service.CallbackInbox;
 import com.duozhi.outbound.common.config.Config;
 import com.duozhi.outbound.common.dao.Store;
+import com.duozhi.outbound.common.dao.WorkloadDataSource;
 import com.duozhi.outbound.common.service.Transactions;
 import com.duozhi.outbound.common.support.JsonSupport;
 import com.duozhi.outbound.dial.service.DialDrainControl;
@@ -97,6 +98,8 @@ class CallbackRotationTest {
         when(inbox.consume(anyInt()))
                 .thenAnswer(
                         invocation -> {
+                            assertThat(WorkloadDataSource.current())
+                                    .isEqualTo(WorkloadDataSource.Lane.REALTIME);
                             visited.add(invocation.getArgument(0));
                             Thread.sleep(60);
                             return true;

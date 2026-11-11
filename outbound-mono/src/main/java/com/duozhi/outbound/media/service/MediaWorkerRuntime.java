@@ -19,14 +19,14 @@ public class MediaWorkerRuntime {
     private final HttpClient http = Support.client();
     private final Control control;
 
-    interface Control {
+    public interface Control {
         Map<String, Object> post(String path, Map<String, Object> body) throws Exception;
     }
 
     private final Map<String, String> closed = new LinkedHashMap<>();
     private final Map<String, MediaManager.Session> registered = new ConcurrentHashMap<>();
 
-    MediaWorkerRuntime(Settings settings, Control control) {
+    public MediaWorkerRuntime(Settings settings, Control control) {
         this.settings = settings;
         worker = settings.get("MEDIA_WORKER_ID", "");
         capacity = (int) settings.number("MEDIA_WORKER_CAPACITY", 50, 1, 200);
@@ -56,7 +56,7 @@ public class MediaWorkerRuntime {
     }
 
     @GetMapping("/internal/state")
-    Map<String, Object> state(
+    public Map<String, Object> state(
             @RequestHeader(value = "Authorization", required = false)
             String auth) {
         auth(auth);
@@ -78,7 +78,7 @@ public class MediaWorkerRuntime {
     }
 
     @PostMapping("/internal/command")
-    Map<String, Object> command(
+    public Map<String, Object> command(
             @RequestBody
             Map<String, Object> command,
             @RequestHeader(value = "Authorization", required = false)
@@ -261,7 +261,15 @@ public class MediaWorkerRuntime {
     }
 
     @PreDestroy
-    void close() throws Exception {
+    public void close() throws Exception {
         manager.close();
+    }
+
+    public NativeMedia manager() {
+        return manager;
+    }
+
+    public boolean owns(String token) {
+        return manager.owns(token);
     }
 }

@@ -25,6 +25,7 @@ public final class MediaCluster implements MediaManager {
     private final Map<String, Long> checked = new ConcurrentHashMap<>();
     private final Map<String, MediaWorkerRuntime> workers = new ConcurrentHashMap<>();
     private final NativeMedia.Events events;
+    private final boolean remote;
     private final ScheduledExecutorService monitor;
     private final ExecutorService probes;
 
@@ -33,6 +34,12 @@ public final class MediaCluster implements MediaManager {
         this.settings = settings;
         this.ledger = ledger;
         this.events = events;
+        String transport = settings.get("MEDIA_WORKER_TRANSPORT", "embedded");
+        if (!Set.of("embedded", "remote").contains(transport))
+            throw new IllegalArgumentException("invalid media worker transport");
+        remote = transport.equals("remote");
+        if (remote && settings.flag("VOICE_AI_PROFILES_ENABLED", false))
+            throw new IllegalArgumentException("remote media profile authority is not installed");
         if (settings.secret("MEDIA_RPC_TOKEN").length() < 32)
             throw new IllegalArgumentException("independent media RPC credential required");
         Object raw = Support.JSON.readValue(settings.get("MEDIA_WORKERS_JSON", "[]"), Object.class);
@@ -46,13 +53,16 @@ public final class MediaCluster implements MediaManager {
                     wsBase = Support.required(row, "ws_base", 2048);
             URI api = Support.endpoint(endpoint), ws = URI.create(wsBase);
             int capacity = (int) Support.integer(row, "capacity", 0);
-            if (!api.getScheme().equals("http")
-                    || !api.getHost().equals("127.0.0.1")
+            boolean loopback = api.getHost().equals("127.0.0.1");
+            if (!(remote
+                            ? api.getScheme().equals("https")
+                                    || loopback && api.getScheme().equals("http")
+                            : loopback && api.getScheme().equals("http"))
                     || api.getPort() <= 0
                     || api.getQuery() != null
                     || !Set.of("", "/").contains(api.getPath())
-                    || !"ws".equals(ws.getScheme())
-                    || !"127.0.0.1".equals(ws.getHost())
+                    || !(api.getScheme().equals("https") ? "wss" : "ws").equals(ws.getScheme())
+                    || !api.getHost().equals(ws.getHost())
                     || ws.getPort() != api.getPort()
                     || ws.getUserInfo() != null
                     || ws.getQuery() != null
@@ -63,7 +73,7 @@ public final class MediaCluster implements MediaManager {
                     || !ids.add(id)
                     || !endpoints.add(endpoint))
                 throw new IllegalArgumentException(
-                        "media workers require unique identities and matching loopback HTTP/WS"
+                        "media workers require unique identities and matching HTTP/WS"
                                 + " endpoints");
             specs.add(
                     new Spec(
@@ -75,7 +85,7 @@ public final class MediaCluster implements MediaManager {
         if (specs.stream().mapToInt(Spec::capacity).sum()
                 < settings.number("PIPECAT_MAX_ACTIVE_SESSIONS", 100, 1, 10000))
             throw new IllegalArgumentException("media roster capacity is below host limit");
-        for (Spec spec : specs) {
+        for (Spec spec : remote ? List.<Spec>of() : specs) {
             Settings local =
                     new Settings() {
                         @Override
@@ -133,6 +143,13 @@ public final class MediaCluster implements MediaManager {
 
     private Map<String, Object> request(
             Spec spec, String path, Map<String, Object> payload, double timeout) throws Exception {
+        if (remote)
+            return MediaRpc.request(
+                    spec.endpoint,
+                    path,
+                    path.equals("/internal/state") ? null : payload,
+                    settings.secret("MEDIA_RPC_TOKEN"),
+                    timeout);
         MediaWorkerRuntime worker = workers.get(spec.id);
         String auth = "Bearer " + settings.secret("MEDIA_RPC_TOKEN");
         if (worker == null)
@@ -373,6 +390,12 @@ public final class MediaCluster implements MediaManager {
 
     @Override
     public String url(Session session) {
+        if (remote) {
+            Owner owner = owners.get(session.call);
+            if (owner == null || !owner.session.id.equals(session.id))
+                throw new Support.Failure(409, "stale media session");
+            return owner.spec.wsBase + "/" + session.token;
+        }
         return settings.get("PIPECAT_MEDIA_WS_BASE", "").replaceAll("/+$", "")
                 + "/"
                 + session.token;

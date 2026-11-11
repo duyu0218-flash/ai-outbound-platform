@@ -78,3 +78,39 @@
 新增配置回归覆盖关闭可选导出时原指标仍可用、已有原始注册表被正确复用。真实 HTTP 集成回归覆盖业务指标、wait/hold × platform/identity/partition 六组非零计数、sum 和 histogram bucket，以及三个指标入口的有效令牌、缺少令牌和错误令牌状态。独立 JAR 冒烟也检查实际 `/actuator/prometheus` 的业务与六组锁指标，防止仅测试注册表对象而漏掉发布制品。
 
 本次涉及的入口为 `/actuator/prometheus`、`/metrics` 和 `/metrics/runtime`。后两者继续维持原指标筛选语义；新增锁指标从 Actuator 导出。scope 仍只取上述三个固定值，没有加入电话号码或实际锁键。页面与主业务链路使用既有完整浏览器回归；111 继续保持供应商 mock、真实通道及后台发送关闭。当前修复不改变单实例和容量未验收边界，也不需要新增数据库迁移。测试通过、GitHub 合并及 111 发布的实际结果分别以对应验收证据为准。
+
+## 2026-11-11 staged repair candidate (not a capacity qualification)
+
+The candidate keeps the single-controller requirement. Phase completion must be assessed separately
+from the presence of code or a green functional job:
+
+| Phase | Candidate implementation | Remaining acceptance |
+| --- | --- | --- |
+| P0 | Reconciliation queries provider status without sending a timeout-derived hangup. Same attempt and provider identity are checked again under the call lock before terminal recovery. | Delay acceptance beyond the watchdog age; prove no short synthetic occupancy and no resource release on UNKNOWN. |
+| P1 | Callback consumption uses the realtime JDBC lane, alongside existing separately scheduled AI/control/analysis work. | 500 held calls, 50 planned turns/s, 120 seconds, original reply and drain thresholds. Further latency work depends on new measurements. |
+| P2 | A dial cohort is admitted in independent chunks of at most 100 calls (`JAVA_DIAL_ADMISSION_CHUNK_SIZE`, default 100). A later failure leaves earlier immutable command identities recoverable. | Sustained CPS, failure/replay reconciliation. Durable-quota authority cutover and asynchronous report projection are not implemented by this patch. |
+| P3 | Optional remote media transport and a separate JVM entry role, with RPC authentication, session/attempt/worker epoch checks and a worker-specific WS address. | Static-provider configuration only; real bidirectional PCM, control restart, live cancellation and accounting recovery remain unqualified. Profile authority RPC is not implemented, and profile mode is rejected rather than silently ignored. |
+| P4 | Existing single-instance ownership, freeze and exit-78 behavior is retained. | Automatic controller/database failover is not implemented or qualified. Execution-enforced cross-primary fencing and a target DB replication/recovery contract are required. |
+| P5 | Functional and synthetic capacity evidence must record the actual candidate Jar and all failed gates. | No blanket completion or production capacity claim until the independent gates pass. |
+
+### Independent media process configuration
+
+The default `MEDIA_WORKER_TRANSPORT=embedded` preserves the existing deployment. To exercise the
+new transport, configure the controller with `MEDIA_WORKER_TRANSPORT=remote`, an independent
+`MEDIA_RPC_TOKEN` of at least 32 characters, and `MEDIA_WORKERS_JSON` entries containing `id`,
+`endpoint`, `ws_base`, and `capacity`. HTTP/WS hosts and explicit ports must match; outside
+127.0.0.1 the pair must use HTTPS/WSS. The WS base ends in `/v1/pipecat/media` and is the address
+reachable by FreeSWITCH, not the controller's loopback media address.
+
+Start each worker from the same Jar using `OUTBOUND_RUNTIME_ROLE=media`, `MEDIA_WORKER_ID`,
+`MEDIA_WORKER_CAPACITY`, `MEDIA_RPC_TOKEN`, `MEDIA_CONTROL_ENDPOINT`, the static speech-provider
+configuration, and its own server port. This role imports HTTP/WS infrastructure only, without
+business component scanning, Flyway, database pools or campaign workers. `/internal/state` and
+`/internal/command` require the independent RPC bearer credential. The controller must reach the
+worker and the worker must reach the controller. RPC failures retain ownership uncertainty.
+
+`VOICE_AI_PROFILES_ENABLED=true` is rejected for this remote transport until the pinned profile
+and credential authority is implemented. Do not enable remote transport for such deployments.
+Worker state HTTP tests do not establish real audio capacity or continuity through a restart.
+The absence of a real media/DB failover environment was confirmed for this task; those acceptance
+items remain open rather than being replaced with synthetic results.

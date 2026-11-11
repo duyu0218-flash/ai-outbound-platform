@@ -1013,6 +1013,22 @@ public class DialService {
     public List<Map<String, Object>> prepareTasks(
             List<Map<String, Object>> tasks, DialBatchStore db) {
         if (tasks.isEmpty()) return List.of();
+        // Cohort size bounds task ownership, not transaction size. In particular a 500-row
+        // cohort must not hold the admission mutex and JDBC connection for all 500 calls.
+        // Earlier chunks are durable on a later failure: recovery uses their frozen K/payload.
+        int chunk = config.number("JAVA_DIAL_ADMISSION_CHUNK_SIZE", 100);
+        if (chunk < 1 || chunk > 100)
+            throw new IllegalArgumentException("dial admission chunks require 1..100 rows");
+        var prepared = new ArrayList<Map<String, Object>>();
+        for (int start = 0; start < tasks.size(); start += chunk) {
+            TaskWorker.permitted();
+            prepared.addAll(
+                    prepareChunk(tasks.subList(start, Math.min(tasks.size(), start + chunk)), db));
+        }
+        return prepared;
+    }
+
+    List<Map<String, Object>> prepareChunk(List<Map<String, Object>> tasks, DialBatchStore db) {
         try (var facts = prepareOpenings(tasks.stream().map(t -> t.get("aggregate_id")).toList())) {
             return prepareTasksWithOpenings(tasks, db);
         }
