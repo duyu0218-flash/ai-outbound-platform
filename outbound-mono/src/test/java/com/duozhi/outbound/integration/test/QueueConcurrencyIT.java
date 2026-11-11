@@ -589,40 +589,60 @@ class QueueConcurrencyIT {
 
     @Test
     void platformWaitersDoNotBorrowTheFourBusinessConnections() throws Exception {
-        var pool = Executors.newFixedThreadPool(4);
-        var started = new CountDownLatch(4);
-        var waiting = new CopyOnWriteArrayList<Thread>();
-        var futures = new ArrayList<Future<?>>();
-        try {
-            try (var held = platformLocks.lock(718492061L)) {
-                for (int i = 0; i < 4; i++)
-                    futures.add(
-                            pool.submit(
-                                    () -> {
-                                        waiting.add(Thread.currentThread());
-                                        started.countDown();
-                                        return tx.serialized(() -> store.require("tenant", 0, 1));
-                                    }));
-                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
-                while (System.nanoTime() < deadline
-                        && !waiting.stream()
-                                .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
-                    Thread.sleep(10);
-                assertThat(waiting)
-                        .hasSize(4)
-                        .allSatisfy(
-                                t ->
-                                        assertThat(t.getState())
-                                                .isEqualTo(Thread.State.TIMED_WAITING));
-                assertThat(((DruidDataSource) dataSource).getActiveCount())
-                        .as("Mutex waiters must leave every JDBC connection available")
-                        .isZero();
-                assertThat(futures).allSatisfy(f -> assertThat(f.isDone()).isFalse());
+        // Other tests briefly start asynchronous workers in this application context. Count only
+        // this fixture's pool so an unrelated maintenance query cannot look like a mutex waiter
+        // borrowing a connection. Keep the strict zero-connection assertion.
+        try (var isolatedPool = new DruidDataSource()) {
+            isolatedPool.setUrl(MYSQL.getJdbcUrl());
+            isolatedPool.setUsername(MYSQL.getUsername());
+            isolatedPool.setPassword(MYSQL.getPassword());
+            isolatedPool.setMaxActive(4);
+            isolatedPool.init();
+            var isolatedTx =
+                    new Transactions(
+                            store,
+                            new org.springframework.jdbc.datasource.DataSourceTransactionManager(
+                                    isolatedPool),
+                            platformLocks);
+            var isolatedJdbc = new JdbcTemplate(isolatedPool);
+            var pool = Executors.newFixedThreadPool(4);
+            var started = new CountDownLatch(4);
+            var waiting = new CopyOnWriteArrayList<Thread>();
+            var futures = new ArrayList<Future<?>>();
+            try {
+                try (var held = platformLocks.lock(718492061L)) {
+                    for (int i = 0; i < 4; i++)
+                        futures.add(
+                                pool.submit(
+                                        () -> {
+                                            waiting.add(Thread.currentThread());
+                                            started.countDown();
+                                            return isolatedTx.serialized(
+                                                    () ->
+                                                            isolatedJdbc.queryForObject(
+                                                                    "SELECT 1", Integer.class));
+                                        }));
+                    assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+                    while (System.nanoTime() < deadline
+                            && !waiting.stream()
+                                    .allMatch(t -> t.getState() == Thread.State.TIMED_WAITING))
+                        Thread.sleep(10);
+                    assertThat(waiting)
+                            .hasSize(4)
+                            .allSatisfy(
+                                    t ->
+                                            assertThat(t.getState())
+                                                    .isEqualTo(Thread.State.TIMED_WAITING));
+                    assertThat(isolatedPool.getActiveCount())
+                            .as("Mutex waiters must leave every JDBC connection available")
+                            .isZero();
+                    assertThat(futures).allSatisfy(f -> assertThat(f.isDone()).isFalse());
+                }
+                for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
+            } finally {
+                pool.shutdownNow();
             }
-            for (var result : futures) assertThat(result.get(5, TimeUnit.SECONDS)).isNotNull();
-        } finally {
-            pool.shutdownNow();
         }
     }
 
