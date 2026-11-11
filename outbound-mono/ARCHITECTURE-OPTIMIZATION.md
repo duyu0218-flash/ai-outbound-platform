@@ -135,3 +135,10 @@ after that call's voice outbox stream has drained. With the durable inbox enable
 submits the original event to that inbox and never directly applies lifecycle effects ahead of
 older receipts. Legacy direct processing remains available only in the existing inbox-disabled
 mode. Reconciliation's count describes replay submissions, not proof of completed release.
+
+Dial cohorts now commit and send each group of at most 100 before preparing the next group. The
+cohort's lease/fence remains unchanged, but admission closure can stop later unreserved groups
+without a large already-admitted unsent tail. Successfully acknowledged groups retain their own
+task completion outcomes if a later group fails; only the unfinished suffix inherits that
+failure. Prepare/send profiling records cumulative group durations rather than one contiguous
+prepare phase followed by one send phase.
